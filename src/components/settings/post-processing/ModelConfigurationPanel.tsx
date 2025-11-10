@@ -38,6 +38,13 @@ export const ModelConfigurationPanel: React.FC = () => {
 
   const cachedModels = settings?.cached_models ?? [];
   const providerId = state.selectedProviderId;
+  const providerNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    settings?.post_process_providers.forEach((provider) => {
+      map[provider.id] = provider.label;
+    });
+    return map;
+  }, [settings?.post_process_providers]);
 
   const configuredIds = useMemo(() => {
     return new Set(cachedModels.map((model) => model.model_id));
@@ -302,7 +309,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                                 {cachedModel.name}
                               </p>
                               <span className="text-xs text-mid-gray/70 flex-shrink-0">
-                                {cachedModel.provider_id}
+                                {providerNameMap[cachedModel.provider_id] ??
+                                  cachedModel.provider_id}
                               </span>
                               {cachedModel.custom_label && (
                                 <span className="text-xs text-logo-primary font-medium bg-logo-primary/10 px-2 py-0.5 rounded">
@@ -355,7 +363,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                                 {cachedModel.name}
                               </p>
                               <span className="text-xs text-mid-gray/70 flex-shrink-0">
-                                {cachedModel.provider_id}
+                                {providerNameMap[cachedModel.provider_id] ??
+                                  cachedModel.provider_id}
                               </span>
                               {cachedModel.custom_label && (
                                 <span className="text-xs text-logo-primary font-medium bg-logo-primary/10 px-2 py-0.5 rounded">
@@ -408,7 +417,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                                 {cachedModel.name}
                               </p>
                               <span className="text-xs text-mid-gray/70 flex-shrink-0">
-                                {cachedModel.provider_id}
+                                {providerNameMap[cachedModel.provider_id] ??
+                                  cachedModel.provider_id}
                               </span>
                               {cachedModel.custom_label && (
                                 <span className="text-xs text-logo-primary font-medium bg-logo-primary/10 px-2 py-0.5 rounded">
