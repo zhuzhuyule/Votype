@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCcw } from "lucide-react";
-
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { Button } from "../../ui/Button";
-import { ResetButton } from "../../ui/ResetButton";
 import { Input } from "../../ui/Input";
 import { Dropdown } from "../../ui/Dropdown";
 import { Textarea } from "../../ui/Textarea";
@@ -13,10 +10,10 @@ import { Textarea } from "../../ui/Textarea";
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
-import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
+import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -95,45 +92,6 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         </div>
       </SettingContainer>
 
-      <SettingContainer
-        title="Model"
-        description={
-          state.isCustomProvider
-            ? "Provide the model identifier expected by your custom endpoint."
-            : "Choose a model exposed by the selected provider."
-        }
-        descriptionMode="tooltip"
-        layout="stacked"
-        grouped={true}
-      >
-        <div className="flex items-center gap-2">
-          <ModelSelect
-            value={state.model}
-            options={state.modelOptions}
-            disabled={state.isModelUpdating}
-            isLoading={state.isFetchingModels}
-            placeholder={
-              state.modelOptions.length > 0
-                ? "Search or select a model"
-                : "Type a model name"
-            }
-            onSelect={state.handleModelSelect}
-            onCreate={state.handleModelCreate}
-            onBlur={() => {}}
-            className="flex-1 min-w-[380px]"
-          />
-          <ResetButton
-            onClick={state.handleRefreshModels}
-            disabled={state.isFetchingModels}
-            ariaLabel="Refresh models"
-            className="flex h-10 w-10 items-center justify-center"
-          >
-            <RefreshCcw
-              className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
-            />
-          </ResetButton>
-        </div>
-      </SettingContainer>
     </>
   );
 };
@@ -413,15 +371,14 @@ export const PostProcessingSettingsPrompts = React.memo(
 );
 PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
-export const PostProcessingSettings: React.FC = () => {
+export const AiSettings: React.FC = () => {
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title="API (OpenAI Compatible)">
         <PostProcessingSettingsApi />
       </SettingsGroup>
-
-      <SettingsGroup title="Prompt">
-        <PostProcessingSettingsPrompts />
+      <SettingsGroup title="AI Model Config">
+        <ModelConfigurationPanel />
       </SettingsGroup>
     </div>
   );

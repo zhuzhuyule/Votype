@@ -1,5 +1,5 @@
 import React from "react";
-import { Cog, FlaskConical, History, Info, Sparkles } from "lucide-react";
+import { Cog, FlaskConical, History, Info, Sparkles, Layers } from "lucide-react";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
 import { useSettings } from "../hooks/useSettings";
@@ -9,7 +9,8 @@ import {
   HistorySettings,
   DebugSettings,
   AboutSettings,
-  PostProcessingSettings,
+  AiSettings,
+  ModelsSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -42,10 +43,16 @@ export const SECTIONS_CONFIG = {
     component: AdvancedSettings,
     enabled: () => true,
   },
-  postprocessing: {
-    label: "Post Process",
+  ai: {
+    label: "AI",
     icon: Sparkles,
-    component: PostProcessingSettings,
+    component: AiSettings,
+    enabled: (settings) => settings?.post_process_enabled ?? false,
+  },
+  models: {
+    label: "Models",
+    icon: Layers,
+    component: ModelsSettings,
     enabled: (settings) => settings?.post_process_enabled ?? false,
   },
   history: {

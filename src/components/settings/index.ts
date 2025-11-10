@@ -4,7 +4,8 @@ export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { DebugSettings } from "./debug/DebugSettings";
 export { HistorySettings } from "./history/HistorySettings";
 export { AboutSettings } from "./about/AboutSettings";
-export { PostProcessingSettings } from "./post-processing/PostProcessingSettings";
+export { AiSettings } from "./post-processing/PostProcessingSettings";
+export { ModelsSettings } from "./ModelsSettings";
 
 // Individual setting components
 export { MicrophoneSelector } from "./MicrophoneSelector";
