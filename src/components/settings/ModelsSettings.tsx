@@ -7,7 +7,7 @@ import { SettingsGroup } from '../ui';
 
 export const ModelsSettings: React.FC = () => {
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <div className="max-w-3xl w-full mx-auto p-6 shadow-sm space-y-8">
       <SettingsGroup title="ASR Model">
         <OnlineAsrSettings />
       </SettingsGroup>
