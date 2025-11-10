@@ -6,7 +6,8 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use crate::actions::ACTION_MAP;
 use crate::settings::ShortcutBinding;
 use crate::settings::{
-    self, get_settings, ClipboardHandling, LLMPrompt, OverlayPosition, PasteMethod, SoundTheme,
+    self, CachedModel, get_settings, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
+    PasteMethod, SoundTheme,
 };
 use crate::ManagedToggleState;
 
@@ -494,6 +495,142 @@ pub async fn fetch_post_process_models(
 
     // For now, use manual HTTP request to have more control over the endpoint
     fetch_models_manual(provider, api_key).await
+}
+
+#[tauri::command]
+pub fn add_cached_model(app: AppHandle, model: CachedModel) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if settings
+        .cached_models
+        .iter()
+        .any(|cached| cached.id == model.id)
+    {
+        return Err("Model already cached".to_string());
+    }
+
+    settings.cached_models.push(model);
+    settings::write_settings(&app, settings);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_cached_model_capability(
+    app: AppHandle,
+    model_id: String,
+    model_type: ModelType,
+    custom_label: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(model) = settings
+        .cached_models
+        .iter_mut()
+        .find(|cached| cached.id == model_id)
+    {
+        model.model_type = model_type;
+        model.custom_label = custom_label;
+
+        if model.model_type != ModelType::Asr
+            && settings
+                .selected_asr_model_id
+                .as_deref()
+                == Some(&model.id)
+        {
+            settings.selected_asr_model_id = None;
+        }
+
+        if model.model_type != ModelType::Text
+            && settings
+                .selected_prompt_model_id
+                .as_deref()
+                == Some(&model.id)
+        {
+            settings.selected_prompt_model_id = None;
+        }
+
+        settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        Err(format!("Cached model '{}' not found", model_id))
+    }
+}
+
+#[tauri::command]
+pub fn remove_cached_model(app: AppHandle, model_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let original_len = settings.cached_models.len();
+    settings.cached_models.retain(|cached| cached.id != model_id);
+
+    if settings.cached_models.len() == original_len {
+        return Err(format!("Cached model '{}' not found", model_id));
+    }
+
+    if settings.selected_asr_model_id.as_deref() == Some(&model_id) {
+        settings.selected_asr_model_id = None;
+    }
+    if settings.selected_prompt_model_id.as_deref() == Some(&model_id) {
+        settings.selected_prompt_model_id = None;
+    }
+
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn toggle_online_asr(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.online_asr_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(ref id) = model_id {
+        let model_is_asr = settings
+            .cached_models
+            .iter()
+            .find(|cached| cached.id == *id)
+            .map(|cached| cached.model_type == ModelType::Asr)
+            .unwrap_or(false);
+
+        if !model_is_asr {
+            return Err("Selected model is not an ASR model".to_string());
+        }
+    }
+
+    settings.selected_asr_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn select_post_process_model(
+    app: AppHandle,
+    model_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(ref id) = model_id {
+        let model_is_text = settings
+            .cached_models
+            .iter()
+            .find(|cached| cached.id == *id)
+            .map(|cached| cached.model_type == ModelType::Text)
+            .unwrap_or(false);
+
+        if !model_is_text {
+            return Err("Selected model is not a Text model".to_string());
+        }
+    }
+
+    settings.selected_prompt_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
 }
 
 /// Fetch models using manual HTTP request
