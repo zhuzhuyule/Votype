@@ -32,6 +32,26 @@ pub struct PostProcessProvider {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
+pub enum ModelType {
+    Text,
+    Asr,
+    Other,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct CachedModel {
+    pub id: String,
+    pub name: String,
+    pub model_type: ModelType,
+    pub provider_id: String,
+    pub model_id: String,
+    pub added_at: String,
+    #[serde(default)]
+    pub custom_label: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
 pub enum OverlayPosition {
     None,
     Top,
@@ -195,6 +215,14 @@ pub struct AppSettings {
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
+    #[serde(default)]
+    pub cached_models: Vec<CachedModel>,
+    #[serde(default)]
+    pub online_asr_enabled: bool,
+    #[serde(default)]
+    pub selected_asr_model_id: Option<String>,
+    #[serde(default)]
+    pub selected_prompt_model_id: Option<String>,
     #[serde(default)]
     pub mute_while_recording: bool,
 }
@@ -368,6 +396,10 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        cached_models: Vec::new(),
+        online_asr_enabled: false,
+        selected_asr_model_id: None,
+        selected_prompt_model_id: None,
         mute_while_recording: false,
     }
 }

@@ -61,6 +61,7 @@ export const CachedModelSchema = z.object({
   provider_id: z.string(),
   model_id: z.string(),
   added_at: z.string(),
+  custom_label: z.string().optional(),
 });
 
 export type CachedModel = z.infer<typeof CachedModelSchema>;
