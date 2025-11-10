@@ -322,20 +322,6 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
-        // Check if model is loaded, if not try to load it
-        {
-            // If the model is loading, wait for it to complete.
-            let mut is_loading = self.is_loading.lock().unwrap();
-            while *is_loading {
-                is_loading = self.loading_condvar.wait(is_loading).unwrap();
-            }
-
-            let engine_guard = self.engine.lock().unwrap();
-            if engine_guard.is_none() {
-                return Err(anyhow::anyhow!("Model is not loaded for transcription."));
-            }
-        }
-
         // Get current settings for configuration
         let settings = get_settings(&self.app_handle);
 
@@ -375,7 +361,7 @@ impl TranscriptionManager {
                             )
                         });
 
-                        match handle.join() {
+                        return match handle.join() {
                             Ok(Ok(text)) => {
                                 self.emit_online_asr_status("completed", None);
                                 let corrected = if !settings.custom_words.is_empty() {
@@ -387,22 +373,36 @@ impl TranscriptionManager {
                                 } else {
                                     text
                                 };
-                                return Ok(corrected.trim().to_string());
+                                Ok(corrected.trim().to_string())
                             }
                             Ok(Err(err)) => {
-                                self.emit_online_asr_status("failed", Some(err.to_string()));
-                                eprintln!("Online ASR failed: {:?}", err);
+                                let detail = err.to_string();
+                                self.emit_online_asr_status("failed", Some(detail.clone()));
+                                eprintln!("Online ASR failed: {:?}", detail);
+                                Err(anyhow::anyhow!("在线 ASR 请求失败：{}", detail))
                             }
                             Err(err) => {
-                                self.emit_online_asr_status(
-                                    "thread_failed",
-                                    Some(format!("{:?}", err)),
-                                );
-                                eprintln!("Online ASR thread panicked: {:?}", err);
+                                let detail = format!("{:?}", err);
+                                self.emit_online_asr_status("thread_failed", Some(detail.clone()));
+                                eprintln!("Online ASR thread panicked: {:?}", detail);
+                                Err(anyhow::anyhow!("在线 ASR 线程异常：{}", detail))
                             }
-                        }
+                        };
                     }
                 }
+            }
+        }
+
+        // Ensure local model is loaded before falling back
+        {
+            let mut is_loading = self.is_loading.lock().unwrap();
+            while *is_loading {
+                is_loading = self.loading_condvar.wait(is_loading).unwrap();
+            }
+
+            let engine_guard = self.engine.lock().unwrap();
+            if engine_guard.is_none() {
+                return Err(anyhow::anyhow!("Model is not loaded for transcription."));
             }
         }
 

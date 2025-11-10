@@ -717,6 +717,15 @@ pub fn toggle_online_asr(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.online_asr_enabled = enabled;
     settings::write_settings(&app, settings);
+
+    // 当开启在线 ASR 时，主动卸载已加载的本地模型，确保互斥
+    if enabled {
+        if let Some(tm) = app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>()
+        {
+            // 忽略卸载失败，保持不阻塞切换
+            let _ = tm.unload_model();
+        }
+    }
     Ok(())
 }
 
