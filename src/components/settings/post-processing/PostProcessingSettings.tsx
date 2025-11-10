@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { SettingsGroup } from "../../ui/SettingsGroup";
-import { SettingContainer } from "../../ui/SettingContainer";
+import React, { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
-import { Input } from "../../ui/Input";
 import { Dropdown } from "../../ui/Dropdown";
+import { Input } from "../../ui/Input";
+import { SettingContainer } from "../../ui/SettingContainer";
+import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
 
-import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
-import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
-import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
-import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
+import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
+import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
+import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
+import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
+import { ProviderManager } from "./ProviderManager";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -44,13 +45,11 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         layout="horizontal"
         grouped={true}
       >
-        <div className="flex items-center gap-2">
-          <ProviderSelect
-            options={state.providerOptions}
-            value={state.selectedProviderId}
-            onChange={state.handleProviderSelect}
-          />
-        </div>
+        <ProviderSelect
+          options={state.providerOptions}
+          value={state.selectedProviderId}
+          onChange={state.handleProviderSelect}
+        />
       </SettingContainer>
 
       <SettingContainer
@@ -91,7 +90,6 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
           />
         </div>
       </SettingContainer>
-
     </>
   );
 };
@@ -372,9 +370,24 @@ export const PostProcessingSettingsPrompts = React.memo(
 PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
 export const AiSettings: React.FC = () => {
+  const [isProviderManagerOpen, setProviderManagerOpen] = useState(false);
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title="API (OpenAI Compatible)">
+      <SettingsGroup
+        title="API (OpenAI Compatible)"
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setProviderManagerOpen(true)}
+          >
+            管理 Providers
+          </Button>
+        }
+      >
+        {isProviderManagerOpen && (
+          <ProviderManager onClose={() => setProviderManagerOpen(false)} />
+        )}
         <PostProcessingSettingsApi />
       </SettingsGroup>
       <SettingsGroup title="AI Model Config">

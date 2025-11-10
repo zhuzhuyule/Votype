@@ -46,6 +46,18 @@ interface UseSettingsReturn {
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  addCustomProvider: (payload: {
+    label: string;
+    baseUrl: string;
+    modelsEndpoint?: string;
+  }) => Promise<void>;
+  updateCustomProvider: (payload: {
+    providerId: string;
+    label?: string;
+    baseUrl?: string;
+    modelsEndpoint?: string;
+  }) => Promise<void>;
+  removeCustomProvider: (providerId: string) => Promise<void>;
   addCachedModel: (model: CachedModel) => Promise<void>;
   updateCachedModelType: (modelId: string, modelType: ModelType) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
@@ -91,5 +103,8 @@ export const useSettings = (): UseSettingsReturn => {
     toggleOnlineAsr: store.toggleOnlineAsr,
     selectAsrModel: store.selectAsrModel,
     selectPromptModel: store.selectPostProcessModel,
+    addCustomProvider: store.addCustomProvider,
+    updateCustomProvider: store.updateCustomProvider,
+    removeCustomProvider: store.removeCustomProvider,
   };
 };
