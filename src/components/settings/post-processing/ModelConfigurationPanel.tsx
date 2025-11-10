@@ -34,6 +34,7 @@ export const ModelConfigurationPanel: React.FC = () => {
   const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   const [pendingModelType, setPendingModelType] = useState<ModelType>("text");
   const [customTypeLabel, setCustomTypeLabel] = useState("");
+  const [isManualModelEntry, setIsManualModelEntry] = useState(false);
 
   const cachedModels = settings?.cached_models ?? [];
   const providerId = state.selectedProviderId;
@@ -50,15 +51,21 @@ export const ModelConfigurationPanel: React.FC = () => {
 
   useEffect(() => {
     if (availableModels.length === 0) {
-      setPendingModelId(null);
+      if (!isManualModelEntry) {
+        setPendingModelId(null);
+      }
       return;
     }
-    setPendingModelId((current) =>
-      current && availableModels.some((option) => option.value === current)
-        ? current
-        : availableModels[0].value,
-    );
-  }, [availableModels]);
+    setPendingModelId((current) => {
+      if (isManualModelEntry && current) {
+        return current;
+      }
+      if (current && availableModels.some((option) => option.value === current)) {
+        return current;
+      }
+      return availableModels[0].value;
+    });
+  }, [availableModels, isManualModelEntry]);
 
   const handleAddModel = useCallback(
     async (modelId: string, modelType: ModelType, customLabel?: string) => {
@@ -110,14 +117,15 @@ export const ModelConfigurationPanel: React.FC = () => {
         {isModelPickerOpen && (
           <>
             {/* 背景遮罩 */}
-            <div
-              className="fixed top-0 left-0 w-screen h-screen z-40 bg-black/50 backdrop-blur-sm"
-              onClick={() => {
-                setIsModelPickerOpen(false);
-                setCustomTypeLabel("");
-                setPendingModelType("text");
-              }}
-            />
+              <div
+                className="fixed top-0 left-0 w-screen h-screen z-40 bg-black/50 backdrop-blur-sm"
+                onClick={() => {
+                  setIsModelPickerOpen(false);
+                  setCustomTypeLabel("");
+                  setPendingModelType("text");
+                  setIsManualModelEntry(false);
+                }}
+              />
             {/* 居中弹窗 */}
             <div className="fixed left-1/2 top-1/2 z-50 w-[400px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-mid-gray/25 bg-white p-6 shadow-2xl">
               <div className="space-y-4">
@@ -132,11 +140,15 @@ export const ModelConfigurationPanel: React.FC = () => {
                 <Select
                   value={pendingModelId}
                   options={availableModels}
-                  onChange={(value) => setPendingModelId(value)}
+                  onChange={(value) => {
+                    setPendingModelId(value);
+                    setIsManualModelEntry(false);
+                  }}
                   onCreateOption={(inputValue) => {
                     const trimmedValue = inputValue.trim();
+                    if (!trimmedValue) return;
                     setPendingModelId(trimmedValue);
-                    return trimmedValue;
+                    setIsManualModelEntry(true);
                   }}
                   isCreatable
                   formatCreateLabel={(input) => `使用 "${input.trim()}"`}
@@ -200,23 +212,23 @@ export const ModelConfigurationPanel: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setIsModelPickerOpen(false);
-                      setCustomTypeLabel("");
-                      setPendingModelType("text");
-                    }}
+                  onClick={() => {
+                    setIsModelPickerOpen(false);
+                    setCustomTypeLabel("");
+                    setPendingModelType("text");
+                    setIsManualModelEntry(false);
+                  }}
                   >
                     取消
                   </Button>
                   <Button
                     variant="primary"
                     size="sm"
-                    disabled={
-                      !pendingModelId ||
-                      availableModels.length === 0 ||
-                      isUpdating("cached_model_add") ||
-                      (pendingModelType === "other" && !customTypeLabel.trim())
-                    }
+                  disabled={
+                    !pendingModelId ||
+                    isUpdating("cached_model_add") ||
+                    (pendingModelType === "other" && !customTypeLabel.trim())
+                  }
                     onClick={async () => {
                       if (pendingModelId) {
                         await handleAddModel(
