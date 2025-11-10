@@ -5,6 +5,7 @@ mod clipboard;
 mod commands;
 mod llm_client;
 mod managers;
+mod online_asr;
 mod overlay;
 mod settings;
 mod shortcut;

@@ -20,9 +20,19 @@ export const OnlineAsrSettings: React.FC = () => {
     [cachedModels],
   );
 
+  const providerNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    settings?.post_process_providers.forEach((provider) => {
+      map[provider.id] = provider.label;
+    });
+    return map;
+  }, [settings?.post_process_providers]);
+
   const asrOptions = asrModels.map((model) => ({
     value: model.id,
-    label: `${model.name} (${model.provider_id})`,
+    label: `${model.name} (${
+      providerNameMap[model.provider_id] ?? model.provider_id
+    })`,
   }));
 
   const selectedModelId = settings?.selected_asr_model_id || null;

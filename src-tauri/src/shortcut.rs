@@ -592,7 +592,7 @@ pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(),
         return Err("Only custom providers can be removed".to_string());
     }
 
-    let removed_provider = settings.post_process_providers.remove(idx);
+    let _removed_provider = settings.post_process_providers.remove(idx);
 
     let removed_cached_ids: Vec<String> = settings
         .cached_models
