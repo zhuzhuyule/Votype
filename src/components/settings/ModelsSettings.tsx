@@ -3,7 +3,8 @@ import React from "react";
 import { PromoteModelSelection } from "./post-processing/PromoteModelSelection";
 import { OnlineAsrSettings } from "./post-processing/OnlineAsrSettings";
 import { PostProcessingSettingsPrompts } from "./post-processing/PostProcessingSettings";
-import { SettingsGroup } from '../ui';
+import { SettingsGroup } from "../ui";
+import { PostProcessingToggle } from "./PostProcessingToggle";
 
 export const ModelsSettings: React.FC = () => {
   return (
@@ -12,6 +13,7 @@ export const ModelsSettings: React.FC = () => {
         <OnlineAsrSettings />
       </SettingsGroup>
       <SettingsGroup title="Prompt Model">
+        <PostProcessingToggle grouped={true}  />
         <div className="space-y-4">
           <PromoteModelSelection />
           <PostProcessingSettingsPrompts />
