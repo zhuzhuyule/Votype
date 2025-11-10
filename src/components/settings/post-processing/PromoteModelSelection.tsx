@@ -40,7 +40,7 @@ export const PromoteModelSelection: React.FC = () => {
           placeholder={
             options.length === 0
               ? "请先添加 Text 类型模型"
-              : "选择用作 Promote 的模型"
+              : "选择用作 Prompt 的模型"
           }
           disabled={
             options.length === 0 ||
@@ -49,7 +49,7 @@ export const PromoteModelSelection: React.FC = () => {
         />
         {options.length === 0 && (
           <p className="text-xs text-mid-gray/70">
-            需要在上方的模型配置中添加一个 Text 类型模型。
+            需要在「AI」设置中添加一个 Text 类型模型。
           </p>
         )}
       </div>

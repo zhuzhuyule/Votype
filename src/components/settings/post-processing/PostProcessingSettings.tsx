@@ -27,17 +27,16 @@ const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
 const PostProcessingSettingsApiComponent: React.FC = () => {
   const state = usePostProcessProviderState();
 
-  if (!state.enabled) {
-    return (
-      <DisabledNotice>
-        Post processing is currently disabled. Enable it in Debug settings to
-        configure.
-      </DisabledNotice>
-    );
-  }
-
   return (
     <>
+      {!state.enabled && (
+        <DisabledNotice>
+          Post processing is currently disabled. The AI and Model sections remain
+          configurable, but auto-post-processing will not run until you enable it
+          in Debug settings.
+        </DisabledNotice>
+      )}
+
       <SettingContainer
         title="Provider"
         description="Select an OpenAI-compatible provider."
