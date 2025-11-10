@@ -165,9 +165,14 @@ impl ShortcutAction for TranscribeAction {
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
-        // Load model in the background
-        let tm = app.state::<Arc<TranscriptionManager>>();
-        tm.initiate_model_load();
+        // 在线 ASR 模式下不要预加载本地模型
+        let settings_for_load = get_settings(app);
+        if !settings_for_load.online_asr_enabled {
+            let tm = app.state::<Arc<TranscriptionManager>>();
+            tm.initiate_model_load();
+        } else {
+            debug!("Online ASR enabled: skip preloading local model");
+        }
 
         let binding_id = binding_id.to_string();
         change_tray_icon(app, TrayIconState::Recording);
