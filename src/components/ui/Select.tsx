@@ -1,12 +1,17 @@
 import * as RadixSelect from "@radix-ui/react-select";
 import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
-import type { ActionMeta } from "react-select";
 
 export type SelectOption = {
   value: string;
   label: string;
   isDisabled?: boolean;
+};
+
+export type ActionMeta<TOption> = {
+  action: "select-option" | "clear" | "create-option";
+  option?: TOption;
+  removedValues?: TOption[];
 };
 
 type BaseProps = {
@@ -35,7 +40,7 @@ type NonCreatableProps = {
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
 const triggerBaseClasses =
-  "flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-logo-primary/50";
 
 const viewportClasses =
   "max-h-64 overflow-y-auto py-1.5 px-1 space-y-1";

@@ -24,7 +24,7 @@ interface DropdownProps {
 }
 
 const triggerClasses =
-  "w-full min-w-[200px] rounded-lg bg-background px-3 py-2 text-sm font-semibold text-left transition-all duration-150 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background";
+  "w-full min-w-[200px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 text-sm font-semibold text-left transition-all duration-150 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background hover:border-logo-primary/50";
 
 const contentClasses =
   "z-50 w-[220px] rounded-xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)]";
@@ -72,7 +72,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   );
 
   return (
-    <DropdownMenu open={open} onOpenChange={handleOpenChange} disabled={disabled}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <div className={`relative ${className}`}>
         <DropdownMenuTrigger asChild>
           <button
@@ -82,6 +82,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
                 ? "cursor-not-allowed opacity-60"
                 : "hover:border-logo-primary hover:bg-logo-primary/10"
             }`}
+            data-disabled={disabled}
             disabled={disabled}
             aria-haspopup="menu"
             aria-expanded={open}
