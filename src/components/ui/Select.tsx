@@ -35,16 +35,16 @@ type NonCreatableProps = {
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
 const triggerBaseClasses =
-  "flex items-center justify-between w-full min-h-[40px] rounded-lg border border-mid-gray/30 bg-background px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const viewportClasses =
   "max-h-64 overflow-y-auto py-1.5 px-1 space-y-1";
 
 const optionClasses =
-  "group flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer transition-colors shadow-sm";
+  "group flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer transition-colors duration-150 shadow-sm bg-transparent";
 
 const createRowClasses =
-  "flex items-center gap-2 px-3 py-2 border-b border-mid-gray/20";
+  "flex items-center gap-2 px-3 py-2";
 
 const spinnerClasses =
   "h-4 w-4 animate-spin rounded-full border-2 border-transparent border-t-logo-primary";
@@ -199,7 +199,7 @@ export const Select: React.FC<SelectProps> = React.memo(
 
         <RadixSelect.Portal>
           <RadixSelect.Content
-            className="z-30 w-[240px] rounded-2xl border border-mid-gray/30 bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
+            className="z-30 w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
           >
             <RadixSelect.Viewport className={viewportClasses}>
               {isCreatable && (

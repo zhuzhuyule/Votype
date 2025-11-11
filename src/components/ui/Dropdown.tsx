@@ -1,4 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuPortal,
+  DropdownMenuItem,
+} from "@radix-ui/react-dropdown-menu";
 
 export interface DropdownOption {
   value: string;
@@ -16,6 +23,18 @@ interface DropdownProps {
   onRefresh?: () => void;
 }
 
+const triggerClasses =
+  "w-full min-w-[200px] rounded-lg bg-background px-3 py-2 text-sm font-semibold text-left transition-all duration-150 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background";
+
+const contentClasses =
+  "z-50 w-[220px] rounded-xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)]";
+
+const viewportClasses =
+  "max-h-60 divide-y divide-mid-gray/10 overflow-y-auto";
+
+const optionClasses =
+  "flex w-full items-center px-3 py-2 text-sm transition-colors duration-150 bg-transparent";
+
 export const Dropdown: React.FC<DropdownProps> = ({
   options,
   selectedValue,
@@ -25,89 +44,99 @@ export const Dropdown: React.FC<DropdownProps> = ({
   disabled = false,
   onRefresh,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const selectedOption = options.find(
-    (option) => option.value === selectedValue,
+  const selectedLabel = useMemo(
+    () => options.find((option) => option.value === selectedValue)?.label,
+    [options, selectedValue],
   );
 
-  const handleSelect = (value: string) => {
-    onSelect(value);
-    setIsOpen(false);
-  };
+  const handleOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen && !disabled && onRefresh) {
+        onRefresh();
+      }
 
-  const handleToggle = () => {
-    if (disabled) return;
-    if (!isOpen && onRefresh) onRefresh();
-    setIsOpen(!isOpen);
-  };
+      setOpen(nextOpen);
+    },
+    [disabled, onRefresh],
+  );
+
+  const handleSelect = useCallback(
+    (value: string) => {
+      if (disabled) return;
+      onSelect(value);
+      setOpen(false);
+    },
+    [disabled, onSelect],
+  );
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
-      <button
-        type="button"
-        className={`px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded min-w-[200px] text-left flex items-center justify-between transition-all duration-150 ${
-          disabled
-            ? "opacity-50 cursor-not-allowed"
-            : "hover:bg-logo-primary/10 cursor-pointer hover:border-logo-primary"
-        }`}
-        onClick={handleToggle}
-        disabled={disabled}
-      >
-        <span className="truncate">{selectedOption?.label || placeholder}</span>
-        <svg
-          className={`w-4 h-4 ml-2 transition-transform duration-200 ${isOpen ? "transform rotate-180" : ""}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
-      {isOpen && !disabled && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-mid-gray/80 rounded shadow-lg z-50 max-h-60 overflow-y-auto">
-          {options.length === 0 ? (
-            <div className="px-2 py-1 text-sm text-mid-gray">
-              No options found
+    <DropdownMenu open={open} onOpenChange={handleOpenChange} disabled={disabled}>
+      <div className={`relative ${className}`}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`${triggerClasses} ${
+              disabled
+                ? "cursor-not-allowed opacity-60"
+                : "hover:border-logo-primary hover:bg-logo-primary/10"
+            }`}
+            disabled={disabled}
+            aria-haspopup="menu"
+            aria-expanded={open}
+          >
+            <span className="truncate">
+              {selectedLabel || placeholder}
+            </span>
+            <svg
+              className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuPortal>
+          <DropdownMenuContent
+            className={contentClasses}
+            sideOffset={8}
+            align="start"
+          >
+            <div className={viewportClasses}>
+              {options.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-mid-gray">
+                  No options found
+                </div>
+              ) : (
+                options.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    className={`${optionClasses} ${
+                      option.disabled
+                        ? "cursor-not-allowed opacity-40"
+                        : "hover:bg-logo-primary/10 focus:bg-logo-primary/10 data-[state=checked]:bg-logo-primary/10"
+                    }`}
+                    onSelect={() => handleSelect(option.value)}
+                    disabled={option.disabled}
+                  >
+                    <span className="truncate">{option.label}</span>
+                  </DropdownMenuItem>
+                ))
+              )}
             </div>
-          ) : (
-            options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`w-full px-2 py-1 text-sm text-left hover:bg-logo-primary/10 transition-colors duration-150 ${
-                  selectedValue === option.value
-                    ? "bg-logo-primary/20 font-semibold"
-                    : ""
-                } ${option.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                onClick={() => handleSelect(option.value)}
-                disabled={option.disabled}
-              >
-                <span className="truncate">{option.label}</span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
+          </DropdownMenuContent>
+        </DropdownMenuPortal>
+      </div>
+    </DropdownMenu>
   );
 };
