@@ -3,6 +3,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { SettingContainer } from "../ui/SettingContainer";
+import Badge from "../ui/Badge";
 
 interface CustomWordsProps {
   descriptionMode?: "inline" | "tooltip";
@@ -79,33 +80,21 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
         </SettingContainer>
         {customWords.length > 0 && (
           <div
-            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} flex flex-wrap gap-1`}
+            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} flex flex-wrap gap-2`}
           >
             {customWords.map((word) => (
-              <Button
+              <Badge
                 key={word}
-                onClick={() => handleRemoveWord(word)}
-                disabled={isUpdating("custom_words")}
                 variant="secondary"
-                size="sm"
-                className="inline-flex items-center gap-1 cursor-pointer"
-                aria-label={`Remove ${word}`}
+                size="md"
+                onRemove={
+                  isUpdating("custom_words")
+                    ? undefined
+                    : () => handleRemoveWord(word)
+                }
               >
-                <span>{word}</span>
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </Button>
+                {word}
+              </Badge>
             ))}
           </div>
         )}
