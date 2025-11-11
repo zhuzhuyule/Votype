@@ -1,5 +1,6 @@
 import { useThemeContext } from "@radix-ui/themes";
 import React from "react";
+import { Button } from "../../ui/Button";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 
@@ -56,10 +57,10 @@ export const ThemeSettings: React.FC = () => {
       >
         <div className="flex flex-wrap gap-2">
           {APPEARANCE_OPTIONS.map((option) => (
-            <button
+            <Button
               key={option.value}
-              type="button"
-              aria-pressed={appearance === option.value}
+              variant={appearance === option.value ? "primary" : "secondary"}
+              size="sm"
               onClick={() => onAppearanceChange(option.value)}
               className={`px-3 py-1 rounded-full border text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary ${
                 appearance === option.value
@@ -68,7 +69,7 @@ export const ThemeSettings: React.FC = () => {
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       </SettingContainer>
@@ -81,10 +82,10 @@ export const ThemeSettings: React.FC = () => {
       >
         <div className="flex flex-wrap gap-2">
           {ACCENT_OPTIONS.map((option) => (
-            <button
+            <Button
               key={option.value}
-              type="button"
-              aria-pressed={accentColor === option.value}
+              variant={accentColor === option.value ? "primary" : "ghost"}
+              size="sm"
               onClick={() => onAccentColorChange(option.value)}
               className={`flex items-center justify-center rounded-full border-2 p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary ${
                 accentColor === option.value
@@ -98,7 +99,7 @@ export const ThemeSettings: React.FC = () => {
                   backgroundColor: `var(--${option.value}-9, #94a3b8)`,
                 }}
               />
-            </button>
+            </Button>
           ))}
         </div>
       </SettingContainer>
@@ -111,10 +112,10 @@ export const ThemeSettings: React.FC = () => {
       >
         <div className="flex flex-wrap gap-2">
           {PANEL_OPTIONS.map((option) => (
-            <button
+            <Button
               key={option.value}
-              type="button"
-              aria-pressed={panelBackground === option.value}
+              variant={panelBackground === option.value ? "primary" : "secondary"}
+              size="sm"
               onClick={() => onPanelBackgroundChange(option.value)}
               className={`px-3 py-1 rounded-full border text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary ${
                 panelBackground === option.value
@@ -123,7 +124,7 @@ export const ThemeSettings: React.FC = () => {
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       </SettingContainer>
@@ -136,10 +137,10 @@ export const ThemeSettings: React.FC = () => {
       >
         <div className="flex flex-wrap gap-2">
           {RADIUS_OPTIONS.map((option) => (
-            <button
+            <Button
               key={option.value}
-              type="button"
-              aria-pressed={radius === option.value}
+              variant={radius === option.value ? "primary" : "secondary"}
+              size="sm"
               onClick={() => onRadiusChange(option.value)}
               className={`px-3 py-1 rounded-full border text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary ${
                 radius === option.value
@@ -148,7 +149,7 @@ export const ThemeSettings: React.FC = () => {
               }`}
             >
               {option.label}
-            </button>
+            </Button>
           ))}
         </div>
       </SettingContainer>
@@ -161,10 +162,10 @@ export const ThemeSettings: React.FC = () => {
       >
         <div className="flex flex-wrap gap-2">
           {SCALING_OPTIONS.map((value) => (
-            <button
+            <Button
               key={value}
-              type="button"
-              aria-pressed={scaling === value}
+              variant={scaling === value ? "primary" : "secondary"}
+              size="sm"
               onClick={() => onScalingChange(value)}
               className={`px-3 py-1 rounded-full border text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary ${
                 scaling === value
@@ -173,7 +174,7 @@ export const ThemeSettings: React.FC = () => {
               }`}
             >
               {value}
-            </button>
+            </Button>
           ))}
         </div>
       </SettingContainer>

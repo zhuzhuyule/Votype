@@ -6,6 +6,7 @@ import {
   normalizeKey,
   type OSType,
 } from "../../lib/utils/keyboard";
+import { Input } from "../ui/Input";
 import { ResetButton } from "../ui/ResetButton";
 import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
@@ -30,7 +31,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
   );
   const [originalBinding, setOriginalBinding] = useState<string>("");
   const [osType, setOsType] = useState<OSType>("unknown");
-  const shortcutRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+  const editingInputRef = useRef<HTMLInputElement>(null);
 
   const bindings = getSetting("bindings") || {};
 
@@ -164,43 +165,13 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
       }
     };
 
-    // Add click outside handler
-    const handleClickOutside = async (e: MouseEvent) => {
-      if (cleanup) return;
-      const activeElement = shortcutRefs.current.get(editingShortcutId);
-      if (activeElement && !activeElement.contains(e.target as Node)) {
-        // Cancel shortcut recording and restore original binding
-        if (editingShortcutId && originalBinding) {
-          try {
-            await updateBinding(editingShortcutId, originalBinding);
-            await invoke("resume_binding", { id: editingShortcutId }).catch(
-              console.error,
-            );
-          } catch (error) {
-            console.error("Failed to restore original binding:", error);
-            toast.error("Failed to restore original shortcut");
-          }
-        } else if (editingShortcutId) {
-          invoke("resume_binding", { id: editingShortcutId }).catch(
-            console.error,
-          );
-        }
-        setEditingShortcutId(null);
-        setKeyPressed([]);
-        setRecordedKeys([]);
-        setOriginalBinding("");
-      }
-    };
-
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("click", handleClickOutside);
 
     return () => {
       cleanup = true;
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("click", handleClickOutside);
     };
   }, [
     keyPressed,
@@ -232,11 +203,6 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
 
     // Use the same formatting as the display to ensure consistency
     return formatKeyCombination(recordedKeys.join("+"), osType);
-  };
-
-  // Store references to shortcut elements
-  const setShortcutRef = (id: string, ref: HTMLDivElement | null) => {
-    shortcutRefs.current.set(id, ref);
   };
 
   // If still loading, show loading state
@@ -288,19 +254,19 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
         return (
           <div className="flex items-center space-x-1">
             {editingShortcutId === primaryId ? (
-              <div
-                ref={(ref) => setShortcutRef(primaryId, ref)}
-                className="px-2 py-1 text-sm font-semibold border border-logo-primary bg-logo-primary/30 rounded min-w-[120px] text-center"
-              >
-                {formatCurrentKeys()}
-              </div>
+              <Input
+                ref={editingInputRef}
+                value={formatCurrentKeys()}
+                readOnly
+                className="min-w-[140px] text-sm font-semibold text-center cursor-text border-logo-primary bg-logo-primary/30"
+              />
             ) : (
-              <div
-                className="px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded cursor-pointer hover:border-logo-primary"
+              <Input
+                value={formatKeyCombination(primaryBinding.current_binding, osType)}
+                readOnly
+                className="min-w-[140px] text-sm font-semibold cursor-pointer"
                 onClick={() => startRecording(primaryId)}
-              >
-                {formatKeyCombination(primaryBinding.current_binding, osType)}
-              </div>
+              />
             )}
             <ResetButton
               onClick={() => resetBinding(primaryId)}

@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "../ui/Button";
 
 type ModelStatus =
   | "ready"
@@ -55,8 +56,10 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
   };
 
   return (
-    <button
+    <Button
       onClick={onClick}
+      variant="ghost"
+      size="sm"
       className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
       title={`Model status: ${displayText}`}
     >
@@ -84,7 +87,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
           d="M19 9l-7 7-7-7"
         />
       </svg>
-    </button>
+    </Button>
   );
 };
 

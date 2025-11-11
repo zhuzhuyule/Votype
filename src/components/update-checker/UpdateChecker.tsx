@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { listen } from "@tauri-apps/api/event";
+import { Button } from "../ui/Button";
 import { ProgressBar } from "../shared";
 
 interface UpdateCheckerProps {
@@ -146,9 +147,11 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   return (
     <div className={`flex items-center gap-3 ${className}`}>
       {isUpdateClickable ? (
-        <button
+        <Button
           onClick={getUpdateStatusAction()}
           disabled={isUpdateDisabled}
+          variant="ghost"
+          size="sm"
           className={`transition-colors disabled:opacity-50 tabular-nums ${
             updateAvailable
               ? "text-logo-primary hover:text-logo-primary/80 font-medium"
@@ -156,7 +159,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
           }`}
         >
           {getUpdateStatusText()}
-        </button>
+        </Button>
       ) : (
         <span className="text-text/60 tabular-nums">
           {getUpdateStatusText()}

@@ -3,6 +3,7 @@ import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
 } from "tauri-plugin-macos-permissions-api";
+import { Button } from "./ui/Button";
 
 // Define permission state type
 type PermissionState = "request" | "verify" | "granted";
@@ -10,7 +11,7 @@ type PermissionState = "request" | "verify" | "granted";
 // Define button configuration type
 interface ButtonConfig {
   text: string;
-  className: string;
+  variant: "primary" | "secondary";
 }
 
 const AccessibilityPermissions: React.FC = () => {
@@ -62,13 +63,11 @@ const AccessibilityPermissions: React.FC = () => {
   const buttonConfig: Record<PermissionState, ButtonConfig | null> = {
     request: {
       text: "Grant",
-      className:
-        "px-2 py-1 text-sm font-semibold bg-mid-gray/10 border  border-mid-gray/80 hover:bg-logo-primary/10 rounded cursor-pointer hover:border-logo-primary",
+      variant: "primary",
     },
     verify: {
       text: "Verify",
-      className:
-        "bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-3 rounded text-sm flex items-center justify-center cursor-pointer",
+      variant: "secondary",
     },
     granted: null,
   };
@@ -83,12 +82,14 @@ const AccessibilityPermissions: React.FC = () => {
             Please grant accessibility permissions for Handy
           </p>
         </div>
-        <button
+        <Button
           onClick={handleButtonClick}
-          className={`min-h-10 ${config.className}`}
+          variant={config.variant}
+          size="sm"
+          className="min-h-10"
         >
           {config.text}
-        </button>
+        </Button>
       </div>
     </div>
   );

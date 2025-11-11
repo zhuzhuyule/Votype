@@ -57,6 +57,13 @@
   text-align: center;
 }
 
+/* 全局禁用focus-visible样式 */
+*:focus-visible {
+  outline: none !important;
+  ring: none !important;
+  box-shadow: none !important;
+}
+
 @layer utilities {
   .text-stroke {
     -webkit-text-stroke: 2px var(--color-text-stroke);
