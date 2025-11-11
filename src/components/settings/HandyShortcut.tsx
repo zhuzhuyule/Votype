@@ -290,13 +290,13 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
             {editingShortcutId === primaryId ? (
               <div
                 ref={(ref) => setShortcutRef(primaryId, ref)}
-                className="px-2 py-1 text-sm font-semibold border border-logo-primary bg-logo-primary/30 rounded min-w-[120px] text-center"
+                className="px-3 py-2 text-sm font-normal border border-logo-primary/40 bg-logo-primary/10 rounded-md min-w-[120px] text-center transition-all duration-200"
               >
                 {formatCurrentKeys()}
               </div>
             ) : (
               <div
-                className="px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded cursor-pointer hover:border-logo-primary"
+                className="px-3 py-2 text-sm font-normal bg-white border border-mid-gray/15 hover:border-mid-gray/25 rounded-md cursor-pointer transition-all duration-200 focus:outline-none focus:border-logo-primary focus:ring-2 focus:ring-logo-primary/20"
                 onClick={() => startRecording(primaryId)}
               >
                 {formatKeyCombination(primaryBinding.current_binding, osType)}

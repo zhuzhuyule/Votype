@@ -67,7 +67,10 @@ export const ModelConfigurationPanel: React.FC = () => {
       if (isManualModelEntry && current) {
         return current;
       }
-      if (current && availableModels.some((option) => option.value === current)) {
+      if (
+        current &&
+        availableModels.some((option) => option.value === current)
+      ) {
         return current;
       }
       return availableModels[0].value;
@@ -119,20 +122,26 @@ export const ModelConfigurationPanel: React.FC = () => {
   }, [isModelPickerOpen, state]);
 
   return (
-    <SettingContainer title="" description="" layout="stacked" descriptionMode="inline" grouped={true}>
+    <SettingContainer
+      title=""
+      description=""
+      layout="stacked"
+      descriptionMode="inline"
+      grouped={true}
+    >
       <div className="space-y-5 relative">
         {isModelPickerOpen && (
           <>
             {/* 背景遮罩 */}
-              <div
-                className="fixed top-0 left-0 w-screen h-screen z-40 bg-black/50 backdrop-blur-sm"
-                onClick={() => {
-                  setIsModelPickerOpen(false);
-                  setCustomTypeLabel("");
-                  setPendingModelType("text");
-                  setIsManualModelEntry(false);
-                }}
-              />
+            <div
+              className="fixed top-0 left-0 w-screen h-screen z-40 bg-black/50 backdrop-blur-sm"
+              onClick={() => {
+                setIsModelPickerOpen(false);
+                setCustomTypeLabel("");
+                setPendingModelType("text");
+                setIsManualModelEntry(false);
+              }}
+            />
             {/* 居中弹窗 */}
             <div className="fixed left-1/2 top-1/2 z-50 w-[400px] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-mid-gray/25 bg-white p-6 shadow-2xl">
               <div className="space-y-4">
@@ -184,7 +193,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                           onClick={() => setPendingModelType(option.value)}
                           type="button"
                         >
-                          <p className="text-sm font-semibold flex items-center justify-between">
+                          <p className="text-sm font-medium flex items-center justify-between">
                             <span>{option.label}</span>
                             {isActive && (
                               <span className="text-[10px] uppercase tracking-wide text-logo-primary bg-logo-primary/15 px-2 py-0.5 rounded-full">
@@ -206,7 +215,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                       自定义标签
                     </p>
                     <input
-                      className="w-full rounded-lg border border-mid-gray/30 px-3 py-2 text-sm focus:border-logo-primary focus:outline-none focus:ring-2 focus:ring-logo-primary/20 transition-all"
+                      className="w-full rounded-md border border-mid-gray/15 px-3 py-2 text-sm font-normal focus:border-logo-primary focus:outline-none focus:ring-2 focus:ring-logo-primary/20 transition-all bg-white"
                       placeholder="输入自定义模型标签"
                       value={customTypeLabel}
                       onChange={(event) =>
@@ -219,23 +228,23 @@ export const ModelConfigurationPanel: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                  onClick={() => {
-                    setIsModelPickerOpen(false);
-                    setCustomTypeLabel("");
-                    setPendingModelType("text");
-                    setIsManualModelEntry(false);
-                  }}
+                    onClick={() => {
+                      setIsModelPickerOpen(false);
+                      setCustomTypeLabel("");
+                      setPendingModelType("text");
+                      setIsManualModelEntry(false);
+                    }}
                   >
                     取消
                   </Button>
                   <Button
                     variant="primary"
                     size="sm"
-                  disabled={
-                    !pendingModelId ||
-                    isUpdating("cached_model_add") ||
-                    (pendingModelType === "other" && !customTypeLabel.trim())
-                  }
+                    disabled={
+                      !pendingModelId ||
+                      isUpdating("cached_model_add") ||
+                      (pendingModelType === "other" && !customTypeLabel.trim())
+                    }
                     onClick={async () => {
                       if (pendingModelId) {
                         await handleAddModel(

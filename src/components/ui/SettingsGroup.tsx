@@ -28,8 +28,8 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
         )}
         {actions && <div className="px-4">{actions}</div>}
       </div>
-      <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-        <div className="divide-y divide-mid-gray/20">{children}</div>
+      <div className="bg-white border border-mid-gray/10 rounded-lg overflow-visible">
+        <div className="divide-y divide-mid-gray/10">{children}</div>
       </div>
     </div>
   );

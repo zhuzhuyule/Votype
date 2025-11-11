@@ -43,8 +43,7 @@ export const PromoteModelSelection: React.FC = () => {
               : "选择用作 Prompt 的模型"
           }
           disabled={
-            options.length === 0 ||
-            isUpdating("select_post_process_model")
+            options.length === 0 || isUpdating("select_post_process_model")
           }
         />
         {options.length === 0 && (

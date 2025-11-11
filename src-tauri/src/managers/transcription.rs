@@ -345,7 +345,10 @@ impl TranscriptionManager {
                             .get(&provider.id)
                             .filter(|key| !key.trim().is_empty())
                             .cloned();
-                        println!("Starting online ASR (provider={}, model={})", provider.label, cached_model.model_id);
+                        println!(
+                            "Starting online ASR (provider={}, model={})",
+                            provider.label, cached_model.model_id
+                        );
                         self.emit_online_asr_status("started", None);
                         let provider_clone = provider.clone();
                         let model_id = cached_model.model_id.clone();

@@ -6,11 +6,11 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use crate::actions::ACTION_MAP;
 use crate::settings::ShortcutBinding;
 use crate::settings::{
-    self, CachedModel, get_settings, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
+    self, get_settings, CachedModel, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
     PasteMethod, PostProcessProvider, SoundTheme,
 };
-use chrono::Utc;
 use crate::ManagedToggleState;
+use chrono::Utc;
 
 pub fn init_shortcuts(app: &AppHandle) {
     let settings = settings::load_or_create_app_settings(app);
@@ -525,8 +525,12 @@ pub fn add_custom_provider(
             .flatten(),
     };
 
-    settings.post_process_api_keys.insert(id.clone(), String::new());
-    settings.post_process_models.insert(id.clone(), String::new());
+    settings
+        .post_process_api_keys
+        .insert(id.clone(), String::new());
+    settings
+        .post_process_models
+        .insert(id.clone(), String::new());
     settings.post_process_providers.push(provider.clone());
     settings::write_settings(&app, settings);
 
@@ -667,19 +671,13 @@ pub fn update_cached_model_capability(
         model.custom_label = custom_label;
 
         if model.model_type != ModelType::Asr
-            && settings
-                .selected_asr_model_id
-                .as_deref()
-                == Some(&model.id)
+            && settings.selected_asr_model_id.as_deref() == Some(&model.id)
         {
             settings.selected_asr_model_id = None;
         }
 
         if model.model_type != ModelType::Text
-            && settings
-                .selected_prompt_model_id
-                .as_deref()
-                == Some(&model.id)
+            && settings.selected_prompt_model_id.as_deref() == Some(&model.id)
         {
             settings.selected_prompt_model_id = None;
         }
@@ -695,7 +693,9 @@ pub fn update_cached_model_capability(
 pub fn remove_cached_model(app: AppHandle, model_id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     let original_len = settings.cached_models.len();
-    settings.cached_models.retain(|cached| cached.id != model_id);
+    settings
+        .cached_models
+        .retain(|cached| cached.id != model_id);
 
     if settings.cached_models.len() == original_len {
         return Err(format!("Cached model '{}' not found", model_id));
@@ -720,7 +720,8 @@ pub fn toggle_online_asr(app: AppHandle, enabled: bool) -> Result<(), String> {
 
     // 当开启在线 ASR 时，主动卸载已加载的本地模型，确保互斥
     if enabled {
-        if let Some(tm) = app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>()
+        if let Some(tm) =
+            app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>()
         {
             // 忽略卸载失败，保持不阻塞切换
             let _ = tm.unload_model();
@@ -752,10 +753,7 @@ pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn select_post_process_model(
-    app: AppHandle,
-    model_id: Option<String>,
-) -> Result<(), String> {
+pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
     if let Some(ref id) = model_id {
