@@ -29,7 +29,11 @@ export const Textarea: React.FC<TextareaProps> = ({
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const charCount =
-    typeof value === "string" ? value.length : (value as string)?.length || 0;
+    typeof value === "string"
+      ? value.length
+      : Array.isArray(value)
+        ? value.join("").length
+        : 0;
 
   const baseClasses =
     "w-full text-sm font-semibold bg-mid-gray/10 border rounded text-left transition-all duration-200 ease-in-out resize-y";

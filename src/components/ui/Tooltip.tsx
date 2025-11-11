@@ -34,17 +34,17 @@ export const Tooltip: React.FC<TooltipProps> = ({
           <PopoverButton
             as="div"
             className="cursor-help focus:outline-none"
-            onMouseEnter={(e: React.MouseEvent) => {
-              const button = e.currentTarget;
+            onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+              const button = e.currentTarget as HTMLElement;
               setTimeout(() => {
-                if (button.matches(":hover")) {
-                  button.click();
+                if (button.matches && button.matches(":hover")) {
+                  (button as HTMLElement).click?.();
                 }
               }, 500);
             }}
-            onMouseLeave={(e: React.MouseEvent) => {
+            onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
               if (open) {
-                e.currentTarget.click();
+                (e.currentTarget as HTMLElement).click?.();
               }
             }}
           >
