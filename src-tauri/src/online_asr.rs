@@ -7,7 +7,6 @@ use std::io::Cursor;
 use std::time::Duration;
 
 const DEFAULT_TRANSCRIPTION_PATH: &str = "audio/transcriptions";
-const DEFAULT_SAMPLE_RATE: u32 = 16000;
 
 #[derive(Clone, Serialize)]
 pub struct OnlineAsrStatusEvent {
