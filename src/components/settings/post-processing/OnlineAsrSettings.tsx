@@ -6,12 +6,8 @@ import { Select } from "../../ui/Select";
 import { useSettings } from "../../../hooks/useSettings";
 
 export const OnlineAsrSettings: React.FC = () => {
-  const {
-    settings,
-    toggleOnlineAsr,
-    selectAsrModel,
-    isUpdating,
-  } = useSettings();
+  const { settings, toggleOnlineAsr, selectAsrModel, isUpdating } =
+    useSettings();
 
   const enabled = settings?.online_asr_enabled || false;
   const cachedModels = settings?.cached_models || [];

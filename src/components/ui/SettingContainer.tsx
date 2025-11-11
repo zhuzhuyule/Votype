@@ -188,17 +188,20 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     );
   }
 
+  // Inline description mode
   return (
     <div className={horizontalContainerClasses}>
-      <div className="max-w-2/3">
+      <div className="flex-1">
         <h3 className={`text-sm font-medium ${disabled ? "opacity-50" : ""}`}>
           {title}
         </h3>
-        <p className={`text-sm ${disabled ? "opacity-50" : ""}`}>
+        <p
+          className={`text-xs mt-1 ${disabled ? "opacity-50" : "text-mid-gray"}`}
+        >
           {description}
         </p>
       </div>
-      <div className="relative">{children}</div>
+      <div className="relative flex-shrink-0 ml-4">{children}</div>
     </div>
   );
 };

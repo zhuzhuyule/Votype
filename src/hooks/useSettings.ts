@@ -1,11 +1,6 @@
 import { useEffect } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
-import {
-  Settings,
-  AudioDevice,
-  CachedModel,
-  ModelType,
-} from "../lib/types";
+import { Settings, AudioDevice, CachedModel, ModelType } from "../lib/types";
 
 interface UseSettingsReturn {
   // State
@@ -59,7 +54,10 @@ interface UseSettingsReturn {
   }) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
   addCachedModel: (model: CachedModel) => Promise<void>;
-  updateCachedModelType: (modelId: string, modelType: ModelType) => Promise<void>;
+  updateCachedModelType: (
+    modelId: string,
+    modelType: ModelType,
+  ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;

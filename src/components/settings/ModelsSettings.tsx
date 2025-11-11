@@ -13,7 +13,7 @@ export const ModelsSettings: React.FC = () => {
         <OnlineAsrSettings />
       </SettingsGroup>
       <SettingsGroup title="Prompt Model">
-        <PostProcessingToggle grouped={true}  />
+        <PostProcessingToggle grouped={true} />
         <div className="space-y-4">
           <PromoteModelSelection />
           <PostProcessingSettingsPrompts />

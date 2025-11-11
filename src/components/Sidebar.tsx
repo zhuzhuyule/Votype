@@ -1,5 +1,12 @@
 import React from "react";
-import { Cog, FlaskConical, History, Info, Sparkles, Layers } from "lucide-react";
+import {
+  Cog,
+  FlaskConical,
+  History,
+  Info,
+  Sparkles,
+  Layers,
+} from "lucide-react";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
 import { useSettings } from "../hooks/useSettings";
@@ -91,29 +98,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-r border-mid-gray/20 items-center px-2">
-      <HandyTextLogo width={120} className="m-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
-        {availableSections.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.id;
-
-          return (
-            <div
-              key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
-                isActive
-                  ? "bg-logo-primary/80"
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              }`}
-              onClick={() => onSectionChange(section.id)}
-            >
-              <Icon width={24} height={24} />
-              <p className="text-sm font-medium">{section.label}</p>
-            </div>
-          );
-        })}
+    <nav className="flex flex-col w-48 h-full border-r border-mid-gray/20 bg-background/50 backdrop-blur-sm">
+      {/* Logo Section */}
+      <div className="flex items-center justify-center px-4 py-4 border-b border-mid-gray/20">
+        <HandyTextLogo width={120} />
       </div>
-    </div>
+
+      {/* Navigation Sections */}
+      <div className="flex-1 overflow-y-auto px-2 py-4">
+        <div
+          className="flex flex-col gap-1"
+          role="navigation"
+          aria-label="Main navigation"
+        >
+          {availableSections.map((section) => {
+            const Icon = section.icon;
+            const isActive = activeSection === section.id;
+
+            return (
+              <button
+                key={section.id}
+                onClick={() => onSectionChange(section.id)}
+                className={`flex gap-3 items-center px-3 py-2 w-full rounded-lg font-medium text-sm transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-inset ${
+                  isActive
+                    ? "bg-logo-primary/20 text-logo-primary shadow-sm"
+                    : "text-text hover:bg-mid-gray/10 opacity-85 hover:opacity-100"
+                }`}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <Icon width={20} height={20} className="flex-shrink-0" />
+                <span className="flex-1 text-left">{section.label}</span>
+                {isActive && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-logo-primary flex-shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
   );
 };

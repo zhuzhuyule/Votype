@@ -174,14 +174,20 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm">{model.name}</div>
-                  <div className="text-xs text-text/40 italic">{model.providerLabel}</div>
+                  <div className="text-xs text-text/40 italic">
+                    {model.providerLabel}
+                  </div>
                 </div>
                 {selectedAsrModelId === model.id && (
-                  <span className="text-xs uppercase text-logo-primary">Selected</span>
+                  <span className="text-xs uppercase text-logo-primary">
+                    Selected
+                  </span>
                 )}
               </div>
               <div className="text-[10px] text-center text-mid-gray/70 mt-1">
-                {onlineEnabled ? "Online ASR active" : "Click to enable Online ASR"}
+                {onlineEnabled
+                  ? "Online ASR active"
+                  : "Click to enable Online ASR"}
               </div>
             </div>
           ))}
