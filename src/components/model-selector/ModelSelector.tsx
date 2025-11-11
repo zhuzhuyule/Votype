@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ModelInfo } from "../../lib/types";
 import ModelStatusButton from "./ModelStatusButton";
 import ModelDropdown from "./ModelDropdown";
 import DownloadProgressDisplay from "./DownloadProgressDisplay";
+import { useSettings } from "../../hooks/useSettings";
 
 interface ModelStateEvent {
   event_type: string;
@@ -54,6 +55,39 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   >(new Map());
   const [extractingModels, setExtractingModels] = useState<Set<string>>(
     new Set(),
+  );
+  const { settings, selectAsrModel, toggleOnlineAsr } = useSettings();
+
+  const cachedModels = settings?.cached_models || [];
+  const providerNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    settings?.post_process_providers.forEach((provider) => {
+      map[provider.id] = provider.label;
+    });
+    return map;
+  }, [settings?.post_process_providers]);
+
+  const asrModels = useMemo(
+    () =>
+      cachedModels
+        .filter((model) => model.model_type === "asr")
+        .map((model) => ({
+          id: model.id,
+          name: model.name,
+          providerLabel:
+            providerNameMap[model.provider_id] ?? model.provider_id,
+        })),
+    [cachedModels, providerNameMap],
+  );
+
+  const selectedAsrModel = useMemo(
+    () =>
+      cachedModels.find(
+        (model) =>
+          model.model_type === "asr" &&
+          model.id === settings?.selected_asr_model_id,
+      ) ?? null,
+    [cachedModels, settings?.selected_asr_model_id],
   );
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -274,6 +308,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     try {
       setModelError(null);
       setShowModelDropdown(false);
+      if (settings?.online_asr_enabled) {
+        await toggleOnlineAsr(false);
+      }
       await invoke("set_active_model", { modelId });
       setCurrentModelId(modelId);
     } catch (err) {
@@ -324,7 +361,20 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       }
     }
 
+    const onlineActive =
+      settings?.online_asr_enabled && selectedAsrModel !== null;
+    const onlineLabel = onlineActive
+      ? `${selectedAsrModel?.name ?? "Online ASR"} ${
+          selectedAsrModel
+            ? `(${providerNameMap[selectedAsrModel.provider_id] ?? selectedAsrModel.provider_id})`
+            : ""
+        }`
+      : null;
     const currentModel = getCurrentModel();
+
+    if (onlineActive) {
+      return onlineLabel || "Online ASR";
+    }
 
     switch (modelStatus) {
       case "ready":
@@ -352,6 +402,30 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     setModelError(null);
   };
 
+  const handleAsrModelSelect = async (modelId: string) => {
+    try {
+      if (!settings?.online_asr_enabled) {
+        await toggleOnlineAsr(true);
+      }
+      setShowModelDropdown(false);
+      await selectAsrModel(modelId);
+    } catch (err) {
+      const errorMsg = `${err}`;
+      setModelError(errorMsg);
+      setModelStatus("error");
+      onError?.(errorMsg);
+    }
+  };
+
+  const modeLabel =
+    settings?.online_asr_enabled && settings?.selected_asr_model_id
+      ? "Online"
+      : "Local";
+  const modeLabelColor =
+    settings?.online_asr_enabled && settings?.selected_asr_model_id
+      ? "text-blue-700 bg-blue-50 border border-blue-200"
+      : "text-emerald-600 bg-emerald-50 border border-emerald-200";
+
   return (
     <>
       {/* Model Status and Switcher */}
@@ -361,6 +435,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           displayText={getModelDisplayText()}
           isDropdownOpen={showModelDropdown}
           onClick={() => setShowModelDropdown(!showModelDropdown)}
+          modeLabel={modeLabel}
+          modeLabelColor={modeLabelColor}
+          isOnlineModel={
+            settings?.online_asr_enabled && !!settings?.selected_asr_model_id
+          }
         />
 
         {/* Model Dropdown */}
@@ -373,6 +452,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             onModelDownload={handleModelDownload}
             onModelDelete={handleModelDelete}
             onError={onError}
+            asrModels={asrModels}
+            selectedAsrModelId={settings?.selected_asr_model_id || null}
+            onAsrModelSelect={handleAsrModelSelect}
+            onlineEnabled={settings?.online_asr_enabled || false}
           />
         )}
       </div>

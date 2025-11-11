@@ -15,6 +15,9 @@ interface ModelStatusButtonProps {
   isDropdownOpen: boolean;
   onClick: () => void;
   className?: string;
+  modeLabel?: string;
+  modeLabelColor?: string;
+  isOnlineModel?: boolean;
 }
 
 const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
@@ -23,8 +26,14 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
   isDropdownOpen,
   onClick,
   className = "",
+  modeLabelColor,
+  modeLabel,
+  isOnlineModel = false,
 }) => {
   const getStatusColor = (status: ModelStatus): string => {
+    if (isOnlineModel) {
+      return "bg-blue-500";
+    }
     switch (status) {
       case "ready":
         return "bg-green-400";
@@ -51,8 +60,17 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
       title={`Model status: ${displayText}`}
     >
+      {modeLabel && (
+        <span
+          className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full transition ${
+            modeLabelColor ?? "text-mid-gray/60 border border-mid-gray/30"
+          }`}
+        >
+          {modeLabel}
+        </span>
+      )}
       <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
-      <span className="max-w-28 truncate">{displayText}</span>
+      <span>{displayText}</span>
       <svg
         className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
         fill="none"
