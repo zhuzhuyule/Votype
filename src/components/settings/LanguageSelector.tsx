@@ -119,17 +119,17 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
-            className={`px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded min-w-[200px] text-left flex items-center justify-between transition-all duration-150 ${
+            className={`px-3 py-2 text-sm font-normal bg-white border border-mid-gray/15 rounded-md min-w-[200px] text-left flex items-center justify-between transition-all duration-200 ${
               isUpdating("selected_language") || isUnsupported
                 ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-logo-primary/10 cursor-pointer hover:border-logo-primary"
+                : "hover:border-mid-gray/25 cursor-pointer focus:outline-none focus:border-logo-primary focus:ring-2 focus:ring-logo-primary/20"
             }`}
             onClick={handleToggle}
             disabled={isUpdating("selected_language") || isUnsupported}
           >
             <span className="truncate">{selectedLanguageName}</span>
             <svg
-              className={`w-4 h-4 ml-2 transition-transform duration-200 ${
+              className={`w-4 h-4 ml-2 transition-transform duration-200 text-mid-gray/60 ${
                 isOpen ? "transform rotate-180" : ""
               }`}
               fill="none"
@@ -146,9 +146,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           </button>
 
           {isOpen && !isUpdating("selected_language") && !isUnsupported && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-mid-gray/80 rounded shadow-lg z-50 max-h-60 overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-mid-gray/15 rounded-md shadow-sm z-50 max-h-60 overflow-hidden">
               {/* Search input */}
-              <div className="p-2 border-b border-mid-gray/80">
+              <div className="p-2 border-b border-mid-gray/10">
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -156,7 +156,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                   onChange={handleSearchChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Search languages..."
-                  className="w-full px-2 py-1 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded focus:outline-none focus:ring-1 focus:ring-logo-primary focus:border-logo-primary"
+                  className="w-full px-3 py-2 text-sm bg-white border border-mid-gray/15 rounded-md focus:outline-none focus:ring-2 focus:ring-logo-primary/20 focus:border-logo-primary font-normal"
                 />
               </div>
 
@@ -170,9 +170,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     <button
                       key={language.value}
                       type="button"
-                      className={`w-full px-2 py-1 text-sm text-left hover:bg-logo-primary/10 transition-colors duration-150 ${
+                      className={`w-full px-3 py-2 text-sm text-left hover:bg-mid-gray/8 transition-colors duration-200 font-normal ${
                         selectedLanguage === language.value
-                          ? "bg-logo-primary/20 text-logo-primary font-semibold"
+                          ? "bg-logo-primary/15 font-medium"
                           : ""
                       }`}
                       onClick={() => handleLanguageSelect(language.value)}

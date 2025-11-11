@@ -138,11 +138,11 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
         onClick={handleClose}
       >
         <div
-          className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-mid-gray/20 bg-background p-8 shadow-2xl"
+          className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-mid-gray/10 bg-white p-8 shadow-xl"
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-semibold text-text mb-2">
+            <h2 className="text-xl font-medium text-text mb-2">
               Provider 管理
             </h2>
             <Button
@@ -159,7 +159,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
             {customProviders.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-mid-gray/90 uppercase tracking-wider">
+                  <h3 className="text-sm font-medium text-mid-gray/70 uppercase tracking-wider">
                     自定义 Provider
                   </h3>
                   <Button
@@ -171,7 +171,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                   </Button>
                 </div>
                 {showAdd && (
-                  <div className="space-y-4 rounded-lg border border-mid-gray/20 bg-background/50 p-5 shadow-sm">
+                  <div className="space-y-4 rounded-lg border border-mid-gray/10 bg-white/50 p-5 shadow-sm">
                     <h3 className="text-sm font-medium text-text">
                       创建自定义 Provider
                     </h3>

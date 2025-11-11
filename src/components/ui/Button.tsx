@@ -13,21 +13,22 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseClasses =
-    "font-medium rounded focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
+    "font-medium rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-0";
 
   const variantClasses = {
     primary:
-      "text-white bg-background-ui hover:bg-background-ui/80 focus:ring-1 focus:ring-background-ui",
-    secondary: "bg-mid-gray/10 hover:bg-background-ui/30 focus:outline-none",
+      "text-white bg-accent hover:bg-accent-600 active:bg-accent-700 focus:ring-accent/40",
+    secondary:
+      "bg-card text-text hover:bg-background active:bg-border focus:ring-border-strong",
     danger:
-      "text-white bg-red-600 hover:bg-red-700 focus:ring-1 focus:ring-red-500",
-    ghost: "text-current hover:bg-mid-gray/10 focus:bg-mid-gray/20",
+      "text-white bg-error hover:bg-red-700 active:bg-red-800 focus:ring-error/40",
+    ghost: "text-text hover:bg-background active:bg-card focus:ring-border",
   };
 
   const sizeClasses = {
-    sm: "px-2 py-1 text-xs",
-    md: "px-4 py-[5px] text-sm",
-    lg: "px-4 py-2 text-base",
+    sm: "px-2.5 py-1 text-xs",
+    md: "px-3.5 py-2 text-sm",
+    lg: "px-4 py-2.5 text-base",
   };
 
   return (

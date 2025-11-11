@@ -72,7 +72,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   };
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-background border border-mid-gray/20 rounded-lg shadow-lg py-2 z-50">
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-mid-gray/15 rounded-lg shadow-sm py-2 z-50">
       {/* First Run Welcome */}
       {isFirstRun && (
         <div className="px-3 py-2 bg-logo-primary/10 border-b border-logo-primary/20">
@@ -88,7 +88,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {/* Available Models */}
       {availableModels.length > 0 && (
         <div>
-          <div className="px-3 py-1 text-xs font-medium text-text/80 border-b border-mid-gray/10">
+          <div className="px-3 py-2 text-xs font-medium text-text/70 border-b border-mid-gray/10">
             Available Models
           </div>
           {availableModels.map((model) => (
@@ -103,10 +103,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
               }}
               tabIndex={0}
               role="button"
-              className={`w-full px-3 py-2 text-left hover:bg-mid-gray/10 transition-colors cursor-pointer focus:outline-none ${
-                currentModelId === model.id
-                  ? "bg-logo-primary/10 text-logo-primary"
-                  : ""
+              className={`w-full px-3 py-2 text-left hover:bg-mid-gray/8 transition-colors cursor-pointer focus:outline-none font-normal ${
+                currentModelId === model.id ? "bg-logo-primary/10" : ""
               }`}
             >
               <div className="flex items-center justify-between">
@@ -152,7 +150,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           {(availableModels.length > 0 || isFirstRun) && (
             <div className="border-t border-mid-gray/10 my-1" />
           )}
-          <div className="px-3 py-1 text-xs font-medium text-text/80">
+          <div className="px-3 py-2 text-xs font-medium text-text/70">
             Online ASR Models
           </div>
           {asrModels.map((model) => (
@@ -165,23 +163,29 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   onAsrModelSelect(model.id);
                 }
               }}
-              className={`w-full px-3 py-2 text-left transition-colors cursor-pointer focus:outline-none ${
+              className={`w-full px-3 py-2 text-left transition-colors cursor-pointer focus:outline-none font-normal ${
                 selectedAsrModelId === model.id
-                  ? "bg-logo-primary/10 text-logo-primary"
-                  : "hover:bg-mid-gray/10"
+                  ? "bg-logo-primary/10"
+                  : "hover:bg-mid-gray/8"
               }`}
             >
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm">{model.name}</div>
-                  <div className="text-xs text-text/40 italic">{model.providerLabel}</div>
+                  <div className="text-xs text-text/40 italic">
+                    {model.providerLabel}
+                  </div>
                 </div>
                 {selectedAsrModelId === model.id && (
-                  <span className="text-xs uppercase text-logo-primary">Selected</span>
+                  <span className="text-xs uppercase text-logo-primary">
+                    Selected
+                  </span>
                 )}
               </div>
               <div className="text-[10px] text-center text-mid-gray/70 mt-1">
-                {onlineEnabled ? "Online ASR active" : "Click to enable Online ASR"}
+                {onlineEnabled
+                  ? "Online ASR active"
+                  : "Click to enable Online ASR"}
               </div>
             </div>
           ))}
@@ -194,7 +198,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           {(availableModels.length > 0 || isFirstRun) && (
             <div className="border-t border-mid-gray/10 my-1" />
           )}
-          <div className="px-3 py-1 text-xs font-medium text-text/80">
+          <div className="px-3 py-2 text-xs font-medium text-text/70">
             {isFirstRun ? "Choose a Model" : "Download Models"}
           </div>
           {downloadableModels.map((model) => {
@@ -214,7 +218,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                 tabIndex={0}
                 role="button"
                 aria-disabled={isDownloading}
-                className={`w-full px-3 py-2 text-left hover:bg-mid-gray/10 transition-colors cursor-pointer focus:outline-none ${
+                className={`w-full px-3 py-2 text-left hover:bg-mid-gray/8 transition-colors cursor-pointer focus:outline-none font-normal ${
                   isDownloading
                     ? "opacity-50 cursor-not-allowed hover:bg-transparent"
                     : ""

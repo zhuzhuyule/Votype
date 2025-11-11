@@ -2,7 +2,7 @@ import React from "react";
 import { Download } from "lucide-react";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
-import Badge from "../ui/Badge";
+import { Badge } from "../ui/Badge";
 
 interface ModelCardProps {
   model: ModelInfo;
@@ -39,7 +39,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
     >
       <div className="flex flex-col items-ce">
         <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold text-text group-hover:text-logo-primary transition-colors">
+          <h3 className="text-lg font-medium text-text group-hover:text-logo-primary transition-colors">
             {model.name}
           </h3>
           <DownloadSize sizeMb={model.size_mb} />

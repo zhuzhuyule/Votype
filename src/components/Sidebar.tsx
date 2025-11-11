@@ -1,5 +1,13 @@
 import React from "react";
-import { Cog, FlaskConical, History, Info, Sparkles, Layers } from "lucide-react";
+import {
+  Cog,
+  FlaskConical,
+  History,
+  Info,
+  Sparkles,
+  Layers,
+  Palette,
+} from "lucide-react";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
 import { useSettings } from "../hooks/useSettings";
@@ -12,6 +20,7 @@ import {
   AiSettings,
   ModelsSettings,
 } from "./settings";
+import { ThemeSettings } from "./settings/ThemeSettings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
@@ -35,6 +44,12 @@ export const SECTIONS_CONFIG = {
     label: "General",
     icon: HandyHand,
     component: GeneralSettings,
+    enabled: () => true,
+  },
+  appearance: {
+    label: "Appearance",
+    icon: Palette,
+    component: ThemeSettings,
     enabled: () => true,
   },
   advanced: {
@@ -91,9 +106,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-r border-mid-gray/20 items-center px-2">
+    <div className="flex flex-col w-40 h-full border-r border-mid-gray/10 items-center px-2">
       <HandyTextLogo width={120} className="m-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
+      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/10">
         {availableSections.map((section) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;
@@ -103,8 +118,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={section.id}
               className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
                 isActive
-                  ? "bg-logo-primary/80"
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
+                  ? "bg-logo-primary/15 font-medium"
+                  : "hover:bg-mid-gray/8 hover:opacity-100 opacity-85"
               }`}
               onClick={() => onSectionChange(section.id)}
             >

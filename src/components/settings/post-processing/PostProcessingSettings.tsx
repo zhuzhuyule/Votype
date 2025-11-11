@@ -19,8 +19,8 @@ import { ProviderManager } from "./ProviderManager";
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
-  <div className="p-4 bg-mid-gray/5 rounded-lg border border-mid-gray/20 text-center">
-    <p className="text-sm text-mid-gray">{children}</p>
+  <div className="p-4 bg-mid-gray/5 rounded-lg border border-mid-gray/10 text-center">
+    <p className="text-sm text-mid-gray/70 font-normal">{children}</p>
   </div>
 );
 
@@ -31,9 +31,9 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
     <>
       {!state.enabled && (
         <DisabledNotice>
-          Post processing is currently disabled. The AI and Model sections remain
-          configurable, but auto-post-processing will not run until you enable it
-          in Debug settings.
+          Post processing is currently disabled. The AI and Model sections
+          remain configurable, but auto-post-processing will not run until you
+          enable it in Debug settings.
         </DisabledNotice>
       )}
 

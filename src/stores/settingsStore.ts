@@ -1,12 +1,7 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
-import {
-  Settings,
-  AudioDevice,
-  CachedModel,
-  ModelType,
-} from "../lib/types";
+import { Settings, AudioDevice, CachedModel, ModelType } from "../lib/types";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -51,7 +46,10 @@ interface SettingsStore {
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
   setPostProcessModelOptions: (providerId: string, models: string[]) => void;
   addCachedModel: (model: CachedModel) => Promise<void>;
-  updateCachedModelType: (modelId: string, modelType: ModelType) => Promise<void>;
+  updateCachedModelType: (
+    modelId: string,
+    modelType: ModelType,
+  ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;

@@ -7,6 +7,8 @@ import Footer from "./components/footer";
 import Onboarding from "./components/onboarding";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { useSettings } from "./hooks/useSettings";
+import { ToastContainer } from "./components/ui";
+import { useThemeStore } from "./stores/themeStore";
 
 const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
@@ -19,6 +21,13 @@ function App() {
   const [currentSection, setCurrentSection] =
     useState<SidebarSection>("general");
   const { settings, updateSetting } = useSettings();
+
+  // Initialize theme
+  useThemeStore((state) => {
+    useEffect(() => {
+      // Theme is auto-initialized in themeStore
+    }, []);
+  });
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -70,8 +79,9 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-background">
       <Toaster />
+      <ToastContainer />
       {/* Main content area that takes remaining space */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
