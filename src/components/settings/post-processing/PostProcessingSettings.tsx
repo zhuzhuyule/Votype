@@ -31,9 +31,9 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
     <>
       {!state.enabled && (
         <DisabledNotice>
-          Post processing is currently disabled. The AI and Model sections remain
-          configurable, but auto-post-processing will not run until you enable it
-          in Debug settings.
+          Post processing is currently disabled. The AI and Model sections
+          remain configurable, but auto-post-processing will not run until you
+          enable it in Debug settings.
         </DisabledNotice>
       )}
 

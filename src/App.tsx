@@ -6,6 +6,7 @@ import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
 import Onboarding from "./components/onboarding";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import { SettingsSearch } from "./components/SettingsSearch";
 import { useSettings } from "./hooks/useSettings";
 
 const renderSettingsContent = (section: SidebarSection) => {
@@ -70,7 +71,7 @@ function App() {
   }
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-background">
       <Toaster />
       {/* Main content area that takes remaining space */}
       <div className="flex-1 flex overflow-hidden">
@@ -80,8 +81,20 @@ function App() {
         />
         {/* Scrollable content area */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header with search */}
+          <div className="px-6 py-4 border-b border-mid-gray/20 bg-background/50 backdrop-blur-sm flex items-center gap-4">
+            <div className="flex-1 max-w-md">
+              <SettingsSearch
+                onNavigate={(sectionId) =>
+                  setCurrentSection(sectionId as SidebarSection)
+                }
+              />
+            </div>
+          </div>
+
+          {/* Main content scroll area */}
           <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center p-4 gap-4">
+            <div className="flex flex-col items-center p-6 gap-6">
               <AccessibilityPermissions />
               {renderSettingsContent(currentSection)}
             </div>
