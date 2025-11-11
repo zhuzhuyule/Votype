@@ -6,6 +6,7 @@ import {
   Info,
   Sparkles,
   Layers,
+  Palette,
 } from "lucide-react";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
@@ -19,6 +20,7 @@ import {
   AiSettings,
   ModelsSettings,
 } from "./settings";
+import { ThemeSettings } from "./settings/ThemeSettings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
@@ -42,6 +44,12 @@ export const SECTIONS_CONFIG = {
     label: "General",
     icon: HandyHand,
     component: GeneralSettings,
+    enabled: () => true,
+  },
+  appearance: {
+    label: "Appearance",
+    icon: Palette,
+    component: ThemeSettings,
     enabled: () => true,
   },
   advanced: {

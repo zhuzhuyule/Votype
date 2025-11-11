@@ -1,8 +1,30 @@
 @import "tailwindcss";
 
 @theme {
+  /* Light mode (default) */
   --color-text: #0f0f0f;
-  --color-background: #fbfbfb;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+  --color-background: #f8f8f8;
+  --color-surface: #ffffff;
+  --color-card: #fafafa;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+
+  /* Default accent (Pro Dark - Ice Blue) */
+  --color-accent: #60a5fa;
+  --color-accent-50: #fffbff;
+  --color-accent-100: #e0efff;
+  --color-accent-200: #c1dfff;
+  --color-accent-300: #a0cfff;
+  --color-accent-400: #80bfff;
+  --color-accent-500: #60a5fa;
+  --color-accent-600: #4f92e3;
+  --color-accent-700: #3e7fcc;
+  --color-accent-800: #2e6cb5;
+  --color-accent-900: #1e4fa0;
+
+  /* Legacy colors */
   --color-background-ui: #da5893;
   --color-logo-primary: #faa2ca;
   --color-logo-stroke: #382731;
@@ -44,14 +66,95 @@
   text-align: center;
 }
 
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Colors - Dark Theme */
-    --color-text: #fbfbfb;
-    --color-background: #2c2b29;
+    --color-text: #ffffff;
+    --color-text-secondary: #aaaaaa;
+    --color-text-tertiary: #808080;
+    --color-background: #1a1a1a;
+    --color-surface: #252525;
+    --color-card: #2d2d2d;
+    --color-border: rgba(255, 255, 255, 0.12);
+    --color-border-strong: rgba(255, 255, 255, 0.24);
+
+    /* Accent in dark mode */
+    --color-accent: #5eb3ff;
+    --color-accent-50: #0d1e33;
+    --color-accent-100: #1a3d66;
+    --color-accent-200: #265c99;
+    --color-accent-300: #337bcc;
+    --color-accent-400: #409aff;
+    --color-accent-500: #5eb3ff;
+    --color-accent-600: #7fc4ff;
+    --color-accent-700: #9fd5ff;
+    --color-accent-800: #bfe6ff;
+    --color-accent-900: #dff2ff;
+
+    /* Legacy colors */
     --color-logo-primary: #f28cbb;
     --color-logo-stroke: #fad1ed;
   }
+}
+
+/* Theme: Neon Pulse (Teal) */
+.theme-neon-pulse {
+  --color-accent: #5eead4;
+  --color-accent-50: #ccfbf1;
+  --color-accent-100: #99f7eb;
+  --color-accent-200: #66f3e5;
+  --color-accent-300: #33efdf;
+  --color-accent-400: #00ebd9;
+  --color-accent-500: #5eead4;
+  --color-accent-600: #4bc9b8;
+  --color-accent-700: #38a89c;
+  --color-accent-800: #258780;
+  --color-accent-900: #126664;
+}
+
+/* Theme: Solar Light (Amber) */
+.theme-solar-light {
+  --color-accent: #facc15;
+  --color-accent-50: #fef3c7;
+  --color-accent-100: #fee78f;
+  --color-accent-200: #fddb57;
+  --color-accent-300: #fccf1f;
+  --color-accent-400: #fac005;
+  --color-accent-500: #facc15;
+  --color-accent-600: #eab308;
+  --color-accent-700: #ca8a04;
+  --color-accent-800: #a16207;
+  --color-accent-900: #78350f;
+}
+
+/* Theme: Mono Minimal (Gray) */
+.theme-mono-minimal {
+  --color-accent: #9ca3af;
+  --color-accent-50: #f3f4f6;
+  --color-accent-100: #e5e7eb;
+  --color-accent-200: #d1d5db;
+  --color-accent-300: #b4b8bf;
+  --color-accent-400: #9ca3af;
+  --color-accent-500: #8b92a0;
+  --color-accent-600: #7a8191;
+  --color-accent-700: #6b7280;
+  --color-accent-800: #5c6370;
+  --color-accent-900: #4d5460;
+}
+
+/* Theme: Calm Blue (Light Blue) */
+.theme-calm-blue {
+  --color-accent: #93c5fd;
+  --color-accent-50: #f0f9ff;
+  --color-accent-100: #e0f2fe;
+  --color-accent-200: #bae6fd;
+  --color-accent-300: #7dd3fc;
+  --color-accent-400: #38bdf8;
+  --color-accent-500: #93c5fd;
+  --color-accent-600: #60a5fa;
+  --color-accent-700: #3b82f6;
+  --color-accent-800: #2563eb;
+  --color-accent-900: #1e40af;
 }
 
 @layer utilities {

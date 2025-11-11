@@ -17,13 +17,12 @@ export const Button: React.FC<ButtonProps> = ({
 
   const variantClasses = {
     primary:
-      "text-white bg-background-ui hover:bg-background-ui/90 active:bg-background-ui/95 focus:ring-background-ui/40",
+      "text-white bg-accent hover:bg-accent-600 active:bg-accent-700 focus:ring-accent/40",
     secondary:
-      "bg-mid-gray/10 text-text hover:bg-mid-gray/15 active:bg-mid-gray/20 focus:ring-mid-gray/20",
+      "bg-card text-text hover:bg-background active:bg-border focus:ring-border-strong",
     danger:
-      "text-white bg-red-600 hover:bg-red-700 active:bg-red-800 focus:ring-red-500/40",
-    ghost:
-      "text-current hover:bg-mid-gray/8 active:bg-mid-gray/12 focus:ring-mid-gray/20",
+      "text-white bg-error hover:bg-red-700 active:bg-red-800 focus:ring-error/40",
+    ghost: "text-text hover:bg-background active:bg-card focus:ring-border",
   };
 
   const sizeClasses = {

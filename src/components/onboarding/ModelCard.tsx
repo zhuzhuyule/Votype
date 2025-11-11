@@ -2,7 +2,7 @@ import React from "react";
 import { Download } from "lucide-react";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
-import Badge from "../ui/Badge";
+import { Badge } from "../ui/Badge";
 
 interface ModelCardProps {
   model: ModelInfo;
