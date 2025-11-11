@@ -8,6 +8,7 @@ import { PushToTalk } from "../PushToTalk";
 import { AudioFeedback } from "../AudioFeedback";
 import { useSettings } from "../../../hooks/useSettings";
 import { VolumeSlider } from "../VolumeSlider";
+import { ThemeSettings } from "./ThemeSettings";
 
 export const GeneralSettings: React.FC = () => {
   const { audioFeedbackEnabled } = useSettings();
@@ -28,6 +29,7 @@ export const GeneralSettings: React.FC = () => {
         />
         <VolumeSlider disabled={!audioFeedbackEnabled} />
       </SettingsGroup>
+      <ThemeSettings />
     </div>
   );
 };

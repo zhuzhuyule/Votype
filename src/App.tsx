@@ -7,6 +7,7 @@ import Footer from "./components/footer";
 import Onboarding from "./components/onboarding";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { useSettings } from "./hooks/useSettings";
+import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 
 const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
@@ -65,32 +66,34 @@ function App() {
     setShowOnboarding(false);
   };
 
-  if (showOnboarding) {
-    return <Onboarding onModelSelected={handleModelSelected} />;
-  }
-
   return (
-    <div className="h-screen flex flex-col">
-      <Toaster />
-      {/* Main content area that takes remaining space */}
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          activeSection={currentSection}
-          onSectionChange={setCurrentSection}
-        />
-        {/* Scrollable content area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center p-4 gap-4">
-              <AccessibilityPermissions />
-              {renderSettingsContent(currentSection)}
+    <RadixThemeProvider>
+      {showOnboarding ? (
+        <Onboarding onModelSelected={handleModelSelected} />
+      ) : (
+        <div className="h-screen flex flex-col">
+          <Toaster />
+          {/* Main content area that takes remaining space */}
+          <div className="flex-1 flex overflow-hidden">
+            <Sidebar
+              activeSection={currentSection}
+              onSectionChange={setCurrentSection}
+            />
+            {/* Scrollable content area */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto">
+                <div className="flex flex-col items-center p-4 gap-4">
+                  <AccessibilityPermissions />
+                  {renderSettingsContent(currentSection)}
+                </div>
+              </div>
             </div>
           </div>
+          {/* Fixed footer at bottom */}
+          <Footer />
         </div>
-      </div>
-      {/* Fixed footer at bottom */}
-      <Footer />
-    </div>
+      )}
+    </RadixThemeProvider>
   );
 }
 
