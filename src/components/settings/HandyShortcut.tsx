@@ -1,17 +1,17 @@
-import React, { useEffect, useState, useRef } from "react";
+import { Flex, Kbd } from "@radix-ui/themes";
+import { invoke } from "@tauri-apps/api/core";
 import { type } from "@tauri-apps/plugin-os";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useSettings } from "../../hooks/useSettings";
 import {
-  getKeyName,
   formatKeyCombination,
+  getKeyName,
   normalizeKey,
   type OSType,
 } from "../../lib/utils/keyboard";
-import { Input } from "../ui/Input";
 import { ResetButton } from "../ui/ResetButton";
 import { SettingContainer } from "../ui/SettingContainer";
-import { useSettings } from "../../hooks/useSettings";
-import { invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
 
 interface HandyShortcutProps {
   descriptionMode?: "inline" | "tooltip";
@@ -31,7 +31,6 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
   );
   const [originalBinding, setOriginalBinding] = useState<string>("");
   const [osType, setOsType] = useState<OSType>("unknown");
-  const editingInputRef = useRef<HTMLInputElement>(null);
 
   const bindings = getSetting("bindings") || {};
 
@@ -129,7 +128,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
       const updatedKeyPressed = keyPressed.filter((k) => k !== key);
       if (updatedKeyPressed.length === 0 && recordedKeys.length > 0) {
         // Create the shortcut string from all recorded keys
-        const newShortcut = recordedKeys.join("+");
+        const newShortcut = recordedKeys.join(" + ");
 
         if (editingShortcutId && bindings[editingShortcutId]) {
           try {
@@ -202,34 +201,33 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
     if (recordedKeys.length === 0) return "Press keys...";
 
     // Use the same formatting as the display to ensure consistency
-    return formatKeyCombination(recordedKeys.join("+"), osType);
+    return formatKeyCombination(recordedKeys.join(" + "), osType);
   };
 
-  // If still loading, show loading state
-  if (isLoading) {
-    return (
-      <SettingContainer
-        title="Handy Shortcuts"
-        description="Configure keyboard shortcuts to trigger speech-to-text recording"
-        descriptionMode={descriptionMode}
-        grouped={grouped}
-      >
-        <div className="text-sm text-mid-gray">Loading shortcuts...</div>
-      </SettingContainer>
-    );
-  }
+  const primaryBinding = Object.values(bindings)?.[0] || {};
+  const primaryId = Object.keys(bindings)?.[0];
 
-  // If no bindings are loaded, show empty state
-  if (Object.keys(bindings).length === 0) {
+  const className = "w-53 py-2! flex align-baseline";
+
+  function renderKeys() {
+    if (isLoading) {
+      <Kbd className={className}>Loading shortcuts...</Kbd>;
+    }
+
+    if (!primaryBinding || Object.keys(bindings).length === 0) {
+      <Kbd className={className}>No shortcuts configured</Kbd>;
+    }
+
+    const isSame = editingShortcutId === primaryId;
     return (
-      <SettingContainer
-        title="Handy Shortcuts"
-        description="Configure keyboard shortcuts to trigger speech-to-text recording"
-        descriptionMode={descriptionMode}
-        grouped={grouped}
+      <Kbd
+        className={className}
+        onClick={isSame ? undefined : () => startRecording(primaryId)}
       >
-        <div className="text-sm text-mid-gray">No shortcuts configured</div>
-      </SettingContainer>
+        {isSame
+          ? formatCurrentKeys()
+          : formatKeyCombination(primaryBinding.current_binding, osType)}
+      </Kbd>
     );
   }
 
@@ -241,40 +239,13 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
       grouped={grouped}
       tooltipPosition="bottom"
     >
-      {(() => {
-        const primaryBinding = Object.values(bindings)[0];
-        const primaryId = Object.keys(bindings)[0];
-
-        if (!primaryBinding) {
-          return (
-            <div className="text-sm text-mid-gray">No shortcuts configured</div>
-          );
-        }
-
-        return (
-          <div className="flex items-center space-x-1">
-            {editingShortcutId === primaryId ? (
-              <Input
-                ref={editingInputRef}
-                value={formatCurrentKeys()}
-                readOnly
-                className="min-w-[140px] text-sm font-semibold text-center cursor-text border-logo-primary bg-logo-primary/30"
-              />
-            ) : (
-              <Input
-                value={formatKeyCombination(primaryBinding.current_binding, osType)}
-                readOnly
-                className="min-w-[140px] text-sm font-semibold cursor-pointer"
-                onClick={() => startRecording(primaryId)}
-              />
-            )}
-            <ResetButton
-              onClick={() => resetBinding(primaryId)}
-              disabled={isUpdating(`binding_${primaryId}`)}
-            />
-          </div>
-        );
-      })()}
+      <Flex align="center" gap="2">
+        {renderKeys()}
+        <ResetButton
+          onClick={() => resetBinding(primaryId)}
+          disabled={isUpdating(`binding_${primaryId}`)}
+        />
+      </Flex>
     </SettingContainer>
   );
 };

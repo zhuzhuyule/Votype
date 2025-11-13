@@ -164,7 +164,7 @@ export const formatKeyCombination = (
 ): string => {
   // Simply return the combination as-is since getKeyName already provides
   // the correct platform-specific key names
-  return combination;
+  return combination.replace(/ ?\+ ?/g, ' + ');
 };
 
 /**
