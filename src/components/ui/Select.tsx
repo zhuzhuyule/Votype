@@ -25,6 +25,8 @@ type BaseProps = {
   onBlur?: () => void;
   className?: string;
   formatCreateLabel?: (input: string) => string;
+  position?: "popper" | "item-aligned";
+  onRefresh?: () => void;
 };
 
 type CreatableProps = {
@@ -83,6 +85,8 @@ export const Select: React.FC<SelectProps> = React.memo(
     isCreatable,
     onCreateOption,
     formatCreateLabel,
+    position = "item-aligned",
+    onRefresh,
   }) => {
     const [, setOpen] = useState(false);
     const [newValue, setNewValue] = useState("");
@@ -145,11 +149,14 @@ export const Select: React.FC<SelectProps> = React.memo(
     const handleOpenChange = useCallback(
       (isOpen: boolean) => {
         setOpen(isOpen);
+        if (isOpen && onRefresh) {
+          onRefresh();
+        }
         if (!isOpen) {
           onBlur?.();
         }
       },
-      [onBlur],
+      [onBlur, onRefresh],
     );
 
     const creationLabel = useMemo(() => {
@@ -205,6 +212,8 @@ export const Select: React.FC<SelectProps> = React.memo(
         <RadixSelect.Portal>
           <RadixSelect.Content
             className="z-30 w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
+            position={position}
+            sideOffset={8}
           >
             <RadixSelect.Viewport className={viewportClasses}>
               {isCreatable && (

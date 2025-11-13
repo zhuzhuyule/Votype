@@ -27,15 +27,15 @@ const triggerClasses =
   "w-full min-w-[200px] rounded-lg bg-background px-3 py-2 text-sm font-semibold text-left transition duration-200 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background shadow-sm";
 
 const contentClasses =
-  "z-50 w-[220px] rounded-xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)]";
+  "z-50 w-[220px] rounded-xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] !shadow-[0_10px_30px_rgba(15,15,15,0.25)] shadow-md shadow-gray-900/25";
 
 const viewportClasses =
-  "max-h-60 divide-y divide-mid-gray/10 overflow-y-auto";
+  "max-h-60 divide-y divide-mid-gray/10 overflow-y-auto scrollbar-thin scrollbar-thumb-mid-gray/30 scrollbar-track-transparent scrollbar-thumb-rounded-full scrollbar-track-rounded-full";
 
 const optionClasses =
   "flex w-full items-center px-3 py-2 text-sm transition-colors duration-150 bg-transparent";
 
-export const Dropdown: React.FC<DropdownProps> = ({
+export const  Dropdown: React.FC<DropdownProps> = ({
   options,
   selectedValue,
   onSelect,
