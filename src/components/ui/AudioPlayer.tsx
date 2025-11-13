@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import * as RadixSlider from "@radix-ui/react-slider";
-import { Play, Pause } from "lucide-react";
+import { Flex, Text, IconButton, Box } from "@radix-ui/themes";
+import { PlayIcon, PauseIcon } from "@radix-ui/react-icons";
 
 interface AudioPlayerProps {
   src: string;
@@ -137,27 +138,33 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const progressPercent = getProgressPercent();
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <Flex align="center" gap="3" className={className}>
       <audio ref={audioRef} src={src} preload="metadata" />
 
-      <button
+      <IconButton
+        size="1"
+        variant="ghost"
         onClick={togglePlay}
         className="transition-colors cursor-pointer text-text hover:text-logo-primary"
         aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (
-          <Pause width={20} height={20} fill="currentColor" />
+          <PauseIcon width="20" height="20" />
         ) : (
-          <Play width={20} height={20} fill="currentColor" />
+          <PlayIcon width="20" height="20" />
         )}
-      </button>
+      </IconButton>
 
-      <div className="flex-1 flex items-center gap-2">
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
+      <Flex align="center" gap="2" flexGrow="1">
+        <Text
+          size="1"
+          color="gray"
+          className="tabular-nums"
+        >
           {formatTime(currentTime)}
-        </span>
+        </Text>
 
-        <div className="flex-1 relative">
+        <Box flexGrow="1" position="relative">
           <RadixSlider.Root
             className="relative flex items-center select-none touch-none h-1 w-full cursor-pointer"
             value={[currentTime]}
@@ -179,12 +186,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               aria-label="Seek"
             />
           </RadixSlider.Root>
-        </div>
+        </Box>
 
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
+        <Text
+          size="1"
+          color="gray"
+          className="tabular-nums"
+        >
           {formatTime(duration)}
-        </span>
-      </div>
-    </div>
+        </Text>
+      </Flex>
+    </Flex>
   );
 };

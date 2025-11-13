@@ -1,6 +1,5 @@
 import React from "react";
-import * as Label from "@radix-ui/react-label";
-import { Slot } from "@radix-ui/react-slot";
+import { Text, TextField } from "@radix-ui/themes";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   variant?: "default" | "compact";
@@ -29,64 +28,76 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ) => {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
-    const baseClasses =
-      "w-full px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded text-left transition-all duration-150";
+    const getSize = () => {
+      switch (variant) {
+        case "compact":
+          return "1";
+        default:
+          return "2";
+      }
+    };
 
-    const interactiveClasses = disabled
-      ? "opacity-60 cursor-not-allowed bg-mid-gray/10 border-mid-gray/40"
-      : "hover:bg-logo-primary/10 hover:border-logo-primary focus:outline-none focus:bg-logo-primary/20 focus:border-logo-primary focus:ring-2 focus:ring-logo-primary/30";
-
-    const variantClasses = {
-      default: "px-3 py-2",
-      compact: "px-2 py-1",
-    } as const;
-
-    const InputComponent = (
-      <input
+    const textFieldComponent = (
+      <TextField.Root
+        size={getSize()}
+        disabled={disabled}
+        className={className}
+        color={error ? "red" : undefined}
         id={inputId}
         ref={ref}
-        className={`${baseClasses} ${variantClasses[variant]} ${interactiveClasses} ${className} ${
-          error ? "border-red-500 focus:border-red-500 focus:ring-red-500/30" : ""
-        }`}
-        disabled={disabled}
-        {...props}
-      />
-    );
-
-    const inputElement = (
-      <div className="relative">
+        placeholder={props.placeholder}
+        value={props.value}
+        onChange={props.onChange}
+        onBlur={props.onBlur}
+        onFocus={props.onFocus}
+        type={props.type}
+        autoComplete={props.autoComplete}
+        required={props.required}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        pattern={props.pattern}
+        step={props.step}
+        min={props.min}
+        max={props.max}
+      >
         {leftIcon && (
-          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-mid-gray">
+          <TextField.Slot side="left">
             {leftIcon}
-          </div>
+          </TextField.Slot>
         )}
-        {asChild ? <Slot ref={ref}>{InputComponent}</Slot> : InputComponent}
-      </div>
+      </TextField.Root>
     );
 
-    if (label || description) {
+    if (label || description || error) {
       return (
         <div className="space-y-2">
           {label && (
-            <Label.Root
+            <Text
+              as="label"
               htmlFor={inputId}
-              className="text-sm font-medium text-text"
+              size="2"
+              weight="medium"
+              className="text-text"
             >
               {label}
-            </Label.Root>
+            </Text>
           )}
-          {inputElement}
+          {textFieldComponent}
           {description && (
-            <p className="text-xs text-text/60">{description}</p>
+            <Text size="1" color="gray" className="text-text/60">
+              {description}
+            </Text>
           )}
           {error && (
-            <p className="text-sm text-red-500">{error}</p>
+            <Text size="2" color="red">
+              {error}
+            </Text>
           )}
         </div>
       );
     }
 
-    return inputElement;
+    return textFieldComponent;
   }
 );
 

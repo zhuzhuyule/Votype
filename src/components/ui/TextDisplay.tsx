@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
+import { Flex, Text, Box, IconButton } from "@radix-ui/themes";
+import { CopyIcon, CheckIcon } from "@radix-ui/react-icons";
 import { SettingContainer } from "./SettingContainer";
 
 interface TextDisplayProps {
@@ -48,7 +50,6 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
   };
 
   const displayValue = value || placeholder;
-  const textClasses = monospace ? "font-mono break-all" : "break-words";
 
   return (
     <SettingContainer
@@ -58,52 +59,41 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
       grouped={grouped}
       layout="stacked"
     >
-      <div className="flex items-center space-x-2">
-        <div className="flex-1 min-w-0">
-          <div
-            className={`px-2 min-h-8 flex items-center bg-mid-gray/10 border border-mid-gray/80 rounded text-xs ${textClasses} ${!value ? "opacity-60" : ""}`}
+      <Flex align="center" gap="2">
+        <Box flexGrow="1" minWidth="0">
+          <Box
+            px="2"
+            minHeight="32px"
+            className={`flex items-center bg-mid-gray/10 border border-mid-gray/80 rounded text-xs ${
+              monospace ? "font-mono break-all" : "break-words"
+            } ${!value ? "opacity-60" : ""}`}
           >
-            {displayValue}
-          </div>
-        </div>
+            <Text
+              size="1"
+              className={monospace ? "font-mono" : ""}
+              color={!value ? "gray" : undefined}
+            >
+              {displayValue}
+            </Text>
+          </Box>
+        </Box>
         {copyable && value && (
           <Popover.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
             <Popover.Trigger asChild>
-              <button
+              <IconButton
+                size="1"
+                variant="surface"
+                color="gray"
                 onClick={handleCopy}
-                className="flex items-center justify-center px-2 py-1 w-12 min-h-8 text-xs font-semibold bg-mid-gray/10 hover:bg-logo-primary/10 border border-mid-gray/80 hover:border-logo-primary hover:text-logo-primary rounded transition-all duration-150 flex-shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-logo-primary"
+                className="w-12 min-h-8 hover:bg-logo-primary/10 hover:border-logo-primary hover:text-logo-primary transition-all duration-150 flex-shrink-0 cursor-pointer"
                 title="Copy to clipboard"
               >
                 {showCopied ? (
-                  <svg
-                    className="w-4 h-4 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
+                  <CheckIcon width="16" height="16" className="text-green-500" />
                 ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
+                  <CopyIcon width="16" height="16" />
                 )}
-              </button>
+              </IconButton>
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content
@@ -111,13 +101,15 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
                 side="top"
                 align="center"
               >
-                Copied!
+                <Text size="2" color="white">
+                  Copied!
+                </Text>
                 <Popover.Arrow className="fill-green-500" />
               </Popover.Content>
             </Popover.Portal>
           </Popover.Root>
         )}
-      </div>
+      </Flex>
     </SettingContainer>
   );
 };

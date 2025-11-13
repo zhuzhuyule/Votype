@@ -6,6 +6,8 @@ import {
   DropdownMenuPortal,
   DropdownMenuItem,
 } from "@radix-ui/react-dropdown-menu";
+import { Button, Text, Box, Flex } from "@radix-ui/themes";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
 
 export interface DropdownOption {
   value: string;
@@ -13,7 +15,7 @@ export interface DropdownOption {
   disabled?: boolean;
 }
 
-interface DropdownProps {
+export interface DropdownProps {
   options: DropdownOption[];
   className?: string;
   selectedValue: string | null;
@@ -22,18 +24,6 @@ interface DropdownProps {
   disabled?: boolean;
   onRefresh?: () => void;
 }
-
-const triggerClasses =
-  "w-full min-w-[200px] rounded-lg bg-background px-3 py-2 text-sm font-semibold text-left transition duration-200 flex items-center justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background shadow-sm";
-
-const contentClasses =
-  "z-50 w-[220px] rounded-xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] !shadow-[0_10px_30px_rgba(15,15,15,0.25)] shadow-md shadow-gray-900/25";
-
-const viewportClasses =
-  "max-h-60 divide-y divide-mid-gray/10 overflow-y-auto scrollbar-thin scrollbar-thumb-mid-gray/30 scrollbar-track-transparent scrollbar-thumb-rounded-full scrollbar-track-rounded-full";
-
-const optionClasses =
-  "flex w-full items-center px-3 py-2 text-sm transition-colors duration-150 bg-transparent";
 
 export const  Dropdown: React.FC<DropdownProps> = ({
   options,
@@ -73,56 +63,53 @@ export const  Dropdown: React.FC<DropdownProps> = ({
 
   return (
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <div className={`relative ${className}`}>
+      <Box className={`relative ${className}`}>
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className={`${triggerClasses} ${
+          <Button
+            variant="surface"
+            className={`w-full min-w-[200px] justify-between ${
               disabled
                 ? "cursor-not-allowed opacity-60"
                 : "hover:border-logo-primary hover:bg-logo-primary/10"
             }`}
-            data-disabled={disabled}
             disabled={disabled}
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            <span className="truncate">
+            <Text truncate className="text-left">
               {selectedLabel || placeholder}
-            </span>
-            <svg
-              className={`h-4 w-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
+            </Text>
+            <ChevronDownIcon
+              width="16"
+              height="16"
+              className={`transition-transform duration-200 ${
+                open ? "rotate-180" : ""
+              }`}
+            />
+          </Button>
         </DropdownMenuTrigger>
 
         <DropdownMenuPortal>
           <DropdownMenuContent
-            className={contentClasses}
+            className="z-50 w-[220px] rounded-xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] shadow-md shadow-gray-900/25"
             sideOffset={8}
             align="start"
           >
-            <div className={viewportClasses}>
+            <Box className="max-h-60 divide-y divide-mid-gray/10 overflow-y-auto scrollbar-thin scrollbar-thumb-mid-gray/30 scrollbar-track-transparent scrollbar-thumb-rounded-full scrollbar-track-rounded-full">
               {options.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-mid-gray">
+                <Text
+                  size="2"
+                  color="gray"
+                  className="px-3 py-2"
+                  align="center"
+                >
                   No options found
-                </div>
+                </Text>
               ) : (
                 options.map((option) => (
                   <DropdownMenuItem
                     key={option.value}
-                    className={`${optionClasses} ${
+                    className={`flex w-full items-center px-3 py-2 text-sm transition-colors duration-150 bg-transparent ${
                       option.disabled
                         ? "cursor-not-allowed opacity-40"
                         : "hover:bg-logo-primary/10 focus:bg-logo-primary/10 data-[state=checked]:bg-logo-primary/10"
@@ -130,14 +117,16 @@ export const  Dropdown: React.FC<DropdownProps> = ({
                     onSelect={() => handleSelect(option.value)}
                     disabled={option.disabled}
                   >
-                    <span className="truncate">{option.label}</span>
+                    <Text truncate className="w-full text-left">
+                      {option.label}
+                    </Text>
                   </DropdownMenuItem>
                 ))
               )}
-            </div>
+            </Box>
           </DropdownMenuContent>
         </DropdownMenuPortal>
-      </div>
+      </Box>
     </DropdownMenu>
   );
 };
