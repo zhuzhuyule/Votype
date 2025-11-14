@@ -4,6 +4,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { ModelUnloadTimeout } from "../../lib/types";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 
 interface ModelUnloadTimeoutProps {
   descriptionMode?: "tooltip" | "inline";
@@ -42,6 +43,15 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
     }
   };
 
+  const handleReset = async () => {
+    try {
+      await invoke("set_model_unload_timeout", { timeout: "never" });
+      updateSetting("model_unload_timeout", "never");
+    } catch (error) {
+      console.error("Failed to reset model unload timeout:", error);
+    }
+  };
+
   const currentValue = getSetting("model_unload_timeout") ?? "never";
 
   const options = useMemo(() => {
@@ -55,16 +65,18 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
       descriptionMode={descriptionMode}
       grouped={grouped}
     >
-      <Dropdown
-        options={options}
-        selectedValue={currentValue}
-        onSelect={(value) =>
-          handleChange({
-            target: { value },
-          } as React.ChangeEvent<HTMLSelectElement>)
-        }
-        disabled={false}
-      />
+      <ActionWrapper onReset={handleReset}>
+        <Dropdown
+          options={options}
+          selectedValue={currentValue}
+          onSelect={(value) =>
+            handleChange({
+              target: { value },
+            } as React.ChangeEvent<HTMLSelectElement>)
+          }
+          disabled={false}
+        />
+      </ActionWrapper>
     </SettingContainer>
   );
 };

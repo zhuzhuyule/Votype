@@ -1,6 +1,7 @@
 import React from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 import { useSettings } from "../../hooks/useSettings";
 import type { ClipboardHandling } from "../../lib/types";
 
@@ -18,8 +19,12 @@ export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
   React.memo(({ descriptionMode = "tooltip", grouped = false }) => {
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
-    const selectedHandling = (getSetting("clipboard_handling") ||
-      "dont_modify") as ClipboardHandling;
+  const handleReset = () => {
+    updateSetting("clipboard_handling", "dont_modify" as ClipboardHandling);
+  };
+
+  const selectedHandling = (getSetting("clipboard_handling") ||
+    "dont_modify") as ClipboardHandling;
 
     return (
       <SettingContainer
@@ -28,14 +33,16 @@ export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <Dropdown
-          options={clipboardHandlingOptions}
-          selectedValue={selectedHandling}
-          onSelect={(value) =>
-            updateSetting("clipboard_handling", value as ClipboardHandling)
-          }
-          disabled={isUpdating("clipboard_handling")}
-        />
+        <ActionWrapper onReset={handleReset}>
+          <Dropdown
+            options={clipboardHandlingOptions}
+            selectedValue={selectedHandling}
+            onSelect={(value) =>
+              updateSetting("clipboard_handling", value as ClipboardHandling)
+            }
+            disabled={isUpdating("clipboard_handling")}
+          />
+        </ActionWrapper>
       </SettingContainer>
     );
   });

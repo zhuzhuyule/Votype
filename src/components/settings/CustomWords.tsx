@@ -3,6 +3,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui";
 
 interface CustomWordsProps {
   descriptionMode?: "inline" | "tooltip";
@@ -51,10 +52,10 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
           descriptionMode={descriptionMode}
           grouped={grouped}
         >
-          <div className="flex items-center gap-2">
+          <ActionWrapper>
             <Input
               type="text"
-              className="max-w-40"
+              className="max-w-40 flex"
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyPress}
@@ -75,7 +76,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
             >
               Add
             </Button>
-          </div>
+          </ActionWrapper>
         </SettingContainer>
         {customWords.length > 0 && (
           <div

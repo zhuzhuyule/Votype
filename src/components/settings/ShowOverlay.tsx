@@ -3,6 +3,7 @@ import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
 import type { OverlayPosition } from "../../lib/types";
+import { ActionWrapper } from "../ui";
 
 interface ShowOverlayProps {
   descriptionMode?: "inline" | "tooltip";
@@ -29,14 +30,16 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <Dropdown
-          options={overlayOptions}
-          selectedValue={selectedPosition}
-          onSelect={(value) =>
-            updateSetting("overlay_position", value as OverlayPosition)
-          }
-          disabled={isUpdating("overlay_position")}
-        />
+        <ActionWrapper>
+          <Dropdown
+            options={overlayOptions}
+            selectedValue={selectedPosition}
+            onSelect={(value) =>
+              updateSetting("overlay_position", value as OverlayPosition)
+            }
+            disabled={isUpdating("overlay_position")}
+          />
+        </ActionWrapper>
       </SettingContainer>
     );
   },

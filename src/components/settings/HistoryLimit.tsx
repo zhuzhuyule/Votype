@@ -2,6 +2,7 @@ import React from "react";
 import { useSettings } from "../../hooks/useSettings";
 import { Input } from "../ui/Input";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 
 interface HistoryLimitProps {
   descriptionMode?: "tooltip" | "inline";
@@ -23,6 +24,10 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
     }
   };
 
+  const handleReset = () => {
+    updateSetting("history_limit", 5);
+  };
+
   return (
     <SettingContainer
       title="History Limit"
@@ -31,7 +36,7 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
       grouped={grouped}
       layout="horizontal"
     >
-      <div className="flex items-center space-x-2">
+      <ActionWrapper onReset={handleReset}>
         <Input
           type="number"
           min="0"
@@ -42,7 +47,7 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
           className="w-20"
         />
         <span className="text-sm text-text">entries</span>
-      </div>
+      </ActionWrapper>
     </SettingContainer>
   );
 };
