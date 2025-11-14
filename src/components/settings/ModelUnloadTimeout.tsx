@@ -43,15 +43,6 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
     }
   };
 
-  const handleReset = async () => {
-    try {
-      await invoke("set_model_unload_timeout", { timeout: "never" });
-      updateSetting("model_unload_timeout", "never");
-    } catch (error) {
-      console.error("Failed to reset model unload timeout:", error);
-    }
-  };
-
   const currentValue = getSetting("model_unload_timeout") ?? "never";
 
   const options = useMemo(() => {
@@ -65,7 +56,7 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
       descriptionMode={descriptionMode}
       grouped={grouped}
     >
-      <ActionWrapper onReset={handleReset}>
+      <ActionWrapper>
         <Dropdown
           options={options}
           selectedValue={currentValue}

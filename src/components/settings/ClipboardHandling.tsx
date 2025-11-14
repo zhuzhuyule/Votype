@@ -19,12 +19,8 @@ export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
   React.memo(({ descriptionMode = "tooltip", grouped = false }) => {
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
-  const handleReset = () => {
-    updateSetting("clipboard_handling", "dont_modify" as ClipboardHandling);
-  };
-
-  const selectedHandling = (getSetting("clipboard_handling") ||
-    "dont_modify") as ClipboardHandling;
+    const selectedHandling = (getSetting("clipboard_handling") ||
+      "dont_modify") as ClipboardHandling;
 
     return (
       <SettingContainer
@@ -33,7 +29,7 @@ export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <ActionWrapper onReset={handleReset}>
+        <ActionWrapper>
           <Dropdown
             options={clipboardHandlingOptions}
             selectedValue={selectedHandling}

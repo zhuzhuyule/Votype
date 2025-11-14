@@ -1,71 +1,50 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { TextDisplay } from "../ui";
+import { IconButton, Flex, Text } from "@radix-ui/themes";
+import { CopyIcon, CheckIcon } from "@radix-ui/react-icons";
+import { SettingContainer } from "../ui/SettingContainer";
 
-interface AppDataDirectoryProps {
-  descriptionMode?: "tooltip" | "inline";
-  grouped?: boolean;
-}
-
-export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
-  descriptionMode = "inline",
-  grouped = false,
-}) => {
+export const AppDataDirectory: React.FC = () => {
   const [appDirPath, setAppDirPath] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const loadAppDirectory = async () => {
-      try {
-        const result = await invoke<string>("get_app_dir_path");
-        setAppDirPath(result);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load app directory",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAppDirectory();
+    invoke<string>("get_app_dir_path").then(setAppDirPath);
   }, []);
 
-  const handleCopy = (value: string) => {
-    // Could add a toast notification here if desired
-    console.log("Copied to clipboard:", value);
+  const handleCopy = async () => {
+    if (!appDirPath) return;
+    try {
+      await navigator.clipboard.writeText(appDirPath);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-        <div className="h-8 bg-gray-100 rounded"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-600 text-sm">
-          Error loading app directory: {error}
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <TextDisplay
-      label="App Data Directory"
+    <SettingContainer
+      title="App Data Directory"
       description="Main directory where application data, settings, and models are stored"
-      value={appDirPath}
-      descriptionMode={descriptionMode}
-      grouped={grouped}
-      copyable={true}
-      monospace={true}
-      onCopy={handleCopy}
-    />
+      layout="stacked"
+    >
+      <Flex align="center" gap="3" >
+        <Text className="bg-gray-50 border border-gray-200 rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0">
+          {appDirPath || "Loading..."}
+        </Text>
+        {appDirPath && (
+          <IconButton
+            size="2"
+            variant="ghost"
+            color={copied ? "green" : "gray"}
+            onClick={handleCopy}
+            title={copied ? "Copied!" : "Copy path"}
+          >
+            {copied ? <CheckIcon /> : <CopyIcon />}
+          </IconButton>
+        )}
+      </Flex>
+    </SettingContainer>
   );
 };

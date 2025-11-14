@@ -6,6 +6,7 @@ import { SettingContainer } from "../ui/SettingContainer";
 import { ActionWrapper } from "../ui/ActionWraperr";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSettings } from "../../hooks/useSettings";
+import { IconButton } from "@radix-ui/themes";
 
 interface SoundPickerProps {
   label: string;
@@ -21,10 +22,6 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   const customSounds = useSettingsStore((state) => state.customSounds);
 
   const selectedTheme = getSetting("sound_theme") ?? "marimba";
-
-  const handleReset = () => {
-    updateSetting("sound_theme", "marimba");
-  };
 
   const options: DropdownOption[] = [
     { value: "marimba", label: "Marimba" },
@@ -50,7 +47,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
       grouped
       layout="horizontal"
     >
-      <ActionWrapper onReset={handleReset}>
+      <ActionWrapper>
         <Dropdown
           selectedValue={selectedTheme}
           onSelect={(value) =>
@@ -58,14 +55,13 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
           }
           options={options}
         />
-        <Button
+        <IconButton
           variant="ghost"
-          size="sm"
           onClick={handlePlayBothSounds}
           title="Preview sound theme (plays start then stop)"
         >
-          <PlayIcon className="h-4 w-4" />
-        </Button>
+          <PlayIcon size="18" />
+        </IconButton>
       </ActionWrapper>
     </SettingContainer>
   );
