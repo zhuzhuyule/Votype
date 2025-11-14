@@ -99,7 +99,7 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
         )}
         {actions && <Box px="3">{actions}</Box>}
       </Flex>
-      <Box className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
+      <Box className="bg-background border border-mid-gray/20 overflow-visible">
         <Box className="divide-y divide-mid-gray/20">{children}</Box>
       </Box>
     </Box>
