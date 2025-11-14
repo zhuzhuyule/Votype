@@ -1,7 +1,7 @@
 import React from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ResetButton } from "../ui/ResetButton";
+import { ActionWrapper } from "../ui";
 import { useSettings } from "../../hooks/useSettings";
 import { AudioDevice } from "../../lib/types";
 
@@ -50,7 +50,13 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
           grouped={grouped}
           disabled={disabled}
         >
-          <div className="flex items-center space-x-1">
+          <ActionWrapper
+            direction="row"
+            onReset={handleReset}
+            resetProps={{
+              disabled: disabled || isUpdating("selected_output_device") || isLoading,
+            }}
+          >
             <Dropdown
               options={outputDeviceOptions}
               selectedValue={selectedOutputDevice}
@@ -68,13 +74,7 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
               }
               onRefresh={refreshOutputDevices}
             />
-            <ResetButton
-              onClick={handleReset}
-              disabled={
-                disabled || isUpdating("selected_output_device") || isLoading
-              }
-            />
-          </div>
+          </ActionWrapper>
         </SettingContainer>
       );
     },

@@ -1,6 +1,5 @@
-import React, { useCallback } from "react";
 import { Select, Text } from "@radix-ui/themes";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
+import React, { useCallback } from "react";
 
 export interface DropdownOption {
   value: string;

@@ -7,6 +7,7 @@ import { DropdownOption } from "../ui/Dropdown";
 import { useSettings } from "../../hooks/useSettings";
 import { useModels } from "../../hooks/useModels";
 import { LANGUAGES } from "../../lib/constants/languages";
+import { ActionWrapper } from "../ui";
 
 interface LanguageSelectorProps {
   descriptionMode?: "inline" | "tooltip";
@@ -44,9 +45,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   };
 
   // Convert LANGUAGES to DropdownOption format
-  const languageOptions: DropdownOption[] = LANGUAGES.map(lang => ({
+  const languageOptions: DropdownOption[] = LANGUAGES.map((lang) => ({
     value: lang.value,
-    label: lang.label
+    label: lang.label,
   }));
 
   return (
@@ -61,21 +62,20 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       grouped={grouped}
       disabled={isUnsupported}
     >
-      <div className="flex items-center space-x-2">
-        <div className="flex-1 min-w-[200px]">
-          <Dropdown
-            selectedValue={selectedLanguage}
-            onSelect={handleLanguageChange}
-            options={languageOptions}
-            placeholder="Auto"
-            disabled={isUnsupported || isUpdating("selected_language")}
-          />
-        </div>
-        <ResetButton
-          onClick={handleReset}
-          disabled={isUpdating("selected_language") || isUnsupported}
+      <ActionWrapper
+        onReset={handleReset}
+        resetProps={{
+          disabled: isUpdating("selected_language") || isUnsupported,
+        }}
+      >
+        <Dropdown
+          selectedValue={selectedLanguage}
+          onSelect={handleLanguageChange}
+          options={languageOptions}
+          placeholder="Auto"
+          disabled={isUnsupported || isUpdating("selected_language")}
         />
-      </div>
+      </ActionWrapper>
     </SettingContainer>
   );
 };

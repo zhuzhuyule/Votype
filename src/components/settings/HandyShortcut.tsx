@@ -10,7 +10,7 @@ import {
   normalizeKey,
   type OSType,
 } from "../../lib/utils/keyboard";
-import { ResetButton } from "../ui/ResetButton";
+import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface HandyShortcutProps {
@@ -239,13 +239,15 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
       grouped={grouped}
       tooltipPosition="bottom"
     >
-      <Flex align="center" gap="2">
+      <ActionWrapper
+        direction="row"
+        onReset={() => resetBinding(primaryId)}
+        resetProps={{
+          disabled: isUpdating(`binding_${primaryId}`),
+        }}
+      >
         {renderKeys()}
-        <ResetButton
-          onClick={() => resetBinding(primaryId)}
-          disabled={isUpdating(`binding_${primaryId}`)}
-        />
-      </Flex>
+      </ActionWrapper>
     </SettingContainer>
   );
 };

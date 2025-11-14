@@ -1,7 +1,7 @@
 import React from "react";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ResetButton } from "../ui/ResetButton";
+import { ActionWrapper } from "../ui";
 import { useSettings } from "../../hooks/useSettings";
 
 interface MicrophoneSelectorProps {
@@ -46,7 +46,13 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <div className="flex items-center space-x-1">
+        <ActionWrapper
+          direction="row"
+          onReset={handleReset}
+          resetProps={{
+            disabled: isUpdating("selected_microphone") || isLoading,
+          }}
+        >
           <Dropdown
             options={microphoneOptions}
             selectedValue={selectedMicrophone}
@@ -63,11 +69,7 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
             }
             onRefresh={refreshAudioDevices}
           />
-          <ResetButton
-            onClick={handleReset}
-            disabled={isUpdating("selected_microphone") || isLoading}
-          />
-        </div>
+        </ActionWrapper>
       </SettingContainer>
     );
   },
