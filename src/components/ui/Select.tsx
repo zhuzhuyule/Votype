@@ -211,7 +211,7 @@ export const Select: React.FC<SelectProps> = React.memo(
 
         <RadixSelect.Portal>
           <RadixSelect.Content
-            className="z-30 w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
+            className="z-30 w-full min-w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
             position={position}
             sideOffset={8}
           >
