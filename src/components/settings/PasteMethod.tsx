@@ -4,6 +4,7 @@ import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
 import type { PasteMethod } from "../../lib/types";
+import { ActionWrapper } from "../ui";
 
 interface PasteMethodProps {
   descriptionMode?: "inline" | "tooltip";
@@ -49,14 +50,16 @@ export const PasteMethodSetting: React.FC<PasteMethodProps> = React.memo(
         grouped={grouped}
         tooltipPosition="bottom"
       >
-        <Dropdown
-          options={pasteMethodOptions}
-          selectedValue={selectedMethod}
-          onSelect={(value) =>
-            updateSetting("paste_method", value as PasteMethod)
-          }
-          disabled={isUpdating("paste_method")}
-        />
+        <ActionWrapper>
+          <Dropdown
+            options={pasteMethodOptions}
+            selectedValue={selectedMethod}
+            onSelect={(value) =>
+              updateSetting("paste_method", value as PasteMethod)
+            }
+            disabled={isUpdating("paste_method")}
+          />
+        </ActionWrapper>
       </SettingContainer>
     );
   },

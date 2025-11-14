@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { Select } from "../../ui/Select";
+import { ActionWrapper } from "../../ui/ActionWraperr";
 import { useSettings } from "../../../hooks/useSettings";
 
 export const OnlineAsrSettings: React.FC = () => {
@@ -64,31 +65,33 @@ export const OnlineAsrSettings: React.FC = () => {
         layout="stacked"
         grouped={true}
       >
-        <div className="space-y-2">
-          <Select
-            value={selectedModelId}
-            options={asrOptions}
-            onChange={(value) => handleModelSelect(value)}
-            onBlur={() => {}}
-            placeholder={
-              asrOptions.length === 0
-                ? "请先添加 ASR 类型模型"
-                : "选择在线 ASR 模型"
-            }
-            disabled={!enabled || asrOptions.length === 0}
-            isClearable
-          />
-          {!enabled && (
-            <p className="text-xs text-mid-gray/70">
-              打开“使用在线 ASR”开关以启用模型选择。
-            </p>
-          )}
-          {enabled && asrOptions.length === 0 && (
-            <p className="text-xs text-mid-gray/70">
-              没有可用的 ASR 模型，请先在模型配置中添加。
-            </p>
-          )}
-        </div>
+        <ActionWrapper>
+          <div className="space-y-2">
+            <Select
+              value={selectedModelId}
+              options={asrOptions}
+              onChange={(value) => handleModelSelect(value)}
+              onBlur={() => {}}
+              placeholder={
+                asrOptions.length === 0
+                  ? "请先添加 ASR 类型模型"
+                  : "选择在线 ASR 模型"
+              }
+              disabled={!enabled || asrOptions.length === 0}
+              isClearable
+            />
+            {!enabled && (
+              <p className="text-xs text-mid-gray/70">
+                打开“使用在线 ASR”开关以启用模型选择。
+              </p>
+            )}
+            {enabled && asrOptions.length === 0 && (
+              <p className="text-xs text-mid-gray/70">
+                没有可用的 ASR 模型，请先在模型配置中添加。
+              </p>
+            )}
+          </div>
+        </ActionWrapper>
       </SettingContainer>
     </div>
   );

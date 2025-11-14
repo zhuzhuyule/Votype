@@ -3,6 +3,7 @@ import { Button } from "../ui/Button";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
 import { PlayIcon } from "lucide-react";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSettings } from "../../hooks/useSettings";
 
@@ -20,6 +21,10 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   const customSounds = useSettingsStore((state) => state.customSounds);
 
   const selectedTheme = getSetting("sound_theme") ?? "marimba";
+
+  const handleReset = () => {
+    updateSetting("sound_theme", "marimba");
+  };
 
   const options: DropdownOption[] = [
     { value: "marimba", label: "Marimba" },
@@ -45,7 +50,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
       grouped
       layout="horizontal"
     >
-      <div className="flex items-center gap-2">
+      <ActionWrapper onReset={handleReset}>
         <Dropdown
           selectedValue={selectedTheme}
           onSelect={(value) =>
@@ -61,7 +66,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
         >
           <PlayIcon className="h-4 w-4" />
         </Button>
-      </div>
+      </ActionWrapper>
     </SettingContainer>
   );
 };
