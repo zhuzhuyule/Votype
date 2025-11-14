@@ -159,10 +159,12 @@ width和height属性现在使用像素值：
   - 使用Flex和Text替换原生div和span
   - 使用IconButton替换原生button
   - 使用Radix UI的CopyIcon和CheckIcon替换原生svg
-- [x] Dropdown.tsx - 已重构
-  - 使用Button替换原生button
-  - 使用Flex、Text、Box替换原生div和span
-  - 使用Radix UI的ChevronDownIcon替换原生svg
+- [x] Dropdown.tsx - 已重构（第三次优化）
+  - 修复空值处理，使用undefined而不是空字符串
+  - 改进类型定义，将null改为undefined，更符合Radix UI API
+  - 增强可访问性，添加aria-label和aria-labelledby属性支持
+  - 优化样式，使用highContrast属性提高对比度
+  - 简化组件实现，更依赖Radix UI内置功能
 - [x] AudioPlayer.tsx - 已重构
   - 使用IconButton替换原生button
   - 使用Flex、Text、Box替换原生div和span
