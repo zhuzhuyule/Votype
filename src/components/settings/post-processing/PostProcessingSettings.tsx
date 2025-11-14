@@ -74,7 +74,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         layout="horizontal"
         grouped={true}
       >
-        <ActionWrapper className="w-150">
+        <ActionWrapper className="w-140">
           <TextField.Root
             value={state.apiKey}
             onBlur={(e) => state.handleApiKeyChange(e.target.value)}
