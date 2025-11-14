@@ -1,5 +1,7 @@
 import React from "react";
 import * as Accordion from "@radix-ui/react-accordion";
+import { Flex, Heading, Text, Box } from "@radix-ui/themes";
+import { ChevronDownIcon } from "@radix-ui/react-icons";
 
 interface SettingsGroupProps {
   title?: string;
@@ -29,32 +31,45 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
         <Accordion.Item value="settings" className="border-0">
           <Accordion.Header>
             <Accordion.Trigger className="flex items-center justify-between w-full group">
-              <div className="flex items-center justify-between flex-1">
+              <Flex justify="between" align="center" className="flex-1">
                 {title && (
-                  <div className="px-4">
-                    <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide group-hover:text-text transition-colors">
+                  <Box px="3">
+                    <Heading
+                      as="h2"
+                      size="1"
+                      weight="medium"
+                      color="gray"
+                      className="uppercase tracking-wide group-hover:text-text transition-colors"
+                    >
                       {title}
-                    </h2>
+                    </Heading>
                     {description && (
-                      <p className="text-xs text-mid-gray mt-1 group-hover:text-text/80 transition-colors">
+                      <Text
+                        size="1"
+                        color="gray"
+                        mt="1"
+                        className="group-hover:text-text/80 transition-colors"
+                      >
                         {description}
-                      </p>
+                      </Text>
                     )}
-                  </div>
+                  </Box>
                 )}
-                {actions && <div className="px-4">{actions}</div>}
-              </div>
-              <div className="px-4 text-mid-gray group-hover:text-text transition-colors">
-                <svg className="w-4 h-4 transition-transform duration-200 group-data-[state=open]:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+                {actions && <Box px="3">{actions}</Box>}
+              </Flex>
+              <Box px="3" className="text-mid-gray group-hover:text-text transition-colors">
+                <ChevronDownIcon
+                  width="16"
+                  height="16"
+                  className="transition-transform duration-200 group-data-[state=open]:rotate-180"
+                />
+              </Box>
             </Accordion.Trigger>
           </Accordion.Header>
           <Accordion.Content className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-            <div className="divide-y divide-mid-gray/20">
+            <Box className="divide-y divide-mid-gray/20">
               {children}
-            </div>
+            </Box>
           </Accordion.Content>
         </Accordion.Item>
       </Accordion.Root>
@@ -62,23 +77,31 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
+    <Box className="space-y-2">
+      <Flex justify="between" align="center">
         {title && (
-          <div className="px-4">
-            <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
+          <Box px="3">
+            <Heading
+              as="h2"
+              size="1"
+              weight="medium"
+              color="gray"
+              className="uppercase tracking-wide"
+            >
               {title}
-            </h2>
+            </Heading>
             {description && (
-              <p className="text-xs text-mid-gray mt-1">{description}</p>
+              <Text size="1" color="gray" mt="1">
+                {description}
+              </Text>
             )}
-          </div>
+          </Box>
         )}
-        {actions && <div className="px-4">{actions}</div>}
-      </div>
-      <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-        <div className="divide-y divide-mid-gray/20">{children}</div>
-      </div>
-    </div>
+        {actions && <Box px="3">{actions}</Box>}
+      </Flex>
+      <Box className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
+        <Box className="divide-y divide-mid-gray/20">{children}</Box>
+      </Box>
+    </Box>
   );
 };

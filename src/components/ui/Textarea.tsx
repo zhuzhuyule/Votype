@@ -1,5 +1,5 @@
 import React from "react";
-import * as Label from "@radix-ui/react-label";
+import { Text, TextArea } from "@radix-ui/themes";
 
 interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -23,25 +23,47 @@ export const Textarea: React.FC<TextareaProps> = ({
 }) => {
   const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
   
-  const baseClasses =
-    "w-full px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded text-left transition-[background-color,border-color] duration-150 hover:bg-logo-primary/10 hover:border-logo-primary focus:outline-none focus:bg-logo-primary/10 focus:border-logo-primary focus:ring-2 focus:ring-logo-primary/30 resize-y";
+  const getSize = () => {
+    switch (variant) {
+      case "compact":
+        return "1";
+      default:
+        return "2";
+    }
+  };
 
-  const variantClasses = {
-    default: "px-3 py-2 min-h-[100px]",
-    compact: "px-2 py-1 min-h-[80px]",
+  const getMinHeight = () => {
+    switch (variant) {
+      case "compact":
+        return "80px";
+      default:
+        return "100px";
+    }
   };
 
   const textareaElement = (
     <div className="relative">
-      <textarea
+      <TextArea
         id={textareaId}
-        className={`${baseClasses} ${variantClasses[variant]} ${className} ${
-          error ? "border-red-500 focus:border-red-500 focus:ring-red-500/30" : ""
+        size={getSize()}
+        disabled={props.disabled}
+        className={`${className} ${
+          error ? "" : ""
         }`}
+        style={{ minHeight: getMinHeight() }}
+        color={error ? "red" : undefined}
         value={value}
-        {...props}
+        onChange={props.onChange}
+        onBlur={props.onBlur}
+        onFocus={props.onFocus}
+        placeholder={props.placeholder}
+        required={props.required}
+        maxLength={props.maxLength}
+        minLength={props.minLength}
+        rows={props.rows}
+        resize={props.resize}
       />
-      {showCharCount && (
+      {showCharCount && props.maxLength && (
         <div className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded">
           {typeof value === "string" ? value.length : 0}/{props.maxLength}
         </div>
@@ -49,23 +71,30 @@ export const Textarea: React.FC<TextareaProps> = ({
     </div>
   );
 
-  if (label || description) {
+  if (label || description || error) {
     return (
       <div className="space-y-2">
         {label && (
-          <Label.Root
+          <Text
+            as="label"
             htmlFor={textareaId}
-            className="text-sm font-medium text-text"
+            size="2"
+            weight="medium"
+            className="text-text"
           >
             {label}
-          </Label.Root>
+          </Text>
         )}
         {textareaElement}
         {description && (
-          <p className="text-xs text-text/60">{description}</p>
+          <Text size="1" color="gray" className="text-text/60">
+            {description}
+          </Text>
         )}
         {error && (
-          <p className="text-sm text-red-500">{error}</p>
+          <Text size="2" color="red">
+            {error}
+          </Text>
         )}
       </div>
     );

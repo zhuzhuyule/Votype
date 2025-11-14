@@ -1,4 +1,5 @@
 import React from "react";
+import { Button as RadixButton } from "@radix-ui/themes";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "danger" | "ghost";
@@ -15,38 +16,68 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseClasses =
-    "font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all duration-200 relative overflow-hidden";
-
-  const variantClasses = {
-    primary:
-      "text-white bg-background-ui hover:bg-background-ui/80 focus:ring-background-ui",
-    secondary: "bg-mid-gray/10 hover:bg-background-ui/30 border border-mid-gray/20 hover:border-logo-primary/50",
-    danger:
-      "text-white bg-red-600 hover:bg-red-700 focus:ring-red-500",
-    ghost: "text-current hover:bg-mid-gray/10 hover:border-logo-primary/30",
+  const getRadixVariant = () => {
+    switch (variant) {
+      case "primary":
+        return "solid";
+      case "secondary":
+        return "outline";
+      case "danger":
+        return "solid";
+      case "ghost":
+        return "ghost";
+      default:
+        return "solid";
+    }
   };
 
-  const sizeClasses = {
-    sm: "px-2 py-1 text-xs",
-    md: "px-4 py-[5px] text-sm",
-    lg: "px-4 py-2 text-base",
+  const getRadixColor = () => {
+    switch (variant) {
+      case "primary":
+        return "indigo";
+      case "secondary":
+        return "gray";
+      case "danger":
+        return "red";
+      case "ghost":
+        return "gray";
+      default:
+        return "indigo";
+    }
+  };
+
+  const getRadixSize = () => {
+    switch (size) {
+      case "sm":
+        return "1";
+      case "md":
+        return "2";
+      case "lg":
+        return "3";
+      default:
+        return "2";
+    }
   };
 
   return (
-    <button
-      className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+    <RadixButton
+      variant={getRadixVariant()}
+      color={getRadixColor()}
+      size={getRadixSize()}
       disabled={disabled || isLoading}
+      className={`${className} ${
+        isLoading ? "cursor-wait" : ""
+      }`}
       {...props}
     >
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-inherit">
+        <RadixButton.Loading>
           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        </RadixButton.Loading>
       )}
-      <span className={isLoading ? "opacity-0" : "opacity-100"}>
+      <span className={isLoading ? "opacity-50" : ""}>
         {children}
       </span>
-    </button>
+    </RadixButton>
   );
 };
