@@ -9,13 +9,13 @@ import { Textarea } from "../../ui/Textarea";
 
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
-import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
-import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
 import { ProviderManager } from "./ProviderManager";
 import { ActionWrapper } from "../../ui";
+import { IconButton, TextField } from "@radix-ui/themes";
+import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -27,6 +27,7 @@ const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
 
 const PostProcessingSettingsApiComponent: React.FC = () => {
   const state = usePostProcessProviderState();
+  const [showApiKey, setShowApiKey] = useState(false);
 
   return (
     <>
@@ -54,15 +55,14 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         grouped={true}
       >
         <ActionWrapper className="w-100">
-          <BaseUrlField
+          <TextField.Root
             value={state.baseUrl}
-            onBlur={state.handleBaseUrlChange}
+            onBlur={(e) => state.handleBaseUrlChange(e.target.value)}
             placeholder="https://api.openai.com/v1"
             disabled={
               !state.selectedProvider?.allow_base_url_edit ||
               state.isBaseUrlUpdating
             }
-            className="min-w-[380px]"
           />
         </ActionWrapper>
       </SettingContainer>
@@ -74,14 +74,29 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         layout="horizontal"
         grouped={true}
       >
-        <ActionWrapper className="w-100">
-          <ApiKeyField
+        <ActionWrapper className="w-150">
+          <TextField.Root
             value={state.apiKey}
-            onBlur={state.handleApiKeyChange}
+            onBlur={(e) => state.handleApiKeyChange(e.target.value)}
             placeholder="sk-..."
+            type={showApiKey ? "text" : "password"}
             disabled={state.isApiKeyUpdating}
-            className="min-w-[320px]"
-          />
+          >
+            <TextField.Slot side="right">
+              <IconButton
+                size="1"
+                variant="ghost"
+                onClick={() => setShowApiKey(!showApiKey)}
+                type="button"
+              >
+                {showApiKey ? (
+                  <EyeClosedIcon height="14" width="14" />
+                ) : (
+                  <EyeOpenIcon height="14" width="14" />
+                )}
+              </IconButton>
+            </TextField.Slot>
+          </TextField.Root>
         </ActionWrapper>
       </SettingContainer>
     </>
@@ -210,7 +225,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
       <div className="space-y-3">
         <div className="flex gap-2">
           <Dropdown
-            selectedValue={selectedPromptId || null}
+            selectedValue={selectedPromptId || undefined}
             options={prompts.map((p) => ({
               value: p.id,
               label: p.name,
