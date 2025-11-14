@@ -6,5 +6,4 @@ export { ToggleSwitch } from "./ToggleSwitch";
 export { TooltipIcon } from "./TooltipIcon";
 export { SettingContainer } from "./SettingContainer";
 export { SettingsGroup } from "./SettingsGroup";
-export { TextDisplay } from "./TextDisplay";
 export { Textarea } from "./Textarea";
