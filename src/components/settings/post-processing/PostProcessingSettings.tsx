@@ -15,6 +15,7 @@ import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
 import { ProviderManager } from "./ProviderManager";
+import { ActionWrapper } from "../../ui";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -29,14 +30,6 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
 
   return (
     <>
-      {!state.enabled && (
-        <DisabledNotice>
-          Post processing is currently disabled. The AI and Model sections remain
-          configurable, but auto-post-processing will not run until you enable it
-          in Debug settings.
-        </DisabledNotice>
-      )}
-
       <SettingContainer
         title="Provider"
         description="Select an OpenAI-compatible provider."
@@ -44,11 +37,13 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         layout="horizontal"
         grouped={true}
       >
-        <ProviderSelect
-          options={state.providerOptions}
-          value={state.selectedProviderId}
-          onChange={state.handleProviderSelect}
-        />
+        <ActionWrapper className="w-100">
+          <ProviderSelect
+            options={state.providerOptions}
+            value={state.selectedProviderId}
+            onChange={state.handleProviderSelect}
+          />
+        </ActionWrapper>
       </SettingContainer>
 
       <SettingContainer
@@ -58,7 +53,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         layout="horizontal"
         grouped={true}
       >
-        <div className="flex items-center gap-2">
+        <ActionWrapper className="w-100">
           <BaseUrlField
             value={state.baseUrl}
             onBlur={state.handleBaseUrlChange}
@@ -69,7 +64,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
             }
             className="min-w-[380px]"
           />
-        </div>
+        </ActionWrapper>
       </SettingContainer>
 
       <SettingContainer
@@ -79,7 +74,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         layout="horizontal"
         grouped={true}
       >
-        <div className="flex items-center gap-2">
+        <ActionWrapper className="w-100">
           <ApiKeyField
             value={state.apiKey}
             onBlur={state.handleApiKeyChange}
@@ -87,7 +82,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
             disabled={state.isApiKeyUpdating}
             className="min-w-[320px]"
           />
-        </div>
+        </ActionWrapper>
       </SettingContainer>
     </>
   );

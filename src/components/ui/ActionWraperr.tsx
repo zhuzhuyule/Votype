@@ -1,21 +1,18 @@
+import {
+  Button,
+  ButtonProps,
+  Flex,
+  IconButton,
+  type FlexProps,
+} from "@radix-ui/themes";
 import React from "react";
-import { Flex, type FlexProps } from "@radix-ui/themes";
-import { ResetButton } from "./ResetButton";
 import { mergeClasses, sx } from "../../lib/utils/classTool";
-
-type ResetButtonConfig = {
-  disabled?: boolean;
-  className?: string;
-  ariaLabel?: string;
-  children?: React.ReactNode;
-  size?: "sm" | "md" | "lg";
-  variant?: "primary" | "secondary" | "danger" | "ghost";
-};
+import ResetIcon from "../icons/ResetIcon";
 
 interface ActionWrapperProps extends Omit<FlexProps, "children"> {
   children: React.ReactNode;
   onReset?: () => void;
-  resetProps?: ResetButtonConfig;
+  resetProps?: ButtonProps;
 }
 
 export const ActionWrapper: React.FC<ActionWrapperProps> = ({
@@ -25,7 +22,7 @@ export const ActionWrapper: React.FC<ActionWrapperProps> = ({
   direction,
   align = "center",
   justify = "center",
-  gap = "2",
+  gap = "3",
   ...flexProps
 }) => {
   return (
@@ -33,18 +30,22 @@ export const ActionWrapper: React.FC<ActionWrapperProps> = ({
       direction={direction}
       align={align}
       justify={justify}
-      width={"260px"}
       gap={gap}
       {...flexProps}
       className={mergeClasses(
         sx({
           "& > :first-child": { flex: 1 },
         }),
+        'w-70',
         flexProps.className,
       )}
     >
       {children}
-      {onReset && <ResetButton onClick={onReset} {...resetProps} />}
+      {onReset && (
+        <IconButton variant="ghost" {...resetProps} onClick={onReset}>
+          <ResetIcon />
+        </IconButton>
+      )}
     </Flex>
   );
 };
