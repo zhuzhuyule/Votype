@@ -29,8 +29,8 @@ export const AppDataDirectory: React.FC = () => {
       description="Main directory where application data, settings, and models are stored"
       layout="stacked"
     >
-      <Flex align="center" gap="3" >
-        <Text className="bg-gray-50 border border-gray-200 rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0">
+      <Flex align="center" gap="3">
+        <Text className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0">
           {appDirPath || "Loading..."}
         </Text>
         {appDirPath && (
