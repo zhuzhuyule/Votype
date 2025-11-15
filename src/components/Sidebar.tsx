@@ -2,6 +2,7 @@ import React from "react";
 import { Cog, FlaskConical, History, Info, Sparkles, Layers } from "lucide-react";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
 import {
   GeneralSettings,
@@ -24,7 +25,7 @@ interface IconProps {
 }
 
 interface SectionConfig {
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<IconProps>;
   component: React.ComponentType;
   enabled: (settings: any) => boolean;
@@ -32,43 +33,43 @@ interface SectionConfig {
 
 export const SECTIONS_CONFIG = {
   general: {
-    label: "General",
+    labelKey: "sidebar.general",
     icon: HandyHand,
     component: GeneralSettings,
     enabled: () => true,
   },
   advanced: {
-    label: "Advanced",
+    labelKey: "sidebar.advanced",
     icon: Cog,
     component: AdvancedSettings,
     enabled: () => true,
   },
   ai: {
-    label: "AI",
+    labelKey: "sidebar.ai",
     icon: Sparkles,
     component: AiSettings,
     enabled: () => true,
   },
   models: {
-    label: "Models",
+    labelKey: "sidebar.models",
     icon: Layers,
     component: ModelsSettings,
     enabled: () => true,
   },
   history: {
-    label: "History",
+    labelKey: "sidebar.history",
     icon: History,
     component: HistorySettings,
     enabled: () => true,
   },
   debug: {
-    label: "Debug",
+    labelKey: "sidebar.debug",
     icon: FlaskConical,
     component: DebugSettings,
     enabled: (settings) => settings?.debug_mode ?? false,
   },
   about: {
-    label: "About",
+    labelKey: "sidebar.about",
     icon: Info,
     component: AboutSettings,
     enabled: () => true,
@@ -80,15 +81,27 @@ interface SidebarProps {
   onSectionChange: (section: SidebarSection) => void;
 }
 
+type SectionWithLabel = SectionConfig & {
+  id: SidebarSection;
+  label: string;
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeSection,
   onSectionChange,
 }) => {
+  const { t } = useTranslation();
   const { settings } = useSettings();
 
-  const availableSections = Object.entries(SECTIONS_CONFIG)
+  const availableSections: SectionWithLabel[] = Object.entries(
+    SECTIONS_CONFIG,
+  )
     .filter(([_, config]) => config.enabled(settings))
-    .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
+    .map(([id, config]) => ({
+      id: id as SidebarSection,
+      ...config,
+      label: t(config.labelKey),
+    }));
 
   return (
     <div className="flex flex-col w-40 h-full border-r border-mid-gray/20 items-center px-2">

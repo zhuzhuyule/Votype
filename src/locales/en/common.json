@@ -1,0 +1,85 @@
+{
+  "sidebar": {
+    "general": "General",
+    "advanced": "Advanced",
+    "ai": "AI",
+    "models": "Models",
+    "history": "History",
+    "debug": "Debug",
+    "about": "About"
+  },
+  "onboarding": {
+    "description": "To get started, choose a transcription model",
+    "failedLoadModels": "Failed to load available models",
+    "failedDownloadModel": "Failed to download model: {{error}}"
+  },
+  "modelCard": {
+    "recommended": "Recommended",
+    "accuracy": "Accuracy",
+    "speed": "Speed",
+    "downloadSize": "Download size"
+  },
+  "settings": {
+    "speechLanguage": {
+      "title": "Language",
+      "description": "Select the language for speech recognition. Auto will automatically determine the language, while selecting a specific language can improve accuracy for that language.",
+      "descriptionUnsupported": "Parakeet models automatically detect the language. No manual selection is needed.",
+      "placeholder": "Auto"
+    },
+    "groups": {
+      "general": "General",
+      "sound": "Sound"
+    }
+  },
+  "uiLanguage": {
+    "title": "Interface language",
+    "description": "Choose the language that Handy uses for its interface text.",
+    "system": "System default",
+    "english": "English",
+    "chinese": "中文",
+    "placeholder": "Select language"
+  },
+  "modelConfiguration": {
+    "title": "Model configuration",
+    "description": "Handy keeps AI models grouped by their intended usage so you can pick the right toolkit for transcription, text transformation, or custom prompts. Adding models here makes them available for prompts and AI routines throughout the app.",
+    "addModel": "+ Add model",
+    "selectModel": "Select model",
+    "selectModelDescription": "Pick a model from the provider's list and assign it a purpose.",
+    "usageTypeTitle": "Choose a usage type",
+    "customLabelTitle": "Custom label",
+    "customLabelPlaceholder": "Enter a custom label",
+    "selectedBadge": "Selected",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "placeholder": "Select or enter a model name",
+    "placeholderEmpty": "No models available to add",
+    "formatCreate": "Use \"{{value}}\"",
+    "emptyTitle": "No models added yet",
+    "emptyDescription": "Add one from the provider above to get started.",
+    "remove": "Remove",
+    "stats": {
+      "asr": "ASR: {{count}}",
+      "text": "Text: {{count}}",
+      "other": "Other: {{count}}"
+    },
+    "groups": {
+      "asr": "ASR ({{count}})",
+      "text": "Text ({{count}})",
+      "other": "Other ({{count}})"
+    },
+    "modelTypes": {
+      "text": {
+        "label": "Text",
+        "hint": "Used for prompt editing and polishing"
+      },
+      "asr": {
+        "label": "ASR",
+        "hint": "Used for online speech transcription"
+      },
+      "other": {
+        "label": "Other",
+        "hint": "Custom usage label"
+      }
+    }
+  }
+}

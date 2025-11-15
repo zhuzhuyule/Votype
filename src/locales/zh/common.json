@@ -1,0 +1,85 @@
+{
+  "sidebar": {
+    "general": "通用",
+    "advanced": "高级",
+    "ai": "AI",
+    "models": "模型",
+    "history": "历史",
+    "debug": "调试",
+    "about": "关于"
+  },
+  "onboarding": {
+    "description": "要开始，请选择一个转录模型",
+    "failedLoadModels": "无法加载可用模型",
+    "failedDownloadModel": "下载模型失败：{{error}}"
+  },
+  "modelCard": {
+    "recommended": "推荐",
+    "accuracy": "准确度",
+    "speed": "速度",
+    "downloadSize": "下载大小"
+  },
+  "settings": {
+    "speechLanguage": {
+      "title": "识别语言",
+      "description": "选择语音识别的语言。自动模式会自动检测语言，手动选择可以提升特定语言的准确性。",
+      "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动设置。",
+      "placeholder": "自动"
+    },
+    "groups": {
+      "general": "常规",
+      "sound": "声音"
+    }
+  },
+  "uiLanguage": {
+    "title": "界面语言",
+    "description": "选择 Handy 界面的显示语言。",
+    "system": "系统默认",
+    "english": "English",
+    "chinese": "中文",
+    "placeholder": "选择语言"
+  },
+  "modelConfiguration": {
+    "title": "模型配置",
+    "description": "Handy 会根据模型的用途将其分组，方便你在转录、文本处理或自定义提示之间选择最合适的工具。此处添加的模型会在应用内的提示和 AI 流程中可用。",
+    "addModel": "+ 添加模型",
+    "selectModel": "选择模型",
+    "selectModelDescription": "从 Provider 列表中挑选模型并设定用途。",
+    "usageTypeTitle": "选择用途类型",
+    "customLabelTitle": "自定义标签",
+    "customLabelPlaceholder": "输入自定义模型标签",
+    "selectedBadge": "已选择",
+    "cancel": "取消",
+    "confirm": "确定",
+    "placeholder": "选择或输入模型名称",
+    "placeholderEmpty": "暂无可添加的模型",
+    "formatCreate": "使用「{{value}}」",
+    "emptyTitle": "暂未添加任何模型",
+    "emptyDescription": "先在上方从 Provider 中添加一个吧。",
+    "remove": "删除",
+    "stats": {
+      "asr": "ASR：{{count}}",
+      "text": "Text：{{count}}",
+      "other": "其他：{{count}}"
+    },
+    "groups": {
+      "asr": "ASR（{{count}}）",
+      "text": "Text（{{count}}）",
+      "other": "其他（{{count}}）"
+    },
+    "modelTypes": {
+      "text": {
+        "label": "Text",
+        "hint": "用于 Prompt 处理与润色"
+      },
+      "asr": {
+        "label": "ASR",
+        "hint": "用于在线语音识别"
+      },
+      "other": {
+        "label": "自定义",
+        "hint": "自定义用途标签"
+      }
+    }
+  }
+}

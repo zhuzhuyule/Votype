@@ -1,17 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel, ModelType } from "../../../lib/types";
 import { Select } from "../../ui/Select";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 
-const modelTypeOptions = [
-  { value: "text", label: "Text", hint: "用于 Prompt 处理与润色" },
-  { value: "asr", label: "ASR", hint: "用于在线语音识别" },
-  { value: "other", label: "Other", hint: "自定义用途标签" },
-] as const;
+const MODEL_TYPE_INFO: Record<
+  ModelType,
+  { labelKey: string; hintKey: string }
+> = {
+  text: {
+    labelKey: "modelConfiguration.modelTypes.text.label",
+    hintKey: "modelConfiguration.modelTypes.text.hint",
+  },
+  asr: {
+    labelKey: "modelConfiguration.modelTypes.asr.label",
+    hintKey: "modelConfiguration.modelTypes.asr.hint",
+  },
+  other: {
+    labelKey: "modelConfiguration.modelTypes.other.label",
+    hintKey: "modelConfiguration.modelTypes.other.hint",
+  },
+};
+
+const MODEL_TYPE_ORDER: ModelType[] = ["text", "asr", "other"];
 
 const buildCacheId = (modelId: string, providerId: string) => {
   if (globalThis.crypto?.randomUUID) {
@@ -30,6 +45,7 @@ export const ModelConfigurationPanel: React.FC = () => {
     isUpdating,
   } = useSettings();
 
+  const { t } = useTranslation();
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
   const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   const [pendingModelType, setPendingModelType] = useState<ModelType>("text");
@@ -49,6 +65,16 @@ export const ModelConfigurationPanel: React.FC = () => {
   const configuredIds = useMemo(() => {
     return new Set(cachedModels.map((model) => model.model_id));
   }, [cachedModels]);
+
+  const localizedModelTypeOptions = useMemo(
+    () =>
+      MODEL_TYPE_ORDER.map((modelType) => ({
+        value: modelType,
+        label: t(MODEL_TYPE_INFO[modelType].labelKey),
+        hint: t(MODEL_TYPE_INFO[modelType].hintKey),
+      })),
+    [t],
+  );
 
   const availableModels = useMemo(() => {
     return state.modelOptions.filter(
@@ -146,10 +172,10 @@ export const ModelConfigurationPanel: React.FC = () => {
             <Box className="space-y-4">
               <Box>
                 <Text size="2" weight="medium" className="mb-1">
-                  选择模型
+                  {t("modelConfiguration.selectModel")}
                 </Text>
                 <Text size="1" color="gray">
-                  从当前 Provider 返回的模型中选择要缓存的条目，然后设定用途。
+                  {t("modelConfiguration.selectModelDescription")}
                 </Text>
               </Box>
               <Select
@@ -166,20 +192,24 @@ export const ModelConfigurationPanel: React.FC = () => {
                   setIsManualModelEntry(true);
                 }}
                 isCreatable
-                formatCreateLabel={(input) => `使用 "${input.trim()}"`}
+                formatCreateLabel={(input) =>
+                  t("modelConfiguration.formatCreate", {
+                    value: input.trim(),
+                  })
+                }
                 onBlur={() => {}}
                 placeholder={
                   availableModels.length === 0
-                    ? "暂无可添加的模型"
-                    : "选择或输入模型名称"
+                    ? t("modelConfiguration.placeholderEmpty")
+                    : t("modelConfiguration.placeholder")
                 }
               />
               <Box className="space-y-2">
                 <Text size="1" weight="medium" color="gray">
-                  选择用途类型
+                  {t("modelConfiguration.usageTypeTitle")}
                 </Text>
                 <Flex direction="column" gap="2">
-                  {modelTypeOptions.map((option) => {
+                  {localizedModelTypeOptions.map((option) => {
                     const isActive = pendingModelType === option.value;
                     return (
                       <Button
@@ -199,7 +229,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                               weight="medium"
                               className="uppercase tracking-wide px-2 py-0.5 rounded-full border border-mid-gray/20 text-logo-primary"
                             >
-                              已选择
+                              {t("modelConfiguration.selectedBadge")}
                             </Text>
                           )}
                         </Flex>
@@ -214,12 +244,12 @@ export const ModelConfigurationPanel: React.FC = () => {
               {pendingModelType === "other" && (
                 <Box className="space-y-2">
                   <Text size="1" weight="medium" color="gray">
-                    自定义标签
+                    {t("modelConfiguration.customLabelTitle")}
                   </Text>
                   <TextField.Root
                     className="w-full"
                     type="text"
-                    placeholder="输入自定义模型标签"
+                    placeholder={t("modelConfiguration.customLabelPlaceholder")}
                     value={customTypeLabel}
                     onChange={(event) => setCustomTypeLabel(event.target.value)}
                   />
@@ -236,7 +266,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                     setIsManualModelEntry(false);
                   }}
                 >
-                  取消
+                  {t("modelConfiguration.cancel")}
                 </Button>
                 <Button
                   variant="solid"
@@ -261,8 +291,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                       setIsModelPickerOpen(false);
                     }
                   }}
-                >
-                  确定
+                  >
+                  {t("modelConfiguration.confirm")}
                 </Button>
               </Flex>
             </Box>
@@ -273,7 +303,7 @@ export const ModelConfigurationPanel: React.FC = () => {
       <Box className="space-y-4">
         <Flex align="center" justify="between">
           <Text size="2" weight="medium">
-            模型配置
+            {t("modelConfiguration.title")}
           </Text>
           <Button
             onClick={() => setIsModelPickerOpen(true)}
@@ -281,46 +311,40 @@ export const ModelConfigurationPanel: React.FC = () => {
             disabled={state.isFetchingModels}
             className="shadow-sm hover:shadow-md transition-shadow"
           >
-            + 添加模型
+            {t("modelConfiguration.addModel")}
           </Button>
         </Flex>
         <Text size="1" color="gray" className="max-w-prose">
-          Handy keeps AI models grouped by their intended usage so you can pick
-          the right toolkit for transcription, text transformation, or custom
-          prompts. Adding models here makes them available for prompts and AI
-          routines throughout the app.
+          {t("modelConfiguration.description")}
         </Text>
         <Flex wrap="wrap" gap="2" className="gap-4">
           <Text size="1" className="text-mid-gray/80">
-            ASR:{" "}
-            {
-              cachedModels.filter((model) => model.model_type === "asr")
-                .length
-            }
+            {t("modelConfiguration.stats.asr", {
+              count: cachedModels.filter((model) => model.model_type === "asr")
+                .length,
+            })}
           </Text>
           <Text size="1" className="text-mid-gray/80">
-            TEXT:{" "}
-            {
-              cachedModels.filter((model) => model.model_type === "text")
-                .length
-            }
+            {t("modelConfiguration.stats.text", {
+              count: cachedModels.filter((model) => model.model_type === "text")
+                .length,
+            })}
           </Text>
           <Text size="1" className="text-mid-gray/80">
-            OTHER:{" "}
-            {
-              cachedModels.filter((model) => model.model_type === "other")
-                .length
-            }
+            {t("modelConfiguration.stats.other", {
+              count: cachedModels.filter((model) => model.model_type === "other")
+                .length,
+            })}
           </Text>
         </Flex>
         {cachedModels.length === 0 ? (
           <Box className="text-center py-6 px-4 rounded-lg border-2 border-dashed border-mid-gray/20 bg-mid-gray/5">
-            <Text size="2" className="mb-1 text-mid-gray">
-              暂未添加任何模型
-            </Text>
-            <Text size="1" className="text-mid-gray/70">
-              先在上方从 Provider 中添加一个吧
-            </Text>
+          <Text size="2" className="mb-1 text-mid-gray">
+            {t("modelConfiguration.emptyTitle")}
+          </Text>
+          <Text size="1" className="text-mid-gray/70">
+            {t("modelConfiguration.emptyDescription")}
+          </Text>
           </Box>
         ) : (
           <Box className="space-y-4">
@@ -338,7 +362,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                       weight="medium"
                       className="px-2 py-1 rounded-full border border-mid-gray/30 text-text"
                     >
-                      ASR ({asrModels.length})
+                      {t("modelConfiguration.groups.asr", {
+                        count: asrModels.length,
+                      })}
                     </Text>
                   </Flex>
                   <Box className="space-y-1">
@@ -383,7 +409,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                             disabled={!!isRemoving}
                             className="flex-shrink-0"
                           >
-                            删除
+                            {t("modelConfiguration.remove")}
                           </Button>
                         </Flex>
                       );
@@ -407,7 +433,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                       weight="medium"
                       className="px-2 py-1 rounded-full border border-mid-gray/30 text-text"
                     >
-                      TEXT ({textModels.length})
+                      {t("modelConfiguration.groups.text", {
+                        count: textModels.length,
+                      })}
                     </Text>
                   </Flex>
                   <Box className="space-y-1">
@@ -452,7 +480,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                             disabled={!!isRemoving}
                             className="flex-shrink-0"
                           >
-                            删除
+                            {t("modelConfiguration.remove")}
                           </Button>
                         </Flex>
                       );
@@ -476,7 +504,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                       weight="medium"
                       className="px-2 py-1 rounded-full border border-mid-gray/30 text-text"
                     >
-                      OTHER ({otherModels.length})
+                      {t("modelConfiguration.groups.other", {
+                        count: otherModels.length,
+                      })}
                     </Text>
                   </Flex>
                   <Box className="space-y-1">
@@ -521,7 +551,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                             disabled={!!isRemoving}
                             className="flex-shrink-0"
                           >
-                            删除
+                            {t("modelConfiguration.remove")}
                           </Button>
                         </Flex>
                       );
