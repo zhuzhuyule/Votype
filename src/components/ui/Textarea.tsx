@@ -2,12 +2,18 @@ import React from "react";
 import { Text, TextArea } from "@radix-ui/themes";
 
 interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  extends Omit<
+    React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+    "value" | "defaultValue"
+  > {
+  value?: string;
   variant?: "default" | "compact";
   label?: string;
   error?: string;
   description?: string;
   showCharCount?: boolean;
+  resize?: "none" | "both" | "horizontal" | "vertical";
+  defaultValue?: string;
 }
 
 export const Textarea: React.FC<TextareaProps> = ({
@@ -19,7 +25,12 @@ export const Textarea: React.FC<TextareaProps> = ({
   showCharCount = false,
   id,
   value,
-  ...props
+  defaultValue,
+  resize = "vertical",
+  style,
+  maxLength,
+  color,
+  ...rest
 }) => {
   const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
   
@@ -46,26 +57,20 @@ export const Textarea: React.FC<TextareaProps> = ({
       <TextArea
         id={textareaId}
         size={getSize()}
-        disabled={props.disabled}
-        className={`${className} ${
-          error ? "" : ""
-        }`}
-        style={{ minHeight: getMinHeight() }}
-        color={error ? "red" : undefined}
+        className={`${className} ${error ? "border border-red-400" : ""}`}
+        style={{
+          minHeight: getMinHeight(),
+          resize,
+          ...(style || {}),
+        }}
         value={value}
-        onChange={props.onChange}
-        onBlur={props.onBlur}
-        onFocus={props.onFocus}
-        placeholder={props.placeholder}
-        required={props.required}
-        maxLength={props.maxLength}
-        minLength={props.minLength}
-        rows={props.rows}
-        resize={props.resize}
+        defaultValue={defaultValue}
+        maxLength={maxLength}
+        {...rest}
       />
-      {showCharCount && props.maxLength && (
+      {showCharCount && maxLength && (
         <div className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded">
-          {typeof value === "string" ? value.length : 0}/{props.maxLength}
+          {typeof value === "string" ? value.length : 0}/{maxLength}
         </div>
       )}
     </div>

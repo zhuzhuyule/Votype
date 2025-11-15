@@ -39,8 +39,8 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
       <ActionWrapper onReset={handleReset}>
         <TextField.Root
           value={historyLimit.toString()}
-          onValueChange={(value: string) => {
-            const numValue = parseInt(value || "0", 10);
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            const numValue = parseInt(event.target.value || "0", 10);
             if (!isNaN(numValue) && numValue >= 0) {
               updateSetting("history_limit", numValue);
             }

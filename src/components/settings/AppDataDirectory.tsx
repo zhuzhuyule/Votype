@@ -4,7 +4,15 @@ import { IconButton, Flex, Text } from "@radix-ui/themes";
 import { Copy, Check } from "lucide-react";
 import { SettingContainer } from "../ui/SettingContainer";
 
-export const AppDataDirectory: React.FC = () => {
+interface AppDataDirectoryProps {
+  descriptionMode?: "inline" | "tooltip";
+  grouped?: boolean;
+}
+
+export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
+  descriptionMode = "tooltip",
+  grouped = false,
+}) => {
   const [appDirPath, setAppDirPath] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
@@ -28,6 +36,8 @@ export const AppDataDirectory: React.FC = () => {
       title="App Data Directory"
       description="Main directory where application data, settings, and models are stored"
       layout="stacked"
+      descriptionMode={descriptionMode}
+      grouped={grouped}
     >
       <Flex align="center" gap="3">
         <Text className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0">
