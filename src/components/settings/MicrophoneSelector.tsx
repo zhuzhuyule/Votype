@@ -1,8 +1,9 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
+import { useSettings } from "../../hooks/useSettings";
+import { ActionWrapper } from "../ui";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ActionWrapper } from "../ui";
-import { useSettings } from "../../hooks/useSettings";
 
 interface MicrophoneSelectorProps {
   descriptionMode?: "inline" | "tooltip";
@@ -21,10 +22,11 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
       refreshAudioDevices,
     } = useSettings();
 
+    const { t } = useTranslation();
     const selectedMicrophone =
       getSetting("selected_microphone") === "default"
-        ? "Default"
-        : getSetting("selected_microphone") || "Default";
+        ? t("microphone.default")
+        : getSetting("selected_microphone") || t("microphone.default");
 
     const handleMicrophoneSelect = async (deviceName: string) => {
       await updateSetting("selected_microphone", deviceName);
@@ -41,8 +43,8 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
 
     return (
       <SettingContainer
-        title="Microphone"
-        description="Select your preferred microphone device"
+        title={t("microphone.title")}
+        description={t("microphone.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
@@ -59,8 +61,8 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
             onSelect={handleMicrophoneSelect}
             placeholder={
               isLoading || audioDevices.length === 0
-                ? "Loading..."
-                : "Select microphone..."
+                ? t("microphone.loading")
+                : t("microphone.selectPlaceholder")
             }
             disabled={
               isUpdating("selected_microphone") ||

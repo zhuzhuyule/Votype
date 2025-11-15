@@ -2,6 +2,7 @@ import { Flex, Kbd } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { type } from "@tauri-apps/plugin-os";
 import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useSettings } from "../../hooks/useSettings";
 import {
@@ -22,6 +23,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
   descriptionMode = "tooltip",
   grouped = false,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateBinding, resetBinding, isUpdating, isLoading } =
     useSettings();
   const [keyPressed, setKeyPressed] = useState<string[]>([]);
@@ -85,7 +87,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
             );
           } catch (error) {
             console.error("Failed to restore original binding:", error);
-            toast.error("Failed to restore original shortcut");
+            toast.error(t("shortcuts.restoreFailed"));
           }
         } else if (editingShortcutId) {
           await invoke("resume_binding", { id: editingShortcutId }).catch(
@@ -139,7 +141,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
             );
           } catch (error) {
             console.error("Failed to change binding:", error);
-            toast.error(`Failed to set shortcut: ${error}`);
+            toast.error(`${t("shortcuts.changeFailed")}: ${error}`);
 
             // Reset to original binding on error
             if (originalBinding) {
@@ -150,7 +152,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
                 );
               } catch (resetError) {
                 console.error("Failed to reset binding:", resetError);
-                toast.error("Failed to reset shortcut to original value");
+                toast.error(t("shortcuts.resetFailed"));
               }
             }
           }
@@ -198,7 +200,7 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
 
   // Format the current shortcut keys being recorded
   const formatCurrentKeys = (): string => {
-    if (recordedKeys.length === 0) return "Press keys...";
+    if (recordedKeys.length === 0) return t("shortcuts.pressKeys");
 
     // Use the same formatting as the display to ensure consistency
     return formatKeyCombination(recordedKeys.join(" + "), osType);
@@ -211,11 +213,11 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
 
   function renderKeys() {
     if (isLoading) {
-      <Kbd className={className}>Loading shortcuts...</Kbd>;
+      return <Kbd className={className}>{t("shortcuts.loading")}</Kbd>;
     }
 
     if (!primaryBinding || Object.keys(bindings).length === 0) {
-      <Kbd className={className}>No shortcuts configured</Kbd>;
+      return <Kbd className={className}>{t("shortcuts.noShortcuts")}</Kbd>;
     }
 
     const isSame = editingShortcutId === primaryId;
@@ -233,8 +235,8 @@ export const HandyShortcut: React.FC<HandyShortcutProps> = ({
 
   return (
     <SettingContainer
-      title="Handy Shortcut"
-      description="Set the keyboard shortcut to start and stop speech-to-text recording"
+      title={t("shortcuts.title")}
+      description={t("shortcuts.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       tooltipPosition="bottom"

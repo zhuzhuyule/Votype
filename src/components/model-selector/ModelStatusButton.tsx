@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@radix-ui/themes";
 
 type ModelStatus =
@@ -31,6 +32,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
   modeLabel,
   isOnlineModel = false,
 }) => {
+  const { t } = useTranslation();
   const getStatusColor = (status: ModelStatus): string => {
     if (isOnlineModel) {
       return "bg-blue-500";
@@ -61,7 +63,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       variant="ghost"
       size="1"
       className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
-      title={`Model status: ${displayText}`}
+      title={t("modelStatusButton.modelStatus", { status: displayText })}
     >
       {modeLabel && (
         <span

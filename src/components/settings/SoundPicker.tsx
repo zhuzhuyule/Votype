@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
 import { PlayIcon } from "lucide-react";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -16,6 +17,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   label,
   description,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting } = useSettings();
   const playTestSound = useSettingsStore((state) => state.playTestSound);
   const customSounds = useSettingsStore((state) => state.customSounds);
@@ -23,13 +25,13 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   const selectedTheme = getSetting("sound_theme") ?? "marimba";
 
   const options: DropdownOption[] = [
-    { value: "marimba", label: "Marimba" },
-    { value: "pop", label: "Pop" },
+    { value: "marimba", label: t("soundPicker.marimba") },
+    { value: "pop", label: t("soundPicker.pop") },
   ];
 
   // Only add Custom option if both custom sound files exist
   if (customSounds.start && customSounds.stop) {
-    options.push({ value: "custom", label: "Custom" });
+    options.push({ value: "custom", label: t("soundPicker.custom") });
   }
 
   const handlePlayBothSounds = async () => {
@@ -57,7 +59,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
         <IconButton
           variant="ghost"
           onClick={handlePlayBothSounds}
-          title="Preview sound theme (plays start then stop)"
+          title={t("soundPicker.preview")}
         >
           <PlayIcon size="18" />
         </IconButton>

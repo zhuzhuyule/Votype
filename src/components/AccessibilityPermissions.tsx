@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
@@ -15,6 +16,7 @@ interface ButtonConfig {
 }
 
 const AccessibilityPermissions: React.FC = () => {
+  const { t } = useTranslation();
   const [hasAccessibility, setHasAccessibility] = useState<boolean>(false);
   const [permissionState, setPermissionState] =
     useState<PermissionState>("request");
@@ -35,7 +37,7 @@ const AccessibilityPermissions: React.FC = () => {
         // After system prompt, transition to verification state
         setPermissionState("verify");
       } catch (error) {
-        console.error("Error requesting permissions:", error);
+        console.error(t("error.requestingPermissions"), error);
         setPermissionState("verify");
       }
     } else if (permissionState === "verify") {
@@ -62,11 +64,11 @@ const AccessibilityPermissions: React.FC = () => {
   // Configure button text and style based on state
   const buttonConfig: Record<PermissionState, ButtonConfig | null> = {
     request: {
-      text: "Grant",
+      text: t("accessibility.grant"),
       variant: "solid",
     },
     verify: {
-      text: "Verify",
+      text: t("accessibility.verify"),
       variant: "outline",
     },
     granted: null,
@@ -82,7 +84,7 @@ const AccessibilityPermissions: React.FC = () => {
       <div className="flex justify-between items-center gap-2">
         <div className="">
           <p className="text-sm font-medium">
-            Please grant accessibility permissions for Handy
+            {t("accessibility.request")}
           </p>
         </div>
         <Button

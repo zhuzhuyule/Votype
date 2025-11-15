@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button, TextField } from "@radix-ui/themes";
 import { useSettings } from "../../../hooks/useSettings";
@@ -18,6 +19,7 @@ interface ProviderManagerProps {
 export const ProviderManager: React.FC<ProviderManagerProps> = ({
   onClose,
 }) => {
+  const { t } = useTranslation();
   const {
     settings,
     addCustomProvider,
@@ -141,7 +143,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
         >
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-semibold text-text mb-2">
-              Provider 管理
+              {t("ui.createCustomProviderTitle")}
             </h2>
             <Button
               variant="ghost"
@@ -163,7 +165,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                     onClick={() => setShowAdd((prev) => !prev)}
                     disabled={isUpdating("add_custom_provider")}
                   >
-                    {showAdd ? "取消创建" : "+ 创建自定义 Provider"}
+                    {showAdd ? t("ui.cancelCreate") : t("ui.createCustomProvider")}
                   </Button>
                 </div>
                 {showAdd && (
@@ -332,12 +334,12 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                         </div>
                         <div className="space-y-1">
                           <p className="text-xs text-mid-gray/70">
-                            <span className="font-medium">Base URL:</span>{" "}
+                            <span className="font-medium">{t("ui.baseUrl")}:</span>{" "}
                             {provider.base_url}
                           </p>
                           <p className="text-xs text-mid-gray/70">
                             <span className="font-medium">
-                              Models endpoint:
+                              {t("ui.modelsEndpoint")}:
                             </span>{" "}
                             {provider.models_endpoint ||
                               DEFAULT_MODELS_ENDPOINT}

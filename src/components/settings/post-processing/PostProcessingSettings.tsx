@@ -1,12 +1,13 @@
+import { Button, IconButton } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
-import { Button } from "@radix-ui/themes";
+import { useTranslation } from "react-i18next";
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
 
-import { IconButton, TextField } from "@radix-ui/themes";
+import { TextField } from "@radix-ui/themes";
 import { Eye, EyeOff } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
@@ -25,14 +26,15 @@ const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
 );
 
 const PostProcessingSettingsApiComponent: React.FC = () => {
+  const { t } = useTranslation();
   const state = usePostProcessProviderState();
   const [showApiKey, setShowApiKey] = useState(false);
 
   return (
     <>
       <SettingContainer
-        title="Provider"
-        description="Select an OpenAI-compatible provider."
+        title={t("postProcessing.title")}
+        description={t("postProcessing.description")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
@@ -47,8 +49,8 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
       </SettingContainer>
 
       <SettingContainer
-        title="Base URL"
-        description="API base URL for the selected provider. Only the custom provider can be edited."
+        title={t("postProcessing.baseUrlTitle")}
+        description={t("postProcessing.baseUrlDescription")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
@@ -67,8 +69,8 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
       </SettingContainer>
 
       <SettingContainer
-        title="API Key"
-        description="API key for the selected provider."
+        title={t("postProcessing.apiKeyTitle")}
+        description={t("postProcessing.apiKeyDescription")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
@@ -103,6 +105,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
 };
 
 const PostProcessingSettingsPromptsComponent: React.FC = () => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating, refreshSettings } =
     useSettings();
   const [isCreating, setIsCreating] = useState(false);
@@ -200,10 +203,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
 
   if (!enabled) {
     return (
-      <DisabledNotice>
-        Post processing is currently disabled. Enable it in Debug settings to
-        configure.
-      </DisabledNotice>
+      <DisabledNotice>{t("postProcessing.disabledNotice")}</DisabledNotice>
     );
   }
 
@@ -215,8 +215,8 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
 
   return (
     <SettingContainer
-      title="Selected Prompt"
-      description="Select a template for refining transcriptions or create a new one. Use ${output} inside the prompt text to reference the captured transcript."
+      title={t("postProcessing.selectedPromptTitle")}
+      description={t("postProcessing.selectedPromptDescription")}
       descriptionMode="tooltip"
       layout="stacked"
       grouped={true}
@@ -231,7 +231,9 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             }))}
             onSelect={(value) => handlePromptSelect(value)}
             placeholder={
-              prompts.length === 0 ? "No prompts available" : "Select a prompt"
+              prompts.length === 0
+                ? t("postProcessing.noPromptsAvailable")
+                : t("postProcessing.selectPrompt")
             }
             disabled={
               isUpdating("post_process_selected_prompt_id") || isCreating
@@ -244,55 +246,57 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             size="2"
             disabled={isCreating}
           >
-            Create New Prompt
+            {t("postProcessing.createNewPrompt")}
           </Button>
         </div>
 
         {!isCreating && hasPrompts && selectedPrompt && (
           <div className="space-y-3">
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">Prompt Label</label>
+              <label className="text-sm font-semibold">
+                {t("postProcessing.promptLabel")}
+              </label>
               <TextField.Root
                 value={draftName}
                 onBlur={(e) => setDraftName(e.target.value)}
-                placeholder="Enter prompt name"
+                placeholder={t("ui.enterPromptName")}
               />
             </div>
 
             <div className="space-y-2 flex flex-col">
               <label className="text-sm font-semibold">
-                Prompt Instructions
+                {t("postProcessing.promptInstructions")}
               </label>
               <Textarea
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
-                placeholder="Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}"
+                placeholder={t("ui.writeInstructions")}
               />
               <p className="text-xs text-mid-gray/70">
-                Tip: Use{" "}
+                {t("ui.tipUse")}{" "}
                 <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
                   $&#123;output&#125;
                 </code>{" "}
-                to insert the transcribed text in your prompt.
+                {t("ui.toInsertText")}
               </p>
             </div>
 
             <div className="flex gap-2 pt-2">
-            <Button
-              onClick={handleUpdatePrompt}
-              variant="solid"
-              size="2"
-              disabled={!draftName.trim() || !draftText.trim() || !isDirty}
-            >
-              Update Prompt
-            </Button>
-            <Button
-              onClick={() => handleDeletePrompt(selectedPromptId)}
-              variant="outline"
-              size="2"
-              disabled={!selectedPromptId || prompts.length <= 1}
-            >
-                Delete Prompt
+              <Button
+                onClick={handleUpdatePrompt}
+                variant="solid"
+                size="2"
+                disabled={!draftName.trim() || !draftText.trim() || !isDirty}
+              >
+                {t("ui.updatePrompt")}
+              </Button>
+              <Button
+                onClick={() => handleDeletePrompt(selectedPromptId)}
+                variant="outline"
+                size="2"
+                disabled={!selectedPromptId || prompts.length <= 1}
+              >
+                {t("ui.deletePrompt")}
               </Button>
             </div>
           </div>
@@ -302,8 +306,8 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
           <div className="p-3 bg-mid-gray/5 rounded border border-mid-gray/20">
             <p className="text-sm text-mid-gray">
               {hasPrompts
-                ? "Select a prompt above to view and edit its details."
-                : "Click 'Create New Prompt' above to create your first post-processing prompt."}
+                ? t("ui.selectPromptAbove")
+                : t("ui.createPromptTip")}
             </p>
           </div>
         )}
@@ -312,30 +316,34 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
           <div className="space-y-3">
             <div className="space-y-2 block flex flex-col">
               <label className="text-sm font-semibold text-text">
-                Prompt Label
+                {t("postProcessing.promptLabel")}
               </label>
               <TextField.Root
                 value={draftName}
                 onBlur={(e) => setDraftName(e.target.value)}
-                placeholder="Enter prompt name"
+                placeholder={t("ui.enterPromptName")}
               />
             </div>
 
             <div className="space-y-2 flex flex-col">
               <label className="text-sm font-semibold">
-                Prompt Instructions
+                {t("postProcessing.promptInstructions")}
               </label>
               <Textarea
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
-                placeholder="Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}"
+                placeholder={t("ui.writeInstructions")}
               />
               <p className="text-xs text-mid-gray/70">
-                Tip: Use{" "}
+                {t("ui.tipUse")}{" "}
+                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
+                  Tip: Use{" "}
                 <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
                   $&#123;output&#125;
                 </code>{" "}
-                to insert the transcribed text in your prompt.
+                to insert the transcribed text in your prompt.#123;output&#125;
+                </code>{" "}
+                {t("ui.toInsertText")}
               </p>
             </div>
 
@@ -346,14 +354,10 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
                 size="2"
                 disabled={!draftName.trim() || !draftText.trim()}
               >
-                Create Prompt
+                {t("ui.createPrompt")}
               </Button>
-              <Button
-                onClick={handleCancelCreate}
-                variant="outline"
-                size="2"
-              >
-                Cancel
+              <Button onClick={handleCancelCreate} variant="outline" size="2">
+                {t("ui.cancel")}
               </Button>
             </div>
           </div>
@@ -374,18 +378,19 @@ export const PostProcessingSettingsPrompts = React.memo(
 PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
 export const AiSettings: React.FC = () => {
+  const { t } = useTranslation();
   const [isProviderManagerOpen, setProviderManagerOpen] = useState(false);
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup
-        title="API (OpenAI Compatible)"
+        title={t("postProcessing.apiTitle")}
         actions={
           <Button
             variant="outline"
             size="1"
             onClick={() => setProviderManagerOpen(true)}
           >
-            管理 Providers
+            {t("postProcessing.manageProviders")}
           </Button>
         }
       >
@@ -394,7 +399,7 @@ export const AiSettings: React.FC = () => {
         )}
         <PostProcessingSettingsApi />
       </SettingsGroup>
-      <SettingsGroup title="AI Model Config">
+      <SettingsGroup title={t("postProcessing.aiModelConfig")}>
         <ModelConfigurationPanel />
       </SettingsGroup>
     </div>

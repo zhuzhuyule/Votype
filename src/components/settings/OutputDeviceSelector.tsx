@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ActionWrapper } from "../ui";
@@ -14,6 +15,7 @@ interface OutputDeviceSelectorProps {
 export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
   React.memo(
     ({ descriptionMode = "tooltip", grouped = false, disabled = false }) => {
+      const { t } = useTranslation();
       const {
         getSetting,
         updateSetting,
@@ -26,8 +28,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
 
       const selectedOutputDevice =
         getSetting("selected_output_device") === "default"
-          ? "Default"
-          : getSetting("selected_output_device") || "Default";
+          ? t("outputDevice.default")
+          : getSetting("selected_output_device") || t("outputDevice.default");
 
       const handleOutputDeviceSelect = async (deviceName: string) => {
         await updateSetting("selected_output_device", deviceName);
@@ -44,8 +46,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
 
       return (
         <SettingContainer
-          title="Output Device"
-          description="Select your preferred audio output device for feedback sounds"
+          title={t("outputDevice.title")}
+          description={t("outputDevice.description")}
           descriptionMode={descriptionMode}
           grouped={grouped}
           disabled={disabled}
@@ -63,8 +65,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
               onSelect={handleOutputDeviceSelect}
               placeholder={
                 isLoading || outputDevices.length === 0
-                  ? "Loading..."
-                  : "Select output device..."
+                  ? t("outputDevice.loading")
+                  : t("outputDevice.selectPlaceholder")
               }
               disabled={
                 disabled ||

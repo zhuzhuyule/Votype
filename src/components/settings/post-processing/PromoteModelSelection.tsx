@@ -3,8 +3,10 @@ import React, { useMemo } from "react";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { Dropdown } from "../../ui/Dropdown";
 import { useSettings } from "../../../hooks/useSettings";
+import { useTranslation } from "react-i18next";
 
 export const PromoteModelSelection: React.FC = () => {
+  const { t } = useTranslation();
   const { settings, selectPromptModel, isUpdating } = useSettings();
 
   const cachedModels = settings?.cached_models || [];
@@ -26,8 +28,8 @@ export const PromoteModelSelection: React.FC = () => {
 
   return (
     <SettingContainer
-      title="Promote 模型"
-      description="选择一个文本模型用于 Post-processing 提示。"
+      title={t("promptModel.title")}
+      description={t("promptModel.description")}
       descriptionMode="tooltip"
       layout="stacked"
       grouped={true}
@@ -39,8 +41,8 @@ export const PromoteModelSelection: React.FC = () => {
           onSelect={handleSelect}
           placeholder={
             options.length === 0
-              ? "请先添加 Text 类型模型"
-              : "选择用作 Prompt 的模型"
+              ? t("promptModel.placeholderAddModel")
+              : t("promptModel.placeholderSelectModel")
           }
           disabled={
             options.length === 0 ||
@@ -49,7 +51,7 @@ export const PromoteModelSelection: React.FC = () => {
         />
         {options.length === 0 && (
           <p className="text-xs text-mid-gray/70">
-            需要在「AI」设置中添加一个 Text 类型模型。
+            {t("promptModel.hintAddModel")}
           </p>
         )}
       </div>

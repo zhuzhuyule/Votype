@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { listen } from "@tauri-apps/api/event";
@@ -10,6 +11,7 @@ interface UpdateCheckerProps {
 }
 
 const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
+  const { t } = useTranslation();
   // Update checking state
   const [isChecking, setIsChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -64,6 +66,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       }
     } catch (error) {
       console.error("Failed to check for updates:", error);
+      console.error(t("update.failedCheck"));
     } finally {
       setIsChecking(false);
       isManualCheckRef.current = false;
@@ -110,6 +113,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       await relaunch();
     } catch (error) {
       console.error("Failed to install update:", error);
+      console.error(t("update.failedInstall"));
     } finally {
       setIsInstalling(false);
       setDownloadProgress(0);
@@ -122,15 +126,15 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   const getUpdateStatusText = () => {
     if (isInstalling) {
       return downloadProgress > 0 && downloadProgress < 100
-        ? `Downloading... ${downloadProgress.toString().padStart(3)}%`
+        ? t("update.downloading", { progress: downloadProgress.toString().padStart(3) })
         : downloadProgress === 100
-          ? "Installing..."
-          : "Preparing...";
+          ? t("update.installing")
+          : t("update.preparing");
     }
-    if (isChecking) return "Checking...";
-    if (showUpToDate) return "Up to date";
-    if (updateAvailable) return "Update available";
-    return "Check for updates";
+    if (isChecking) return t("update.checking");
+    if (showUpToDate) return t("update.upToDate");
+    if (updateAvailable) return t("update.updateAvailable");
+    return t("update.checkUpdates");
   };
 
   const getUpdateStatusAction = () => {
