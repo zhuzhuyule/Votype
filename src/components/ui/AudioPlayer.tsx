@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import * as RadixSlider from "@radix-ui/react-slider";
-import { Flex, Text, IconButton, Box } from "@radix-ui/themes";
-import { PlayIcon, PauseIcon } from "@radix-ui/react-icons";
+import { Slider, Flex, Text, IconButton, Box } from "@radix-ui/themes";
+import { Play, Pause } from "lucide-react";
 
 interface AudioPlayerProps {
   src: string;
@@ -149,9 +148,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (
-          <PauseIcon width="20" height="20" />
+          <Pause width={20} height={20} />
         ) : (
-          <PlayIcon width="20" height="20" />
+          <Play width={20} height={20} />
         )}
       </IconButton>
 
@@ -165,27 +164,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </Text>
 
         <Box flexGrow="1" position="relative">
-          <RadixSlider.Root
-            className="relative flex items-center select-none touch-none h-1 w-full cursor-pointer"
+          <Slider
             value={[currentTime]}
             onValueChange={handleSeek}
             min={0}
             max={duration || 0}
             step={0.01}
-          >
-            <RadixSlider.Track
-              className="relative bg-mid-gray/20 grow rounded-full h-1"
-              style={{
-                background: `linear-gradient(to right, #FAA2CA 0%, #FAA2CA ${progressPercent}%, rgba(128, 128, 128, 0.2) ${progressPercent}%, rgba(128, 128, 128, 0.2) 100%)`,
-              }}
-            >
-              <RadixSlider.Range className="absolute bg-logo-primary/90 rounded-full h-full" />
-            </RadixSlider.Track>
-            <RadixSlider.Thumb
-              className="block w-3 h-3 bg-white border-2 border-logo-primary/90 rounded-full shadow hover:bg-logo-primary/10 focus:outline-none focus:ring-2 focus:ring-logo-primary focus:ring-offset-2 transition-all duration-200"
-              aria-label="Seek"
-            />
-          </RadixSlider.Root>
+            className="w-full"
+          />
         </Box>
 
         <Text

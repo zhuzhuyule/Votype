@@ -1,10 +1,9 @@
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
+import { TextField } from "@radix-ui/themes";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
 import { Button } from "../../ui/Button";
-import { Input } from "../../ui/Input";
-import { SettingContainer } from "../../ui/SettingContainer";
 
 const DEFAULT_MODELS_ENDPOINT = "/models";
 
@@ -147,7 +146,6 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
             </h2>
             <Button
               variant="ghost"
-              size="sm"
               onClick={handleClose}
               className="rounded-2xl -mt-5"
               style={{ fontSize: "1.5rem", lineHeight: 1 }}
@@ -163,7 +161,6 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                     自定义 Provider
                   </h3>
                   <Button
-                    size="sm"
                     onClick={() => setShowAdd((prev) => !prev)}
                     disabled={isUpdating("add_custom_provider")}
                   >
@@ -180,7 +177,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                         <label className="text-xs font-medium text-mid-gray/80">
                           Provider 名称
                         </label>
-                        <Input
+                        <TextField.Root
+                          
+                          
                           value={addDraft.label}
                           onChange={(event) =>
                             setAddDraft((draft) => ({
@@ -189,14 +188,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             }))
                           }
                           placeholder="Provider 名称（例如 Custom Whisper）"
-                          variant="compact"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-medium text-mid-gray/80">
                           Base URL
                         </label>
-                        <Input
+                        <TextField.Root
+                          className="w-full"
+                          size="1"
                           value={addDraft.baseUrl}
                           onChange={(event) =>
                             setAddDraft((draft) => ({
@@ -205,14 +205,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             }))
                           }
                           placeholder="https://..."
-                          variant="compact"
                         />
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs font-medium text-mid-gray/80">
                           Models Endpoint
                         </label>
-                        <Input
+                        <TextField.Root
+                          className="w-full"
+                          size="1"
                           value={addDraft.modelsEndpoint}
                           onChange={(event) =>
                             setAddDraft((draft) => ({
@@ -221,7 +222,6 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             }))
                           }
                           placeholder="/models"
-                          variant="compact"
                         />
                       </div>
                     </div>
@@ -353,7 +353,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                 <label className="text-xs font-medium text-mid-gray/80">
                                   Provider 名称
                                 </label>
-                                <Input
+                                <TextField.Root
+                                  className="w-full"
+                                  size="1"
                                   value={editDraft.label}
                                   onChange={(event) =>
                                     setEditDraft((draft) => ({
@@ -362,14 +364,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                     }))
                                   }
                                   placeholder="Provider 名称"
-                                  variant="compact"
                                 />
                               </div>
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-mid-gray/80">
                                   Base URL
                                 </label>
-                                <Input
+                                <TextField.Root
+                                  className="w-full"
+                                  size="1"
                                   value={editDraft.baseUrl}
                                   onChange={(event) =>
                                     setEditDraft((draft) => ({
@@ -378,14 +381,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                     }))
                                   }
                                   placeholder="https://..."
-                                  variant="compact"
                                 />
                               </div>
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-mid-gray/80">
                                   Models Endpoint
                                 </label>
-                                <Input
+                                <TextField.Root
+                                  className="w-full"
+                                  size="1"
                                   value={editDraft.modelsEndpoint}
                                   onChange={(event) =>
                                     setEditDraft((draft) => ({
@@ -394,7 +398,6 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                     }))
                                   }
                                   placeholder="/models"
-                                  variant="compact"
                                 />
                               </div>
                             </div>

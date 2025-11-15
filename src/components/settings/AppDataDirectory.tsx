@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { IconButton, Flex, Text } from "@radix-ui/themes";
-import { CopyIcon, CheckIcon } from "@radix-ui/react-icons";
+import { Copy, Check } from "lucide-react";
 import { SettingContainer } from "../ui/SettingContainer";
 
 export const AppDataDirectory: React.FC = () => {
@@ -41,7 +41,7 @@ export const AppDataDirectory: React.FC = () => {
             onClick={handleCopy}
             title={copied ? "Copied!" : "Copy path"}
           >
-            {copied ? <CheckIcon /> : <CopyIcon />}
+            {copied ? <Check /> : <Copy />}
           </IconButton>
         )}
       </Flex>

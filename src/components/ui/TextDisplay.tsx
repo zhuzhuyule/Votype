@@ -1,7 +1,6 @@
 import React, { useState } from "react";
-import * as Popover from "@radix-ui/react-popover";
-import { Flex, Text, Box, IconButton } from "@radix-ui/themes";
-import { CopyIcon, CheckIcon } from "@radix-ui/react-icons";
+import { Popover, Flex, Text, Box, IconButton } from "@radix-ui/themes";
+import { Copy, Check } from "lucide-react";
 import { SettingContainer } from "./SettingContainer";
 
 interface TextDisplayProps {
@@ -79,7 +78,7 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
         </Box>
         {copyable && value && (
           <Popover.Root open={popoverOpen} onOpenChange={setPopoverOpen}>
-            <Popover.Trigger asChild>
+            <Popover.Trigger>
               <IconButton
                 size="1"
                 variant="surface"
@@ -89,24 +88,21 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
                 title="Copy to clipboard"
               >
                 {showCopied ? (
-                  <CheckIcon width="16" height="16" className="text-green-500" />
+                  <Check width={16} height={16} className="text-green-500" />
                 ) : (
-                  <CopyIcon width="16" height="16" />
+                  <Copy width={16} height={16} />
                 )}
               </IconButton>
             </Popover.Trigger>
-            <Popover.Portal>
-              <Popover.Content
-                className="bg-green-500 text-white px-3 py-2 rounded-md text-sm shadow-lg z-50"
-                side="top"
-                align="center"
-              >
-                <Text size="2" color="white">
-                  Copied!
-                </Text>
-                <Popover.Arrow className="fill-green-500" />
-              </Popover.Content>
-            </Popover.Portal>
+            <Popover.Content
+              className="bg-green-500 text-white px-3 py-2 rounded-md text-sm shadow-lg z-50"
+              side="top"
+              align="center"
+            >
+              <Text size="2" color="green">
+                Copied!
+              </Text>
+            </Popover.Content>
           </Popover.Root>
         )}
       </Flex>

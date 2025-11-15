@@ -49,3 +49,7 @@
   --color-text-stroke: #ffffff;
   --color-mid-gray: #c5c5c5;
 }
+
+.custom-select-trigger .rt-SelectIcon {
+  display: none;
+}

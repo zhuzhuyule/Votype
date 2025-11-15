@@ -1,6 +1,6 @@
 import React from "react";
 import { Flex, Text, IconButton } from "@radix-ui/themes";
-import { Cross1Icon } from "@radix-ui/react-icons";
+import { X } from "lucide-react";
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -67,7 +67,7 @@ const Badge: React.FC<BadgeProps> = ({
           aria-label="Remove badge"
           className="ml-1 hover:bg-black/20 transition-colors"
         >
-          <Cross1Icon width="12" height="12" />
+          <X width={12} height={12} />
         </IconButton>
       )}
     </Flex>
