@@ -1,5 +1,6 @@
 import { Select, Text } from "@radix-ui/themes";
 import React, { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 
 export interface DropdownOption {
   value: string;
@@ -15,21 +16,23 @@ export interface DropdownProps {
   placeholder?: string;
   disabled?: boolean;
   onRefresh?: () => void;
-  "aria-label"?: string;
-  "aria-labelledby"?: string;
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
 }
 
 export const Dropdown: React.FC<DropdownProps> = ({
   options,
   selectedValue,
   onSelect,
-  className = "",
-  placeholder = "Select an option...",
   disabled = false,
   onRefresh,
-  "aria-label": ariaLabel,
-  "aria-labelledby": ariaLabelledBy,
+  className = "",
+  placeholder,
+  ariaLabel,
+  ariaLabelledBy,
 }) => {
+  const { t } = useTranslation();
+  const defaultPlaceholder = t("ui.selectOption");
   const handleOpenChange = useCallback(
     (open: boolean) => {
       if (open && !disabled && onRefresh) {
@@ -57,7 +60,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       <Select.Trigger
         variant="surface"
         className={`w-auto min-w-[200px] shadow-sm ${className}`}
-        placeholder={placeholder}
+        placeholder={placeholder || defaultPlaceholder}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
       />
@@ -68,7 +71,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
       >
         {options.length === 0 ? (
           <Text size="2" color="gray" align="center" className="px-3 py-2">
-            No options found
+            {t("ui.notAvailable")}
           </Text>
         ) : (
           options.map((option) => (

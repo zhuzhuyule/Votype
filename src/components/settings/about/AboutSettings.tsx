@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -7,6 +8,7 @@ import { Button } from "@radix-ui/themes";
 import { AppDataDirectory } from "../AppDataDirectory";
 
 export const AboutSettings: React.FC = () => {
+  const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -33,10 +35,10 @@ export const AboutSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title="About">
+      <SettingsGroup title={t("about.title")}>
         <SettingContainer
-          title="Version"
-          description="Current version of Handy"
+          title={t("about.version.title")}
+          description={t("about.version.description")}
           grouped={true}
         >
           <span className="text-sm font-mono">v{version}</span>
@@ -45,8 +47,8 @@ export const AboutSettings: React.FC = () => {
         <AppDataDirectory descriptionMode="tooltip" grouped={true} />
 
         <SettingContainer
-          title="Source Code"
-          description="View source code and contribute"
+          title={t("about.sourceCode.title")}
+          description={t("about.sourceCode.description")}
           grouped={true}
         >
           <Button
@@ -54,13 +56,13 @@ export const AboutSettings: React.FC = () => {
             size="2"
             onClick={() => openUrl("https://github.com/cjpais/Handy")}
           >
-            View on GitHub
+            {t("about.sourceCode.viewOnGitHub")}
           </Button>
         </SettingContainer>
 
         <SettingContainer
-          title="Support Development"
-          description="Help us continue building Handy"
+          title={t("about.support.title")}
+          description={t("about.support.description")}
           grouped={true}
         >
           <Button
@@ -69,21 +71,20 @@ export const AboutSettings: React.FC = () => {
             color="pink"
             onClick={handleDonateClick}
           >
-            Donate
+            {t("about.support.donate")}
           </Button>
         </SettingContainer>
       </SettingsGroup>
 
-      <SettingsGroup title="Acknowledgments">
+      <SettingsGroup title={t("about.acknowledgments")}>
         <SettingContainer
-          title="Whisper.cpp"
-          description="High-performance inference of OpenAI's Whisper automatic speech recognition model"
+          title={t("about.whisper.title")}
+          description={t("about.whisper.description")}
           grouped={true}
           layout="stacked"
         >
           <div className="text-sm text-mid-gray">
-            Handy uses Whisper.cpp for fast, local speech-to-text processing.
-            Thanks to the amazing work by Georgi Gerganov and contributors.
+            {t("about.whisper.content")}
           </div>
         </SettingContainer>
       </SettingsGroup>

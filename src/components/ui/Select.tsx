@@ -1,6 +1,7 @@
 import { Select as ThemeSelect, TextField } from "@radix-ui/themes";
 import { ChevronsUpDown, Plus, X } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export type SelectOption = {
   value: string;
@@ -71,11 +72,12 @@ const createActionMeta = (option: SelectOption): ActionMeta<SelectOption> => ({
   option,
 });
 
-export const Select: React.FC<SelectProps> = React.memo(
-  ({
+export const Select: React.FC<SelectProps> = React.memo((props) => {
+  const { t } = useTranslation();
+  const {
     value,
     options,
-    placeholder = "Select...",
+    placeholder = t("ui.selectOption"),
     disabled = false,
     isLoading = false,
     isClearable = true,
@@ -87,7 +89,7 @@ export const Select: React.FC<SelectProps> = React.memo(
     formatCreateLabel,
     position = "item-aligned",
     onRefresh,
-  }) => {
+  } = props;
     const [open, setOpen] = useState(false);
     const [newValue, setNewValue] = useState("");
 
@@ -223,7 +225,7 @@ export const Select: React.FC<SelectProps> = React.memo(
                   <TextField.Root
                     className="flex-1"
                     type="text"
-                    placeholder="Add new option"
+                    placeholder={t("ui.addNewOption")}
                     value={newValue}
                     onChange={(event) => setNewValue(event.target.value)}
                     onKeyDown={handleKeyDown}

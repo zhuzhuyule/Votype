@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { TextField } from "@radix-ui/themes";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -13,6 +14,7 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
   descriptionMode = "inline",
   grouped = false,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating } = useSettings();
 
   const historyLimit = getSetting("history_limit") ?? 5;
@@ -30,8 +32,8 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
 
   return (
     <SettingContainer
-      title="History Limit"
-      description="Maximum number of transcription entries to keep in history"
+      title={t("historyLimit.title")}
+      description={t("historyLimit.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       layout="horizontal"

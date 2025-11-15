@@ -1,6 +1,7 @@
 import React from "react";
 import { Flex, Text, IconButton } from "@radix-ui/themes";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface BadgeProps {
   children: React.ReactNode;
@@ -15,6 +16,8 @@ const Badge: React.FC<BadgeProps> = ({
   className = "",
   onRemove,
 }) => {
+  const { t } = useTranslation();
+
   const getColor = () => {
     switch (variant) {
       case "primary":
@@ -64,7 +67,7 @@ const Badge: React.FC<BadgeProps> = ({
           variant="ghost"
           color={getColor()}
           onClick={onRemove}
-          aria-label="Remove badge"
+          aria-label={t("common.remove")}
           className="ml-1 hover:bg-black/20 transition-colors"
         >
           <X width={12} height={12} />

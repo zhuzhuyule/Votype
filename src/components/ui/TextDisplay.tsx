@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Popover, Flex, Text, Box, IconButton } from "@radix-ui/themes";
 import { Copy, Check } from "lucide-react";
 import { SettingContainer } from "./SettingContainer";
+import { useTranslation } from "react-i18next";
 
 interface TextDisplayProps {
   label: string;
@@ -21,11 +22,13 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
   value,
   descriptionMode = "tooltip",
   grouped = false,
-  placeholder = "Not available",
+  placeholder,
   copyable = false,
   monospace = false,
   onCopy,
 }) => {
+  const { t } = useTranslation();
+  const defaultPlaceholder = t("ui.notAvailable");
   const [showCopied, setShowCopied] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
@@ -48,7 +51,7 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
     }
   };
 
-  const displayValue = value || placeholder;
+  const displayValue = value || placeholder || defaultPlaceholder;
 
   return (
     <SettingContainer
@@ -85,7 +88,7 @@ export const TextDisplay: React.FC<TextDisplayProps> = ({
                 color="gray"
                 onClick={handleCopy}
                 className="w-12 min-h-8 hover:bg-logo-primary/10 hover:border-logo-primary hover:text-logo-primary transition-all duration-150 flex-shrink-0 cursor-pointer"
-                title="Copy to clipboard"
+                title={t("common.copy")}
               >
                 {showCopied ? (
                   <Check width={16} height={16} className="text-green-500" />

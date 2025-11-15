@@ -4,10 +4,10 @@ import { SettingContainer } from "../ui/SettingContainer";
 import { useTranslation } from "react-i18next";
 import i18n, { UI_LANGUAGE_STORAGE_KEY } from "../../i18n/config";
 
-const UI_LANGUAGE_OPTIONS: DropdownOption[] = [
-  { value: "system", label: "System default" },
-  { value: "en", label: "English" },
-  { value: "zh", label: "中文" },
+const getUI_LANGUAGE_OPTIONS = (t: (key: string) => string): DropdownOption[] => [
+  { value: "system", label: t("uiLanguage.system") },
+  { value: "en", label: t("uiLanguage.english") },
+  { value: "zh", label: t("uiLanguage.chinese") },
 ];
 
 const detectPreferredLanguage = () => {
@@ -30,16 +30,7 @@ export const UILanguageSelector: React.FC = () => {
   });
 
   const options = useMemo(
-    () =>
-      UI_LANGUAGE_OPTIONS.map((option) => ({
-        ...option,
-        label:
-          option.value === "system"
-            ? t("uiLanguage.system")
-            : option.value === "en"
-            ? t("uiLanguage.english")
-            : t("uiLanguage.chinese"),
-      })),
+    () => getUI_LANGUAGE_OPTIONS(t),
     [t],
   );
 

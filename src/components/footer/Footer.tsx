@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
 
 import ModelSelector from "../model-selector";
 import UpdateChecker from "../update-checker";
 
 const Footer: React.FC = () => {
+  const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -13,7 +15,7 @@ const Footer: React.FC = () => {
         const appVersion = await getVersion();
         setVersion(appVersion);
       } catch (error) {
-        console.error("Failed to get app version:", error);
+        console.error(t("error.failedGetVersion"), error);
         setVersion("0.1.2");
       }
     };

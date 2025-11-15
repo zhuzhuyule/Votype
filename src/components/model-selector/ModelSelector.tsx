@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ModelInfo } from "../../lib/types";
@@ -42,6 +43,7 @@ interface ModelSelectorProps {
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
+  const { t } = useTranslation();
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [currentModelId, setCurrentModelId] = useState<string>("");
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
@@ -114,7 +116,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             break;
           case "loading_failed":
             setModelStatus("error");
-            setModelError(error || "Failed to load model");
+            setModelError(error || t("error.failedLoadModel"));
             break;
           case "unloaded":
             setModelStatus("unloaded");
@@ -275,7 +277,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       const modelList = await invoke<ModelInfo[]>("get_available_models");
       setModels(modelList);
     } catch (err) {
-      console.error("Failed to load models:", err);
+      console.error(t("error.failedLoadModels"), err);
     }
   };
 
@@ -298,9 +300,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         setModelStatus("none");
       }
     } catch (err) {
-      console.error("Failed to load current model:", err);
+      console.error(t("error.failedLoadCurrentModel"), err);
       setModelStatus("error");
-      setModelError("Failed to check model status");
+      setModelError(t("error.failedCheckModelStatus"));
     }
   };
 
@@ -342,9 +344,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       if (extractingModels.size === 1) {
         const [modelId] = Array.from(extractingModels);
         const model = models.find((m) => m.id === modelId);
-        return `Extracting ${model?.name || "Model"}...`;
+        return t("modelSelector.extracting", { name: model?.name || t("modelSelector.model") });
       } else {
-        return `Extracting ${extractingModels.size} models...`;
+        return t("modelSelector.extractingMultiple", { count: extractingModels.size });
       }
     }
 
@@ -355,16 +357,16 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           0,
           Math.min(100, Math.round(progress.percentage)),
         );
-        return `Downloading ${percentage}%`;
+        return t("modelSelector.downloading", { percentage });
       } else {
-        return `Downloading ${modelDownloadProgress.size} models...`;
+        return t("modelSelector.downloadingMultiple", { count: modelDownloadProgress.size });
       }
     }
 
     const onlineActive =
       settings?.online_asr_enabled && selectedAsrModel !== null;
     const onlineLabel = onlineActive
-      ? `${selectedAsrModel?.name ?? "Online ASR"} ${
+      ? `${selectedAsrModel?.name ?? t("modelSelector.onlineAsr")} ${
           selectedAsrModel
             ? `(${providerNameMap[selectedAsrModel.provider_id] ?? selectedAsrModel.provider_id})`
             : ""
@@ -373,26 +375,26 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     const currentModel = getCurrentModel();
 
     if (onlineActive) {
-      return onlineLabel || "Online ASR";
+      return t("modelSelector.onlineAsr");
     }
 
     switch (modelStatus) {
       case "ready":
-        return currentModel?.name || "Model Ready";
+        return currentModel?.name || t("modelSelector.modelReady");
       case "loading":
-        return currentModel ? `Loading ${currentModel.name}...` : "Loading...";
+        return currentModel ? t("modelSelector.loading", { name: currentModel.name }) : t("modelSelector.loading");
       case "extracting":
         return currentModel
-          ? `Extracting ${currentModel.name}...`
-          : "Extracting...";
+          ? t("modelSelector.extracting", { name: currentModel.name })
+          : t("modelSelector.extracting");
       case "error":
-        return modelError || "Model Error";
+        return modelError || t("modelSelector.modelError");
       case "unloaded":
-        return currentModel?.name || "Model Unloaded";
+        return currentModel?.name || t("modelSelector.modelUnloaded");
       case "none":
-        return "No Model - Download Required";
+        return t("modelSelector.noModelDownloadRequired");
       default:
-        return currentModel?.name || "Model Unloaded";
+        return currentModel?.name || t("modelSelector.modelUnloaded");
     }
   };
 
@@ -419,8 +421,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
 
   const modeLabel =
     settings?.online_asr_enabled && settings?.selected_asr_model_id
-      ? "Online"
-      : "Local";
+      ? t("modelSelector.online")
+      : t("modelSelector.local");
   const modeLabelColor =
     settings?.online_asr_enabled && settings?.selected_asr_model_id
       ? "text-blue-700 bg-blue-50 border border-blue-200"

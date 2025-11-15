@@ -1,5 +1,6 @@
 import { Button, TextField } from "@radix-ui/themes";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -11,6 +12,7 @@ interface CustomWordsProps {
 
 export const CustomWords: React.FC<CustomWordsProps> = React.memo(
   ({ descriptionMode = "tooltip", grouped = false }) => {
+    const { t } = useTranslation();
     const { getSetting, updateSetting, isUpdating } = useSettings();
     const [newWord, setNewWord] = useState("");
     const customWords = getSetting("custom_words") || [];
@@ -46,8 +48,8 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
     return (
       <>
         <SettingContainer
-          title="Custom Words"
-          description="Add words that are often misheard or misspelled during transcription. The system will automatically correct similar-sounding words to match your list."
+          title={t("customWords.title")}
+          description={t("customWords.description")}
           descriptionMode={descriptionMode}
           grouped={grouped}
         >
@@ -56,7 +58,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Add a word"
+              placeholder={t("customWords.placeholder")}
               disabled={isUpdating("custom_words")}
             />
             <Button
@@ -68,7 +70,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 isUpdating("custom_words")
               }
             >
-              Add
+              {t("customWords.add")}
             </Button>
           </ActionWrapper>
         </SettingContainer>
@@ -82,7 +84,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 onClick={() => handleRemoveWord(word)}
                 disabled={isUpdating("custom_words")}
                 className="inline-flex items-center gap-1 cursor-pointer"
-                aria-label={`Remove ${word}`}
+                aria-label={`${t("customWords.remove")} ${word}`}
               >
                 <span>{word}</span>
                 <svg
