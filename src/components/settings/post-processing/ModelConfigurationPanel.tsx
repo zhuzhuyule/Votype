@@ -3,7 +3,7 @@ import React, { useMemo, useState, useCallback, useEffect } from "react";
 import { Button } from "../../ui/Button";
 import { Select } from "../../ui/Select";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { Box, Flex, Text, Button as RButton } from "@radix-ui/themes";
+import { Box, Flex, Text, Button as RButton, TextField } from "@radix-ui/themes";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { useSettings } from "../../../hooks/useSettings";
 import type { ModelType, CachedModel } from "../../../lib/types";
@@ -216,8 +216,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                   <Text size="1" weight="medium" color="gray">
                     自定义标签
                   </Text>
-                  <input
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  <TextField.Root
+                    className="w-full"
+                    type="text"
                     placeholder="输入自定义模型标签"
                     value={customTypeLabel}
                     onChange={(event) => setCustomTypeLabel(event.target.value)}

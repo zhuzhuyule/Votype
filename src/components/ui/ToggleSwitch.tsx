@@ -1,5 +1,5 @@
 import React from "react";
-import * as RadixSwitch from "@radix-ui/react-switch";
+import { Switch } from "@radix-ui/themes";
 import { SettingContainer } from "./SettingContainer";
 
 interface ToggleSwitchProps {
@@ -34,18 +34,12 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       disabled={disabled}
       tooltipPosition={tooltipPosition}
     >
-        <RadixSwitch.Root
-          className={`relative h-6 w-11 px-0.5 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-offset-2 data-[state=checked]:bg-logo-primary/90 data-[state=unchecked]:bg-mid-gray/30 ${
-            disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-          }`}
+        <Switch
           checked={checked}
           disabled={disabled || isUpdating}
-          onCheckedChange={(state) => onChange(state)}
-        >
-          <RadixSwitch.Thumb
-            className={`block h-5 w-5 bg-white rounded-full transition-transform data-[state=checked]:translate-x-full`}
-          />
-        </RadixSwitch.Root>
+          onCheckedChange={(checked) => onChange(checked)}
+          className="data-[state=checked]:bg-logo-primary/90"
+        />
     </SettingContainer>
   );
 };

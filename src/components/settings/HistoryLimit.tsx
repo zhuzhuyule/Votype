@@ -1,6 +1,6 @@
 import React from "react";
 import { useSettings } from "../../hooks/useSettings";
-import { Input } from "../ui/Input";
+import { TextField } from "@radix-ui/themes";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ActionWrapper } from "../ui/ActionWraperr";
 
@@ -37,14 +37,15 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
       layout="horizontal"
     >
       <ActionWrapper onReset={handleReset}>
-        <Input
-          type="number"
-          min="0"
-          max="1000"
-          value={historyLimit}
-          onChange={handleChange}
+        <TextField.Root
+          value={historyLimit.toString()}
+          onValueChange={(value: string) => {
+            const numValue = parseInt(value || "0", 10);
+            if (!isNaN(numValue) && numValue >= 0) {
+              updateSetting("history_limit", numValue);
+            }
+          }}
           disabled={isUpdating("history_limit")}
-          className="w-20"
         />
       </ActionWrapper>
     </SettingContainer>

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import { TextField } from "@radix-ui/themes";
 import { useSettings } from "../../hooks/useSettings";
-import { Input } from "../ui/Input";
 import { Button } from "../ui/Button";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ActionWrapper } from "../ui";
@@ -53,14 +53,13 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
           grouped={grouped}
         >
           <ActionWrapper>
-            <Input
-              type="text"
+            <TextField.Root
               className="max-w-40 flex"
+              size="1"
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyPress}
               placeholder="Add a word"
-              variant="compact"
               disabled={isUpdating("custom_words")}
             />
             <Button

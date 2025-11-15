@@ -2,20 +2,19 @@ import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
 import { Button } from "../../ui/Button";
 import { Dropdown } from "../../ui/Dropdown";
-import { Input } from "../../ui/Input";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
 
+import { IconButton, TextField } from "@radix-ui/themes";
+import { Eye, EyeOff } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
+import { ActionWrapper } from "../../ui";
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
 import { ProviderManager } from "./ProviderManager";
-import { ActionWrapper } from "../../ui";
-import { IconButton, TextField } from "@radix-ui/themes";
-import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -90,9 +89,9 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
                 type="button"
               >
                 {showApiKey ? (
-                  <EyeClosedIcon height="14" width="14" />
+                  <EyeOff height={14} width={14} />
                 ) : (
-                  <EyeOpenIcon height="14" width="14" />
+                  <Eye height={14} width={14} />
                 )}
               </IconButton>
             </TextField.Slot>
@@ -253,12 +252,10 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
           <div className="space-y-3">
             <div className="space-y-2 flex flex-col">
               <label className="text-sm font-semibold">Prompt Label</label>
-              <Input
-                type="text"
+              <TextField.Root
                 value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
+                onBlur={(e) => setDraftName(e.target.value)}
                 placeholder="Enter prompt name"
-                variant="compact"
               />
             </div>
 
@@ -317,12 +314,10 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
               <label className="text-sm font-semibold text-text">
                 Prompt Label
               </label>
-              <Input
-                type="text"
+              <TextField.Root
                 value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
+                onBlur={(e) => setDraftName(e.target.value)}
                 placeholder="Enter prompt name"
-                variant="compact"
               />
             </div>
 

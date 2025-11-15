@@ -1,5 +1,5 @@
-import * as RadixSelect from "@radix-ui/react-select";
-import { Check, ChevronsUpDown, Plus, X } from "lucide-react";
+import { Select as ThemeSelect, TextField } from "@radix-ui/themes";
+import { ChevronsUpDown, Plus, X } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 
 export type SelectOption = {
@@ -42,7 +42,7 @@ type NonCreatableProps = {
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
 const triggerBaseClasses =
-  "flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-logo-primary/50";
+  "custom-select-trigger flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-logo-primary/50";
 
 const viewportClasses =
   "max-h-64 overflow-y-auto py-1.5 px-1 space-y-1";
@@ -88,7 +88,7 @@ export const Select: React.FC<SelectProps> = React.memo(
     position = "item-aligned",
     onRefresh,
   }) => {
-    const [, setOpen] = useState(false);
+    const [open, setOpen] = useState(false);
     const [newValue, setNewValue] = useState("");
 
     const selectedOption = useMemo(
@@ -169,23 +169,27 @@ export const Select: React.FC<SelectProps> = React.memo(
         : `Add "${trimmed}"`;
     }, [formatCreateLabel, newValue]);
 
-    const placeholderLabel = selectedOption?.label ?? placeholder;
     const showClear = Boolean(
       isClearable && !disabled && !isLoading && selectedOption?.value,
     );
 
     return (
-      <RadixSelect.Root
-        value={selectedOption?.value}
+      <ThemeSelect.Root
+        value={selectedOption?.value ?? undefined}
         onValueChange={handleValueChange}
+        open={open}
         onOpenChange={handleOpenChange}
         disabled={disabled}
       >
         <div className={`relative ${className}`}>
-          <RadixSelect.Trigger
-            className={`${triggerBaseClasses} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+          <ThemeSelect.Trigger
+            placeholder={placeholder}
+            variant="surface"
+            className={`${triggerBaseClasses} ${
+              disabled ? "cursor-not-allowed opacity-60" : ""
+            }`}
           >
-            <RadixSelect.Value placeholder={placeholderLabel} />
+            <ThemeSelect.Value />
             <div className="flex items-center gap-2">
               {isLoading ? (
                 <span className={spinnerClasses} />
@@ -193,7 +197,7 @@ export const Select: React.FC<SelectProps> = React.memo(
                 <ChevronsUpDown className="h-4 w-4 text-mid-gray" />
               )}
             </div>
-          </RadixSelect.Trigger>
+          </ThemeSelect.Trigger>
 
           {showClear && (
             <button
@@ -209,61 +213,56 @@ export const Select: React.FC<SelectProps> = React.memo(
           )}
         </div>
 
-        <RadixSelect.Portal>
-          <RadixSelect.Content
-            className="z-30 w-full min-w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
-            position={position}
-            sideOffset={8}
-          >
-            <RadixSelect.Viewport className={viewportClasses}>
-              {isCreatable && (
-                <>
-                  <div className={createRowClasses}>
-                    <input
-                      type="text"
-                      className="flex-1 rounded-md border border-mid-gray/20 bg-transparent px-2 py-1 text-sm text-text focus:border-logo-primary focus:outline-none focus:ring-2 focus:ring-logo-primary/30"
-                      placeholder="Add new option"
-                      value={newValue}
-                      onChange={(event) => setNewValue(event.target.value)}
-                      onKeyDown={handleKeyDown}
-                    />
-                    <button
-                      type="button"
-                      className="rounded-full bg-logo-primary px-3 py-1 text-xs font-semibold text-white transition hover:bg-logo-primary/90 disabled:cursor-not-allowed disabled:bg-mid-gray/40 disabled:text-white/60"
-                      onClick={handleCreate}
-                      disabled={!newValue.trim()}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </button>
-                  </div>
-                  {creationLabel && (
-                    <p className="px-3 pt-1 text-[11px] uppercase tracking-wide text-mid-gray/80">
-                      {creationLabel}
-                    </p>
-                  )}
-                </>
-              )}
-              {options.map((option) => (
-                <RadixSelect.Item
-                  key={option.value}
-                  value={option.value}
-                  disabled={option.isDisabled}
-                  className={`${optionClasses} ${
-                    option.isDisabled
-                      ? "cursor-not-allowed opacity-60"
-                      : "hover:bg-logo-primary/10 focus:bg-logo-primary/10 data-[state=checked]:bg-logo-primary/10"
-                  }`}
-                >
-                  <RadixSelect.ItemText>{option.label}</RadixSelect.ItemText>
-                  <RadixSelect.ItemIndicator className="text-logo-primary">
-                    <Check className="h-4 w-4" />
-                  </RadixSelect.ItemIndicator>
-                </RadixSelect.Item>
-              ))}
-            </RadixSelect.Viewport>
-          </RadixSelect.Content>
-        </RadixSelect.Portal>
-      </RadixSelect.Root>
+        <ThemeSelect.Content
+          className="z-30 w-full min-w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
+          position={position}
+          sideOffset={8}
+        >
+          <div className={viewportClasses}>
+            {isCreatable && (
+              <>
+                <div className={createRowClasses}>
+                  <TextField.Root
+                    className="flex-1"
+                    type="text"
+                    placeholder="Add new option"
+                    value={newValue}
+                    onChange={(event) => setNewValue(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-full bg-logo-primary px-3 py-1 text-xs font-semibold text-white transition hover:bg-logo-primary/90 disabled:cursor-not-allowed disabled:bg-mid-gray/40 disabled:text-white/60"
+                    onClick={handleCreate}
+                    disabled={!newValue.trim()}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                {creationLabel && (
+                  <p className="px-3 pt-1 text-[11px] uppercase tracking-wide text-mid-gray/80">
+                    {creationLabel}
+                  </p>
+                )}
+              </>
+            )}
+            {options.map((option) => (
+              <ThemeSelect.Item
+                key={option.value}
+                value={option.value}
+                disabled={option.isDisabled}
+                className={`${optionClasses} ${
+                  option.isDisabled
+                    ? "cursor-not-allowed opacity-60"
+                    : "hover:bg-logo-primary/10 focus:bg-logo-primary/10 data-[state=checked]:bg-logo-primary/10"
+                }`}
+              >
+                {option.label}
+              </ThemeSelect.Item>
+            ))}
+          </div>
+        </ThemeSelect.Content>
+      </ThemeSelect.Root>
     );
   },
 );
