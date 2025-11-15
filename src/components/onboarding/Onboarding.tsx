@@ -3,12 +3,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { ModelInfo } from "../../lib/types";
 import ModelCard from "./ModelCard";
 import HandyTextLogo from "../icons/HandyTextLogo";
+import { useTranslation } from "react-i18next";
 
 interface OnboardingProps {
   onModelSelected: () => void;
 }
 
 const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
+  const { t } = useTranslation();
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       setAvailableModels(models.filter((m) => !m.is_downloaded));
     } catch (err) {
       console.error("Failed to load models:", err);
-      setError("Failed to load available models");
+      setError(t("onboarding.failedLoadModels"));
     }
   };
 
@@ -39,7 +41,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       await invoke("download_model", { modelId });
     } catch (err) {
       console.error("Download failed:", err);
-      setError(`Failed to download model: ${err}`);
+      setError(
+        t("onboarding.failedDownloadModel", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
       setDownloading(false);
     }
   };
@@ -53,7 +59,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       <div className="flex flex-col items-center gap-2 shrink-0">
         <HandyTextLogo width={200} />
         <p className="text-text/70 max-w-md font-medium mx-auto">
-          To get started, choose a transcription model
+          {t("onboarding.description")}
         </p>
       </div>
 

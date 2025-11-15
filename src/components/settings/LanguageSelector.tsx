@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { SettingContainer } from "../ui/SettingContainer";
 import { Dropdown } from "../ui/Dropdown";
 import { DropdownOption } from "../ui/Dropdown";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { useModels } from "../../hooks/useModels";
 import { LANGUAGES } from "../../lib/constants/languages";
@@ -19,6 +20,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   descriptionMode = "tooltip",
   grouped = false,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting, resetSetting, isUpdating } = useSettings();
   const { currentModel, loadCurrentModel } = useModels();
 
@@ -51,11 +53,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 
   return (
     <SettingContainer
-      title="Language"
+      title={t("settings.speechLanguage.title")}
       description={
         isUnsupported
-          ? "Parakeet model automatically detects the language. No manual selection is needed."
-          : "Select the language for speech recognition. Auto will automatically determine the language, while selecting a specific language can improve accuracy for that language."
+          ? t("settings.speechLanguage.descriptionUnsupported")
+          : t("settings.speechLanguage.description")
       }
       descriptionMode={descriptionMode}
       grouped={grouped}
@@ -71,7 +73,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           selectedValue={selectedLanguage}
           onSelect={handleLanguageChange}
           options={languageOptions}
-          placeholder="Auto"
+          placeholder={t("settings.speechLanguage.placeholder")}
           disabled={isUnsupported || isUpdating("selected_language")}
         />
       </ActionWrapper>
