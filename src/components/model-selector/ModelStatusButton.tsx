@@ -1,5 +1,5 @@
 import React from "react";
-import { Button } from "../ui/Button";
+import { Button } from "@radix-ui/themes";
 
 type ModelStatus =
   | "ready"
@@ -59,7 +59,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
     <Button
       onClick={onClick}
       variant="ghost"
-      size="sm"
+      size="1"
       className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
       title={`Model status: ${displayText}`}
     >

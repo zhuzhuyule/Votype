@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AudioPlayer } from "../../ui/AudioPlayer";
-import { Button } from "../../ui/Button";
+import { Button } from "@radix-ui/themes";
 import { Copy, Star, Check, Trash2 } from "lucide-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -184,7 +184,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
-            size="sm"
+            size="1"
             onClick={handleCopyText}
             className="text-text/50 hover:text-logo-primary hover:border-logo-primary transition-colors cursor-pointer"
             title="Copy transcription to clipboard"
@@ -197,7 +197,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="1"
             onClick={onToggleSaved}
             className={`p-2 rounded transition-colors cursor-pointer ${
               entry.saved
@@ -214,7 +214,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </Button>
           <Button
             variant="ghost"
-            size="sm"
+            size="1"
             onClick={handleDeleteEntry}
             className="text-text/50 hover:text-logo-primary transition-colors cursor-pointer"
             title="Delete entry"

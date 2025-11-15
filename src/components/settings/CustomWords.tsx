@@ -2,7 +2,7 @@ import { TextField } from "@radix-ui/themes";
 import React, { useState } from "react";
 import { useSettings } from "../../hooks/useSettings";
 import { ActionWrapper } from "../ui";
-import { Button } from "../ui/Button";
+import { Button } from "@radix-ui/themes";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface CustomWordsProps {

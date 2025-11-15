@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { TextField } from "@radix-ui/themes";
+import { Button, TextField } from "@radix-ui/themes";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
-import { Button } from "../../ui/Button";
 
 const DEFAULT_MODELS_ENDPOINT = "/models";
 
@@ -225,25 +224,25 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                         />
                       </div>
                     </div>
-                    <div className="flex justify-end gap-3 pt-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setShowAdd(false);
-                        }}
-                      >
-                        取消
-                      </Button>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={!canAdd || isUpdating("add_custom_provider")}
-                        onClick={handleAdd}
-                      >
-                        创建 Provider
-                      </Button>
-                    </div>
+                      <div className="flex justify-end gap-3 pt-2">
+                        <Button
+                          variant="ghost"
+                          size="1"
+                          onClick={() => {
+                            setShowAdd(false);
+                          }}
+                        >
+                          取消
+                        </Button>
+                        <Button
+                          variant="solid"
+                          size="1"
+                          disabled={!canAdd || isUpdating("add_custom_provider")}
+                          onClick={handleAdd}
+                        >
+                          创建 Provider
+                        </Button>
+                      </div>
                   </div>
                 )}
 
@@ -271,8 +270,8 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             {!isEditing && (
                               <div className="flex gap-1">
                                 <Button
-                                  variant="secondary"
-                                  size="sm"
+                                  variant="outline"
+                                  size="1"
                                   onClick={() => handleStartEdit(provider)}
                                   disabled={updating}
                                 >
@@ -281,7 +280,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                 <div className="relative">
                                   <Button
                                     variant="ghost"
-                                    size="sm"
+                                    size="1"
                                     onClick={() =>
                                       setShowDeleteTooltip(provider.id)
                                     }
@@ -305,7 +304,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                       <div className="flex justify-end gap-2">
                                         <Button
                                           variant="ghost"
-                                          size="sm"
+                                          size="1"
                                           onClick={() =>
                                             setShowDeleteTooltip(null)
                                           }
@@ -313,8 +312,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                           取消
                                         </Button>
                                         <Button
-                                          variant="danger"
-                                          size="sm"
+                                          variant="ghost"
+                                          color="red"
+                                          size="1"
                                           onClick={() =>
                                             handleRemove(provider.id)
                                           }
@@ -404,15 +404,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             <div className="flex justify-end gap-3 pt-2">
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="1"
                                 onClick={() => setEditingId(null)}
                                 disabled={updating}
                               >
                                 取消
                               </Button>
                               <Button
-                                variant="primary"
-                                size="sm"
+                                variant="solid"
+                                size="1"
                                 disabled={!canSaveEdit || updating}
                                 onClick={handleSaveEdit}
                               >

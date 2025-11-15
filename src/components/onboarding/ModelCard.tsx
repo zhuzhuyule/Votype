@@ -1,6 +1,6 @@
 import React from "react";
 import { Download } from "lucide-react";
-import { Button } from "../ui/Button";
+import { Button } from "@radix-ui/themes";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
 import Badge from "../ui/Badge";
@@ -34,7 +34,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       onClick={() => onSelect(model.id)}
       disabled={disabled}
       variant="ghost"
-      size="md"
+      size="2"
       className="w-full text-left justify-start h-auto p-0"
     >
       <div className={[

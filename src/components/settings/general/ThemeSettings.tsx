@@ -1,6 +1,6 @@
 import { useThemeContext } from "@radix-ui/themes";
 import React from "react";
-import { Button } from "../../ui/Button";
+import { Button } from "@radix-ui/themes";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { ActionWrapper } from "../../ui/ActionWraperr";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -74,8 +74,8 @@ export const ThemeSettings: React.FC = () => {
             {APPEARANCE_OPTIONS.map((option) => (
               <Button
                 key={option.value}
-                variant={appearance === option.value ? "primary" : "secondary"}
-                size="sm"
+                variant={appearance === option.value ? "solid" : "outline"}
+                size="1"
                 onClick={() => onAppearanceChange(option.value)}
               >
                 {option.label}
@@ -97,7 +97,7 @@ export const ThemeSettings: React.FC = () => {
               <Button
                 key={option.value}
                 variant={"ghost"}
-                size="sm"
+                size="1"
                 type="button"
                 onClick={() => onAccentColorChange(option.value)}
                 aria-label={`${option.label} accent color`}
@@ -131,9 +131,9 @@ export const ThemeSettings: React.FC = () => {
               <Button
                 key={option.value}
                 variant={
-                  panelBackground === option.value ? "primary" : "secondary"
+                  panelBackground === option.value ? "solid" : "outline"
                 }
-                size="sm"
+                size="1"
                 onClick={() => onPanelBackgroundChange(option.value)}
               >
                 {option.label}
@@ -154,8 +154,8 @@ export const ThemeSettings: React.FC = () => {
             {RADIUS_OPTIONS.map((option) => (
               <Button
                 key={option.value}
-                variant={radius === option.value ? "primary" : "secondary"}
-                size="sm"
+                variant={radius === option.value ? "solid" : "outline"}
+                size="1"
                 onClick={() => onRadiusChange(option.value)}
               >
                 {option.label}
@@ -176,8 +176,8 @@ export const ThemeSettings: React.FC = () => {
             {SCALING_OPTIONS.map((value) => (
               <Button
                 key={value}
-                variant={scaling === value ? "primary" : "secondary"}
-                size="sm"
+                variant={scaling === value ? "solid" : "outline"}
+                size="1"
                 onClick={() => onScalingChange(value)}
               >
                 {value}

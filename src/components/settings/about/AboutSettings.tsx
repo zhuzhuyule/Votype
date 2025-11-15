@@ -3,7 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { Button } from "../../ui/Button";
+import { Button } from "@radix-ui/themes";
 import { AppDataDirectory } from "../AppDataDirectory";
 
 export const AboutSettings: React.FC = () => {
@@ -50,8 +50,8 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
         >
           <Button
-            variant="secondary"
-            size="md"
+            variant="outline"
+            size="2"
             onClick={() => openUrl("https://github.com/cjpais/Handy")}
           >
             View on GitHub
@@ -63,7 +63,12 @@ export const AboutSettings: React.FC = () => {
           description="Help us continue building Handy"
           grouped={true}
         >
-          <Button variant="primary" size="md" onClick={handleDonateClick}>
+          <Button
+            variant="solid"
+            size="2"
+            color="pink"
+            onClick={handleDonateClick}
+          >
             Donate
           </Button>
         </SettingContainer>
