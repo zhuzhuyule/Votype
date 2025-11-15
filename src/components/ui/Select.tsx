@@ -42,7 +42,7 @@ type NonCreatableProps = {
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
 const triggerBaseClasses =
-  "custom-select-trigger flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-logo-primary/50";
+  "custom-select-trigger flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 pr-10 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-logo-primary/50";
 
 const viewportClasses =
   "max-h-64 overflow-y-auto py-1.5 px-1 space-y-1";
@@ -188,16 +188,14 @@ export const Select: React.FC<SelectProps> = React.memo(
             className={`${triggerBaseClasses} ${
               disabled ? "cursor-not-allowed opacity-60" : ""
             }`}
-          >
-            <ThemeSelect.Value />
-            <div className="flex items-center gap-2">
-              {isLoading ? (
-                <span className={spinnerClasses} />
-              ) : (
-                <ChevronsUpDown className="h-4 w-4 text-mid-gray" />
-              )}
-            </div>
-          </ThemeSelect.Trigger>
+          />
+          <div className="absolute right-10 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+            {isLoading ? (
+              <span className={spinnerClasses} />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4 text-mid-gray" />
+            )}
+          </div>
 
           {showClear && (
             <button

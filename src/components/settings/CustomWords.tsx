@@ -1,9 +1,9 @@
-import React, { useState } from "react";
 import { TextField } from "@radix-ui/themes";
+import React, { useState } from "react";
 import { useSettings } from "../../hooks/useSettings";
+import { ActionWrapper } from "../ui";
 import { Button } from "../ui/Button";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ActionWrapper } from "../ui";
 
 interface CustomWordsProps {
   descriptionMode?: "inline" | "tooltip";
@@ -70,8 +70,6 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 newWord.trim().length > 50 ||
                 isUpdating("custom_words")
               }
-              variant="primary"
-              size="md"
             >
               Add
             </Button>
@@ -86,8 +84,6 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 key={word}
                 onClick={() => handleRemoveWord(word)}
                 disabled={isUpdating("custom_words")}
-                variant="secondary"
-                size="sm"
                 className="inline-flex items-center gap-1 cursor-pointer"
                 aria-label={`Remove ${word}`}
               >

@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ResetButton } from "../ui/ResetButton";
 import { Dropdown } from "../ui/Dropdown";
 import { DropdownOption } from "../ui/Dropdown";
 import { useSettings } from "../../hooks/useSettings";
