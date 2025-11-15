@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
-import { Button } from "../../ui/Button";
+import { Button } from "@radix-ui/themes";
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -240,8 +240,8 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
           />
           <Button
             onClick={handleStartCreate}
-            variant="primary"
-            size="md"
+            variant="solid"
+            size="2"
             disabled={isCreating}
           >
             Create New Prompt
@@ -278,20 +278,20 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleUpdatePrompt}
-                variant="primary"
-                size="md"
-                disabled={!draftName.trim() || !draftText.trim() || !isDirty}
-              >
-                Update Prompt
-              </Button>
-              <Button
-                onClick={() => handleDeletePrompt(selectedPromptId)}
-                variant="secondary"
-                size="md"
-                disabled={!selectedPromptId || prompts.length <= 1}
-              >
+            <Button
+              onClick={handleUpdatePrompt}
+              variant="solid"
+              size="2"
+              disabled={!draftName.trim() || !draftText.trim() || !isDirty}
+            >
+              Update Prompt
+            </Button>
+            <Button
+              onClick={() => handleDeletePrompt(selectedPromptId)}
+              variant="outline"
+              size="2"
+              disabled={!selectedPromptId || prompts.length <= 1}
+            >
                 Delete Prompt
               </Button>
             </div>
@@ -342,16 +342,16 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             <div className="flex gap-2 pt-2">
               <Button
                 onClick={handleCreatePrompt}
-                variant="primary"
-                size="md"
+                variant="solid"
+                size="2"
                 disabled={!draftName.trim() || !draftText.trim()}
               >
                 Create Prompt
               </Button>
               <Button
                 onClick={handleCancelCreate}
-                variant="secondary"
-                size="md"
+                variant="outline"
+                size="2"
               >
                 Cancel
               </Button>
@@ -381,8 +381,8 @@ export const AiSettings: React.FC = () => {
         title="API (OpenAI Compatible)"
         actions={
           <Button
-            variant="secondary"
-            size="sm"
+            variant="outline"
+            size="1"
             onClick={() => setProviderManagerOpen(true)}
           >
             管理 Providers

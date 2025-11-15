@@ -3,7 +3,7 @@ import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
 } from "tauri-plugin-macos-permissions-api";
-import { Button } from "./ui/Button";
+import { Button, type ButtonProps } from "@radix-ui/themes";
 
 // Define permission state type
 type PermissionState = "request" | "verify" | "granted";
@@ -11,7 +11,7 @@ type PermissionState = "request" | "verify" | "granted";
 // Define button configuration type
 interface ButtonConfig {
   text: string;
-  variant: "primary" | "secondary";
+  variant: ButtonProps["variant"];
 }
 
 const AccessibilityPermissions: React.FC = () => {
@@ -63,16 +63,19 @@ const AccessibilityPermissions: React.FC = () => {
   const buttonConfig: Record<PermissionState, ButtonConfig | null> = {
     request: {
       text: "Grant",
-      variant: "primary",
+      variant: "solid",
     },
     verify: {
       text: "Verify",
-      variant: "secondary",
+      variant: "outline",
     },
     granted: null,
   };
 
-  const config = buttonConfig[permissionState] as ButtonConfig;
+  const config = buttonConfig[permissionState];
+  if (!config) {
+    return null;
+  }
 
   return (
     <div className="p-4 w-full rounded-lg border border-mid-gray">
@@ -85,7 +88,7 @@ const AccessibilityPermissions: React.FC = () => {
         <Button
           onClick={handleButtonClick}
           variant={config.variant}
-          size="sm"
+          size="1"
           className="min-h-10"
         >
           {config.text}

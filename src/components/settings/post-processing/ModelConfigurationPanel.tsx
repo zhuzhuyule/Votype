@@ -1,9 +1,8 @@
 import React, { useMemo, useState, useCallback, useEffect } from "react";
 
-import { Button } from "../../ui/Button";
 import { Select } from "../../ui/Select";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { Box, Flex, Text, Button as RButton, TextField } from "@radix-ui/themes";
+import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { useSettings } from "../../../hooks/useSettings";
 import type { ModelType, CachedModel } from "../../../lib/types";
@@ -183,7 +182,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                   {modelTypeOptions.map((option) => {
                     const isActive = pendingModelType === option.value;
                     return (
-                      <RButton
+                      <Button
                         key={option.value}
                         variant={isActive ? "solid" : "outline"}
                         color={isActive ? "blue" : undefined}
@@ -206,7 +205,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                         <Text size="1" color="gray" className="mt-1">
                           {option.hint}
                         </Text>
-                      </RButton>
+                      </Button>
                     );
                   })}
                 </Flex>
@@ -228,7 +227,7 @@ export const ModelConfigurationPanel: React.FC = () => {
               <Flex justify="end" gap="3" className="pt-2">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="1"
                   onClick={() => {
                     setIsModelPickerOpen(false);
                     setCustomTypeLabel("");
@@ -239,8 +238,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                   取消
                 </Button>
                 <Button
-                  variant="primary"
-                  size="sm"
+                  variant="solid"
+                  size="1"
                   disabled={
                     !pendingModelId ||
                     isUpdating("cached_model_add") ||
@@ -277,7 +276,7 @@ export const ModelConfigurationPanel: React.FC = () => {
           </Text>
           <Button
             onClick={() => setIsModelPickerOpen(true)}
-            variant="primary"
+            variant="solid"
             disabled={state.isFetchingModels}
             className="shadow-sm hover:shadow-md transition-shadow"
           >
@@ -333,7 +332,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                           <Button
                             onClick={() => handleRemoveModel(cachedModel.id)}
                             variant="ghost"
-                            size="sm"
+                            size="1"
                             disabled={!!isRemoving}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                           >
@@ -387,7 +386,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                           <Button
                             onClick={() => handleRemoveModel(cachedModel.id)}
                             variant="ghost"
-                            size="sm"
+                            size="1"
                             disabled={!!isRemoving}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                           >
@@ -441,7 +440,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                           <Button
                             onClick={() => handleRemoveModel(cachedModel.id)}
                             variant="ghost"
-                            size="sm"
+                            size="1"
                             disabled={!!isRemoving}
                             className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
                           >
