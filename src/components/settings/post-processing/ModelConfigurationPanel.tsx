@@ -1,11 +1,11 @@
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
+import { useSettings } from "../../../hooks/useSettings";
+import type { CachedModel, ModelType } from "../../../lib/types";
 import { Select } from "../../ui/Select";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
-import { useSettings } from "../../../hooks/useSettings";
-import type { ModelType, CachedModel } from "../../../lib/types";
 
 const modelTypeOptions = [
   { value: "text", label: "Text", hint: "用于 Prompt 处理与润色" },
@@ -196,7 +196,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                           {isActive && (
                             <Text
                               size="1"
-                              className="uppercase tracking-wide bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full"
+                              weight="medium"
+                              className="uppercase tracking-wide px-2 py-0.5 rounded-full border border-mid-gray/20 text-logo-primary"
                             >
                               已选择
                             </Text>
@@ -269,7 +270,7 @@ export const ModelConfigurationPanel: React.FC = () => {
         </>
       )}
 
-      <div className="space-y-4">
+      <Box className="space-y-4">
         <Flex align="center" justify="between">
           <Text size="2" weight="medium">
             模型配置
@@ -283,15 +284,46 @@ export const ModelConfigurationPanel: React.FC = () => {
             + 添加模型
           </Button>
         </Flex>
+        <Text size="1" color="gray" className="max-w-prose">
+          Handy keeps AI models grouped by their intended usage so you can pick
+          the right toolkit for transcription, text transformation, or custom
+          prompts. Adding models here makes them available for prompts and AI
+          routines throughout the app.
+        </Text>
+        <Flex wrap="wrap" gap="2" className="gap-4">
+          <Text size="1" className="text-mid-gray/80">
+            ASR:{" "}
+            {
+              cachedModels.filter((model) => model.model_type === "asr")
+                .length
+            }
+          </Text>
+          <Text size="1" className="text-mid-gray/80">
+            TEXT:{" "}
+            {
+              cachedModels.filter((model) => model.model_type === "text")
+                .length
+            }
+          </Text>
+          <Text size="1" className="text-mid-gray/80">
+            OTHER:{" "}
+            {
+              cachedModels.filter((model) => model.model_type === "other")
+                .length
+            }
+          </Text>
+        </Flex>
         {cachedModels.length === 0 ? (
-          <div className="text-center py-6 px-4 rounded-lg border-2 border-dashed border-mid-gray/20 bg-mid-gray/5">
-            <p className="text-sm text-mid-gray/70 mb-1">暂未添加任何模型</p>
-            <p className="text-xs text-mid-gray/50">
+          <Box className="text-center py-6 px-4 rounded-lg border-2 border-dashed border-mid-gray/20 bg-mid-gray/5">
+            <Text size="2" className="mb-1 text-mid-gray">
+              暂未添加任何模型
+            </Text>
+            <Text size="1" className="text-mid-gray/70">
               先在上方从 Provider 中添加一个吧
-            </p>
-          </div>
+            </Text>
+          </Box>
         ) : (
-          <div className="space-y-4">
+          <Box className="space-y-4">
             {/* ASR 模型分组 */}
             {(() => {
               const asrModels = cachedModels.filter(
@@ -299,50 +331,65 @@ export const ModelConfigurationPanel: React.FC = () => {
               );
               if (asrModels.length === 0) return null;
               return (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-blue-700 bg-blue-100 px-2 py-1 rounded-full border border-blue-200">
+                <Box className="space-y-2">
+                  <Flex align="center" gap="2">
+                    <Text
+                      size="1"
+                      weight="medium"
+                      className="px-2 py-1 rounded-full border border-mid-gray/30 text-text"
+                    >
                       ASR ({asrModels.length})
-                    </span>
-                  </div>
-                  <div className="space-y-1">
+                    </Text>
+                  </Flex>
+                  <Box className="space-y-1">
                     {asrModels.map((cachedModel) => {
                       const isRemoving = isUpdating(
                         `cached_model_remove:${cachedModel.id}`,
                       );
                       return (
-                        <div
+                        <Flex
                           key={cachedModel.id}
-                          className="flex items-center justify-between p-3 rounded-lg border border-mid-gray/20 bg-white hover:bg-mid-gray/5 transition-colors"
+                          align="center"
+                          gap="3"
+                          justify="between"
+                          className="p-3 rounded-lg border border-mid-gray/20 bg-background hover:bg-background/40 transition-colors"
                         >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text truncate">
+                          <Flex align="center" gap="3" className="flex-1 min-w-0">
+                            <Text
+                              size="2"
+                              weight="medium"
+                              className="truncate"
+                            >
                               {cachedModel.name}
-                            </p>
-                            <span className="text-xs text-mid-gray/70 flex-shrink-0">
+                            </Text>
+                            <Text size="1" className="flex-shrink-0 text-mid-gray/70">
                               {providerNameMap[cachedModel.provider_id] ??
                                 cachedModel.provider_id}
-                            </span>
+                            </Text>
                             {cachedModel.custom_label && (
-                              <span className="text-xs text-logo-primary font-medium bg-logo-primary/10 px-2 py-0.5 rounded">
+                              <Text
+                                size="1"
+                                weight="medium"
+                                className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30"
+                              >
                                 {cachedModel.custom_label}
-                              </span>
+                              </Text>
                             )}
-                          </div>
+                          </Flex>
                           <Button
                             onClick={() => handleRemoveModel(cachedModel.id)}
                             variant="ghost"
                             size="1"
                             disabled={!!isRemoving}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                            className="flex-shrink-0"
                           >
                             删除
                           </Button>
-                        </div>
+                        </Flex>
                       );
                     })}
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               );
             })()}
 
@@ -353,50 +400,65 @@ export const ModelConfigurationPanel: React.FC = () => {
               );
               if (textModels.length === 0) return null;
               return (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full border border-green-200">
+                <Box className="space-y-2">
+                  <Flex align="center" gap="2">
+                    <Text
+                      size="1"
+                      weight="medium"
+                      className="px-2 py-1 rounded-full border border-mid-gray/30 text-text"
+                    >
                       TEXT ({textModels.length})
-                    </span>
-                  </div>
-                  <div className="space-y-1">
+                    </Text>
+                  </Flex>
+                  <Box className="space-y-1">
                     {textModels.map((cachedModel) => {
                       const isRemoving = isUpdating(
                         `cached_model_remove:${cachedModel.id}`,
                       );
                       return (
-                        <div
+                        <Flex
                           key={cachedModel.id}
-                          className="flex items-center justify-between p-3 rounded-lg border border-mid-gray/20 bg-white hover:bg-mid-gray/5 transition-colors"
+                          align="center"
+                          gap="3"
+                          justify="between"
+                          className="p-3 rounded-lg border border-mid-gray/20 bg-background hover:bg-background/40 transition-colors"
                         >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text truncate">
+                          <Flex align="center" gap="3" className="flex-1 min-w-0">
+                            <Text
+                              size="2"
+                              weight="medium"
+                              className="truncate"
+                            >
                               {cachedModel.name}
-                            </p>
-                            <span className="text-xs text-mid-gray/70 flex-shrink-0">
+                            </Text>
+                            <Text size="1" className="flex-shrink-0 text-mid-gray/70">
                               {providerNameMap[cachedModel.provider_id] ??
                                 cachedModel.provider_id}
-                            </span>
+                            </Text>
                             {cachedModel.custom_label && (
-                              <span className="text-xs text-logo-primary font-medium bg-logo-primary/10 px-2 py-0.5 rounded">
+                              <Text
+                                size="1"
+                                weight="medium"
+                                className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30"
+                              >
                                 {cachedModel.custom_label}
-                              </span>
+                              </Text>
                             )}
-                          </div>
+                          </Flex>
                           <Button
                             onClick={() => handleRemoveModel(cachedModel.id)}
                             variant="ghost"
                             size="1"
                             disabled={!!isRemoving}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                            className="flex-shrink-0"
                           >
                             删除
                           </Button>
-                        </div>
+                        </Flex>
                       );
                     })}
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               );
             })()}
 
@@ -407,55 +469,70 @@ export const ModelConfigurationPanel: React.FC = () => {
               );
               if (otherModels.length === 0) return null;
               return (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded-full border border-gray-200">
+                <Box className="space-y-2">
+                  <Flex align="center" gap="2">
+                    <Text
+                      size="1"
+                      weight="medium"
+                      className="px-2 py-1 rounded-full border border-mid-gray/30 text-text"
+                    >
                       OTHER ({otherModels.length})
-                    </span>
-                  </div>
-                  <div className="space-y-1">
+                    </Text>
+                  </Flex>
+                  <Box className="space-y-1">
                     {otherModels.map((cachedModel) => {
                       const isRemoving = isUpdating(
                         `cached_model_remove:${cachedModel.id}`,
                       );
                       return (
-                        <div
+                        <Flex
                           key={cachedModel.id}
-                          className="flex items-center justify-between p-3 rounded-lg border border-mid-gray/20 bg-white hover:bg-mid-gray/5 transition-colors"
+                          align="center"
+                          gap="3"
+                          justify="between"
+                          className="p-3 rounded-lg border border-mid-gray/20 bg-background hover:bg-background/40 transition-colors"
                         >
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text truncate">
+                          <Flex align="center" gap="3" className="flex-1 min-w-0">
+                            <Text
+                              size="2"
+                              weight="medium"
+                              className="truncate"
+                            >
                               {cachedModel.name}
-                            </p>
-                            <span className="text-xs text-mid-gray/70 flex-shrink-0">
+                            </Text>
+                            <Text size="1" className="flex-shrink-0 text-mid-gray/70">
                               {providerNameMap[cachedModel.provider_id] ??
                                 cachedModel.provider_id}
-                            </span>
+                            </Text>
                             {cachedModel.custom_label && (
-                              <span className="text-xs text-logo-primary font-medium bg-logo-primary/10 px-2 py-0.5 rounded">
+                              <Text
+                                size="1"
+                                weight="medium"
+                                className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30"
+                              >
                                 {cachedModel.custom_label}
-                              </span>
+                              </Text>
                             )}
-                          </div>
+                          </Flex>
                           <Button
                             onClick={() => handleRemoveModel(cachedModel.id)}
                             variant="ghost"
                             size="1"
                             disabled={!!isRemoving}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                            className="flex-shrink-0"
                           >
                             删除
                           </Button>
-                        </div>
+                        </Flex>
                       );
                     })}
-                  </div>
-                </div>
+                  </Box>
+                </Box>
               );
             })()}
-          </div>
+          </Box>
         )}
-      </div>
+      </Box>
     </SettingContainer>
   );
 };

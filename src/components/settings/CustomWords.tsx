@@ -1,8 +1,7 @@
-import { TextField } from "@radix-ui/themes";
+import { Button, TextField } from "@radix-ui/themes";
 import React, { useState } from "react";
 import { useSettings } from "../../hooks/useSettings";
 import { ActionWrapper } from "../ui";
-import { Button } from "@radix-ui/themes";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface CustomWordsProps {
@@ -54,8 +53,6 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
         >
           <ActionWrapper>
             <TextField.Root
-              className="max-w-40 flex"
-              size="1"
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyPress}
