@@ -1,4 +1,4 @@
-import { Button, IconButton } from "@radix-ui/themes";
+import { Button, IconButton, Dialog } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -390,14 +390,21 @@ export const AiSettings: React.FC = () => {
           </Button>
         }
       >
-        {isProviderManagerOpen && (
-          <ProviderManager onClose={() => setProviderManagerOpen(false)} />
-        )}
         <PostProcessingSettingsApi />
       </SettingsGroup>
       <SettingsGroup title={t("postProcessing.aiModelConfig")}>
         <ModelConfigurationPanel />
       </SettingsGroup>
+
+      {/* Provider Manager Dialog */}
+      <Dialog.Root open={isProviderManagerOpen} onOpenChange={setProviderManagerOpen}>
+        <Dialog.Content maxWidth="900px" style={{ maxHeight: "80vh" }}>
+          <Dialog.Title>{t("postProcessing.manageProviders")}</Dialog.Title>
+          <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
+            <ProviderManager onClose={() => setProviderManagerOpen(false)} />
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
     </div>
   );
 };
