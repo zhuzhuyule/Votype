@@ -1,10 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Dropdown, DropdownOption } from "../ui/Dropdown";
-import { SettingContainer } from "../ui/SettingContainer";
 import { useTranslation } from "react-i18next";
 import i18n, { UI_LANGUAGE_STORAGE_KEY } from "../../i18n/config";
+import { ActionWrapper } from "../ui";
+import { Dropdown, DropdownOption } from "../ui/Dropdown";
+import { SettingContainer } from "../ui/SettingContainer";
 
-const getUI_LANGUAGE_OPTIONS = (t: (key: string) => string): DropdownOption[] => [
+const getUI_LANGUAGE_OPTIONS = (
+  t: (key: string) => string,
+): DropdownOption[] => [
   { value: "system", label: t("uiLanguage.system") },
   { value: "en", label: t("uiLanguage.english") },
   { value: "zh", label: t("uiLanguage.chinese") },
@@ -29,10 +32,7 @@ export const UILanguageSelector: React.FC = () => {
     return stored ?? "system";
   });
 
-  const options = useMemo(
-    () => getUI_LANGUAGE_OPTIONS(t),
-    [t],
-  );
+  const options = useMemo(() => getUI_LANGUAGE_OPTIONS(t), [t]);
 
   const handleChange = (value: string) => {
     if (value === "system") {
@@ -72,12 +72,18 @@ export const UILanguageSelector: React.FC = () => {
       descriptionMode="tooltip"
       grouped
     >
-      <Dropdown
-        selectedValue={selectedValue}
-        onSelect={handleChange}
-        options={options}
-        placeholder={t("uiLanguage.placeholder")}
-      />
+      <ActionWrapper
+        onReset={() => {
+          setSelectedValue("system");
+        }}
+      >
+        <Dropdown
+          selectedValue={selectedValue}
+          onSelect={handleChange}
+          options={options}
+          placeholder={t("uiLanguage.placeholder")}
+        />
+      </ActionWrapper>
     </SettingContainer>
   );
 };

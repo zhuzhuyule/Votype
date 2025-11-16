@@ -1,14 +1,14 @@
+import { Flex, ScrollArea } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
-import { Flex, Box, ScrollArea } from "@radix-ui/themes";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
 import Onboarding from "./components/onboarding";
-import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
-import { useSettings } from "./hooks/useSettings";
+import { SECTIONS_CONFIG, Sidebar, SidebarSection } from "./components/Sidebar";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
+import { useSettings } from "./hooks/useSettings";
 
 const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
@@ -83,9 +83,9 @@ function App() {
             {/* Scrollable content area with ScrollArea */}
             <Flex flexGrow="1" direction="column" overflow="hidden">
               <ScrollArea scrollbars="vertical" type="hover" className="flex-1">
-                <Flex 
-                  direction="column" 
-                  align="center" 
+                <Flex
+                  direction="column"
+                  align="center"
                   py="6"
                   px="4"
                   gap="6"
