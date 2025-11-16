@@ -1,20 +1,16 @@
+import { Flex, Text } from "@radix-ui/themes";
 import React, { useMemo } from "react";
-
-import { ToggleSwitch } from "../../ui/ToggleSwitch";
-import { SettingContainer } from "../../ui/SettingContainer";
-import { Select } from "../../ui/Select";
-import { ActionWrapper } from "../../ui/ActionWraperr";
-import { useSettings } from "../../../hooks/useSettings";
 import { useTranslation } from "react-i18next";
+import { useSettings } from "../../../hooks/useSettings";
+import { ActionWrapper } from "../../ui/ActionWraperr";
+import { Select } from "../../ui/Select";
+import { SettingContainer } from "../../ui/SettingContainer";
+import { ToggleSwitch } from "../../ui/ToggleSwitch";
 
 export const OnlineAsrSettings: React.FC = () => {
   const { t } = useTranslation();
-  const {
-    settings,
-    toggleOnlineAsr,
-    selectAsrModel,
-    isUpdating,
-  } = useSettings();
+  const { settings, toggleOnlineAsr, selectAsrModel, isUpdating } =
+    useSettings();
 
   const enabled = settings?.online_asr_enabled || false;
   const cachedModels = settings?.cached_models || [];
@@ -49,7 +45,7 @@ export const OnlineAsrSettings: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <Flex direction="column" gap="4">
       <ToggleSwitch
         checked={enabled}
         onChange={handleToggle}
@@ -68,7 +64,7 @@ export const OnlineAsrSettings: React.FC = () => {
         grouped={true}
       >
         <ActionWrapper>
-          <div className="space-y-2">
+          <Flex direction="column" gap="2">
             <Select
               value={selectedModelId}
               options={asrOptions}
@@ -83,19 +79,19 @@ export const OnlineAsrSettings: React.FC = () => {
               isClearable
             />
             {!enabled && (
-              <p className="text-xs text-mid-gray/70">
+              <Text size="1" color="gray">
                 {t("onlineAsr.hintEnableToggle")}
-              </p>
+              </Text>
             )}
             {enabled && asrOptions.length === 0 && (
-              <p className="text-xs text-mid-gray/70">
+              <Text size="1" color="gray">
                 {t("onlineAsr.hintNoModel")}
-              </p>
+              </Text>
             )}
-          </div>
+          </Flex>
         </ActionWrapper>
       </SettingContainer>
-    </div>
+    </Flex>
   );
 };
 

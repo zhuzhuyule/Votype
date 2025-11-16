@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { SettingsGroup } from "../../ui/SettingsGroup";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { Button } from "@radix-ui/themes";
+import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AppDataDirectory } from "../AppDataDirectory";
 
 export const AboutSettings: React.FC = () => {
@@ -34,14 +34,14 @@ export const AboutSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("about.title")}>
         <SettingContainer
           title={t("about.version.title")}
           description={t("about.version.description")}
           grouped={true}
         >
-          <span className="text-sm font-mono">v{version}</span>
+          <Text className="text-sm font-mono">v{version}</Text>
         </SettingContainer>
 
         <AppDataDirectory descriptionMode="tooltip" grouped={true} />
@@ -83,11 +83,11 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
           layout="stacked"
         >
-          <div className="text-sm text-mid-gray">
+          <Text size="2" color="gray">
             {t("about.whisper.content")}
-          </div>
+          </Text>
         </SettingContainer>
       </SettingsGroup>
-    </div>
+    </Flex>
   );
 };

@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { Flex } from "@radix-ui/themes";
 import { ShowOverlay } from "../ShowOverlay";
 import { TranslateToEnglish } from "../TranslateToEnglish";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
@@ -14,7 +15,7 @@ export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
   
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("advancedSettings.title")}>
         <StartHidden descriptionMode="tooltip" grouped={true} />
         <AutostartToggle descriptionMode="tooltip" grouped={true} />
@@ -25,6 +26,6 @@ export const AdvancedSettings: React.FC = () => {
         <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
         <CustomWords descriptionMode="tooltip" grouped />
       </SettingsGroup>
-    </div>
+    </Flex>
   );
 };

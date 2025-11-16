@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
+import { Flex, Box, ScrollArea } from "@radix-ui/themes";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
@@ -71,27 +72,34 @@ function App() {
       {showOnboarding ? (
         <Onboarding onModelSelected={handleModelSelected} />
       ) : (
-        <div className="h-screen flex flex-col">
+        <Flex className="h-screen flex flex-col">
           <Toaster />
           {/* Main content area that takes remaining space */}
-          <div className="flex-1 flex overflow-hidden">
+          <Flex className="flex-1 flex overflow-hidden">
             <Sidebar
               activeSection={currentSection}
               onSectionChange={setCurrentSection}
             />
-            {/* Scrollable content area */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
-                <div className="flex flex-col items-center p-4 gap-4">
+            {/* Scrollable content area with ScrollArea */}
+            <Flex flexGrow="1" direction="column" overflow="hidden">
+              <ScrollArea scrollbars="vertical" type="hover" className="flex-1">
+                <Flex 
+                  direction="column" 
+                  align="center" 
+                  py="6"
+                  px="4"
+                  gap="6"
+                  className="min-w-[600px] max-w-[1200px] mx-auto w-full"
+                >
                   <AccessibilityPermissions />
                   {renderSettingsContent(currentSection)}
-                </div>
-              </div>
-            </div>
-          </div>
+                </Flex>
+              </ScrollArea>
+            </Flex>
+          </Flex>
           {/* Fixed footer at bottom */}
           <Footer />
-        </div>
+        </Flex>
       )}
     </RadixThemeProvider>
   );
