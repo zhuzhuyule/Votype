@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
+import { Flex, IconButton, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { IconButton, Flex, Text } from "@radix-ui/themes";
-import { Copy, Check } from "lucide-react";
+import { Check, Copy } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface AppDataDirectoryProps {
@@ -42,7 +42,10 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
       grouped={grouped}
     >
       <Flex align="center" gap="3">
-        <Text className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0">
+        <Text
+          className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0"
+          style={{ backgroundColor: "var(--gray-3, #f3f4f6)" }}
+        >
           {appDirPath || t("appData.loading")}
         </Text>
         {appDirPath && (
