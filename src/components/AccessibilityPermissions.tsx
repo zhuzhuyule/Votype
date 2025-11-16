@@ -4,7 +4,7 @@ import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
 } from "tauri-plugin-macos-permissions-api";
-import { Button, type ButtonProps } from "@radix-ui/themes";
+import { Box, Button, Flex, Text, type ButtonProps } from "@radix-ui/themes";
 
 // Define permission state type
 type PermissionState = "request" | "verify" | "granted";
@@ -80,13 +80,13 @@ const AccessibilityPermissions: React.FC = () => {
   }
 
   return (
-    <div className="p-4 w-full rounded-lg border border-mid-gray">
-      <div className="flex justify-between items-center gap-2">
-        <div className="">
-          <p className="text-sm font-medium">
+    <Flex p="4" className="w-full rounded-lg border border-mid-gray">
+      <Flex justify="between" align="center" gap="2">
+        <Box>
+          <Text size="2" weight="medium">
             {t("accessibility.request")}
-          </p>
-        </div>
+          </Text>
+        </Box>
         <Button
           onClick={handleButtonClick}
           variant={config.variant}
@@ -95,8 +95,8 @@ const AccessibilityPermissions: React.FC = () => {
         >
           {config.text}
         </Button>
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 };
 

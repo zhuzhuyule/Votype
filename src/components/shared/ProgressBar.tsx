@@ -1,4 +1,5 @@
 import React from "react";
+import { Flex, Text } from "@radix-ui/themes";
 
 export interface ProgressData {
   id: string;
@@ -40,32 +41,32 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
     const percentage = Math.max(0, Math.min(100, item.percentage));
 
     return (
-      <div className={`flex items-center gap-3 ${className}`}>
+      <Flex align="center" gap="3" className={className}>
         <progress
           value={percentage}
           max={100}
           className={`${progressClasses} [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-mid-gray/20 [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-logo-primary`}
         />
         {(showSpeed || showLabel) && (
-          <div className="text-xs text-text/60 tabular-nums min-w-fit">
+          <Flex className="text-xs text-text/60 tabular-nums min-w-fit">
             {showLabel && item.label && (
-              <span className="mr-2">{item.label}</span>
+              <Text className="mr-2">{item.label}</Text>
             )}
             {showSpeed && item.speed !== undefined && item.speed > 0 ? (
-              <span>{item.speed.toFixed(1)}MB/s</span>
+              <Text>{item.speed.toFixed(1)}MB/s</Text>
             ) : showSpeed ? (
-              <span>Downloading...</span>
+              <Text>Downloading...</Text>
             ) : null}
-          </div>
+          </Flex>
         )}
-      </div>
+      </Flex>
     );
   }
 
   // Multiple progress bars
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <div className="flex gap-1">
+    <Flex align="center" gap="2" className={className}>
+      <Flex className="flex gap-1">
         {progress.map((item) => {
           const percentage = Math.max(0, Math.min(100, item.percentage));
           return (
@@ -78,11 +79,11 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
             />
           );
         })}
-      </div>
-      <div className="text-xs text-text/60 min-w-fit">
+      </Flex>
+      <Text className="text-xs text-text/60 min-w-fit">
         {progress.length} downloading...
-      </div>
-    </div>
+      </Text>
+    </Flex>
   );
 };
 

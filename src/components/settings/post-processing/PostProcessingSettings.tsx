@@ -7,7 +7,7 @@ import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
 
-import { TextField } from "@radix-ui/themes";
+import { Text, TextField } from "@radix-ui/themes";
 import { Eye, EyeOff } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
@@ -21,7 +21,7 @@ const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
   <div className="p-4 bg-mid-gray/5 rounded-lg border border-mid-gray/20 text-center">
-    <p className="text-sm text-mid-gray">{children}</p>
+    <Text size="2" color="gray">{children}</Text>
   </div>
 );
 
@@ -253,9 +253,9 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
         {!isCreating && hasPrompts && selectedPrompt && (
           <div className="space-y-3">
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
+              <Text as="label" size="2" weight="medium">
                 {t("postProcessing.promptLabel")}
-              </label>
+              </Text>
               <TextField.Root
                 value={draftName}
                 onBlur={(e) => setDraftName(e.target.value)}
@@ -264,21 +264,21 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             </div>
 
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
+              <Text as="label" size="2" weight="medium">
                 {t("postProcessing.promptInstructions")}
-              </label>
+              </Text>
               <Textarea
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
                 placeholder={t("ui.writeInstructions")}
               />
-              <p className="text-xs text-mid-gray/70">
+              <Text size="1" color="gray">
                 {t("ui.tipUse")}{" "}
                 <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
                   $&#123;output&#125;
                 </code>{" "}
                 {t("ui.toInsertText")}
-              </p>
+              </Text>
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -304,20 +304,20 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
 
         {!isCreating && !selectedPrompt && (
           <div className="p-3 bg-mid-gray/5 rounded border border-mid-gray/20">
-            <p className="text-sm text-mid-gray">
+            <Text size="2" color="gray">
               {hasPrompts
                 ? t("ui.selectPromptAbove")
                 : t("ui.createPromptTip")}
-            </p>
+            </Text>
           </div>
         )}
 
         {isCreating && (
           <div className="space-y-3">
             <div className="space-y-2 block flex flex-col">
-              <label className="text-sm font-semibold text-text">
+              <Text as="label" size="2" weight="medium">
                 {t("postProcessing.promptLabel")}
-              </label>
+              </Text>
               <TextField.Root
                 value={draftName}
                 onBlur={(e) => setDraftName(e.target.value)}
@@ -326,25 +326,21 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             </div>
 
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
+              <Text as="label" size="2" weight="medium">
                 {t("postProcessing.promptInstructions")}
-              </label>
+              </Text>
               <Textarea
                 value={draftText}
                 onChange={(e) => setDraftText(e.target.value)}
                 placeholder={t("ui.writeInstructions")}
               />
-              <p className="text-xs text-mid-gray/70">
+              <Text size="1" color="gray">
                 {t("ui.tipUse")}{" "}
-                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
-                  Tip: Use{" "}
                 <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
                   $&#123;output&#125;
                 </code>{" "}
-                to insert the transcribed text in your prompt.#123;output&#125;
-                </code>{" "}
                 {t("ui.toInsertText")}
-              </p>
+              </Text>
             </div>
 
             <div className="flex gap-2 pt-2">

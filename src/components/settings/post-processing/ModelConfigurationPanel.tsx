@@ -228,12 +228,14 @@ export const ModelConfigurationPanel: React.FC = () => {
               >
                 {localizedModelTypeOptions.map((option) => (
                   <RadioCards.Item key={option.value} value={option.value}>
-                    <Text size="2" weight="medium">
-                      {option.label}
-                    </Text>
-                    <Text size="1" color="gray">
-                      {option.hint}
-                    </Text>
+                    <Flex direction="column">
+                      <Text size="2" weight="medium">
+                        {option.label}
+                      </Text>
+                      <Text size="1" color="gray">
+                        {option.hint}
+                      </Text>
+                    </Flex>
                   </RadioCards.Item>
                 ))}
               </RadioCards.Root>

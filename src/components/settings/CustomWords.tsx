@@ -1,4 +1,4 @@
-import { Button, TextField } from "@radix-ui/themes";
+import { Button, Flex, Text, TextField } from "@radix-ui/themes";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
@@ -75,8 +75,10 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
           </ActionWrapper>
         </SettingContainer>
         {customWords.length > 0 && (
-          <div
-            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} flex flex-wrap gap-1`}
+          <Flex
+            wrap="wrap"
+            gap="1"
+            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"}`}
           >
             {customWords.map((word) => (
               <Button
@@ -86,7 +88,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 className="inline-flex items-center gap-1 cursor-pointer"
                 aria-label={`${t("customWords.remove")} ${word}`}
               >
-                <span>{word}</span>
+                <Text>{word}</Text>
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -102,7 +104,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 </svg>
               </Button>
             ))}
-          </div>
+          </Flex>
         )}
       </>
     );

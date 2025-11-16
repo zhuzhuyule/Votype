@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { listen } from "@tauri-apps/api/event";
-import { Button } from "@radix-ui/themes";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { ProgressBar } from "../shared";
 
 interface UpdateCheckerProps {
@@ -165,9 +165,9 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
           {getUpdateStatusText()}
         </Button>
       ) : (
-        <span className="text-text/60 tabular-nums">
+        <Text className="text-text/60 tabular-nums">
           {getUpdateStatusText()}
-        </span>
+        </Text>
       )}
 
       {isInstalling && downloadProgress > 0 && downloadProgress < 100 && (

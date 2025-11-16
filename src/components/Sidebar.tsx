@@ -1,16 +1,24 @@
+import { Flex, Text } from "@radix-ui/themes";
+import {
+  Cog,
+  FlaskConical,
+  History,
+  Info,
+  Layers,
+  Sparkles,
+} from "lucide-react";
 import React from "react";
-import { Cog, FlaskConical, History, Info, Sparkles, Layers } from "lucide-react";
-import HandyTextLogo from "./icons/HandyTextLogo";
-import HandyHand from "./icons/HandyHand";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
+import HandyHand from "./icons/HandyHand";
+import HandyTextLogo from "./icons/HandyTextLogo";
 import {
-  GeneralSettings,
-  AdvancedSettings,
-  HistorySettings,
-  DebugSettings,
   AboutSettings,
+  AdvancedSettings,
   AiSettings,
+  DebugSettings,
+  GeneralSettings,
+  HistorySettings,
   ModelsSettings,
 } from "./settings";
 
@@ -93,9 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const { settings } = useSettings();
 
-  const availableSections: SectionWithLabel[] = Object.entries(
-    SECTIONS_CONFIG,
-  )
+  const availableSections: SectionWithLabel[] = Object.entries(SECTIONS_CONFIG)
     .filter(([_, config]) => config.enabled(settings))
     .map(([id, config]) => ({
       id: id as SidebarSection,
@@ -104,17 +110,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-r border-mid-gray/20 items-center px-2">
+    <Flex
+      direction="column"
+      className="w-40 h-full border-r border-mid-gray/20 items-center px-2"
+    >
       <HandyTextLogo width={120} className="m-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
+      <Flex
+        direction="column"
+        className="w-full items-center gap-1 pt-2 border-t border-mid-gray/20"
+      >
         {availableSections.map((section) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;
 
           return (
-            <div
+            <Flex
               key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
+              gap="2"
+              align="center"
+              p="2"
+              className={`w-full rounded-lg cursor-pointer transition-colors ${
                 isActive
                   ? "bg-logo-primary/80"
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
@@ -122,11 +137,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => onSectionChange(section.id)}
             >
               <Icon width={24} height={24} />
-              <p className="text-sm font-medium">{section.label}</p>
-            </div>
+              <Text size="2" weight="medium">
+                {section.label}
+              </Text>
+            </Flex>
           );
         })}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 };

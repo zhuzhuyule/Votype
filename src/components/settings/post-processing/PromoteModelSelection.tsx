@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-
+import { Flex, Text } from "@radix-ui/themes";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { Dropdown } from "../../ui/Dropdown";
 import { useSettings } from "../../../hooks/useSettings";
@@ -34,7 +34,7 @@ export const PromoteModelSelection: React.FC = () => {
       layout="stacked"
       grouped={true}
     >
-      <div className="space-y-2">
+      <Flex direction="column" gap="2">
         <Dropdown
           selectedValue={selectedModelId}
           options={options}
@@ -50,11 +50,11 @@ export const PromoteModelSelection: React.FC = () => {
           }
         />
         {options.length === 0 && (
-          <p className="text-xs text-mid-gray/70">
+          <Text size="1" color="gray">
             {t("promptModel.hintAddModel")}
-          </p>
+          </Text>
         )}
-      </div>
+      </Flex>
     </SettingContainer>
   );
 };

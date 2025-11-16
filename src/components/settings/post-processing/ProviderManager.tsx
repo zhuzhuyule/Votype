@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Button, TextField } from "@radix-ui/themes";
+import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
 
@@ -141,10 +141,10 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
           className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-mid-gray/20 bg-background p-8 shadow-2xl"
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xl font-semibold text-text mb-2">
+          <Flex align="center" justify="between" mb="2">
+            <Text size="5" weight="bold">
               {t("ui.createCustomProviderTitle")}
-            </h2>
+            </Text>
             <Button
               variant="ghost"
               onClick={handleClose}
@@ -153,14 +153,14 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
             >
               ✕
             </Button>
-          </div>
+          </Flex>
           <div className="space-y-4">
             {customProviders.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-mid-gray/90 uppercase tracking-wider">
+                  <Text size="2" weight="bold" color="gray" className="uppercase tracking-wider">
                     自定义 Provider
-                  </h3>
+                  </Text>
                   <Button
                     onClick={() => setShowAdd((prev) => !prev)}
                     disabled={isUpdating("add_custom_provider")}
@@ -170,9 +170,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                 </div>
                 {showAdd && (
                   <div className="space-y-4 rounded-lg border border-mid-gray/20 bg-background/50 p-5 shadow-sm">
-                    <h3 className="text-sm font-medium text-text">
+                    <Text size="3" weight="medium">
                       创建自定义 Provider
-                    </h3>
+                    </Text>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1 md:col-span-2">
                         <label className="text-xs font-medium text-mid-gray/80">
@@ -347,9 +347,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                         </div>
                         {isEditing && (
                           <div className="space-y-3 pt-3 border-t border-mid-gray/20">
-                            <h4 className="text-sm font-medium text-text">
+                            <Text size="3" weight="medium">
                               编辑 Provider
-                            </h4>
+                            </Text>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <div className="space-y-1 md:col-span-2">
                                 <label className="text-xs font-medium text-mid-gray/80">

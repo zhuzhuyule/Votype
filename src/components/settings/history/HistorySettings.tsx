@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { SettingsGroup } from "../../ui/SettingsGroup";
-import { AudioPlayer } from "../../ui/AudioPlayer";
-import { Button } from "@radix-ui/themes";
-import { Copy, Star, Check, Trash2 } from "lucide-react";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { Check, Copy, Star, Trash2 } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { AudioPlayer } from "../../ui/AudioPlayer";
+import { SettingsGroup } from "../../ui/SettingsGroup";
 
 interface HistoryEntry {
   id: number;
@@ -100,9 +100,9 @@ export const HistorySettings: React.FC = () => {
     return (
       <div className="max-w-3xl w-full mx-auto space-y-6">
         <SettingsGroup title={t("historySettings.title")}>
-          <div className="px-4 py-3 text-center text-text/60">
+          <Flex className="px-4 py-3 text-center text-text/60">
             {t("historySettings.loading")}
-          </div>
+          </Flex>
         </SettingsGroup>
       </div>
     );
@@ -112,9 +112,9 @@ export const HistorySettings: React.FC = () => {
     return (
       <div className="max-w-3xl w-full mx-auto space-y-6">
         <SettingsGroup title={t("historySettings.title")}>
-          <div className="px-4 py-3 text-center text-text/60">
+          <Flex className="px-4 py-3 text-center text-text/60">
             {t("historySettings.empty")}
-          </div>
+          </Flex>
         </SettingsGroup>
       </div>
     );
@@ -181,10 +181,12 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   };
 
   return (
-    <div className="px-4 py-2 pb-5 flex flex-col gap-3">
-      <div className="flex justify-between items-center">
-        <p className="text-sm font-medium">{entry.title}</p>
-        <div className="flex items-center gap-1">
+    <Flex direction="column" gap="3" className="px-4 py-2 pb-5">
+      <Flex justify="between" align="center">
+        <Text size="2" weight="medium">
+          {entry.title}
+        </Text>
+        <Flex align="center" gap="1">
           <Button
             variant="ghost"
             size="1"
@@ -207,7 +209,11 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
                 ? "text-logo-primary hover:text-logo-primary/80"
                 : "text-text/50 hover:text-logo-primary"
             }`}
-            title={entry.saved ? t("historySettings.removeFromSaved") : t("historySettings.saveTitle")}
+            title={
+              entry.saved
+                ? t("historySettings.removeFromSaved")
+                : t("historySettings.saveTitle")
+            }
           >
             <Star
               width={16}
@@ -224,12 +230,12 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           >
             <Trash2 width={16} height={16} />
           </Button>
-        </div>
-      </div>
-      <p className="italic text-text/90 text-sm pb-2">
+        </Flex>
+      </Flex>
+      <Text className="italic text-text/90 text-sm pb-2">
         {entry.transcription_text}
-      </p>
+      </Text>
       {audioUrl && <AudioPlayer src={audioUrl} className="w-full" />}
-    </div>
+    </Flex>
   );
 };
