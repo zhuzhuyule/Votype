@@ -200,7 +200,12 @@
         "label": "Other",
         "hint": "Custom usage label"
       }
-    }
+    },
+    "segmented": {
+      "selectModel": "Select Model",
+      "customModel": "Custom Model"
+    },
+    "customModelPlaceholder": "Enter custom model name"
   },
   "onlineAsr": {
     "title": "Use online ASR",
