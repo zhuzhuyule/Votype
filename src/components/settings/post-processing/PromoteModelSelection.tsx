@@ -1,9 +1,10 @@
+import { Text } from "@radix-ui/themes";
 import React, { useMemo } from "react";
-import { Flex, Text } from "@radix-ui/themes";
-import { SettingContainer } from "../../ui/SettingContainer";
-import { Dropdown } from "../../ui/Dropdown";
-import { useSettings } from "../../../hooks/useSettings";
 import { useTranslation } from "react-i18next";
+import { useSettings } from "../../../hooks/useSettings";
+import { ActionWrapper } from "../../ui";
+import { Dropdown } from "../../ui/Dropdown";
+import { SettingContainer } from "../../ui/SettingContainer";
 
 export const PromoteModelSelection: React.FC = () => {
   const { t } = useTranslation();
@@ -31,10 +32,10 @@ export const PromoteModelSelection: React.FC = () => {
       title={t("promptModel.title")}
       description={t("promptModel.description")}
       descriptionMode="tooltip"
-      layout="stacked"
       grouped={true}
+      disabled={!settings?.post_process_enabled}
     >
-      <Flex direction="column" gap="2">
+      <ActionWrapper>
         <Dropdown
           selectedValue={selectedModelId}
           options={options}
@@ -45,6 +46,7 @@ export const PromoteModelSelection: React.FC = () => {
               : t("promptModel.placeholderSelectModel")
           }
           disabled={
+            !settings?.post_process_enabled ||
             options.length === 0 ||
             isUpdating("select_post_process_model")
           }
@@ -54,7 +56,7 @@ export const PromoteModelSelection: React.FC = () => {
             {t("promptModel.hintAddModel")}
           </Text>
         )}
-      </Flex>
+      </ActionWrapper>
     </SettingContainer>
   );
 };

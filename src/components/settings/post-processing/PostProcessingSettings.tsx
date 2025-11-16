@@ -1,17 +1,26 @@
-import { Button, IconButton, Dialog } from "@radix-ui/themes";
+import { PlusIcon } from "@radix-ui/react-icons";
+import {
+  Button,
+  Dialog,
+  Flex,
+  IconButton,
+  Separator,
+  Text,
+  TextField,
+  Tooltip,
+} from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
+import { Eye, EyeOff } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { useSettings } from "../../../hooks/useSettings";
+import type { LLMPrompt } from "../../../lib/types";
+import { ActionWrapper } from "../../ui";
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
-
-import { Text, TextField } from "@radix-ui/themes";
-import { Eye, EyeOff } from "lucide-react";
-import { useSettings } from "../../../hooks/useSettings";
-import type { LLMPrompt } from "../../../lib/types";
-import { ActionWrapper } from "../../ui";
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
@@ -20,18 +29,20 @@ import { ProviderManager } from "./ProviderManager";
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
-  <div className="p-4 bg-mid-gray/5 rounded-lg border border-mid-gray/20 text-center">
-    <Text size="2" color="gray">{children}</Text>
-  </div>
+  <Flex align="center" justify="center" py="6" px="4">
+    <Text size="2" color="gray">
+      {children}
+    </Text>
+  </Flex>
 );
 
-const PostProcessingSettingsApiComponent: React.FC = () => {
+const ApiSettings: React.FC = () => {
   const { t } = useTranslation();
   const state = usePostProcessProviderState();
   const [showApiKey, setShowApiKey] = useState(false);
 
   return (
-    <>
+    <Flex direction="column" gap="4">
       <SettingContainer
         title={t("postProcessing.title")}
         description={t("postProcessing.description")}
@@ -100,11 +111,11 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
           </TextField.Root>
         </ActionWrapper>
       </SettingContainer>
-    </>
+    </Flex>
   );
 };
 
-const PostProcessingSettingsPromptsComponent: React.FC = () => {
+const PromptSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating, refreshSettings } =
     useSettings();
@@ -214,15 +225,12 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
       draftText.trim() !== selectedPrompt.prompt.trim());
 
   return (
-    <SettingContainer
-      title={t("postProcessing.selectedPromptTitle")}
-      description={t("postProcessing.selectedPromptDescription")}
-      descriptionMode="tooltip"
-      layout="stacked"
-      grouped={true}
-    >
-      <div className="space-y-3">
-        <div className="flex gap-2">
+    <>
+      <SettingContainer
+        title={t("postProcessing.selectedPromptTitle")}
+        description={t("postProcessing.selectedPromptDescription")}
+      >
+        <ActionWrapper>
           <Dropdown
             selectedValue={selectedPromptId || undefined}
             options={prompts.map((p) => ({
@@ -240,110 +248,55 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             }
             className="flex-1"
           />
-          <Button
-            onClick={handleStartCreate}
-            variant="solid"
-            size="2"
-            disabled={isCreating}
-          >
-            {t("postProcessing.createNewPrompt")}
-          </Button>
-        </div>
-
-        {!isCreating && hasPrompts && selectedPrompt && (
-          <div className="space-y-3">
-            <div className="space-y-2 flex flex-col">
-              <Text as="label" size="2" weight="medium">
-                {t("postProcessing.promptLabel")}
-              </Text>
-              <TextField.Root
-                value={draftName}
-                onBlur={(e) => setDraftName(e.target.value)}
-                placeholder={t("ui.enterPromptName")}
-              />
-            </div>
-
-            <div className="space-y-2 flex flex-col">
-              <Text as="label" size="2" weight="medium">
-                {t("postProcessing.promptInstructions")}
-              </Text>
-              <Textarea
-                value={draftText}
-                onChange={(e) => setDraftText(e.target.value)}
-                placeholder={t("ui.writeInstructions")}
-              />
-              <Text size="1" color="gray">
-                {t("ui.tipUse")}{" "}
-                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
-                  $&#123;output&#125;
-                </code>{" "}
-                {t("ui.toInsertText")}
-              </Text>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleUpdatePrompt}
-                variant="solid"
-                size="2"
-                disabled={!draftName.trim() || !draftText.trim() || !isDirty}
-              >
-                {t("ui.updatePrompt")}
-              </Button>
-              <Button
-                onClick={() => handleDeletePrompt(selectedPromptId)}
+          {!isCreating && (
+            <Tooltip content={t("postProcessing.createNewPrompt")}>
+              <IconButton
+                size="1"
                 variant="outline"
-                size="2"
-                disabled={!selectedPromptId || prompts.length <= 1}
+                onClick={handleStartCreate}
               >
-                {t("ui.deletePrompt")}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {!isCreating && !selectedPrompt && (
-          <div className="p-3 bg-mid-gray/5 rounded border border-mid-gray/20">
-            <Text size="2" color="gray">
-              {hasPrompts
-                ? t("ui.selectPromptAbove")
-                : t("ui.createPromptTip")}
-            </Text>
-          </div>
-        )}
-
-        {isCreating && (
-          <div className="space-y-3">
-            <div className="space-y-2 block flex flex-col">
-              <Text as="label" size="2" weight="medium">
-                {t("postProcessing.promptLabel")}
-              </Text>
-              <TextField.Root
-                value={draftName}
-                onBlur={(e) => setDraftName(e.target.value)}
-                placeholder={t("ui.enterPromptName")}
-              />
-            </div>
-
-            <div className="space-y-2 flex flex-col">
-              <Text as="label" size="2" weight="medium">
-                {t("postProcessing.promptInstructions")}
-              </Text>
-              <Textarea
-                value={draftText}
-                onChange={(e) => setDraftText(e.target.value)}
-                placeholder={t("ui.writeInstructions")}
-              />
-              <Text size="1" color="gray">
-                {t("ui.tipUse")}{" "}
-                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
-                  $&#123;output&#125;
-                </code>{" "}
-                {t("ui.toInsertText")}
-              </Text>
-            </div>
-
-            <div className="flex gap-2 pt-2">
+                <PlusIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </ActionWrapper>
+      </SettingContainer>
+      <Separator my="3" size="4" />
+      <SettingContainer
+        title={t("postProcessing.promptLabel")}
+        descriptionMode="inline"
+        description=""
+      >
+        <ActionWrapper>
+          <TextField.Root
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder={t("ui.enterPromptName")}
+          />
+        </ActionWrapper>
+      </SettingContainer>
+      <SettingContainer
+        title={t("postProcessing.promptInstructions")}
+        descriptionMode="inline"
+        description=""
+        layout="stacked"
+      >
+        <Textarea
+          value={draftText}
+          rows={20}
+          onChange={(e) => setDraftText(e.target.value)}
+          placeholder={t("ui.writeInstructions")}
+        />
+        <Text size="1" color="gray">
+          {t("ui.tipUse")}{" "}
+          <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
+            $&#123;output&#125;
+          </code>{" "}
+          {t("ui.toInsertText")}
+        </Text>
+        <Flex gap="2" pt="2">
+          {isCreating ? (
+            <>
               <Button
                 onClick={handleCreatePrompt}
                 variant="solid"
@@ -355,29 +308,46 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
               <Button onClick={handleCancelCreate} variant="outline" size="2">
                 {t("ui.cancel")}
               </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </SettingContainer>
+            </>
+          ) : !!selectedPrompt ? (
+            <>
+              <Button
+                onClick={handleUpdatePrompt}
+                variant="solid"
+                size="2"
+                disabled={!isDirty || !draftName.trim() || !draftText.trim()}
+              >
+                {t("ui.save")}
+              </Button>
+              <Button
+                onClick={() => handleDeletePrompt(selectedPrompt.id)}
+                variant="outline"
+                color="red"
+                size="2"
+                disabled={prompts.length <= 1}
+              >
+                {t("ui.delete")}
+              </Button>
+            </>
+          ) : null}
+        </Flex>
+      </SettingContainer>
+    </>
   );
 };
 
-export const PostProcessingSettingsApi = React.memo(
-  PostProcessingSettingsApiComponent,
-);
+export const PostProcessingSettingsApi = React.memo(ApiSettings);
 PostProcessingSettingsApi.displayName = "PostProcessingSettingsApi";
 
-export const PostProcessingSettingsPrompts = React.memo(
-  PostProcessingSettingsPromptsComponent,
-);
+export const PostProcessingSettingsPrompts = React.memo(PromptSettings);
 PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
 export const AiSettings: React.FC = () => {
   const { t } = useTranslation();
   const [isProviderManagerOpen, setProviderManagerOpen] = useState(false);
+
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
       <SettingsGroup
         title={t("postProcessing.apiTitle")}
         actions={
@@ -392,12 +362,16 @@ export const AiSettings: React.FC = () => {
       >
         <PostProcessingSettingsApi />
       </SettingsGroup>
+
       <SettingsGroup title={t("postProcessing.aiModelConfig")}>
         <ModelConfigurationPanel />
       </SettingsGroup>
 
       {/* Provider Manager Dialog */}
-      <Dialog.Root open={isProviderManagerOpen} onOpenChange={setProviderManagerOpen}>
+      <Dialog.Root
+        open={isProviderManagerOpen}
+        onOpenChange={setProviderManagerOpen}
+      >
         <Dialog.Content maxWidth="900px" style={{ maxHeight: "80vh" }}>
           <Dialog.Title>{t("postProcessing.manageProviders")}</Dialog.Title>
           <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
@@ -405,6 +379,6 @@ export const AiSettings: React.FC = () => {
           </div>
         </Dialog.Content>
       </Dialog.Root>
-    </div>
+    </Flex>
   );
 };

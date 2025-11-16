@@ -1,4 +1,3 @@
-import { Flex } from "@radix-ui/themes";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
@@ -65,37 +64,31 @@ export const ModelsSettings: React.FC = () => {
           grouped={true}
           isUpdating={isUpdating("toggle_online_asr")}
         />
-        <Flex direction="column" gap="4">
-          <SettingContainer
-            title={t("onlineAsr.modelTitle")}
-            description={t("onlineAsr.modelDescription")}
-            descriptionMode="tooltip"
-            layout="stacked"
-            grouped={true}
-          >
-            <ActionWrapper>
-              <Dropdown
-                options={asrOptions}
-                selectedValue={selectedModelId || undefined}
-                onSelect={(value) => handleModelSelect(value)}
-                placeholder={
-                  asrOptions.length === 0
-                    ? t("onlineAsr.placeholderAddModel")
-                    : t("onlineAsr.placeholderSelectModel")
-                }
-                disabled={!enabled || asrOptions.length === 0}
-                className="w-full"
-              />
-            </ActionWrapper>
-          </SettingContainer>
-        </Flex>
+        <SettingContainer
+          title={t("onlineAsr.modelTitle")}
+          description={t("onlineAsr.modelDescription")}
+          disabled={!enabled || asrOptions.length === 0}
+        >
+          <ActionWrapper>
+            <Dropdown
+              options={asrOptions}
+              selectedValue={selectedModelId || undefined}
+              onSelect={(value) => handleModelSelect(value)}
+              placeholder={
+                asrOptions.length === 0
+                  ? t("onlineAsr.placeholderAddModel")
+                  : t("onlineAsr.placeholderSelectModel")
+              }
+              disabled={!enabled || asrOptions.length === 0}
+              className="w-full"
+            />
+          </ActionWrapper>
+        </SettingContainer>
       </SettingsGroup>
       <SettingsGroup title={t("modelSettings.promptModelTitle")}>
         <PostProcessingToggle grouped={true} />
-        <Flex direction="column" gap="4">
-          <PromoteModelSelection />
-          <PostProcessingSettingsPrompts />
-        </Flex>
+        <PromoteModelSelection />
+        <PostProcessingSettingsPrompts />
       </SettingsGroup>
     </>
   );
