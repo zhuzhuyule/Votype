@@ -1155,6 +1155,8 @@
     "noCustomProviders": "暂无自定义提供商",
     "noCustomProvidersDesc": "点击上方按钮创建第一个自定义提供商",
     "notAvailable": "不可用",
+    "noMatchingOptions": "无匹配选项",
+    "filterOptions": "过滤...",
     "providerName": "提供商名称",
     "providerNamePlaceholder": "输入提供商名称",
     "resetUrl": "重置 URL",

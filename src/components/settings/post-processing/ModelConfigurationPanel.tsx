@@ -212,6 +212,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                 }
                 onRefresh={() => state.handleRefreshModels()}
                 className="w-full"
+                enableFilter={true}
               />
             )}
 

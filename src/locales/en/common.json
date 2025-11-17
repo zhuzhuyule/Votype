@@ -1161,6 +1161,8 @@
     "noCustomProviders": "No custom providers",
     "noCustomProvidersDesc": "Click the button above to create your first custom provider",
     "notAvailable": "Not available",
+    "noMatchingOptions": "No matching options",
+    "filterOptions": "Filter...",
     "providerName": "Provider Name",
     "providerNamePlaceholder": "Enter provider name",
     "resetUrl": "Reset URL",
