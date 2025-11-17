@@ -74,8 +74,6 @@ export const useSettings = (): UseSettingsReturn => {
     }
   }, [store.initialize, store.isLoading]);
 
-  console.log(store.settings);
-
   return {
     settings: store.settings,
     isLoading: store.isLoading,

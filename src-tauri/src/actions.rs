@@ -207,10 +207,63 @@ async fn maybe_post_process_transcription(
         Err(e) => {
             // Check if this is a deserialization error due to missing OpenAI standard fields
             let error_str = e.to_string();
-            if error_str.contains("missing field") && provider.id.starts_with("custom") {
+            if (error_str.contains("missing field") || error_str.contains("unknown variant")) && provider.id.starts_with("custom") {
                 info!("Detected custom provider response format issue, attempting manual parsing...");
                 
-                // Try to extract the response content directly from the error
+                // First, try to extract the full JSON content from the error message
+                if let Some(json_start) = error_str.find("content:{") {
+                    if let Some(json_end) = error_str[json_start..].find("}") {
+                        let json_content = &error_str[json_start..json_start + json_end + 1];
+                        info!("Found JSON content in error: {}", json_content);
+                        
+                        // Parse the content field from this JSON snippet
+                        if let Some(content_field_start) = json_content.find("\"content\":\"") {
+                            if let Some(content_field_end) = json_content[content_field_start + 11..].find("\"") {
+                                let raw_content = &json_content[content_field_start + 11..content_field_start + 11 + content_field_end];
+                                info!("Raw content extracted: {}", raw_content);
+                                
+                                // Process the content to handle escaped characters and ...</think> tags
+                                let mut processed_content = raw_content.to_string();
+                                
+                                // Handle escaped characters
+                                processed_content = processed_content.replace("\\\"", "\"");
+                                processed_content = processed_content.replace("\\n", "\n");
+                                processed_content = processed_content.replace("\\\\", "\\");
+                                
+                                // Remove ...</think> sections if present
+                                while let Some(think_start) = processed_content.find("") {
+                                    if let Some(think_end) = processed_content[think_start..].find("</think>") {
+                                        processed_content.replace_range(think_start..think_start + think_end + 7, "");
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                
+                                // Also handle escaped versions of the tags
+                                while let Some(think_start) = processed_content.find("\\u003cthink\\u003e") {
+                                    if let Some(think_end) = processed_content[think_start..].find("\\u003c/think\\u003e") {
+                                        processed_content.replace_range(think_start..think_start + think_end + 20, "");
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                
+                                // Trim whitespace
+                                processed_content = processed_content.trim().to_string();
+                                
+                                if !processed_content.is_empty() {
+                                    info!("Successfully extracted and processed content from custom provider response");
+                                    info!("Final content length: {} chars", processed_content.len());
+                                    info!("Final content preview: '{}...'", &processed_content[..processed_content.len().min(100)]);
+                                    info!("=== POST-PROCESSING DEBUG END ===");
+                                    return Some(processed_content);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback: Try to extract the response content directly from the error
                 if let Some(content_start) = error_str.find("\"content\":\"") {
                     if let Some(content_end) = error_str[content_start + 11..].find("\",\"role\"") {
                         let content = &error_str[content_start + 11..content_start + 11 + content_end];
@@ -219,6 +272,25 @@ async fn maybe_post_process_transcription(
                         info!("Extracted content preview: '{}...'", &content[..content.len().min(100)]);
                         info!("=== POST-PROCESSING DEBUG END ===");
                         return Some(content.to_string());
+                    }
+                }
+                
+                // Also check for service_tier specific errors and try to extract content differently
+                if error_str.contains("service_tier") && error_str.contains("on_demand") {
+                    info!("Detected service_tier 'on_demand' variant issue, attempting alternative parsing...");
+                    
+                    // Look for content in a different pattern for service_tier errors
+                    if let Some(content_start) = error_str.find("\\\"content\\\":\\\"") {
+                        if let Some(content_end) = error_str[content_start + 12..].find("\\\"") {
+                            let content = &error_str[content_start + 12..content_start + 12 + content_end];
+                            // Unescape the JSON string
+                            let unescaped_content = content.replace("\\\"", "\"").replace("\\\\", "\\");
+                            info!("Successfully extracted content from service_tier error response");
+                            info!("Extracted content length: {} chars", unescaped_content.len());
+                            info!("Extracted content preview: '{}...'", &unescaped_content[..unescaped_content.len().min(100)]);
+                            info!("=== POST-PROCESSING DEBUG END ===");
+                            return Some(unescaped_content);
+                        }
                     }
                 }
             }
