@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       direction="column"
       className="w-40 h-full border-r border-mid-gray/20 items-center px-2"
     >
-      <HandyTextLogo width={120} className="m-4" />
+      <HandyTextLogo width={120} className="m-4 text-logo-primary/60" />
       <Flex
         direction="column"
         className="w-full items-center gap-1 pt-2 border-t border-mid-gray/20"
@@ -129,9 +129,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               gap="2"
               align="center"
               p="2"
-              className={`w-full rounded-lg cursor-pointer transition-colors ${
+              className={`w-full cursor-pointer rounded-lg transition-colors ${
                 isActive
-                  ? "bg-logo-primary/80"
+                  ? "bg-logo-primary/60 primary text-white"
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
               }`}
               onClick={() => onSectionChange(section.id)}
