@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useSettings } from "../../hooks/useSettings";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ResetButton } from "../ui/ResetButton";
-import { useSettings } from "../../hooks/useSettings";
 
 interface ClamshellMicrophoneSelectorProps {
   descriptionMode?: "inline" | "tooltip";
@@ -12,6 +12,7 @@ interface ClamshellMicrophoneSelectorProps {
 
 export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorProps> =
   React.memo(({ descriptionMode = "tooltip", grouped = false }) => {
+    const { t } = useTranslation();
     const {
       getSetting,
       updateSetting,
@@ -64,8 +65,8 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
 
     return (
       <SettingContainer
-        title="Clamshell Microphone"
-        description="Choose a different microphone to use when your laptop lid is closed"
+        title={t("clamshellMicrophone.title")}
+        description={t("clamshellMicrophone.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
@@ -76,8 +77,8 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
             onSelect={handleClamshellMicrophoneSelect}
             placeholder={
               isLoading || audioDevices.length === 0
-                ? "Loading..."
-                : "Select microphone..."
+                ? t("microphone.loading")
+                : t("clamshellMicrophone.placeholder")
             }
             disabled={
               isUpdating("clamshell_microphone") ||
@@ -85,10 +86,6 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
               audioDevices.length === 0
             }
             onRefresh={refreshAudioDevices}
-          />
-          <ResetButton
-            onClick={handleReset}
-            disabled={isUpdating("clamshell_microphone") || isLoading}
           />
         </div>
       </SettingContainer>

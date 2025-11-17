@@ -1,7 +1,9 @@
 import React from "react";
-import { SettingContainer } from "../../ui/SettingContainer";
-import { Dropdown, type DropdownOption } from "../../ui/Dropdown";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { ActionWrapper } from "../../ui";
+import { Dropdown, type DropdownOption } from "../../ui/Dropdown";
+import { SettingContainer } from "../../ui/SettingContainer";
 
 const LOG_LEVEL_OPTIONS: DropdownOption[] = [
   { value: "5", label: "Error" },
@@ -20,6 +22,7 @@ export const LogLevelSelector: React.FC<LogLevelSelectorProps> = ({
   descriptionMode = "tooltip",
   grouped = false,
 }) => {
+  const { t } = useTranslation();
   const { settings, updateSetting, isUpdating } = useSettings();
   const currentLevel = settings?.log_level ?? 2;
   const isLevelUpdating = isUpdating("log_level");
@@ -41,20 +44,20 @@ export const LogLevelSelector: React.FC<LogLevelSelectorProps> = ({
 
   return (
     <SettingContainer
-      title="Log Level"
-      description="Choose how verbose Handy should be while logging to disk"
+      title={t("logLevel.title")}
+      description={t("logLevel.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       layout="horizontal"
     >
-      <div className="space-y-1">
+      <ActionWrapper>
         <Dropdown
           options={LOG_LEVEL_OPTIONS}
           selectedValue={selectedValue}
           onSelect={handleSelect}
           disabled={!settings || isLevelUpdating}
         />
-      </div>
+      </ActionWrapper>
     </SettingContainer>
   );
 };

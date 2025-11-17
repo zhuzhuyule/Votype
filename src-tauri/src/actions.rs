@@ -34,7 +34,9 @@ async fn maybe_post_process_transcription(
     info!("=== POST-PROCESSING DEBUG START ===");
     info!("Post-processing enabled: {}", settings.post_process_enabled);
     info!("Input transcription length: {} chars", transcription.len());
-    info!("Input transcription preview: '{}...'", &transcription[..transcription.len().min(50)]);
+    // Safe character boundary slicing for preview
+    let transcription_preview_end = transcription.char_indices().nth(50).map(|(i, _)| i).unwrap_or(transcription.len());
+    info!("Input transcription preview: '{}...'", &transcription[..transcription_preview_end]);
     
     if !settings.post_process_enabled {
         info!("Post-processing DISABLED - returning early");
@@ -102,7 +104,9 @@ async fn maybe_post_process_transcription(
     {
         Some(prompt) => {
             info!("Found prompt: '{}' (ID: {})", prompt.name, prompt.id);
-            info!("Prompt content preview: '{}...'", &prompt.prompt[..prompt.prompt.len().min(100)]);
+            // Safe character boundary slicing for preview
+            let preview_end = prompt.prompt.char_indices().nth(100).map(|(i, _)| i).unwrap_or(prompt.prompt.len());
+            info!("Prompt content preview: '{}...'", &prompt.prompt[..preview_end]);
             prompt.prompt.clone()
         },
         None => {
@@ -136,7 +140,9 @@ async fn maybe_post_process_transcription(
     // Replace ${output} variable in the prompt with the actual text
     let processed_prompt = prompt.replace("${output}", transcription);
     info!("Processed prompt length: {} chars", processed_prompt.len());
-    info!("Processed prompt preview: '{}...'", &processed_prompt[..processed_prompt.len().min(200)]);
+    // Safe character boundary slicing for preview
+    let processed_prompt_preview_end = processed_prompt.char_indices().nth(200).map(|(i, _)| i).unwrap_or(processed_prompt.len());
+    info!("Processed prompt preview: '{}...'", &processed_prompt[..processed_prompt_preview_end]);
 
     // Create OpenAI-compatible client
     info!("Creating LLM client for provider: {}", provider.id);
@@ -190,7 +196,9 @@ async fn maybe_post_process_transcription(
                         provider.id,
                         content.len()
                     );
-                    info!("Output preview: '{}...'", &content[..content.len().min(100)]);
+                    // Safe character boundary slicing for preview
+                    let content_preview_end = content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len());
+                    info!("Output preview: '{}...'", &content[..content_preview_end]);
                     info!("=== POST-PROCESSING DEBUG END ===");
                     Some(content.clone())
                 } else {
@@ -254,7 +262,9 @@ async fn maybe_post_process_transcription(
                                 if !processed_content.is_empty() {
                                     info!("Successfully extracted and processed content from custom provider response");
                                     info!("Final content length: {} chars", processed_content.len());
-                                    info!("Final content preview: '{}...'", &processed_content[..processed_content.len().min(100)]);
+                                    // Safe character boundary slicing for preview
+                                let final_preview_end = processed_content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(processed_content.len());
+                                info!("Final content preview: '{}...'", &processed_content[..final_preview_end]);
                                     info!("=== POST-PROCESSING DEBUG END ===");
                                     return Some(processed_content);
                                 }
@@ -269,7 +279,9 @@ async fn maybe_post_process_transcription(
                         let content = &error_str[content_start + 11..content_start + 11 + content_end];
                         info!("Successfully extracted content from custom provider response");
                         info!("Extracted content length: {} chars", content.len());
-                        info!("Extracted content preview: '{}...'", &content[..content.len().min(100)]);
+                        // Safe character boundary slicing for preview
+                        let extracted_preview_end = content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len());
+                        info!("Extracted content preview: '{}...'", &content[..extracted_preview_end]);
                         info!("=== POST-PROCESSING DEBUG END ===");
                         return Some(content.to_string());
                     }
@@ -287,7 +299,9 @@ async fn maybe_post_process_transcription(
                             let unescaped_content = content.replace("\\\"", "\"").replace("\\\\", "\\");
                             info!("Successfully extracted content from service_tier error response");
                             info!("Extracted content length: {} chars", unescaped_content.len());
-                            info!("Extracted content preview: '{}...'", &unescaped_content[..unescaped_content.len().min(100)]);
+                            // Safe character boundary slicing for preview
+                            let unescaped_preview_end = unescaped_content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(unescaped_content.len());
+                            info!("Extracted content preview: '{}...'", &unescaped_content[..unescaped_preview_end]);
                             info!("=== POST-PROCESSING DEBUG END ===");
                             return Some(unescaped_content);
                         }

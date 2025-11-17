@@ -792,6 +792,33 @@
     "soundThemeLabel": "Sound Theme",
     "title": "Debug"
   },
+  "logLevel": {
+    "description": "Choose how verbose Handy should be while logging to disk",
+    "title": "Log Level"
+  },
+  "logDirectory": {
+    "description": "Location on disk where Handy writes rotated log files",
+    "error": "Error loading log directory: {{error}}",
+    "open": "Open",
+    "title": "Log Directory"
+  },
+  "recordingRetention": {
+    "description": "Automatically delete recordings from the device",
+    "title": "Delete Recordings",
+    "options": {
+      "never": "Never",
+      "preserveLimit": "Preserve {{count}} Recordings",
+      "after3Days": "After 3 Days",
+      "after2Weeks": "After 2 Weeks",
+      "after3Months": "After 3 Months"
+    },
+    "placeholder": "Select retention period..."
+  },
+  "clamshellMicrophone": {
+    "description": "Choose a different microphone to use when your laptop lid is closed",
+    "title": "Clamshell Microphone",
+    "placeholder": "Select microphone..."
+  },
   "error": {
     "failedCheckModelStatus": "Failed to check model status",
     "failedDeleteModel": "Failed to delete model: {{error}}",

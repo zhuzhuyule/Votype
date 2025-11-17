@@ -792,6 +792,33 @@
     "soundThemeLabel": "声音主题",
     "title": "调试"
   },
+  "logLevel": {
+    "description": "选择 Handy 在写入磁盘日志时的详细程度",
+    "title": "日志级别"
+  },
+  "logDirectory": {
+    "description": "Handy 写入轮转日志文件的磁盘位置",
+    "error": "加载日志目录时出错: {{error}}",
+    "open": "打开",
+    "title": "日志目录"
+  },
+  "recordingRetention": {
+    "description": "自动从设备删除录音",
+    "title": "删除录音",
+    "options": {
+      "never": "从不",
+      "preserveLimit": "保留 {{count}} 个录音",
+      "after3Days": "3 天后",
+      "after2Weeks": "2 周后",
+      "after3Months": "3 个月后"
+    },
+    "placeholder": "选择保留期限..."
+  },
+  "clamshellMicrophone": {
+    "description": "当笔记本电脑盖子关闭时使用不同的麦克风",
+    "title": "翻盖麦克风",
+    "placeholder": "选择麦克风..."
+  },
   "error": {
     "failedCheckModelStatus": "检查模型状态失败",
     "failedDeleteModel": "删除模型失败: {{error}}",

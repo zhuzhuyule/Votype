@@ -1,8 +1,10 @@
 import React from "react";
-import { Dropdown } from "../ui/Dropdown";
-import { SettingContainer } from "../ui/SettingContainer";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { RecordingRetentionPeriod } from "../../lib/types";
+import { ActionWrapper } from "../ui";
+import { Dropdown } from "../ui/Dropdown";
+import { SettingContainer } from "../ui/SettingContainer";
 
 interface RecordingRetentionPeriodProps {
   descriptionMode?: "inline" | "tooltip";
@@ -11,6 +13,7 @@ interface RecordingRetentionPeriodProps {
 
 export const RecordingRetentionPeriodSelector: React.FC<RecordingRetentionPeriodProps> =
   React.memo(({ descriptionMode = "tooltip", grouped = false }) => {
+    const { t } = useTranslation();
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
     const selectedRetentionPeriod =
@@ -25,27 +28,33 @@ export const RecordingRetentionPeriodSelector: React.FC<RecordingRetentionPeriod
     };
 
     const retentionOptions = [
-      { value: "never", label: "Never" },
-      { value: "preserve_limit", label: `Preserve ${historyLimit} Recordings` },
-      { value: "days3", label: "After 3 Days" },
-      { value: "weeks2", label: "After 2 Weeks" },
-      { value: "months3", label: "After 3 Months" },
+      { value: "never", label: t("recordingRetention.options.never") },
+      { value: "preserve_limit", label: t("recordingRetention.options.preserveLimit", { count: historyLimit }) },
+      { value: "days3", label: t("recordingRetention.options.after3Days") },
+      { value: "weeks2", label: t("recordingRetention.options.after2Weeks") },
+      { value: "months3", label: t("recordingRetention.options.after3Months") },
     ];
 
     return (
       <SettingContainer
-        title="Delete Recordings"
-        description="Automatically delete recordings from the device"
+        title={t("recordingRetention.title")}
+        description={t("recordingRetention.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <Dropdown
-          options={retentionOptions}
-          selectedValue={selectedRetentionPeriod}
-          onSelect={handleRetentionPeriodSelect}
-          placeholder="Select retention period..."
-          disabled={isUpdating("recording_retention_period")}
-        />
+        <ActionWrapper
+          onReset={async () => {
+            await updateSetting("recording_retention_period", "never");
+          }}
+        >
+          <Dropdown
+            options={retentionOptions}
+            selectedValue={selectedRetentionPeriod}
+            onSelect={handleRetentionPeriodSelect}
+            placeholder={t("recordingRetention.placeholder")}
+            disabled={isUpdating("recording_retention_period")}
+          />
+        </ActionWrapper>
       </SettingContainer>
     );
   });
