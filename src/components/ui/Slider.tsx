@@ -1,6 +1,6 @@
 import React from "react";
 import { SettingContainer } from "./SettingContainer";
-import { ActionWrapper } from "./ActionWraperr";
+import { ActionWrapper } from "./ActionWrapper";
 import { Slider as RadixSlider, Text } from "@radix-ui/themes";
 
 interface SliderProps {

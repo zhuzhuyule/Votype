@@ -39,6 +39,8 @@
     "copyPath": "Copy path",
     "description": "Main directory where application data, settings, and models are stored",
     "loading": "Loading...",
+    "open": "Open",
+    "openError": "Failed to open app data directory",
     "title": "App Data Directory"
   },
   "audioFeedback": {

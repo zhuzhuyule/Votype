@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { ModelInfo } from "../../lib/types";
 import ModelCard from "./ModelCard";
@@ -55,23 +56,45 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col p-6 gap-4 inset-0">
-      <div className="flex flex-col items-center gap-2 shrink-0">
+    <Flex
+      direction="column"
+      className="h-screen w-screen p-6 gap-4 inset-0"
+    >
+      <Flex
+        direction="column"
+        align="center"
+        gap="2"
+        className="shrink-0"
+      >
         <HandyTextLogo width={200} />
-        <p className="text-text/70 max-w-md font-medium mx-auto">
+        <Text
+          className="text-text/70 max-w-md font-medium mx-auto"
+          size="3"
+          align="center"
+        >
           {t("onboarding.description")}
-        </p>
-      </div>
+        </Text>
+      </Flex>
 
-      <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
+      <Flex
+        direction="column"
+        maxWidth="600px"
+        width="100%"
+        mx="auto"
+        align="center"
+        className="flex-1 min-h-0"
+      >
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4 shrink-0">
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
+          <Box
+            className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4 shrink-0"
+          >
+            <Text color="red" size="2">
+              {error}
+            </Text>
+          </Box>
         )}
 
-        {/*<div className="flex flex-col gap-4 bg-background-dark p-4 py-5 w-full rounded-2xl flex-1 overflow-y-auto min-h-0">*/}
-        <div className="flex flex-col gap-4 ">
+        <Flex direction="column" gap="4">
           {availableModels
             .filter((model) => getRecommendedBadge(model.id))
             .map((model) => (
@@ -95,9 +118,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
                 onSelect={handleDownloadModel}
               />
             ))}
-        </div>
-      </div>
-    </div>
+        </Flex>
+      </Flex>
+    </Flex>
   );
 };
 

@@ -1,4 +1,5 @@
-import { Button } from "@radix-ui/themes";
+import { Flex, IconButton, Text } from "@radix-ui/themes";
+import { FolderOpen } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -63,19 +64,24 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
           {t("logDirectory.error", { error })}
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0 px-2 py-2 bg-mid-gray/10 border border-mid-gray/80 rounded text-xs font-mono break-all">
-            {logDir}
-          </div>
-          <Button
-            onClick={handleOpen}
-            size="1"
-            disabled={!logDir}
-            className="px-3 py-2"
+        <Flex align="center" gap="3">
+          <Text
+            className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0"
+            style={{ backgroundColor: "var(--gray-3, #f3f4f6)" }}
           >
-            {t("logDirectory.open")}
-          </Button>
-        </div>
+            {logDir}
+          </Text>
+          {logDir && (
+            <IconButton
+              onClick={handleOpen}
+              size="2"
+              variant="ghost"
+              title={t("logDirectory.open")}
+            >
+              <FolderOpen />
+            </IconButton>
+          )}
+        </Flex>
       )}
     </SettingContainer>
   );

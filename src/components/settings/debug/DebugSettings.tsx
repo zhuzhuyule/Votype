@@ -1,4 +1,5 @@
 import React from "react";
+import { Box } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import { WordCorrectionThreshold } from "./WordCorrectionThreshold";
 import { LogDirectory } from "./LogDirectory";
@@ -15,7 +16,7 @@ export const DebugSettings: React.FC = () => {
   const { t } = useTranslation();
   
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <Box className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("debugSettings.title")}>
         <LogDirectory grouped={true} />
         <LogLevelSelector grouped={true} />
@@ -32,6 +33,6 @@ export const DebugSettings: React.FC = () => {
         <AlwaysOnMicrophone descriptionMode="tooltip" grouped={true} />
         <MuteWhileRecording descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
-    </div>
+    </Box>
   );
 };

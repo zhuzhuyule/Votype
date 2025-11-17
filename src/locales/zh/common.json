@@ -39,6 +39,8 @@
     "copyPath": "复制路径",
     "description": "存储应用数据、设置和模型的主目录",
     "loading": "加载中...",
+    "open": "打开",
+    "openError": "无法打开应用数据目录",
     "title": "应用数据目录"
   },
   "audioFeedback": {

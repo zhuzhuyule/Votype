@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { useSettings } from "../../hooks/useSettings";
 import { SettingsGroup } from "../ui";
-import { ActionWrapper } from "../ui/ActionWraperr";
+import { ActionWrapper } from "../ui/ActionWrapper";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ToggleSwitch } from "../ui/ToggleSwitch";

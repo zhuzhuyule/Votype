@@ -5,7 +5,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { ModelUnloadTimeout } from "../../lib/types";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ActionWrapper } from "../ui/ActionWraperr";
+import { ActionWrapper } from "../ui/ActionWrapper";
 
 interface ModelUnloadTimeoutProps {
   descriptionMode?: "tooltip" | "inline";

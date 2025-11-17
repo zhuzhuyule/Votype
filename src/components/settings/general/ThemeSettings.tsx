@@ -8,7 +8,7 @@ import {
 } from "@radix-ui/themes";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ActionWrapper } from "../../ui/ActionWraperr";
+import { ActionWrapper } from "../../ui/ActionWrapper";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 

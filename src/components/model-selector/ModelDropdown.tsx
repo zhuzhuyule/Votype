@@ -1,4 +1,5 @@
 import React from "react";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
@@ -74,27 +75,27 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   };
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-background border border-mid-gray/20 rounded-lg shadow-xl py-2 z-50 shadow-black/10">
+    <Box className="absolute bottom-full left-0 mb-2 w-64 bg-background border border-mid-gray/20 rounded-lg shadow-xl py-2 z-50 shadow-black/10">
       {/* First Run Welcome */}
       {isFirstRun && (
-        <div className="px-3 py-2 bg-logo-primary/10 border-b border-logo-primary/20">
-          <div className="text-xs font-medium text-logo-primary mb-1">
+        <Box className="px-3 py-2 bg-logo-primary/10 border-b border-logo-primary/20">
+          <Text className="text-xs font-medium text-logo-primary mb-1" size="1">
             {t("modelDropdown.welcome")}
-          </div>
-          <div className="text-xs text-text/70">
+          </Text>
+          <Text className="text-xs text-text/70" size="1">
             {t("modelDropdown.getStarted")}
-          </div>
-        </div>
+          </Text>
+        </Box>
       )}
 
       {/* Available Models */}
       {availableModels.length > 0 && (
-        <div>
-          <div className="px-3 py-1 text-xs font-medium text-text/80 border-b border-mid-gray/10">
+        <Box>
+          <Text className="px-3 py-1 text-xs font-medium text-text/80 border-b border-mid-gray/10" size="1">
             {t("modelDropdown.availableModels")}
-          </div>
+          </Text>
           {availableModels.map((model) => (
-            <div
+            <Box
               key={model.id}
               onClick={() => handleModelClick(model.id)}
               onKeyDown={(e) => {
@@ -111,54 +112,35 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   : ""
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm">{model.name}</div>
-                  <div className="text-xs text-text/40 italic pr-4">
-                    {model.description}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {currentModelId === model.id && (
-                    <div className="text-xs text-logo-primary">{t("modelDropdown.active")}</div>
-                  )}
-                  {currentModelId !== model.id && (
-                    <button
-                      onClick={(e) => handleDeleteClick(e, model.id)}
-                      className="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/10 rounded transition-colors"
-                      title={t("modelDropdown.delete", { name: model.name })}
-                    >
-                      <svg
-                        className="w-3 h-3"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
+              <Flex justify="between">
+                <Text size="2">{model.name}</Text>
+                <Text className="text-xs text-text/40 italic pr-4" size="1">
+                  {formatModelSize(model.size_mb)}
+                </Text>
+              </Flex>
+              {currentModelId === model.id && (
+                <Flex align="center" gap="2">
+                  <Text className="text-xs text-logo-primary" size="1">
+                    {t("modelDropdown.active")}
+                  </Text>
+                </Flex>
+              )}
+            </Box>
           ))}
-        </div>
+        </Box>
       )}
 
       {/* Online ASR Models */}
       {asrModels.length > 0 && (
-        <div>
+        <Box>
           {(availableModels.length > 0 || isFirstRun) && (
-            <div className="border-t border-mid-gray/10 my-1" />
+            <Box className="border-t border-mid-gray/10 my-1" />
           )}
-          <div className="px-3 py-1 text-xs font-medium text-text/80">
+          <Text className="px-3 py-1 text-xs font-medium text-text/80" size="1">
             {t("modelDropdown.onlineAsrModels")}
-          </div>
+          </Text>
           {asrModels.map((model) => (
-            <div
+            <Box
               key={model.id}
               onClick={() => {
                 if (!onlineEnabled) {
@@ -173,38 +155,31 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   : "hover:bg-mid-gray/10"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm">{model.name}</div>
-                  <div className="text-xs text-text/40 italic">{model.providerLabel}</div>
-                </div>
-                {selectedAsrModelId === model.id && (
-                  <span className="text-xs uppercase text-logo-primary">{t("modelDropdown.selected")}</span>
-                )}
-              </div>
-              <div className="text-[10px] text-center text-mid-gray/70 mt-1">
+              <Flex justify="between">
+                <Text size="2">{model.name}</Text>
+                <Text className="text-xs text-text/40 italic" size="1">{model.providerLabel}</Text>
+              </Flex>
+              <Text className="text-[10px] text-center text-mid-gray/70 mt-1" size="1">
                 {onlineEnabled ? t("modelDropdown.onlineAsrActive") : t("modelDropdown.clickToEnable")}
-              </div>
-            </div>
+              </Text>
+            </Box>
           ))}
-        </div>
+        </Box>
       )}
 
       {/* Downloadable Models */}
       {downloadableModels.length > 0 && (
-        <div>
-          {(availableModels.length > 0 || isFirstRun) && (
-            <div className="border-t border-mid-gray/10 my-1" />
-          )}
-          <div className="px-3 py-1 text-xs font-medium text-text/80">
-            {isFirstRun ? t("modelDropdown.chooseModel") : t("modelDropdown.downloadModels")}
-          </div>
+        <Box>
+          <Box className="border-t border-mid-gray/10 my-1" />
+          <Text className="px-3 py-1 text-xs font-medium text-text/80" size="1">
+            {t("modelDropdown.downloadableModels")}
+          </Text>
           {downloadableModels.map((model) => {
             const isDownloading = downloadProgress.has(model.id);
             const progress = downloadProgress.get(model.id);
 
             return (
-              <div
+              <Box
                 key={model.id}
                 onClick={() => handleDownloadClick(model.id)}
                 onKeyDown={(e) => {
@@ -222,57 +197,56 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                     : ""
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-sm">
+                <Flex justify="between">
+                  <Box>
+                    <Text size="2">
                       {model.name}
                       {model.id === "small" && isFirstRun && (
-                        <span className="ml-2 text-xs bg-logo-primary/20 text-logo-primary px-1.5 py-0.5 rounded">
+                        <Text className="ml-2 text-xs bg-logo-primary/20 text-logo-primary px-1.5 py-0.5 rounded" size="1">
                           {t("modelDropdown.recommended")}
-                        </span>
+                        </Text>
                       )}
-                    </div>
-                    <div className="text-xs text-text/40 italic pr-4">
+                    </Text>
+                    <Text className="text-xs text-text/40 italic pr-4" size="1">
                       {model.description}
-                    </div>
-                    <div className="mt-1 text-xs text-text/50 tabular-nums">
+                    </Text>
+                    <Text className="mt-1 text-xs text-text/50 tabular-nums" size="1">
                       {t("modelDropdown.downloadSize")} · {formatModelSize(model.size_mb)}
-                    </div>
-                  </div>
-                  <div className="text-xs text-logo-primary tabular-nums">
+                    </Text>
+                  </Box>
+                  <Text className="text-xs text-logo-primary tabular-nums" size="1">
                     {isDownloading && progress
                       ? `${Math.max(0, Math.min(100, Math.round(progress.percentage)))}%`
                       : t("modelDropdown.download")}
-                  </div>
-                </div>
+                  </Text>
+                </Flex>
 
                 {isDownloading && progress && (
-                  <div className="mt-2">
+                  <Box mt="2">
                     <ProgressBar
                       progress={[
                         {
                           id: model.id,
-                          percentage: progress.percentage,
-                          label: model.name,
+                          percentage: Math.max(0, Math.min(100, Math.round(progress.percentage))),
                         },
                       ]}
                       size="small"
                     />
-                  </div>
+                  </Box>
                 )}
-              </div>
+              </Box>
             );
           })}
-        </div>
+        </Box>
       )}
 
       {/* No Models Available */}
       {availableModels.length === 0 && downloadableModels.length === 0 && (
-        <div className="px-3 py-2 text-sm text-text/60">
+        <Text className="px-3 py-2 text-sm text-text/60" size="2">
           {t("modelDropdown.noModelsAvailable")}
-        </div>
+        </Text>
       )}
-    </div>
+    </Box>
   );
 };
 

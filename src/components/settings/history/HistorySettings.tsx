@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { AudioPlayer } from "../../ui/AudioPlayer";
 import { Copy, Star, Check, Trash2, FolderOpen } from "lucide-react";
-import { Button, Flex, Text } from "@radix-ui/themes";
+import { Button, Flex, Text, Box } from "@radix-ui/themes";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useTranslation } from "react-i18next";
@@ -30,7 +30,7 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
     title="Open recordings folder"
   >
     <FolderOpen className="w-4 h-4" />
-    <span>Open Recordings Folder</span>
+    <Text>Open Recordings Folder</Text>
   </Button>
 );
 
@@ -124,30 +124,30 @@ export const HistorySettings: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="max-w-3xl w-full mx-auto space-y-6">
+      <Box className="max-w-3xl w-full mx-auto space-y-6">
         <SettingsGroup title={t("historySettings.title")}>
           <Flex className="px-4 py-3 text-center text-text/60">
             {t("historySettings.loading")}
           </Flex>
         </SettingsGroup>
-      </div>
+      </Box>
     );
   }
 
   if (historyEntries.length === 0) {
     return (
-      <div className="max-w-3xl w-full mx-auto space-y-6">
+      <Box className="max-w-3xl w-full mx-auto space-y-6">
         <SettingsGroup title={t("historySettings.title")}>
           <Flex className="px-4 py-3 text-center text-text/60">
             {t("historySettings.empty")}
           </Flex>
         </SettingsGroup>
-      </div>
+      </Box>
     );
   }
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
+    <Box className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("historySettings.title")}>
         {historyEntries.map((entry) => (
           <HistoryEntryComponent
@@ -160,7 +160,7 @@ export const HistorySettings: React.FC = () => {
           />
         ))}
       </SettingsGroup>
-    </div>
+    </Box>
   );
 };
 

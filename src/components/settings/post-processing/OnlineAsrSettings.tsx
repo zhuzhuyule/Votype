@@ -2,7 +2,7 @@ import { Flex, Text } from "@radix-ui/themes";
 import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
-import { ActionWrapper } from "../../ui/ActionWraperr";
+import { ActionWrapper } from "../../ui/ActionWrapper";
 import { Select } from "../../ui/Select";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
