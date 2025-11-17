@@ -1,5 +1,6 @@
 use crate::audio_toolkit::apply_custom_words;
 use crate::managers::model::{EngineType, ModelManager};
+use crate::online_asr::{OnlineAsrClient, OnlineAsrStatusEvent};
 use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
 use log::{debug, error, info, warn};
@@ -321,9 +322,79 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
-        // Check if model is loaded, if not try to load it
+        // Get current settings for configuration
+        let settings = get_settings(&self.app_handle);
+
+        const ONLINE_SAMPLE_RATE: u32 = 16000;
+
+        const ONLINE_TIMEOUT: Duration = Duration::from_secs(20);
+        if settings.online_asr_enabled {
+            if let Some(asr_id) = &settings.selected_asr_model_id {
+                if let Some(cached_model) = settings
+                    .cached_models
+                    .iter()
+                    .find(|cached| &cached.id == asr_id)
+                {
+                    if let Some(provider) = settings
+                        .post_process_providers
+                        .iter()
+                        .find(|provider| provider.id == cached_model.provider_id)
+                    {
+                        let api_key = settings
+                            .post_process_api_keys
+                            .get(&provider.id)
+                            .filter(|key| !key.trim().is_empty())
+                            .cloned();
+                        println!("Starting online ASR (provider={}, model={})", provider.label, cached_model.model_id);
+                        self.emit_online_asr_status("started", None);
+                        let provider_clone = provider.clone();
+                        let model_id = cached_model.model_id.clone();
+                        let audio_clone = audio.clone();
+                        let api_key_clone = api_key.clone();
+
+                        let handle = thread::spawn(move || {
+                            OnlineAsrClient::new(ONLINE_SAMPLE_RATE, ONLINE_TIMEOUT).transcribe(
+                                &provider_clone,
+                                api_key_clone,
+                                &model_id,
+                                &audio_clone,
+                            )
+                        });
+
+                        return match handle.join() {
+                            Ok(Ok(text)) => {
+                                self.emit_online_asr_status("completed", None);
+                                let corrected = if !settings.custom_words.is_empty() {
+                                    apply_custom_words(
+                                        &text,
+                                        &settings.custom_words,
+                                        settings.word_correction_threshold,
+                                    )
+                                } else {
+                                    text
+                                };
+                                Ok(corrected.trim().to_string())
+                            }
+                            Ok(Err(err)) => {
+                                let detail = err.to_string();
+                                self.emit_online_asr_status("failed", Some(detail.clone()));
+                                eprintln!("Online ASR failed: {:?}", detail);
+                                Err(anyhow::anyhow!("在线 ASR 请求失败：{}", detail))
+                            }
+                            Err(err) => {
+                                let detail = format!("{:?}", err);
+                                self.emit_online_asr_status("thread_failed", Some(detail.clone()));
+                                eprintln!("Online ASR thread panicked: {:?}", detail);
+                                Err(anyhow::anyhow!("在线 ASR 线程异常：{}", detail))
+                            }
+                        };
+                    }
+                }
+            }
+        }
+
+        // Ensure local model is loaded before falling back
         {
-            // If the model is loading, wait for it to complete.
             let mut is_loading = self.is_loading.lock().unwrap();
             while *is_loading {
                 is_loading = self.loading_condvar.wait(is_loading).unwrap();
@@ -334,9 +405,6 @@ impl TranscriptionManager {
                 return Err(anyhow::anyhow!("Model is not loaded for transcription."));
             }
         }
-
-        // Get current settings for configuration
-        let settings = get_settings(&self.app_handle);
 
         // Perform transcription with the appropriate engine
         let result = {
@@ -416,6 +484,15 @@ impl TranscriptionManager {
         }
 
         Ok(final_result)
+    }
+    fn emit_online_asr_status(&self, stage: &str, detail: Option<String>) {
+        let _ = self.app_handle.emit(
+            "online-asr-status",
+            OnlineAsrStatusEvent {
+                stage: stage.to_string(),
+                detail,
+            },
+        );
     }
 }
 

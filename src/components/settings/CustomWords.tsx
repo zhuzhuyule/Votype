@@ -1,7 +1,8 @@
+import { Button, Flex, Text, TextField } from "@radix-ui/themes";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
-import { Input } from "../ui/Input";
-import { Button } from "../ui/Button";
+import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface CustomWordsProps {
@@ -11,6 +12,7 @@ interface CustomWordsProps {
 
 export const CustomWords: React.FC<CustomWordsProps> = React.memo(
   ({ descriptionMode = "tooltip", grouped = false }) => {
+    const { t } = useTranslation();
     const { getSetting, updateSetting, isUpdating } = useSettings();
     const [newWord, setNewWord] = useState("");
     const customWords = getSetting("custom_words") || [];
@@ -46,20 +48,17 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
     return (
       <>
         <SettingContainer
-          title="Custom Words"
-          description="Add words that are often misheard or misspelled during transcription. The system will automatically correct similar-sounding words to match your list."
+          title={t("customWords.title")}
+          description={t("customWords.description")}
           descriptionMode={descriptionMode}
           grouped={grouped}
         >
-          <div className="flex items-center gap-2">
-            <Input
-              type="text"
-              className="max-w-40"
+          <ActionWrapper>
+            <TextField.Root
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder="Add a word"
-              variant="compact"
+              placeholder={t("customWords.placeholder")}
               disabled={isUpdating("custom_words")}
             />
             <Button
@@ -70,28 +69,26 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 newWord.trim().length > 50 ||
                 isUpdating("custom_words")
               }
-              variant="primary"
-              size="md"
             >
-              Add
+              {t("customWords.add")}
             </Button>
-          </div>
+          </ActionWrapper>
         </SettingContainer>
         {customWords.length > 0 && (
-          <div
-            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"} flex flex-wrap gap-1`}
+          <Flex
+            wrap="wrap"
+            gap="1"
+            className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"}`}
           >
             {customWords.map((word) => (
               <Button
                 key={word}
                 onClick={() => handleRemoveWord(word)}
                 disabled={isUpdating("custom_words")}
-                variant="secondary"
-                size="sm"
                 className="inline-flex items-center gap-1 cursor-pointer"
-                aria-label={`Remove ${word}`}
+                aria-label={`${t("customWords.remove")} ${word}`}
               >
-                <span>{word}</span>
+                <Text>{word}</Text>
                 <svg
                   className="w-3 h-3"
                   fill="none"
@@ -107,7 +104,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 </svg>
               </Button>
             ))}
-          </div>
+          </Flex>
         )}
       </>
     );

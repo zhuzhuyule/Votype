@@ -1,27 +1,109 @@
 import React from "react";
+import { Text, TextArea } from "@radix-ui/themes";
 
 interface TextareaProps
-  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  extends Omit<
+    React.TextareaHTMLAttributes<HTMLTextAreaElement>,
+    "value" | "defaultValue"
+  > {
+  value?: string;
   variant?: "default" | "compact";
+  label?: string;
+  error?: string;
+  description?: string;
+  showCharCount?: boolean;
+  resize?: "none" | "both" | "horizontal" | "vertical";
+  defaultValue?: string;
 }
 
 export const Textarea: React.FC<TextareaProps> = ({
   className = "",
   variant = "default",
-  ...props
+  label,
+  error,
+  description,
+  showCharCount = false,
+  id,
+  value,
+  defaultValue,
+  resize = "vertical",
+  style,
+  maxLength,
+  color,
+  ...rest
 }) => {
-  const baseClasses =
-    "px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded text-left transition-[background-color,border-color] duration-150 hover:bg-logo-primary/10 hover:border-logo-primary focus:outline-none focus:bg-logo-primary/10 focus:border-logo-primary resize-y";
-
-  const variantClasses = {
-    default: "px-3 py-2 min-h-[100px]",
-    compact: "px-2 py-1 min-h-[80px]",
+  const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+  
+  const getSize = () => {
+    switch (variant) {
+      case "compact":
+        return "1";
+      default:
+        return "2";
+    }
   };
 
-  return (
-    <textarea
-      className={`${baseClasses} ${variantClasses[variant]} ${className}`}
-      {...props}
-    />
+  const getMinHeight = () => {
+    switch (variant) {
+      case "compact":
+        return "80px";
+      default:
+        return "100px";
+    }
+  };
+
+  const textareaElement = (
+    <div className="relative">
+      <TextArea
+        id={textareaId}
+        size={getSize()}
+        className={`${className} ${error ? "border border-red-400" : ""}`}
+        style={{
+          minHeight: getMinHeight(),
+          resize,
+          ...(style || {}),
+        }}
+        value={value}
+        defaultValue={defaultValue}
+        maxLength={maxLength}
+        {...rest}
+      />
+      {showCharCount && maxLength && (
+        <div className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded">
+          {typeof value === "string" ? value.length : 0}/{maxLength}
+        </div>
+      )}
+    </div>
   );
+
+  if (label || description || error) {
+    return (
+      <div className="space-y-2">
+        {label && (
+          <Text
+            as="label"
+            htmlFor={textareaId}
+            size="2"
+            weight="medium"
+            className="text-text"
+          >
+            {label}
+          </Text>
+        )}
+        {textareaElement}
+        {description && (
+          <Text size="1" color="gray" className="text-text/60">
+            {description}
+          </Text>
+        )}
+        {error && (
+          <Text size="2" color="red">
+            {error}
+          </Text>
+        )}
+      </div>
+    );
+  }
+
+  return textareaElement;
 };

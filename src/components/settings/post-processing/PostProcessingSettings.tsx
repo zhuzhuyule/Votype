@@ -1,144 +1,122 @@
-import React, { useEffect, useState } from "react";
+import { PlusIcon } from "@radix-ui/react-icons";
+import {
+  Button,
+  Dialog,
+  Flex,
+  IconButton,
+  Separator,
+  Text,
+  TextField,
+  Tooltip,
+} from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCcw } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
-import { SettingsGroup } from "../../ui/SettingsGroup";
-import { SettingContainer } from "../../ui/SettingContainer";
-import { Button } from "../../ui/Button";
-import { ResetButton } from "../../ui/ResetButton";
-import { Input } from "../../ui/Input";
-import { Dropdown } from "../../ui/Dropdown";
-import { Textarea } from "../../ui/Textarea";
-
-import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
-import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
-import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
-import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
-import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
+import { ActionWrapper } from "../../ui";
+import { Dropdown } from "../../ui/Dropdown";
+import { SettingContainer } from "../../ui/SettingContainer";
+import { SettingsGroup } from "../../ui/SettingsGroup";
+import { Textarea } from "../../ui/Textarea";
+import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
+import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
+import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
+import { ProviderManager } from "./ProviderManager";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
-  <div className="p-4 bg-mid-gray/5 rounded-lg border border-mid-gray/20 text-center">
-    <p className="text-sm text-mid-gray">{children}</p>
-  </div>
+  <Flex align="center" justify="center" py="6" px="4">
+    <Text size="2" color="gray">
+      {children}
+    </Text>
+  </Flex>
 );
 
-const PostProcessingSettingsApiComponent: React.FC = () => {
+const ApiSettings: React.FC = () => {
+  const { t } = useTranslation();
   const state = usePostProcessProviderState();
-
-  if (!state.enabled) {
-    return (
-      <DisabledNotice>
-        Post processing is currently disabled. Enable it in Debug settings to
-        configure.
-      </DisabledNotice>
-    );
-  }
+  const [showApiKey, setShowApiKey] = useState(false);
 
   return (
-    <>
+    <Flex direction="column" gap="4">
       <SettingContainer
-        title="Provider"
-        description="Select an OpenAI-compatible provider."
+        title={t("postProcessing.title")}
+        description={t("postProcessing.description")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
       >
-        <div className="flex items-center gap-2">
+        <ActionWrapper className="w-100">
           <ProviderSelect
             options={state.providerOptions}
             value={state.selectedProviderId}
             onChange={state.handleProviderSelect}
           />
-        </div>
+        </ActionWrapper>
       </SettingContainer>
 
       <SettingContainer
-        title="Base URL"
-        description="API base URL for the selected provider. Only the custom provider can be edited."
+        title={t("postProcessing.baseUrlTitle")}
+        description={t("postProcessing.baseUrlDescription")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
       >
-        <div className="flex items-center gap-2">
-          <BaseUrlField
+        <ActionWrapper className="w-100">
+          <TextField.Root
             value={state.baseUrl}
-            onBlur={state.handleBaseUrlChange}
+            onBlur={(e) => state.handleBaseUrlChange(e.target.value)}
             placeholder="https://api.openai.com/v1"
             disabled={
               !state.selectedProvider?.allow_base_url_edit ||
               state.isBaseUrlUpdating
             }
-            className="min-w-[380px]"
           />
-        </div>
+        </ActionWrapper>
       </SettingContainer>
 
       <SettingContainer
-        title="API Key"
-        description="API key for the selected provider."
+        title={t("postProcessing.apiKeyTitle")}
+        description={t("postProcessing.apiKeyDescription")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
       >
-        <div className="flex items-center gap-2">
-          <ApiKeyField
+        <ActionWrapper className="w-140">
+          <TextField.Root
             value={state.apiKey}
-            onBlur={state.handleApiKeyChange}
+            onBlur={(e) => state.handleApiKeyChange(e.target.value)}
             placeholder="sk-..."
+            type={showApiKey ? "text" : "password"}
             disabled={state.isApiKeyUpdating}
-            className="min-w-[320px]"
-          />
-        </div>
-      </SettingContainer>
-
-      <SettingContainer
-        title="Model"
-        description={
-          state.isCustomProvider
-            ? "Provide the model identifier expected by your custom endpoint."
-            : "Choose a model exposed by the selected provider."
-        }
-        descriptionMode="tooltip"
-        layout="stacked"
-        grouped={true}
-      >
-        <div className="flex items-center gap-2">
-          <ModelSelect
-            value={state.model}
-            options={state.modelOptions}
-            disabled={state.isModelUpdating}
-            isLoading={state.isFetchingModels}
-            placeholder={
-              state.modelOptions.length > 0
-                ? "Search or select a model"
-                : "Type a model name"
-            }
-            onSelect={state.handleModelSelect}
-            onCreate={state.handleModelCreate}
-            onBlur={() => {}}
-            className="flex-1 min-w-[380px]"
-          />
-          <ResetButton
-            onClick={state.handleRefreshModels}
-            disabled={state.isFetchingModels}
-            ariaLabel="Refresh models"
-            className="flex h-10 w-10 items-center justify-center"
           >
-            <RefreshCcw
-              className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
-            />
-          </ResetButton>
-        </div>
+            <TextField.Slot side="right">
+              <IconButton
+                size="1"
+                variant="ghost"
+                onClick={() => setShowApiKey(!showApiKey)}
+                type="button"
+              >
+                {showApiKey ? (
+                  <EyeOff height={14} width={14} />
+                ) : (
+                  <Eye height={14} width={14} />
+                )}
+              </IconButton>
+            </TextField.Slot>
+          </TextField.Root>
+        </ActionWrapper>
       </SettingContainer>
-    </>
+    </Flex>
   );
 };
 
-const PostProcessingSettingsPromptsComponent: React.FC = () => {
+const PromptSettings: React.FC = () => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating, refreshSettings } =
     useSettings();
   const [isCreating, setIsCreating] = useState(false);
@@ -236,10 +214,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
 
   if (!enabled) {
     return (
-      <DisabledNotice>
-        Post processing is currently disabled. Enable it in Debug settings to
-        configure.
-      </DisabledNotice>
+      <DisabledNotice>{t("postProcessing.disabledNotice")}</DisabledNotice>
     );
   }
 
@@ -250,179 +225,160 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
       draftText.trim() !== selectedPrompt.prompt.trim());
 
   return (
-    <SettingContainer
-      title="Selected Prompt"
-      description="Select a template for refining transcriptions or create a new one. Use ${output} inside the prompt text to reference the captured transcript."
-      descriptionMode="tooltip"
-      layout="stacked"
-      grouped={true}
-    >
-      <div className="space-y-3">
-        <div className="flex gap-2">
+    <>
+      <SettingContainer
+        title={t("postProcessing.selectedPromptTitle")}
+        description={t("postProcessing.selectedPromptDescription")}
+      >
+        <ActionWrapper>
           <Dropdown
-            selectedValue={selectedPromptId || null}
+            selectedValue={selectedPromptId || undefined}
             options={prompts.map((p) => ({
               value: p.id,
               label: p.name,
             }))}
             onSelect={(value) => handlePromptSelect(value)}
             placeholder={
-              prompts.length === 0 ? "No prompts available" : "Select a prompt"
+              prompts.length === 0
+                ? t("postProcessing.noPromptsAvailable")
+                : t("postProcessing.selectPrompt")
             }
             disabled={
               isUpdating("post_process_selected_prompt_id") || isCreating
             }
             className="flex-1"
           />
-          <Button
-            onClick={handleStartCreate}
-            variant="primary"
-            size="md"
-            disabled={isCreating}
-          >
-            Create New Prompt
-          </Button>
-        </div>
-
-        {!isCreating && hasPrompts && selectedPrompt && (
-          <div className="space-y-3">
-            <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">Prompt Label</label>
-              <Input
-                type="text"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                placeholder="Enter prompt name"
-                variant="compact"
-              />
-            </div>
-
-            <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
-                Prompt Instructions
-              </label>
-              <Textarea
-                value={draftText}
-                onChange={(e) => setDraftText(e.target.value)}
-                placeholder="Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}"
-              />
-              <p className="text-xs text-mid-gray/70">
-                Tip: Use{" "}
-                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
-                  $&#123;output&#125;
-                </code>{" "}
-                to insert the transcribed text in your prompt.
-              </p>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                onClick={handleUpdatePrompt}
-                variant="primary"
-                size="md"
-                disabled={!draftName.trim() || !draftText.trim() || !isDirty}
+          {!isCreating && (
+            <Tooltip content={t("postProcessing.createNewPrompt")}>
+              <IconButton
+                size="1"
+                variant="outline"
+                onClick={handleStartCreate}
               >
-                Update Prompt
-              </Button>
-              <Button
-                onClick={() => handleDeletePrompt(selectedPromptId)}
-                variant="secondary"
-                size="md"
-                disabled={!selectedPromptId || prompts.length <= 1}
-              >
-                Delete Prompt
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {!isCreating && !selectedPrompt && (
-          <div className="p-3 bg-mid-gray/5 rounded border border-mid-gray/20">
-            <p className="text-sm text-mid-gray">
-              {hasPrompts
-                ? "Select a prompt above to view and edit its details."
-                : "Click 'Create New Prompt' above to create your first post-processing prompt."}
-            </p>
-          </div>
-        )}
-
-        {isCreating && (
-          <div className="space-y-3">
-            <div className="space-y-2 block flex flex-col">
-              <label className="text-sm font-semibold text-text">
-                Prompt Label
-              </label>
-              <Input
-                type="text"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                placeholder="Enter prompt name"
-                variant="compact"
-              />
-            </div>
-
-            <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
-                Prompt Instructions
-              </label>
-              <Textarea
-                value={draftText}
-                onChange={(e) => setDraftText(e.target.value)}
-                placeholder="Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}"
-              />
-              <p className="text-xs text-mid-gray/70">
-                Tip: Use{" "}
-                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
-                  $&#123;output&#125;
-                </code>{" "}
-                to insert the transcribed text in your prompt.
-              </p>
-            </div>
-
-            <div className="flex gap-2 pt-2">
+                <PlusIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </ActionWrapper>
+      </SettingContainer>
+      <Separator my="3" size="4" />
+      <SettingContainer
+        title={t("postProcessing.promptLabel")}
+        descriptionMode="inline"
+        description=""
+      >
+        <ActionWrapper>
+          <TextField.Root
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder={t("ui.enterPromptName")}
+          />
+        </ActionWrapper>
+      </SettingContainer>
+      <SettingContainer
+        title={t("postProcessing.promptInstructions")}
+        descriptionMode="inline"
+        description=""
+        layout="stacked"
+      >
+        <Textarea
+          value={draftText}
+          rows={20}
+          onChange={(e) => setDraftText(e.target.value)}
+          placeholder={t("ui.writeInstructions")}
+        />
+        <Text size="1" color="gray">
+          {t("ui.tipUse")}{" "}
+          <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
+            $&#123;output&#125;
+          </code>{" "}
+          {t("ui.toInsertText")}
+        </Text>
+        <Flex gap="2" pt="2">
+          {isCreating ? (
+            <>
               <Button
                 onClick={handleCreatePrompt}
-                variant="primary"
-                size="md"
+                variant="solid"
+                size="2"
                 disabled={!draftName.trim() || !draftText.trim()}
               >
-                Create Prompt
+                {t("ui.createPrompt")}
+              </Button>
+              <Button onClick={handleCancelCreate} variant="outline" size="2">
+                {t("ui.cancel")}
+              </Button>
+            </>
+          ) : !!selectedPrompt ? (
+            <>
+              <Button
+                onClick={handleUpdatePrompt}
+                variant="solid"
+                size="2"
+                disabled={!isDirty || !draftName.trim() || !draftText.trim()}
+              >
+                {t("ui.save")}
               </Button>
               <Button
-                onClick={handleCancelCreate}
-                variant="secondary"
-                size="md"
+                onClick={() => handleDeletePrompt(selectedPrompt.id)}
+                variant="outline"
+                color="red"
+                size="2"
+                disabled={prompts.length <= 1}
               >
-                Cancel
+                {t("ui.delete")}
               </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </SettingContainer>
+            </>
+          ) : null}
+        </Flex>
+      </SettingContainer>
+    </>
   );
 };
 
-export const PostProcessingSettingsApi = React.memo(
-  PostProcessingSettingsApiComponent,
-);
+export const PostProcessingSettingsApi = React.memo(ApiSettings);
 PostProcessingSettingsApi.displayName = "PostProcessingSettingsApi";
 
-export const PostProcessingSettingsPrompts = React.memo(
-  PostProcessingSettingsPromptsComponent,
-);
+export const PostProcessingSettingsPrompts = React.memo(PromptSettings);
 PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
-export const PostProcessingSettings: React.FC = () => {
+export const AiSettings: React.FC = () => {
+  const { t } = useTranslation();
+  const [isProviderManagerOpen, setProviderManagerOpen] = useState(false);
+
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title="API (OpenAI Compatible)">
+    <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
+      <SettingsGroup
+        title={t("postProcessing.apiTitle")}
+        actions={
+          <Button
+            variant="outline"
+            size="1"
+            onClick={() => setProviderManagerOpen(true)}
+          >
+            {t("postProcessing.manageProviders")}
+          </Button>
+        }
+      >
         <PostProcessingSettingsApi />
       </SettingsGroup>
 
-      <SettingsGroup title="Prompt">
-        <PostProcessingSettingsPrompts />
+      <SettingsGroup title={t("postProcessing.aiModelConfig")}>
+        <ModelConfigurationPanel />
       </SettingsGroup>
-    </div>
+
+      {/* Provider Manager Dialog */}
+      <Dialog.Root
+        open={isProviderManagerOpen}
+        onOpenChange={setProviderManagerOpen}
+      >
+        <Dialog.Content maxWidth="900px" style={{ maxHeight: "80vh" }}>
+          <Dialog.Title>{t("postProcessing.manageProviders")}</Dialog.Title>
+          <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
+            <ProviderManager onClose={() => setProviderManagerOpen(false)} />
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+    </Flex>
   );
 };

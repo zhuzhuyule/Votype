@@ -1,15 +1,25 @@
-import React from "react";
-import { Cog, FlaskConical, History, Info, Sparkles } from "lucide-react";
-import HandyTextLogo from "./icons/HandyTextLogo";
-import HandyHand from "./icons/HandyHand";
-import { useSettings } from "../hooks/useSettings";
+import { Flex, Text } from "@radix-ui/themes";
 import {
-  GeneralSettings,
-  AdvancedSettings,
-  HistorySettings,
-  DebugSettings,
+  Cog,
+  FlaskConical,
+  History,
+  Info,
+  Layers,
+  Sparkles,
+} from "lucide-react";
+import React from "react";
+import { useTranslation } from "react-i18next";
+import { useSettings } from "../hooks/useSettings";
+import HandyHand from "./icons/HandyHand";
+import HandyTextLogo from "./icons/HandyTextLogo";
+import {
   AboutSettings,
-  PostProcessingSettings,
+  AdvancedSettings,
+  AiSettings,
+  DebugSettings,
+  GeneralSettings,
+  HistorySettings,
+  ModelsSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -23,7 +33,7 @@ interface IconProps {
 }
 
 interface SectionConfig {
-  label: string;
+  labelKey: string;
   icon: React.ComponentType<IconProps>;
   component: React.ComponentType;
   enabled: (settings: any) => boolean;
@@ -31,37 +41,43 @@ interface SectionConfig {
 
 export const SECTIONS_CONFIG = {
   general: {
-    label: "General",
+    labelKey: "sidebar.general",
     icon: HandyHand,
     component: GeneralSettings,
     enabled: () => true,
   },
   advanced: {
-    label: "Advanced",
+    labelKey: "sidebar.advanced",
     icon: Cog,
     component: AdvancedSettings,
     enabled: () => true,
   },
-  postprocessing: {
-    label: "Post Process",
+  ai: {
+    labelKey: "sidebar.ai",
     icon: Sparkles,
-    component: PostProcessingSettings,
-    enabled: (settings) => settings?.post_process_enabled ?? false,
+    component: AiSettings,
+    enabled: () => true,
+  },
+  models: {
+    labelKey: "sidebar.models",
+    icon: Layers,
+    component: ModelsSettings,
+    enabled: () => true,
   },
   history: {
-    label: "History",
+    labelKey: "sidebar.history",
     icon: History,
     component: HistorySettings,
     enabled: () => true,
   },
   debug: {
-    label: "Debug",
+    labelKey: "sidebar.debug",
     icon: FlaskConical,
     component: DebugSettings,
     enabled: (settings) => settings?.debug_mode ?? false,
   },
   about: {
-    label: "About",
+    labelKey: "sidebar.about",
     icon: Info,
     component: AboutSettings,
     enabled: () => true,
@@ -73,28 +89,47 @@ interface SidebarProps {
   onSectionChange: (section: SidebarSection) => void;
 }
 
+type SectionWithLabel = SectionConfig & {
+  id: SidebarSection;
+  label: string;
+};
+
 export const Sidebar: React.FC<SidebarProps> = ({
   activeSection,
   onSectionChange,
 }) => {
+  const { t } = useTranslation();
   const { settings } = useSettings();
 
-  const availableSections = Object.entries(SECTIONS_CONFIG)
+  const availableSections: SectionWithLabel[] = Object.entries(SECTIONS_CONFIG)
     .filter(([_, config]) => config.enabled(settings))
-    .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
+    .map(([id, config]) => ({
+      id: id as SidebarSection,
+      ...config,
+      label: t(config.labelKey),
+    }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-r border-mid-gray/20 items-center px-2">
+    <Flex
+      direction="column"
+      className="w-40 h-full border-r border-mid-gray/20 items-center px-2"
+    >
       <HandyTextLogo width={120} className="m-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
+      <Flex
+        direction="column"
+        className="w-full items-center gap-1 pt-2 border-t border-mid-gray/20"
+      >
         {availableSections.map((section) => {
           const Icon = section.icon;
           const isActive = activeSection === section.id;
 
           return (
-            <div
+            <Flex
               key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
+              gap="2"
+              align="center"
+              p="2"
+              className={`w-full rounded-lg cursor-pointer transition-colors ${
                 isActive
                   ? "bg-logo-primary/80"
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
@@ -102,11 +137,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => onSectionChange(section.id)}
             >
               <Icon width={24} height={24} />
-              <p className="text-sm font-medium">{section.label}</p>
-            </div>
+              <Text size="2" weight="medium">
+                {section.label}
+              </Text>
+            </Flex>
           );
         })}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 };

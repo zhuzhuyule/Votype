@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ModelInfo } from "../../lib/types";
 import ModelStatusButton from "./ModelStatusButton";
 import ModelDropdown from "./ModelDropdown";
 import DownloadProgressDisplay from "./DownloadProgressDisplay";
+import { useSettings } from "../../hooks/useSettings";
 
 interface ModelStateEvent {
   event_type: string;
@@ -41,6 +43,7 @@ interface ModelSelectorProps {
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
+  const { t } = useTranslation();
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [currentModelId, setCurrentModelId] = useState<string>("");
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
@@ -54,6 +57,39 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   >(new Map());
   const [extractingModels, setExtractingModels] = useState<Set<string>>(
     new Set(),
+  );
+  const { settings, selectAsrModel, toggleOnlineAsr } = useSettings();
+
+  const cachedModels = settings?.cached_models || [];
+  const providerNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    settings?.post_process_providers.forEach((provider) => {
+      map[provider.id] = provider.label;
+    });
+    return map;
+  }, [settings?.post_process_providers]);
+
+  const asrModels = useMemo(
+    () =>
+      cachedModels
+        .filter((model) => model.model_type === "asr")
+        .map((model) => ({
+          id: model.id,
+          name: model.name,
+          providerLabel:
+            providerNameMap[model.provider_id] ?? model.provider_id,
+        })),
+    [cachedModels, providerNameMap],
+  );
+
+  const selectedAsrModel = useMemo(
+    () =>
+      cachedModels.find(
+        (model) =>
+          model.model_type === "asr" &&
+          model.id === settings?.selected_asr_model_id,
+      ) ?? null,
+    [cachedModels, settings?.selected_asr_model_id],
   );
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -80,7 +116,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             break;
           case "loading_failed":
             setModelStatus("error");
-            setModelError(error || "Failed to load model");
+            setModelError(error || t("error.failedLoadModel"));
             break;
           case "unloaded":
             setModelStatus("unloaded");
@@ -241,7 +277,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       const modelList = await invoke<ModelInfo[]>("get_available_models");
       setModels(modelList);
     } catch (err) {
-      console.error("Failed to load models:", err);
+      console.error(t("error.failedLoadModels"), err);
     }
   };
 
@@ -264,9 +300,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         setModelStatus("none");
       }
     } catch (err) {
-      console.error("Failed to load current model:", err);
+      console.error(t("error.failedLoadCurrentModel"), err);
       setModelStatus("error");
-      setModelError("Failed to check model status");
+      setModelError(t("error.failedCheckModelStatus"));
     }
   };
 
@@ -274,6 +310,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     try {
       setModelError(null);
       setShowModelDropdown(false);
+      if (settings?.online_asr_enabled) {
+        await toggleOnlineAsr(false);
+      }
       await invoke("set_active_model", { modelId });
       setCurrentModelId(modelId);
     } catch (err) {
@@ -305,9 +344,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       if (extractingModels.size === 1) {
         const [modelId] = Array.from(extractingModels);
         const model = models.find((m) => m.id === modelId);
-        return `Extracting ${model?.name || "Model"}...`;
+        return t("modelSelector.extracting", { name: model?.name || t("modelSelector.model") });
       } else {
-        return `Extracting ${extractingModels.size} models...`;
+        return t("modelSelector.extractingMultiple", { count: extractingModels.size });
       }
     }
 
@@ -318,31 +357,44 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           0,
           Math.min(100, Math.round(progress.percentage)),
         );
-        return `Downloading ${percentage}%`;
+        return t("modelSelector.downloading", { percentage });
       } else {
-        return `Downloading ${modelDownloadProgress.size} models...`;
+        return t("modelSelector.downloadingMultiple", { count: modelDownloadProgress.size });
       }
     }
 
+    const onlineActive =
+      settings?.online_asr_enabled && selectedAsrModel !== null;
+    const onlineLabel = onlineActive
+      ? `${selectedAsrModel?.name ?? t("modelSelector.onlineAsr")} ${
+          selectedAsrModel
+            ? `(${providerNameMap[selectedAsrModel.provider_id] ?? selectedAsrModel.provider_id})`
+            : ""
+        }`
+      : null;
     const currentModel = getCurrentModel();
+
+    if (onlineActive) {
+      return t("modelSelector.onlineAsr");
+    }
 
     switch (modelStatus) {
       case "ready":
-        return currentModel?.name || "Model Ready";
+        return currentModel?.name || t("modelSelector.modelReady");
       case "loading":
-        return currentModel ? `Loading ${currentModel.name}...` : "Loading...";
+        return currentModel ? t("modelSelector.loading", { name: currentModel.name }) : t("modelSelector.loading");
       case "extracting":
         return currentModel
-          ? `Extracting ${currentModel.name}...`
-          : "Extracting...";
+          ? t("modelSelector.extracting", { name: currentModel.name })
+          : t("modelSelector.extracting");
       case "error":
-        return modelError || "Model Error";
+        return modelError || t("modelSelector.modelError");
       case "unloaded":
-        return currentModel?.name || "Model Unloaded";
+        return currentModel?.name || t("modelSelector.modelUnloaded");
       case "none":
-        return "No Model - Download Required";
+        return t("modelSelector.noModelDownloadRequired");
       default:
-        return currentModel?.name || "Model Unloaded";
+        return currentModel?.name || t("modelSelector.modelUnloaded");
     }
   };
 
@@ -351,6 +403,30 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     await loadModels();
     setModelError(null);
   };
+
+  const handleAsrModelSelect = async (modelId: string) => {
+    try {
+      if (!settings?.online_asr_enabled) {
+        await toggleOnlineAsr(true);
+      }
+      setShowModelDropdown(false);
+      await selectAsrModel(modelId);
+    } catch (err) {
+      const errorMsg = `${err}`;
+      setModelError(errorMsg);
+      setModelStatus("error");
+      onError?.(errorMsg);
+    }
+  };
+
+  const modeLabel =
+    settings?.online_asr_enabled && settings?.selected_asr_model_id
+      ? t("modelSelector.online")
+      : t("modelSelector.local");
+  const modeLabelColor =
+    settings?.online_asr_enabled && settings?.selected_asr_model_id
+      ? "text-blue-700 bg-blue-50 border border-blue-200"
+      : "text-emerald-600 bg-emerald-50 border border-emerald-200";
 
   return (
     <>
@@ -361,6 +437,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           displayText={getModelDisplayText()}
           isDropdownOpen={showModelDropdown}
           onClick={() => setShowModelDropdown(!showModelDropdown)}
+          modeLabel={modeLabel}
+          modeLabelColor={modeLabelColor}
+          isOnlineModel={
+            settings?.online_asr_enabled && !!settings?.selected_asr_model_id
+          }
         />
 
         {/* Model Dropdown */}
@@ -373,6 +454,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             onModelDownload={handleModelDownload}
             onModelDelete={handleModelDelete}
             onError={onError}
+            asrModels={asrModels}
+            selectedAsrModelId={settings?.selected_asr_model_id || null}
+            onAsrModelSelect={handleAsrModelSelect}
+            onlineEnabled={settings?.online_asr_enabled || false}
           />
         )}
       </div>

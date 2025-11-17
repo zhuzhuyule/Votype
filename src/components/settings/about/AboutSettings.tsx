@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from "react";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { SettingsGroup } from "../../ui/SettingsGroup";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { Button } from "../../ui/Button";
+import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AppDataDirectory } from "../AppDataDirectory";
 
 export const AboutSettings: React.FC = () => {
+  const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -32,56 +34,60 @@ export const AboutSettings: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title="About">
+    <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
+      <SettingsGroup title={t("about.title")}>
         <SettingContainer
-          title="Version"
-          description="Current version of Handy"
+          title={t("about.version.title")}
+          description={t("about.version.description")}
           grouped={true}
         >
-          <span className="text-sm font-mono">v{version}</span>
+          <Text className="text-sm font-mono">v{version}</Text>
         </SettingContainer>
 
         <AppDataDirectory descriptionMode="tooltip" grouped={true} />
 
         <SettingContainer
-          title="Source Code"
-          description="View source code and contribute"
+          title={t("about.sourceCode.title")}
+          description={t("about.sourceCode.description")}
           grouped={true}
         >
           <Button
-            variant="secondary"
-            size="md"
+            variant="outline"
+            size="2"
             onClick={() => openUrl("https://github.com/cjpais/Handy")}
           >
-            View on GitHub
+            {t("about.sourceCode.viewOnGitHub")}
           </Button>
         </SettingContainer>
 
         <SettingContainer
-          title="Support Development"
-          description="Help us continue building Handy"
+          title={t("about.support.title")}
+          description={t("about.support.description")}
           grouped={true}
         >
-          <Button variant="primary" size="md" onClick={handleDonateClick}>
-            Donate
+          <Button
+            variant="solid"
+            size="2"
+            color="pink"
+            onClick={handleDonateClick}
+          >
+            {t("about.support.donate")}
           </Button>
         </SettingContainer>
       </SettingsGroup>
 
-      <SettingsGroup title="Acknowledgments">
+      <SettingsGroup title={t("about.acknowledgments")}>
         <SettingContainer
-          title="Whisper.cpp"
-          description="High-performance inference of OpenAI's Whisper automatic speech recognition model"
+          title={t("about.whisper.title")}
+          description={t("about.whisper.description")}
           grouped={true}
           layout="stacked"
         >
-          <div className="text-sm text-mid-gray">
-            Handy uses Whisper.cpp for fast, local speech-to-text processing.
-            Thanks to the amazing work by Georgi Gerganov and contributors.
-          </div>
+          <Text size="2" color="gray">
+            {t("about.whisper.content")}
+          </Text>
         </SettingContainer>
       </SettingsGroup>
-    </div>
+    </Flex>
   );
 };

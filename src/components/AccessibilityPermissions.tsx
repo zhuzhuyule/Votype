@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
 } from "tauri-plugin-macos-permissions-api";
+import { Box, Button, Flex, Text, type ButtonProps } from "@radix-ui/themes";
 
 // Define permission state type
 type PermissionState = "request" | "verify" | "granted";
@@ -10,10 +12,11 @@ type PermissionState = "request" | "verify" | "granted";
 // Define button configuration type
 interface ButtonConfig {
   text: string;
-  className: string;
+  variant: ButtonProps["variant"];
 }
 
 const AccessibilityPermissions: React.FC = () => {
+  const { t } = useTranslation();
   const [hasAccessibility, setHasAccessibility] = useState<boolean>(false);
   const [permissionState, setPermissionState] =
     useState<PermissionState>("request");
@@ -34,7 +37,7 @@ const AccessibilityPermissions: React.FC = () => {
         // After system prompt, transition to verification state
         setPermissionState("verify");
       } catch (error) {
-        console.error("Error requesting permissions:", error);
+        console.error(t("error.requestingPermissions"), error);
         setPermissionState("verify");
       }
     } else if (permissionState === "verify") {
@@ -61,36 +64,39 @@ const AccessibilityPermissions: React.FC = () => {
   // Configure button text and style based on state
   const buttonConfig: Record<PermissionState, ButtonConfig | null> = {
     request: {
-      text: "Grant",
-      className:
-        "px-2 py-1 text-sm font-semibold bg-mid-gray/10 border  border-mid-gray/80 hover:bg-logo-primary/10 rounded cursor-pointer hover:border-logo-primary",
+      text: t("accessibility.grant"),
+      variant: "solid",
     },
     verify: {
-      text: "Verify",
-      className:
-        "bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-1 px-3 rounded text-sm flex items-center justify-center cursor-pointer",
+      text: t("accessibility.verify"),
+      variant: "outline",
     },
     granted: null,
   };
 
-  const config = buttonConfig[permissionState] as ButtonConfig;
+  const config = buttonConfig[permissionState];
+  if (!config) {
+    return null;
+  }
 
   return (
-    <div className="p-4 w-full rounded-lg border border-mid-gray">
-      <div className="flex justify-between items-center gap-2">
-        <div className="">
-          <p className="text-sm font-medium">
-            Please grant accessibility permissions for Handy
-          </p>
-        </div>
-        <button
+    <Flex p="4" className="w-full rounded-lg border border-mid-gray">
+      <Flex justify="between" align="center" gap="2">
+        <Box>
+          <Text size="2" weight="medium">
+            {t("accessibility.request")}
+          </Text>
+        </Box>
+        <Button
           onClick={handleButtonClick}
-          className={`min-h-10 ${config.className}`}
+          variant={config.variant}
+          size="1"
+          className="min-h-10"
         >
           {config.text}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Flex>
+    </Flex>
   );
 };
 

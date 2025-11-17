@@ -7,8 +7,10 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use crate::actions::ACTION_MAP;
 use crate::settings::ShortcutBinding;
 use crate::settings::{
-    self, get_settings, ClipboardHandling, LLMPrompt, OverlayPosition, PasteMethod, SoundTheme,
+    self, CachedModel, get_settings, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
+    PasteMethod, PostProcessProvider, SoundTheme,
 };
+use chrono::Utc;
 use crate::ManagedToggleState;
 
 pub fn init_shortcuts(app: &AppHandle) {
@@ -370,10 +372,16 @@ pub fn change_post_process_model_setting(
     provider_id: String,
     model: String,
 ) -> Result<(), String> {
+    println!("DEBUG: change_post_process_model_setting called with provider_id='{}', model='{}'", provider_id, model);
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
-    settings.post_process_models.insert(provider_id, model);
+    
+    println!("DEBUG: Before update - post_process_models: {:?}", settings.post_process_models);
+    settings.post_process_models.insert(provider_id.clone(), model.clone());
+    println!("DEBUG: After update - post_process_models: {:?}", settings.post_process_models);
+    
     settings::write_settings(&app, settings);
+    println!("DEBUG: Settings saved successfully");
     Ok(())
 }
 
@@ -495,6 +503,284 @@ pub async fn fetch_post_process_models(
 
     // For now, use manual HTTP request to have more control over the endpoint
     fetch_models_manual(provider, api_key).await
+}
+
+#[tauri::command]
+pub fn add_custom_provider(
+    app: AppHandle,
+    label: String,
+    base_url: String,
+    models_endpoint: Option<String>,
+) -> Result<PostProcessProvider, String> {
+    let mut settings = settings::get_settings(&app);
+
+    let id = format!("custom-{}", Utc::now().timestamp_millis());
+    let provider = PostProcessProvider {
+        id: id.clone(),
+        label: label.trim().to_string(),
+        base_url: base_url.trim().trim_end_matches('/').to_string(),
+        allow_base_url_edit: true,
+        models_endpoint: models_endpoint
+            .map(|endpoint| {
+                let trimmed = endpoint.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            })
+            .flatten(),
+    };
+
+    settings.post_process_api_keys.insert(id.clone(), String::new());
+    settings.post_process_models.insert(id.clone(), String::new());
+    settings.post_process_providers.push(provider.clone());
+    settings::write_settings(&app, settings);
+
+    Ok(provider)
+}
+
+#[tauri::command]
+pub fn update_custom_provider(
+    app: AppHandle,
+    provider_id: String,
+    label: Option<String>,
+    base_url: Option<String>,
+    models_endpoint: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    let provider = settings
+        .post_process_providers
+        .iter_mut()
+        .find(|p| p.id == provider_id)
+        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
+
+    if !provider.allow_base_url_edit {
+        return Err("Only custom providers can be modified".to_string());
+    }
+
+    if let Some(new_label) = label {
+        if !new_label.trim().is_empty() {
+            provider.label = new_label.trim().to_string();
+        }
+    }
+
+    if let Some(new_base_url) = base_url {
+        if !new_base_url.trim().is_empty() {
+            provider.base_url = new_base_url.trim().trim_end_matches('/').to_string();
+        }
+    }
+
+    if let Some(new_endpoint) = models_endpoint {
+        let cleaned = new_endpoint.trim();
+        provider.models_endpoint = if cleaned.is_empty() {
+            None
+        } else {
+            Some(cleaned.to_string())
+        };
+    }
+
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    let idx = settings
+        .post_process_providers
+        .iter()
+        .position(|p| p.id == provider_id)
+        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
+
+    if !settings.post_process_providers[idx].allow_base_url_edit {
+        return Err("Only custom providers can be removed".to_string());
+    }
+
+    let _removed_provider = settings.post_process_providers.remove(idx);
+
+    let removed_cached_ids: Vec<String> = settings
+        .cached_models
+        .iter()
+        .filter(|cached| cached.provider_id == provider_id)
+        .map(|cached| cached.id.clone())
+        .collect();
+
+    settings
+        .cached_models
+        .retain(|cached| cached.provider_id != provider_id);
+
+    if let Some(asr_id) = settings.selected_asr_model_id.clone() {
+        if removed_cached_ids.contains(&asr_id) {
+            settings.selected_asr_model_id = None;
+        }
+    }
+    if let Some(prompt_id) = settings.selected_prompt_model_id.clone() {
+        if removed_cached_ids.contains(&prompt_id) {
+            settings.selected_prompt_model_id = None;
+        }
+    }
+
+    settings.post_process_api_keys.remove(&provider_id);
+    settings.post_process_models.remove(&provider_id);
+
+    if settings.post_process_provider_id == provider_id {
+        settings.post_process_provider_id = settings
+            .post_process_providers
+            .get(0)
+            .map(|provider| provider.id.clone())
+            .unwrap_or_else(|| "openai".to_string());
+    }
+
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn add_cached_model(app: AppHandle, model: CachedModel) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if settings
+        .cached_models
+        .iter()
+        .any(|cached| cached.id == model.id)
+    {
+        return Err("Model already cached".to_string());
+    }
+
+    settings.cached_models.push(model);
+    settings::write_settings(&app, settings);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_cached_model_capability(
+    app: AppHandle,
+    model_id: String,
+    model_type: ModelType,
+    custom_label: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(model) = settings
+        .cached_models
+        .iter_mut()
+        .find(|cached| cached.id == model_id)
+    {
+        model.model_type = model_type;
+        model.custom_label = custom_label;
+
+        if model.model_type != ModelType::Asr
+            && settings
+                .selected_asr_model_id
+                .as_deref()
+                == Some(&model.id)
+        {
+            settings.selected_asr_model_id = None;
+        }
+
+        if model.model_type != ModelType::Text
+            && settings
+                .selected_prompt_model_id
+                .as_deref()
+                == Some(&model.id)
+        {
+            settings.selected_prompt_model_id = None;
+        }
+
+        settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        Err(format!("Cached model '{}' not found", model_id))
+    }
+}
+
+#[tauri::command]
+pub fn remove_cached_model(app: AppHandle, model_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let original_len = settings.cached_models.len();
+    settings.cached_models.retain(|cached| cached.id != model_id);
+
+    if settings.cached_models.len() == original_len {
+        return Err(format!("Cached model '{}' not found", model_id));
+    }
+
+    if settings.selected_asr_model_id.as_deref() == Some(&model_id) {
+        settings.selected_asr_model_id = None;
+    }
+    if settings.selected_prompt_model_id.as_deref() == Some(&model_id) {
+        settings.selected_prompt_model_id = None;
+    }
+
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn toggle_online_asr(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.online_asr_enabled = enabled;
+    settings::write_settings(&app, settings);
+
+    // 当开启在线 ASR 时，主动卸载已加载的本地模型，确保互斥
+    if enabled {
+        if let Some(tm) = app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>()
+        {
+            // 忽略卸载失败，保持不阻塞切换
+            let _ = tm.unload_model();
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(ref id) = model_id {
+        let model_is_asr = settings
+            .cached_models
+            .iter()
+            .find(|cached| cached.id == *id)
+            .map(|cached| cached.model_type == ModelType::Asr)
+            .unwrap_or(false);
+
+        if !model_is_asr {
+            return Err("Selected model is not an ASR model".to_string());
+        }
+    }
+
+    settings.selected_asr_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn select_post_process_model(
+    app: AppHandle,
+    model_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(ref id) = model_id {
+        let model_is_text = settings
+            .cached_models
+            .iter()
+            .find(|cached| cached.id == *id)
+            .map(|cached| cached.model_type == ModelType::Text)
+            .unwrap_or(false);
+
+        if !model_is_text {
+            return Err("Selected model is not a Text model".to_string());
+        }
+    }
+
+    settings.selected_prompt_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
 }
 
 /// Fetch models using manual HTTP request

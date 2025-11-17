@@ -1,88 +1,65 @@
-import React, { useState, useEffect } from "react";
+import { Flex, IconButton, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
+import { Check, Copy } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { SettingContainer } from "../ui/SettingContainer";
-import { Button } from "../ui/Button";
 
 interface AppDataDirectoryProps {
-  descriptionMode?: "tooltip" | "inline";
+  descriptionMode?: "inline" | "tooltip";
   grouped?: boolean;
 }
 
 export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
-  descriptionMode = "inline",
+  descriptionMode = "tooltip",
   grouped = false,
 }) => {
+  const { t } = useTranslation();
   const [appDirPath, setAppDirPath] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const loadAppDirectory = async () => {
-      try {
-        const result = await invoke<string>("get_app_dir_path");
-        setAppDirPath(result);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load app directory",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAppDirectory();
+    invoke<string>("get_app_dir_path").then(setAppDirPath);
   }, []);
 
-  const handleOpen = async () => {
+  const handleCopy = async () => {
     if (!appDirPath) return;
     try {
-      await invoke("open_app_data_dir");
-    } catch (openError) {
-      console.error("Failed to open app data directory:", openError);
+      await navigator.clipboard.writeText(appDirPath);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="animate-pulse">
-        <div className="h-4 bg-gray-200 rounded w-1/3 mb-2"></div>
-        <div className="h-8 bg-gray-100 rounded"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-        <p className="text-red-600 text-sm">
-          Error loading app directory: {error}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <SettingContainer
-      title="App Data Directory"
-      description="Main directory where application data, settings, and models are stored"
+      title={t("appData.title")}
+      description={t("appData.description")}
+      layout="stacked"
       descriptionMode={descriptionMode}
       grouped={grouped}
-      layout="stacked"
     >
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0 px-2 py-2 bg-mid-gray/10 border border-mid-gray/80 rounded text-xs font-mono break-all">
-          {appDirPath}
-        </div>
-        <Button
-          onClick={handleOpen}
-          variant="secondary"
-          size="sm"
-          disabled={!appDirPath}
-          className="px-3 py-2"
+      <Flex align="center" gap="3">
+        <Text
+          className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0"
+          style={{ backgroundColor: "var(--gray-3, #f3f4f6)" }}
         >
-          Open
-        </Button>
-      </div>
+          {appDirPath || t("appData.loading")}
+        </Text>
+        {appDirPath && (
+          <IconButton
+            size="2"
+            variant="ghost"
+            color={copied ? "green" : "gray"}
+            onClick={handleCopy}
+            title={copied ? t("appData.copied") : t("appData.copyPath")}
+          >
+            {copied ? <Check /> : <Copy />}
+          </IconButton>
+        )}
+      </Flex>
     </SettingContainer>
   );
 };
