@@ -371,10 +371,16 @@ pub fn change_post_process_model_setting(
     provider_id: String,
     model: String,
 ) -> Result<(), String> {
+    println!("DEBUG: change_post_process_model_setting called with provider_id='{}', model='{}'", provider_id, model);
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
-    settings.post_process_models.insert(provider_id, model);
+    
+    println!("DEBUG: Before update - post_process_models: {:?}", settings.post_process_models);
+    settings.post_process_models.insert(provider_id.clone(), model.clone());
+    println!("DEBUG: After update - post_process_models: {:?}", settings.post_process_models);
+    
     settings::write_settings(&app, settings);
+    println!("DEBUG: Settings saved successfully");
     Ok(())
 }
 
