@@ -1,17 +1,18 @@
-import React from "react";
-import SelectComponent from "react-select";
-import CreatableSelect from "react-select/creatable";
-import type {
-  ActionMeta,
-  Props as ReactSelectProps,
-  SingleValue,
-  StylesConfig,
-} from "react-select";
+import { Select as ThemeSelect, TextField } from "@radix-ui/themes";
+import { ChevronsUpDown, Plus, X } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export type SelectOption = {
   value: string;
   label: string;
   isDisabled?: boolean;
+};
+
+export type ActionMeta<TOption> = {
+  action: "select-option" | "clear" | "create-option";
+  option?: TOption;
+  removedValues?: TOption[];
 };
 
 type BaseProps = {
@@ -21,10 +22,12 @@ type BaseProps = {
   disabled?: boolean;
   isLoading?: boolean;
   isClearable?: boolean;
-  onChange: (value: string | null, action: ActionMeta<SelectOption>) => void;
+  onChange: (value: string | null, actionMeta: ActionMeta<SelectOption>) => void;
   onBlur?: () => void;
   className?: string;
   formatCreateLabel?: (input: string) => string;
+  position?: "popper" | "item-aligned";
+  onRefresh?: () => void;
 };
 
 type CreatableProps = {
@@ -39,140 +42,228 @@ type NonCreatableProps = {
 
 export type SelectProps = BaseProps & (CreatableProps | NonCreatableProps);
 
-const baseBackground =
-  "color-mix(in srgb, var(--color-mid-gray) 10%, transparent)";
-const hoverBackground =
-  "color-mix(in srgb, var(--color-logo-primary) 12%, transparent)";
-const focusBackground =
-  "color-mix(in srgb, var(--color-logo-primary) 20%, transparent)";
-const neutralBorder =
-  "color-mix(in srgb, var(--color-mid-gray) 80%, transparent)";
+const triggerBaseClasses =
+  "custom-select-trigger flex items-center justify-between w-full min-h-[40px] rounded-lg bg-background border border-mid-gray/20 px-3 py-2 pr-10 text-sm font-medium text-text transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background hover:border-logo-primary/50";
 
-const selectStyles: StylesConfig<SelectOption, false> = {
-  control: (base, state) => ({
-    ...base,
-    minHeight: 40,
-    borderRadius: 6,
-    borderColor: state.isFocused ? "var(--color-logo-primary)" : neutralBorder,
-    boxShadow: state.isFocused ? "0 0 0 1px var(--color-logo-primary)" : "none",
-    backgroundColor: state.isFocused ? focusBackground : baseBackground,
-    fontSize: "0.875rem",
-    color: "var(--color-text)",
-    transition: "all 150ms ease",
-    ":hover": {
-      borderColor: "var(--color-logo-primary)",
-      backgroundColor: hoverBackground,
-    },
-  }),
-  valueContainer: (base) => ({
-    ...base,
-    paddingInline: 10,
-    paddingBlock: 6,
-  }),
-  input: (base) => ({
-    ...base,
-    color: "var(--color-text)",
-  }),
-  singleValue: (base) => ({
-    ...base,
-    color: "var(--color-text)",
-  }),
-  dropdownIndicator: (base, state) => ({
-    ...base,
-    color: state.isFocused
-      ? "var(--color-logo-primary)"
-      : "color-mix(in srgb, var(--color-mid-gray) 80%, transparent)",
-    ":hover": {
-      color: "var(--color-logo-primary)",
-    },
-  }),
-  clearIndicator: (base) => ({
-    ...base,
-    color: "color-mix(in srgb, var(--color-mid-gray) 80%, transparent)",
-    ":hover": {
-      color: "var(--color-logo-primary)",
-    },
-  }),
-  menu: (provided) => ({
-    ...provided,
-    zIndex: 30,
-    backgroundColor: "var(--color-background)",
-    color: "var(--color-text)",
-    border:
-      "1px solid color-mix(in srgb, var(--color-mid-gray) 30%, transparent)",
-    boxShadow: "0 10px 30px rgba(15, 15, 15, 0.2)",
-  }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected
-      ? focusBackground
-      : state.isFocused
-        ? hoverBackground
-        : "transparent",
-    color: "var(--color-text)",
-    cursor: state.isDisabled ? "not-allowed" : base.cursor,
-    opacity: state.isDisabled ? 0.5 : 1,
-  }),
-  placeholder: (base) => ({
-    ...base,
-    color: "color-mix(in srgb, var(--color-mid-gray) 65%, transparent)",
-  }),
-};
+const viewportClasses =
+  "max-h-64 overflow-y-auto py-1.5 px-1 space-y-1";
 
-export const Select: React.FC<SelectProps> = React.memo(
-  ({
+const optionClasses =
+  "group flex items-center justify-between px-3 py-2 rounded-md text-sm cursor-pointer transition-colors duration-150 shadow-sm bg-transparent";
+
+const createRowClasses =
+  "flex items-center gap-2 px-3 py-2";
+
+const spinnerClasses =
+  "h-4 w-4 animate-spin rounded-full border-2 border-transparent border-t-logo-primary";
+
+const selectActionMeta = (option: SelectOption | undefined): ActionMeta<SelectOption> => ({
+  action: "select-option",
+  option,
+});
+
+const clearActionMeta = (removed: SelectOption[]): ActionMeta<SelectOption> => ({
+  action: "clear",
+  removedValues: removed,
+});
+
+const createActionMeta = (option: SelectOption): ActionMeta<SelectOption> => ({
+  action: "create-option",
+  option,
+});
+
+export const Select: React.FC<SelectProps> = React.memo((props) => {
+  const { t } = useTranslation();
+  const {
     value,
     options,
-    placeholder,
-    disabled,
-    isLoading,
+    placeholder = t("ui.selectOption"),
+    disabled = false,
+    isLoading = false,
     isClearable = true,
     onChange,
     onBlur,
     className = "",
     isCreatable,
-    formatCreateLabel,
     onCreateOption,
-  }) => {
-    const selectValue = React.useMemo(() => {
-      if (!value) return null;
-      const existing = options.find((option) => option.value === value);
-      if (existing) return existing;
-      return { value, label: value, isDisabled: false };
-    }, [value, options]);
+    formatCreateLabel,
+    position = "item-aligned",
+    onRefresh,
+  } = props;
+    const [open, setOpen] = useState(false);
+    const [newValue, setNewValue] = useState("");
 
-    const handleChange = (
-      option: SingleValue<SelectOption>,
-      action: ActionMeta<SelectOption>,
-    ) => {
-      onChange(option?.value ?? null, action);
-    };
+    const selectedOption = useMemo(
+      () => options.find((option) => option.value === value),
+      [options, value],
+    );
 
-    const sharedProps: Partial<ReactSelectProps<SelectOption, false>> = {
-      className,
-      classNamePrefix: "app-select",
-      value: selectValue,
-      options,
-      onChange: handleChange,
-      placeholder,
-      isDisabled: disabled,
-      isLoading,
-      onBlur,
-      isClearable,
-      styles: selectStyles,
-    };
+    const handleValueChange = useCallback(
+      (val: string) => {
+        const option =
+          options.find((item) => item.value === val) ??
+          (val
+            ? { value: val, label: val, isDisabled: false }
+            : undefined);
 
-    if (isCreatable) {
-      return (
-        <CreatableSelect<SelectOption, false>
-          {...sharedProps}
-          onCreateOption={onCreateOption}
-          formatCreateLabel={formatCreateLabel}
-        />
-      );
-    }
+        onChange(option?.value ?? null, selectActionMeta(option));
+      },
+      [options, onChange],
+    );
 
-    return <SelectComponent<SelectOption, false> {...sharedProps} />;
+    const handleClear = useCallback(() => {
+      if (disabled || isLoading || !selectedOption) {
+        return;
+      }
+
+      onChange(null, clearActionMeta([selectedOption]));
+    }, [disabled, isLoading, onChange, selectedOption]);
+
+    const handleCreate = useCallback(() => {
+      if (!isCreatable || !onCreateOption) {
+        return;
+      }
+
+      const trimmed = newValue.trim();
+      if (!trimmed) return;
+
+      const option: SelectOption = {
+        value: trimmed,
+        label: trimmed,
+      };
+
+      onCreateOption(trimmed);
+      onChange(trimmed, createActionMeta(option));
+      setNewValue("");
+      setOpen(false);
+    }, [isCreatable, newValue, onChange, onCreateOption]);
+
+    const handleKeyDown = useCallback(
+      (event: React.KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          handleCreate();
+        }
+      },
+      [handleCreate],
+    );
+
+    const handleOpenChange = useCallback(
+      (isOpen: boolean) => {
+        setOpen(isOpen);
+        if (isOpen && onRefresh) {
+          onRefresh();
+        }
+        if (!isOpen) {
+          onBlur?.();
+        }
+      },
+      [onBlur, onRefresh],
+    );
+
+    const creationLabel = useMemo(() => {
+      const trimmed = newValue.trim();
+      if (!trimmed) {
+        return undefined;
+      }
+      return formatCreateLabel
+        ? formatCreateLabel(trimmed)
+        : `Add "${trimmed}"`;
+    }, [formatCreateLabel, newValue]);
+
+    const showClear = Boolean(
+      isClearable && !disabled && !isLoading && selectedOption?.value,
+    );
+
+    return (
+      <ThemeSelect.Root
+        value={selectedOption?.value ?? undefined}
+        onValueChange={handleValueChange}
+        open={open}
+        onOpenChange={handleOpenChange}
+        disabled={disabled}
+      >
+        <div className={`relative ${className}`}>
+          <ThemeSelect.Trigger
+            placeholder={placeholder}
+            variant="surface"
+            className={`${triggerBaseClasses} ${
+              disabled ? "cursor-not-allowed opacity-60" : ""
+            }`}
+          />
+          <div className="absolute right-10 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+            {isLoading ? (
+              <span className={spinnerClasses} />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4 text-mid-gray" />
+            )}
+          </div>
+
+          {showClear && (
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-background text-mid-gray transition hover:text-logo-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleClear();
+              }}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+
+        <ThemeSelect.Content
+          className="z-30 w-full min-w-[240px] rounded-2xl bg-background shadow-[0_10px_30px_rgba(15,15,15,0.25)] backdrop-blur-md"
+          position={position}
+          sideOffset={8}
+        >
+          <div className={viewportClasses}>
+            {isCreatable && (
+              <>
+                <div className={createRowClasses}>
+                  <TextField.Root
+                    className="flex-1"
+                    type="text"
+                    placeholder={t("ui.addNewOption")}
+                    value={newValue}
+                    onChange={(event) => setNewValue(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-full bg-logo-primary px-3 py-1 text-xs font-semibold text-white transition hover:bg-logo-primary/90 disabled:cursor-not-allowed disabled:bg-mid-gray/40 disabled:text-white/60"
+                    onClick={handleCreate}
+                    disabled={!newValue.trim()}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </button>
+                </div>
+                {creationLabel && (
+                  <p className="px-3 pt-1 text-[11px] uppercase tracking-wide text-mid-gray/80">
+                    {creationLabel}
+                  </p>
+                )}
+              </>
+            )}
+            {options.map((option) => (
+              <ThemeSelect.Item
+                key={option.value}
+                value={option.value}
+                disabled={option.isDisabled}
+                className={`${optionClasses} ${
+                  option.isDisabled
+                    ? "cursor-not-allowed opacity-60"
+                    : "hover:bg-logo-primary/10 focus:bg-logo-primary/10 data-[state=checked]:bg-logo-primary/10"
+                }`}
+              >
+                {option.label}
+              </ThemeSelect.Item>
+            ))}
+          </div>
+        </ThemeSelect.Content>
+      </ThemeSelect.Root>
+    );
   },
 );
 

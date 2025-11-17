@@ -1,7 +1,9 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
-import { Input } from "../ui/Input";
+import { TextField } from "@radix-ui/themes";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 
 interface HistoryLimitProps {
   descriptionMode?: "tooltip" | "inline";
@@ -12,6 +14,7 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
   descriptionMode = "inline",
   grouped = false,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating } = useSettings();
 
   const historyLimit = getSetting("history_limit") ?? 5;
@@ -23,26 +26,30 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
     }
   };
 
+  const handleReset = () => {
+    updateSetting("history_limit", 5);
+  };
+
   return (
     <SettingContainer
-      title="History Limit"
-      description="Maximum number of transcription entries to keep in history"
+      title={t("historyLimit.title")}
+      description={t("historyLimit.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       layout="horizontal"
     >
-      <div className="flex items-center space-x-2">
-        <Input
-          type="number"
-          min="0"
-          max="1000"
-          value={historyLimit}
-          onChange={handleChange}
+      <ActionWrapper onReset={handleReset}>
+        <TextField.Root
+          value={historyLimit.toString()}
+          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            const numValue = parseInt(event.target.value || "0", 10);
+            if (!isNaN(numValue) && numValue >= 0) {
+              updateSetting("history_limit", numValue);
+            }
+          }}
           disabled={isUpdating("history_limit")}
-          className="w-20"
         />
-        <span className="text-sm text-text">entries</span>
-      </div>
+      </ActionWrapper>
     </SettingContainer>
   );
 };

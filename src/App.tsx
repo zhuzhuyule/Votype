@@ -1,3 +1,4 @@
+import { Flex, ScrollArea } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { Toaster } from "sonner";
@@ -5,7 +6,8 @@ import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import Footer from "./components/footer";
 import Onboarding from "./components/onboarding";
-import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import { SECTIONS_CONFIG, Sidebar, SidebarSection } from "./components/Sidebar";
+import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
 
 const renderSettingsContent = (section: SidebarSection) => {
@@ -65,32 +67,41 @@ function App() {
     setShowOnboarding(false);
   };
 
-  if (showOnboarding) {
-    return <Onboarding onModelSelected={handleModelSelected} />;
-  }
-
   return (
-    <div className="h-screen flex flex-col">
-      <Toaster />
-      {/* Main content area that takes remaining space */}
-      <div className="flex-1 flex overflow-hidden">
-        <Sidebar
-          activeSection={currentSection}
-          onSectionChange={setCurrentSection}
-        />
-        {/* Scrollable content area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col items-center p-4 gap-4">
-              <AccessibilityPermissions />
-              {renderSettingsContent(currentSection)}
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Fixed footer at bottom */}
-      <Footer />
-    </div>
+    <RadixThemeProvider>
+      {showOnboarding ? (
+        <Onboarding onModelSelected={handleModelSelected} />
+      ) : (
+        <Flex className="h-screen flex flex-col">
+          <Toaster />
+          {/* Main content area that takes remaining space */}
+          <Flex className="flex-1 flex overflow-hidden">
+            <Sidebar
+              activeSection={currentSection}
+              onSectionChange={setCurrentSection}
+            />
+            {/* Scrollable content area with ScrollArea */}
+            <Flex flexGrow="1" direction="column" overflow="hidden">
+              <ScrollArea scrollbars="vertical" type="hover" className="flex-1">
+                <Flex
+                  direction="column"
+                  align="center"
+                  py="6"
+                  px="4"
+                  gap="6"
+                  className="min-w-[600px] max-w-[1200px] mx-auto w-full"
+                >
+                  <AccessibilityPermissions />
+                  {renderSettingsContent(currentSection)}
+                </Flex>
+              </ScrollArea>
+            </Flex>
+          </Flex>
+          {/* Fixed footer at bottom */}
+          <Footer />
+        </Flex>
+      )}
+    </RadixThemeProvider>
   );
 }
 

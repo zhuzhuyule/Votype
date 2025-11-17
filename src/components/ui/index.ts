@@ -1,7 +1,9 @@
+export { ActionWrapper } from "./ActionWraperr";
 export { Dropdown } from "./Dropdown";
+export { Select } from "./Select";
 export { Slider } from "./Slider";
 export { ToggleSwitch } from "./ToggleSwitch";
+export { TooltipIcon } from "./TooltipIcon";
 export { SettingContainer } from "./SettingContainer";
 export { SettingsGroup } from "./SettingsGroup";
-export { TextDisplay } from "./TextDisplay";
 export { Textarea } from "./Textarea";

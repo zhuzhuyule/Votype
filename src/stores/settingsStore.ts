@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
-import { Settings, AudioDevice } from "../lib/types";
+import {
+  Settings,
+  AudioDevice,
+  CachedModel,
+  ModelType,
+} from "../lib/types";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -45,6 +50,24 @@ interface SettingsStore {
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
   setPostProcessModelOptions: (providerId: string, models: string[]) => void;
+  addCachedModel: (model: CachedModel) => Promise<void>;
+  updateCachedModelType: (modelId: string, modelType: ModelType) => Promise<void>;
+  removeCachedModel: (modelId: string) => Promise<void>;
+  toggleOnlineAsr: (enabled: boolean) => Promise<void>;
+  selectAsrModel: (modelId: string | null) => Promise<void>;
+  selectPostProcessModel: (modelId: string | null) => Promise<void>;
+  addCustomProvider: (payload: {
+    label: string;
+    baseUrl: string;
+    modelsEndpoint?: string;
+  }) => Promise<void>;
+  updateCustomProvider: (payload: {
+    providerId: string;
+    label?: string;
+    baseUrl?: string;
+    modelsEndpoint?: string;
+  }) => Promise<void>;
+  removeCustomProvider: (providerId: string) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -77,6 +100,10 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   history_limit: 5,
   recording_retention_period: "preserve_limit",
   mute_while_recording: false,
+  cached_models: [],
+  online_asr_enabled: false,
+  selected_asr_model_id: null,
+  selected_prompt_model_id: null,
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -502,6 +529,152 @@ export const useSettingsStore = create<SettingsStore>()(
           [providerId]: models,
         },
       })),
+
+    addCustomProvider: async ({ label, baseUrl, modelsEndpoint }) => {
+      const updateKey = "add_custom_provider";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("add_custom_provider", {
+          label: label.trim(),
+          baseUrl: baseUrl.trim(),
+          modelsEndpoint: modelsEndpoint?.trim() || null,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to add custom provider:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateCustomProvider: async ({
+      providerId,
+      label,
+      baseUrl,
+      modelsEndpoint,
+    }) => {
+      const updateKey = `update_custom_provider:${providerId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("update_custom_provider", {
+          providerId,
+          label: label?.trim(),
+          baseUrl: baseUrl?.trim(),
+          modelsEndpoint: modelsEndpoint?.trim(),
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update provider:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    removeCustomProvider: async (providerId) => {
+      const updateKey = `remove_custom_provider:${providerId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("remove_custom_provider", { providerId });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to remove custom provider:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    addCachedModel: async (model) => {
+      const updateKey = "cached_model_add";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("add_cached_model", { model });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to add cached model:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateCachedModelType: async (modelId, modelType) => {
+      const updateKey = `cached_model_update:${modelId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("update_cached_model_capability", {
+          modelId,
+          capability: modelType,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update cached model type:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    removeCachedModel: async (modelId) => {
+      const updateKey = `cached_model_remove:${modelId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("remove_cached_model", { modelId });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to remove cached model:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    toggleOnlineAsr: async (enabled) => {
+      const updateKey = "toggle_online_asr";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("toggle_online_asr", { enabled });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to toggle online ASR:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    selectAsrModel: async (modelId) => {
+      const updateKey = "select_asr_model";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("select_asr_model", { modelId });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to select ASR model:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    selectPostProcessModel: async (modelId) => {
+      const updateKey = "select_post_process_model";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("select_post_process_model", { modelId });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to select post-process model:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
 
     // Initialize everything
     initialize: async () => {

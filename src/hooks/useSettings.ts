@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import { AudioDevice, CachedModel, ModelType, Settings } from "../lib/types";
 import { useSettingsStore } from "../stores/settingsStore";
-import { Settings, AudioDevice } from "../lib/types";
 
 interface UseSettingsReturn {
   // State
@@ -41,6 +41,27 @@ interface UseSettingsReturn {
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  addCustomProvider: (payload: {
+    label: string;
+    baseUrl: string;
+    modelsEndpoint?: string;
+  }) => Promise<void>;
+  updateCustomProvider: (payload: {
+    providerId: string;
+    label?: string;
+    baseUrl?: string;
+    modelsEndpoint?: string;
+  }) => Promise<void>;
+  removeCustomProvider: (providerId: string) => Promise<void>;
+  addCachedModel: (model: CachedModel) => Promise<void>;
+  updateCachedModelType: (
+    modelId: string,
+    modelType: ModelType,
+  ) => Promise<void>;
+  removeCachedModel: (modelId: string) => Promise<void>;
+  toggleOnlineAsr: (enabled: boolean) => Promise<void>;
+  selectAsrModel: (modelId: string | null) => Promise<void>;
+  selectPromptModel: (modelId: string | null) => Promise<void>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
@@ -74,5 +95,14 @@ export const useSettings = (): UseSettingsReturn => {
     updatePostProcessApiKey: store.updatePostProcessApiKey,
     updatePostProcessModel: store.updatePostProcessModel,
     fetchPostProcessModels: store.fetchPostProcessModels,
+    addCachedModel: store.addCachedModel,
+    updateCachedModelType: store.updateCachedModelType,
+    removeCachedModel: store.removeCachedModel,
+    toggleOnlineAsr: store.toggleOnlineAsr,
+    selectAsrModel: store.selectAsrModel,
+    selectPromptModel: store.selectPostProcessModel,
+    addCustomProvider: store.addCustomProvider,
+    updateCustomProvider: store.updateCustomProvider,
+    removeCustomProvider: store.removeCustomProvider,
   };
 };

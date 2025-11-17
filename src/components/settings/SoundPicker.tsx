@@ -1,10 +1,12 @@
 import React from "react";
-import { Button } from "../ui/Button";
+import { useTranslation } from "react-i18next";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
 import { PlayIcon } from "lucide-react";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSettings } from "../../hooks/useSettings";
+import { IconButton } from "@radix-ui/themes";
 
 interface SoundPickerProps {
   label: string;
@@ -15,6 +17,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   label,
   description,
 }) => {
+  const { t } = useTranslation();
   const { getSetting, updateSetting } = useSettings();
   const playTestSound = useSettingsStore((state) => state.playTestSound);
   const customSounds = useSettingsStore((state) => state.customSounds);
@@ -22,13 +25,13 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
   const selectedTheme = getSetting("sound_theme") ?? "marimba";
 
   const options: DropdownOption[] = [
-    { value: "marimba", label: "Marimba" },
-    { value: "pop", label: "Pop" },
+    { value: "marimba", label: t("soundPicker.marimba") },
+    { value: "pop", label: t("soundPicker.pop") },
   ];
 
   // Only add Custom option if both custom sound files exist
   if (customSounds.start && customSounds.stop) {
-    options.push({ value: "custom", label: "Custom" });
+    options.push({ value: "custom", label: t("soundPicker.custom") });
   }
 
   const handlePlayBothSounds = async () => {
@@ -45,7 +48,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
       grouped
       layout="horizontal"
     >
-      <div className="flex items-center gap-2">
+      <ActionWrapper>
         <Dropdown
           selectedValue={selectedTheme}
           onSelect={(value) =>
@@ -53,15 +56,14 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
           }
           options={options}
         />
-        <Button
+        <IconButton
           variant="ghost"
-          size="sm"
           onClick={handlePlayBothSounds}
-          title="Preview sound theme (plays start then stop)"
+          title={t("soundPicker.preview")}
         >
-          <PlayIcon className="h-4 w-4" />
-        </Button>
-      </div>
+          <PlayIcon size="18" />
+        </IconButton>
+      </ActionWrapper>
     </SettingContainer>
   );
 };

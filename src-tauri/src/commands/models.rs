@@ -56,13 +56,15 @@ pub async fn set_active_model(
         return Err(format!("Model not downloaded: {}", model_id));
     }
 
-    // Load the model in the transcription manager
-    transcription_manager
-        .load_model(&model_id)
-        .map_err(|e| e.to_string())?;
+    // 如果启用了在线 ASR，不要加载本地模型，只更新设置
+    let mut settings = get_settings(&app_handle);
+    if !settings.online_asr_enabled {
+        transcription_manager
+            .load_model(&model_id)
+            .map_err(|e| e.to_string())?;
+    }
 
     // Update settings
-    let mut settings = get_settings(&app_handle);
     settings.selected_model = model_id.clone();
     write_settings(&app_handle, settings);
 

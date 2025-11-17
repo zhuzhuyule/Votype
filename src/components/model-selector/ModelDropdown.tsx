@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
 import { ProgressBar } from "../shared";
@@ -18,6 +19,14 @@ interface ModelDropdownProps {
   onModelDownload: (modelId: string) => void;
   onModelDelete: (modelId: string) => Promise<void>;
   onError?: (error: string) => void;
+  asrModels: {
+    id: string;
+    name: string;
+    providerLabel: string;
+  }[];
+  selectedAsrModelId: string | null;
+  onAsrModelSelect: (modelId: string) => void;
+  onlineEnabled: boolean;
 }
 
 const ModelDropdown: React.FC<ModelDropdownProps> = ({
@@ -28,7 +37,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   onModelDownload,
   onModelDelete,
   onError,
+  asrModels,
+  selectedAsrModelId,
+  onAsrModelSelect,
+  onlineEnabled,
 }) => {
+  const { t } = useTranslation();
   const availableModels = models.filter((m) => m.is_downloaded);
   const downloadableModels = models.filter((m) => !m.is_downloaded);
   const isFirstRun = availableModels.length === 0 && models.length > 0;
@@ -40,7 +54,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     try {
       await onModelDelete(modelId);
     } catch (err) {
-      const errorMsg = `Failed to delete model: ${err}`;
+      const errorMsg = t("error.failedDeleteModel", { error: err });
       onError?.(errorMsg);
     }
   };
@@ -60,15 +74,15 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   };
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-background border border-mid-gray/20 rounded-lg shadow-lg py-2 z-50">
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-background border border-mid-gray/20 rounded-lg shadow-xl py-2 z-50 shadow-black/10">
       {/* First Run Welcome */}
       {isFirstRun && (
         <div className="px-3 py-2 bg-logo-primary/10 border-b border-logo-primary/20">
           <div className="text-xs font-medium text-logo-primary mb-1">
-            Welcome to Handy!
+            {t("modelDropdown.welcome")}
           </div>
           <div className="text-xs text-text/70">
-            Download a model below to get started with transcription.
+            {t("modelDropdown.getStarted")}
           </div>
         </div>
       )}
@@ -77,7 +91,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {availableModels.length > 0 && (
         <div>
           <div className="px-3 py-1 text-xs font-medium text-text/80 border-b border-mid-gray/10">
-            Available Models
+            {t("modelDropdown.availableModels")}
           </div>
           {availableModels.map((model) => (
             <div
@@ -106,13 +120,13 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   {currentModelId === model.id && (
-                    <div className="text-xs text-logo-primary">Active</div>
+                    <div className="text-xs text-logo-primary">{t("modelDropdown.active")}</div>
                   )}
                   {currentModelId !== model.id && (
                     <button
                       onClick={(e) => handleDeleteClick(e, model.id)}
                       className="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/10 rounded transition-colors"
-                      title={`Delete ${model.name}`}
+                      title={t("modelDropdown.delete", { name: model.name })}
                     >
                       <svg
                         className="w-3 h-3"
@@ -134,6 +148,48 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         </div>
       )}
 
+      {/* Online ASR Models */}
+      {asrModels.length > 0 && (
+        <div>
+          {(availableModels.length > 0 || isFirstRun) && (
+            <div className="border-t border-mid-gray/10 my-1" />
+          )}
+          <div className="px-3 py-1 text-xs font-medium text-text/80">
+            {t("modelDropdown.onlineAsrModels")}
+          </div>
+          {asrModels.map((model) => (
+            <div
+              key={model.id}
+              onClick={() => {
+                if (!onlineEnabled) {
+                  onAsrModelSelect(model.id);
+                } else {
+                  onAsrModelSelect(model.id);
+                }
+              }}
+              className={`w-full px-3 py-2 text-left transition-colors cursor-pointer focus:outline-none ${
+                selectedAsrModelId === model.id
+                  ? "bg-logo-primary/10 text-logo-primary"
+                  : "hover:bg-mid-gray/10"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm">{model.name}</div>
+                  <div className="text-xs text-text/40 italic">{model.providerLabel}</div>
+                </div>
+                {selectedAsrModelId === model.id && (
+                  <span className="text-xs uppercase text-logo-primary">{t("modelDropdown.selected")}</span>
+                )}
+              </div>
+              <div className="text-[10px] text-center text-mid-gray/70 mt-1">
+                {onlineEnabled ? t("modelDropdown.onlineAsrActive") : t("modelDropdown.clickToEnable")}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Downloadable Models */}
       {downloadableModels.length > 0 && (
         <div>
@@ -141,7 +197,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
             <div className="border-t border-mid-gray/10 my-1" />
           )}
           <div className="px-3 py-1 text-xs font-medium text-text/80">
-            {isFirstRun ? "Choose a Model" : "Download Models"}
+            {isFirstRun ? t("modelDropdown.chooseModel") : t("modelDropdown.downloadModels")}
           </div>
           {downloadableModels.map((model) => {
             const isDownloading = downloadProgress.has(model.id);
@@ -172,7 +228,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       {model.name}
                       {model.id === "small" && isFirstRun && (
                         <span className="ml-2 text-xs bg-logo-primary/20 text-logo-primary px-1.5 py-0.5 rounded">
-                          Recommended
+                          {t("modelDropdown.recommended")}
                         </span>
                       )}
                     </div>
@@ -180,13 +236,13 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       {model.description}
                     </div>
                     <div className="mt-1 text-xs text-text/50 tabular-nums">
-                      Download size · {formatModelSize(model.size_mb)}
+                      {t("modelDropdown.downloadSize")} · {formatModelSize(model.size_mb)}
                     </div>
                   </div>
                   <div className="text-xs text-logo-primary tabular-nums">
                     {isDownloading && progress
                       ? `${Math.max(0, Math.min(100, Math.round(progress.percentage)))}%`
-                      : "Download"}
+                      : t("modelDropdown.download")}
                   </div>
                 </div>
 
@@ -213,7 +269,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {/* No Models Available */}
       {availableModels.length === 0 && downloadableModels.length === 0 && (
         <div className="px-3 py-2 text-sm text-text/60">
-          No models available
+          {t("modelDropdown.noModelsAvailable")}
         </div>
       )}
     </div>

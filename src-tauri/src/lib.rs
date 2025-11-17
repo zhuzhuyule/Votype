@@ -6,6 +6,7 @@ mod commands;
 mod helpers;
 mod llm_client;
 mod managers;
+mod online_asr;
 mod overlay;
 mod settings;
 mod shortcut;
@@ -311,6 +312,15 @@ pub fn run() {
             shortcut::change_post_process_model_setting,
             shortcut::set_post_process_provider,
             shortcut::fetch_post_process_models,
+            shortcut::add_custom_provider,
+            shortcut::update_custom_provider,
+            shortcut::remove_custom_provider,
+            shortcut::add_cached_model,
+            shortcut::update_cached_model_capability,
+            shortcut::remove_cached_model,
+            shortcut::toggle_online_asr,
+            shortcut::select_asr_model,
+            shortcut::select_post_process_model,
             shortcut::add_post_process_prompt,
             shortcut::update_post_process_prompt,
             shortcut::delete_post_process_prompt,

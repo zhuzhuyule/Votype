@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { AudioPlayer } from "../../ui/AudioPlayer";
-import { Button } from "../../ui/Button";
 import { Copy, Star, Check, Trash2, FolderOpen } from "lucide-react";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { useTranslation } from "react-i18next";
+import { SettingsGroup } from "../../ui/SettingsGroup";
 
 interface HistoryEntry {
   id: number;
@@ -23,8 +25,7 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
 }) => (
   <Button
     onClick={onClick}
-    variant="secondary"
-    size="sm"
+    size="1"
     className="flex items-center gap-2"
     title="Open recordings folder"
   >
@@ -34,6 +35,7 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
 );
 
 export const HistorySettings: React.FC = () => {
+  const { t } = useTranslation();
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -123,21 +125,11 @@ export const HistorySettings: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-3xl w-full mx-auto space-y-6">
-        <div className="space-y-2">
-          <div className="px-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-                History
-              </h2>
-            </div>
-            <OpenRecordingsButton onClick={openRecordingsFolder} />
-          </div>
-          <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-            <div className="px-4 py-3 text-center text-text/60">
-              Loading history...
-            </div>
-          </div>
-        </div>
+        <SettingsGroup title={t("historySettings.title")}>
+          <Flex className="px-4 py-3 text-center text-text/60">
+            {t("historySettings.loading")}
+          </Flex>
+        </SettingsGroup>
       </div>
     );
   }
@@ -145,51 +137,29 @@ export const HistorySettings: React.FC = () => {
   if (historyEntries.length === 0) {
     return (
       <div className="max-w-3xl w-full mx-auto space-y-6">
-        <div className="space-y-2">
-          <div className="px-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-                History
-              </h2>
-            </div>
-            <OpenRecordingsButton onClick={openRecordingsFolder} />
-          </div>
-          <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-            <div className="px-4 py-3 text-center text-text/60">
-              No transcriptions yet. Start recording to build your history!
-            </div>
-          </div>
-        </div>
+        <SettingsGroup title={t("historySettings.title")}>
+          <Flex className="px-4 py-3 text-center text-text/60">
+            {t("historySettings.empty")}
+          </Flex>
+        </SettingsGroup>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <div className="space-y-2">
-        <div className="px-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
-              History
-            </h2>
-          </div>
-          <OpenRecordingsButton onClick={openRecordingsFolder} />
-        </div>
-        <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-          <div className="divide-y divide-mid-gray/20">
-            {historyEntries.map((entry) => (
-              <HistoryEntryComponent
-                key={entry.id}
-                entry={entry}
-                onToggleSaved={() => toggleSaved(entry.id)}
-                onCopyText={() => copyToClipboard(entry.transcription_text)}
-                getAudioUrl={getAudioUrl}
-                deleteAudio={deleteAudioEntry}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
+      <SettingsGroup title={t("historySettings.title")}>
+        {historyEntries.map((entry) => (
+          <HistoryEntryComponent
+            key={entry.id}
+            entry={entry}
+            onToggleSaved={() => toggleSaved(entry.id)}
+            onCopyText={() => copyToClipboard(entry.transcription_text)}
+            getAudioUrl={getAudioUrl}
+            deleteAudio={deleteAudioEntry}
+          />
+        ))}
+      </SettingsGroup>
     </div>
   );
 };
@@ -209,6 +179,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   getAudioUrl,
   deleteAudio,
 }) => {
+  const { t } = useTranslation();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [showCopied, setShowCopied] = useState(false);
 
@@ -231,54 +202,66 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
       await deleteAudio(entry.id);
     } catch (error) {
       console.error("Failed to delete entry:", error);
-      alert("Failed to delete entry. Please try again.");
+      alert(t("historySettings.deleteError"));
     }
   };
 
   return (
-    <div className="px-4 py-2 pb-5 flex flex-col gap-3">
-      <div className="flex justify-between items-center">
-        <p className="text-sm font-medium">{entry.title}</p>
-        <div className="flex items-center gap-1">
-          <button
+    <Flex direction="column" gap="3" className="px-4 py-2 pb-5">
+      <Flex justify="between" align="center">
+        <Text size="2" weight="medium">
+          {entry.title}
+        </Text>
+        <Flex align="center" gap="1">
+          <Button
+            variant="ghost"
+            size="1"
             onClick={handleCopyText}
-            className="text-text/50 hover:text-logo-primary  hover:border-logo-primary transition-colors cursor-pointer"
-            title="Copy transcription to clipboard"
+            className="text-text/50 hover:text-logo-primary hover:border-logo-primary transition-colors cursor-pointer"
+            title={t("historySettings.copyTitle")}
           >
             {showCopied ? (
               <Check width={16} height={16} />
             ) : (
               <Copy width={16} height={16} />
             )}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="1"
             onClick={onToggleSaved}
-            className={`p-2 rounded  transition-colors cursor-pointer ${
+            className={`p-2 rounded transition-colors cursor-pointer ${
               entry.saved
                 ? "text-logo-primary hover:text-logo-primary/80"
                 : "text-text/50 hover:text-logo-primary"
             }`}
-            title={entry.saved ? "Remove from saved" : "Save transcription"}
+            title={
+              entry.saved
+                ? t("historySettings.removeFromSaved")
+                : t("historySettings.saveTitle")
+            }
           >
             <Star
               width={16}
               height={16}
               fill={entry.saved ? "currentColor" : "none"}
             />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="1"
             onClick={handleDeleteEntry}
             className="text-text/50 hover:text-logo-primary transition-colors cursor-pointer"
-            title="Delete entry"
+            title={t("historySettings.deleteTitle")}
           >
             <Trash2 width={16} height={16} />
-          </button>
-        </div>
-      </div>
-      <p className="italic text-text/90 text-sm pb-2">
+          </Button>
+        </Flex>
+      </Flex>
+      <Text className="italic text-text/90 text-sm pb-2">
         {entry.transcription_text}
-      </p>
+      </Text>
       {audioUrl && <AudioPlayer src={audioUrl} className="w-full" />}
-    </div>
+    </Flex>
   );
 };

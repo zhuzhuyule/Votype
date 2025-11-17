@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { getVersion } from "@tauri-apps/api/app";
+import { Flex, Text } from "@radix-ui/themes";
 
 import ModelSelector from "../model-selector";
 import UpdateChecker from "../update-checker";
 
 const Footer: React.FC = () => {
+  const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
@@ -13,7 +16,7 @@ const Footer: React.FC = () => {
         const appVersion = await getVersion();
         setVersion(appVersion);
       } catch (error) {
-        console.error("Failed to get app version:", error);
+        console.error(t("error.failedGetVersion"), error);
         setVersion("0.1.2");
       }
     };
@@ -22,20 +25,20 @@ const Footer: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full border-t border-mid-gray/20 pt-3">
-      <div className="flex justify-between items-center text-xs px-4 pb-3 text-text/60">
-        <div className="flex items-center gap-4">
+    <Flex direction="column" className="w-full border-t border-mid-gray/20 pt-3">
+      <Flex justify="between" align="center" className="text-xs px-4 pb-3 text-text/60">
+        <Flex align="center" gap="4">
           <ModelSelector />
-        </div>
+        </Flex>
 
         {/* Update Status */}
-        <div className="flex items-center gap-1">
+        <Flex align="center" gap="1">
           <UpdateChecker />
-          <span>•</span>
-          <span>v{version}</span>
-        </div>
-      </div>
-    </div>
+          <Text>•</Text>
+          <Text>v{version}</Text>
+        </Flex>
+      </Flex>
+    </Flex>
   );
 };
 

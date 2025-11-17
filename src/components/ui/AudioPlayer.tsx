@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Slider, Flex, Text, IconButton, Box } from "@radix-ui/themes";
 import { Play, Pause } from "lucide-react";
 
 interface AudioPlayerProps {
@@ -13,28 +14,21 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const animationRef = useRef<number>();
-  const dragTimeRef = useRef<number>(0);
 
   // Use refs to avoid stale closures in animation loop
   const isPlayingRef = useRef(false);
-  const isDraggingRef = useRef(false);
 
   // Keep refs in sync with state
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  useEffect(() => {
-    isDraggingRef.current = isDragging;
-  }, [isDragging]);
-
   // Stable animation loop with no dependencies
   const tick = useCallback(() => {
-    if (audioRef.current && !isDraggingRef.current) {
+    if (audioRef.current) {
       const time = audioRef.current.currentTime;
       setCurrentTime(time);
     }
@@ -46,7 +40,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Manage animation loop lifecycle
   useEffect(() => {
-    if (isPlaying && !isDragging) {
+    if (isPlaying) {
       // Only start if not already running
       if (!animationRef.current) {
         animationRef.current = requestAnimationFrame(tick);
@@ -65,7 +59,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         animationRef.current = undefined;
       }
     };
-  }, [isPlaying, isDragging, tick]);
+  }, [isPlaying, tick]);
 
   // Audio event handlers
   useEffect(() => {
@@ -98,29 +92,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, []);
 
-  // Global drag handlers
-  const handleMouseUp = useCallback(() => {
-    if (isDragging) {
-      setIsDragging(false);
-      if (audioRef.current) {
-        audioRef.current.currentTime = dragTimeRef.current;
-        setCurrentTime(dragTimeRef.current);
-      }
-    }
-  }, [isDragging]);
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener("mouseup", handleMouseUp);
-      document.addEventListener("touchend", handleMouseUp);
-
-      return () => {
-        document.removeEventListener("mouseup", handleMouseUp);
-        document.removeEventListener("touchend", handleMouseUp);
-      };
-    }
-  }, [isDragging, handleMouseUp]);
-
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -136,22 +107,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = parseFloat(e.target.value);
-    dragTimeRef.current = newTime;
+  const handleSeek = (values: number[]) => {
+    const newTime = values[0];
     setCurrentTime(newTime);
-
-    if (!isDragging && audioRef.current) {
+    if (audioRef.current) {
       audioRef.current.currentTime = newTime;
     }
-  };
-
-  const handleSliderMouseDown = () => {
-    setIsDragging(true);
-  };
-
-  const handleSliderTouchStart = () => {
-    setIsDragging(true);
   };
 
   const formatTime = (time: number): string => {
@@ -176,45 +137,51 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const progressPercent = getProgressPercent();
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <Flex align="center" gap="3" className={className}>
       <audio ref={audioRef} src={src} preload="metadata" />
 
-      <button
+      <IconButton
+        size="1"
+        variant="ghost"
         onClick={togglePlay}
         className="transition-colors cursor-pointer text-text hover:text-logo-primary"
         aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (
-          <Pause width={20} height={20} fill="currentColor" />
+          <Pause width={20} height={20} />
         ) : (
-          <Play width={20} height={20} fill="currentColor" />
+          <Play width={20} height={20} />
         )}
-      </button>
+      </IconButton>
 
-      <div className="flex-1 flex items-center gap-2">
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
+      <Flex align="center" gap="2" flexGrow="1">
+        <Text
+          size="1"
+          color="gray"
+          className="tabular-nums"
+        >
           {formatTime(currentTime)}
-        </span>
+        </Text>
 
-        <input
-          type="range"
-          min="0"
-          max={duration || 0}
-          step="0.01"
-          value={currentTime}
-          onChange={handleSeek}
-          onMouseDown={handleSliderMouseDown}
-          onTouchStart={handleSliderTouchStart}
-          className={`flex-1 h-1 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-logo-primary ${progressPercent >= 99.5 ? "[&::-webkit-slider-thumb]:translate-x-0.5 [&::-moz-range-thumb]:translate-x-0.5" : ""}`}
-          style={{
-            background: `linear-gradient(to right, #FAA2CA 0%, #FAA2CA ${progressPercent}%, rgba(128, 128, 128, 0.2) ${progressPercent}%, rgba(128, 128, 128, 0.2) 100%)`,
-          }}
-        />
+        <Box flexGrow="1" position="relative">
+          <Slider
+            value={[currentTime]}
+            onValueChange={handleSeek}
+            min={0}
+            max={duration || 0}
+            step={0.01}
+            className="w-full"
+          />
+        </Box>
 
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
+        <Text
+          size="1"
+          color="gray"
+          className="tabular-nums"
+        >
           {formatTime(duration)}
-        </span>
-      </div>
-    </div>
+        </Text>
+      </Flex>
+    </Flex>
   );
 };

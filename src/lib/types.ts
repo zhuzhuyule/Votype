@@ -65,6 +65,21 @@ export const LLMPromptSchema = z.object({
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;
 
+export const ModelTypeSchema = z.enum(["text", "asr", "other"]);
+export type ModelType = z.infer<typeof ModelTypeSchema>;
+
+export const CachedModelSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  model_type: ModelTypeSchema,
+  provider_id: z.string(),
+  model_id: z.string(),
+  added_at: z.string(),
+  custom_label: z.string().optional(),
+});
+
+export type CachedModel = z.infer<typeof CachedModelSchema>;
+
 export const PostProcessProviderSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -118,6 +133,10 @@ export const SettingsSchema = z.object({
   post_process_models: z.record(z.string()).optional().default({}),
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
+  cached_models: z.array(CachedModelSchema).optional().default([]),
+  online_asr_enabled: z.boolean().optional().default(false),
+  selected_asr_model_id: z.string().nullable().optional(),
+  selected_prompt_model_id: z.string().nullable().optional(),
   mute_while_recording: z.boolean().optional().default(false),
 });
 

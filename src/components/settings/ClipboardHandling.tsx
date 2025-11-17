@@ -1,6 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
+import { ActionWrapper } from "../ui/ActionWraperr";
 import { useSettings } from "../../hooks/useSettings";
 import type { ClipboardHandling } from "../../lib/types";
 
@@ -9,33 +11,38 @@ interface ClipboardHandlingProps {
   grouped?: boolean;
 }
 
-const clipboardHandlingOptions = [
-  { value: "dont_modify", label: "Don't Modify Clipboard" },
-  { value: "copy_to_clipboard", label: "Copy to Clipboard" },
+const getClipboardHandlingOptions = (t: any) => [
+  { value: "dont_modify", label: t("clipboardHandling.dontModify") },
+  { value: "copy_to_clipboard", label: t("clipboardHandling.copyToClipboard") },
 ];
 
 export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
   React.memo(({ descriptionMode = "tooltip", grouped = false }) => {
+    const { t } = useTranslation();
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
     const selectedHandling = (getSetting("clipboard_handling") ||
       "dont_modify") as ClipboardHandling;
 
+    const clipboardHandlingOptions = getClipboardHandlingOptions(t);
+
     return (
       <SettingContainer
-        title="Clipboard Handling"
-        description="Don't Modify Clipboard preserves your current clipboard contents after transcription. Copy to Clipboard leaves the transcription result in your clipboard after pasting."
+        title={t("clipboardHandling.title")}
+        description={t("clipboardHandling.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <Dropdown
-          options={clipboardHandlingOptions}
-          selectedValue={selectedHandling}
-          onSelect={(value) =>
-            updateSetting("clipboard_handling", value as ClipboardHandling)
-          }
-          disabled={isUpdating("clipboard_handling")}
-        />
+        <ActionWrapper>
+          <Dropdown
+            options={clipboardHandlingOptions}
+            selectedValue={selectedHandling}
+            onSelect={(value) =>
+              updateSetting("clipboard_handling", value as ClipboardHandling)
+            }
+            disabled={isUpdating("clipboard_handling")}
+          />
+        </ActionWrapper>
       </SettingContainer>
     );
   });

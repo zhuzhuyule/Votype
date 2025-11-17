@@ -1,31 +1,50 @@
+import { Box, Card, Flex, Heading, Text } from "@radix-ui/themes";
 import React from "react";
 
 interface SettingsGroupProps {
   title?: string;
   description?: string;
+  actions?: React.ReactNode;
   children: React.ReactNode;
+  defaultOpen?: boolean;
 }
 
 export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   title,
   description,
   children,
+  actions,
 }) => {
-  return (
-    <div className="space-y-2">
+  const headerContent = (
+    <>
       {title && (
-        <div className="px-4">
-          <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
+        <Box px="3">
+          <Heading
+            as="h2"
+            size="3"
+            weight="medium"
+            color="gray"
+            className="capitalize tracking-wide"
+          >
             {title}
-          </h2>
+          </Heading>
           {description && (
-            <p className="text-xs text-mid-gray mt-1">{description}</p>
+            <Text size="1" color="gray" mt="1">
+              {description}
+            </Text>
           )}
-        </div>
+        </Box>
       )}
-      <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
-        <div className="divide-y divide-mid-gray/20">{children}</div>
-      </div>
-    </div>
+      {actions && <Box px="3">{actions}</Box>}
+    </>
+  );
+
+  return (
+    <Box className="space-y-2 min-w-200">
+      <Flex justify="between" align="center">
+        {headerContent}
+      </Flex>
+      <Card>{children}</Card>
+    </Box>
   );
 };
