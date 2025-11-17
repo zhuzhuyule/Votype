@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { listen } from "@tauri-apps/api/event";
-import { Button, Flex, Text } from "@radix-ui/themes";
+import { Button, Flex, Text, Box } from "@radix-ui/themes";
 import { ProgressBar } from "../shared";
 
 interface UpdateCheckerProps {
@@ -149,7 +149,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
     !isUpdateDisabled && (updateAvailable || (!isChecking && !showUpToDate));
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <Flex className={`items-center gap-3 ${className}`}>
       {isUpdateClickable ? (
         <Button
           onClick={getUpdateStatusAction()}
@@ -181,7 +181,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
           size="large"
         />
       )}
-    </div>
+    </Flex>
   );
 };
 

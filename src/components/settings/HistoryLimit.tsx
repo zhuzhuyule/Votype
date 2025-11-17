@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { TextField } from "@radix-ui/themes";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ActionWrapper } from "../ui/ActionWraperr";
+import { ActionWrapper } from "../ui/ActionWrapper";
 
 interface HistoryLimitProps {
   descriptionMode?: "tooltip" | "inline";
@@ -17,16 +17,30 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
   const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating } = useSettings();
 
-  const historyLimit = getSetting("history_limit") ?? 5;
+  const savedHistoryLimit = getSetting("history_limit") ?? 5;
+  const [tempValue, setTempValue] = useState(savedHistoryLimit.toString());
 
-  const handleChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(event.target.value, 10);
-    if (!isNaN(value) && value >= 0) {
+  // Sync with saved value when it changes from elsewhere
+  useEffect(() => {
+    setTempValue(savedHistoryLimit.toString());
+  }, [savedHistoryLimit]);
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setTempValue(event.target.value);
+  };
+
+  const handleBlur = async () => {
+    const value = parseInt(tempValue, 10);
+    if (!isNaN(value) && value >= 0 && value !== savedHistoryLimit) {
       updateSetting("history_limit", value);
+    } else if (isNaN(value) || value < 0) {
+      // Reset to valid value if invalid
+      setTempValue(savedHistoryLimit.toString());
     }
   };
 
   const handleReset = () => {
+    setTempValue("5");
     updateSetting("history_limit", 5);
   };
 
@@ -40,13 +54,9 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
     >
       <ActionWrapper onReset={handleReset}>
         <TextField.Root
-          value={historyLimit.toString()}
-          onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            const numValue = parseInt(event.target.value || "0", 10);
-            if (!isNaN(numValue) && numValue >= 0) {
-              updateSetting("history_limit", numValue);
-            }
-          }}
+          value={tempValue}
+          onChange={handleChange}
+          onBlur={handleBlur}
           disabled={isUpdating("history_limit")}
         />
       </ActionWrapper>

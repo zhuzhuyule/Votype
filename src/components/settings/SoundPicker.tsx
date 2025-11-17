@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
 import { PlayIcon } from "lucide-react";
 import { SettingContainer } from "../ui/SettingContainer";
-import { ActionWrapper } from "../ui/ActionWraperr";
+import { ActionWrapper } from "../ui/ActionWrapper";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { useSettings } from "../../hooks/useSettings";
 import { IconButton } from "@radix-ui/themes";

@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, TextArea } from "@radix-ui/themes";
+import { Text, TextArea, Box } from "@radix-ui/themes";
 
 interface TextareaProps
   extends Omit<
@@ -53,7 +53,7 @@ export const Textarea: React.FC<TextareaProps> = ({
   };
 
   const textareaElement = (
-    <div className="relative">
+    <Box className="relative">
       <TextArea
         id={textareaId}
         size={getSize()}
@@ -69,16 +69,16 @@ export const Textarea: React.FC<TextareaProps> = ({
         {...rest}
       />
       {showCharCount && maxLength && (
-        <div className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded">
+        <Text className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded" size="1">
           {typeof value === "string" ? value.length : 0}/{maxLength}
-        </div>
+        </Text>
       )}
-    </div>
+    </Box>
   );
 
   if (label || description || error) {
     return (
-      <div className="space-y-2">
+      <Box className="space-y-2">
         {label && (
           <Text
             as="label"
@@ -101,7 +101,7 @@ export const Textarea: React.FC<TextareaProps> = ({
             {error}
           </Text>
         )}
-      </div>
+      </Box>
     );
   }
 

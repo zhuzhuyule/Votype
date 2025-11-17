@@ -1,6 +1,6 @@
 import { Flex, IconButton, Text } from "@radix-ui/themes";
+import { Check, Copy, FolderOpen } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
-import { Check, Copy } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -33,6 +33,15 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
     }
   };
 
+  const handleOpen = async () => {
+    if (!appDirPath) return;
+    try {
+      await invoke("open_app_data_dir");
+    } catch (openError) {
+      console.error("Failed to open app data directory:", openError);
+    }
+  };
+
   return (
     <SettingContainer
       title={t("appData.title")}
@@ -49,15 +58,26 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
           {appDirPath || t("appData.loading")}
         </Text>
         {appDirPath && (
-          <IconButton
-            size="2"
-            variant="ghost"
-            color={copied ? "green" : "gray"}
-            onClick={handleCopy}
-            title={copied ? t("appData.copied") : t("appData.copyPath")}
-          >
-            {copied ? <Check /> : <Copy />}
-          </IconButton>
+          <>
+            <IconButton
+              size="2"
+              variant="ghost"
+              color={copied ? "green" : "gray"}
+              onClick={handleCopy}
+              title={copied ? t("appData.copied") : t("appData.copyPath")}
+            >
+              {copied ? <Check /> : <Copy />}
+            </IconButton>
+            <IconButton
+              onClick={handleOpen}
+              size="2"
+              variant="ghost"
+              disabled={!appDirPath}
+              title={t("appData.open")}
+            >
+              <FolderOpen />
+            </IconButton>
+          </>
         )}
       </Flex>
     </SettingContainer>

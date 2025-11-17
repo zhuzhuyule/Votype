@@ -1,4 +1,4 @@
-export { ActionWrapper } from "./ActionWraperr";
+export { ActionWrapper } from "./ActionWrapper";
 export { Dropdown } from "./Dropdown";
 export { Select } from "./Select";
 export { Slider } from "./Slider";
