@@ -1,9 +1,21 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { Box, Button, Flex, Text, TextField } from "@radix-ui/themes";
+import {
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  Flex,
+  IconButton,
+  Popover,
+  Text,
+  TextField,
+} from "@radix-ui/themes";
+import { EditIcon, TrashIcon } from "lucide-react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
+import { SettingsGroup } from "../../ui";
 
 const DEFAULT_MODELS_ENDPOINT = "/models";
 
@@ -29,12 +41,13 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
   } = useSettings();
 
   const providers = settings?.post_process_providers || [];
-  const [showAdd, setShowAdd] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [addDraft, setAddDraft] = useState({
     label: "",
     baseUrl: "",
     modelsEndpoint: DEFAULT_MODELS_ENDPOINT,
   });
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState({
     label: "",
@@ -49,6 +62,17 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       baseUrl: provider.base_url,
       modelsEndpoint: provider.models_endpoint || DEFAULT_MODELS_ENDPOINT,
     });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleResetUrl = async () => {
+    if (!editingId) return;
+    const provider = providers.find((p) => p.id === editingId);
+    if (!provider) return;
+    setEditDraft((pre) => ({
+      ...pre,
+      baseUrl: provider.base_url,
+    }));
   };
 
   const handleAdd = async () => {
@@ -62,7 +86,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       baseUrl: "",
       modelsEndpoint: DEFAULT_MODELS_ENDPOINT,
     });
-    setShowAdd(false);
+    setIsAddDialogOpen(false);
   };
 
   const handleSaveEdit = async () => {
@@ -74,34 +98,16 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       modelsEndpoint: editDraft.modelsEndpoint,
     });
     setEditingId(null);
+    setIsEditDialogOpen(false);
   };
 
-  const [showDeleteTooltip, setShowDeleteTooltip] = useState<string | null>(
+  const [deletePopoverOpen, setDeletePopoverOpen] = useState<string | null>(
     null,
   );
-  const tooltipRef = useRef<HTMLDivElement>(null);
-
-  // Handle click outside to close tooltip
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        tooltipRef.current &&
-        !tooltipRef.current.contains(event.target as Node)
-      ) {
-        setShowDeleteTooltip(null);
-      }
-    };
-
-    if (showDeleteTooltip) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [showDeleteTooltip]);
 
   const handleRemove = async (providerId: string) => {
     await removeCustomProvider(providerId);
-    setShowDeleteTooltip(null);
+    setDeletePopoverOpen(null);
   };
 
   const customProviders = useMemo(
@@ -125,314 +131,302 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
     isValidUrl(editDraft.baseUrl);
 
   const handleClose = () => {
-    setShowAdd(false);
+    setIsAddDialogOpen(false);
     setEditingId(null);
     onClose();
   };
 
   return (
-    <div>
-      <div className="fixed inset-0 z-40 bg-black/60" onClick={handleClose} />
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        onClick={handleClose}
+    <>
+      <SettingsGroup
+        title={t("ui.customProviders")}
+        actions={
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            variant="outline"
+            disabled={isUpdating("add_custom_provider")}
+          >
+            {t("ui.createCustomProvider")}
+          </Button>
+        }
       >
-        <div
-          className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl border border-mid-gray/20 bg-background p-8 shadow-2xl"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <Flex align="center" justify="between" mb="2">
-            <Text size="5" weight="bold">
-              {t("ui.createCustomProviderTitle")}
+        {providers.length === 0 ? (
+          <Flex align="center" justify="center" py="6" px="4">
+            <Text size="2" color="gray" className="mb-2">
+              {t("ui.noCustomProviders")}
             </Text>
-            <Button
-              variant="ghost"
-              onClick={handleClose}
-              className="rounded-2xl -mt-5"
-              style={{ fontSize: "1.5rem", lineHeight: 1 }}
-            >
-              ✕
-            </Button>
+            <Text size="1" color="gray">
+              {t("ui.noCustomProvidersDesc")}
+            </Text>
           </Flex>
-          <div className="space-y-4">
-            {customProviders.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Text size="2" weight="bold" color="gray" className="uppercase tracking-wider">
-                    自定义 Provider
-                  </Text>
-                  <Button
-                    onClick={() => setShowAdd((prev) => !prev)}
-                    disabled={isUpdating("add_custom_provider")}
-                  >
-                    {showAdd ? t("ui.cancelCreate") : t("ui.createCustomProvider")}
-                  </Button>
-                </div>
-                {showAdd && (
-                  <div className="space-y-4 rounded-lg border border-mid-gray/20 bg-background/50 p-5 shadow-sm">
-                    <Text size="3" weight="medium">
-                      创建自定义 Provider
-                    </Text>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1 md:col-span-2">
-                        <label className="text-xs font-medium text-mid-gray/80">
-                          Provider 名称
-                        </label>
-                        <TextField.Root
-                          
-                          
-                          value={addDraft.label}
-                          onChange={(event) =>
-                            setAddDraft((draft) => ({
-                              ...draft,
-                              label: event.target.value,
-                            }))
-                          }
-                          placeholder="Provider 名称（例如 Custom Whisper）"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-mid-gray/80">
-                          Base URL
-                        </label>
-                        <TextField.Root
-                          className="w-full"
-                          size="1"
-                          value={addDraft.baseUrl}
-                          onChange={(event) =>
-                            setAddDraft((draft) => ({
-                              ...draft,
-                              baseUrl: event.target.value,
-                            }))
-                          }
-                          placeholder="https://..."
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-mid-gray/80">
-                          Models Endpoint
-                        </label>
-                        <TextField.Root
-                          className="w-full"
-                          size="1"
-                          value={addDraft.modelsEndpoint}
-                          onChange={(event) =>
-                            setAddDraft((draft) => ({
-                              ...draft,
-                              modelsEndpoint: event.target.value,
-                            }))
-                          }
-                          placeholder="/models"
-                        />
-                      </div>
-                    </div>
-                      <div className="flex justify-end gap-3 pt-2">
-                        <Button
-                          variant="ghost"
-                          size="1"
-                          onClick={() => {
-                            setShowAdd(false);
-                          }}
-                        >
-                          取消
-                        </Button>
-                        <Button
-                          variant="solid"
-                          size="1"
-                          disabled={!canAdd || isUpdating("add_custom_provider")}
-                          onClick={handleAdd}
-                        >
-                          创建 Provider
-                        </Button>
-                      </div>
-                  </div>
-                )}
-
-                <div className="grid gap-3">
-                  {customProviders.map((provider) => {
-                    const isEditing = editingId === provider.id;
-                    const updating =
-                      isUpdating(`update_custom_provider:${provider.id}`) ||
-                      isUpdating(`remove_custom_provider:${provider.id}`);
-                    return (
-                      <div
-                        key={provider.id}
-                        className="rounded-lg border border-mid-gray/20 bg-background/30 p-4 shadow-sm space-y-3"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-text truncate">
-                              {provider.label}
-                            </p>
-                            <p className="text-xs text-mid-gray/70 mt-1">
-                              ID: {provider.id}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {!isEditing && (
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="outline"
-                                  size="1"
-                                  onClick={() => handleStartEdit(provider)}
-                                  disabled={updating}
-                                >
-                                  编辑
-                                </Button>
-                                <div className="relative">
-                                  <Button
-                                    variant="ghost"
-                                    size="1"
-                                    onClick={() =>
-                                      setShowDeleteTooltip(provider.id)
-                                    }
-                                    disabled={updating}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    删除
-                                  </Button>
-                                  {showDeleteTooltip === provider.id && (
-                                    <div
-                                      ref={tooltipRef}
-                                      className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg shadow-lg z-50 min-w-[200px] whitespace-normal"
-                                    >
-                                      <p className="text-sm font-medium text-red-700 mb-2">
-                                        确认删除？
-                                      </p>
-                                      <p className="text-xs text-red-600 mb-3">
-                                        这会移除该 Provider 的 API
-                                        key、已缓存模型、ASR/Prompt 选择。
-                                      </p>
-                                      <div className="flex justify-end gap-2">
-                                        <Button
-                                          variant="ghost"
-                                          size="1"
-                                          onClick={() =>
-                                            setShowDeleteTooltip(null)
-                                          }
-                                        >
-                                          取消
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          color="red"
-                                          size="1"
-                                          onClick={() =>
-                                            handleRemove(provider.id)
-                                          }
-                                          disabled={updating}
-                                        >
-                                          删除
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-mid-gray/70">
-                            <span className="font-medium">{t("ui.baseUrl")}:</span>{" "}
-                            {provider.base_url}
-                          </p>
-                          <p className="text-xs text-mid-gray/70">
-                            <span className="font-medium">
-                              {t("ui.modelsEndpoint")}:
-                            </span>{" "}
-                            {provider.models_endpoint ||
-                              DEFAULT_MODELS_ENDPOINT}
-                          </p>
-                        </div>
-                        {isEditing && (
-                          <div className="space-y-3 pt-3 border-t border-mid-gray/20">
-                            <Text size="3" weight="medium">
-                              编辑 Provider
-                            </Text>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              <div className="space-y-1 md:col-span-2">
-                                <label className="text-xs font-medium text-mid-gray/80">
-                                  Provider 名称
-                                </label>
-                                <TextField.Root
-                                  className="w-full"
-                                  size="1"
-                                  value={editDraft.label}
-                                  onChange={(event) =>
-                                    setEditDraft((draft) => ({
-                                      ...draft,
-                                      label: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="Provider 名称"
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-mid-gray/80">
-                                  Base URL
-                                </label>
-                                <TextField.Root
-                                  className="w-full"
-                                  size="1"
-                                  value={editDraft.baseUrl}
-                                  onChange={(event) =>
-                                    setEditDraft((draft) => ({
-                                      ...draft,
-                                      baseUrl: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="https://..."
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-xs font-medium text-mid-gray/80">
-                                  Models Endpoint
-                                </label>
-                                <TextField.Root
-                                  className="w-full"
-                                  size="1"
-                                  value={editDraft.modelsEndpoint}
-                                  onChange={(event) =>
-                                    setEditDraft((draft) => ({
-                                      ...draft,
-                                      modelsEndpoint: event.target.value,
-                                    }))
-                                  }
-                                  placeholder="/models"
-                                />
-                              </div>
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                              <Button
-                                variant="ghost"
-                                size="1"
-                                onClick={() => setEditingId(null)}
-                                disabled={updating}
-                              >
-                                取消
-                              </Button>
-                              <Button
-                                variant="solid"
-                                size="1"
-                                disabled={!canSaveEdit || updating}
-                                onClick={handleSaveEdit}
-                              >
-                                保存更改
-                              </Button>
-                            </div>
-                          </div>
+        ) : (
+          <Flex wrap="wrap" gap="3" minHeight="490px" className="content-start">
+            {providers.map((provider) => {
+              const isBuiltIn = !provider.allow_base_url_edit;
+              const updating =
+                isUpdating(`update_custom_provider:${provider.id}`) ||
+                isUpdating(`remove_custom_provider:${provider.id}`);
+              return (
+                <Card
+                  key={provider.id}
+                  variant="surface"
+                  className="flex-1 min-w-[250px] p-1! h-fit"
+                >
+                  <Flex direction="column" gap="2" p="3">
+                    <Flex direction="column">
+                      <Flex gap="1" justify="start" align="center">
+                        <Text size="3" weight="medium">
+                          {provider.label}
+                        </Text>
+                        {isBuiltIn && (
+                          <Badge size="1">{t("ui.builtInProvider")}</Badge>
                         )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+                        <Flex gap="2" align="center" justify="end" flexGrow="1">
+                          <IconButton
+                            variant="ghost"
+                            size="2"
+                            onClick={() => handleStartEdit(provider)}
+                            disabled={updating}
+                            title={t("ui.edit")}
+                          >
+                            <EditIcon size={14} />
+                          </IconButton>
+                          {!isBuiltIn && (
+                            <Popover.Root
+                              open={deletePopoverOpen === provider.id}
+                              onOpenChange={(open) =>
+                                setDeletePopoverOpen(open ? provider.id : null)
+                              }
+                            >
+                              <Popover.Trigger>
+                                <IconButton
+                                  variant="ghost"
+                                  size="2"
+                                  color="red"
+                                  disabled={updating}
+                                  title={t("ui.delete")}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <TrashIcon size={14} />
+                                </IconButton>
+                              </Popover.Trigger>
+                              <Popover.Content side="bottom" align="end">
+                                <Flex direction="column" gap="2" width="150px">
+                                  <Text
+                                    size="2"
+                                    weight="medium"
+                                    color="red"
+                                    align="center"
+                                  >
+                                    {t("ui.deleteConfirm")}
+                                  </Text>
+                                  <Text size="1" color="red" align="center">
+                                    {t("ui.deleteConfirmDesc")}
+                                  </Text>
+                                  <Flex gap="2" justify="center">
+                                    <Button
+                                      variant="outline"
+                                      size="1"
+                                      onClick={() => setDeletePopoverOpen(null)}
+                                    >
+                                      {t("ui.cancel")}
+                                    </Button>
+                                    <Button
+                                      variant="solid"
+                                      size="1"
+                                      color="red"
+                                      onClick={() => handleRemove(provider.id)}
+                                      disabled={updating}
+                                    >
+                                      {t("ui.delete")}
+                                    </Button>
+                                  </Flex>
+                                </Flex>
+                              </Popover.Content>
+                            </Popover.Root>
+                          )}
+                        </Flex>
+                      </Flex>
+                      <Text size="1" color="gray" className="text-xs">
+                        {provider.id}
+                      </Text>
+                    </Flex>
+                    <Flex direction="column" gap="1">
+                      <Text size="1" color="gray">
+                        {provider.base_url}
+                      </Text>
+                    </Flex>
+                  </Flex>
+                </Card>
+              );
+            })}
+          </Flex>
+        )}
+      </SettingsGroup>
+
+      {/* Add Provider Dialog */}
+      <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog.Content maxWidth="450px">
+          <Dialog.Title>{t("ui.createCustomProviderTitle")}</Dialog.Title>
+
+          <Flex direction="column" gap="4" mt="4">
+            <Flex direction="column" gap="3">
+              <Flex direction="column" gap="1">
+                <Text size="2" weight="medium">
+                  {t("ui.providerName")}
+                </Text>
+                <TextField.Root
+                  value={addDraft.label}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setAddDraft((draft) => ({
+                      ...draft,
+                      label: event.target.value,
+                    }))
+                  }
+                  placeholder={t("ui.providerNamePlaceholder")}
+                />
+              </Flex>
+              <Flex direction="column" gap="1">
+                <Text size="2" weight="medium">
+                  {t("ui.baseUrl")}
+                </Text>
+                <TextField.Root
+                  value={addDraft.baseUrl}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setAddDraft((draft) => ({
+                      ...draft,
+                      baseUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                />
+              </Flex>
+              <Flex direction="column" gap="1">
+                <Text size="2" weight="medium">
+                  {t("ui.modelsEndpoint")}
+                </Text>
+                <TextField.Root
+                  value={addDraft.modelsEndpoint}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setAddDraft((draft) => ({
+                      ...draft,
+                      modelsEndpoint: event.target.value,
+                    }))
+                  }
+                  placeholder={t("ui.modelsEndpointPlaceholder")}
+                />
+              </Flex>
+            </Flex>
+          </Flex>
+
+          <Flex justify="end" gap="3" mt="6">
+            <Dialog.Close>
+              <Button variant="ghost">{t("ui.cancel")}</Button>
+            </Dialog.Close>
+            <Dialog.Close>
+              <Button
+                variant="solid"
+                disabled={!canAdd || isUpdating("add_custom_provider")}
+                onClick={handleAdd}
+              >
+                {t("ui.create")}
+              </Button>
+            </Dialog.Close>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      {/* Edit Provider Dialog */}
+      <Dialog.Root open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog.Content maxWidth="450px">
+          <Dialog.Title>{t("ui.editProvider")}</Dialog.Title>
+
+          <Flex direction="column" gap="4" mt="4">
+            <Flex direction="column" gap="3">
+              <Flex direction="column" gap="1">
+                <Text size="2" weight="medium">
+                  {t("ui.providerName")}
+                </Text>
+                <TextField.Root
+                  value={editDraft.label}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditDraft((draft) => ({
+                      ...draft,
+                      label: event.target.value,
+                    }))
+                  }
+                  placeholder={t("ui.providerNamePlaceholder")}
+                />
+              </Flex>
+              <Flex direction="column" gap="1">
+                <Flex justify="between" align="center">
+                  <Text size="2" weight="medium">
+                    {t("ui.baseUrl")}
+                  </Text>
+                  {editingId &&
+                    !providers.find((p) => p.id === editingId)
+                      ?.allow_base_url_edit && (
+                      <Button
+                        variant="ghost"
+                        size="1"
+                        onClick={handleResetUrl}
+                        disabled={isUpdating(
+                          `update_custom_provider:${editingId}`,
+                        )}
+                      >
+                        {t("ui.resetUrl")}
+                      </Button>
+                    )}
+                </Flex>
+                <TextField.Root
+                  value={editDraft.baseUrl}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditDraft((draft) => ({
+                      ...draft,
+                      baseUrl: event.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                />
+              </Flex>
+              <Flex direction="column" gap="1">
+                <Text size="2" weight="medium">
+                  {t("ui.modelsEndpoint")}
+                </Text>
+                <TextField.Root
+                  value={editDraft.modelsEndpoint}
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditDraft((draft) => ({
+                      ...draft,
+                      modelsEndpoint: event.target.value,
+                    }))
+                  }
+                  placeholder={t("ui.modelsEndpointPlaceholder")}
+                />
+              </Flex>
+            </Flex>
+          </Flex>
+
+          <Flex justify="end" gap="3" mt="6">
+            <Dialog.Close>
+              <Button variant="ghost">{t("ui.cancel")}</Button>
+            </Dialog.Close>
+            <Dialog.Close>
+              <Button
+                variant="solid"
+                disabled={
+                  !canSaveEdit ||
+                  isUpdating(`update_custom_provider:${editingId}`)
+                }
+                onClick={handleSaveEdit}
+              >
+                {t("ui.save")}
+              </Button>
+            </Dialog.Close>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+    </>
   );
 };
 
