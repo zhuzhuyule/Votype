@@ -19,8 +19,10 @@
 
 .overlay-middle {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
 }
 
 .overlay-right {
@@ -52,7 +54,7 @@
   opacity: 1;
 }
 
-.transcribing-text {
+.status-text {
   color: white;
   font-size: 12px;
   font-family:

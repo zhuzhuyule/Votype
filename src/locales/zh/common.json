@@ -985,6 +985,13 @@
     "title": "覆盖层位置",
     "top": "顶部"
   },
+  "overlay": {
+    "status": {
+      "recording": "录音中…",
+      "transcribing": "转写中…",
+      "llm": "调用 LLM 中…"
+    }
+  },
   "pasteMethod": {
     "ctrlV": "剪贴板 (Ctrl+V)",
     "description": "剪贴板 (Ctrl+V) 模拟 Ctrl/Cmd+V 快捷键来从剪贴板粘贴。直接粘贴尝试使用系统输入方法，如果不可用则逐个输入按键到文本字段。剪贴板 (Shift+Insert) 使用更通用的 Shift+Insert 快捷键，适合终端应用程序和 SSH 客户端。",

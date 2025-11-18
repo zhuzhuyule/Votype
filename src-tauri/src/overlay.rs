@@ -2,7 +2,7 @@ use crate::settings;
 use crate::settings::OverlayPosition;
 use enigo::{Enigo, Mouse};
 use log::debug;
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewWindowBuilder};
 
 const OVERLAY_WIDTH: f64 = 260.0;
 const OVERLAY_HEIGHT: f64 = 64.0;
@@ -44,27 +44,6 @@ fn get_monitor_with_cursor(app_handle: &AppHandle) -> Option<(tauri::Monitor, (f
     }
 
     None
-}
-
-fn is_mouse_within_monitor(
-    mouse_pos: (i32, i32),
-    monitor_pos: &PhysicalPosition<i32>,
-    monitor_size: &PhysicalSize<u32>,
-) -> bool {
-    let (mouse_x, mouse_y) = mouse_pos;
-    let PhysicalPosition {
-        x: monitor_x,
-        y: monitor_y,
-    } = *monitor_pos;
-    let PhysicalSize {
-        width: monitor_width,
-        height: monitor_height,
-    } = *monitor_size;
-
-    mouse_x >= monitor_x
-        && mouse_x < (monitor_x + monitor_width as i32)
-        && mouse_y >= monitor_y
-        && mouse_y < (monitor_y + monitor_height as i32)
 }
 
 fn calculate_overlay_position(app_handle: &AppHandle) -> Option<(f64, f64)> {
@@ -191,6 +170,21 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
         let _ = overlay_window.show();
         // Emit event to switch to transcribing state
         let _ = overlay_window.emit("show-overlay", "transcribing");
+    }
+}
+
+/// Shows the LLM processing overlay window
+pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return;
+    }
+
+    update_overlay_position(app_handle);
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.show();
+        let _ = overlay_window.emit("show-overlay", "llm");
     }
 }
 
