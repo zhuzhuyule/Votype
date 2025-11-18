@@ -93,6 +93,14 @@ fn show_main_window(app: &AppHandle) {
             Ok(_) => log::info!("Successfully created new main window"),
             Err(e) => log::error!("Failed to create main window: {}", e),
         }
+
+        // After creating the window, attempt to bring it to front
+        if let Some(main_window) = app.get_webview_window("main") {
+            let _ = main_window.show();
+            if let Err(e) = main_window.set_focus() {
+                log::error!("Failed to focus newly created main window: {}", e);
+            }
+        }
     }
 
     // On macOS, ensure the app becomes active
