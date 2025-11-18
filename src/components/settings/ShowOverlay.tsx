@@ -15,6 +15,7 @@ const getOverlayOptions = (t: any) => [
   { value: "none", label: t("overlayPosition.none") },
   { value: "bottom", label: t("overlayPosition.bottom") },
   { value: "top", label: t("overlayPosition.top") },
+  { value: "follow", label: t("overlayPosition.follow") },
 ];
 
 export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(

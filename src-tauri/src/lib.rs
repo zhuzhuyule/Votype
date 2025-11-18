@@ -1,4 +1,5 @@
 mod actions;
+mod active_window;
 mod audio_feedback;
 pub mod audio_toolkit;
 mod clipboard;
@@ -93,7 +94,7 @@ fn show_main_window(app: &AppHandle) {
             Err(e) => log::error!("Failed to create main window: {}", e),
         }
     }
-    
+
     // On macOS, ensure the app becomes active
     #[cfg(target_os = "macos")]
     {
@@ -105,20 +106,17 @@ fn show_main_window(app: &AppHandle) {
 
 fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::WebviewUrl;
-    
-    let _window = tauri::WebviewWindowBuilder::new(
-        app,
-        "main",
-        WebviewUrl::App("/index.html".into())
-    )
-    .title("Handy")
-    .inner_size(1200.0, 800.0)
-    .min_inner_size(680.0, 570.0)
-    .resizable(true)
-    .maximizable(false)
-    .visible(true)
-    .build()?;
-    
+
+    let _window =
+        tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/index.html".into()))
+            .title("Handy")
+            .inner_size(1200.0, 800.0)
+            .min_inner_size(680.0, 570.0)
+            .resizable(true)
+            .maximizable(false)
+            .visible(true)
+            .build()?;
+
     Ok(())
 }
 
@@ -359,6 +357,8 @@ pub fn run() {
             commands::open_recordings_folder,
             commands::open_log_dir,
             commands::open_app_data_dir,
+            commands::get_active_window_info,
+            commands::get_cursor_position,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,

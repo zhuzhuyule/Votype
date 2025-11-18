@@ -985,6 +985,7 @@
   "overlayPosition": {
     "bottom": "Bottom",
     "description": "Display visual feedback overlay during recording and transcription",
+    "follow": "Follow Cursor",
     "none": "None",
     "title": "Overlay Position",
     "top": "Top"
