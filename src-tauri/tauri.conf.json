@@ -11,19 +11,7 @@
   },
   "app": {
     "macOSPrivateApi": true,
-    "windows": [
-      {
-        "label": "main",
-        "title": "Handy",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 680,
-        "minHeight": 570,
-        "resizable": true,
-        "maximizable": false,
-        "visible": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null,
       "assetProtocol": {
