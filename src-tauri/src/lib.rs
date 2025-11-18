@@ -76,25 +76,50 @@ struct ShortcutToggleStates {
 type ManagedToggleState = Mutex<ShortcutToggleStates>;
 
 fn show_main_window(app: &AppHandle) {
+    // Check if the main window exists
     if let Some(main_window) = app.get_webview_window("main") {
-        // First, ensure the window is visible
+        // Window exists, just show and focus it
         if let Err(e) = main_window.show() {
             log::error!("Failed to show window: {}", e);
         }
-        // Then, bring it to the front and give it focus
         if let Err(e) = main_window.set_focus() {
             log::error!("Failed to focus window: {}", e);
         }
-        // Optional: On macOS, ensure the app becomes active if it was an accessory
-        #[cfg(target_os = "macos")]
-        {
-            if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
-                log::error!("Failed to set activation policy to Regular: {}", e);
-            }
-        }
     } else {
-        log::error!("Main window not found.");
+        // Window doesn't exist, create a new one
+        log::info!("Main window not found, creating new window");
+        match create_main_window(app) {
+            Ok(_) => log::info!("Successfully created new main window"),
+            Err(e) => log::error!("Failed to create main window: {}", e),
+        }
     }
+    
+    // On macOS, ensure the app becomes active
+    #[cfg(target_os = "macos")]
+    {
+        if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
+            log::error!("Failed to set activation policy to Regular: {}", e);
+        }
+    }
+}
+
+fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri::WebviewUrl;
+    
+    let _window = tauri::WebviewWindowBuilder::new(
+        app,
+        "main",
+        WebviewUrl::App("/index.html".into())
+    )
+    .title("Handy")
+    .inner_size(1200.0, 800.0)
+    .min_inner_size(680.0, 570.0)
+    .resizable(true)
+    .maximizable(false)
+    .visible(true)
+    .build()?;
+    
+    Ok(())
 }
 
 fn initialize_core_logic(app_handle: &AppHandle) {
@@ -261,18 +286,15 @@ pub fn run() {
 
             // Show main window only if not starting hidden
             if !settings.start_hidden {
-                if let Some(main_window) = app_handle.get_webview_window("main") {
-                    main_window.show().unwrap();
-                    main_window.set_focus().unwrap();
-                }
+                show_main_window(&app_handle);
             }
 
             Ok(())
         })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
-                api.prevent_close();
-                let _res = window.hide();
+                // Allow the window to be destroyed instead of hidden
+                // This will free up resources when the main window is closed
                 #[cfg(target_os = "macos")]
                 {
                     let res = window

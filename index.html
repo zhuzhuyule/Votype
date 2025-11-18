@@ -7,7 +7,154 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <style>
+        #app-loader {
+          position: fixed;
+          inset: 0;
+          display: grid;
+          place-items: center;
+          pointer-events: none;
+          z-index: 1000;
+        }
+
+        #app-loader .loader-stage {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+        }
+
+        #app-loader .loader-orbit {
+          width: 96px;
+          height: 96px;
+          border-radius: 50%;
+          border: 1px solid rgba(0, 0, 0, 0.15);
+          background: radial-gradient(
+            circle,
+            rgba(255, 255, 255, 0.08),
+            transparent 60%
+          );
+          position: relative;
+          animation: orbit 3s linear infinite;
+        }
+
+        #app-loader .orbit-dot {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: linear-gradient(120deg, #8dd5ff, #5b7ef0);
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform-origin: -32px 0;
+          animation: bead 1.4s ease-in-out infinite;
+        }
+
+        #app-loader .loader-text {
+          display: flex;
+          gap: 6px;
+          font-size: 1.2rem;
+          font-weight: 600;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        #app-loader .loader-text span {
+          display: inline-flex;
+          position: relative;
+          opacity: 0.6;
+          animation: wave 2s ease-in-out infinite;
+        }
+
+        #app-loader .loader-text span:nth-child(odd) {
+          animation-delay: 0.12s;
+        }
+
+        #app-loader .loader-text span:nth-child(even) {
+          animation-delay: 0.28s;
+        }
+
+        #app-loader .loader-smoke {
+          width: 120px;
+          height: 4px;
+          border-radius: 999px;
+          background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.5),
+            transparent
+          );
+          animation: drift 2.1s linear infinite;
+        }
+
+        @keyframes orbit {
+          0% {
+            transform: rotate(0turn);
+          }
+          100% {
+            transform: rotate(1turn);
+          }
+        }
+
+        @keyframes bead {
+          0% {
+            transform: translate(-32px, -50%) scale(0.7);
+            opacity: 0.4;
+          }
+          50% {
+            transform: translate(-32px, -50%) scale(1);
+            opacity: 1;
+          }
+          100% {
+            transform: translate(-32px, -50%) scale(0.7);
+            opacity: 0.4;
+          }
+        }
+
+        @keyframes wave {
+          0%,
+          100% {
+            transform: translateY(0);
+            opacity: 0.55;
+          }
+          50% {
+            transform: translateY(-4px);
+            opacity: 1;
+          }
+        }
+
+        @keyframes drift {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      </style>
+      <div id="app-loader">
+        <div class="loader-stage">
+          <div class="loader-orbit">
+            <div class="orbit-dot"></div>
+          </div>
+          <div class="loader-text">
+            <span>H</span>
+            <span>E</span>
+            <span>L</span>
+            <span>L</span>
+            <span>O</span>
+            <span style="margin-left: 20px">H</span>
+            <span>A</span>
+            <span>N</span>
+            <span>D</span>
+            <span>Y</span>
+          </div>
+          <div class="loader-smoke"></div>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
