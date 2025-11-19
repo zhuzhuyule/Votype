@@ -3,7 +3,7 @@ pub mod history;
 pub mod models;
 pub mod transcription;
 
-use crate::{settings, utils::cancel_current_operation};
+use crate::{active_window, settings, utils::cancel_current_operation};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
 use tauri_plugin_opener::OpenerExt;
@@ -94,4 +94,14 @@ pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
         .map_err(|e| format!("Failed to open app data directory: {}", e))?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn get_active_window_info() -> Result<active_window::ActiveWindowInfo, String> {
+    active_window::fetch_active_window()
+}
+
+#[tauri::command]
+pub fn get_cursor_position() -> Result<active_window::CursorPosition, String> {
+    active_window::fetch_cursor_position()
 }

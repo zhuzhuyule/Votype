@@ -58,6 +58,8 @@ pub enum OverlayPosition {
     None,
     Top,
     Bottom,
+    #[serde(rename = "follow")]
+    FollowCursor,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]

@@ -19,7 +19,12 @@ export const AudioDeviceSchema = z.object({
   is_default: z.boolean(),
 });
 
-export const OverlayPositionSchema = z.enum(["none", "top", "bottom"]);
+export const OverlayPositionSchema = z.enum([
+  "none",
+  "top",
+  "bottom",
+  "follow",
+]);
 export type OverlayPosition = z.infer<typeof OverlayPositionSchema>;
 
 export const ModelUnloadTimeoutSchema = z.enum([

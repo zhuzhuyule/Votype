@@ -980,6 +980,7 @@
   "overlayPosition": {
     "bottom": "底部",
     "description": "在录制和转录期间显示视觉反馈覆盖层",
+    "follow": "跟随鼠标",
     "none": "无",
     "title": "覆盖层位置",
     "top": "顶部"

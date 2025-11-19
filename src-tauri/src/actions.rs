@@ -1,3 +1,4 @@
+use crate::active_window;
 use crate::audio_feedback::{play_feedback_sound, SoundType};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
@@ -35,22 +36,39 @@ async fn maybe_post_process_transcription(
     info!("Post-processing enabled: {}", settings.post_process_enabled);
     info!("Input transcription length: {} chars", transcription.len());
     // Safe character boundary slicing for preview
-    let transcription_preview_end = transcription.char_indices().nth(50).map(|(i, _)| i).unwrap_or(transcription.len());
-    info!("Input transcription preview: '{}...'", &transcription[..transcription_preview_end]);
-    
+    let transcription_preview_end = transcription
+        .char_indices()
+        .nth(50)
+        .map(|(i, _)| i)
+        .unwrap_or(transcription.len());
+    info!(
+        "Input transcription preview: '{}...'",
+        &transcription[..transcription_preview_end]
+    );
+
     if !settings.post_process_enabled {
         info!("Post-processing DISABLED - returning early");
         return None;
     }
 
-    info!("Active provider ID: {:?}", settings.post_process_provider_id);
-    info!("Available providers: {:?}", settings.post_process_providers.iter().map(|p| &p.id).collect::<Vec<_>>());
-    
+    info!(
+        "Active provider ID: {:?}",
+        settings.post_process_provider_id
+    );
+    info!(
+        "Available providers: {:?}",
+        settings
+            .post_process_providers
+            .iter()
+            .map(|p| &p.id)
+            .collect::<Vec<_>>()
+    );
+
     let provider = match settings.active_post_process_provider().cloned() {
         Some(provider) => {
             info!("Selected provider: {} ({})", provider.label, provider.id);
             provider
-        },
+        }
         None => {
             info!("Post-processing enabled but no provider is selected");
             return None;
@@ -58,24 +76,37 @@ async fn maybe_post_process_transcription(
     };
 
     info!("All configured models: {:?}", settings.post_process_models);
-    info!("Selected prompt model ID: {:?}", settings.selected_prompt_model_id);
-    info!("Cached models: {:?}", settings.cached_models.iter().map(|m| (&m.id, &m.model_id, &m.provider_id)).collect::<Vec<_>>());
-    
+    info!(
+        "Selected prompt model ID: {:?}",
+        settings.selected_prompt_model_id
+    );
+    info!(
+        "Cached models: {:?}",
+        settings
+            .cached_models
+            .iter()
+            .map(|m| (&m.id, &m.model_id, &m.provider_id))
+            .collect::<Vec<_>>()
+    );
+
     // Use selected_prompt_model_id from cache instead of post_process_models
     let model = if let Some(selected_model_id) = &settings.selected_prompt_model_id {
-        settings.cached_models
+        settings
+            .cached_models
             .iter()
             .find(|m| m.id == *selected_model_id && m.provider_id == provider.id)
             .map(|m| m.model_id.clone())
     } else {
         None
-    }.or_else(|| {
+    }
+    .or_else(|| {
         // Fallback to post_process_models if no cached model selected
         settings.post_process_models.get(&provider.id).cloned()
-    }).unwrap_or_default();
+    })
+    .unwrap_or_default();
 
     info!("Model for provider '{}': '{}'", provider.id, model);
-    
+
     if model.trim().is_empty() {
         info!(
             "Post-processing skipped because provider '{}' has no model configured",
@@ -88,15 +119,22 @@ async fn maybe_post_process_transcription(
         Some(id) => {
             info!("Selected prompt ID: {}", id);
             id.clone()
-        },
+        }
         None => {
             info!("Post-processing skipped because no prompt is selected");
             return None;
         }
     };
 
-    info!("Available prompts: {:?}", settings.post_process_prompts.iter().map(|p| (&p.id, &p.name)).collect::<Vec<_>>());
-    
+    info!(
+        "Available prompts: {:?}",
+        settings
+            .post_process_prompts
+            .iter()
+            .map(|p| (&p.id, &p.name))
+            .collect::<Vec<_>>()
+    );
+
     let prompt = match settings
         .post_process_prompts
         .iter()
@@ -105,10 +143,18 @@ async fn maybe_post_process_transcription(
         Some(prompt) => {
             info!("Found prompt: '{}' (ID: {})", prompt.name, prompt.id);
             // Safe character boundary slicing for preview
-            let preview_end = prompt.prompt.char_indices().nth(100).map(|(i, _)| i).unwrap_or(prompt.prompt.len());
-            info!("Prompt content preview: '{}...'", &prompt.prompt[..preview_end]);
+            let preview_end = prompt
+                .prompt
+                .char_indices()
+                .nth(100)
+                .map(|(i, _)| i)
+                .unwrap_or(prompt.prompt.len());
+            info!(
+                "Prompt content preview: '{}...'",
+                &prompt.prompt[..preview_end]
+            );
             prompt.prompt.clone()
-        },
+        }
         None => {
             info!(
                 "Post-processing skipped because prompt '{}' was not found",
@@ -129,9 +175,13 @@ async fn maybe_post_process_transcription(
         .cloned()
         .unwrap_or_default();
 
-    info!("API key configured for provider '{}': {}", provider.id, !api_key.trim().is_empty());
+    info!(
+        "API key configured for provider '{}': {}",
+        provider.id,
+        !api_key.trim().is_empty()
+    );
     info!("Provider base URL: {}", provider.base_url);
-    
+
     info!(
         "Starting LLM post-processing with provider '{}' (model: {})",
         provider.id, model
@@ -141,8 +191,15 @@ async fn maybe_post_process_transcription(
     let processed_prompt = prompt.replace("${output}", transcription);
     info!("Processed prompt length: {} chars", processed_prompt.len());
     // Safe character boundary slicing for preview
-    let processed_prompt_preview_end = processed_prompt.char_indices().nth(200).map(|(i, _)| i).unwrap_or(processed_prompt.len());
-    info!("Processed prompt preview: '{}...'", &processed_prompt[..processed_prompt_preview_end]);
+    let processed_prompt_preview_end = processed_prompt
+        .char_indices()
+        .nth(200)
+        .map(|(i, _)| i)
+        .unwrap_or(processed_prompt.len());
+    info!(
+        "Processed prompt preview: '{}...'",
+        &processed_prompt[..processed_prompt_preview_end]
+    );
 
     // Create OpenAI-compatible client
     info!("Creating LLM client for provider: {}", provider.id);
@@ -150,7 +207,7 @@ async fn maybe_post_process_transcription(
         Ok(client) => {
             info!("LLM client created successfully");
             client
-        },
+        }
         Err(e) => {
             error!("Failed to create LLM client: {}", e);
             return None;
@@ -197,7 +254,11 @@ async fn maybe_post_process_transcription(
                         content.len()
                     );
                     // Safe character boundary slicing for preview
-                    let content_preview_end = content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len());
+                    let content_preview_end = content
+                        .char_indices()
+                        .nth(100)
+                        .map(|(i, _)| i)
+                        .unwrap_or(content.len());
                     info!("Output preview: '{}...'", &content[..content_preview_end]);
                     info!("=== POST-PROCESSING DEBUG END ===");
                     Some(content.clone())
@@ -215,56 +276,85 @@ async fn maybe_post_process_transcription(
         Err(e) => {
             // Check if this is a deserialization error due to missing OpenAI standard fields
             let error_str = e.to_string();
-            if (error_str.contains("missing field") || error_str.contains("unknown variant")) && provider.id.starts_with("custom") {
-                info!("Detected custom provider response format issue, attempting manual parsing...");
-                
+            if (error_str.contains("missing field") || error_str.contains("unknown variant"))
+                && provider.id.starts_with("custom")
+            {
+                info!(
+                    "Detected custom provider response format issue, attempting manual parsing..."
+                );
+
                 // First, try to extract the full JSON content from the error message
                 if let Some(json_start) = error_str.find("content:{") {
                     if let Some(json_end) = error_str[json_start..].find("}") {
                         let json_content = &error_str[json_start..json_start + json_end + 1];
                         info!("Found JSON content in error: {}", json_content);
-                        
+
                         // Parse the content field from this JSON snippet
                         if let Some(content_field_start) = json_content.find("\"content\":\"") {
-                            if let Some(content_field_end) = json_content[content_field_start + 11..].find("\"") {
-                                let raw_content = &json_content[content_field_start + 11..content_field_start + 11 + content_field_end];
+                            if let Some(content_field_end) =
+                                json_content[content_field_start + 11..].find("\"")
+                            {
+                                let raw_content = &json_content[content_field_start + 11
+                                    ..content_field_start + 11 + content_field_end];
                                 info!("Raw content extracted: {}", raw_content);
-                                
+
                                 // Process the content to handle escaped characters and ...</think> tags
                                 let mut processed_content = raw_content.to_string();
-                                
+
                                 // Handle escaped characters
                                 processed_content = processed_content.replace("\\\"", "\"");
                                 processed_content = processed_content.replace("\\n", "\n");
                                 processed_content = processed_content.replace("\\\\", "\\");
-                                
+
                                 // Remove ...</think> sections if present
                                 while let Some(think_start) = processed_content.find("") {
-                                    if let Some(think_end) = processed_content[think_start..].find("</think>") {
-                                        processed_content.replace_range(think_start..think_start + think_end + 7, "");
+                                    if let Some(think_end) =
+                                        processed_content[think_start..].find("</think>")
+                                    {
+                                        processed_content.replace_range(
+                                            think_start..think_start + think_end + 7,
+                                            "",
+                                        );
                                     } else {
                                         break;
                                     }
                                 }
-                                
+
                                 // Also handle escaped versions of the tags
-                                while let Some(think_start) = processed_content.find("\\u003cthink\\u003e") {
-                                    if let Some(think_end) = processed_content[think_start..].find("\\u003c/think\\u003e") {
-                                        processed_content.replace_range(think_start..think_start + think_end + 20, "");
+                                while let Some(think_start) =
+                                    processed_content.find("\\u003cthink\\u003e")
+                                {
+                                    if let Some(think_end) = processed_content[think_start..]
+                                        .find("\\u003c/think\\u003e")
+                                    {
+                                        processed_content.replace_range(
+                                            think_start..think_start + think_end + 20,
+                                            "",
+                                        );
                                     } else {
                                         break;
                                     }
                                 }
-                                
+
                                 // Trim whitespace
                                 processed_content = processed_content.trim().to_string();
-                                
+
                                 if !processed_content.is_empty() {
                                     info!("Successfully extracted and processed content from custom provider response");
-                                    info!("Final content length: {} chars", processed_content.len());
+                                    info!(
+                                        "Final content length: {} chars",
+                                        processed_content.len()
+                                    );
                                     // Safe character boundary slicing for preview
-                                let final_preview_end = processed_content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(processed_content.len());
-                                info!("Final content preview: '{}...'", &processed_content[..final_preview_end]);
+                                    let final_preview_end = processed_content
+                                        .char_indices()
+                                        .nth(100)
+                                        .map(|(i, _)| i)
+                                        .unwrap_or(processed_content.len());
+                                    info!(
+                                        "Final content preview: '{}...'",
+                                        &processed_content[..final_preview_end]
+                                    );
                                     info!("=== POST-PROCESSING DEBUG END ===");
                                     return Some(processed_content);
                                 }
@@ -272,44 +362,69 @@ async fn maybe_post_process_transcription(
                         }
                     }
                 }
-                
+
                 // Fallback: Try to extract the response content directly from the error
                 if let Some(content_start) = error_str.find("\"content\":\"") {
                     if let Some(content_end) = error_str[content_start + 11..].find("\",\"role\"") {
-                        let content = &error_str[content_start + 11..content_start + 11 + content_end];
+                        let content =
+                            &error_str[content_start + 11..content_start + 11 + content_end];
                         info!("Successfully extracted content from custom provider response");
                         info!("Extracted content length: {} chars", content.len());
                         // Safe character boundary slicing for preview
-                        let extracted_preview_end = content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(content.len());
-                        info!("Extracted content preview: '{}...'", &content[..extracted_preview_end]);
+                        let extracted_preview_end = content
+                            .char_indices()
+                            .nth(100)
+                            .map(|(i, _)| i)
+                            .unwrap_or(content.len());
+                        info!(
+                            "Extracted content preview: '{}...'",
+                            &content[..extracted_preview_end]
+                        );
                         info!("=== POST-PROCESSING DEBUG END ===");
                         return Some(content.to_string());
                     }
                 }
-                
+
                 // Also check for service_tier specific errors and try to extract content differently
                 if error_str.contains("service_tier") && error_str.contains("on_demand") {
                     info!("Detected service_tier 'on_demand' variant issue, attempting alternative parsing...");
-                    
+
                     // Look for content in a different pattern for service_tier errors
                     if let Some(content_start) = error_str.find("\\\"content\\\":\\\"") {
                         if let Some(content_end) = error_str[content_start + 12..].find("\\\"") {
-                            let content = &error_str[content_start + 12..content_start + 12 + content_end];
+                            let content =
+                                &error_str[content_start + 12..content_start + 12 + content_end];
                             // Unescape the JSON string
-                            let unescaped_content = content.replace("\\\"", "\"").replace("\\\\", "\\");
-                            info!("Successfully extracted content from service_tier error response");
-                            info!("Extracted content length: {} chars", unescaped_content.len());
+                            let unescaped_content =
+                                content.replace("\\\"", "\"").replace("\\\\", "\\");
+                            info!(
+                                "Successfully extracted content from service_tier error response"
+                            );
+                            info!(
+                                "Extracted content length: {} chars",
+                                unescaped_content.len()
+                            );
                             // Safe character boundary slicing for preview
-                            let unescaped_preview_end = unescaped_content.char_indices().nth(100).map(|(i, _)| i).unwrap_or(unescaped_content.len());
-                            info!("Extracted content preview: '{}...'", &unescaped_content[..unescaped_preview_end]);
+                            let unescaped_preview_end = unescaped_content
+                                .char_indices()
+                                .nth(100)
+                                .map(|(i, _)| i)
+                                .unwrap_or(unescaped_content.len());
+                            info!(
+                                "Extracted content preview: '{}...'",
+                                &unescaped_content[..unescaped_preview_end]
+                            );
                             info!("=== POST-PROCESSING DEBUG END ===");
                             return Some(unescaped_content);
                         }
                     }
                 }
             }
-            
-            error!("LLM post-processing failed for provider '{}': {}", provider.id, e);
+
+            error!(
+                "LLM post-processing failed for provider '{}': {}",
+                provider.id, e
+            );
             info!("=== POST-PROCESSING DEBUG END ===");
             None
         }
@@ -430,6 +545,13 @@ impl ShortcutAction for TranscribeAction {
                             transcription
                         );
                         if !transcription.is_empty() {
+                            let active_window_snapshot = active_window::fetch_active_window().ok();
+                            if let Some(info) = &active_window_snapshot {
+                                debug!(
+                                    "Active window: app='{}' title='{}' pid={} window_id={}",
+                                    info.app_name, info.title, info.process_id, info.window_id
+                                );
+                            }
                             let settings = get_settings(&ah);
                             let mut final_text = transcription.clone();
                             let mut post_processed_text: Option<String> = None;

@@ -21,7 +21,10 @@ pub struct OnlineAsrClient {
 
 impl OnlineAsrClient {
     pub fn new(sample_rate: u32, timeout: Duration) -> Self {
-        Self { sample_rate, timeout }
+        Self {
+            sample_rate,
+            timeout,
+        }
     }
 
     pub fn transcribe(
@@ -99,11 +102,10 @@ fn encode_wav(samples: &[f32], sample_rate: u32) -> Result<Vec<u8>> {
 
     let mut cursor = Cursor::new(Vec::new());
     {
-        let mut writer = hound::WavWriter::new(&mut cursor, spec)
-            .context("failed to create WAV writer")?;
+        let mut writer =
+            hound::WavWriter::new(&mut cursor, spec).context("failed to create WAV writer")?;
         for &sample in samples.iter() {
-            let clamped = (sample * i16::MAX as f32)
-                .clamp(i16::MIN as f32, i16::MAX as f32);
+            let clamped = (sample * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32);
             writer
                 .write_sample(clamped as i16)
                 .context("failed to write sample")?;
