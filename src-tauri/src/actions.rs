@@ -3,7 +3,9 @@ use crate::audio_feedback::{play_feedback_sound, SoundType};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::overlay::{show_recording_overlay, show_transcribing_overlay};
+use crate::overlay::{
+    show_llm_processing_overlay, show_recording_overlay, show_transcribing_overlay,
+};
 use crate::settings::{get_settings, AppSettings};
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils;
@@ -29,6 +31,7 @@ pub trait ShortcutAction: Send + Sync {
 struct TranscribeAction;
 
 async fn maybe_post_process_transcription(
+    app_handle: &AppHandle,
     settings: &AppSettings,
     transcription: &str,
 ) -> Option<String> {
@@ -186,6 +189,8 @@ async fn maybe_post_process_transcription(
         "Starting LLM post-processing with provider '{}' (model: {})",
         provider.id, model
     );
+
+    show_llm_processing_overlay(app_handle);
 
     // Replace ${output} variable in the prompt with the actual text
     let processed_prompt = prompt.replace("${output}", transcription);
@@ -558,7 +563,8 @@ impl ShortcutAction for TranscribeAction {
                             let mut post_process_prompt: Option<String> = None;
 
                             if let Some(processed_text) =
-                                maybe_post_process_transcription(&settings, &transcription).await
+                                maybe_post_process_transcription(&ah, &settings, &transcription)
+                                    .await
                             {
                                 final_text = processed_text.clone();
                                 post_processed_text = Some(processed_text);

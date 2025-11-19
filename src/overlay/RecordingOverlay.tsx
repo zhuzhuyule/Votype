@@ -1,16 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
+  CancelIcon,
   MicrophoneIcon,
   TranscriptionIcon,
-  CancelIcon,
 } from "../components/icons";
 import "./RecordingOverlay.css";
 
-type OverlayState = "recording" | "transcribing";
+type OverlayState = "recording" | "transcribing" | "llm";
 
 const RecordingOverlay: React.FC = () => {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
   const [state, setState] = useState<OverlayState>("recording");
   const [levels, setLevels] = useState<number[]>(Array(16).fill(0));
@@ -63,28 +65,36 @@ const RecordingOverlay: React.FC = () => {
     }
   };
 
+  const statusTextMap: Record<OverlayState, string> = {
+    recording: t("overlay.status.recording"),
+    transcribing: t("overlay.status.transcribing"),
+    llm: t("overlay.status.llm"),
+  };
+
   return (
     <div className={`recording-overlay ${isVisible ? "fade-in" : ""}`}>
       <div className="overlay-left">{getIcon()}</div>
 
       <div className="overlay-middle">
         {state === "recording" && (
-          <div className="bars-container">
-            {levels.map((v, i) => (
-              <div
-                key={i}
-                className="bar"
-                style={{
-                  height: `${Math.min(20, 4 + Math.pow(v, 0.7) * 16)}px`, // Cap at 20px max height
-                  transition: "height 60ms ease-out, opacity 120ms ease-out",
-                  opacity: Math.max(0.2, v * 1.7), // Minimum opacity for visibility
-                }}
-              />
-            ))}
-          </div>
+          <>
+            <div className="bars-container">
+              {levels.map((v, i) => (
+                <div
+                  key={i}
+                  className="bar"
+                  style={{
+                    height: `${Math.min(20, 4 + Math.pow(v, 0.7) * 16)}px`,
+                    transition: "height 60ms ease-out, opacity 120ms ease-out",
+                    opacity: Math.max(0.2, v * 1.7),
+                  }}
+                />
+              ))}
+            </div>
+          </>
         )}
-        {state === "transcribing" && (
-          <div className="transcribing-text">Transcribing...</div>
+        {state !== "recording" && (
+          <div className="status-text">{statusTextMap[state]}</div>
         )}
       </div>
 
