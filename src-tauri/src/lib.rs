@@ -298,7 +298,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
+            tauri::WindowEvent::CloseRequested { .. } => {
                 // Allow the window to be destroyed instead of hidden
                 // This will free up resources when the main window is closed
                 #[cfg(target_os = "macos")]
