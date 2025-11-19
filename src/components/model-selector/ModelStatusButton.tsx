@@ -1,6 +1,7 @@
+import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { Badge, Box, Button, Text } from "@radix-ui/themes";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "@radix-ui/themes";
 
 type ModelStatus =
   | "ready"
@@ -61,34 +62,25 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
     <Button
       onClick={onClick}
       variant="ghost"
+        color={isOnlineModel ? "blue" : "gray"}
       size="1"
-      className={`flex items-center gap-2 hover:text-text/80 transition-colors ${className}`}
+      className={`flex items-center gap-2 ${className}`}
       title={t("modelStatusButton.modelStatus", { status: displayText })}
     >
-      {modeLabel && (
-        <span
-          className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full transition ${
-            modeLabelColor ?? "text-mid-gray/60 border border-mid-gray/30"
-          }`}
-        >
-          {modeLabel}
-        </span>
-      )}
-      <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
-      <span>{displayText}</span>
-      <svg
-        className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
+      <Box className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
+      <Text weight="medium">{displayText}</Text>
+      <Badge
+        size="1"
+        variant="soft"
+        radius="full"
       >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M19 9l-7 7-7-7"
-        />
-      </svg>
+        {isOnlineModel ? "Online" : "Local"}
+      </Badge>
+      <ChevronDownIcon
+        className={`w-3 h-3 transition-transform ${
+          isDropdownOpen ? "rotate-180" : ""
+        }`}
+      />
     </Button>
   );
 };
