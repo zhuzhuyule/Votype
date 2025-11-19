@@ -907,6 +907,7 @@
     "clickToEnable": "点击启用在线 ASR",
     "delete": "删除 {{name}}",
     "download": "下载",
+    "downloadableModels": "可下载模型",
     "downloadModels": "下载模型",
     "downloadSize": "下载大小",
     "getStarted": "下载下方模型开始转录。",

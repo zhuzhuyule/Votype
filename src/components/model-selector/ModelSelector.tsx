@@ -1,12 +1,12 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
-import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { ModelInfo } from "../../lib/types";
-import ModelStatusButton from "./ModelStatusButton";
-import ModelDropdown from "./ModelDropdown";
-import DownloadProgressDisplay from "./DownloadProgressDisplay";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
+import { ModelInfo } from "../../lib/types";
+import DownloadProgressDisplay from "./DownloadProgressDisplay";
+import ModelDropdown from "./ModelDropdown";
+import ModelStatusButton from "./ModelStatusButton";
 
 interface ModelStateEvent {
   event_type: string;
@@ -366,16 +366,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     const onlineActive =
       settings?.online_asr_enabled && selectedAsrModel !== null;
     const onlineLabel = onlineActive
-      ? `${selectedAsrModel?.name ?? t("modelSelector.onlineAsr")} ${
-          selectedAsrModel
-            ? `(${providerNameMap[selectedAsrModel.provider_id] ?? selectedAsrModel.provider_id})`
-            : ""
-        }`
+      ? selectedAsrModel?.name || t("modelSelector.onlineAsr")
       : null;
     const currentModel = getCurrentModel();
 
     if (onlineActive) {
-      return t("modelSelector.onlineAsr");
+      return onlineLabel || t("modelSelector.onlineAsr");
     }
 
     switch (modelStatus) {
