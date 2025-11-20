@@ -1,7 +1,7 @@
 use crate::settings;
 use crate::settings::OverlayPosition;
 use enigo::{Enigo, Mouse};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 #[cfg(not(target_os = "macos"))]
 use log::debug;
@@ -24,6 +24,8 @@ tauri_panel! {
         }
     })
 }
+
+
 
 const OVERLAY_WIDTH: f64 = 260.0;
 const OVERLAY_HEIGHT: f64 = 64.0;
