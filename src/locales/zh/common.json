@@ -835,14 +835,26 @@
     "title": "历史记录限制"
   },
   "historySettings": {
-    "copyTitle": "将转录内容复制到剪贴板",
-    "deleteError": "删除记录失败。请重试。",
-    "deleteTitle": "删除记录",
-    "empty": "还没有转录记录。开始录制来建立您的历史记录！",
-    "loading": "正在加载历史记录...",
-    "removeFromSaved": "从已保存中移除",
-    "saveTitle": "保存转录",
-    "title": "历史记录"
+    "copyTitle": "复制文本",
+    "deleteError": "删除失败",
+    "deleteTitle": "删除",
+    "empty": "暂无历史记录",
+    "loading": "加载历史记录...",
+    "openFolder": "打开录音文件夹",
+    "removeFromSaved": "取消收藏",
+    "saveTitle": "收藏",
+    "title": "历史记录",
+    "timeline": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "thisWeek": "本周",
+      "earlier": "更早"
+    },
+    "content": {
+      "original": "原文",
+      "improved": "改进后"
+    },
+    "searchPlaceholder": "搜索历史记录..."
   },
   "microphone": {
     "default": "默认",

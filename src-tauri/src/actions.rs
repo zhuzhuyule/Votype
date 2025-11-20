@@ -591,6 +591,7 @@ impl ShortcutAction for TranscribeAction {
                                         transcription_for_history,
                                         post_processed_text,
                                         post_process_prompt,
+                                        None, // duration_ms - TODO: calculate from samples
                                     )
                                     .await
                                 {

@@ -813,14 +813,26 @@
     "title": "History Limit"
   },
   "historySettings": {
-    "copyTitle": "Copy transcription to clipboard",
-    "deleteError": "Failed to delete entry. Please try again.",
-    "deleteTitle": "Delete entry",
-    "empty": "No transcriptions yet. Start recording to build your history!",
+    "copyTitle": "Copy text",
+    "deleteError": "Failed to delete entry",
+    "deleteTitle": "Delete",
+    "empty": "No history entries found",
     "loading": "Loading history...",
+    "openFolder": "Open Recordings Folder",
     "removeFromSaved": "Remove from saved",
-    "saveTitle": "Save transcription",
-    "title": "History"
+    "saveTitle": "Save",
+    "title": "History",
+    "timeline": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This Week",
+      "earlier": "Earlier"
+    },
+    "content": {
+      "original": "Original",
+      "improved": "Improved"
+    },
+    "searchPlaceholder": "Search history..."
   },
   "logDirectory": {
     "description": "Location on disk where Handy writes rotated log files",
