@@ -35,30 +35,30 @@ async fn maybe_post_process_transcription(
     settings: &AppSettings,
     transcription: &str,
 ) -> Option<String> {
-    info!("=== POST-PROCESSING DEBUG START ===");
-    info!("Post-processing enabled: {}", settings.post_process_enabled);
-    info!("Input transcription length: {} chars", transcription.len());
+    debug!("=== POST-PROCESSING DEBUG START ===");
+    debug!("Post-processing enabled: {}", settings.post_process_enabled);
+    debug!("Input transcription length: {} chars", transcription.len());
     // Safe character boundary slicing for preview
     let transcription_preview_end = transcription
         .char_indices()
         .nth(50)
         .map(|(i, _)| i)
         .unwrap_or(transcription.len());
-    info!(
+    debug!(
         "Input transcription preview: '{}...'",
         &transcription[..transcription_preview_end]
     );
 
     if !settings.post_process_enabled {
-        info!("Post-processing DISABLED - returning early");
+        debug!("Post-processing DISABLED - returning early");
         return None;
     }
 
-    info!(
+    debug!(
         "Active provider ID: {:?}",
         settings.post_process_provider_id
     );
-    info!(
+    debug!(
         "Available providers: {:?}",
         settings
             .post_process_providers
@@ -69,7 +69,7 @@ async fn maybe_post_process_transcription(
 
     let provider = match settings.active_post_process_provider().cloned() {
         Some(provider) => {
-            info!("Selected provider: {} ({})", provider.label, provider.id);
+            debug!("Selected provider: {} ({})", provider.label, provider.id);
             provider
         }
         None => {
@@ -78,49 +78,9 @@ async fn maybe_post_process_transcription(
         }
     };
 
-    info!("All configured models: {:?}", settings.post_process_models);
-    info!(
-        "Selected prompt model ID: {:?}",
-        settings.selected_prompt_model_id
-    );
-    info!(
-        "Cached models: {:?}",
-        settings
-            .cached_models
-            .iter()
-            .map(|m| (&m.id, &m.model_id, &m.provider_id))
-            .collect::<Vec<_>>()
-    );
-
-    // Use selected_prompt_model_id from cache instead of post_process_models
-    let model = if let Some(selected_model_id) = &settings.selected_prompt_model_id {
-        settings
-            .cached_models
-            .iter()
-            .find(|m| m.id == *selected_model_id && m.provider_id == provider.id)
-            .map(|m| m.model_id.clone())
-    } else {
-        None
-    }
-    .or_else(|| {
-        // Fallback to post_process_models if no cached model selected
-        settings.post_process_models.get(&provider.id).cloned()
-    })
-    .unwrap_or_default();
-
-    info!("Model for provider '{}': '{}'", provider.id, model);
-
-    if model.trim().is_empty() {
-        info!(
-            "Post-processing skipped because provider '{}' has no model configured",
-            provider.id
-        );
-        return None;
-    }
-
     let selected_prompt_id = match &settings.post_process_selected_prompt_id {
         Some(id) => {
-            info!("Selected prompt ID: {}", id);
+            debug!("Selected prompt ID: {}", id);
             id.clone()
         }
         None => {
@@ -129,7 +89,7 @@ async fn maybe_post_process_transcription(
         }
     };
 
-    info!(
+    debug!(
         "Available prompts: {:?}",
         settings
             .post_process_prompts
@@ -144,7 +104,7 @@ async fn maybe_post_process_transcription(
         .find(|prompt| prompt.id == selected_prompt_id)
     {
         Some(prompt) => {
-            info!("Found prompt: '{}' (ID: {})", prompt.name, prompt.id);
+            debug!("Found prompt: '{}' (ID: {})", prompt.name, prompt.id);
             // Safe character boundary slicing for preview
             let preview_end = prompt
                 .prompt
@@ -152,11 +112,11 @@ async fn maybe_post_process_transcription(
                 .nth(100)
                 .map(|(i, _)| i)
                 .unwrap_or(prompt.prompt.len());
-            info!(
+            debug!(
                 "Prompt content preview: '{}...'",
                 &prompt.prompt[..preview_end]
             );
-            prompt.prompt.clone()
+            prompt
         }
         None => {
             info!(
@@ -167,8 +127,54 @@ async fn maybe_post_process_transcription(
         }
     };
 
-    if prompt.trim().is_empty() {
+    if prompt.prompt.trim().is_empty() {
         info!("Post-processing skipped because the selected prompt is empty");
+        return None;
+    }
+
+    debug!("All configured models: {:?}", settings.post_process_models);
+    debug!(
+        "Selected prompt model ID (from prompt): {:?}",
+        prompt.model_id
+    );
+    debug!(
+        "Selected prompt model ID (global fallback): {:?}",
+        settings.selected_prompt_model_id
+    );
+    debug!(
+        "Cached models: {:?}",
+        settings
+            .cached_models
+            .iter()
+            .map(|m| (&m.id, &m.model_id, &m.provider_id))
+            .collect::<Vec<_>>()
+    );
+
+    // Use model_id from the prompt, falling back to global selection
+    let target_model_cache_id = prompt.model_id.as_ref().or(settings.selected_prompt_model_id.as_ref());
+
+    let model = if let Some(selected_model_id) = target_model_cache_id {
+        settings
+            .cached_models
+            .iter()
+            .find(|m| m.id == *selected_model_id && m.provider_id == provider.id)
+            .map(|m| m.model_id.clone())
+    } else {
+        None
+    }
+    .or_else(|| {
+        // Fallback to post_process_models if no cached model selected
+        settings.post_process_models.get(&provider.id).cloned()
+    })
+    .unwrap_or_default();
+
+    debug!("Model for provider '{}': '{}'", provider.id, model);
+
+    if model.trim().is_empty() {
+        info!(
+            "Post-processing skipped because provider '{}' has no model configured",
+            provider.id
+        );
         return None;
     }
 
@@ -178,12 +184,12 @@ async fn maybe_post_process_transcription(
         .cloned()
         .unwrap_or_default();
 
-    info!(
+    debug!(
         "API key configured for provider '{}': {}",
         provider.id,
         !api_key.trim().is_empty()
     );
-    info!("Provider base URL: {}", provider.base_url);
+    debug!("Provider base URL: {}", provider.base_url);
 
     info!(
         "Starting LLM post-processing with provider '{}' (model: {})",
@@ -193,24 +199,24 @@ async fn maybe_post_process_transcription(
     show_llm_processing_overlay(app_handle);
 
     // Replace ${output} variable in the prompt with the actual text
-    let processed_prompt = prompt.replace("${output}", transcription);
-    info!("Processed prompt length: {} chars", processed_prompt.len());
+    let processed_prompt = prompt.prompt.replace("${output}", transcription);
+    debug!("Processed prompt length: {} chars", processed_prompt.len());
     // Safe character boundary slicing for preview
     let processed_prompt_preview_end = processed_prompt
         .char_indices()
         .nth(200)
         .map(|(i, _)| i)
         .unwrap_or(processed_prompt.len());
-    info!(
+    debug!(
         "Processed prompt preview: '{}...'",
         &processed_prompt[..processed_prompt_preview_end]
     );
 
     // Create OpenAI-compatible client
-    info!("Creating LLM client for provider: {}", provider.id);
+    debug!("Creating LLM client for provider: {}", provider.id);
     let client = match crate::llm_client::create_client(&provider, api_key) {
         Ok(client) => {
-            info!("LLM client created successfully");
+            debug!("LLM client created successfully");
             client
         }
         Err(e) => {
@@ -220,7 +226,7 @@ async fn maybe_post_process_transcription(
     };
 
     // Build the chat completion request
-    info!("Building chat completion request with model: {}", model);
+    debug!("Building chat completion request with model: {}", model);
     let message = match ChatCompletionRequestUserMessageArgs::default()
         .content(processed_prompt)
         .build()
@@ -248,33 +254,34 @@ async fn maybe_post_process_transcription(
     info!("Sending chat completion request to LLM...");
     match client.chat().create(request).await {
         Ok(response) => {
-            info!("LLM response received successfully");
-            info!("Response choices count: {}", response.choices.len());
+            debug!("LLM response received successfully");
+            debug!("Response choices count: {}", response.choices.len());
             if let Some(choice) = response.choices.first() {
-                info!("Choice found, checking content...");
+                debug!("Choice found, checking content...");
                 if let Some(content) = &choice.message.content {
+                    let processed_content = remove_think_tags(content);
                     info!(
                         "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
                         provider.id,
-                        content.len()
+                        processed_content.len()
                     );
                     // Safe character boundary slicing for preview
-                    let content_preview_end = content
+                    let content_preview_end = processed_content
                         .char_indices()
                         .nth(100)
                         .map(|(i, _)| i)
-                        .unwrap_or(content.len());
-                    info!("Output preview: '{}...'", &content[..content_preview_end]);
-                    info!("=== POST-PROCESSING DEBUG END ===");
-                    Some(content.clone())
+                        .unwrap_or(processed_content.len());
+                    debug!("Output preview: '{}...'", &processed_content[..content_preview_end]);
+                    debug!("=== POST-PROCESSING DEBUG END ===");
+                    Some(processed_content)
                 } else {
                     info!("LLM returned empty content for provider '{}'", provider.id);
-                    info!("=== POST-PROCESSING DEBUG END ===");
+                    debug!("=== POST-PROCESSING DEBUG END ===");
                     None
                 }
             } else {
                 info!("LLM returned no choices for provider '{}'", provider.id);
-                info!("=== POST-PROCESSING DEBUG END ===");
+                debug!("=== POST-PROCESSING DEBUG END ===");
                 None
             }
         }
@@ -284,145 +291,8 @@ async fn maybe_post_process_transcription(
             if (error_str.contains("missing field") || error_str.contains("unknown variant"))
                 && provider.id.starts_with("custom")
             {
-                info!(
-                    "Detected custom provider response format issue, attempting manual parsing..."
-                );
-
-                // First, try to extract the full JSON content from the error message
-                if let Some(json_start) = error_str.find("content:{") {
-                    if let Some(json_end) = error_str[json_start..].find("}") {
-                        let json_content = &error_str[json_start..json_start + json_end + 1];
-                        info!("Found JSON content in error: {}", json_content);
-
-                        // Parse the content field from this JSON snippet
-                        if let Some(content_field_start) = json_content.find("\"content\":\"") {
-                            if let Some(content_field_end) =
-                                json_content[content_field_start + 11..].find("\"")
-                            {
-                                let raw_content = &json_content[content_field_start + 11
-                                    ..content_field_start + 11 + content_field_end];
-                                info!("Raw content extracted: {}", raw_content);
-
-                                // Process the content to handle escaped characters and ...</think> tags
-                                let mut processed_content = raw_content.to_string();
-
-                                // Handle escaped characters
-                                processed_content = processed_content.replace("\\\"", "\"");
-                                processed_content = processed_content.replace("\\n", "\n");
-                                processed_content = processed_content.replace("\\\\", "\\");
-
-                                // Remove ...</think> sections if present
-                                while let Some(think_start) = processed_content.find("") {
-                                    if let Some(think_end) =
-                                        processed_content[think_start..].find("</think>")
-                                    {
-                                        processed_content.replace_range(
-                                            think_start..think_start + think_end + 7,
-                                            "",
-                                        );
-                                    } else {
-                                        break;
-                                    }
-                                }
-
-                                // Also handle escaped versions of the tags
-                                while let Some(think_start) =
-                                    processed_content.find("\\u003cthink\\u003e")
-                                {
-                                    if let Some(think_end) = processed_content[think_start..]
-                                        .find("\\u003c/think\\u003e")
-                                    {
-                                        processed_content.replace_range(
-                                            think_start..think_start + think_end + 20,
-                                            "",
-                                        );
-                                    } else {
-                                        break;
-                                    }
-                                }
-
-                                // Trim whitespace
-                                processed_content = processed_content.trim().to_string();
-
-                                if !processed_content.is_empty() {
-                                    info!("Successfully extracted and processed content from custom provider response");
-                                    info!(
-                                        "Final content length: {} chars",
-                                        processed_content.len()
-                                    );
-                                    // Safe character boundary slicing for preview
-                                    let final_preview_end = processed_content
-                                        .char_indices()
-                                        .nth(100)
-                                        .map(|(i, _)| i)
-                                        .unwrap_or(processed_content.len());
-                                    info!(
-                                        "Final content preview: '{}...'",
-                                        &processed_content[..final_preview_end]
-                                    );
-                                    info!("=== POST-PROCESSING DEBUG END ===");
-                                    return Some(processed_content);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Fallback: Try to extract the response content directly from the error
-                if let Some(content_start) = error_str.find("\"content\":\"") {
-                    if let Some(content_end) = error_str[content_start + 11..].find("\",\"role\"") {
-                        let content =
-                            &error_str[content_start + 11..content_start + 11 + content_end];
-                        info!("Successfully extracted content from custom provider response");
-                        info!("Extracted content length: {} chars", content.len());
-                        // Safe character boundary slicing for preview
-                        let extracted_preview_end = content
-                            .char_indices()
-                            .nth(100)
-                            .map(|(i, _)| i)
-                            .unwrap_or(content.len());
-                        info!(
-                            "Extracted content preview: '{}...'",
-                            &content[..extracted_preview_end]
-                        );
-                        info!("=== POST-PROCESSING DEBUG END ===");
-                        return Some(content.to_string());
-                    }
-                }
-
-                // Also check for service_tier specific errors and try to extract content differently
-                if error_str.contains("service_tier") && error_str.contains("on_demand") {
-                    info!("Detected service_tier 'on_demand' variant issue, attempting alternative parsing...");
-
-                    // Look for content in a different pattern for service_tier errors
-                    if let Some(content_start) = error_str.find("\\\"content\\\":\\\"") {
-                        if let Some(content_end) = error_str[content_start + 12..].find("\\\"") {
-                            let content =
-                                &error_str[content_start + 12..content_start + 12 + content_end];
-                            // Unescape the JSON string
-                            let unescaped_content =
-                                content.replace("\\\"", "\"").replace("\\\\", "\\");
-                            info!(
-                                "Successfully extracted content from service_tier error response"
-                            );
-                            info!(
-                                "Extracted content length: {} chars",
-                                unescaped_content.len()
-                            );
-                            // Safe character boundary slicing for preview
-                            let unescaped_preview_end = unescaped_content
-                                .char_indices()
-                                .nth(100)
-                                .map(|(i, _)| i)
-                                .unwrap_or(unescaped_content.len());
-                            info!(
-                                "Extracted content preview: '{}...'",
-                                &unescaped_content[..unescaped_preview_end]
-                            );
-                            info!("=== POST-PROCESSING DEBUG END ===");
-                            return Some(unescaped_content);
-                        }
-                    }
+                if let Some(content) = parse_custom_provider_error(&error_str) {
+                    return Some(content);
                 }
             }
 
@@ -430,16 +300,163 @@ async fn maybe_post_process_transcription(
                 "LLM post-processing failed for provider '{}': {}",
                 provider.id, e
             );
-            info!("=== POST-PROCESSING DEBUG END ===");
+            debug!("=== POST-PROCESSING DEBUG END ===");
             None
         }
     }
 }
 
+fn remove_think_tags(content: &str) -> String {
+    let mut processed_content = content.to_string();
+    
+    // Remove ...</think> sections if present
+    while let Some(think_start) = processed_content.find("<think>") {
+        if let Some(think_end) = processed_content[think_start..].find("</think>") {
+            processed_content.replace_range(think_start..think_start + think_end + 8, "");
+        } else {
+            break;
+        }
+    }
+    
+    // Also handle escaped versions of the tags (often found in raw JSON or specific model outputs)
+    while let Some(think_start) = processed_content.find("\\u003cthink\\u003e") {
+        if let Some(think_end) = processed_content[think_start..].find("\\u003c/think\\u003e") {
+            processed_content.replace_range(think_start..think_start + think_end + 20, "");
+        } else {
+            break;
+        }
+    }
+
+    processed_content.trim().to_string()
+}
+
+fn clean_response_content(content: &str) -> String {
+    let mut processed_content = content.to_string();
+
+    // Handle escaped characters (for raw JSON strings)
+    processed_content = processed_content.replace("\\\"", "\"");
+    processed_content = processed_content.replace("\\n", "\n");
+    processed_content = processed_content.replace("\\\\", "\\");
+
+    remove_think_tags(&processed_content)
+}
+
+fn parse_custom_provider_error(error_str: &str) -> Option<String> {
+    info!("Detected custom provider response format issue, attempting manual parsing...");
+
+    // First, try to extract the full JSON content from the error message
+    if let Some(json_start) = error_str.find("content:{") {
+        if let Some(json_end) = error_str[json_start..].find("}") {
+            let json_content = &error_str[json_start..json_start + json_end + 1];
+            debug!("Found JSON content in error: {}", json_content);
+
+            // Parse the content field from this JSON snippet
+            if let Some(content_field_start) = json_content.find("\"content\":\"") {
+                if let Some(content_field_end) =
+                    json_content[content_field_start + 11..].find("\"")
+                {
+                    let raw_content = &json_content[content_field_start + 11
+                        ..content_field_start + 11 + content_field_end];
+                    debug!("Raw content extracted: {}", raw_content);
+
+                    let processed_content = clean_response_content(raw_content);
+
+                    if !processed_content.is_empty() {
+                        info!("Successfully extracted and processed content from custom provider response");
+                        debug!(
+                            "Final content length: {} chars",
+                            processed_content.len()
+                        );
+                        // Safe character boundary slicing for preview
+                        let final_preview_end = processed_content
+                            .char_indices()
+                            .nth(100)
+                            .map(|(i, _)| i)
+                            .unwrap_or(processed_content.len());
+                        debug!(
+                            "Final content preview: '{}...'",
+                            &processed_content[..final_preview_end]
+                        );
+                        debug!("=== POST-PROCESSING DEBUG END ===");
+                        return Some(processed_content);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback: Try to extract the response content directly from the error
+    if let Some(content_start) = error_str.find("\"content\":\"") {
+        if let Some(content_end) = error_str[content_start + 11..].find("\",\"role\"") {
+            let content =
+                &error_str[content_start + 11..content_start + 11 + content_end];
+            info!("Successfully extracted content from custom provider response");
+            debug!("Extracted content length: {} chars", content.len());
+            
+            let processed_content = clean_response_content(content);
+            
+            // Safe character boundary slicing for preview
+            let extracted_preview_end = processed_content
+                .char_indices()
+                .nth(100)
+                .map(|(i, _)| i)
+                .unwrap_or(processed_content.len());
+            debug!(
+                "Extracted content preview: '{}...'",
+                &processed_content[..extracted_preview_end]
+            );
+            debug!("=== POST-PROCESSING DEBUG END ===");
+            return Some(processed_content);
+        }
+    }
+
+    // Also check for service_tier specific errors and try to extract content differently
+    if error_str.contains("service_tier") && error_str.contains("on_demand") {
+        info!("Detected service_tier 'on_demand' variant issue, attempting alternative parsing...");
+
+        // Look for content in a different pattern for service_tier errors
+        if let Some(content_start) = error_str.find("\\\"content\\\":\\\"") {
+            if let Some(content_end) = error_str[content_start + 12..].find("\\\"") {
+                let content =
+                    &error_str[content_start + 12..content_start + 12 + content_end];
+                
+                let processed_content = clean_response_content(content);
+                
+                info!(
+                    "Successfully extracted content from service_tier error response"
+                );
+                debug!(
+                    "Extracted content length: {} chars",
+                    processed_content.len()
+                );
+                // Safe character boundary slicing for preview
+                let unescaped_preview_end = processed_content
+                    .char_indices()
+                    .nth(100)
+                    .map(|(i, _)| i)
+                    .unwrap_or(processed_content.len());
+                debug!(
+                    "Extracted content preview: '{}...'",
+                    &processed_content[..unescaped_preview_end]
+                );
+                debug!("=== POST-PROCESSING DEBUG END ===");
+                return Some(processed_content);
+            }
+        }
+    }
+
+    None
+}
+
+
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
+
+        // Cancel any running post-processing task
+        let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
+        ppm.cancel_current_task();
 
         // 在线 ASR 模式下不要预加载本地模型
         let settings_for_load = get_settings(app);
@@ -513,6 +530,7 @@ impl ShortcutAction for TranscribeAction {
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
+        let ppm = Arc::clone(&app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>());
 
         change_tray_icon(app, TrayIconState::Transcribing);
         show_transcribing_overlay(app);
@@ -542,7 +560,7 @@ impl ShortcutAction for TranscribeAction {
 
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone(); // Clone for history saving
-                match tm.transcribe(samples) {
+                match tm.transcribe(samples_clone) {
                     Ok(transcription) => {
                         debug!(
                             "Transcription completed in {:?}: '{}'",
@@ -558,68 +576,128 @@ impl ShortcutAction for TranscribeAction {
                                 );
                             }
                             let settings = get_settings(&ah);
-                            let mut final_text = transcription.clone();
-                            let mut post_processed_text: Option<String> = None;
-                            let mut post_process_prompt: Option<String> = None;
-
-                            if let Some(processed_text) =
-                                maybe_post_process_transcription(&ah, &settings, &transcription)
-                                    .await
-                            {
-                                final_text = processed_text.clone();
-                                post_processed_text = Some(processed_text);
-
-                                // Get the prompt that was used
-                                if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                                    if let Some(prompt) = settings
-                                        .post_process_prompts
-                                        .iter()
-                                        .find(|p| &p.id == prompt_id)
-                                    {
-                                        post_process_prompt = Some(prompt.prompt.clone());
-                                    }
-                                }
-                            }
-
-                            // Save to history with post-processed text and prompt
+                            let transcription_clone = transcription.clone();
                             let hm_clone = Arc::clone(&hm);
-                            let transcription_for_history = transcription.clone();
-                            tauri::async_runtime::spawn(async move {
-                                if let Err(e) = hm_clone
-                                    .save_transcription(
-                                        samples_clone,
-                                        transcription_for_history,
-                                        post_processed_text,
-                                        post_process_prompt,
-                                        None, // duration_ms - TODO: calculate from samples
+                            let samples_clone = samples.clone();
+
+                            // Save history immediately (original)
+                            // Calculate duration (assuming 16kHz)
+                            let duration_ms = (samples_clone.len() as f64 / 16000.0 * 1000.0) as i64;
+
+                            let history_id = match hm_clone
+                                .save_transcription(
+                                    samples_clone,
+                                    transcription.clone(),
+                                    None,
+                                    None,
+                                    Some(duration_ms),
+                                )
+                                .await
+                            {
+                                Ok(id) => Some(id),
+                                Err(e) => {
+                                    error!("Failed to save transcription to history: {}", e);
+                                    None
+                                }
+                            };
+
+                            if settings.post_process_enabled {
+                                let ah_clone = ah.clone();
+                                let settings_clone = settings.clone();
+                                let hm_clone = Arc::clone(&hm);
+                                let ppm_clone = Arc::clone(&ppm);
+
+                                // Spawn cancellable task
+                                let task = tokio::spawn(async move {
+                                    if let Some(processed_text) = maybe_post_process_transcription(
+                                        &ah_clone,
+                                        &settings_clone,
+                                        &transcription_clone,
                                     )
                                     .await
-                                {
-                                    error!("Failed to save transcription to history: {}", e);
-                                }
-                            });
+                                    {
+                                        // Update history
+                                        if let Some(id) = history_id {
+                                            let mut post_process_prompt = String::new();
+                                            if let Some(prompt_id) =
+                                                &settings_clone.post_process_selected_prompt_id
+                                            {
+                                                if let Some(prompt) = settings_clone
+                                                    .post_process_prompts
+                                                    .iter()
+                                                    .find(|p| &p.id == prompt_id)
+                                                {
+                                                    post_process_prompt = prompt.prompt.clone();
+                                                }
+                                            }
 
-                            // Paste the final text (either processed or original)
-                            let ah_clone = ah.clone();
-                            let paste_time = Instant::now();
-                            ah.run_on_main_thread(move || {
-                                // Hide the overlay before pasting so keystrokes reach the target app
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                            if let Err(e) = hm_clone
+                                                .update_transcription_post_processing(
+                                                    id,
+                                                    processed_text.clone(),
+                                                    post_process_prompt,
+                                                )
+                                                .await
+                                            {
+                                                error!("Failed to update history: {}", e);
+                                            }
+                                        }
 
-                                match utils::paste(final_text, ah_clone.clone()) {
-                                    Ok(()) => debug!(
-                                        "Text pasted successfully in {:?}",
-                                        paste_time.elapsed()
-                                    ),
-                                    Err(e) => error!("Failed to paste transcription: {}", e),
-                                }
-                            })
-                            .unwrap_or_else(|e| {
-                                error!("Failed to run paste on main thread: {:?}", e);
-                                utils::hide_recording_overlay(&ah);
-                                change_tray_icon(&ah, TrayIconState::Idle);
-                            });
+                                        // Paste processed text
+                                        let ah_clone_inner = ah_clone.clone();
+                                        ah_clone
+                                            .run_on_main_thread(move || {
+                                                utils::hide_recording_overlay(&ah_clone_inner);
+                                                change_tray_icon(
+                                                    &ah_clone_inner,
+                                                    TrayIconState::Idle,
+                                                );
+                                                if let Err(e) =
+                                                    utils::paste(processed_text, ah_clone_inner)
+                                                {
+                                                    error!("Failed to paste transcription: {}", e);
+                                                }
+                                            })
+                                            .unwrap_or_else(|e| {
+                                                error!("Failed to run paste on main thread: {:?}", e)
+                                            });
+                                    } else {
+                                        // Post-processing failed or disabled, paste original
+                                        let ah_clone_inner = ah_clone.clone();
+                                        ah_clone
+                                            .run_on_main_thread(move || {
+                                                utils::hide_recording_overlay(&ah_clone_inner);
+                                                change_tray_icon(
+                                                    &ah_clone_inner,
+                                                    TrayIconState::Idle,
+                                                );
+                                                if let Err(e) =
+                                                    utils::paste(transcription_clone, ah_clone_inner)
+                                                {
+                                                    error!("Failed to paste transcription: {}", e);
+                                                }
+                                            })
+                                            .unwrap_or_else(|e| {
+                                                error!("Failed to run paste on main thread: {:?}", e)
+                                            });
+                                    }
+                                });
+
+                                ppm_clone.set_current_task(task.abort_handle());
+                            } else {
+                                // Post-processing disabled, paste original
+                                let ah_clone = ah.clone();
+                                ah.run_on_main_thread(move || {
+                                    utils::hide_recording_overlay(&ah_clone);
+                                    change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                    if let Err(e) = utils::paste(transcription_clone, ah_clone) {
+                                        error!("Failed to paste transcription: {}", e);
+                                    }
+                                })
+                                .unwrap_or_else(|e| {
+                                    error!("Failed to run paste on main thread: {:?}", e)
+                                });
+                            }
                         } else {
                             utils::hide_recording_overlay(&ah);
                             change_tray_icon(&ah, TrayIconState::Idle);

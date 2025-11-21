@@ -11,23 +11,22 @@ pub fn create_client(
         .with_api_base(base_url)
         .with_api_key(api_key);
 
-    // Create client with Anthropic-specific header if needed
-    let client = if provider.id == "anthropic" {
-        let mut headers = reqwest::header::HeaderMap::new();
+    // Create client with custom timeout and headers
+    let mut headers = reqwest::header::HeaderMap::new();
+    if provider.id == "anthropic" {
         headers.insert(
             "anthropic-version",
             reqwest::header::HeaderValue::from_static("2023-06-01"),
         );
+    }
 
-        let http_client = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let http_client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
-        Client::with_config(config).with_http_client(http_client)
-    } else {
-        Client::with_config(config)
-    };
+    let client = Client::with_config(config).with_http_client(http_client);
 
     Ok(client)
 }

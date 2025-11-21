@@ -1,7 +1,6 @@
 import { PlusIcon } from "@radix-ui/react-icons";
 import {
   Button,
-  Dialog,
   Flex,
   IconButton,
   Separator,
@@ -10,7 +9,6 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { Eye, EyeOff } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -21,10 +19,6 @@ import { Dropdown } from "../../ui/Dropdown";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
-import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
-import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
-import { ModelConfigurationPanel } from "./ModelConfigurationPanel";
-import { ProviderManager } from "./ProviderManager";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -36,115 +30,95 @@ const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   </Flex>
 );
 
-const ApiSettings: React.FC = () => {
-  const { t } = useTranslation();
-  const state = usePostProcessProviderState();
-  const [showApiKey, setShowApiKey] = useState(false);
-
-  return (
-    <Flex direction="column" gap="4">
-      <SettingContainer
-        title={t("postProcessing.title")}
-        description={t("postProcessing.description")}
-        descriptionMode="tooltip"
-        layout="horizontal"
-        grouped={true}
-      >
-        <ActionWrapper className="w-100">
-          <ProviderSelect
-            options={state.providerOptions}
-            value={state.selectedProviderId}
-            onChange={state.handleProviderSelect}
-          />
-        </ActionWrapper>
-      </SettingContainer>
-
-      <SettingContainer
-        title={t("postProcessing.baseUrlTitle")}
-        description={t("postProcessing.baseUrlDescription")}
-        descriptionMode="tooltip"
-        layout="horizontal"
-        grouped={true}
-      >
-        <ActionWrapper className="w-100">
-          <TextField.Root
-            value={state.baseUrl}
-            onBlur={(e) => state.handleBaseUrlChange(e.target.value)}
-            placeholder="https://api.openai.com/v1"
-            disabled={
-              !state.selectedProvider?.allow_base_url_edit ||
-              state.isBaseUrlUpdating
-            }
-          />
-        </ActionWrapper>
-      </SettingContainer>
-
-      <SettingContainer
-        title={t("postProcessing.apiKeyTitle")}
-        description={t("postProcessing.apiKeyDescription")}
-        descriptionMode="tooltip"
-        layout="horizontal"
-        grouped={true}
-      >
-        <ActionWrapper className="w-140">
-          <TextField.Root
-            value={state.apiKey}
-            onBlur={(e) => state.handleApiKeyChange(e.target.value)}
-            placeholder="sk-..."
-            type={showApiKey ? "text" : "password"}
-            disabled={state.isApiKeyUpdating}
-          >
-            <TextField.Slot side="right">
-              <IconButton
-                size="1"
-                variant="ghost"
-                onClick={() => setShowApiKey(!showApiKey)}
-                type="button"
-              >
-                {showApiKey ? (
-                  <EyeOff height={14} width={14} />
-                ) : (
-                  <Eye height={14} width={14} />
-                )}
-              </IconButton>
-            </TextField.Slot>
-          </TextField.Root>
-        </ActionWrapper>
-      </SettingContainer>
-    </Flex>
-  );
-};
-
 const PromptSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { getSetting, updateSetting, isUpdating, refreshSettings } =
-    useSettings();
+  const {
+    getSetting,
+    updateSetting,
+    isUpdating,
+    refreshSettings,
+    settings,
+  } = useSettings();
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
+  const [draftModelId, setDraftModelId] = useState<string | null>(null);
 
   const enabled = getSetting("post_process_enabled") || false;
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
+  const cachedModels = getSetting("cached_models") || [];
+  
+  const selectedPromptModelId = getSetting("selected_prompt_model_id");
+  
+  const textModels = React.useMemo(() => {
+    const models = cachedModels
+      .filter(m => m.model_type === "text")
+      .map(m => {
+        const provider = settings?.post_process_providers.find(p => p.id === m.provider_id);
+        const providerLabel = provider ? provider.label : m.provider_id;
+        return { 
+          value: m.id, 
+          label: `${m.custom_label || m.name} (${providerLabel})` 
+        };
+      });
+    
+    
+    const defaultModel = cachedModels.find(m => m.id === selectedPromptModelId);
+    let defaultLabel = t("postProcessing.promptModelDefault");
+    
+    if (defaultModel) {
+      const provider = settings?.post_process_providers.find(p => p.id === defaultModel.provider_id);
+      const providerLabel = provider ? provider.label : defaultModel.provider_id;
+      defaultLabel = `${defaultModel.custom_label || defaultModel.name} (${providerLabel})`;
+    }
+
+    return [
+      { value: "default", label: defaultLabel },
+      ...models
+    ];
+  }, [cachedModels, t, selectedPromptModelId, settings?.post_process_providers]);
+
+  // ...
+
+  // In the return JSX:
+          <Dropdown
+            options={textModels}
+            selectedValue={draftModelId || "default"}
+            onSelect={(value) => {
+              setDraftModelId(value === "default" ? null : value);
+            }}
+            placeholder={t("postProcessing.promptModelDefault")}
+            className="flex-1"
+          />
+
   const selectedPrompt =
     prompts.find((prompt) => prompt.id === selectedPromptId) || null;
 
-  useEffect(() => {
-    if (isCreating) return;
+  const lastLoadedPromptId = React.useRef<string | null>(null);
 
-    if (selectedPrompt) {
+  useEffect(() => {
+    if (isCreating) {
+      lastLoadedPromptId.current = null;
+      return;
+    }
+
+    // Only update drafts if we have a selected prompt and it's either:
+    // 1. A different prompt ID than what we last loaded
+    // 2. The same ID but we haven't loaded it yet (first load)
+    if (selectedPrompt && selectedPrompt.id !== lastLoadedPromptId.current) {
       setDraftName(selectedPrompt.name);
       setDraftText(selectedPrompt.prompt);
-    } else {
+      setDraftModelId(selectedPrompt.model_id || null);
+      lastLoadedPromptId.current = selectedPrompt.id;
+    } else if (!selectedPrompt && !isCreating) {
+      // Reset if no prompt selected
       setDraftName("");
       setDraftText("");
+      setDraftModelId(null);
+      lastLoadedPromptId.current = null;
     }
-  }, [
-    isCreating,
-    selectedPromptId,
-    selectedPrompt?.name,
-    selectedPrompt?.prompt,
-  ]);
+  }, [isCreating, selectedPrompt, selectedPromptId]);
 
   const handlePromptSelect = (promptId: string | null) => {
     if (!promptId) return;
@@ -159,6 +133,7 @@ const PromptSettings: React.FC = () => {
       const newPrompt = await invoke<LLMPrompt>("add_post_process_prompt", {
         name: draftName.trim(),
         prompt: draftText.trim(),
+        modelId: draftModelId,
       });
       await refreshSettings();
       updateSetting("post_process_selected_prompt_id", newPrompt.id);
@@ -176,6 +151,7 @@ const PromptSettings: React.FC = () => {
         id: selectedPromptId,
         name: draftName.trim(),
         prompt: draftText.trim(),
+        modelId: draftModelId,
       });
       await refreshSettings();
     } catch (error) {
@@ -200,9 +176,11 @@ const PromptSettings: React.FC = () => {
     if (selectedPrompt) {
       setDraftName(selectedPrompt.name);
       setDraftText(selectedPrompt.prompt);
+      setDraftModelId(selectedPrompt.model_id || null);
     } else {
       setDraftName("");
       setDraftText("");
+      setDraftModelId(null);
     }
   };
 
@@ -210,6 +188,7 @@ const PromptSettings: React.FC = () => {
     setIsCreating(true);
     setDraftName("");
     setDraftText("");
+    setDraftModelId(null);
   };
 
   if (!enabled) {
@@ -222,7 +201,8 @@ const PromptSettings: React.FC = () => {
   const isDirty =
     !!selectedPrompt &&
     (draftName.trim() !== selectedPrompt.name ||
-      draftText.trim() !== selectedPrompt.prompt.trim());
+      draftText.trim() !== selectedPrompt.prompt.trim() ||
+      draftModelId !== (selectedPrompt.model_id || null));
 
   return (
     <>
@@ -272,6 +252,22 @@ const PromptSettings: React.FC = () => {
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
             placeholder={t("ui.enterPromptName")}
+          />
+        </ActionWrapper>
+      </SettingContainer>
+
+      <SettingContainer
+        title={t("postProcessing.promptModel")}
+        descriptionMode="inline"
+        description=""
+      >
+        <ActionWrapper>
+          <Dropdown
+            options={textModels}
+            selectedValue={draftModelId || "default"}
+            onSelect={(value) => setDraftModelId(value === "default" ? null : value)}
+            placeholder={t("postProcessing.promptModelDefault")}
+            className="flex-1"
           />
         </ActionWrapper>
       </SettingContainer>
@@ -336,49 +332,19 @@ const PromptSettings: React.FC = () => {
   );
 };
 
-export const PostProcessingSettingsApi = React.memo(ApiSettings);
-PostProcessingSettingsApi.displayName = "PostProcessingSettingsApi";
+import { PostProcessingToggle } from "../PostProcessingToggle";
 
-export const PostProcessingSettingsPrompts = React.memo(PromptSettings);
-PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
+// ... existing imports ...
 
-export const AiSettings: React.FC = () => {
+export const PromptsConfiguration: React.FC = () => {
   const { t } = useTranslation();
-  const [isProviderManagerOpen, setProviderManagerOpen] = useState(false);
-
+  
   return (
     <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
-      <SettingsGroup
-        title={t("postProcessing.apiTitle")}
-        actions={
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => setProviderManagerOpen(true)}
-          >
-            {t("postProcessing.manageProviders")}
-          </Button>
-        }
-      >
-        <PostProcessingSettingsApi />
+      <SettingsGroup title={t("postProcessing.prompts")}>
+        <PostProcessingToggle grouped={true} />
+        <PromptSettings />
       </SettingsGroup>
-
-      <SettingsGroup title={t("postProcessing.aiModelConfig")}>
-        <ModelConfigurationPanel />
-      </SettingsGroup>
-
-      {/* Provider Manager Dialog */}
-      <Dialog.Root
-        open={isProviderManagerOpen}
-        onOpenChange={setProviderManagerOpen}
-      >
-        <Dialog.Content maxWidth="900px" style={{ maxHeight: "80vh" }}>
-          <Dialog.Title>{t("postProcessing.manageProviders")}</Dialog.Title>
-          <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
-            <ProviderManager onClose={() => setProviderManagerOpen(false)} />
-          </div>
-        </Dialog.Content>
-      </Dialog.Root>
     </Flex>
   );
 };

@@ -66,6 +66,7 @@ export const LLMPromptSchema = z.object({
   id: z.string(),
   name: z.string(),
   prompt: z.string(),
+  model_id: z.string().optional(),
 });
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;

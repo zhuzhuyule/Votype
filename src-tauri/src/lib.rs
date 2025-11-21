@@ -33,6 +33,7 @@ use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKi
 // Global atomic to store the file log level filter
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
+pub static CONSOLE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Info as u8);
 
 fn level_filter_from_u8(value: u8) -> log::LevelFilter {
     match value {
@@ -141,12 +142,16 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
+    let post_processing_manager = Arc::new(
+        managers::post_processing::PostProcessingManager::new()
+    );
 
     // Add managers to Tauri's managed state
     app_handle.manage(recording_manager.clone());
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
+    app_handle.manage(post_processing_manager.clone());
 
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
@@ -240,10 +245,18 @@ pub fn run() {
                 .rotation_strategy(RotationStrategy::KeepOne)
                 .clear_targets()
                 .targets([
-                    // Console output respects RUST_LOG environment variable
+                    // Console output respects RUST_LOG environment variable OR dynamic console level
                     Target::new(TargetKind::Stdout).filter({
                         let console_filter = console_filter.clone();
-                        move |metadata| console_filter.enabled(metadata)
+                        move |metadata| {
+                            // Check RUST_LOG filter first
+                            if console_filter.enabled(metadata) {
+                                return true;
+                            }
+                            // Fallback to dynamic console level
+                            let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
+                            metadata.level() <= level_filter_from_u8(console_level)
+                        }
                     }),
                     // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
                     Target::new(TargetKind::LogDir {
@@ -286,6 +299,15 @@ pub fn run() {
             let file_log_level: log::Level = settings.log_level.clone().into();
             // Store the file log level in the atomic for the filter to use
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
+            
+            // Initialize console log level based on debug_mode
+            let console_level = if settings.debug_mode {
+                log::LevelFilter::Debug
+            } else {
+                log::LevelFilter::Info
+            };
+            CONSOLE_LOG_LEVEL.store(console_level as u8, Ordering::Relaxed);
+
             let app_handle = app.handle().clone();
 
             initialize_core_logic(&app_handle);

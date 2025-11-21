@@ -1,28 +1,29 @@
 // Settings section components
-export { GeneralSettings } from "./general/GeneralSettings";
+export { AboutSettings } from "./about/AboutSettings";
 export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { DebugSettings } from "./debug/DebugSettings";
+export { GeneralSettings } from "./general/GeneralSettings";
 export { HistorySettings } from "./history/HistorySettings";
-export { AboutSettings } from "./about/AboutSettings";
-export { AiSettings } from "./post-processing/PostProcessingSettings";
-export { ModelsSettings } from "./ModelsSettings";
+export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";
+export { PromptsConfiguration } from "./post-processing/PromptsConfiguration";
 
 // Individual setting components
-export { MicrophoneSelector } from "./MicrophoneSelector";
-export { ClamshellMicrophoneSelector } from "./ClamshellMicrophoneSelector";
-export { OutputDeviceSelector } from "./OutputDeviceSelector";
 export { AlwaysOnMicrophone } from "./AlwaysOnMicrophone";
-export { PushToTalk } from "./PushToTalk";
 export { AudioFeedback } from "./AudioFeedback";
-export { ShowOverlay } from "./ShowOverlay";
-export { HandyShortcut } from "./HandyShortcut";
-export { TranslateToEnglish } from "./TranslateToEnglish";
+export { ClamshellMicrophoneSelector } from "./ClamshellMicrophoneSelector";
 export { CustomWords } from "./CustomWords";
+export { HandyShortcut } from "./HandyShortcut";
+export { MicrophoneSelector } from "./MicrophoneSelector";
+export { OutputDeviceSelector } from "./OutputDeviceSelector";
 export { PostProcessingToggle } from "./PostProcessingToggle";
-export { PostProcessingSettingsPrompts } from "./post-processing/PostProcessingSettings";
+export { PushToTalk } from "./PushToTalk";
+export { ShowOverlay } from "./ShowOverlay";
+export { TranslateToEnglish } from "./TranslateToEnglish";
+
 export { AppDataDirectory } from "./AppDataDirectory";
-export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
-export { StartHidden } from "./StartHidden";
-export { HistoryLimit } from "./HistoryLimit";
-export { RecordingRetentionPeriodSelector } from "./RecordingRetentionPeriod";
 export { AutostartToggle } from "./AutostartToggle";
+export { HistoryLimit } from "./HistoryLimit";
+export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
+export { RecordingRetentionPeriodSelector } from "./RecordingRetentionPeriod";
+export { StartHidden } from "./StartHidden";
+

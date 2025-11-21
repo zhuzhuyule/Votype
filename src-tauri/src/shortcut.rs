@@ -191,6 +191,20 @@ pub fn change_debug_mode_setting(app: AppHandle, enabled: bool) -> Result<(), St
     settings.debug_mode = enabled;
     settings::write_settings(&app, settings);
 
+    // Update the console log level dynamically
+    let console_level = if enabled {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+    
+    // We need to access the atomic from lib.rs. 
+    // Since it's in the crate root, we can access it via crate::CONSOLE_LOG_LEVEL
+    use std::sync::atomic::Ordering;
+    crate::CONSOLE_LOG_LEVEL.store(console_level as u8, Ordering::Relaxed);
+    
+    log::info!("Debug mode changed to: {}. Console log level set to: {:?}", enabled, console_level);
+
     // Emit event to notify frontend of debug mode change
     let _ = app.emit(
         "settings-changed",
@@ -411,6 +425,7 @@ pub fn add_post_process_prompt(
     app: AppHandle,
     name: String,
     prompt: String,
+    model_id: Option<String>,
 ) -> Result<LLMPrompt, String> {
     let mut settings = settings::get_settings(&app);
 
@@ -421,6 +436,7 @@ pub fn add_post_process_prompt(
         id: id.clone(),
         name,
         prompt,
+        model_id,
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
@@ -435,6 +451,7 @@ pub fn update_post_process_prompt(
     id: String,
     name: String,
     prompt: String,
+    model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
@@ -445,6 +462,7 @@ pub fn update_post_process_prompt(
     {
         existing_prompt.name = name;
         existing_prompt.prompt = prompt;
+        existing_prompt.model_id = model_id;
         settings::write_settings(&app, settings);
         Ok(())
     } else {
@@ -776,15 +794,17 @@ pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Re
     let mut settings = settings::get_settings(&app);
 
     if let Some(ref id) = model_id {
-        let model_is_text = settings
+        let cached_model = settings
             .cached_models
             .iter()
-            .find(|cached| cached.id == *id)
-            .map(|cached| cached.model_type == ModelType::Text)
-            .unwrap_or(false);
+            .find(|cached| cached.id == *id);
 
-        if !model_is_text {
-            return Err("Selected model is not a Text model".to_string());
+        if let Some(model) = cached_model {
+            if model.model_type != ModelType::Text {
+                return Err("Selected model is not a Text model".to_string());
+            }
+            // Update the per-provider model selection
+            settings.post_process_models.insert(model.provider_id.clone(), model.model_id.clone());
         }
     }
 
@@ -842,6 +862,7 @@ async fn fetch_models_manual(
 
     let http_client = reqwest::Client::builder()
         .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 

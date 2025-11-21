@@ -1,16 +1,17 @@
+import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
+import { CheckIcon, Pencil1Icon, TrashIcon } from "@radix-ui/react-icons";
 import {
   Box,
   Button,
-  Card,
   Dialog,
   Flex,
-  Grid,
+  IconButton,
   RadioCards,
   SegmentedControl,
   Text,
-  TextField,
+  TextField
 } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -55,6 +56,7 @@ export const ModelConfigurationPanel: React.FC = () => {
     updateCachedModelType,
     removeCachedModel,
     isUpdating,
+    refreshSettings,
   } = useSettings();
 
   const { t } = useTranslation();
@@ -63,6 +65,7 @@ export const ModelConfigurationPanel: React.FC = () => {
   const [pendingModelType, setPendingModelType] = useState<ModelType>("text");
   const [customTypeLabel, setCustomTypeLabel] = useState("");
   const [isManualModelEntry, setIsManualModelEntry] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const cachedModels = settings?.cached_models ?? [];
   const providerId = state.selectedProviderId;
@@ -298,14 +301,29 @@ export const ModelConfigurationPanel: React.FC = () => {
           <Text size="2" weight="medium">
             {t("modelConfiguration.title")}
           </Text>
-          <Button
-            onClick={() => setIsModelPickerOpen(true)}
-            variant="solid"
-            disabled={state.isFetchingModels}
-            className="shadow-sm hover:shadow-md transition-shadow"
-          >
-            {t("modelConfiguration.addModel")}
-          </Button>
+          <Flex gap="2">
+            {cachedModels.length > 0 && (
+              <Button
+                onClick={() => setIsEditMode(!isEditMode)}
+                variant={isEditMode ? "solid" : "soft"}
+                size="2"
+              >
+                {isEditMode ? (
+                  <><CheckIcon /> {t("ui.complete")}</>
+                ) : (
+                  <><Pencil1Icon /> {t("ui.edit")}</>
+                )}
+              </Button>
+            )}
+            <Button
+              onClick={() => setIsModelPickerOpen(true)}
+              variant="solid"
+              disabled={state.isFetchingModels}
+              className="shadow-sm hover:shadow-md transition-shadow"
+            >
+              {t("modelConfiguration.addModel")}
+            </Button>
+          </Flex>
         </Flex>
         <Text size="1" color="gray" className="max-w-prose">
           {t("modelConfiguration.description")}
@@ -348,6 +366,7 @@ export const ModelConfigurationPanel: React.FC = () => {
               );
               if (models.length === 0) return null;
 
+
               return (
                 <Box key={modelType} className="space-y-3">
                   <Flex align="center" gap="2">
@@ -362,50 +381,82 @@ export const ModelConfigurationPanel: React.FC = () => {
                       {models.length} {t("common.models")}
                     </Text>
                   </Flex>
-                  <Grid columns="3" gap="3">
-                    {models.map((cachedModel) => {
-                      const isRemoving = isUpdating(
-                        `cached_model_remove:${cachedModel.id}`,
-                      );
-                      return (
-                        <Card key={cachedModel.id} variant="surface">
-                          <Flex direction="column" gap="2" height="100%">
-                            <Flex justify="between" align="start">
-                              <Flex direction="column" gap="1">
-                                <Text size="2" weight="medium">
-                                  {cachedModel.name}
-                                </Text>
-                                <Text size="1" color="gray">
-                                  {providerNameMap[cachedModel.provider_id] ??
-                                    cachedModel.provider_id}
-                                </Text>
+                  <Box className="relative">
+                    <RadioCards.Root
+                      columns="3"
+                      gap="3"
+                      value={settings?.selected_prompt_model_id || ""}
+                      onValueChange={async (value) => {
+                        if (!isEditMode) {
+                          try {
+                            await invoke("select_post_process_model", {
+                              modelId: value,
+                            });
+                            await refreshSettings();
+                          } catch (e) {
+                            console.error("Failed to set default model", e);
+                          }
+                        }
+                      }}
+                    >
+                      {models.map((cachedModel) => {
+                        const isRemoving = isUpdating(
+                          `cached_model_remove:${cachedModel.id}`,
+                        );
+                        return (
+                          <Box key={cachedModel.id} className="relative">
+                            <RadioCards.Item
+                              value={cachedModel.id}
+                              className="cursor-pointer"
+                            >
+                              <Flex direction="column" gap="2" height="100%">
+                                <Flex direction="column" gap="1" className="flex-1 min-w-0 pr-8">
+                                  <Text size="2" weight="medium" className="truncate">
+                                    {cachedModel.name}
+                                  </Text>
+                                  <Text size="1" color="gray" className="truncate">
+                                    {providerNameMap[cachedModel.provider_id] ??
+                                      cachedModel.provider_id}
+                                  </Text>
+                                </Flex>
+                                {cachedModel.custom_label && (
+                                  <Text
+                                    size="1"
+                                    weight="medium"
+                                    className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30"
+                                  >
+                                    {cachedModel.custom_label}
+                                  </Text>
+                                )}
                               </Flex>
-                              <Button
-                                onClick={() =>
-                                  handleRemoveModel(cachedModel.id)
-                                }
+                            </RadioCards.Item>
+                            {isEditMode && (
+                              <IconButton
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveModel(cachedModel.id);
+                                }}
                                 variant="ghost"
                                 size="1"
                                 disabled={!!isRemoving}
                                 color="red"
+                                style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  zIndex: 10,
+                                  pointerEvents: 'auto'
+                                }}
+                                title={t("modelConfiguration.remove")}
                               >
-                                {t("modelConfiguration.remove")}
-                              </Button>
-                            </Flex>
-                            {cachedModel.custom_label && (
-                              <Text
-                                size="1"
-                                weight="medium"
-                                className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30"
-                              >
-                                {cachedModel.custom_label}
-                              </Text>
+                                <TrashIcon width="14" height="14" />
+                              </IconButton>
                             )}
-                          </Flex>
-                        </Card>
-                      );
-                    })}
-                  </Grid>
+                          </Box>
+                        );
+                      })}
+                    </RadioCards.Root>
+                  </Box>
                 </Box>
               );
             })}
