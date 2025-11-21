@@ -11,6 +11,7 @@ mod online_asr;
 mod overlay;
 mod settings;
 mod shortcut;
+mod signal_handle;
 mod tray;
 mod utils;
 
@@ -19,6 +20,10 @@ use managers::audio::AudioRecordingManager;
 use managers::history::HistoryManager;
 use managers::model::ModelManager;
 use managers::transcription::TranscriptionManager;
+#[cfg(unix)]
+use signal_hook::consts::SIGUSR2;
+#[cfg(unix)]
+use signal_hook::iterator::Signals;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
@@ -156,6 +161,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
 
+    #[cfg(unix)]
+    let signals = Signals::new(&[SIGUSR2]).unwrap();
+    // Set up SIGUSR2 signal handler for toggling transcription
+    #[cfg(unix)]
+    signal_handle::setup_signal_handler(app_handle.clone(), signals);
+
     // Apply macOS Accessory policy if starting hidden
     #[cfg(target_os = "macos")]
     {
@@ -237,7 +248,7 @@ pub fn run() {
     // when the variable is unset
     let console_filter = build_console_filter();
 
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(
             LogBuilder::new()
                 .level(log::LevelFilter::Trace) // Set to most verbose level globally
@@ -268,7 +279,14 @@ pub fn run() {
                     }),
                 ])
                 .build(),
-        )
+        );
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.plugin(tauri_nspanel::init());
+    }
+
+    builder
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_main_window(app);
         }))
@@ -414,7 +432,7 @@ pub fn run() {
             commands::audio::set_clamshell_microphone,
             commands::audio::get_clamshell_microphone,
             helpers::clamshell::is_clamshell,
-            helpers::clamshell::has_builtin_display,
+            helpers::clamshell::is_laptop,
             commands::transcription::set_model_unload_timeout,
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
