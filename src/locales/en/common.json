@@ -66,12 +66,9 @@
     "active": "Active",
     "actual": "Actual",
     "add": "Add",
-    "add": "Add",
-    "advanced": "Advanced",
     "advanced": "Advanced",
     "after": "After",
     "ahead": "Ahead",
-    "all": "All",
     "all": "All",
     "alone": "Alone",
     "alphabetical": "Alphabetical",
@@ -145,9 +142,7 @@
     "class": "Class",
     "clean": "Clean",
     "clear": "Clear",
-    "clear": "Clear",
     "clone": "Clone",
-    "close": "Close",
     "close": "Close",
     "closed": "Closed",
     "clustered": "Clustered",
@@ -181,7 +176,6 @@
     "contracted": "Contracted",
     "coordinate": "Coordinate",
     "copy": "Copy",
-    "copy": "Copy",
     "correct": "Correct",
     "covered": "Covered",
     "credible": "Credible",
@@ -199,7 +193,6 @@
     "deepest": "Deepest",
     "default": "Default",
     "degraded": "Degraded",
-    "delete": "Delete",
     "delete": "Delete",
     "dependable": "Dependable",
     "descending": "Descending",
@@ -233,7 +226,6 @@
     "duplicate": "Duplicate",
     "during": "During",
     "earliest": "Earliest",
-    "earliest": "Earliest",
     "easily": "Easily",
     "easy": "Easy",
     "edge": "Edge",
@@ -241,7 +233,6 @@
     "edit": "Edit",
     "edition": "Edition",
     "element": "Element",
-    "empty": "Empty",
     "empty": "Empty",
     "enable": "Enable",
     "enableAll": "Enable All",
@@ -267,11 +258,9 @@
     "evolved": "Evolved",
     "exit": "Exit",
     "expanded": "Expanded",
-    "expanded": "Expanded",
     "expandedText": "Expanded",
     "experienced": "Experienced",
     "expert": "Expert",
-    "export": "Export",
     "export": "Export",
     "exposed": "Exposed",
     "extended": "Extended",
@@ -302,7 +291,6 @@
     "forward": "Forward",
     "fragment": "Fragment",
     "free": "Free",
-    "fresh": "Fresh",
     "fresh": "Fresh",
     "freshest": "Freshest",
     "front": "Front",
@@ -341,13 +329,11 @@
     "imaginably": "Imaginably",
     "immense": "Immense",
     "import": "Import",
-    "import": "Import",
     "important": "Important",
     "impossible": "Impossible",
     "improved": "Improved",
     "inaccessible": "Inaccessible",
     "inactive": "Inactive",
-    "incomplete": "Incomplete",
     "incomplete": "Incomplete",
     "incorrect": "Incorrect",
     "increased": "Increased",
@@ -361,7 +347,6 @@
     "insecure": "Insecure",
     "insert": "Insert",
     "inside": "Inside",
-    "install": "Install",
     "install": "Install",
     "installing": "Installing",
     "intern": "Intern",
@@ -382,7 +367,6 @@
     "largest": "Largest",
     "last": "Last",
     "latest": "Latest",
-    "latest": "Latest",
     "latestVersion": "Latest",
     "learner": "Learner",
     "leastCurrent": "Least Current",
@@ -396,7 +380,6 @@
     "likely": "Likely",
     "limit": "Limit",
     "line": "Line",
-    "link": "Link",
     "link": "Link",
     "linked": "Linked",
     "loading": "Loading...",
@@ -425,6 +408,7 @@
     "miniature": "Miniature",
     "minified": "Minified",
     "minute": "Minute",
+    "models": "Models",
     "modified": "Modified",
     "module": "Module",
     "mostCurrent": "Most Current",
@@ -813,6 +797,10 @@
     "title": "History Limit"
   },
   "historySettings": {
+    "content": {
+      "improved": "Improved",
+      "original": "Original"
+    },
     "copyTitle": "Copy text",
     "deleteError": "Failed to delete entry",
     "deleteTitle": "Delete",
@@ -821,18 +809,14 @@
     "openFolder": "Open Recordings Folder",
     "removeFromSaved": "Remove from saved",
     "saveTitle": "Save",
-    "title": "History",
+    "searchPlaceholder": "Search history...",
     "timeline": {
-      "today": "Today",
-      "yesterday": "Yesterday",
+      "earlier": "Earlier",
       "thisWeek": "This Week",
-      "earlier": "Earlier"
+      "today": "Today",
+      "yesterday": "Yesterday"
     },
-    "content": {
-      "original": "Original",
-      "improved": "Improved"
-    },
-    "searchPlaceholder": "Search history..."
+    "title": "History"
   },
   "logDirectory": {
     "description": "Location on disk where Handy writes rotated log files",
@@ -863,10 +847,11 @@
     "confirm": "Confirm",
     "customLabelPlaceholder": "Enter a custom label",
     "customLabelTitle": "Custom label",
-    "customModelPlaceholder": "Enter custom model name",
-    "description": "Handy keeps AI models grouped by their intended usage so you can pick the right toolkit for transcription, text transformation, or custom prompts. Adding models here makes them available for prompts and AI routines throughout the app.",
-    "emptyDescription": "Add one from the provider above to get started.",
-    "emptyTitle": "No models added yet",
+    "customModelPlaceholder": "Enter model ID (e.g. gpt-4)",
+    "default": "Default",
+    "description": "Add models from your configured providers to use them in the application.",
+    "emptyDescription": "No models configured. Add a model to get started.",
+    "emptyTitle": "No Models",
     "formatCreate": "Use \"{{value}}\"",
     "groups": {
       "asr": "ASR ({{count}})",
@@ -875,35 +860,36 @@
     },
     "modelTypes": {
       "asr": {
-        "hint": "Used for online speech transcription",
-        "label": "ASR"
+        "hint": "Speech-to-text model",
+        "label": "Speech Recognition"
       },
       "other": {
-        "hint": "Custom usage label",
+        "hint": "General purpose model",
         "label": "Other"
       },
       "text": {
-        "hint": "Used for prompt editing and polishing",
-        "label": "Text"
+        "hint": "Text processing model",
+        "label": "Text Generation"
       }
     },
-    "placeholder": "Select or enter a model name",
-    "placeholderEmpty": "No models available to add",
+    "placeholder": "Select a model...",
+    "placeholderEmpty": "No models available",
     "remove": "Remove",
     "segmented": {
-      "customModel": "Custom Model",
-      "selectModel": "Select Model"
+      "customModel": "Custom",
+      "selectModel": "Select"
     },
     "selectedBadge": "Selected",
-    "selectModel": "Select model",
-    "selectModelDescription": "Pick a model from the provider's list and assign it a purpose.",
+    "selectModel": "Select Model",
+    "selectModelDescription": "Choose a model from the available list or enter a custom model ID.",
+    "setAsDefault": "Set as Default",
     "stats": {
-      "asr": "ASR: {{count}}",
-      "other": "Other: {{count}}",
-      "text": "Text: {{count}}"
+      "asr": "{{count}} Speech",
+      "other": "{{count}} Other",
+      "text": "{{count}} Text"
     },
-    "title": "Model configuration",
-    "usageTypeTitle": "Choose a usage type"
+    "title": "Configured Models",
+    "usageTypeTitle": "Usage Type"
   },
   "modelDropdown": {
     "active": "Active",
@@ -1010,29 +996,28 @@
     "title": "Post Process"
   },
   "postProcessing": {
+    "aiModelConfig": "Default Model",
     "aiModelConfig": "AI Model Config",
-    "apiKeyDescription": "API key for the selected provider.",
+    "apiKeyDescription": "Your API key for the selected provider",
     "apiKeyTitle": "API Key",
-    "apiTitle": "API (OpenAI Compatible)",
-    "baseUrlDescription": "API base URL for the selected provider. Only the custom provider can be edited.",
+    "apiTitle": "API Configuration",
+    "baseUrlDescription": "Base URL for the API requests",
     "baseUrlTitle": "Base URL",
     "cancel": "Cancel",
     "clickCreateNew": "Click 'Create New Prompt' above to create your first post-processing prompt.",
-    "createNewPrompt": "Create New Prompt",
+    "createNewPrompt": "Create new prompt",
     "createPrompt": "Create Prompt",
+    "createPrompt": "Create Prompt",
+    "defaultModel": "Default Model",
+    "defaultModelDescription": "Select the default model to be used for post-processing prompts when no specific model is assigned.",
     "deletePrompt": "Delete Prompt",
-    "description": "Select an OpenAI-compatible provider.",
-    "disabledNotice": "Post processing is currently disabled. Enable it in Debug settings to configure.",
+    "description": "Configure API providers and models for post-processing.",
+    "disabledNotice": "Enable Post-Processing in the main settings to configure providers and prompts.",
     "manageProviders": "Manage Providers",
+    "modelSelection": "Model Selection",
     "noPromptsAvailable": "No prompts available",
-    "outputVariable": "${output}",
-    "promptInstructions": "Prompt Instructions",
-    "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}",
-    "promptLabel": "Prompt Label",
-    "promptLabelPlaceholder": "Enter prompt name",
-    "promptTip": "Tip: Use",
-    "selectedPromptDescription": "Select a template for refining transcriptions or create a new one. Use ${output} inside the prompt text to reference the captured transcript.",
-    "selectedPromptTitle": "Selected Prompt",
+    "promptModelDefault": "Default Model",
+    "selectDefaultModel": "Select a default model...",
     "selectPrompt": "Select a prompt",
     "selectPromptAbove": "Select a prompt above to view and edit its details.",
     "title": "Provider",
@@ -1089,11 +1074,11 @@
   "sidebar": {
     "about": "About",
     "advanced": "Advanced",
-    "ai": "AI",
     "debug": "Debug",
     "general": "General",
     "history": "History",
-    "models": "Models"
+    "models": "Models",
+    "prompts": "Prompts"
   },
   "soundPicker": {
     "custom": "Custom",
@@ -1193,6 +1178,7 @@
     "cancel": "Cancel",
     "cancelCreate": "Cancel Create",
     "clickCreateNew": "Click 'Create New Prompt' above to create your first post-processing prompt.",
+    "complete": "Complete",
     "create": "Create",
     "createCustomProvider": "+ Create Custom Provider",
     "createCustomProviderTitle": "Create Custom Provider",

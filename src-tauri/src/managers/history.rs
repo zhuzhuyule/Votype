@@ -113,7 +113,7 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         duration_ms: Option<i64>,
-    ) -> Result<()> {
+    ) -> Result<i64> {
         let timestamp = Utc::now().timestamp();
         let file_name = format!("handy-{}.wav", timestamp);
         let title = self.format_timestamp_title(timestamp);
@@ -127,7 +127,7 @@ impl HistoryManager {
         save_wav_file(file_path, &audio_samples).await?;
 
         // Save to database
-        self.save_to_database(
+        let id = self.save_to_database(
             file_name,
             timestamp,
             title,
@@ -147,7 +147,7 @@ impl HistoryManager {
             error!("Failed to emit history-updated event: {}", e);
         }
 
-        Ok(())
+        Ok(id)
     }
 
     fn save_to_database(
@@ -161,14 +161,39 @@ impl HistoryManager {
         duration_ms: Option<i64>,
         char_count: Option<i64>,
         corrected_char_count: Option<i64>,
-    ) -> Result<()> {
+    ) -> Result<i64> {
         let conn = self.get_connection()?;
         conn.execute(
             "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![file_name, timestamp, false, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count],
         )?;
+        
+        let id = conn.last_insert_rowid();
+        debug!("Saved transcription to database with id: {}", id);
+        Ok(id)
+    }
 
-        debug!("Saved transcription to database");
+    pub async fn update_transcription_post_processing(
+        &self,
+        id: i64,
+        post_processed_text: String,
+        post_process_prompt: String,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+        let corrected_char_count = post_processed_text.chars().count() as i64;
+
+        conn.execute(
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, corrected_char_count = ?3 WHERE id = ?4",
+            params![post_processed_text, post_process_prompt, corrected_char_count, id],
+        )?;
+
+        debug!("Updated transcription {} with post-processing results", id);
+
+        // Emit history updated event
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
         Ok(())
     }
 

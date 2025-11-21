@@ -1,11 +1,11 @@
 import { Flex, Text } from "@radix-ui/themes";
 import {
-  Cog,
-  FlaskConical,
-  History,
-  Info,
-  Layers,
-  Sparkles,
+    Cog,
+    FlaskConical,
+    History,
+    Info,
+    Layers,
+    Sparkles,
 } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -13,13 +13,13 @@ import { useSettings } from "../hooks/useSettings";
 import HandyHand from "./icons/HandyHand";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import {
-  AboutSettings,
-  AdvancedSettings,
-  AiSettings,
-  DebugSettings,
-  GeneralSettings,
-  HistorySettings,
-  ModelsSettings,
+    AboutSettings,
+    AdvancedSettings,
+    DebugSettings,
+    GeneralSettings,
+    HistorySettings,
+    ModelsConfiguration,
+    PromptsConfiguration,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -52,16 +52,16 @@ export const SECTIONS_CONFIG = {
     component: AdvancedSettings,
     enabled: () => true,
   },
-  ai: {
-    labelKey: "sidebar.ai",
-    icon: Sparkles,
-    component: AiSettings,
-    enabled: () => true,
-  },
   models: {
     labelKey: "sidebar.models",
     icon: Layers,
-    component: ModelsSettings,
+    component: ModelsConfiguration,
+    enabled: () => true,
+  },
+  prompts: {
+    labelKey: "sidebar.prompts",
+    icon: Sparkles,
+    component: PromptsConfiguration,
     enabled: () => true,
   },
   history: {
