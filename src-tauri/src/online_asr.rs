@@ -1,6 +1,5 @@
 use crate::settings::PostProcessProvider;
 use anyhow::{anyhow, Context, Result};
-use hound;
 use reqwest::blocking::{multipart, Client};
 use serde::Serialize;
 use std::io::Cursor;

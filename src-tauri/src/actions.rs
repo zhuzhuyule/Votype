@@ -652,32 +652,46 @@ impl ShortcutAction for TranscribeAction {
 
                                 // Spawn cancellable task
                                 let task = tokio::spawn(async move {
-                                    if let Some(processed_text) = maybe_post_process_transcription(
+                                    let mut final_text = transcription_clone.clone();
+                                    let mut post_process_prompt = String::new();
+
+                                    // First, check if Chinese variant conversion is needed
+                                    if let Some(converted_text) =
+                                        maybe_convert_chinese_variant(&settings_clone, &transcription_clone).await
+                                    {
+                                        final_text = converted_text;
+                                    }
+                                    // Then apply regular LLM post-processing if enabled
+                                    else if let Some(processed_text) = maybe_post_process_transcription(
                                         &ah_clone,
                                         &settings_clone,
                                         &transcription_clone,
                                     )
                                     .await
                                     {
-                                        // Update history
-                                        if let Some(id) = history_id {
-                                            let mut post_process_prompt = String::new();
-                                            if let Some(prompt_id) =
-                                                &settings_clone.post_process_selected_prompt_id
+                                        final_text = processed_text;
+                                        
+                                        // Get the prompt that was used
+                                        if let Some(prompt_id) =
+                                            &settings_clone.post_process_selected_prompt_id
+                                        {
+                                            if let Some(prompt) = settings_clone
+                                                .post_process_prompts
+                                                .iter()
+                                                .find(|p| &p.id == prompt_id)
                                             {
-                                                if let Some(prompt) = settings_clone
-                                                    .post_process_prompts
-                                                    .iter()
-                                                    .find(|p| &p.id == prompt_id)
-                                                {
-                                                    post_process_prompt = prompt.prompt.clone();
-                                                }
+                                                post_process_prompt = prompt.prompt.clone();
                                             }
+                                        }
+                                    }
 
+                                    // Update history if we have processed text
+                                    if final_text != transcription_clone {
+                                        if let Some(id) = history_id {
                                             if let Err(e) = hm_clone
                                                 .update_transcription_post_processing(
                                                     id,
-                                                    processed_text.clone(),
+                                                    final_text.clone(),
                                                     post_process_prompt,
                                                 )
                                                 .await
@@ -685,45 +699,26 @@ impl ShortcutAction for TranscribeAction {
                                                 error!("Failed to update history: {}", e);
                                             }
                                         }
-
-                                        // Paste processed text
-                                        let ah_clone_inner = ah_clone.clone();
-                                        ah_clone
-                                            .run_on_main_thread(move || {
-                                                utils::hide_recording_overlay(&ah_clone_inner);
-                                                change_tray_icon(
-                                                    &ah_clone_inner,
-                                                    TrayIconState::Idle,
-                                                );
-                                                if let Err(e) =
-                                                    utils::paste(processed_text, ah_clone_inner)
-                                                {
-                                                    error!("Failed to paste transcription: {}", e);
-                                                }
-                                            })
-                                            .unwrap_or_else(|e| {
-                                                error!("Failed to run paste on main thread: {:?}", e)
-                                            });
-                                    } else {
-                                        // Post-processing failed or disabled, paste original
-                                        let ah_clone_inner = ah_clone.clone();
-                                        ah_clone
-                                            .run_on_main_thread(move || {
-                                                utils::hide_recording_overlay(&ah_clone_inner);
-                                                change_tray_icon(
-                                                    &ah_clone_inner,
-                                                    TrayIconState::Idle,
-                                                );
-                                                if let Err(e) =
-                                                    utils::paste(transcription_clone, ah_clone_inner)
-                                                {
-                                                    error!("Failed to paste transcription: {}", e);
-                                                }
-                                            })
-                                            .unwrap_or_else(|e| {
-                                                error!("Failed to run paste on main thread: {:?}", e)
-                                            });
                                     }
+
+                                    // Paste the final text (either converted, processed, or original)
+                                    let ah_clone_inner = ah_clone.clone();
+                                    ah_clone
+                                        .run_on_main_thread(move || {
+                                            utils::hide_recording_overlay(&ah_clone_inner);
+                                            change_tray_icon(
+                                                &ah_clone_inner,
+                                                TrayIconState::Idle,
+                                            );
+                                            if let Err(e) =
+                                                utils::paste(final_text, ah_clone_inner)
+                                            {
+                                                error!("Failed to paste transcription: {}", e);
+                                            }
+                                        })
+                                        .unwrap_or_else(|e| {
+                                            error!("Failed to run paste on main thread: {:?}", e)
+                                        });
                                 });
 
                                 ppm_clone.set_current_task(task.abort_handle());
