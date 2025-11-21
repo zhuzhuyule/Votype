@@ -23,6 +23,19 @@ const ApiSettings: React.FC = () => {
   const { t } = useTranslation();
   const state = usePostProcessProviderState();
   const [showApiKey, setShowApiKey] = useState(false);
+  
+  // Local state for input fields to allow real-time updates
+  const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
+  const [localApiKey, setLocalApiKey] = useState(state.apiKey);
+
+  // Sync local state when provider changes or settings update
+  React.useEffect(() => {
+    setLocalBaseUrl(state.baseUrl);
+  }, [state.baseUrl]);
+
+  React.useEffect(() => {
+    setLocalApiKey(state.apiKey);
+  }, [state.apiKey]);
 
   return (
     <Flex direction="column" gap="4">
@@ -51,7 +64,8 @@ const ApiSettings: React.FC = () => {
       >
         <ActionWrapper className="w-100">
           <TextField.Root
-            value={state.baseUrl}
+            value={localBaseUrl}
+            onChange={(e) => setLocalBaseUrl(e.target.value)}
             onBlur={(e) => state.handleBaseUrlChange(e.target.value)}
             placeholder="https://api.openai.com/v1"
             disabled={
@@ -71,7 +85,8 @@ const ApiSettings: React.FC = () => {
       >
         <ActionWrapper className="w-140">
           <TextField.Root
-            value={state.apiKey}
+            value={localApiKey}
+            onChange={(e) => setLocalApiKey(e.target.value)}
             onBlur={(e) => state.handleApiKeyChange(e.target.value)}
             placeholder="sk-..."
             type={showApiKey ? "text" : "password"}
