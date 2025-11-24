@@ -1,7 +1,7 @@
 import { Badge, Box, Button, Flex, IconButton, ScrollArea, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { IconCalendarTime, IconCopy, IconFolderOpen, IconSearch, IconStar, IconTrash } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Clock, Copy, FolderOpen, Search, Star, Trash2 } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "../../ui/AudioPlayer";
@@ -236,12 +236,12 @@ export const HistorySettings: React.FC = () => {
         <Flex justify="between" align="center" mb="6">
           <Text size="5" weight="bold" className="text-text">{t("historySettings.title")}</Text>
           <Button variant="soft" onClick={openRecordingsFolder}>
-            <FolderOpen className="w-4 h-4 mr-2" />
+            <IconFolderOpen className="w-4 h-4 mr-2" />
             {t("historySettings.openFolder")}
           </Button>
         </Flex>
         <Flex direction="column" align="center" justify="center" className="py-20 text-text/40">
-          <Clock className="w-12 h-12 mb-4 opacity-20" />
+          <IconCalendarTime className="w-12 h-12 mb-4 opacity-20" />
           <Text>{t("historySettings.empty")}</Text>
         </Flex>
       </Box>
@@ -250,7 +250,7 @@ export const HistorySettings: React.FC = () => {
 
   return (
     <Box className="max-w-4xl w-full mx-auto p-6">
-      <Flex justify="between" align="center" mb="6" className="pr-9">
+      <Flex justify="between" align="center" mb="6" className="pr-12">
         <Flex align="center" gap="3">
           <Text size="5" weight="bold" className="text-text">{t("historySettings.title")}</Text>
           <Badge variant="soft" color="gray" radius="full">
@@ -258,7 +258,7 @@ export const HistorySettings: React.FC = () => {
           </Badge>
         </Flex>
         
-        <Flex gap="3">
+        <Flex gap="3" align="center">
           <TextField.Root 
             placeholder={t("historySettings.searchPlaceholder")} 
             value={searchQuery}
@@ -266,13 +266,13 @@ export const HistorySettings: React.FC = () => {
             className="w-64"
           >
             <TextField.Slot>
-              <Search height="14" width="14" />
+              <IconSearch height="14" width="14" />
             </TextField.Slot>
           </TextField.Root>
 
           <Tooltip content={t("historySettings.openFolder")}>
-            <IconButton variant="surface" className="cursor-pointer" onClick={openRecordingsFolder} >
-              <FolderOpen size="16" />
+            <IconButton variant="ghost" className="cursor-pointer" onClick={openRecordingsFolder} >
+              <IconFolderOpen />
             </IconButton>
           </Tooltip>
         </Flex>
@@ -383,7 +383,7 @@ export const HistorySettings: React.FC = () => {
                               className="text-text/50 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
                               title={t("historySettings.copyTitle")}
                             >
-                              <Copy className="w-4 h-4" />
+                              <IconCopy className="w-4 h-4" />
                             </IconButton>
                             <IconButton
                               variant="ghost"
@@ -394,7 +394,7 @@ export const HistorySettings: React.FC = () => {
                               }`}
                               title={entry.saved ? t("historySettings.removeFromSaved") : t("historySettings.saveTitle")}
                             >
-                              <Star className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
+                              <IconStar className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
                             </IconButton>
                             <IconButton
                               variant="ghost"
@@ -411,7 +411,7 @@ export const HistorySettings: React.FC = () => {
                               className="text-text/50 hover:text-red-500 hover:bg-red-500/10 transition-colors"
                               title={t("historySettings.deleteTitle")}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <IconTrash className="w-4 h-4" />
                             </IconButton>
                           </Flex>
                         </Flex>

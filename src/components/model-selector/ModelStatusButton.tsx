@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { IconChevronDown } from "@tabler/icons-react";
 import { Badge, Box, Button, Text } from "@radix-ui/themes";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -76,7 +76,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       >
         {isOnlineModel ? "Online" : "Local"}
       </Badge>
-      <ChevronDownIcon
+      <IconChevronDown
         className={`w-3 h-3 transition-transform ${
           isDropdownOpen ? "rotate-180" : ""
         }`}

@@ -1,6 +1,6 @@
+import { IconDownload } from "@tabler/icons-react";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import React from "react";
-import { Download } from "lucide-react";
-import { Button, Box, Flex, Text } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
@@ -99,10 +99,9 @@ const DownloadSize = ({ sizeMb }: { sizeMb: number }) => {
   const { t } = useTranslation();
   return (
     <Flex align="center" gap="1.5" className="text-xs text-text/60 tabular-nums">
-      <Download
+      <IconDownload
         aria-hidden="true"
         className="h-3.5 w-3.5 text-text/45"
-        strokeWidth={1.75}
       />
       <Text className="sr-only">{t("modelCard.downloadSize")}</Text>
       <Text weight="medium" color="gray">

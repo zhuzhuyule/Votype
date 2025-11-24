@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { CheckIcon, Pencil1Icon, TrashIcon } from "@radix-ui/react-icons";
+import { IconCheck, IconPencil, IconTrash } from "@tabler/icons-react";
 import {
   Badge,
   Box,
@@ -310,9 +310,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                 size="2"
               >
                 {isEditMode ? (
-                  <><CheckIcon /> {t("ui.complete")}</>
+                  <><IconCheck /> {t("ui.complete")}</>
                 ) : (
-                  <><Pencil1Icon /> {t("ui.edit")}</>
+                  <><IconPencil /> {t("ui.edit")}</>
                 )}
               </Button>
             )}
@@ -479,7 +479,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                                 }}
                                 title={t("modelConfiguration.remove")}
                               >
-                                <TrashIcon width="14" height="14" />
+                                <IconTrash width="14" height="14" />
                               </IconButton>
                             )}
                             {isSelected && !isEditMode && (

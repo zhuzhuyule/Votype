@@ -12,7 +12,7 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import { EditIcon, TrashIcon } from "lucide-react";
+import { IconPencil, IconTrash } from "@tabler/icons-react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
 import { SettingsGroup } from "../../ui";
@@ -189,7 +189,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             disabled={updating}
                             title={t("ui.edit")}
                           >
-                            <EditIcon size={14} />
+                            <IconPencil size={14} />
                           </IconButton>
                           {!isBuiltIn && (
                             <Popover.Root
@@ -207,7 +207,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                   title={t("ui.delete")}
                                   className="text-red-600 hover:text-red-700"
                                 >
-                                  <TrashIcon size={14} />
+                                  <IconTrash size={14} />
                                 </IconButton>
                               </Popover.Trigger>
                               <Popover.Content side="bottom" align="end">

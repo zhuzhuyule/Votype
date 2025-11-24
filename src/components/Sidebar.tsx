@@ -1,24 +1,24 @@
 import { Flex, Text } from "@radix-ui/themes";
 import {
-    Cog,
-    FlaskConical,
-    History,
-    Info,
-    Layers,
-    Settings,
-    Sparkles,
-} from "lucide-react";
+  IconAdjustments,
+  IconBrain,
+  IconBug,
+  IconHistory,
+  IconInfoSquare,
+  IconSettings,
+  IconSparkles,
+} from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
 import {
-    AboutSettings,
-    AdvancedSettings,
-    DebugSettings,
-    GeneralSettings,
-    HistorySettings,
-    ModelsConfiguration,
-    PromptsConfiguration,
+  AboutSettings,
+  AdvancedSettings,
+  DebugSettings,
+  GeneralSettings,
+  HistorySettings,
+  ModelsConfiguration,
+  PromptsConfiguration,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -41,43 +41,43 @@ interface SectionConfig {
 export const SECTIONS_CONFIG = {
   general: {
     labelKey: "sidebar.general",
-    icon: Settings,
+    icon: IconSettings,
     component: GeneralSettings,
     enabled: () => true,
   },
   advanced: {
     labelKey: "sidebar.advanced",
-    icon: Cog,
+    icon: IconAdjustments,
     component: AdvancedSettings,
     enabled: () => true,
   },
   models: {
     labelKey: "sidebar.models",
-    icon: Layers,
+    icon: IconBrain,
     component: ModelsConfiguration,
     enabled: () => true,
   },
   prompts: {
     labelKey: "sidebar.prompts",
-    icon: Sparkles,
+    icon: IconSparkles,
     component: PromptsConfiguration,
     enabled: () => true,
   },
   history: {
     labelKey: "sidebar.history",
-    icon: History,
+    icon: IconHistory,
     component: HistorySettings,
     enabled: () => true,
   },
   debug: {
     labelKey: "sidebar.debug",
-    icon: FlaskConical,
+    icon: IconBug,
     component: DebugSettings,
     enabled: (settings) => settings?.debug_mode ?? false,
   },
   about: {
     labelKey: "sidebar.about",
-    icon: Info,
+    icon: IconInfoSquare,
     component: AboutSettings,
     enabled: () => true,
   },

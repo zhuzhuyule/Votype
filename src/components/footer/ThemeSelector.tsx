@@ -1,3 +1,4 @@
+import { IconDeviceLaptop, IconMoon, IconSun } from "@tabler/icons-react";
 import {
   Box,
   Button,
@@ -10,7 +11,6 @@ import {
   Text,
   useThemeContext,
 } from "@radix-ui/themes";
-import { Laptop, Moon, Sun } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n, { UI_LANGUAGE_STORAGE_KEY } from "../../i18n/config";
@@ -108,11 +108,11 @@ export const ThemeSelector: React.FC = () => {
   const getIcon = () => {
     switch (appearance) {
       case "light":
-        return <Sun width="16" height="16" />;
+        return <IconSun width="16" height="16" />;
       case "dark":
-        return <Moon width="16" height="16" />;
+        return <IconMoon width="16" height="16" />;
       default:
-        return <Laptop width="16" height="16" />;
+        return <IconDeviceLaptop width="16" height="16" />;
     }
   };
 
@@ -138,19 +138,19 @@ export const ThemeSelector: React.FC = () => {
             >
               <SegmentedControl.Item value="light">
                 <Flex align="center" gap="2">
-                  <Sun size={12} />
+                  <IconSun width={12} height={12} />
                   {t("theme.themeMode.light")}
                 </Flex>
               </SegmentedControl.Item>
               <SegmentedControl.Item value="dark">
                 <Flex align="center" gap="2">
-                  <Moon size={12} />
+                  <IconMoon width={12} height={12} />
                   {t("theme.themeMode.dark")}
                 </Flex>
               </SegmentedControl.Item>
               <SegmentedControl.Item value="inherit">
                 <Flex align="center" gap="2">
-                  <Laptop size={12} />
+                  <IconDeviceLaptop width={12} height={12} />
                   {t("theme.themeMode.system")}
                 </Flex>
               </SegmentedControl.Item>

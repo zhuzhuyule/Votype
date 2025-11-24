@@ -1,12 +1,12 @@
-import {
-  CheckIcon,
-  CubeIcon,
-  DownloadIcon,
-  GlobeIcon,
-  LaptopIcon,
-  TrashIcon,
-} from "@radix-ui/react-icons";
 import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
+import {
+  IconCheck,
+  IconCloud,
+  IconCube,
+  IconDeviceDesktop,
+  IconDownload,
+  IconTrash,
+} from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
@@ -101,7 +101,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {availableModels.length > 0 && (
         <Box className="py-1">
           <Flex align="center" gap="2" className="px-4 py-1.5 text-xs font-medium text-text/50 uppercase tracking-wider">
-            <LaptopIcon className="w-3.5 h-3.5" />
+            <IconDeviceDesktop className="w-3.5 h-3.5" />
             {t("modelDropdown.availableModels")}
           </Flex>
           {availableModels.map((model) => {
@@ -139,7 +139,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                     )}
                   </Box>
                   <Flex align="center" gap="3">
-                    {isActive && <CheckIcon className="text-logo-primary w-5 h-5 flex-shrink-0" />}
+                    {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />}
                     <IconButton
                       variant="ghost"
                       color="red"
@@ -148,7 +148,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       className="rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                       title={t("modelDropdown.delete", { name: model.name })}
                     >
-                      <TrashIcon className="w-4 h-4" />
+                      <IconTrash className="w-4 h-4" />
                     </IconButton>
                   </Flex>
                 </Flex>
@@ -165,7 +165,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
             <Box className="mx-4 my-2 border-t border-mid-gray/10" />
           )}
           <Flex align="center" gap="2" className="px-4 py-1.5 text-xs font-medium text-text/50 uppercase tracking-wider">
-            <GlobeIcon className="w-3.5 h-3.5" />
+            <IconCloud className="w-3.5 h-3.5" />
             {t("modelDropdown.onlineAsrModels")}
           </Flex>
           {asrModels.map((model) => {
@@ -194,7 +194,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       {onlineEnabled ? t("modelDropdown.onlineAsrActive") : t("modelDropdown.clickToEnable")}
                     </Text>
                   </Box>
-                  {isActive && <CheckIcon className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />}
+                  {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />}
                 </Flex>
               </Box>
             );
@@ -206,7 +206,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {downloadableModels.length > 0 && (
         <Box className="py-1 bg-mid-gray/5 mt-2 border-t border-mid-gray/10">
           <Flex align="center" gap="2" className="px-4 py-2 text-xs font-medium text-text/50 uppercase tracking-wider">
-            <DownloadIcon className="w-3.5 h-3.5" />
+            <IconDownload className="w-3.5 h-3.5" />
             {t("modelDropdown.downloadableModels")}
           </Flex>
           {downloadableModels.map((model) => {
@@ -265,7 +265,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                         className="rounded-full hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                         title={t("modelDropdown.download")}
                       >
-                        <DownloadIcon className="w-4 h-4" />
+                        <IconDownload className="w-4 h-4" />
                       </IconButton>
                     )}
                   </Box>
@@ -279,7 +279,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {/* No Models Available */}
       {availableModels.length === 0 && downloadableModels.length === 0 && (
         <Box className="px-4 py-8 text-center">
-          <CubeIcon className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
+          <IconCube className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
           <Text className="text-sm text-text/60" size="2">
             {t("modelDropdown.noModelsAvailable")}
           </Text>

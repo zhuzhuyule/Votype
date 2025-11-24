@@ -124,7 +124,7 @@ fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
     let _window =
         tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/index.html".into()))
             .title("Handy")
-            .inner_size(1200.0, 800.0)
+            .inner_size(1100.0, 1000.0)
             .min_inner_size(680.0, 570.0)
             .resizable(true)
             .maximizable(false)

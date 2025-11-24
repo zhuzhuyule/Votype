@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Slider, Flex, Text, IconButton, Box } from "@radix-ui/themes";
-import { Play, Pause } from "lucide-react";
+import { IconPlayerPlay, IconPlayerPause } from "@tabler/icons-react";
 
 interface AudioPlayerProps {
   src: string;
@@ -148,9 +148,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         aria-label={isPlaying ? "Pause" : "Play"}
       >
         {isPlaying ? (
-          <Pause width={20} height={20} />
+          <IconPlayerPause width={20} height={20} />
         ) : (
-          <Play width={20} height={20} />
+          <IconPlayerPlay width={20} height={20} />
         )}
       </IconButton>
 

@@ -1,4 +1,4 @@
-import { MagnifyingGlassIcon } from "@radix-ui/react-icons";
+import { IconSearch } from "@tabler/icons-react";
 import { Box, Select, Text, TextField } from "@radix-ui/themes";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -109,7 +109,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
               onClick={(e) => e.stopPropagation()} // 防止选择框关闭
             >
               <TextField.Slot>
-                <MagnifyingGlassIcon />
+                <IconSearch />
               </TextField.Slot>
             </TextField.Root>
           </Box>

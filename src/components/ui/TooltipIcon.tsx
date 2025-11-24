@@ -1,6 +1,6 @@
 import React from "react";
 import { IconButton, Text, Tooltip } from "@radix-ui/themes";
-import { HelpCircle } from "lucide-react";
+import { IconHelpCircle } from "@tabler/icons-react";
 
 interface TooltipIconProps {
   text: string;
@@ -33,7 +33,7 @@ export const TooltipIcon: React.FC<TooltipIconProps> = React.memo(
         className={`w-4 h-4 p-0 text-mid-gray hover:text-logo-primary transition-colors duration-200 focus:ring-2 focus:ring-logo-primary focus:ring-offset-1 rounded ${className}`}
         aria-label={`${text}: ${description}`}
       >
-        <HelpCircle width={16} height={16} />
+        <IconHelpCircle width={16} height={16} />
       </IconButton>
     </Tooltip>
   ),

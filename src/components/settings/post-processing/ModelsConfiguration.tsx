@@ -6,7 +6,7 @@ import {
   IconButton,
   TextField
 } from "@radix-ui/themes";
-import { Eye, EyeOff } from "lucide-react";
+import { IconEye, IconEyeOff } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -99,9 +99,9 @@ const ApiSettings: React.FC = () => {
                 type="button"
               >
                 {showApiKey ? (
-                  <EyeOff height={14} width={14} />
+                  <IconEyeOff height={14} width={14} />
                 ) : (
-                  <Eye height={14} width={14} />
+                  <IconEye height={14} width={14} />
                 )}
               </IconButton>
             </TextField.Slot>

@@ -10,7 +10,6 @@ import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
 import { SoundPicker } from "../SoundPicker";
 import { MuteWhileRecording } from "../MuteWhileRecording";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
-import { ClamshellMicrophoneSelector } from "../ClamshellMicrophoneSelector";
 
 export const DebugSettings: React.FC = () => {
   const { t } = useTranslation();

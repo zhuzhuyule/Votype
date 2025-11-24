@@ -1,5 +1,5 @@
+import { IconFolderOpen } from "@tabler/icons-react";
 import { Flex, IconButton, Text } from "@radix-ui/themes";
-import { FolderOpen } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -78,7 +78,7 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
               variant="ghost"
               title={t("logDirectory.open")}
             >
-              <FolderOpen />
+              <IconFolderOpen />
             </IconButton>
           )}
         </Flex>

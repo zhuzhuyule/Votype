@@ -1,5 +1,5 @@
 import { Box, Flex, TextField, Select as ThemeSelect } from "@radix-ui/themes";
-import { ChevronsUpDown, Plus, X } from "lucide-react";
+import { IconSelector, IconPlus, IconX } from "@tabler/icons-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -196,7 +196,7 @@ export const Select: React.FC<SelectProps> = React.memo((props) => {
           {isLoading ? (
             <span className={spinnerClasses} />
           ) : (
-            <ChevronsUpDown className="h-4 w-4 text-text/40" />
+            <IconSelector className="h-4 w-4 text-text/40" />
           )}
         </Flex>
 
@@ -209,7 +209,7 @@ export const Select: React.FC<SelectProps> = React.memo((props) => {
               handleClear();
             }}
           >
-            <X className="h-3 w-3" />
+            <IconX className="h-3 w-3" />
           </button>
         )}
       </Box>
@@ -237,7 +237,7 @@ export const Select: React.FC<SelectProps> = React.memo((props) => {
                   onClick={handleCreate}
                   disabled={!newValue.trim()}
                 >
-                  <Plus className="h-3 w-3" />
+                  <IconPlus size={18} />
                 </button>
               </Box>
               {creationLabel && (

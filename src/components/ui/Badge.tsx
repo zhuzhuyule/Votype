@@ -1,6 +1,6 @@
 import React from "react";
 import { Flex, Text, IconButton } from "@radix-ui/themes";
-import { X } from "lucide-react";
+import { IconX } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 interface BadgeProps {
@@ -70,7 +70,7 @@ const Badge: React.FC<BadgeProps> = ({
           aria-label={t("common.remove")}
           className="ml-1 hover:bg-black/20 transition-colors"
         >
-          <X width={12} height={12} />
+          <IconX width={12} height={12} />
         </IconButton>
       )}
     </Flex>

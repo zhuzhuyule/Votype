@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Dropdown, DropdownOption } from "../ui/Dropdown";
-import { PlayIcon } from "lucide-react";
+import { IconPlayerPlay } from "@tabler/icons-react";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ActionWrapper } from "../ui/ActionWrapper";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -59,7 +59,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
           onClick={handlePlayBothSounds}
           title={t("soundPicker.preview")}
         >
-          <PlayIcon size="18" />
+          <IconPlayerPlay size="18" />
         </IconButton>
       </ActionWrapper>
     </SettingContainer>

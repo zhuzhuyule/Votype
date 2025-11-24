@@ -1,4 +1,4 @@
-import { PlusIcon } from "@radix-ui/react-icons";
+import { IconPlus } from "@tabler/icons-react";
 import {
   Button,
   Flex,
@@ -233,7 +233,7 @@ const PromptSettings: React.FC = () => {
                 variant="outline"
                 onClick={handleStartCreate}
               >
-                <PlusIcon />
+                <IconPlus size={18} />
               </IconButton>
             </Tooltip>
           )}

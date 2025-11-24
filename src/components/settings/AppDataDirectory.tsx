@@ -1,5 +1,5 @@
 import { Flex, IconButton, Text } from "@radix-ui/themes";
-import { Check, Copy, FolderOpen } from "lucide-react";
+import { IconCheck, IconCopy, IconFolderOpen } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -66,7 +66,7 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
               onClick={handleCopy}
               title={copied ? t("appData.copied") : t("appData.copyPath")}
             >
-              {copied ? <Check /> : <Copy />}
+              {copied ? <IconCheck /> : <IconCopy />}
             </IconButton>
             <IconButton
               onClick={handleOpen}
@@ -75,7 +75,7 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
               disabled={!appDirPath}
               title={t("appData.open")}
             >
-              <FolderOpen />
+              <IconFolderOpen />
             </IconButton>
           </>
         )}
