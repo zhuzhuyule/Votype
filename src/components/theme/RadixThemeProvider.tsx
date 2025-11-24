@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Theme, type ThemeProps, useThemeContext } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "handy_ui_theme_config";
 
@@ -127,23 +127,47 @@ export const RadixThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, []);
 
-  return (
-    <Theme
-      appearance={themeConfig.appearance}
-      accentColor={themeConfig.accentColor}
-      grayColor={themeConfig.grayColor}
-      panelBackground={themeConfig.panelBackground}
-      radius={themeConfig.radius}
-      scaling={themeConfig.scaling}
-      hasBackground={false}
-    >
-      <ThemeStateSync onThemeChange={updateThemeConfig}>
-        <div className="min-h-screen" data-theme={resolvedAppearance}>
-          {children}
-        </div>
-      </ThemeStateSync>
-    </Theme>
+  const themeContextValue = useMemo(
+    () => ({
+      theme: themeConfig.appearance,
+      setTheme: (appearance: ThemeAppearance) =>
+        updateThemeConfig({ appearance }),
+    }),
+    [themeConfig.appearance, updateThemeConfig],
   );
+
+  return (
+    <ThemeContext.Provider value={themeContextValue}>
+      <Theme
+        appearance={themeConfig.appearance}
+        accentColor={themeConfig.accentColor}
+        grayColor={themeConfig.grayColor}
+        panelBackground={themeConfig.panelBackground}
+        radius={themeConfig.radius}
+        scaling={themeConfig.scaling}
+        hasBackground={false}
+      >
+        <ThemeStateSync onThemeChange={updateThemeConfig}>
+          <div className="min-h-screen" data-theme={resolvedAppearance}>
+            {children}
+          </div>
+        </ThemeStateSync>
+      </Theme>
+    </ThemeContext.Provider>
+  );
+};
+
+const ThemeContext = React.createContext<{
+  theme: ThemeAppearance;
+  setTheme: (theme: ThemeAppearance) => void;
+} | null>(null);
+
+export const useTheme = () => {
+  const context = React.useContext(ThemeContext);
+  if (!context) {
+    throw new Error("useTheme must be used within a RadixThemeProvider");
+  }
+  return context;
 };
 
 type ThemeStateSyncProps = {

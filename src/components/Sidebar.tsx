@@ -5,13 +5,12 @@ import {
     History,
     Info,
     Layers,
+    Settings,
     Sparkles,
 } from "lucide-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
-import HandyHand from "./icons/HandyHand";
-import HandyTextLogo from "./icons/HandyTextLogo";
 import {
     AboutSettings,
     AdvancedSettings,
@@ -42,7 +41,7 @@ interface SectionConfig {
 export const SECTIONS_CONFIG = {
   general: {
     labelKey: "sidebar.general",
-    icon: HandyHand,
+    icon: Settings,
     component: GeneralSettings,
     enabled: () => true,
   },
@@ -114,10 +113,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       direction="column"
       className="w-40 h-full border-r border-mid-gray/20 items-center px-2"
     >
-      <HandyTextLogo width={120} className="m-4 text-logo-primary/60" />
       <Flex
         direction="column"
-        className="w-full items-center gap-1 pt-2 border-t border-mid-gray/20"
+        className="w-full items-center gap-1 pt-2"
       >
         {availableSections.map((section) => {
           const Icon = section.icon;

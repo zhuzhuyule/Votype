@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { getVersion } from "@tauri-apps/api/app";
 import { Flex, Text } from "@radix-ui/themes";
+import { getVersion } from "@tauri-apps/api/app";
+import React, { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import ModelSelector from "../model-selector";
 import UpdateChecker from "../update-checker";
+import { ThemeSelector } from "./ThemeSelector";
 
 const Footer: React.FC = () => {
   const { t } = useTranslation();
@@ -32,10 +33,13 @@ const Footer: React.FC = () => {
         </Flex>
 
         {/* Update Status */}
-        <Flex align="center" gap="1">
-          <UpdateChecker />
-          <Text>•</Text>
-          <Text>v{version}</Text>
+        <Flex align="center" gap="3">
+          <Flex align="center" gap="1">
+            <UpdateChecker />
+            <Text>•</Text>
+            <Text>v{version}</Text>
+          </Flex>
+          <ThemeSelector />
         </Flex>
       </Flex>
     </Flex>

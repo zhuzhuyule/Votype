@@ -88,7 +88,7 @@
     "arranged": "Arranged",
     "ascending": "Ascending",
     "attach": "Attach",
-    "attachAttach": "Attach",
+
     "audio": "Audio",
     "authentic": "Authentic",
     "auto": "Auto",
@@ -97,7 +97,7 @@
     "awaiting": "Awaiting...",
     "away": "Away",
     "back": "Back",
-    "back": "Back",
+
     "backup": "Backup",
     "backward": "Backward",
     "bad": "Bad",
@@ -199,7 +199,7 @@
     "description": "Description",
     "deselect": "Deselect",
     "detach": "Detach",
-    "detachDetach": "Detach",
+
     "details": "Details",
     "developed": "Developed",
     "dialog": "Dialog",
@@ -423,7 +423,7 @@
     "near": "Near",
     "nevertheless": "Nevertheless",
     "new": "New",
-    "new": "New",
+
     "newer": "Newer",
     "newest": "Newest",
     "next": "Next",
@@ -432,7 +432,7 @@
     "no": "No",
     "nobody": "Nobody",
     "none": "None",
-    "none": "None",
+
     "nonetheless": "Nonetheless",
     "noone": "No one",
     "noplace": "Noplace",
@@ -451,7 +451,7 @@
     "old": "Old",
     "older": "Older",
     "oldest": "Oldest",
-    "oldest": "Oldest",
+
     "on": "On",
     "oneByOne": "One by one",
     "online": "Online",
@@ -463,10 +463,10 @@
     "ordered": "Ordered",
     "organized": "Organized",
     "original": "Original",
-    "original": "Original",
+
     "outdated": "Outdated",
     "outline": "Outline",
-    "outline": "Outline",
+
     "outside": "Outside",
     "over": "Over",
     "package": "Package",
@@ -497,7 +497,7 @@
     "point": "Point",
     "position": "Position",
     "possible": "Possible",
-    "possible": "Possible",
+
     "possibly": "Possibly",
     "potentially": "Potentially",
     "predominantly": "Predominantly",
@@ -508,7 +508,7 @@
     "previousText": "Previous",
     "previousVersion": "Previous",
     "primarily": "Primarily",
-    "primarily": "Primarily",
+
     "principally": "Principally",
     "private": "Private",
     "probable": "Probable",
@@ -536,30 +536,30 @@
     "redo": "Redo",
     "reduced": "Reduced",
     "refresh": "Refresh",
-    "refresh": "Refresh",
+
     "register": "Register",
     "regressed": "Regressed",
     "release": "Release",
     "reliable": "Reliable",
     "reload": "Reload",
-    "reload": "Reload",
+
     "remote": "Remote",
-    "remote": "Remote",
+
     "remove": "Remove",
-    "remove": "Remove",
+
     "rename": "Rename",
     "rendered": "Rendered",
     "renew": "Renew",
     "repaired": "Repaired",
     "required": "Required",
     "reset": "Reset",
-    "reset": "Reset",
+
     "restart": "Restart",
     "restore": "Restore",
     "resume": "Resume",
     "retry": "Retry",
     "right": "Right",
-    "right": "Right",
+
     "rookie": "Rookie",
     "room": "Room",
     "safe": "Safe",
@@ -613,7 +613,7 @@
     "someplace": "Someplace",
     "somewhere": "Somewhere",
     "sort": "Sort",
-    "sort": "Sort",
+
     "sorted": "Sorted",
     "sound": "Sound",
     "space": "Space",
@@ -654,7 +654,7 @@
     "tiny": "Tiny",
     "titanic": "Titanic",
     "together": "Together",
-    "together": "Together",
+
     "top": "Top",
     "total": "Total",
     "totally": "Totally",
@@ -662,10 +662,10 @@
     "trainee_text": "Trainee",
     "transfer": "Transfer",
     "true": "True",
-    "true": "True",
+
     "trustworthy": "Trustworthy",
     "type": "Type",
-    "type": "Type",
+
     "typically": "Typically",
     "unavailable": "Unavailable",
     "unbind": "Unbind",
@@ -686,7 +686,7 @@
     "unformatted": "Unformatted",
     "ungrouped": "Ungrouped",
     "uninstall": "Uninstall",
-    "uninstall": "Uninstall",
+
     "unit": "Unit",
     "unlike": "Unlike",
     "unlink": "Unlink",
@@ -717,7 +717,7 @@
     "unwrapped": "Unwrapped",
     "up": "Up",
     "update": "Update",
-    "update": "Update",
+
     "updated": "Updated",
     "updating": "Updating",
     "upgrade": "Upgrade",
@@ -997,7 +997,7 @@
   },
   "postProcessing": {
     "aiModelConfig": "Default Model",
-    "aiModelConfig": "AI Model Config",
+
     "apiKeyDescription": "Your API key for the selected provider",
     "apiKeyTitle": "API Key",
     "apiTitle": "API Configuration",
@@ -1007,7 +1007,7 @@
     "clickCreateNew": "Click 'Create New Prompt' above to create your first post-processing prompt.",
     "createNewPrompt": "Create new prompt",
     "createPrompt": "Create Prompt",
-    "createPrompt": "Create Prompt",
+
     "defaultModel": "Default Model",
     "defaultModelDescription": "Select the default model to be used for post-processing prompts when no specific model is assigned.",
     "deletePrompt": "Delete Prompt",
@@ -1099,8 +1099,10 @@
       "amber": "Amber",
       "blue": "Blue",
       "bronze": "Bronze",
+      "brown": "Brown",
       "current": "Primary colors tint controls and highlights; Handy currently uses {{color}}.",
       "cyan": "Cyan",
+      "crimson": "Crimson",
       "description": "Controls highlights, buttons, and active states.",
       "emerald": "Emerald",
       "fuchsia": "Fuchsia",
@@ -1109,12 +1111,17 @@
       "gray": "Gray",
       "green": "Green",
       "indigo": "Indigo",
+      "iris": "Iris",
+      "jade": "Jade",
       "lime": "Lime",
       "neutral": "Neutral",
+      "mint": "Mint",
       "orange": "Orange",
       "pink": "Pink",
+      "plum": "Plum",
       "purple": "Purple",
       "red": "Red",
+      "ruby": "Ruby",
       "rose": "Rose",
       "sky": "Sky",
       "slate": "Slate",
