@@ -68,9 +68,7 @@ const PromptSettings: React.FC = () => {
     let defaultLabel = t("postProcessing.promptModelDefault");
     
     if (defaultModel) {
-      const provider = settings?.post_process_providers.find(p => p.id === defaultModel.provider_id);
-      const providerLabel = provider ? provider.label : defaultModel.provider_id;
-      defaultLabel = `${defaultModel.custom_label || defaultModel.name} (${providerLabel})`;
+      defaultLabel = `${t("common.default") || "Default"} (${defaultModel.custom_label || defaultModel.name})`;
     }
 
     return [

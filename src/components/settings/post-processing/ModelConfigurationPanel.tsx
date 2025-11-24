@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { CheckIcon, Pencil1Icon, TrashIcon } from "@radix-ui/react-icons";
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -366,7 +367,6 @@ export const ModelConfigurationPanel: React.FC = () => {
               );
               if (models.length === 0) return null;
 
-
               return (
                 <Box key={modelType} className="space-y-3">
                   <Flex align="center" gap="2">
@@ -382,54 +382,85 @@ export const ModelConfigurationPanel: React.FC = () => {
                     </Text>
                   </Flex>
                   <Box className="relative">
-                    <RadioCards.Root
-                      columns="3"
-                      gap="3"
-                      value={settings?.selected_prompt_model_id || ""}
-                      onValueChange={async (value) => {
-                        if (!isEditMode) {
-                          try {
-                            await invoke("select_post_process_model", {
-                              modelId: value,
-                            });
-                            await refreshSettings();
-                          } catch (e) {
-                            console.error("Failed to set default model", e);
-                          }
-                        }
+                    <Box
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+                        gap: "12px",
                       }}
                     >
                       {models.map((cachedModel) => {
                         const isRemoving = isUpdating(
                           `cached_model_remove:${cachedModel.id}`,
                         );
+                        const isSelected =
+                          settings?.selected_prompt_model_id === cachedModel.id;
+
                         return (
-                          <Box key={cachedModel.id} className="relative">
-                            <RadioCards.Item
-                              value={cachedModel.id}
-                              className="cursor-pointer"
+                          <Box
+                            key={cachedModel.id}
+                            className={`
+                              relative rounded-lg border transition-all duration-200 cursor-pointer
+                              ${
+                                isSelected
+                                  ? "border-logo-primary bg-logo-primary/5 ring-1 ring-logo-primary"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                              }
+                            `}
+                            onClick={async () => {
+                              if (!isEditMode && !isRemoving) {
+                                try {
+                                  await invoke("select_post_process_model", {
+                                    modelId: cachedModel.id,
+                                  });
+                                  await refreshSettings();
+                                } catch (e) {
+                                  console.error(
+                                    "Failed to set default model",
+                                    e,
+                                  );
+                                }
+                              }
+                            }}
+                          >
+                            <Flex
+                              direction="column"
+                              gap="2"
+                              p="3"
+                              height="100%"
+                              className="min-h-[80px]"
                             >
-                              <Flex direction="column" gap="2" height="100%">
-                                <Flex direction="column" gap="1" className="flex-1 min-w-0 pr-8">
-                                  <Text size="2" weight="medium" className="truncate">
-                                    {cachedModel.name}
-                                  </Text>
-                                  <Text size="1" color="gray" className="truncate">
-                                    {providerNameMap[cachedModel.provider_id] ??
-                                      cachedModel.provider_id}
-                                  </Text>
-                                </Flex>
-                                {cachedModel.custom_label && (
-                                  <Text
-                                    size="1"
-                                    weight="medium"
-                                    className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30"
-                                  >
-                                    {cachedModel.custom_label}
-                                  </Text>
-                                )}
+                              <Flex
+                                direction="column"
+                                gap="1"
+                                className="flex-1 min-w-0 pr-6"
+                              >
+                                <Text
+                                  size="2"
+                                  weight="medium"
+                                  className="truncate"
+                                >
+                                  {cachedModel.name}
+                                </Text>
+                                <Text
+                                  size="1"
+                                  color="gray"
+                                  className="truncate"
+                                >
+                                  {providerNameMap[cachedModel.provider_id] ??
+                                    cachedModel.provider_id}
+                                </Text>
                               </Flex>
-                            </RadioCards.Item>
+                              {cachedModel.custom_label && (
+                                <Text
+                                  size="1"
+                                  weight="medium"
+                                  className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30 w-fit"
+                                >
+                                  {cachedModel.custom_label}
+                                </Text>
+                              )}
+                            </Flex>
                             {isEditMode && (
                               <IconButton
                                 onClick={(e) => {
@@ -441,21 +472,33 @@ export const ModelConfigurationPanel: React.FC = () => {
                                 disabled={!!isRemoving}
                                 color="red"
                                 style={{
-                                  position: 'absolute',
-                                  top: '8px',
-                                  right: '8px',
+                                  position: "absolute",
+                                  top: "8px",
+                                  right: "8px",
                                   zIndex: 10,
-                                  pointerEvents: 'auto'
                                 }}
                                 title={t("modelConfiguration.remove")}
                               >
                                 <TrashIcon width="14" height="14" />
                               </IconButton>
                             )}
+                            {isSelected && !isEditMode && (
+                              <Box
+                                style={{
+                                  position: "absolute",
+                                  bottom: "8px",
+                                  right: "8px",
+                                }}
+                              >
+                                <Badge color="indigo" variant="solid" radius="full">
+                                  {t("common.default") || "Default"}
+                                </Badge>
+                              </Box>
+                            )}
                           </Box>
                         );
                       })}
-                    </RadioCards.Root>
+                    </Box>
                   </Box>
                 </Box>
               );

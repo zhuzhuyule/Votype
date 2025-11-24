@@ -1,11 +1,10 @@
 
 import {
-    Button,
-    Dialog,
-    Flex,
-    IconButton,
-    Text,
-    TextField
+  Button,
+  Dialog,
+  Flex,
+  IconButton,
+  TextField
 } from "@radix-ui/themes";
 import { Eye, EyeOff } from "lucide-react";
 import React, { useState } from "react";
@@ -132,11 +131,6 @@ export const ModelsConfiguration: React.FC = () => {
         }
       >
         <ApiSettings />
-        <Flex justify="end">
-          <Text size="1" color="gray" style={{ opacity: 0.7 }}>
-            {t("common.autoSaved")}
-          </Text>
-        </Flex>
       </SettingsGroup>
 
       <SettingsGroup title={t("postProcessing.modelSelection")}>
