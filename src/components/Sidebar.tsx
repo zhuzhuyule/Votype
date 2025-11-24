@@ -129,9 +129,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
               p="2"
               className={`w-full cursor-pointer rounded-lg transition-colors ${
                 isActive
-                  ? "bg-logo-primary/60 primary text-white"
+                  ? ""
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
               }`}
+              style={
+                isActive
+                  ? {
+                      backgroundColor: "var(--accent-9)",
+                      color: "white",
+                    }
+                  : undefined
+              }
               onClick={() => onSectionChange(section.id)}
             >
               <Icon width={24} height={24} />

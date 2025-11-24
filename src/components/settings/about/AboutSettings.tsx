@@ -68,7 +68,6 @@ export const AboutSettings: React.FC = () => {
           <Button
             variant="solid"
             size="2"
-            color="pink"
             onClick={handleDonateClick}
           >
             {t("about.support.donate")}
