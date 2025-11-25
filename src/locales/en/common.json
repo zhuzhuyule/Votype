@@ -88,7 +88,6 @@
     "arranged": "Arranged",
     "ascending": "Ascending",
     "attach": "Attach",
-
     "audio": "Audio",
     "authentic": "Authentic",
     "auto": "Auto",
@@ -97,7 +96,6 @@
     "awaiting": "Awaiting...",
     "away": "Away",
     "back": "Back",
-
     "backup": "Backup",
     "backward": "Backward",
     "bad": "Bad",
@@ -199,7 +197,6 @@
     "description": "Description",
     "deselect": "Deselect",
     "detach": "Detach",
-
     "details": "Details",
     "developed": "Developed",
     "dialog": "Dialog",
@@ -423,7 +420,6 @@
     "near": "Near",
     "nevertheless": "Nevertheless",
     "new": "New",
-
     "newer": "Newer",
     "newest": "Newest",
     "next": "Next",
@@ -432,7 +428,6 @@
     "no": "No",
     "nobody": "Nobody",
     "none": "None",
-
     "nonetheless": "Nonetheless",
     "noone": "No one",
     "noplace": "Noplace",
@@ -451,7 +446,6 @@
     "old": "Old",
     "older": "Older",
     "oldest": "Oldest",
-
     "on": "On",
     "oneByOne": "One by one",
     "online": "Online",
@@ -463,10 +457,8 @@
     "ordered": "Ordered",
     "organized": "Organized",
     "original": "Original",
-
     "outdated": "Outdated",
     "outline": "Outline",
-
     "outside": "Outside",
     "over": "Over",
     "package": "Package",
@@ -497,7 +489,6 @@
     "point": "Point",
     "position": "Position",
     "possible": "Possible",
-
     "possibly": "Possibly",
     "potentially": "Potentially",
     "predominantly": "Predominantly",
@@ -508,7 +499,6 @@
     "previousText": "Previous",
     "previousVersion": "Previous",
     "primarily": "Primarily",
-
     "principally": "Principally",
     "private": "Private",
     "probable": "Probable",
@@ -536,30 +526,24 @@
     "redo": "Redo",
     "reduced": "Reduced",
     "refresh": "Refresh",
-
     "register": "Register",
     "regressed": "Regressed",
     "release": "Release",
     "reliable": "Reliable",
     "reload": "Reload",
-
     "remote": "Remote",
-
     "remove": "Remove",
-
     "rename": "Rename",
     "rendered": "Rendered",
     "renew": "Renew",
     "repaired": "Repaired",
     "required": "Required",
     "reset": "Reset",
-
     "restart": "Restart",
     "restore": "Restore",
     "resume": "Resume",
     "retry": "Retry",
     "right": "Right",
-
     "rookie": "Rookie",
     "room": "Room",
     "safe": "Safe",
@@ -613,7 +597,6 @@
     "someplace": "Someplace",
     "somewhere": "Somewhere",
     "sort": "Sort",
-
     "sorted": "Sorted",
     "sound": "Sound",
     "space": "Space",
@@ -654,7 +637,6 @@
     "tiny": "Tiny",
     "titanic": "Titanic",
     "together": "Together",
-
     "top": "Top",
     "total": "Total",
     "totally": "Totally",
@@ -662,10 +644,8 @@
     "trainee_text": "Trainee",
     "transfer": "Transfer",
     "true": "True",
-
     "trustworthy": "Trustworthy",
     "type": "Type",
-
     "typically": "Typically",
     "unavailable": "Unavailable",
     "unbind": "Unbind",
@@ -686,7 +666,6 @@
     "unformatted": "Unformatted",
     "ungrouped": "Ungrouped",
     "uninstall": "Uninstall",
-
     "unit": "Unit",
     "unlike": "Unlike",
     "unlink": "Unlink",
@@ -717,7 +696,6 @@
     "unwrapped": "Unwrapped",
     "up": "Up",
     "update": "Update",
-
     "updated": "Updated",
     "updating": "Updating",
     "upgrade": "Upgrade",
@@ -735,6 +713,7 @@
     "version": "Version",
     "versionCurrent": "Current",
     "versionLatest": "Latest",
+    "versions": "Version",
     "veteran": "Veteran",
     "video": "Video",
     "visible": "Visible",
@@ -816,16 +795,20 @@
       "today": "Today",
       "yesterday": "Yesterday"
     },
-    "title": "History"
+    "title": "History",
+    "welcome": {
+      "subtitle": "Your AI-powered voice assistant is ready to help you write faster and better.",
+      "title": "Welcome to Votype"
+    }
   },
   "logDirectory": {
-    "description": "Location on disk where Handy writes rotated log files",
+    "description": "Location on disk where Votype writes rotated log files",
     "error": "Error loading log directory: {{error}}",
     "open": "Open",
     "title": "Log Directory"
   },
   "logLevel": {
-    "description": "Choose how verbose Handy should be while logging to disk",
+    "description": "Choose how verbose Votype should be while logging to disk",
     "title": "Log Level"
   },
   "microphone": {
@@ -907,7 +890,27 @@
     "onlineAsrModels": "Online ASR Models",
     "recommended": "Recommended",
     "selected": "Selected",
-    "welcome": "Welcome to Handy!"
+    "welcome": "Welcome to Votype!"
+  },
+  "models": {
+    "large": {
+      "description": "Good accuracy, but slow."
+    },
+    "medium": {
+      "description": "Good accuracy, medium speed"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "English only. The best model for English speakers."
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "Fast and accurate"
+    },
+    "small": {
+      "description": "Fast and fairly accurate."
+    },
+    "turbo": {
+      "description": "Balanced accuracy and speed."
+    }
   },
   "modelSelector": {
     "downloading": "Downloading {{percentage}}%",
@@ -944,7 +947,7 @@
     "title": "Unload Model"
   },
   "muteWhileRecording": {
-    "description": "Automatically mute all sound output while Handy is recording, then restore it when finished.",
+    "description": "Automatically mute all sound output while Votype is recording, then restore it when finished.",
     "title": "Mute While Recording"
   },
   "onboarding": {
@@ -997,7 +1000,6 @@
   },
   "postProcessing": {
     "aiModelConfig": "Default Model",
-
     "apiKeyDescription": "Your API key for the selected provider",
     "apiKeyTitle": "API Key",
     "apiTitle": "API Configuration",
@@ -1007,7 +1009,6 @@
     "clickCreateNew": "Click 'Create New Prompt' above to create your first post-processing prompt.",
     "createNewPrompt": "Create new prompt",
     "createPrompt": "Create Prompt",
-
     "defaultModel": "Default Model",
     "defaultModelDescription": "Select the default model to be used for post-processing prompts when no specific model is assigned.",
     "deletePrompt": "Delete Prompt",
@@ -1069,7 +1070,7 @@
     "recording": "Recording shortcut...",
     "resetFailed": "Failed to reset shortcut to original value",
     "restoreFailed": "Failed to restore original shortcut",
-    "title": "Handy Shortcut"
+    "title": "Votype Shortcut"
   },
   "sidebar": {
     "about": "About",
@@ -1091,7 +1092,7 @@
     "title": "Start Hidden"
   },
   "startup": {
-    "description": "Automatically start Handy when you log in to your computer.",
+    "launchAtLoginDesc": "Automatically start Votype when you log in to your computer.",
     "title": "Launch on Startup"
   },
   "theme": {
@@ -1100,9 +1101,9 @@
       "blue": "Blue",
       "bronze": "Bronze",
       "brown": "Brown",
+      "crimson": "Crimson",
       "current": "Primary colors tint controls and highlights; Handy currently uses {{color}}.",
       "cyan": "Cyan",
-      "crimson": "Crimson",
       "description": "Controls highlights, buttons, and active states.",
       "emerald": "Emerald",
       "fuchsia": "Fuchsia",
@@ -1114,15 +1115,15 @@
       "iris": "Iris",
       "jade": "Jade",
       "lime": "Lime",
-      "neutral": "Neutral",
       "mint": "Mint",
+      "neutral": "Neutral",
       "orange": "Orange",
       "pink": "Pink",
       "plum": "Plum",
       "purple": "Purple",
       "red": "Red",
-      "ruby": "Ruby",
       "rose": "Rose",
+      "ruby": "Ruby",
       "sky": "Sky",
       "slate": "Slate",
       "stone": "Stone",

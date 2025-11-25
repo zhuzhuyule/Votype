@@ -1,7 +1,6 @@
-import React from "react";
 
-const HandyTextLogo = ({
-  width,
+export const VotypeTextLogo = ({
+  width = 120,
   height,
   className,
 }: {
@@ -88,4 +87,4 @@ const HandyTextLogo = ({
   );
 };
 
-export default HandyTextLogo;
+export default VotypeTextLogo;

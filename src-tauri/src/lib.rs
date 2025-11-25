@@ -123,7 +123,7 @@ fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
 
     let _window =
         tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/index.html".into()))
-            .title("Handy")
+            .title("Votype")
             .inner_size(1100.0, 1000.0)
             .min_inner_size(680.0, 570.0)
             .resizable(true)
@@ -271,7 +271,7 @@ pub fn run() {
                     }),
                     // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
                     Target::new(TargetKind::LogDir {
-                        file_name: Some("handy".into()),
+                        file_name: Some("votype".into()),
                     })
                     .filter(|metadata| {
                         let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);

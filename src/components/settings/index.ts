@@ -12,13 +12,13 @@ export { AlwaysOnMicrophone } from "./AlwaysOnMicrophone";
 export { AudioFeedback } from "./AudioFeedback";
 export { ClamshellMicrophoneSelector } from "./ClamshellMicrophoneSelector";
 export { CustomWords } from "./CustomWords";
-export { HandyShortcut } from "./HandyShortcut";
 export { MicrophoneSelector } from "./MicrophoneSelector";
 export { OutputDeviceSelector } from "./OutputDeviceSelector";
 export { PostProcessingToggle } from "./PostProcessingToggle";
 export { PushToTalk } from "./PushToTalk";
 export { ShowOverlay } from "./ShowOverlay";
 export { TranslateToEnglish } from "./TranslateToEnglish";
+export { VotypeShortcut } from "./VotypeShortcut";
 
 export { AppDataDirectory } from "./AppDataDirectory";
 export { AutostartToggle } from "./AutostartToggle";

@@ -11,6 +11,7 @@ import {
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
+import VotypeHand from "./icons/VotypeHand";
 import {
   AboutSettings,
   AdvancedSettings,
@@ -113,6 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       direction="column"
       className="w-40 h-full border-r border-mid-gray/20 items-center px-2"
     >
+      <VotypeHand size={24} />
       <Flex
         direction="column"
         className="w-full items-center gap-1 pt-2"
@@ -127,17 +129,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
               gap="2"
               align="center"
               p="2"
-              className={`w-full cursor-pointer rounded-lg transition-colors ${
-                isActive
-                  ? ""
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              }`}
+              className={`w-full cursor-pointer rounded-lg transition-colors ${isActive
+                ? ""
+                : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
+                }`}
               style={
                 isActive
                   ? {
-                      backgroundColor: "var(--accent-9)",
-                      color: "white",
-                    }
+                    backgroundColor: "var(--accent-9)",
+                    color: "white",
+                  }
                   : undefined
               }
               onClick={() => onSectionChange(section.id)}

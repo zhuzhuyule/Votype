@@ -1,4 +1,4 @@
-import { Flex, Kbd } from "@radix-ui/themes";
+import { Kbd } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { type } from "@tauri-apps/plugin-os";
 import React, { useEffect, useState } from "react";
@@ -6,20 +6,20 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useSettings } from "../../hooks/useSettings";
 import {
-  formatKeyCombination,
-  getKeyName,
-  normalizeKey,
-  type OSType,
+    formatKeyCombination,
+    getKeyName,
+    normalizeKey,
+    type OSType,
 } from "../../lib/utils/keyboard";
 import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
 
-interface HandyShortcutProps {
+interface VotypeShortcutProps {
   descriptionMode?: "inline" | "tooltip";
   grouped?: boolean;
 }
 
-export const HandyShortcut: React.FC<HandyShortcutProps> = ({
+export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
   descriptionMode = "tooltip",
   grouped = false,
 }) => {

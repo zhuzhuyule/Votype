@@ -7,7 +7,7 @@
       "viewOnGitHub": "在 GitHub 上查看"
     },
     "support": {
-      "description": "帮助我们继续构建 Handy",
+      "description": "帮助我们继续构建 Votype",
       "donate": "捐赠",
       "title": "支持开发"
     },
@@ -16,15 +16,19 @@
       "description": "Handy 的当前版本",
       "title": "版本"
     },
+    "welcome": {
+      "subtitle": "您的 AI 语音助手已准备就绪，助您更高效地写作。",
+      "title": "欢迎使用 {{appName}}"
+    },
     "whisper": {
-      "content": "Handy 使用 Whisper.cpp 进行快速、本地的语音到文本处理。感谢 Georgi Gerganov 和贡献者的精彩工作。",
+      "content": "Votype 使用 Whisper.cpp 进行快速、本地的语音到文本处理。感谢 Georgi Gerganov 和贡献者的精彩工作。",
       "description": "OpenAI Whisper 自动语音识别模型的高性能推理",
       "title": "Whisper.cpp"
     }
   },
   "accessibility": {
     "grant": "授权",
-    "request": "请授予 Handy 辅助功能权限",
+    "request": "请授予 Votype 辅助功能权限",
     "verify": "验证"
   },
   "advancedSettings": {
@@ -99,7 +103,6 @@
     "awaiting": "等待中...",
     "away": "远离",
     "back": "后面",
-
     "backup": "备份",
     "backward": "向后",
     "bad": "坏",
@@ -147,7 +150,6 @@
     "clears": "清除",
     "clone": "克隆",
     "close": "接近",
-
     "closed": "关闭",
     "clustered": "聚类的",
     "collapsed": "折叠",
@@ -264,7 +266,6 @@
     "everywhere": "到处",
     "evolved": "进化的",
     "exit": "退出",
-
     "expanded": "展开",
     "expandedText": "扩展的",
     "experiences": "经验",
@@ -436,10 +437,8 @@
     "near": "附近",
     "nevertheless": "仍然",
     "new": "新",
-
     "newer": "较新",
     "newest": "最新",
-
     "next": "下一步",
     "nils": "零",
     "no": "否",
@@ -464,7 +463,6 @@
     "old": "旧",
     "older": "较旧",
     "oldest": "最旧",
-
     "on": "开",
     "oneByOne": "逐一",
     "online": "在线",
@@ -518,10 +516,8 @@
     "prepared": "已准备",
     "prepend": "前缀",
     "previous": "上一个",
-
     "previousVersion": "上一个",
     "primarily": "主要",
-
     "principally": "主要",
     "private": "私人",
     "probables": "可能",
@@ -557,22 +553,18 @@
     "reload": "重新加载",
     "reloads": "重新加载",
     "remote": "远程",
-
     "remove": "移除",
-
     "rename": "重命名",
     "rendered": "渲染的",
     "renew": "续期",
     "repaired": "修复的",
     "required": "必需",
     "reset": "重置",
-
     "restart": "重启",
     "restore": "恢复",
     "resume": "恢复",
     "retry": "重试",
     "right": "右",
-
     "rookies": "新秀",
     "room": "房间",
     "safe": "安全",
@@ -699,7 +691,6 @@
     "unformatted": "未格式化的",
     "ungrouped": "未分组的",
     "uninstall": "卸载",
-
     "unit": "单位",
     "unlike": "取消点赞",
     "unlink": "取消链接",
@@ -829,16 +820,20 @@
       "today": "今天",
       "yesterday": "昨天"
     },
-    "title": "历史记录"
+    "title": "历史记录",
+    "welcome": {
+      "subtitle": "你的 AI 语音助手已准备就绪，帮助你更快、更好地写作。",
+      "title": "欢迎使用 Votype"
+    }
   },
   "logDirectory": {
-    "description": "Handy 写入轮转日志文件的磁盘位置",
+    "description": "Votype 写入轮转日志文件的磁盘位置",
     "error": "加载日志目录时出错: {{error}}",
     "open": "打开",
     "title": "日志目录"
   },
   "logLevel": {
-    "description": "选择 Handy 在写入磁盘日志时的详细程度",
+    "description": "选择 Votype 在写入磁盘日志时的详细程度",
     "title": "日志级别"
   },
   "microphone": {
@@ -861,7 +856,7 @@
     "confirm": "确定",
     "customLabelPlaceholder": "输入自定义模型标签",
     "customLabelTitle": "自定义标签",
-    "description": "Handy 会根据模型的用途将其分组，方便你在转录、文本处理或自定义提示之间选择最合适的工具。此处添加的模型会在应用内的提示和 AI 流程中可用。",
+    "description": "Votype 会根据模型的用途将其分组，方便你在转录、文本处理或自定义提示之间选择最合适的工具。此处添加的模型会在应用内的提示和 AI 流程中可用。",
     "emptyDescription": "先在上方从 Provider 中添加一个吧。",
     "emptyTitle": "暂未添加任何模型",
     "formatCreate": "使用「{{value}}」",
@@ -947,7 +942,27 @@
     "onlineAsrModels": "在线 ASR 模型",
     "recommended": "推荐",
     "selected": "已选择",
-    "welcome": "欢迎使用 Handy！"
+    "welcome": "欢迎使用 Votype！"
+  },
+  "models": {
+    "large": {
+      "description": "准确度好，但速度慢。"
+    },
+    "medium": {
+      "description": "准确度好，速度中等"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "仅支持英语。最适合英语使用者的模型。"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "快速且准确"
+    },
+    "small": {
+      "description": "快速且相当准确。"
+    },
+    "turbo": {
+      "description": "准确度和速度平衡。"
+    }
   },
   "modelSelector": {
     "downloading": "正在下载 {{percentage}}%",
@@ -984,7 +999,7 @@
     "title": "模型卸载"
   },
   "muteWhileRecording": {
-    "description": "Handy 录制时自动静音所有声音输出，完成后恢复。",
+    "description": "Votype 录制时自动静音所有声音输出，完成后恢复。",
     "title": "录制时静音"
   },
   "onboarding": {
@@ -1057,10 +1072,7 @@
     "promptTip": "提示：使用",
     "selectDefaultModel": "选择默认模型...",
     "selectedPromptDescription": "选择用于优化转录的模板或创建新模板。在提示文本内使用 ${output} 来引用捕获的转录文本。",
-
-
     "selectedPromptTitle": "选择提示词",
-
     "selectPrompt": "选择提示词...",
     "selectPromptAbove": "选择上面的提示以查看和编辑其详细信息。",
     "title": "提供商",
@@ -1111,7 +1123,7 @@
     "recording": "录制快捷键中...",
     "resetFailed": "重置快捷键到原始值失败",
     "restoreFailed": "恢复原始快捷键失败",
-    "title": "Handy 快捷键"
+    "title": "Votype 快捷键"
   },
   "sidebar": {
     "about": "关于",
@@ -1133,7 +1145,7 @@
     "title": "隐藏启动"
   },
   "startup": {
-    "description": "登录计算机时自动启动 Handy。",
+    "launchAtLoginDesc": "登录时自动启动 Votype",
     "title": "开机启动"
   },
   "theme": {
@@ -1142,9 +1154,9 @@
       "blue": "蓝色",
       "bronze": "青铜色",
       "brown": "棕色",
+      "crimson": "绯红",
       "current": "主色调控制控件和高亮；Handy 当前使用 {{color}}。",
       "cyan": "青色",
-      "crimson": "绯红",
       "description": "控制高亮、按钮和活动状态。",
       "emerald": "翠绿",
       "fuchsia": "紫红",
@@ -1156,15 +1168,15 @@
       "iris": "鸢尾花色",
       "jade": "玉色",
       "lime": "酸橙",
-      "neutral": "中性色",
       "mint": "薄荷色",
+      "neutral": "中性色",
       "orange": "橙色",
       "pink": "粉色",
       "plum": "李子色",
       "purple": "紫色",
       "red": "红色",
-      "ruby": "宝石红",
       "rose": "玫瑰",
+      "ruby": "宝石红",
       "sky": "天空",
       "slate": "岩灰",
       "stone": "石青",

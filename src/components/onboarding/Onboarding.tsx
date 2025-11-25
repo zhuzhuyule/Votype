@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { Box, Flex, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { ModelInfo } from "../../lib/types";
-import ModelCard from "./ModelCard";
-import HandyTextLogo from "../icons/HandyTextLogo";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ModelInfo } from "../../lib/types";
+import { VotypeHand } from "../icons/VotypeHand";
+import ModelCard from "./ModelCard";
 
 interface OnboardingProps {
   onModelSelected: () => void;
@@ -64,16 +64,9 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
         direction="column"
         align="center"
         gap="2"
-        className="shrink-0"
+        className="shrink-0 my-12"
       >
-        <HandyTextLogo width={200} />
-        <Text
-          className="text-text/70 max-w-md font-medium mx-auto"
-          size="3"
-          align="center"
-        >
-          {t("onboarding.description")}
-        </Text>
+        <VotypeHand />
       </Flex>
 
       <Flex
@@ -94,7 +87,23 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
           </Box>
         )}
 
-        <Flex direction="column" gap="4">
+        <Flex direction="column" gap="4" className="w-full">
+          <Flex justify="between" className="w-full">
+            <Text
+              className="text-text/70 max-w-md font-medium mx-auto"
+              size="3"
+              align="center"
+            >
+              {t("onboarding.description")}
+            </Text>
+            <Button
+              variant="ghost"
+              onClick={onModelSelected}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              {t('common.skip')}
+            </Button>
+          </Flex>
           {availableModels
             .filter((model) => getRecommendedBadge(model.id))
             .map((model) => (

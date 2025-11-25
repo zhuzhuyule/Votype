@@ -71,7 +71,7 @@ impl ModelManager {
             ModelInfo {
                 id: "small".to_string(),
                 name: "Whisper Small".to_string(),
-                description: "Fast and fairly accurate.".to_string(),
+                description: "models.small.description".to_string(),
                 filename: "ggml-small.bin".to_string(),
                 url: Some("https://blob.handy.computer/ggml-small.bin".to_string()),
                 size_mb: 487,
@@ -91,7 +91,7 @@ impl ModelManager {
             ModelInfo {
                 id: "medium".to_string(),
                 name: "Whisper Medium".to_string(),
-                description: "Good accuracy, medium speed".to_string(),
+                description: "models.medium.description".to_string(),
                 filename: "whisper-medium-q4_1.bin".to_string(),
                 url: Some("https://blob.handy.computer/whisper-medium-q4_1.bin".to_string()),
                 size_mb: 492, // Approximate size
@@ -110,7 +110,7 @@ impl ModelManager {
             ModelInfo {
                 id: "turbo".to_string(),
                 name: "Whisper Turbo".to_string(),
-                description: "Balanced accuracy and speed.".to_string(),
+                description: "models.turbo.description".to_string(),
                 filename: "ggml-large-v3-turbo.bin".to_string(),
                 url: Some("https://blob.handy.computer/ggml-large-v3-turbo.bin".to_string()),
                 size_mb: 1600, // Approximate size
@@ -129,7 +129,7 @@ impl ModelManager {
             ModelInfo {
                 id: "large".to_string(),
                 name: "Whisper Large".to_string(),
-                description: "Good accuracy, but slow.".to_string(),
+                description: "models.large.description".to_string(),
                 filename: "ggml-large-v3-q5_0.bin".to_string(),
                 url: Some("https://blob.handy.computer/ggml-large-v3-q5_0.bin".to_string()),
                 size_mb: 1100, // Approximate size
@@ -149,7 +149,7 @@ impl ModelManager {
             ModelInfo {
                 id: "parakeet-tdt-0.6b-v2".to_string(),
                 name: "Parakeet V2".to_string(),
-                description: "English only. The best model for English speakers.".to_string(),
+                description: "models.parakeet-tdt-0.6b-v2.description".to_string(),
                 filename: "parakeet-tdt-0.6b-v2-int8".to_string(), // Directory name
                 url: Some("https://blob.handy.computer/parakeet-v2-int8.tar.gz".to_string()),
                 size_mb: 473, // Approximate size for int8 quantized model
@@ -168,7 +168,7 @@ impl ModelManager {
             ModelInfo {
                 id: "parakeet-tdt-0.6b-v3".to_string(),
                 name: "Parakeet V3".to_string(),
-                description: "Fast and accurate".to_string(),
+                description: "models.parakeet-tdt-0.6b-v3.description".to_string(),
                 filename: "parakeet-tdt-0.6b-v3-int8".to_string(), // Directory name
                 url: Some("https://blob.handy.computer/parakeet-v3-int8.tar.gz".to_string()),
                 size_mb: 478, // Approximate size for int8 quantized model

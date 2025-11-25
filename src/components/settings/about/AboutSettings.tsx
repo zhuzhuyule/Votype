@@ -3,6 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { VotypeHand } from "../../icons/VotypeHand";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AppDataDirectory } from "../AppDataDirectory";
@@ -36,13 +37,14 @@ export const AboutSettings: React.FC = () => {
   return (
     <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("about.title")}>
-        <SettingContainer
-          title={t("about.version.title")}
-          description={t("about.version.description")}
-          grouped={true}
-        >
-          <Text className="text-sm font-mono">v{version}</Text>
-        </SettingContainer>
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <VotypeHand size={36} />
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              {t('common.versions')} {version}
+            </p>
+          </div>
+        </div>
 
         <AppDataDirectory descriptionMode="tooltip" grouped={true} />
 
