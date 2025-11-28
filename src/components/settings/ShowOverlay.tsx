@@ -1,10 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Dropdown } from "../ui/Dropdown";
-import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
 import type { OverlayPosition } from "../../lib/types";
 import { ActionWrapper } from "../ui";
+import { Dropdown } from "../ui/Dropdown";
+import { SettingContainer } from "../ui/SettingContainer";
 
 interface ShowOverlayProps {
   descriptionMode?: "inline" | "tooltip";
@@ -31,7 +31,7 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
     return (
       <SettingContainer
         title={t("overlayPosition.title")}
-        description={t("overlayPosition.description")}
+        description={t("overlayPosition.description") + " On Linux 'None' is recommended."}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
