@@ -6,10 +6,10 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useSettings } from "../../hooks/useSettings";
 import {
-    formatKeyCombination,
-    getKeyName,
-    normalizeKey,
-    type OSType,
+  formatKeyCombination,
+  getKeyName,
+  normalizeKey,
+  type OSType,
 } from "../../lib/utils/keyboard";
 import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -17,11 +17,15 @@ import { SettingContainer } from "../ui/SettingContainer";
 interface VotypeShortcutProps {
   descriptionMode?: "inline" | "tooltip";
   grouped?: boolean;
+  shortcutId: string;
+  disabled?: boolean;
 }
 
 export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
   descriptionMode = "tooltip",
   grouped = false,
+  shortcutId,
+  disabled = false,
 }) => {
   const { t } = useTranslation();
   const { getSetting, updateBinding, resetBinding, isUpdating, isLoading } =
@@ -206,8 +210,7 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
     return formatKeyCombination(recordedKeys.join(" + "), osType);
   };
 
-  const primaryBinding = Object.values(bindings)?.[0] || {};
-  const primaryId = Object.keys(bindings)?.[0];
+
 
   const className = "w-53 py-2! flex align-baseline";
 
@@ -216,36 +219,51 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
       return <Kbd className={className}>{t("shortcuts.loading")}</Kbd>;
     }
 
-    if (!primaryBinding || Object.keys(bindings).length === 0) {
+    if (!binding) {
       return <Kbd className={className}>{t("shortcuts.noShortcuts")}</Kbd>;
     }
 
-    const isSame = editingShortcutId === primaryId;
+    const isSame = editingShortcutId === shortcutId;
     return (
       <Kbd
         className={className}
-        onClick={isSame ? undefined : () => startRecording(primaryId)}
+        onClick={isSame ? undefined : () => startRecording(shortcutId)}
       >
         {isSame
           ? formatCurrentKeys()
-          : formatKeyCombination(primaryBinding.current_binding, osType)}
+          : formatKeyCombination(binding.current_binding, osType)}
       </Kbd>
+    );
+  }
+
+  const binding = bindings[shortcutId];
+  if (!binding) {
+    return (
+      <SettingContainer
+        title="Shortcut"
+        description="Shortcut not found"
+        descriptionMode={descriptionMode}
+        grouped={grouped}
+      >
+        <div className="text-sm text-mid-gray">No shortcut configured</div>
+      </SettingContainer>
     );
   }
 
   return (
     <SettingContainer
-      title={t("shortcuts.title")}
-      description={t("shortcuts.description")}
+      title={binding.name}
+      description={binding.description}
       descriptionMode={descriptionMode}
       grouped={grouped}
-      tooltipPosition="bottom"
+      disabled={disabled}
+      layout="horizontal"
     >
       <ActionWrapper
         direction="row"
-        onReset={() => resetBinding(primaryId)}
+        onReset={() => resetBinding(shortcutId)}
         resetProps={{
-          disabled: isUpdating(`binding_${primaryId}`),
+          disabled: isUpdating(`binding_${shortcutId}`),
         }}
       >
         {renderKeys()}

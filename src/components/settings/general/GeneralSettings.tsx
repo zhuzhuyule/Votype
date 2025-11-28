@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AudioFeedback } from "../AudioFeedback";
+import { LanguageSelector } from "../LanguageSelector";
 import { MicrophoneSelector } from "../MicrophoneSelector";
 import { OutputDeviceSelector } from "../OutputDeviceSelector";
 import { PushToTalk } from "../PushToTalk";
@@ -16,8 +17,8 @@ export const GeneralSettings: React.FC = () => {
   return (
     <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.groups.general")}>
-        <VotypeShortcut descriptionMode="tooltip" grouped={true} />
-
+        <VotypeShortcut shortcutId="transcribe" descriptionMode="tooltip" grouped={true} />
+        <LanguageSelector descriptionMode="tooltip" grouped={true} />
         <PushToTalk descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
       <SettingsGroup title={t("settings.groups.sound")}>
