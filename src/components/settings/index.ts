@@ -18,6 +18,7 @@ export { PostProcessingToggle } from "./PostProcessingToggle";
 export { PushToTalk } from "./PushToTalk";
 export { ShowOverlay } from "./ShowOverlay";
 export { TranslateToEnglish } from "./TranslateToEnglish";
+export { UpdateChecksToggle } from "./UpdateChecksToggle";
 export { VotypeShortcut } from "./VotypeShortcut";
 
 export { AppDataDirectory } from "./AppDataDirectory";
