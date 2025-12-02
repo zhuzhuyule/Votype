@@ -13,7 +13,7 @@
     },
     "title": "关于",
     "version": {
-      "description": "Handy 的当前版本",
+      "description": "Votype 的当前版本",
       "title": "版本"
     },
     "welcome": {
@@ -1155,7 +1155,7 @@
       "bronze": "青铜色",
       "brown": "棕色",
       "crimson": "绯红",
-      "current": "主色调控制控件和高亮；Handy 当前使用 {{color}}。",
+      "current": "主色调控制控件和高亮；Votype 当前使用 {{color}}。",
       "cyan": "青色",
       "description": "控制高亮、按钮和活动状态。",
       "emerald": "翠绿",
@@ -1274,7 +1274,7 @@
   },
   "uiLanguage": {
     "chinese": "中文",
-    "description": "选择 Handy 界面的显示语言。",
+    "description": "选择 Votype 界面的显示语言。",
     "english": "English",
     "placeholder": "选择语言",
     "system": "系统默认",

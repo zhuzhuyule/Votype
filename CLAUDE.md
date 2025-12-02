@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-The Handy application is a cross-platform desktop application built with the Tauri framework for speech-to-text transcription with a focus on efficiency, privacy, and system integration.
+The Votype application is a cross-platform desktop application built with the Tauri framework for speech-to-text transcription with a focus on efficiency, privacy, and system integration.
 
 ## Architecture
 

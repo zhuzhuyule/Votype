@@ -115,7 +115,7 @@ impl HistoryManager {
         duration_ms: Option<i64>,
     ) -> Result<i64> {
         let timestamp = Utc::now().timestamp();
-        let file_name = format!("handy-{}.wav", timestamp);
+        let file_name = format!("votype-{}.wav", timestamp);
         let title = self.format_timestamp_title(timestamp);
 
         // Calculate char counts

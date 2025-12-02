@@ -1,6 +1,6 @@
 # Build Instructions
 
-This guide covers how to set up the development environment and build Handy from source across different platforms.
+This guide covers how to set up the development environment and build Votype from source across different platforms.
 
 ## Prerequisites
 
@@ -49,8 +49,8 @@ This guide covers how to set up the development environment and build Handy from
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:cjpais/Handy.git
-cd Handy
+git clone git@github.com:cjpais/Votype.git
+cd Votype
 ```
 
 ### 2. Install Dependencies

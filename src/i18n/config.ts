@@ -5,7 +5,7 @@ import { initReactI18next } from "react-i18next";
 import enCommon from "../locales/en/common.json";
 import zhCommon from "../locales/zh/common.json";
 
-export const UI_LANGUAGE_STORAGE_KEY = "handy-ui-language";
+export const UI_LANGUAGE_STORAGE_KEY = "votype-ui-language";
 
 const resources = {
   en: {

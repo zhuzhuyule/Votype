@@ -26,16 +26,16 @@ export const DebugPaths: React.FC<DebugPathsProps> = ({
         <Flex direction="column" gap="2" className="text-sm text-gray-600">
           <Flex>
             <Text weight="medium">{t("debugPaths.appData")}:</Text>{" "}
-            <Text className="font-mono text-xs">%APPDATA%/handy</Text>
+            <Text className="font-mono text-xs">%APPDATA%/votype</Text>
           </Flex>
           <Flex>
             <Text weight="medium">{t("debugPaths.models")}:</Text>{" "}
-            <Text className="font-mono text-xs">%APPDATA%/handy/models</Text>
+            <Text className="font-mono text-xs">%APPDATA%/votype/models</Text>
           </Flex>
           <Flex>
             <Text weight="medium">{t("debugPaths.settings")}:</Text>{" "}
             <Text className="font-mono text-xs">
-              %APPDATA%/handy/settings_store.json
+              %APPDATA%/votype/settings_store.json
             </Text>
           </Flex>
         </Flex>

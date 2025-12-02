@@ -2,7 +2,7 @@
 
 ## 📋 文档概述
 
-本文档记录了为Handy项目添加模型缓存系统和Online ASR功能的完整设计方案。该功能允许用户从LLM API获取模型列表，进行缓存管理，并支持Online ASR转录模式。
+本文档记录了为Votype项目添加模型缓存系统和Online ASR功能的完整设计方案。该功能允许用户从LLM API获取模型列表，进行缓存管理，并支持Online ASR转录模式。
 
 **创建时间**: 2025-11-10
 **设计者**: AI Assistant
@@ -14,7 +14,7 @@
 
 ### 当前PostProcess系统
 
-Handy已有完整的AI后处理系统：
+Votype已有完整的AI后处理系统：
 - 支持OpenAI、Anthropic等多种provider
 - 自定义prompt模板
 - 后处理结果存储在历史记录中

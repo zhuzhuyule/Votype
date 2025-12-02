@@ -7,24 +7,24 @@
       "viewOnGitHub": "View on GitHub"
     },
     "support": {
-      "description": "Help us continue building Handy",
+      "description": "Help us continue building Votype",
       "donate": "Donate",
       "title": "Support Development"
     },
     "title": "About",
     "version": {
-      "description": "Current version of Handy",
+      "description": "Current version of Votype",
       "title": "Version"
     },
     "whisper": {
-      "content": "Handy uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors.",
+      "content": "Votype uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors.",
       "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
       "title": "Whisper.cpp"
     }
   },
   "accessibility": {
     "grant": "Grant",
-    "request": "Please grant accessibility permissions for Handy",
+    "request": "Please grant accessibility permissions for Votype",
     "verify": "Verify"
   },
   "advancedSettings": {
@@ -1102,7 +1102,7 @@
       "bronze": "Bronze",
       "brown": "Brown",
       "crimson": "Crimson",
-      "current": "Primary colors tint controls and highlights; Handy currently uses {{color}}.",
+      "current": "Primary colors tint controls and highlights; Votype currently uses {{color}}.",
       "cyan": "Cyan",
       "description": "Controls highlights, buttons, and active states.",
       "emerald": "Emerald",
@@ -1221,7 +1221,7 @@
   },
   "uiLanguage": {
     "chinese": "中文",
-    "description": "Choose the language that Handy uses for its interface text.",
+    "description": "Choose the language that Votype uses for its interface text.",
     "english": "English",
     "placeholder": "Select language",
     "system": "System default",

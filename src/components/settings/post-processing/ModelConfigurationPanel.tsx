@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { IconCheck, IconPencil, IconTrash } from "@tabler/icons-react";
 import {
   Badge,
   Box,
@@ -14,6 +13,7 @@ import {
   Text,
   TextField
 } from "@radix-ui/themes";
+import { IconCheck, IconPencil, IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel, ModelType } from "../../../lib/types";
@@ -161,7 +161,8 @@ export const ModelConfigurationPanel: React.FC = () => {
     if (isModelPickerOpen && !state.isFetchingModels) {
       state.handleRefreshModels();
     }
-  }, [isModelPickerOpen, state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModelPickerOpen]); // 只在弹窗打开/关闭时触发，避免重复刷新
 
   return (
     <SettingContainer
@@ -214,7 +215,6 @@ export const ModelConfigurationPanel: React.FC = () => {
                     ? t("modelConfiguration.placeholderEmpty")
                     : t("modelConfiguration.placeholder")
                 }
-                onRefresh={() => state.handleRefreshModels()}
                 className="w-full"
                 enableFilter={true}
               />
@@ -401,10 +401,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                             key={cachedModel.id}
                             className={`
                               relative rounded-lg border transition-all duration-200 cursor-pointer
-                              ${
-                                isSelected
-                                  ? "border-logo-primary bg-logo-primary/5 ring-1 ring-logo-primary"
-                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                              ${isSelected
+                                ? "border-logo-primary bg-logo-primary/5 ring-1 ring-logo-primary"
+                                : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                               }
                             `}
                             onClick={async () => {

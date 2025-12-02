@@ -2,7 +2,7 @@ import { Theme, type ThemeProps, useThemeContext } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "handy_ui_theme_config";
+const STORAGE_KEY = "votype_ui_theme_config";
 
 type ThemeAppearance = NonNullable<ThemeProps["appearance"]>;
 type ThemeAccentColor = NonNullable<ThemeProps["accentColor"]>;

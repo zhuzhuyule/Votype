@@ -71,6 +71,12 @@ fn build_console_filter() -> env_filter::Filter {
         }
     }
 
+    // Suppress verbose DEBUG logs from HTTP client libraries
+    // These libraries log every connection attempt which floods the console
+    builder.filter_module("reqwest", log::LevelFilter::Info);
+    builder.filter_module("hyper", log::LevelFilter::Info);
+    builder.filter_module("hyper_util", log::LevelFilter::Info);
+
     builder.build()
 }
 
