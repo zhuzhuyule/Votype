@@ -517,6 +517,10 @@ impl ShortcutAction for TranscribeAction {
         show_recording_overlay(app);
 
         let rm = app.state::<Arc<AudioRecordingManager>>();
+        
+        // Increment transcription ID to invalidate any pending previous transcriptions
+        let new_id = rm.increment_transcription_id();
+        debug!("Starting new transcription session with ID: {}", new_id);
 
         // Get the microphone mode to determine audio feedback timing
         let settings = get_settings(app);
@@ -595,13 +599,15 @@ impl ShortcutAction for TranscribeAction {
         // Play audio feedback for recording stop
         play_feedback_sound(app, SoundType::Stop);
 
+        // Capture the current transcription ID associated with this recording session
+        let current_transcription_id = rm.get_current_transcription_id();
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
 
         tauri::async_runtime::spawn(async move {
             let binding_id = binding_id.clone(); // Clone for the inner async task
             debug!(
-                "Starting async transcription task for binding: {}",
-                binding_id
+                "Starting async transcription task for binding: {} (ID: {})",
+                binding_id, current_transcription_id
             );
 
             let stop_recording_time = Instant::now();
@@ -655,11 +661,20 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             };
 
+                            // Check if a new recording has started since we began
+                            if rm.get_current_transcription_id() != current_transcription_id {
+                                info!("New recording started during transcription (ID mismatch: {} != {}). Skipping paste/post-processing.", rm.get_current_transcription_id(), current_transcription_id);
+                                utils::hide_recording_overlay(&ah);
+                                change_tray_icon(&ah, TrayIconState::Idle);
+                                return;
+                            }
+
                             if settings.post_process_enabled {
                                 let ah_clone = ah.clone();
                                 let settings_clone = settings.clone();
                                 let hm_clone = Arc::clone(&hm);
                                 let ppm_clone = Arc::clone(&ppm);
+                                let rm_clone = Arc::clone(&rm);
 
                                 // Spawn cancellable task
                                 let task = tokio::spawn(async move {
@@ -710,6 +725,17 @@ impl ShortcutAction for TranscribeAction {
                                                 error!("Failed to update history: {}", e);
                                             }
                                         }
+                                    }
+
+                                    // Check ID again before pasting after post-processing
+                                    if rm_clone.get_current_transcription_id() != current_transcription_id {
+                                        info!("New recording started during post-processing (ID mismatch). Skipping paste.");
+                                        let ah_clone_inner = ah_clone.clone();
+                                        ah_clone.run_on_main_thread(move || {
+                                            utils::hide_recording_overlay(&ah_clone_inner);
+                                            change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
+                                        }).unwrap_or_default();
+                                        return;
                                     }
 
                                     // Paste the final text (either converted, processed, or original)

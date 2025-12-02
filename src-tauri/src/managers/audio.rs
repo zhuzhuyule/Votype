@@ -149,6 +149,7 @@ pub struct AudioRecordingManager {
     is_open: Arc<Mutex<bool>>,
     is_recording: Arc<Mutex<bool>>,
     did_mute: Arc<Mutex<bool>>,
+    current_transcription_id: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl AudioRecordingManager {
@@ -171,6 +172,7 @@ impl AudioRecordingManager {
             is_open: Arc::new(Mutex::new(false)),
             is_recording: Arc::new(Mutex::new(false)),
             did_mute: Arc::new(Mutex::new(false)),
+            current_transcription_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         };
 
         // Always-on?  Open immediately.
@@ -440,5 +442,16 @@ impl AudioRecordingManager {
                 self.stop_microphone_stream();
             }
         }
+    }
+
+    pub fn get_current_transcription_id(&self) -> u64 {
+        self.current_transcription_id
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub fn increment_transcription_id(&self) -> u64 {
+        self.current_transcription_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            + 1
     }
 }
