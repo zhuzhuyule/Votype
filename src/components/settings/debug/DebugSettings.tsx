@@ -8,6 +8,7 @@ import { HistoryLimit } from "../HistoryLimit";
 import { MuteWhileRecording } from "../MuteWhileRecording";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
 import { SoundPicker } from "../SoundPicker";
+import { UpdateChecksToggle } from "../UpdateChecksToggle";
 import { VotypeShortcut } from "../VotypeShortcut";
 import { LogDirectory } from "./LogDirectory";
 import { LogLevelSelector } from "./LogLevelSelector";
@@ -23,6 +24,7 @@ export const DebugSettings: React.FC = () => {
       <SettingsGroup title={t("debugSettings.title")}>
         <LogDirectory grouped={true} />
         <LogLevelSelector grouped={true} />
+        <UpdateChecksToggle descriptionMode="tooltip" grouped={true} />
         <SoundPicker
           label={t("debugSettings.soundThemeLabel")}
           description={t("debugSettings.soundThemeDescription")}

@@ -1,17 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useTranslation } from "react-i18next";
-import { check } from "@tauri-apps/plugin-updater";
-import { relaunch } from "@tauri-apps/plugin-process";
+import { Button, Flex, Text } from "@radix-ui/themes";
 import { listen } from "@tauri-apps/api/event";
-import { Button, Flex, Text, Box } from "@radix-ui/themes";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
+import React, { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { ProgressBar } from "../shared";
 
 interface UpdateCheckerProps {
   className?: string;
 }
 
+import { useSettings } from "../../hooks/useSettings";
+
 const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   const { t } = useTranslation();
+  const { getSetting, isLoading } = useSettings();
+  const settingsLoaded = !isLoading;
+  const updateChecksEnabled = getSetting("update_checks_enabled") ?? true;
+
   // Update checking state
   const [isChecking, setIsChecking] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -25,6 +31,13 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   const contentLengthRef = useRef(0);
 
   useEffect(() => {
+    if (!settingsLoaded) return;
+    if (!updateChecksEnabled) {
+      setUpdateAvailable(false);
+      setShowUpToDate(false);
+      return;
+    }
+
     checkForUpdates();
 
     // Listen for update check events
@@ -38,11 +51,11 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       }
       updateUnlisten.then((fn) => fn());
     };
-  }, []);
+  }, [settingsLoaded, updateChecksEnabled]);
 
   // Update checking functions
   const checkForUpdates = async () => {
-    if (isChecking) return;
+    if (!updateChecksEnabled || isChecking) return;
 
     try {
       setIsChecking(true);
@@ -74,11 +87,13 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   };
 
   const handleManualUpdateCheck = () => {
+    if (!updateChecksEnabled) return;
     isManualCheckRef.current = true;
     checkForUpdates();
   };
 
   const installUpdate = async () => {
+    if (!updateChecksEnabled) return;
     try {
       setIsInstalling(true);
       setDownloadProgress(0);
@@ -102,9 +117,9 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
             const progress =
               contentLengthRef.current > 0
                 ? Math.round(
-                    (downloadedBytesRef.current / contentLengthRef.current) *
-                      100,
-                  )
+                  (downloadedBytesRef.current / contentLengthRef.current) *
+                  100,
+                )
                 : 0;
             setDownloadProgress(Math.min(progress, 100));
             break;
@@ -124,6 +139,9 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
 
   // Update status functions
   const getUpdateStatusText = () => {
+    if (!updateChecksEnabled) {
+      return t("update.disabled", "Update Checking Disabled");
+    }
     if (isInstalling) {
       return downloadProgress > 0 && downloadProgress < 100
         ? t("update.downloading", { progress: downloadProgress.toString().padStart(3) })
@@ -138,13 +156,14 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   };
 
   const getUpdateStatusAction = () => {
+    if (!updateChecksEnabled) return undefined;
     if (updateAvailable && !isInstalling) return installUpdate;
     if (!isChecking && !isInstalling && !updateAvailable)
       return handleManualUpdateCheck;
     return undefined;
   };
 
-  const isUpdateDisabled = isChecking || isInstalling;
+  const isUpdateDisabled = !updateChecksEnabled || isChecking || isInstalling;
   const isUpdateClickable =
     !isUpdateDisabled && (updateAvailable || (!isChecking && !showUpToDate));
 
@@ -156,11 +175,10 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
           disabled={isUpdateDisabled}
           variant="ghost"
           size="1"
-          className={`transition-colors disabled:opacity-50 tabular-nums ${
-            updateAvailable
-              ? "text-logo-primary hover:text-logo-primary/80 font-medium"
-              : "text-text/60 hover:text-text/80"
-          }`}
+          className={`transition-colors disabled:opacity-50 tabular-nums ${updateAvailable
+            ? "text-logo-primary hover:text-logo-primary/80 font-medium"
+            : "text-text/60 hover:text-text/80"
+            }`}
         >
           {getUpdateStatusText()}
         </Button>
