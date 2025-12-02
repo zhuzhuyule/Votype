@@ -145,6 +145,9 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
     match paste_method {
         PasteMethod::CtrlV => paste_via_clipboard_ctrl_v(&text, &app_handle)?,
         PasteMethod::Direct => paste_via_direct_input(&text)?,
+        PasteMethod::None => {
+            info!("Paste method is None, skipping paste");
+        }
         #[cfg(not(target_os = "macos"))]
         PasteMethod::ShiftInsert => paste_via_clipboard_shift_insert(&text, &app_handle)?,
     }

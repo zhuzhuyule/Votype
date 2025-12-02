@@ -1,11 +1,11 @@
+import { type as getOsType } from "@tauri-apps/plugin-os";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type as getOsType } from "@tauri-apps/plugin-os";
-import { Dropdown } from "../ui/Dropdown";
-import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
 import type { PasteMethod } from "../../lib/types";
 import { ActionWrapper } from "../ui";
+import { Dropdown } from "../ui/Dropdown";
+import { SettingContainer } from "../ui/SettingContainer";
 
 interface PasteMethodProps {
   descriptionMode?: "inline" | "tooltip";
@@ -16,6 +16,7 @@ const getPasteMethodOptions = (osType: string, t: any) => {
   const baseOptions = [
     { value: "ctrl_v", label: t("pasteMethod.ctrlV") },
     { value: "direct", label: t("pasteMethod.direct") },
+    { value: "none", label: t("pasteMethod.disabled") },
   ];
 
   // Add Shift+Insert option for Windows and Linux only
