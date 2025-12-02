@@ -306,6 +306,14 @@ pub fn change_update_checks_setting(app: AppHandle, enabled: bool) -> Result<(),
 }
 
 #[tauri::command]
+pub fn change_onboarding_completed_setting(app: AppHandle, completed: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.onboarding_completed = completed;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn update_custom_words(app: AppHandle, words: Vec<String>) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.custom_words = words;

@@ -266,9 +266,12 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
         return;
     }
 
-    update_overlay_position(app_handle);
-
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        // Only update position if the overlay is not currently visible
+        if !overlay_window.is_visible().unwrap_or(false) {
+            update_overlay_position(app_handle);
+        }
+
         let _ = overlay_window.show();
 
         // On Windows, aggressively re-assert "topmost" in the native Z-order after showing
@@ -287,9 +290,12 @@ pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
         return;
     }
 
-    update_overlay_position(app_handle);
-
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        // Only update position if the overlay is not currently visible
+        if !overlay_window.is_visible().unwrap_or(false) {
+            update_overlay_position(app_handle);
+        }
+
         let _ = overlay_window.show();
         let _ = overlay_window.emit("show-overlay", "llm");
     }

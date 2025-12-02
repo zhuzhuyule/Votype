@@ -1,11 +1,11 @@
+import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
-import { invoke } from "@tauri-apps/api/core";
 import {
-  Settings,
   AudioDevice,
   CachedModel,
   ModelType,
+  Settings,
 } from "../lib/types";
 
 interface SettingsStore {
@@ -165,6 +165,8 @@ const settingUpdaters: {
   mute_while_recording: (value) =>
     invoke("change_mute_while_recording_setting", { enabled: value }),
   log_level: (value) => invoke("set_log_level", { level: value }),
+  onboarding_completed: (value) =>
+    invoke("change_onboarding_completed_setting", { completed: value }),
 };
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -352,15 +354,15 @@ export const useSettingsStore = create<SettingsStore>()(
         set((state) => ({
           settings: state.settings
             ? {
-                ...state.settings,
-                bindings: {
-                  ...state.settings.bindings,
-                  [id]: {
-                    ...state.settings.bindings[id],
-                    current_binding: binding,
-                  },
+              ...state.settings,
+              bindings: {
+                ...state.settings.bindings,
+                [id]: {
+                  ...state.settings.bindings[id],
+                  current_binding: binding,
                 },
-              }
+              },
+            }
             : null,
         }));
 
@@ -373,15 +375,15 @@ export const useSettingsStore = create<SettingsStore>()(
           set((state) => ({
             settings: state.settings
               ? {
-                  ...state.settings,
-                  bindings: {
-                    ...state.settings.bindings,
-                    [id]: {
-                      ...state.settings.bindings[id],
-                      current_binding: originalBinding,
-                    },
+                ...state.settings,
+                bindings: {
+                  ...state.settings.bindings,
+                  [id]: {
+                    ...state.settings.bindings[id],
+                    current_binding: originalBinding,
                   },
-                }
+                },
+              }
               : null,
           }));
         }

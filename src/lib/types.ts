@@ -112,6 +112,7 @@ export const SettingsSchema = z.object({
   start_hidden: z.boolean().optional().default(false),
   autostart_enabled: z.boolean().optional().default(false),
   update_checks_enabled: z.boolean().optional().default(true),
+  onboarding_completed: z.boolean().optional().default(false),
   selected_model: z.string(),
   always_on_microphone: z.boolean(),
   selected_microphone: z.string().nullable().optional(),

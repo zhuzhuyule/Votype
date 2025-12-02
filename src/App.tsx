@@ -51,8 +51,21 @@ function App() {
     };
   }, [settings?.debug_mode, updateSetting]);
 
+  // Re-check onboarding status when settings are loaded
+  useEffect(() => {
+    if (settings) {
+      checkOnboardingStatus();
+    }
+  }, [settings?.onboarding_completed]);
+
   const checkOnboardingStatus = async () => {
     try {
+      // If onboarding is already completed, don't show it
+      if (settings?.onboarding_completed) {
+        setShowOnboarding(false);
+        return;
+      }
+
       // Always check if they have any models available
       const modelsAvailable: boolean = await invoke("has_any_models_available");
       setShowOnboarding(!modelsAvailable);
@@ -65,6 +78,7 @@ function App() {
   const handleModelSelected = () => {
     // Transition to main app - user has started a download
     setShowOnboarding(false);
+    updateSetting("onboarding_completed", true);
   };
 
   return (

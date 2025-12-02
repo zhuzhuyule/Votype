@@ -991,6 +991,7 @@
     "ctrlV": "Clipboard (Ctrl+V)",
     "description": "Clipboard (Ctrl+V) simulates Ctrl/Cmd+V keystrokes to paste from your clipboard. Direct tries to use system input methods if possible, otherwise inputs keystrokes one by one into the text field. Clipboard (Shift+Insert) uses the more universal Shift+Insert shortcut, ideal for terminal applications and SSH clients.",
     "direct": "Direct",
+    "disabled": "Disabled",
     "shiftInsert": "Clipboard (Shift+Insert)",
     "title": "Paste Method"
   },

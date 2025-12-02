@@ -192,6 +192,8 @@ pub struct AppSettings {
     pub autostart_enabled: bool,
     #[serde(default = "default_update_checks_enabled")]
     pub update_checks_enabled: bool,
+    #[serde(default = "default_onboarding_completed")]
+    pub onboarding_completed: bool,
     #[serde(default = "default_model")]
     pub selected_model: String,
     #[serde(default = "default_always_on_microphone")]
@@ -274,6 +276,10 @@ fn default_autostart_enabled() -> bool {
 
 fn default_update_checks_enabled() -> bool {
     true
+}
+
+fn default_onboarding_completed() -> bool {
+    false
 }
 
 fn default_selected_language() -> String {
@@ -424,6 +430,7 @@ pub fn get_default_settings() -> AppSettings {
         start_hidden: default_start_hidden(),
         autostart_enabled: default_autostart_enabled(),
         update_checks_enabled: default_update_checks_enabled(),
+        onboarding_completed: default_onboarding_completed(),
         selected_model: "".to_string(),
         always_on_microphone: false,
         selected_microphone: None,
