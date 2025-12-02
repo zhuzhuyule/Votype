@@ -1,7 +1,7 @@
 use crate::settings;
 use crate::settings::OverlayPosition;
 use enigo::{Enigo, Mouse};
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(not(target_os = "macos"))]
 use log::debug;
