@@ -65,9 +65,6 @@
       "endpoints": [
         "https://github.com/cjpais/Votype/releases/latest/download/latest.json"
       ]
-    },
-    "sql": {
-      "preload": ["sqlite:history.db"]
     }
   }
 }
