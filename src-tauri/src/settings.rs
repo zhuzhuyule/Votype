@@ -87,6 +87,7 @@ pub enum PasteMethod {
     None,
     #[cfg(not(target_os = "macos"))]
     ShiftInsert,
+    CtrlShiftV,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]

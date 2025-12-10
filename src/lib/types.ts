@@ -39,7 +39,13 @@ export const ModelUnloadTimeoutSchema = z.enum([
 ]);
 export type ModelUnloadTimeout = z.infer<typeof ModelUnloadTimeoutSchema>;
 
-export const PasteMethodSchema = z.enum(["ctrl_v", "direct", "shift_insert", "none"]);
+export const PasteMethodSchema = z.enum([
+  "ctrl_v",
+  "ctrl_shift_v",
+  "direct",
+  "shift_insert",
+  "none",
+]);
 export type PasteMethod = z.infer<typeof PasteMethodSchema>;
 
 export const ClipboardHandlingSchema = z.enum([

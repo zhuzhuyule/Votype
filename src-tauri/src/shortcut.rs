@@ -341,6 +341,7 @@ pub fn change_paste_method_setting(app: AppHandle, method: String) -> Result<(),
         "direct" => PasteMethod::Direct,
         #[cfg(not(target_os = "macos"))]
         "shift_insert" => PasteMethod::ShiftInsert,
+        "ctrl_shift_v" => PasteMethod::CtrlShiftV,
         other => {
             warn!("Invalid paste method '{}', defaulting to ctrl_v", other);
             PasteMethod::CtrlV

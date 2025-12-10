@@ -13,21 +13,25 @@ interface PasteMethodProps {
 }
 
 const getPasteMethodOptions = (osType: string, t: any) => {
-  const baseOptions = [
+  const options = [
     { value: "ctrl_v", label: t("pasteMethod.ctrlV") },
     { value: "direct", label: t("pasteMethod.direct") },
     { value: "none", label: t("pasteMethod.disabled") },
   ];
 
-  // Add Shift+Insert option for Windows and Linux only
+  // Add Shift+Insert and Ctrl+Shift+V options for Windows and Linux only
   if (osType === "windows" || osType === "linux") {
-    baseOptions.push({
+    options.push({
+      value: "ctrl_shift_v",
+      label: "Clipboard (Ctrl+Shift+V)",
+    });
+    options.push({
       value: "shift_insert",
       label: t("pasteMethod.shiftInsert"),
     });
   }
 
-  return baseOptions;
+  return options;
 };
 
 export const PasteMethodSetting: React.FC<PasteMethodProps> = React.memo(
