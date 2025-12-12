@@ -7,6 +7,7 @@ import {
   MicrophoneIcon,
   TranscriptionIcon,
 } from "../components/icons";
+import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
 type OverlayState = "recording" | "transcribing" | "llm";
@@ -16,6 +17,7 @@ const RecordingOverlay: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [state, setState] = useState<OverlayState>("recording");
   const [levels, setLevels] = useState<number[]>(Array(16).fill(0));
+  const [accentColor, setAccentColor] = useState<string>(getAccentColor);
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
 
   useEffect(() => {
@@ -46,22 +48,37 @@ const RecordingOverlay: React.FC = () => {
         setLevels(smoothed.slice(0, 9));
       });
 
+      // Listen for theme changes from localStorage (when main app changes theme)
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === STORAGE_KEY) {
+          setAccentColor(getAccentColor());
+        }
+      };
+
+      window.addEventListener("storage", handleStorageChange);
+
       // Cleanup function
       return () => {
         unlistenShow();
         unlistenHide();
         unlistenLevel();
+        window.removeEventListener("storage", handleStorageChange);
       };
     };
 
     setupEventListeners();
   }, []);
 
+  // Update CSS variable when accent color changes
+  useEffect(() => {
+    document.documentElement.style.setProperty("--overlay-accent-color", accentColor);
+  }, [accentColor]);
+
   const getIcon = () => {
     if (state === "recording") {
-      return <MicrophoneIcon />;
+      return <MicrophoneIcon color={accentColor} />;
     } else {
-      return <TranscriptionIcon />;
+      return <TranscriptionIcon color={accentColor} />;
     }
   };
 

@@ -30,9 +30,6 @@
   align-items: center;
   justify-content: flex-end;
 }
-.overlay-right svg:hover {
-  color: #faa2ca !important;
-}
 
 .bars-container {
   display: flex;
@@ -91,7 +88,11 @@
 }
 
 .cancel-button:hover {
-  background: #faa2ca33;
+  background: color-mix(
+    in srgb,
+    var(--overlay-accent-color, #faa2ca) 20%,
+    transparent
+  );
   transform: scale(1.05);
 }
 

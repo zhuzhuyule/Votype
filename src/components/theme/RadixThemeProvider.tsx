@@ -1,8 +1,7 @@
 import { Theme, type ThemeProps, useThemeContext } from "@radix-ui/themes";
 import "@radix-ui/themes/styles.css";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-
-const STORAGE_KEY = "votype_ui_theme_config";
+import { ACCENT_COLOR_MAP, STORAGE_KEY } from "../../lib/theme";
 
 type ThemeAppearance = NonNullable<ThemeProps["appearance"]>;
 type ThemeAccentColor = NonNullable<ThemeProps["accentColor"]>;
@@ -27,19 +26,6 @@ const DEFAULT_THEME: ThemeConfig = {
   panelBackground: "translucent",
   radius: "medium",
   scaling: "100%",
-};
-
-const ACCENT_COLOR_MAP: Partial<Record<ThemeAccentColor, string>> = {
-  amber: "#f59e0b",
-  blue: "#1d4ed8",
-  cyan: "#22d3ee",
-  indigo: "#3e63dd",
-  lime: "#84cc16",
-  mint: "#00bcd4",
-  pink: "#ec4899",
-  purple: "#7c3aed",
-  teal: "#0f766e",
-  violet: "#8b5cf6",
 };
 
 const IS_BROWSER = typeof window !== "undefined" && typeof document !== "undefined";
