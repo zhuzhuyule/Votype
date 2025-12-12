@@ -200,8 +200,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
 
         // Auto-select the newly downloaded model (skip if recording in progress)
         setTimeout(async () => {
-          const recordingResult = await commands.isRecording();
-          if (recordingResult.status === "ok" && recordingResult.data) {
+          const isRecording = await commands.isRecording();
+          if (isRecording) {
             return; // Skip auto-switch if recording in progress
           }
           loadCurrentModel();
@@ -233,8 +233,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
 
         // Auto-select the newly extracted model (skip if recording in progress)
         setTimeout(async () => {
-          const recordingResult = await commands.isRecording();
-          if (recordingResult.status === "ok" && recordingResult.data) {
+          const isRecording = await commands.isRecording();
+          if (isRecording) {
             return; // Skip auto-switch if recording in progress
           }
           loadCurrentModel();
