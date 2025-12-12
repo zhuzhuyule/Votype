@@ -52,7 +52,10 @@ export const RadixThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => loadStoredTheme());
-  const [systemAppearance, setSystemAppearance] = useState<"light" | "dark">("light");
+  const [systemAppearance, setSystemAppearance] = useState<"light" | "dark">(() => {
+    if (!IS_BROWSER) return "light";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
 
   const resolvedAppearance = useMemo(() => {
     if (themeConfig.appearance === "inherit") {
@@ -125,7 +128,7 @@ export const RadixThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <ThemeContext.Provider value={themeContextValue}>
       <Theme
-        appearance={themeConfig.appearance}
+        appearance={resolvedAppearance}
         accentColor={themeConfig.accentColor}
         grayColor={themeConfig.grayColor}
         panelBackground={themeConfig.panelBackground}
@@ -157,7 +160,7 @@ export const useTheme = () => {
 };
 
 type ThemeStateSyncProps = {
-  onThemeChange: (config: ThemeConfig) => void;
+  onThemeChange: (config: Partial<ThemeConfig>) => void;
   children: React.ReactNode;
 };
 
@@ -166,7 +169,6 @@ const ThemeStateSync: React.FC<ThemeStateSyncProps> = ({
   children,
 }) => {
   const {
-    appearance,
     accentColor,
     grayColor,
     panelBackground,
@@ -176,7 +178,6 @@ const ThemeStateSync: React.FC<ThemeStateSyncProps> = ({
 
   useEffect(() => {
     onThemeChange({
-      appearance,
       accentColor,
       grayColor,
       panelBackground,
@@ -184,7 +185,6 @@ const ThemeStateSync: React.FC<ThemeStateSyncProps> = ({
       scaling,
     });
   }, [
-    appearance,
     accentColor,
     grayColor,
     panelBackground,

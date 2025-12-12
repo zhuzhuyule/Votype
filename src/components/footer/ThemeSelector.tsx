@@ -14,6 +14,7 @@ import {
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n, { UI_LANGUAGE_STORAGE_KEY } from "../../i18n/config";
+import { useTheme } from "../theme/RadixThemeProvider";
 
 const ACCENT_OPTIONS = [
   "gray",
@@ -57,12 +58,11 @@ const detectPreferredLanguage = () => {
 
 export const ThemeSelector: React.FC = () => {
   const { t } = useTranslation();
+  const { theme: appearance, setTheme: setAppearance } = useTheme();
   const {
-    appearance,
     accentColor,
     radius,
     scaling,
-    onAppearanceChange,
     onAccentColorChange,
     onRadiusChange,
     onScalingChange,
@@ -133,7 +133,9 @@ export const ThemeSelector: React.FC = () => {
             </Text>
             <SegmentedControl.Root
               value={appearance}
-              onValueChange={(val) => onAppearanceChange(val as any)}
+              onValueChange={(val) =>
+                setAppearance(val as "light" | "dark" | "inherit")
+              }
               size="1"
             >
               <SegmentedControl.Item value="light">

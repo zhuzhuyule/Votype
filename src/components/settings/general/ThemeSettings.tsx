@@ -8,6 +8,7 @@ import {
 } from "@radix-ui/themes";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "../../theme/RadixThemeProvider";
 import { ActionWrapper } from "../../ui/ActionWrapper";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -101,13 +102,12 @@ const getOptionDescription = (
 
 export const ThemeSettings: React.FC = () => {
   const { t } = useTranslation();
+  const { theme: appearance, setTheme: setAppearance } = useTheme();
   const {
-    appearance,
     accentColor,
     panelBackground,
     radius,
     scaling,
-    onAppearanceChange,
     onAccentColorChange,
     onPanelBackgroundChange,
     onRadiusChange,
@@ -125,7 +125,9 @@ export const ThemeSettings: React.FC = () => {
         <ActionWrapper className="min-w-[400px]">
           <SegmentedControl.Root
             value={appearance}
-            onValueChange={(value) => onAppearanceChange(value as any)}
+            onValueChange={(value) =>
+              setAppearance(value as "light" | "dark" | "inherit")
+            }
             size="1"
             className="w-fit"
           >
