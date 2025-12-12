@@ -182,11 +182,6 @@ async fn maybe_post_process_transcription(
         return None;
     }
 
-    debug!(
-        "API key configured for provider '{}': {}",
-        provider.id,
-        !api_key.trim().is_empty()
-    );
     debug!("Provider base URL: {}", provider.base_url);
 
     info!(
@@ -251,6 +246,12 @@ async fn maybe_post_process_transcription(
         .get(&provider.id)
         .cloned()
         .unwrap_or_default();
+
+    debug!(
+        "API key configured for provider '{}': {}",
+        provider.id,
+        !api_key.trim().is_empty()
+    );
 
     // Create OpenAI-compatible client
     debug!("Creating LLM client for provider: {}", provider.id);

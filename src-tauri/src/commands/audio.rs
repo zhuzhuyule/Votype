@@ -182,7 +182,6 @@ pub fn get_clamshell_microphone(app: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-#[specta::specta]
 pub fn is_recording(app: AppHandle) -> bool {
     let audio_manager = app.state::<Arc<AudioRecordingManager>>();
     audio_manager.is_recording()
