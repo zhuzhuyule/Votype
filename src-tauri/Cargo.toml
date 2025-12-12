@@ -1,6 +1,6 @@
 [package]
 name = "votype"
-version = "0.6.6"
+version = "0.6.7"
 description = "Votype"
 authors = ["cjpais"]
 edition = "2021"
