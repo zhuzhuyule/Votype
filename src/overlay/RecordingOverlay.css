@@ -30,6 +30,9 @@
   align-items: center;
   justify-content: flex-end;
 }
+.overlay-right svg:hover {
+  color: #faa2ca !important;
+}
 
 .bars-container {
   display: flex;
