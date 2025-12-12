@@ -146,6 +146,7 @@ export const SettingsSchema = z.object({
   selected_asr_model_id: z.string().nullable().optional(),
   selected_prompt_model_id: z.string().nullable().optional(),
   mute_while_recording: z.boolean().optional().default(false),
+  append_trailing_space: z.boolean().optional().default(false),
 });
 
 export const BindingResponseSchema = z.object({

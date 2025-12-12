@@ -100,6 +100,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   history_limit: 5,
   recording_retention_period: "preserve_limit",
   mute_while_recording: false,
+  append_trailing_space: false,
   cached_models: [],
   online_asr_enabled: false,
   selected_asr_model_id: null,
@@ -164,6 +165,8 @@ const settingUpdaters: {
     invoke("set_post_process_selected_prompt", { id: value }),
   mute_while_recording: (value) =>
     invoke("change_mute_while_recording_setting", { enabled: value }),
+  append_trailing_space: (value) =>
+    invoke("change_append_trailing_space_setting", { enabled: value }),
   log_level: (value) => invoke("set_log_level", { level: value }),
   onboarding_completed: (value) =>
     invoke("change_onboarding_completed_setting", { completed: value }),

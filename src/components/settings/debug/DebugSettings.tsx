@@ -6,6 +6,7 @@ import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
 import { HistoryLimit } from "../HistoryLimit";
 import { MuteWhileRecording } from "../MuteWhileRecording";
+import { AppendTrailingSpace } from "../AppendTrailingSpace";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
 import { SoundPicker } from "../SoundPicker";
 import { UpdateChecksToggle } from "../UpdateChecksToggle";
@@ -37,6 +38,7 @@ export const DebugSettings: React.FC = () => {
         />
         <AlwaysOnMicrophone descriptionMode="tooltip" grouped={true} />
         <MuteWhileRecording descriptionMode="tooltip" grouped={true} />
+        <AppendTrailingSpace descriptionMode="tooltip" grouped={true} />
         <VotypeShortcut
           shortcutId="cancel"
           grouped={true}

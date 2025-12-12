@@ -252,6 +252,8 @@ pub struct AppSettings {
     pub selected_prompt_model_id: Option<String>,
     #[serde(default)]
     pub mute_while_recording: bool,
+    #[serde(default)]
+    pub append_trailing_space: bool,
 }
 
 fn default_model() -> String {
@@ -460,6 +462,7 @@ pub fn get_default_settings() -> AppSettings {
         selected_asr_model_id: None,
         selected_prompt_model_id: None,
         mute_while_recording: false,
+        append_trailing_space: false,
     }
 }
 
