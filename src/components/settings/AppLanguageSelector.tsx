@@ -4,6 +4,8 @@ import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { SUPPORTED_LANGUAGES, type SupportedLanguageCode } from "../../i18n";
 
+const STORAGE_KEY = "votype-app-language";
+
 interface AppLanguageSelectorProps {
   descriptionMode?: "inline" | "tooltip";
   grouped?: boolean;
@@ -23,7 +25,7 @@ export const AppLanguageSelector: React.FC<AppLanguageSelectorProps> =
     const handleLanguageChange = (langCode: string) => {
       i18n.changeLanguage(langCode);
       // Persist to localStorage for next session
-      localStorage.setItem("handy-app-language", langCode);
+      localStorage.setItem(STORAGE_KEY, langCode);
     };
 
     return (

@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import type { ModelInfo } from "@/bindings";
+import type { ModelInfo } from "../types";
 
 /**
  * Get the translated name for a model

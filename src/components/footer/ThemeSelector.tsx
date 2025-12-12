@@ -11,9 +11,8 @@ import {
   Text,
   useThemeContext,
 } from "@radix-ui/themes";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import i18n, { UI_LANGUAGE_STORAGE_KEY } from "../../i18n/config";
 import { useTheme } from "../theme/RadixThemeProvider";
 
 const ACCENT_OPTIONS = [
@@ -47,15 +46,6 @@ const RADIUS_OPTIONS = [
 
 const SCALING_OPTIONS = ["90%", "95%", "100%", "105%", "110%"] as const;
 
-const detectPreferredLanguage = () => {
-  if (typeof window === "undefined") {
-    return "en";
-  }
-  const navLang = navigator.language || "en";
-  const normalized = navLang.split("-")[0].toLowerCase();
-  return normalized === "zh" ? "zh" : "en";
-};
-
 export const ThemeSelector: React.FC = () => {
   const { t } = useTranslation();
   const { theme: appearance, setTheme: setAppearance } = useTheme();
@@ -67,43 +57,6 @@ export const ThemeSelector: React.FC = () => {
     onRadiusChange,
     onScalingChange,
   } = useThemeContext();
-
-  const [language, setLanguage] = useState<string>(() => {
-    if (typeof window === "undefined") {
-      return "system";
-    }
-    const stored = window.localStorage.getItem(UI_LANGUAGE_STORAGE_KEY);
-    return stored ?? "system";
-  });
-
-  useEffect(() => {
-    const handler = () => {
-      if (typeof window === "undefined") return;
-      setLanguage(
-        window.localStorage.getItem(UI_LANGUAGE_STORAGE_KEY) ?? "system"
-      );
-    };
-    i18n.on("languageChanged", handler);
-    return () => {
-      i18n.off("languageChanged", handler);
-    };
-  }, []);
-
-  const handleLanguageChange = (value: string) => {
-    if (value === "system") {
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(UI_LANGUAGE_STORAGE_KEY);
-      }
-      const preferred = detectPreferredLanguage();
-      i18n.changeLanguage(preferred);
-    } else {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, value);
-      }
-      i18n.changeLanguage(value);
-    }
-    setLanguage(value);
-  };
 
   const getIcon = () => {
     switch (appearance) {
@@ -159,27 +112,6 @@ export const ThemeSelector: React.FC = () => {
             </SegmentedControl.Root>
           </Box>
 
-          {/* Interface Language */}
-          <Box>
-            <Text size="1" weight="bold" mb="2" as="div">
-              {t("uiLanguage.title")}
-            </Text>
-            <SegmentedControl.Root
-              value={language}
-              onValueChange={handleLanguageChange}
-              size="1"
-            >
-              <SegmentedControl.Item value="system">
-                {t("uiLanguage.system")}
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="en">
-                {t("uiLanguage.english")}
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="zh">
-                {t("uiLanguage.chinese")}
-              </SegmentedControl.Item>
-            </SegmentedControl.Root>
-          </Box>
           {/* Accent Color */}
           <Box>
             <Text size="1" weight="bold" mb="2" as="div">

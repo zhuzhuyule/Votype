@@ -3,6 +3,8 @@ import { initReactI18next } from "react-i18next";
 import { locale } from "@tauri-apps/plugin-os";
 import { LANGUAGE_METADATA } from "./languages";
 
+const STORAGE_KEY = "votype-app-language";
+
 // Auto-discover translation files using Vite's glob import
 const localeModules = import.meta.glob<{ default: Record<string, unknown> }>(
   "./locales/*/translation.json",
@@ -57,7 +59,7 @@ const getSupportedLanguage = (
 
 // Get saved language from localStorage
 const getSavedLanguage = (): SupportedLanguageCode | null => {
-  const savedLang = localStorage.getItem("handy-app-language");
+  const savedLang = localStorage.getItem(STORAGE_KEY);
   return getSupportedLanguage(savedLang);
 };
 
