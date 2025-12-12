@@ -1,6 +1,6 @@
+use crate::input;
 use crate::settings;
 use crate::settings::OverlayPosition;
-use enigo::{Enigo, Mouse};
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(not(target_os = "macos"))]
@@ -69,13 +69,8 @@ fn force_overlay_topmost(overlay_window: &tauri::webview::WebviewWindow) {
     });
 }
 
-fn get_cursor_position() -> Option<(i32, i32)> {
-    let enigo = Enigo::new(&Default::default()).ok()?;
-    enigo.location().ok()
-}
-
 fn get_monitor_with_cursor(app_handle: &AppHandle) -> Option<(tauri::Monitor, (f64, f64))> {
-    let cursor = get_cursor_position()?;
+    let cursor = input::get_cursor_position(app_handle)?;
     let cursor_x = cursor.0 as f64;
     let cursor_y = cursor.1 as f64;
 
