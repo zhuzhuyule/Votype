@@ -4,5 +4,9 @@
 <dict>
   <key>NSMicrophoneUsageDescription</key>
   <string>Request microphone access to transcribe audio locally</string>
+  <key>CFBundleIconFile</key>
+  <string>icon.icns</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
 </dict>
 </plist>
