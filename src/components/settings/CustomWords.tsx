@@ -48,8 +48,8 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
     return (
       <>
         <SettingContainer
-          title={t("customWords.title")}
-          description={t("customWords.description")}
+          title={t("settings.advanced.customWords.title")}
+          description={t("settings.advanced.customWords.description")}
           descriptionMode={descriptionMode}
           grouped={grouped}
         >
@@ -58,7 +58,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
               value={newWord}
               onChange={(e) => setNewWord(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder={t("customWords.placeholder")}
+              placeholder={t("settings.advanced.customWords.placeholder")}
               disabled={isUpdating("custom_words")}
             />
             <Button
@@ -70,7 +70,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 isUpdating("custom_words")
               }
             >
-              {t("customWords.add")}
+              {t("settings.advanced.customWords.add")}
             </Button>
           </ActionWrapper>
         </SettingContainer>
@@ -86,7 +86,7 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
                 onClick={() => handleRemoveWord(word)}
                 disabled={isUpdating("custom_words")}
                 className="inline-flex items-center gap-1 cursor-pointer"
-                aria-label={`${t("customWords.remove")} ${word}`}
+                aria-label={`${t("settings.advanced.customWords.remove")} ${word}`}
               >
                 <Text>{word}</Text>
                 <svg

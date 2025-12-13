@@ -224,7 +224,7 @@ export const HistorySettings: React.FC = () => {
     return (
       <Box className="h-full p-6">
         <Flex justify="center" align="center" className="h-full text-text/40">
-          <Text>{t("historySettings.loading")}</Text>
+          <Text>{t("settings.history.loading")}</Text>
         </Flex>
       </Box>
     );
@@ -234,15 +234,17 @@ export const HistorySettings: React.FC = () => {
     return (
       <Box className="max-w-4xl w-full mx-auto p-6">
         <Flex justify="between" align="center" mb="6">
-          <Text size="5" weight="bold" className="text-text">{t("historySettings.title")}</Text>
+          <Text size="5" weight="bold" className="text-text">
+            {t("settings.history.title")}
+          </Text>
           <Button variant="soft" onClick={openRecordingsFolder}>
             <IconFolderOpen className="w-4 h-4 mr-2" />
-            {t("historySettings.openFolder")}
+            {t("settings.history.openFolder")}
           </Button>
         </Flex>
         <Flex direction="column" align="center" justify="center" className="py-20 text-text/40">
           <IconCalendarTime className="w-12 h-12 mb-4 opacity-20" />
-          <Text>{t("historySettings.empty")}</Text>
+          <Text>{t("settings.history.empty")}</Text>
         </Flex>
       </Box>
     );
@@ -252,7 +254,9 @@ export const HistorySettings: React.FC = () => {
     <Box className="max-w-4xl w-full mx-auto p-6">
       <Flex justify="between" align="center" mb="6" className="pr-12">
         <Flex align="center" gap="3">
-          <Text size="5" weight="bold" className="text-text">{t("historySettings.title")}</Text>
+          <Text size="5" weight="bold" className="text-text">
+            {t("settings.history.title")}
+          </Text>
           <Badge variant="soft" color="gray" radius="full">
             {filteredTotal}
           </Badge>
@@ -260,7 +264,7 @@ export const HistorySettings: React.FC = () => {
         
         <Flex gap="3" align="center">
           <TextField.Root 
-            placeholder={t("historySettings.searchPlaceholder")} 
+            placeholder={t("settings.history.searchPlaceholder")} 
             value={searchQuery}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             className="w-64"
@@ -270,7 +274,7 @@ export const HistorySettings: React.FC = () => {
             </TextField.Slot>
           </TextField.Root>
 
-          <Tooltip content={t("historySettings.openFolder")}>
+          <Tooltip content={t("settings.history.openFolder")}>
             <IconButton variant="ghost" className="cursor-pointer" onClick={openRecordingsFolder} >
               <IconFolderOpen />
             </IconButton>
@@ -305,7 +309,7 @@ export const HistorySettings: React.FC = () => {
                         weight="bold" 
                         className="sticky top-0 z-20 block text-logo-primary py-2 pointer-events-auto"
                       >
-                        {t(`historySettings.timeline.${group}`)}
+                        {t(`settings.history.timeline.${group}`)}
                         <Text className="pl-1 opacity-60 text-xs font-normal">
                           ({counts[group]})
                         </Text>
@@ -381,7 +385,7 @@ export const HistorySettings: React.FC = () => {
                                 copyToClipboard(textToCopy);
                               }}
                               className="text-text/50 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
-                              title={t("historySettings.copyTitle")}
+                              title={t("settings.history.copyToClipboard")}
                             >
                               <IconCopy className="w-4 h-4" />
                             </IconButton>
@@ -392,7 +396,11 @@ export const HistorySettings: React.FC = () => {
                               className={`transition-colors ${
                                 entry.saved ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10" : "text-text/50 hover:text-orange-400 hover:bg-orange-400/10"
                               }`}
-                              title={entry.saved ? t("historySettings.removeFromSaved") : t("historySettings.saveTitle")}
+                              title={
+                                entry.saved
+                                  ? t("settings.history.unsave")
+                                  : t("settings.history.save")
+                              }
                             >
                               <IconStar className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
                             </IconButton>
@@ -405,11 +413,11 @@ export const HistorySettings: React.FC = () => {
                                   await deleteAudioEntry(entry.id);
                                 } catch (error) {
                                   console.error("Failed to delete entry:", error);
-                                  alert(t("historySettings.deleteError"));
+                                  alert(t("settings.history.deleteError"));
                                 }
                               }}
                               className="text-text/50 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-                              title={t("historySettings.deleteTitle")}
+                              title={t("settings.history.delete")}
                             >
                               <IconTrash className="w-4 h-4" />
                             </IconButton>
@@ -463,10 +471,10 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <Tabs.List size="1" className="mb-3">
               <Tabs.Trigger value="improved">
-                {t("historySettings.content.improved")}
+                {t("settings.history.content.improved")}
               </Tabs.Trigger>
               <Tabs.Trigger value="original">
-                {t("historySettings.content.original")}
+                {t("settings.history.content.original")}
               </Tabs.Trigger>
             </Tabs.List>
             <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">

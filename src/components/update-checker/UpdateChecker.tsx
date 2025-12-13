@@ -79,7 +79,6 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       }
     } catch (error) {
       console.error("Failed to check for updates:", error);
-      console.error(t("update.failedCheck"));
     } finally {
       setIsChecking(false);
       isManualCheckRef.current = false;
@@ -128,7 +127,6 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       await relaunch();
     } catch (error) {
       console.error("Failed to install update:", error);
-      console.error(t("update.failedInstall"));
     } finally {
       setIsInstalling(false);
       setDownloadProgress(0);
@@ -140,19 +138,21 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   // Update status functions
   const getUpdateStatusText = () => {
     if (!updateChecksEnabled) {
-      return t("update.disabled", "Update Checking Disabled");
+      return t("footer.updateCheckingDisabled");
     }
     if (isInstalling) {
       return downloadProgress > 0 && downloadProgress < 100
-        ? t("update.downloading", { progress: downloadProgress.toString().padStart(3) })
+        ? t("footer.downloading", {
+          progress: downloadProgress.toString().padStart(3),
+        })
         : downloadProgress === 100
-          ? t("update.installing")
-          : t("update.preparing");
+          ? t("footer.installing")
+          : t("footer.preparing");
     }
-    if (isChecking) return t("update.checking");
-    if (showUpToDate) return t("update.upToDate");
-    if (updateAvailable) return t("update.updateAvailable");
-    return t("update.checkUpdates");
+    if (isChecking) return t("footer.checkingUpdates");
+    if (showUpToDate) return t("footer.upToDate");
+    if (updateAvailable) return t("footer.downloadUpdate");
+    return t("footer.checkForUpdates");
   };
 
   const getUpdateStatusAction = () => {

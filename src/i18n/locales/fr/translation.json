@@ -1,5 +1,4 @@
 {
-  "_comment": "French translation for Handy. Contribute at: https://github.com/cjpais/Handy",
   "sidebar": {
     "general": "Général",
     "advanced": "Avancé",
@@ -19,27 +18,21 @@
     },
     "models": {
       "small": {
-        "name": "Whisper Small",
         "description": "Rapide et assez précis."
       },
       "medium": {
-        "name": "Whisper Medium",
         "description": "Bonne précision, vitesse moyenne"
       },
       "turbo": {
-        "name": "Whisper Turbo",
         "description": "Équilibre entre précision et vitesse."
       },
       "large": {
-        "name": "Whisper Large",
         "description": "Bonne précision, mais lent."
       },
       "parakeet-tdt-0.6b-v2": {
-        "name": "Parakeet V2",
         "description": "Anglais uniquement. Le meilleur modèle pour les anglophones."
       },
       "parakeet-tdt-0.6b-v3": {
-        "name": "Parakeet V3",
         "description": "Rapide et précis"
       }
     },
@@ -102,8 +95,7 @@
         "description": "Sélectionnez la langue pour la reconnaissance vocale. Auto déterminera automatiquement la langue, tandis que sélectionner une langue spécifique peut améliorer la précision pour cette langue.",
         "descriptionUnsupported": "Le modèle Parakeet détecte automatiquement la langue. Aucune sélection manuelle n'est nécessaire.",
         "searchPlaceholder": "Rechercher des langues...",
-        "noResults": "Aucune langue trouvée",
-        "auto": "Auto"
+        "noResults": "Aucune langue trouvée"
       },
       "pushToTalk": {
         "label": "Appuyer pour parler",
@@ -113,7 +105,6 @@
     "sound": {
       "title": "Son",
       "microphone": {
-        "title": "Microphone",
         "description": "Sélectionnez votre microphone préféré",
         "placeholder": "Sélectionner un microphone...",
         "loading": "Chargement..."
@@ -129,7 +120,6 @@
         "loading": "Chargement..."
       },
       "volume": {
-        "title": "Volume",
         "description": "Ajuster le volume des sons de retour audio"
       }
     },
@@ -159,7 +149,6 @@
           "clipboard": "Presse-papiers ({{modifier}}+V)",
           "clipboardCtrlShiftV": "Presse-papiers (Ctrl+Shift+V)",
           "clipboardShiftInsert": "Presse-papiers (Shift+Insert)",
-          "direct": "Direct",
           "none": "Aucun"
         }
       },
@@ -208,33 +197,28 @@
           "description": "Sélectionnez un fournisseur compatible OpenAI."
         },
         "appleIntelligence": {
-          "title": "Apple Intelligence",
           "description": "Fonctionne entièrement sur l'appareil. Aucune clé API ni accès réseau n'est requis.",
           "requirements": "Nécessite un Mac Apple Silicon exécutant macOS Tahoe (26.0) ou une version ultérieure. Apple Intelligence doit être activé dans les Préférences Système."
         },
         "baseUrl": {
           "title": "URL de base",
-          "description": "URL de base de l'API pour le fournisseur sélectionné. Seul le fournisseur personnalisé peut être modifié.",
-          "placeholder": "https://api.openai.com/v1"
+          "description": "URL de base de l'API pour le fournisseur sélectionné. Seul le fournisseur personnalisé peut être modifié."
         },
         "apiKey": {
           "title": "Clé API",
-          "description": "Clé API pour le fournisseur sélectionné.",
-          "placeholder": "sk-..."
+          "description": "Clé API pour le fournisseur sélectionné."
         },
         "model": {
           "title": "Modèle",
           "descriptionApple": "Fournissez une limite de tokens optionnelle ou conservez le préréglage par défaut sur l'appareil.",
           "descriptionCustom": "Fournissez l'identifiant du modèle attendu par votre point de terminaison personnalisé.",
           "descriptionDefault": "Choisissez un modèle exposé par le fournisseur sélectionné.",
-          "placeholderApple": "Apple Intelligence",
           "placeholderWithOptions": "Rechercher ou sélectionner un modèle",
           "placeholderNoOptions": "Tapez un nom de modèle",
           "refreshModels": "Actualiser les modèles"
         }
       },
       "prompts": {
-        "title": "Prompt",
         "selectedPrompt": {
           "title": "Prompt sélectionné",
           "description": "Sélectionnez un modèle pour affiner les transcriptions ou créez-en un nouveau. Utilisez ${output} dans le texte du prompt pour référencer la transcription capturée."
@@ -325,7 +309,6 @@
     "about": {
       "title": "À propos",
       "version": {
-        "title": "Version",
         "description": "Version actuelle de Handy"
       },
       "appDataDirectory": {
@@ -345,7 +328,6 @@
       "acknowledgments": {
         "title": "Remerciements",
         "whisper": {
-          "title": "Whisper.cpp",
           "description": "Inférence haute performance du modèle de reconnaissance vocale automatique Whisper d'OpenAI",
           "details": "Handy utilise Whisper.cpp pour un traitement rapide et local de la parole en texte. Merci au travail incroyable de Georgi Gerganov et des contributeurs."
         }
@@ -388,6 +370,13 @@
     "no": "Non",
     "noOptionsFound": "Aucune option trouvée"
   },
+  "overlay": {
+    "status": {
+      "recording": "Enregistrement...",
+      "transcribing": "Transcription...",
+      "llm": "Post-traitement..."
+    }
+  },
   "accessibility": {
     "permissionsRequired": "Autorisations d'accessibilité requises",
     "permissionsDescription": "Handy a besoin des autorisations d'accessibilité pour taper le texte transcrit.",
@@ -400,5 +389,6 @@
   "appLanguage": {
     "title": "Langue de l'application",
     "description": "Changer la langue de l'interface de Handy"
-  }
+  },
+  "_comment": "French translation for Handy. Contribute at: https://github.com/cjpais/Handy"
 }

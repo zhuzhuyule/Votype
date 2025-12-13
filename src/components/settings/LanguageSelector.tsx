@@ -53,11 +53,11 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 
   return (
     <SettingContainer
-      title={t("settings.speechLanguage.title")}
+      title={t("settings.general.language.title")}
       description={
         isUnsupported
-          ? t("settings.speechLanguage.descriptionUnsupported")
-          : t("settings.speechLanguage.description")
+          ? t("settings.general.language.descriptionUnsupported")
+          : t("settings.general.language.description")
       }
       descriptionMode={descriptionMode}
       grouped={grouped}
@@ -73,7 +73,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           selectedValue={selectedLanguage}
           onSelect={handleLanguageChange}
           options={languageOptions}
-          placeholder={t("settings.speechLanguage.placeholder")}
+          placeholder={t("settings.general.language.searchPlaceholder")}
           disabled={isUnsupported || isUpdating("selected_language")}
         />
       </ActionWrapper>

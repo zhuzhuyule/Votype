@@ -29,11 +29,8 @@ export const UpdateChecksToggle: React.FC<UpdateChecksToggleProps> = React.memo(
 
         return (
             <SettingContainer
-                title={t("updateChecks.title", "Check for Updates")}
-                description={t(
-                    "updateChecks.description",
-                    "Automatically check for updates on startup",
-                )}
+                title={t("settings.debug.updateChecks.label")}
+                description={t("settings.debug.updateChecks.description")}
                 descriptionMode={descriptionMode}
                 grouped={grouped}
             >

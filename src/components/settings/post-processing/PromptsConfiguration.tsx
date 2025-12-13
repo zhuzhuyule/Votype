@@ -9,8 +9,8 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import React, { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
@@ -19,6 +19,7 @@ import { Dropdown } from "../../ui/Dropdown";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
+import { PostProcessingToggle } from "../PostProcessingToggle";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -32,13 +33,9 @@ const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
 
 const PromptSettings: React.FC = () => {
   const { t } = useTranslation();
-  const {
-    getSetting,
-    updateSetting,
-    isUpdating,
-    refreshSettings,
-    settings,
-  } = useSettings();
+  const { getSetting, updateSetting, isUpdating, refreshSettings, settings } =
+    useSettings();
+
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
@@ -48,52 +45,34 @@ const PromptSettings: React.FC = () => {
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
   const cachedModels = getSetting("cached_models") || [];
-  
   const selectedPromptModelId = getSetting("selected_prompt_model_id");
-  
-  const textModels = React.useMemo(() => {
-    const models = cachedModels
-      .filter(m => m.model_type === "text")
-      .map(m => {
-        const provider = settings?.post_process_providers.find(p => p.id === m.provider_id);
-        const providerLabel = provider ? provider.label : m.provider_id;
-        return { 
-          value: m.id, 
-          label: `${m.custom_label || m.name} (${providerLabel})` 
+
+  const textModels = useMemo(() => {
+    const options = cachedModels
+      .filter((model) => model.model_type === "text")
+      .map((model) => {
+        const provider = settings?.post_process_providers.find(
+          (provider) => provider.id === model.provider_id,
+        );
+        const providerLabel = provider ? provider.label : model.provider_id;
+        return {
+          value: model.id,
+          label: `${model.custom_label || model.name} (${providerLabel})`,
         };
       });
-    
-    
-    const defaultModel = cachedModels.find(m => m.id === selectedPromptModelId);
-    let defaultLabel = t("postProcessing.promptModelDefault");
-    
-    if (defaultModel) {
-      defaultLabel = `${t("common.default") || "Default"} (${defaultModel.custom_label || defaultModel.name})`;
-    }
 
-    return [
-      { value: "default", label: defaultLabel },
-      ...models
-    ];
-  }, [cachedModels, t, selectedPromptModelId, settings?.post_process_providers]);
+    const defaultModel = cachedModels.find((model) => model.id === selectedPromptModelId);
+    const defaultLabel = defaultModel
+      ? `${t("common.default")} (${defaultModel.custom_label || defaultModel.name})`
+      : t("common.default");
 
-  // ...
-
-  // In the return JSX:
-          <Dropdown
-            options={textModels}
-            selectedValue={draftModelId || "default"}
-            onSelect={(value) => {
-              setDraftModelId(value === "default" ? null : value);
-            }}
-            placeholder={t("postProcessing.promptModelDefault")}
-            className="flex-1"
-          />
+    return [{ value: "default", label: defaultLabel }, ...options];
+  }, [cachedModels, selectedPromptModelId, settings?.post_process_providers, t]);
 
   const selectedPrompt =
     prompts.find((prompt) => prompt.id === selectedPromptId) || null;
 
-  const lastLoadedPromptId = React.useRef<string | null>(null);
+  const lastLoadedPromptId = useRef<string | null>(null);
 
   useEffect(() => {
     if (isCreating) {
@@ -101,22 +80,18 @@ const PromptSettings: React.FC = () => {
       return;
     }
 
-    // Only update drafts if we have a selected prompt and it's either:
-    // 1. A different prompt ID than what we last loaded
-    // 2. The same ID but we haven't loaded it yet (first load)
     if (selectedPrompt && selectedPrompt.id !== lastLoadedPromptId.current) {
       setDraftName(selectedPrompt.name);
       setDraftText(selectedPrompt.prompt);
       setDraftModelId(selectedPrompt.model_id || null);
       lastLoadedPromptId.current = selectedPrompt.id;
     } else if (!selectedPrompt && !isCreating) {
-      // Reset if no prompt selected
       setDraftName("");
       setDraftText("");
       setDraftModelId(null);
       lastLoadedPromptId.current = null;
     }
-  }, [isCreating, selectedPrompt, selectedPromptId]);
+  }, [isCreating, selectedPrompt]);
 
   const handlePromptSelect = (promptId: string | null) => {
     if (!promptId) return;
@@ -191,11 +166,10 @@ const PromptSettings: React.FC = () => {
 
   if (!enabled) {
     return (
-      <DisabledNotice>{t("postProcessing.disabledNotice")}</DisabledNotice>
+      <DisabledNotice>{t("settings.postProcessing.disabledNotice")}</DisabledNotice>
     );
   }
 
-  const hasPrompts = prompts.length > 0;
   const isDirty =
     !!selectedPrompt &&
     (draftName.trim() !== selectedPrompt.name ||
@@ -205,8 +179,8 @@ const PromptSettings: React.FC = () => {
   return (
     <>
       <SettingContainer
-        title={t("postProcessing.selectedPromptTitle")}
-        description={t("postProcessing.selectedPromptDescription")}
+        title={t("settings.postProcessing.prompts.selectedPrompt.title")}
+        description={t("settings.postProcessing.prompts.selectedPrompt.description")}
       >
         <ActionWrapper>
           <Dropdown
@@ -218,21 +192,15 @@ const PromptSettings: React.FC = () => {
             onSelect={(value) => handlePromptSelect(value)}
             placeholder={
               prompts.length === 0
-                ? t("postProcessing.noPromptsAvailable")
-                : t("postProcessing.selectPrompt")
+                ? t("settings.postProcessing.prompts.noPrompts")
+                : t("settings.postProcessing.prompts.selectPrompt")
             }
-            disabled={
-              isUpdating("post_process_selected_prompt_id") || isCreating
-            }
+            disabled={isUpdating("post_process_selected_prompt_id") || isCreating}
             className="flex-1"
           />
           {!isCreating && (
-            <Tooltip content={t("postProcessing.createNewPrompt")}>
-              <IconButton
-                size="1"
-                variant="outline"
-                onClick={handleStartCreate}
-              >
+            <Tooltip content={t("settings.postProcessing.prompts.createNew")}>
+              <IconButton size="1" variant="outline" onClick={handleStartCreate}>
                 <IconPlus size={18} />
               </IconButton>
             </Tooltip>
@@ -241,7 +209,7 @@ const PromptSettings: React.FC = () => {
       </SettingContainer>
       <Separator my="3" size="4" />
       <SettingContainer
-        title={t("postProcessing.promptLabel")}
+        title={t("settings.postProcessing.prompts.promptLabel")}
         descriptionMode="inline"
         description=""
       >
@@ -249,13 +217,13 @@ const PromptSettings: React.FC = () => {
           <TextField.Root
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
-            placeholder={t("ui.enterPromptName")}
+            placeholder={t("settings.postProcessing.prompts.promptLabelPlaceholder")}
           />
         </ActionWrapper>
       </SettingContainer>
 
       <SettingContainer
-        title={t("postProcessing.promptModel")}
+        title={t("settings.postProcessing.api.model.title")}
         descriptionMode="inline"
         description=""
       >
@@ -264,13 +232,14 @@ const PromptSettings: React.FC = () => {
             options={textModels}
             selectedValue={draftModelId || "default"}
             onSelect={(value) => setDraftModelId(value === "default" ? null : value)}
-            placeholder={t("postProcessing.promptModelDefault")}
+            placeholder={t("common.default")}
             className="flex-1"
           />
         </ActionWrapper>
       </SettingContainer>
+
       <SettingContainer
-        title={t("postProcessing.promptInstructions")}
+        title={t("settings.postProcessing.prompts.promptInstructions")}
         descriptionMode="inline"
         description=""
         layout="stacked"
@@ -279,14 +248,17 @@ const PromptSettings: React.FC = () => {
           value={draftText}
           rows={20}
           onChange={(e) => setDraftText(e.target.value)}
-          placeholder={t("ui.writeInstructions")}
+          placeholder={t("settings.postProcessing.prompts.promptInstructionsPlaceholder")}
         />
         <Text size="1" color="gray">
-          {t("ui.tipUse")}{" "}
-          <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs">
-            $&#123;output&#125;
-          </code>{" "}
-          {t("ui.toInsertText")}
+          <Trans
+            i18nKey="settings.postProcessing.prompts.promptTip"
+            components={{
+              code: (
+                <code className="px-1 py-0.5 bg-mid-gray/20 rounded text-xs" />
+              ),
+            }}
+          />
         </Text>
         <Flex gap="2" pt="2">
           {isCreating ? (
@@ -297,13 +269,13 @@ const PromptSettings: React.FC = () => {
                 size="2"
                 disabled={!draftName.trim() || !draftText.trim()}
               >
-                {t("ui.createPrompt")}
+                {t("settings.postProcessing.prompts.createPrompt")}
               </Button>
               <Button onClick={handleCancelCreate} variant="outline" size="2">
-                {t("ui.cancel")}
+                {t("settings.postProcessing.prompts.cancel")}
               </Button>
             </>
-          ) : !!selectedPrompt ? (
+          ) : selectedPrompt ? (
             <>
               <Button
                 onClick={handleUpdatePrompt}
@@ -311,7 +283,7 @@ const PromptSettings: React.FC = () => {
                 size="2"
                 disabled={!isDirty || !draftName.trim() || !draftText.trim()}
               >
-                {t("ui.save")}
+                {t("settings.postProcessing.prompts.updatePrompt")}
               </Button>
               <Button
                 onClick={() => handleDeletePrompt(selectedPrompt.id)}
@@ -320,7 +292,7 @@ const PromptSettings: React.FC = () => {
                 size="2"
                 disabled={prompts.length <= 1}
               >
-                {t("ui.delete")}
+                {t("settings.postProcessing.prompts.deletePrompt")}
               </Button>
             </>
           ) : null}
@@ -330,19 +302,16 @@ const PromptSettings: React.FC = () => {
   );
 };
 
-import { PostProcessingToggle } from "../PostProcessingToggle";
-
-// ... existing imports ...
-
 export const PromptsConfiguration: React.FC = () => {
   const { t } = useTranslation();
-  
+
   return (
     <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
-      <SettingsGroup title={t("postProcessing.prompts")}>
+      <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
         <PostProcessingToggle grouped={true} />
         <PromptSettings />
       </SettingsGroup>
     </Flex>
   );
 };
+

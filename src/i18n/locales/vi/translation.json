@@ -1,5 +1,4 @@
 {
-  "_comment": "Vietnamese translation for Handy. Contribute at: https://github.com/cjpais/Handy",
   "sidebar": {
     "general": "Chung",
     "advanced": "Nâng cao",
@@ -19,27 +18,21 @@
     },
     "models": {
       "small": {
-        "name": "Whisper Small",
         "description": "Nhanh và khá chính xác."
       },
       "medium": {
-        "name": "Whisper Medium",
         "description": "Độ chính xác tốt, tốc độ trung bình"
       },
       "turbo": {
-        "name": "Whisper Turbo",
         "description": "Cân bằng giữa độ chính xác và tốc độ."
       },
       "large": {
-        "name": "Whisper Large",
         "description": "Độ chính xác tốt, nhưng chậm."
       },
       "parakeet-tdt-0.6b-v2": {
-        "name": "Parakeet V2",
         "description": "Chỉ tiếng Anh. Mô hình tốt nhất cho người nói tiếng Anh."
       },
       "parakeet-tdt-0.6b-v3": {
-        "name": "Parakeet V3",
         "description": "Nhanh và chính xác"
       }
     },
@@ -156,9 +149,6 @@
         "title": "Phương thức dán",
         "description": "Chọn cách chèn văn bản. Trực tiếp: mô phỏng gõ phím qua đầu vào hệ thống. Không có: bỏ qua dán, chỉ cập nhật lịch sử/clipboard.",
         "options": {
-          "clipboard": "Clipboard ({{modifier}}+V)",
-          "clipboardCtrlShiftV": "Clipboard (Ctrl+Shift+V)",
-          "clipboardShiftInsert": "Clipboard (Shift+Insert)",
           "direct": "Trực tiếp",
           "none": "Không có"
         }
@@ -208,33 +198,28 @@
           "description": "Chọn một nhà cung cấp tương thích OpenAI."
         },
         "appleIntelligence": {
-          "title": "Apple Intelligence",
           "description": "Chạy hoàn toàn trên thiết bị. Không cần khóa API hoặc truy cập mạng.",
           "requirements": "Yêu cầu Mac Apple Silicon chạy macOS Tahoe (26.0) trở lên. Apple Intelligence phải được bật trong Cài đặt Hệ thống."
         },
         "baseUrl": {
           "title": "URL cơ sở",
-          "description": "URL cơ sở API cho nhà cung cấp đã chọn. Chỉ có thể chỉnh sửa nhà cung cấp tùy chỉnh.",
-          "placeholder": "https://api.openai.com/v1"
+          "description": "URL cơ sở API cho nhà cung cấp đã chọn. Chỉ có thể chỉnh sửa nhà cung cấp tùy chỉnh."
         },
         "apiKey": {
           "title": "Khóa API",
-          "description": "Khóa API cho nhà cung cấp đã chọn.",
-          "placeholder": "sk-..."
+          "description": "Khóa API cho nhà cung cấp đã chọn."
         },
         "model": {
           "title": "Mô hình",
           "descriptionApple": "Cung cấp giới hạn token tùy chọn hoặc giữ cài đặt mặc định trên thiết bị.",
           "descriptionCustom": "Cung cấp định danh mô hình được yêu cầu bởi điểm cuối tùy chỉnh của bạn.",
           "descriptionDefault": "Chọn một mô hình được cung cấp bởi nhà cung cấp đã chọn.",
-          "placeholderApple": "Apple Intelligence",
           "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
           "placeholderNoOptions": "Nhập tên mô hình",
           "refreshModels": "Làm mới mô hình"
         }
       },
       "prompts": {
-        "title": "Prompt",
         "selectedPrompt": {
           "title": "Prompt đã chọn",
           "description": "Chọn một mẫu để tinh chỉnh bản ghi hoặc tạo mới. Sử dụng ${output} trong văn bản prompt để tham chiếu bản ghi đã chụp."
@@ -345,7 +330,6 @@
       "acknowledgments": {
         "title": "Lời cảm ơn",
         "whisper": {
-          "title": "Whisper.cpp",
           "description": "Suy luận hiệu suất cao của mô hình nhận dạng giọng nói tự động Whisper của OpenAI",
           "details": "Handy sử dụng Whisper.cpp để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên."
         }
@@ -388,6 +372,13 @@
     "no": "Không",
     "noOptionsFound": "Không tìm thấy tùy chọn"
   },
+  "overlay": {
+    "status": {
+      "recording": "Đang ghi âm...",
+      "transcribing": "Đang phiên âm...",
+      "llm": "Đang hậu xử lý..."
+    }
+  },
   "accessibility": {
     "permissionsRequired": "Cần quyền truy cập",
     "permissionsDescription": "Handy cần quyền truy cập để gõ văn bản đã chuyển đổi.",
@@ -400,5 +391,6 @@
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",
     "description": "Thay đổi ngôn ngữ giao diện của Handy"
-  }
+  },
+  "_comment": "Vietnamese translation for Handy. Contribute at: https://github.com/cjpais/Handy"
 }

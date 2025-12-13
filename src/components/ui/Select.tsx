@@ -82,7 +82,7 @@ export const Select: React.FC<SelectProps> = React.memo((props) => {
   const {
     value,
     options,
-    placeholder = t("ui.selectOption"),
+    placeholder = t("common.selectOption"),
     disabled = false,
     isLoading = false,
     isClearable = true,
@@ -223,14 +223,14 @@ export const Select: React.FC<SelectProps> = React.memo((props) => {
           {isCreatable && (
             <>
               <Box className={createRowClasses}>
-                <TextField.Root
-                  className="flex-1"
-                  type="text"
-                  placeholder={t("ui.addNewOption")}
-                  value={newValue}
-                  onChange={(event) => setNewValue(event.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
+                  <TextField.Root
+                    className="flex-1"
+                    type="text"
+                    placeholder={t("common.addNewOption")}
+                    value={newValue}
+                    onChange={(event) => setNewValue(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
                 <button
                   type="button"
                   className="rounded-full bg-logo-primary px-3 py-1 text-xs font-semibold text-white transition hover:bg-logo-primary/90 disabled:cursor-not-allowed disabled:bg-mid-gray/40 disabled:text-white/60"

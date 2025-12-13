@@ -1,5 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { SUPPORTED_LANGUAGES, type SupportedLanguageCode } from "../../i18n";
@@ -26,6 +27,7 @@ export const AppLanguageSelector: React.FC<AppLanguageSelectorProps> =
       i18n.changeLanguage(langCode);
       // Persist to localStorage for next session
       localStorage.setItem(STORAGE_KEY, langCode);
+      void invoke("change_app_language_setting", { language: langCode });
     };
 
     return (

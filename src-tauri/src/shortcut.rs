@@ -14,6 +14,7 @@ use crate::settings::{
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::ManagedToggleState;
+use crate::tray::{ManagedTrayIconState, TrayIconState};
 use chrono::Utc;
 
 pub fn init_shortcuts(app: &AppHandle) {
@@ -188,6 +189,23 @@ pub fn change_selected_language_setting(app: AppHandle, language: String) -> Res
     let mut settings = settings::get_settings(&app);
     settings.selected_language = language;
     settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.app_language = language;
+    settings::write_settings(&app, settings);
+
+    let current_state = app
+        .state::<ManagedTrayIconState>()
+        .0
+        .lock()
+        .map(|state| state.clone())
+        .unwrap_or(TrayIconState::Idle);
+    crate::tray::update_tray_menu(&app, &current_state);
+
     Ok(())
 }
 

@@ -17,7 +17,7 @@ const Footer: React.FC = () => {
         const appVersion = await getVersion();
         setVersion(appVersion);
       } catch (error) {
-        console.error(t("error.failedGetVersion"), error);
+        console.error("Failed to get version", error);
         setVersion("0.1.2");
       }
     };

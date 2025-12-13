@@ -139,24 +139,24 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
   return (
     <>
       <SettingsGroup
-        title={t("ui.customProviders")}
+        title={t("settings.postProcessing.api.providers.title")}
         actions={
           <Button
             onClick={() => setIsAddDialogOpen(true)}
             variant="outline"
             disabled={isUpdating("add_custom_provider")}
           >
-            {t("ui.createCustomProvider")}
+            {t("settings.postProcessing.api.providers.add")}
           </Button>
         }
       >
         {providers.length === 0 ? (
           <Flex align="center" justify="center" py="6" px="4">
             <Text size="2" color="gray" className="mb-2">
-              {t("ui.noCustomProviders")}
+              {t("settings.postProcessing.api.providers.empty.title")}
             </Text>
             <Text size="1" color="gray">
-              {t("ui.noCustomProvidersDesc")}
+              {t("settings.postProcessing.api.providers.empty.description")}
             </Text>
           </Flex>
         ) : (
@@ -179,7 +179,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                           {provider.label}
                         </Text>
                         {isBuiltIn && (
-                          <Badge size="1">{t("ui.builtInProvider")}</Badge>
+                          <Badge size="1">
+                            {t("settings.postProcessing.api.providers.builtInBadge")}
+                          </Badge>
                         )}
                         <Flex gap="2" align="center" justify="end" flexGrow="1">
                           <IconButton
@@ -187,7 +189,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                             size="2"
                             onClick={() => handleStartEdit(provider)}
                             disabled={updating}
-                            title={t("ui.edit")}
+                            title={t("common.edit")}
                           >
                             <IconPencil size={14} />
                           </IconButton>
@@ -204,7 +206,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                   size="2"
                                   color="red"
                                   disabled={updating}
-                                  title={t("ui.delete")}
+                                  title={t("common.delete")}
                                   className="text-red-600 hover:text-red-700"
                                 >
                                   <IconTrash size={14} />
@@ -218,10 +220,10 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                     color="red"
                                     align="center"
                                   >
-                                    {t("ui.deleteConfirm")}
+                                    {t("settings.postProcessing.api.providers.deleteConfirm.title")}
                                   </Text>
                                   <Text size="1" color="red" align="center">
-                                    {t("ui.deleteConfirmDesc")}
+                                    {t("settings.postProcessing.api.providers.deleteConfirm.description")}
                                   </Text>
                                   <Flex gap="2" justify="center">
                                     <Button
@@ -229,7 +231,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                       size="1"
                                       onClick={() => setDeletePopoverOpen(null)}
                                     >
-                                      {t("ui.cancel")}
+                                      {t("common.cancel")}
                                     </Button>
                                     <Button
                                       variant="solid"
@@ -238,7 +240,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                                       onClick={() => handleRemove(provider.id)}
                                       disabled={updating}
                                     >
-                                      {t("ui.delete")}
+                                      {t("common.delete")}
                                     </Button>
                                   </Flex>
                                 </Flex>
@@ -267,13 +269,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       {/* Add Provider Dialog */}
       <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <Dialog.Content maxWidth="450px">
-          <Dialog.Title>{t("ui.createCustomProviderTitle")}</Dialog.Title>
+          <Dialog.Title>
+            {t("settings.postProcessing.api.providers.dialog.createTitle")}
+          </Dialog.Title>
 
           <Flex direction="column" gap="4" mt="4">
             <Flex direction="column" gap="3">
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("ui.providerName")}
+                  {t("settings.postProcessing.api.providers.fields.name")}
                 </Text>
                 <TextField.Root
                   value={addDraft.label}
@@ -283,12 +287,12 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       label: event.target.value,
                     }))
                   }
-                  placeholder={t("ui.providerNamePlaceholder")}
+                  placeholder={t("settings.postProcessing.api.providers.fields.namePlaceholder")}
                 />
               </Flex>
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("ui.baseUrl")}
+                  {t("settings.postProcessing.api.providers.fields.baseUrl")}
                 </Text>
                 <TextField.Root
                   value={addDraft.baseUrl}
@@ -303,7 +307,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
               </Flex>
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("ui.modelsEndpoint")}
+                  {t("settings.postProcessing.api.providers.fields.modelsEndpoint")}
                 </Text>
                 <TextField.Root
                   value={addDraft.modelsEndpoint}
@@ -313,7 +317,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       modelsEndpoint: event.target.value,
                     }))
                   }
-                  placeholder={t("ui.modelsEndpointPlaceholder")}
+                  placeholder={t("settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder")}
                 />
               </Flex>
             </Flex>
@@ -321,7 +325,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
 
           <Flex justify="end" gap="3" mt="6">
             <Dialog.Close>
-              <Button variant="ghost">{t("ui.cancel")}</Button>
+              <Button variant="ghost">{t("common.cancel")}</Button>
             </Dialog.Close>
             <Dialog.Close>
               <Button
@@ -329,7 +333,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                 disabled={!canAdd || isUpdating("add_custom_provider")}
                 onClick={handleAdd}
               >
-                {t("ui.create")}
+                {t("common.create")}
               </Button>
             </Dialog.Close>
           </Flex>
@@ -339,13 +343,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       {/* Edit Provider Dialog */}
       <Dialog.Root open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <Dialog.Content maxWidth="450px">
-          <Dialog.Title>{t("ui.editProvider")}</Dialog.Title>
+          <Dialog.Title>
+            {t("settings.postProcessing.api.providers.dialog.editTitle")}
+          </Dialog.Title>
 
           <Flex direction="column" gap="4" mt="4">
             <Flex direction="column" gap="3">
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("ui.providerName")}
+                  {t("settings.postProcessing.api.providers.fields.name")}
                 </Text>
                 <TextField.Root
                   value={editDraft.label}
@@ -355,13 +361,13 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       label: event.target.value,
                     }))
                   }
-                  placeholder={t("ui.providerNamePlaceholder")}
+                  placeholder={t("settings.postProcessing.api.providers.fields.namePlaceholder")}
                 />
               </Flex>
               <Flex direction="column" gap="1">
                 <Flex justify="between" align="center">
                   <Text size="2" weight="medium">
-                    {t("ui.baseUrl")}
+                    {t("settings.postProcessing.api.providers.fields.baseUrl")}
                   </Text>
                   {editingId &&
                     !providers.find((p) => p.id === editingId)
@@ -374,7 +380,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                           `update_custom_provider:${editingId}`,
                         )}
                       >
-                        {t("ui.resetUrl")}
+                        {t("settings.postProcessing.api.providers.resetUrl")}
                       </Button>
                     )}
                 </Flex>
@@ -391,7 +397,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
               </Flex>
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("ui.modelsEndpoint")}
+                  {t("settings.postProcessing.api.providers.fields.modelsEndpoint")}
                 </Text>
                 <TextField.Root
                   value={editDraft.modelsEndpoint}
@@ -401,7 +407,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       modelsEndpoint: event.target.value,
                     }))
                   }
-                  placeholder={t("ui.modelsEndpointPlaceholder")}
+                  placeholder={t("settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder")}
                 />
               </Flex>
             </Flex>
@@ -409,7 +415,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
 
           <Flex justify="end" gap="3" mt="6">
             <Dialog.Close>
-              <Button variant="ghost">{t("ui.cancel")}</Button>
+              <Button variant="ghost">{t("common.cancel")}</Button>
             </Dialog.Close>
             <Dialog.Close>
               <Button
@@ -420,7 +426,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                 }
                 onClick={handleSaveEdit}
               >
-                {t("ui.save")}
+                {t("common.save")}
               </Button>
             </Dialog.Close>
           </Flex>

@@ -46,8 +46,8 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
 
     const selectedClamshellMicrophone =
       getSetting("clamshell_microphone") === "default"
-        ? "Default"
-        : getSetting("clamshell_microphone") || "Default";
+        ? t("common.default")
+        : getSetting("clamshell_microphone") || t("common.default");
 
     const handleClamshellMicrophoneSelect = async (deviceName: string) => {
       await updateSetting("clamshell_microphone", deviceName);
@@ -64,8 +64,8 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
 
     return (
       <SettingContainer
-        title={t("clamshellMicrophone.title")}
-        description={t("clamshellMicrophone.description")}
+        title={t("settings.debug.clamshellMicrophone.title")}
+        description={t("settings.debug.clamshellMicrophone.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
@@ -76,8 +76,8 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
             onSelect={handleClamshellMicrophoneSelect}
             placeholder={
               isLoading || audioDevices.length === 0
-                ? t("microphone.loading")
-                : t("clamshellMicrophone.placeholder")
+                ? t("settings.sound.microphone.loading")
+                : t("settings.sound.microphone.placeholder")
             }
             disabled={
               isUpdating("clamshell_microphone") ||

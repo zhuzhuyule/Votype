@@ -29,8 +29,8 @@ export const PromoteModelSelection: React.FC = () => {
 
   return (
     <SettingContainer
-      title={t("promptModel.title")}
-      description={t("promptModel.description")}
+      title={t("settings.postProcessing.api.model.title")}
+      description={t("settings.postProcessing.api.model.descriptionDefault")}
       descriptionMode="tooltip"
       grouped={true}
       disabled={!settings?.post_process_enabled}
@@ -42,8 +42,8 @@ export const PromoteModelSelection: React.FC = () => {
           onSelect={handleSelect}
           placeholder={
             options.length === 0
-              ? t("promptModel.placeholderAddModel")
-              : t("promptModel.placeholderSelectModel")
+              ? t("settings.postProcessing.api.model.placeholderNoOptions")
+              : t("settings.postProcessing.api.model.placeholderWithOptions")
           }
           disabled={
             !settings?.post_process_enabled ||
@@ -53,7 +53,7 @@ export const PromoteModelSelection: React.FC = () => {
         />
         {options.length === 0 && (
           <Text size="1" color="gray">
-            {t("promptModel.hintAddModel")}
+            {t("settings.postProcessing.models.empty.description")}
           </Text>
         )}
       </ActionWrapper>

@@ -20,8 +20,8 @@ export const AlwaysOnMicrophone: React.FC<AlwaysOnMicrophoneProps> = React.memo(
         checked={alwaysOnMode}
         onChange={(enabled) => updateSetting("always_on_microphone", enabled)}
         isUpdating={isUpdating("always_on_microphone")}
-        label={t("alwaysOnMicrophone.title")}
-        description={t("alwaysOnMicrophone.description")}
+        label={t("settings.debug.alwaysOnMicrophone.label")}
+        description={t("settings.debug.alwaysOnMicrophone.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       />

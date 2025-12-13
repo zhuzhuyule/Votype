@@ -37,7 +37,7 @@ const AccessibilityPermissions: React.FC = () => {
         // After system prompt, transition to verification state
         setPermissionState("verify");
       } catch (error) {
-        console.error(t("error.requestingPermissions"), error);
+        console.error("Error requesting permissions", error);
         setPermissionState("verify");
       }
     } else if (permissionState === "verify") {
@@ -64,7 +64,7 @@ const AccessibilityPermissions: React.FC = () => {
   // Configure button text and style based on state
   const buttonConfig: Record<PermissionState, ButtonConfig | null> = {
     request: {
-      text: t("accessibility.grant"),
+      text: t("accessibility.openSettings"),
       variant: "solid",
     },
     verify: {
@@ -84,7 +84,10 @@ const AccessibilityPermissions: React.FC = () => {
       <Flex justify="between" align="center" gap="2">
         <Box>
           <Text size="2" weight="medium">
-            {t("accessibility.request")}
+            {t("accessibility.permissionsRequired")}
+          </Text>
+          <Text size="1" className="text-text/60">
+            {t("accessibility.permissionsDescription")}
           </Text>
         </Box>
         <Button

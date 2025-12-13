@@ -22,13 +22,13 @@ export const DebugSettings: React.FC = () => {
 
   return (
     <Box className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title={t("debugSettings.title")}>
+      <SettingsGroup title={t("settings.debug.title")}>
         <LogDirectory grouped={true} />
         <LogLevelSelector grouped={true} />
         <UpdateChecksToggle descriptionMode="tooltip" grouped={true} />
         <SoundPicker
-          label={t("debugSettings.soundThemeLabel")}
-          description={t("debugSettings.soundThemeDescription")}
+          label={t("settings.debug.soundTheme.label")}
+          description={t("settings.debug.soundTheme.description")}
         />
         <WordCorrectionThreshold descriptionMode="tooltip" grouped={true} />
         <HistoryLimit descriptionMode="tooltip" grouped={true} />

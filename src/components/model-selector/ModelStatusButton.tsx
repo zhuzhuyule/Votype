@@ -65,7 +65,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
         color={isOnlineModel ? "blue" : "gray"}
       size="1"
       className={`flex items-center gap-2 ${className}`}
-      title={t("modelStatusButton.modelStatus", { status: displayText })}
+      title={displayText}
     >
       <Box className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
       <Text weight="medium">{displayText}</Text>
@@ -73,8 +73,12 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
         size="1"
         variant="soft"
         radius="full"
+        className={modeLabelColor}
       >
-        {isOnlineModel ? "Online" : "Local"}
+        {modeLabel ??
+          (isOnlineModel
+            ? t("modelSelector.online")
+            : t("modelSelector.local"))}
       </Badge>
       <IconChevronDown
         className={`w-3 h-3 transition-transform ${

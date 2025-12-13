@@ -27,7 +27,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       setAvailableModels(models.filter((m) => !m.is_downloaded));
     } catch (err) {
       console.error("Failed to load models:", err);
-      setError(t("onboarding.failedLoadModels"));
+      setError(t("onboarding.errors.loadModels"));
     }
   };
 
@@ -43,7 +43,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
     } catch (err) {
       console.error("Download failed:", err);
       setError(
-        t("onboarding.failedDownloadModel", {
+        t("onboarding.errors.downloadModel", {
           error: err instanceof Error ? err.message : String(err),
         }),
       );
@@ -94,14 +94,14 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
               size="3"
               align="center"
             >
-              {t("onboarding.description")}
+              {t("onboarding.subtitle")}
             </Text>
             <Button
               variant="ghost"
               onClick={onModelSelected}
               className="text-muted-foreground hover:text-foreground"
             >
-              {t('common.skip')}
+              {t("common.skip")}
             </Button>
           </Flex>
           {availableModels

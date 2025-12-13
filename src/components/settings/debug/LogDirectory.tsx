@@ -49,8 +49,8 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
 
   return (
     <SettingContainer
-      title={t("logDirectory.title")}
-      description={t("logDirectory.description")}
+      title={t("settings.debug.logDirectory.title")}
+      description={t("settings.debug.logDirectory.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       layout="stacked"
@@ -61,7 +61,7 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
         </div>
       ) : error ? (
         <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-600">
-          {t("logDirectory.error", { error })}
+          {t("settings.debug.logDirectory.error", { error })}
         </div>
       ) : (
         <Flex align="center" gap="3">
@@ -76,7 +76,7 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
               onClick={handleOpen}
               size="2"
               variant="ghost"
-              title={t("logDirectory.open")}
+              title={t("common.open")}
             >
               <IconFolderOpen />
             </IconButton>

@@ -28,8 +28,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
 
       const selectedOutputDevice =
         getSetting("selected_output_device") === "default"
-          ? t("outputDevice.default")
-          : getSetting("selected_output_device") || t("outputDevice.default");
+          ? t("common.default")
+          : getSetting("selected_output_device") || t("common.default");
 
       const handleOutputDeviceSelect = async (deviceName: string) => {
         await updateSetting("selected_output_device", deviceName);
@@ -44,10 +44,10 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
         label: device.name,
       }));
 
-      return (
-        <SettingContainer
-          title={t("outputDevice.title")}
-          description={t("outputDevice.description")}
+        return (
+          <SettingContainer
+          title={t("settings.sound.outputDevice.title")}
+          description={t("settings.sound.outputDevice.description")}
           descriptionMode={descriptionMode}
           grouped={grouped}
           disabled={disabled}
@@ -65,8 +65,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
               onSelect={handleOutputDeviceSelect}
               placeholder={
                 isLoading || outputDevices.length === 0
-                  ? t("outputDevice.loading")
-                  : t("outputDevice.selectPlaceholder")
+                  ? t("settings.sound.outputDevice.loading")
+                  : t("settings.sound.outputDevice.placeholder")
               }
               disabled={
                 disabled ||

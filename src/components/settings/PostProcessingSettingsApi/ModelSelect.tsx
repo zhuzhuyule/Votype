@@ -48,7 +48,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = React.memo(
         disabled={disabled}
         isLoading={isLoading}
         isCreatable
-        formatCreateLabel={(input) => t("useInput", { input })}
+        formatCreateLabel={(input) => t("common.useInput", { input })}
       />
     );
   },

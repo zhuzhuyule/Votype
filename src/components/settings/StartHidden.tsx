@@ -20,8 +20,8 @@ export const StartHidden: React.FC<StartHiddenProps> = React.memo(
         checked={startHidden}
         onChange={(enabled) => updateSetting("start_hidden", enabled)}
         isUpdating={isUpdating("start_hidden")}
-        label={t("startHidden.title")}
-        description={t("startHidden.description")}
+        label={t("settings.advanced.startHidden.label")}
+        description={t("settings.advanced.startHidden.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
         tooltipPosition="bottom"

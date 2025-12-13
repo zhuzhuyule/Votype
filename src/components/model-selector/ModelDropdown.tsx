@@ -63,8 +63,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     try {
       await onModelDelete(modelId);
     } catch (err) {
-      const errorMsg = t("error.failedDeleteModel", { error: err });
-      onError?.(errorMsg);
+      onError?.(err instanceof Error ? err.message : String(err));
     }
   };
 
@@ -89,10 +88,10 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {isFirstRun && (
         <Box className="px-4 py-3 bg-logo-primary/5 border-b border-logo-primary/10">
           <Text className="text-sm font-medium text-logo-primary mb-1 block" size="2">
-            {t("modelDropdown.welcome")}
+            {t("modelSelector.welcome")}
           </Text>
           <Text className="text-xs text-text/70" size="1">
-            {t("modelDropdown.getStarted")}
+            {t("modelSelector.downloadPrompt")}
           </Text>
         </Box>
       )}
@@ -102,7 +101,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         <Box className="py-1">
           <Flex align="center" gap="2" className="px-4 py-1.5 text-xs font-medium text-text/50 uppercase tracking-wider">
             <IconDeviceDesktop className="w-3.5 h-3.5" />
-            {t("modelDropdown.availableModels")}
+            {t("modelSelector.availableModels")}
           </Flex>
           {availableModels.map((model) => {
             const isActive = !onlineEnabled && currentModelId === model.id;
@@ -132,11 +131,13 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                         {formatModelSize(model.size_mb)}
                       </Text>
                     </Flex>
-                    {model.description && (
-                      <Text className="text-xs text-text/50 block leading-tight" size="1">
-                        {model.description}
-                      </Text>
-                    )}
+	                    {model.description && (
+	                      <Text className="text-xs text-text/50 block leading-tight" size="1">
+	                        {t(model.description, {
+	                          defaultValue: model.description,
+	                        })}
+	                      </Text>
+	                    )}
                   </Box>
                   <Flex align="center" gap="3">
                     {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />}
@@ -146,7 +147,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       size="1"
                       onClick={(e) => handleDeleteClick(e, model.id)}
                       className="rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                      title={t("modelDropdown.delete", { name: model.name })}
+                      title={t("modelSelector.deleteModel", { modelName: model.name })}
                     >
                       <IconTrash className="w-4 h-4" />
                     </IconButton>
@@ -166,12 +167,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           )}
           <Flex align="center" gap="2" className="px-4 py-1.5 text-xs font-medium text-text/50 uppercase tracking-wider">
             <IconCloud className="w-3.5 h-3.5" />
-            {t("modelDropdown.onlineAsrModels")}
+            {t("modelSelector.onlineAsrModels")}
           </Flex>
-          {asrModels.map((model) => {
-            const isActive = onlineEnabled && selectedAsrModelId === model.id;
-            return (
-              <Box
+	          {asrModels.map((model) => {
+	            const isActive = onlineEnabled && selectedAsrModelId === model.id;
+	            return (
+	              <Box
                 key={model.id}
                 onClick={() => {
                   onAsrModelSelect(model.id);
@@ -189,29 +190,31 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium border border-blue-100" size="1">
                         {model.providerLabel}
                       </Text>
-                    </Flex>
-                    <Text className="text-xs text-text/50 block leading-tight" size="1">
-                      {onlineEnabled ? t("modelDropdown.onlineAsrActive") : t("modelDropdown.clickToEnable")}
-                    </Text>
-                  </Box>
-                  {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />}
-                </Flex>
-              </Box>
+	                    </Flex>
+	                    <Text className="text-xs text-text/50 block leading-tight" size="1">
+	                      {onlineEnabled
+	                        ? t("modelSelector.onlineAsrActive")
+	                        : t("modelSelector.clickToEnableOnlineAsr")}
+	                    </Text>
+	                  </Box>
+	                  {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />}
+	                </Flex>
+	              </Box>
             );
           })}
         </Box>
       )}
 
       {/* Downloadable Models */}
-      {downloadableModels.length > 0 && (
-        <Box className="py-1 bg-mid-gray/5 mt-2 border-t border-mid-gray/10">
-          <Flex align="center" gap="2" className="px-4 py-2 text-xs font-medium text-text/50 uppercase tracking-wider">
-            <IconDownload className="w-3.5 h-3.5" />
-            {t("modelDropdown.downloadableModels")}
-          </Flex>
-          {downloadableModels.map((model) => {
-            const isDownloading = downloadProgress.has(model.id);
-            const progress = downloadProgress.get(model.id);
+	      {downloadableModels.length > 0 && (
+	        <Box className="py-1 bg-mid-gray/5 mt-2 border-t border-mid-gray/10">
+	          <Flex align="center" gap="2" className="px-4 py-2 text-xs font-medium text-text/50 uppercase tracking-wider">
+	            <IconDownload className="w-3.5 h-3.5" />
+	            {t("modelSelector.downloadModels")}
+	          </Flex>
+	          {downloadableModels.map((model) => {
+	            const isDownloading = downloadProgress.has(model.id);
+	            const progress = downloadProgress.get(model.id);
 
             return (
               <Box
@@ -227,16 +230,18 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium" size="1">
                         {formatModelSize(model.size_mb)}
                       </Text>
-                      {model.id === "small" && isFirstRun && (
-                        <Text className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium" size="1">
-                          {t("modelDropdown.recommended")}
-                        </Text>
-                      )}
-                    </Flex>
-                    <Text className="text-xs text-text/50 block leading-tight" size="1">
-                      {model.description}
-                    </Text>
-                  </Box>
+	                      {model.id === "small" && isFirstRun && (
+	                        <Text className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium" size="1">
+	                          {t("onboarding.recommended")}
+	                        </Text>
+	                      )}
+	                    </Flex>
+		                    <Text className="text-xs text-text/50 block leading-tight" size="1">
+		                      {t(model.description, {
+		                        defaultValue: model.description,
+		                      })}
+		                    </Text>
+	                  </Box>
 
                   <Box className="flex-shrink-0 ml-3">
                     {isDownloading && progress ? (
@@ -261,14 +266,14 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDownloadClick(model.id);
-                        }}
-                        className="rounded-full hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        title={t("modelDropdown.download")}
-                      >
-                        <IconDownload className="w-4 h-4" />
-                      </IconButton>
-                    )}
-                  </Box>
+	                        }}
+	                        className="rounded-full hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+	                        title={t("modelSelector.download")}
+	                      >
+	                        <IconDownload className="w-4 h-4" />
+	                      </IconButton>
+	                    )}
+	                  </Box>
                 </Flex>
               </Box>
             );
@@ -276,17 +281,17 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         </Box>
       )}
 
-      {/* No Models Available */}
-      {availableModels.length === 0 && downloadableModels.length === 0 && (
-        <Box className="px-4 py-8 text-center">
-          <IconCube className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
-          <Text className="text-sm text-text/60" size="2">
-            {t("modelDropdown.noModelsAvailable")}
-          </Text>
-        </Box>
-      )}
-    </Box>
-  );
+	      {/* No Models Available */}
+	      {availableModels.length === 0 && downloadableModels.length === 0 && (
+	        <Box className="px-4 py-8 text-center">
+	          <IconCube className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
+	          <Text className="text-sm text-text/60" size="2">
+	            {t("modelSelector.noModelsAvailable")}
+	          </Text>
+	        </Box>
+	      )}
+	    </Box>
+	  );
 };
 
 export default ModelDropdown;

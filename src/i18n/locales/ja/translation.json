@@ -18,27 +18,21 @@
     },
     "models": {
       "small": {
-        "name": "Whisper Small",
         "description": "高速でそこそこ正確。"
       },
       "medium": {
-        "name": "Whisper Medium",
         "description": "良好な精度、中程度の速度"
       },
       "turbo": {
-        "name": "Whisper Turbo",
         "description": "精度と速度のバランスが良い。"
       },
       "large": {
-        "name": "Whisper Large",
         "description": "良好な精度、ただし低速。"
       },
       "parakeet-tdt-0.6b-v2": {
-        "name": "Parakeet V2",
         "description": "英語のみ。英語話者に最適なモデル。"
       },
       "parakeet-tdt-0.6b-v3": {
-        "name": "Parakeet V3",
         "description": "高速で正確"
       }
     },
@@ -207,26 +201,22 @@
           "description": "OpenAI互換のプロバイダーを選択。"
         },
         "appleIntelligence": {
-          "title": "Apple Intelligence",
           "description": "完全にデバイス上で動作。APIキーやネットワークアクセスは不要。",
           "requirements": "macOS Tahoe（26.0）以降を実行するApple Silicon Macが必要です。システム設定でApple Intelligenceを有効にする必要があります。"
         },
         "baseUrl": {
           "title": "ベースURL",
-          "description": "選択したプロバイダーのAPIベースURL。カスタムプロバイダーのみ編集可能。",
-          "placeholder": "https://api.openai.com/v1"
+          "description": "選択したプロバイダーのAPIベースURL。カスタムプロバイダーのみ編集可能。"
         },
         "apiKey": {
           "title": "APIキー",
-          "description": "選択したプロバイダーのAPIキー。",
-          "placeholder": "sk-..."
+          "description": "選択したプロバイダーのAPIキー。"
         },
         "model": {
           "title": "モデル",
           "descriptionApple": "オプションの数値トークン制限を指定するか、デフォルトのオンデバイスプリセットを使用。",
           "descriptionCustom": "カスタムエンドポイントが期待するモデル識別子を指定。",
           "descriptionDefault": "選択したプロバイダーが提供するモデルを選択。",
-          "placeholderApple": "Apple Intelligence",
           "placeholderWithOptions": "モデルを検索または選択",
           "placeholderNoOptions": "モデル名を入力",
           "refreshModels": "モデルを更新"
@@ -351,7 +341,6 @@
       "acknowledgments": {
         "title": "謝辞",
         "whisper": {
-          "title": "Whisper.cpp",
           "description": "OpenAIのWhisper自動音声認識モデルの高性能推論",
           "details": "Handyは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。"
         }
@@ -393,6 +382,13 @@
     "yes": "はい",
     "no": "いいえ",
     "noOptionsFound": "オプションが見つかりません"
+  },
+  "overlay": {
+    "status": {
+      "recording": "録音中…",
+      "transcribing": "文字起こし中…",
+      "llm": "後処理中…"
+    }
   },
   "accessibility": {
     "permissionsRequired": "アクセシビリティ権限が必要です",

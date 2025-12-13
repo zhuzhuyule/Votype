@@ -12,10 +12,10 @@ interface ShowOverlayProps {
 }
 
 const getOverlayOptions = (t: any) => [
-  { value: "none", label: t("overlayPosition.none") },
-  { value: "bottom", label: t("overlayPosition.bottom") },
-  { value: "top", label: t("overlayPosition.top") },
-  { value: "follow", label: t("overlayPosition.follow") },
+  { value: "none", label: t("settings.advanced.overlay.options.none") },
+  { value: "bottom", label: t("settings.advanced.overlay.options.bottom") },
+  { value: "top", label: t("settings.advanced.overlay.options.top") },
+  { value: "follow", label: t("settings.advanced.overlay.options.follow") },
 ];
 
 export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
@@ -30,8 +30,8 @@ export const ShowOverlay: React.FC<ShowOverlayProps> = React.memo(
 
     return (
       <SettingContainer
-        title={t("overlayPosition.title")}
-        description={t("overlayPosition.description") + " On Linux 'None' is recommended."}
+        title={t("settings.advanced.overlay.title")}
+        description={t("settings.advanced.overlay.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >

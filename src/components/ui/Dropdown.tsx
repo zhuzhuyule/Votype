@@ -35,7 +35,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   enableFilter = false, // 默认关闭过滤功能
 }) => {
   const { t } = useTranslation();
-  const defaultPlaceholder = t("ui.selectOption");
+  const defaultPlaceholder = t("common.selectOption");
   const [filterText, setFilterText] = useState("");
 
   // 过滤选项
@@ -103,7 +103,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
         {enableFilter && (
           <Box className="pb-2">
             <TextField.Root
-              placeholder={t("ui.filterOptions") || "Filter..."}
+              placeholder={t("common.filterOptions")}
               value={filterText}
               onChange={handleFilterChange}
               onClick={(e) => e.stopPropagation()} // 防止选择框关闭
@@ -118,8 +118,8 @@ export const Dropdown: React.FC<DropdownProps> = ({
         {filteredOptions.length === 0 ? (
           <Text size="2" color="gray" align="center" className="px-3 py-2">
             {filterText.trim()
-              ? t("ui.noMatchingOptions") || "No matching options"
-              : t("ui.notAvailable")}
+              ? t("common.noMatchingOptions")
+              : t("common.noOptionsFound")}
           </Text>
         ) : (
           filteredOptions.map((option) => (

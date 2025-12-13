@@ -12,8 +12,14 @@ interface ClipboardHandlingProps {
 }
 
 const getClipboardHandlingOptions = (t: any) => [
-  { value: "dont_modify", label: t("clipboardHandling.dontModify") },
-  { value: "copy_to_clipboard", label: t("clipboardHandling.copyToClipboard") },
+  {
+    value: "dont_modify",
+    label: t("settings.advanced.clipboardHandling.options.dontModify"),
+  },
+  {
+    value: "copy_to_clipboard",
+    label: t("settings.advanced.clipboardHandling.options.copyToClipboard"),
+  },
 ];
 
 export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
@@ -28,8 +34,8 @@ export const ClipboardHandlingSetting: React.FC<ClipboardHandlingProps> =
 
     return (
       <SettingContainer
-        title={t("clipboardHandling.title")}
-        description={t("clipboardHandling.description")}
+        title={t("settings.advanced.clipboardHandling.title")}
+        description={t("settings.advanced.clipboardHandling.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >

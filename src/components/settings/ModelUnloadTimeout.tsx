@@ -13,18 +13,42 @@ interface ModelUnloadTimeoutProps {
 }
 
 const getTimeoutOptions = (t: any) => [
-  { value: "never" as ModelUnloadTimeout, label: t("modelUnloadTimeout.never") },
-  { value: "immediately" as ModelUnloadTimeout, label: t("modelUnloadTimeout.immediately") },
-  { value: "min2" as ModelUnloadTimeout, label: t("modelUnloadTimeout.min2") },
-  { value: "min5" as ModelUnloadTimeout, label: t("modelUnloadTimeout.min5") },
-  { value: "min10" as ModelUnloadTimeout, label: t("modelUnloadTimeout.min10") },
-  { value: "min15" as ModelUnloadTimeout, label: t("modelUnloadTimeout.min15") },
-  { value: "hour1" as ModelUnloadTimeout, label: t("modelUnloadTimeout.hour1") },
+  {
+    value: "never" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.never"),
+  },
+  {
+    value: "immediately" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.immediately"),
+  },
+  {
+    value: "min2" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.min2"),
+  },
+  {
+    value: "min5" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.min5"),
+  },
+  {
+    value: "min10" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.min10"),
+  },
+  {
+    value: "min15" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.min15"),
+  },
+  {
+    value: "hour1" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.hour1"),
+  },
 ];
 
 const getDebugTimeoutOptions = (t: any) => [
   ...getTimeoutOptions(t),
-  { value: "sec5" as ModelUnloadTimeout, label: t("modelUnloadTimeout.sec5Debug") },
+  {
+    value: "sec5" as ModelUnloadTimeout,
+    label: t("settings.advanced.modelUnload.options.sec5"),
+  },
 ];
 
 export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
@@ -53,8 +77,8 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
 
   return (
     <SettingContainer
-      title={t("modelUnloadTimeout.title")}
-      description={t("modelUnloadTimeout.description")}
+      title={t("settings.advanced.modelUnload.title")}
+      description={t("settings.advanced.modelUnload.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
     >

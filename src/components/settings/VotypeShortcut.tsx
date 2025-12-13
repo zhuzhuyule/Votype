@@ -39,6 +39,19 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
   const [osType, setOsType] = useState<OSType>("unknown");
 
   const bindings = getSetting("bindings") || {};
+  const binding = bindings[shortcutId];
+
+  const localizedTitle = binding
+    ? t(`settings.general.shortcut.bindings.${shortcutId}.name`, {
+        defaultValue: binding.name,
+      })
+    : t("settings.general.shortcut.title");
+
+  const localizedDescription = binding
+    ? t(`settings.general.shortcut.bindings.${shortcutId}.description`, {
+        defaultValue: binding.description,
+      })
+    : t("settings.general.shortcut.notFound");
 
   // Detect and store OS type
   useEffect(() => {
@@ -91,7 +104,7 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
             );
           } catch (error) {
             console.error("Failed to restore original binding:", error);
-            toast.error(t("shortcuts.restoreFailed"));
+            toast.error(t("settings.general.shortcut.errors.restore"));
           }
         } else if (editingShortcutId) {
           await invoke("resume_binding", { id: editingShortcutId }).catch(
@@ -145,7 +158,11 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
             );
           } catch (error) {
             console.error("Failed to change binding:", error);
-            toast.error(`${t("shortcuts.changeFailed")}: ${error}`);
+            toast.error(
+              t("settings.general.shortcut.errors.set", {
+                error: error instanceof Error ? error.message : String(error),
+              }),
+            );
 
             // Reset to original binding on error
             if (originalBinding) {
@@ -156,7 +173,7 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
                 );
               } catch (resetError) {
                 console.error("Failed to reset binding:", resetError);
-                toast.error(t("shortcuts.resetFailed"));
+                toast.error(t("settings.general.shortcut.errors.reset"));
               }
             }
           }
@@ -204,7 +221,7 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
 
   // Format the current shortcut keys being recorded
   const formatCurrentKeys = (): string => {
-    if (recordedKeys.length === 0) return t("shortcuts.pressKeys");
+    if (recordedKeys.length === 0) return t("settings.general.shortcut.pressKeys");
 
     // Use the same formatting as the display to ensure consistency
     return formatKeyCombination(recordedKeys.join(" + "), osType);
@@ -216,11 +233,11 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
 
   function renderKeys() {
     if (isLoading) {
-      return <Kbd className={className}>{t("shortcuts.loading")}</Kbd>;
+      return <Kbd className={className}>{t("settings.general.shortcut.loading")}</Kbd>;
     }
 
     if (!binding) {
-      return <Kbd className={className}>{t("shortcuts.noShortcuts")}</Kbd>;
+      return <Kbd className={className}>{t("settings.general.shortcut.none")}</Kbd>;
     }
 
     const isSame = editingShortcutId === shortcutId;
@@ -236,24 +253,25 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
     );
   }
 
-  const binding = bindings[shortcutId];
   if (!binding) {
     return (
       <SettingContainer
-        title="Shortcut"
-        description="Shortcut not found"
+        title={localizedTitle}
+        description={localizedDescription}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <div className="text-sm text-mid-gray">No shortcut configured</div>
+        <div className="text-sm text-mid-gray">
+          {t("settings.general.shortcut.none")}
+        </div>
       </SettingContainer>
     );
   }
 
   return (
     <SettingContainer
-      title={binding.name}
-      description={binding.description}
+      title={localizedTitle}
+      description={localizedDescription}
       descriptionMode={descriptionMode}
       grouped={grouped}
       disabled={disabled}

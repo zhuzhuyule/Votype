@@ -36,12 +36,12 @@ export const AboutSettings: React.FC = () => {
 
   return (
     <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title={t("about.title")}>
+      <SettingsGroup title={t("settings.about.title")}>
         <div className="flex flex-col items-center gap-4 mb-8">
           <VotypeHand size={36} />
           <div className="text-center">
             <p className="text-sm text-muted-foreground">
-              {t('common.versions')} {version}
+              {t("settings.about.version.title")}: {version}
             </p>
           </div>
         </div>
@@ -49,8 +49,8 @@ export const AboutSettings: React.FC = () => {
         <AppDataDirectory descriptionMode="tooltip" grouped={true} />
 
         <SettingContainer
-          title={t("about.sourceCode.title")}
-          description={t("about.sourceCode.description")}
+          title={t("settings.about.sourceCode.title")}
+          description={t("settings.about.sourceCode.description")}
           grouped={true}
         >
           <Button
@@ -58,13 +58,13 @@ export const AboutSettings: React.FC = () => {
             size="2"
             onClick={() => openUrl("https://github.com/cjpais/Votype")}
           >
-            {t("about.sourceCode.viewOnGitHub")}
+            {t("settings.about.sourceCode.button")}
           </Button>
         </SettingContainer>
 
         <SettingContainer
-          title={t("about.support.title")}
-          description={t("about.support.description")}
+          title={t("settings.about.supportDevelopment.title")}
+          description={t("settings.about.supportDevelopment.description")}
           grouped={true}
         >
           <Button
@@ -72,20 +72,20 @@ export const AboutSettings: React.FC = () => {
             size="2"
             onClick={handleDonateClick}
           >
-            {t("about.support.donate")}
+            {t("settings.about.supportDevelopment.button")}
           </Button>
         </SettingContainer>
       </SettingsGroup>
 
-      <SettingsGroup title={t("about.acknowledgments")}>
+      <SettingsGroup title={t("settings.about.acknowledgments.title")}>
         <SettingContainer
-          title={t("about.whisper.title")}
-          description={t("about.whisper.description")}
+          title={t("settings.about.acknowledgments.whisper.title")}
+          description={t("settings.about.acknowledgments.whisper.description")}
           grouped={true}
           layout="stacked"
         >
           <Text size="2" color="gray">
-            {t("about.whisper.content")}
+            {t("settings.about.acknowledgments.whisper.details")}
           </Text>
         </SettingContainer>
       </SettingsGroup>

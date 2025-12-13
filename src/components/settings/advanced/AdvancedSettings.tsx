@@ -16,7 +16,7 @@ export const AdvancedSettings: React.FC = () => {
   
   return (
     <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title={t("advancedSettings.title")}>
+      <SettingsGroup title={t("settings.advanced.title")}>
         <StartHidden descriptionMode="tooltip" grouped={true} />
         <AutostartToggle descriptionMode="tooltip" grouped={true} />
         <ShowOverlay descriptionMode="tooltip" grouped={true} />

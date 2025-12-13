@@ -39,8 +39,8 @@ const ApiSettings: React.FC = () => {
   return (
     <Flex direction="column" gap="4">
       <SettingContainer
-        title={t("postProcessing.title")}
-        description={t("postProcessing.description")}
+        title={t("settings.postProcessing.api.provider.title")}
+        description={t("settings.postProcessing.api.provider.description")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
@@ -55,8 +55,8 @@ const ApiSettings: React.FC = () => {
       </SettingContainer>
 
       <SettingContainer
-        title={t("postProcessing.baseUrlTitle")}
-        description={t("postProcessing.baseUrlDescription")}
+        title={t("settings.postProcessing.api.baseUrl.title")}
+        description={t("settings.postProcessing.api.baseUrl.description")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
@@ -66,7 +66,7 @@ const ApiSettings: React.FC = () => {
             value={localBaseUrl}
             onChange={(e) => setLocalBaseUrl(e.target.value)}
             onBlur={(e) => state.handleBaseUrlChange(e.target.value)}
-            placeholder="https://api.openai.com/v1"
+            placeholder={t("settings.postProcessing.api.baseUrl.placeholder")}
             disabled={
               !state.selectedProvider?.allow_base_url_edit ||
               state.isBaseUrlUpdating
@@ -76,8 +76,8 @@ const ApiSettings: React.FC = () => {
       </SettingContainer>
 
       <SettingContainer
-        title={t("postProcessing.apiKeyTitle")}
-        description={t("postProcessing.apiKeyDescription")}
+        title={t("settings.postProcessing.api.apiKey.title")}
+        description={t("settings.postProcessing.api.apiKey.description")}
         descriptionMode="tooltip"
         layout="horizontal"
         grouped={true}
@@ -87,7 +87,7 @@ const ApiSettings: React.FC = () => {
             value={localApiKey}
             onChange={(e) => setLocalApiKey(e.target.value)}
             onBlur={(e) => state.handleApiKeyChange(e.target.value)}
-            placeholder="sk-..."
+            placeholder={t("settings.postProcessing.api.apiKey.placeholder")}
             type={showApiKey ? "text" : "password"}
             disabled={state.isApiKeyUpdating}
           >
@@ -119,21 +119,21 @@ export const ModelsConfiguration: React.FC = () => {
   return (
     <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
       <SettingsGroup
-        title={t("postProcessing.apiTitle")}
+        title={t("settings.postProcessing.api.title")}
         actions={
           <Button
             variant="outline"
             size="1"
             onClick={() => setProviderManagerOpen(true)}
           >
-            {t("postProcessing.manageProviders")}
+            {t("settings.postProcessing.api.manageProviders")}
           </Button>
         }
       >
         <ApiSettings />
       </SettingsGroup>
 
-      <SettingsGroup title={t("postProcessing.modelSelection")}>
+      <SettingsGroup title={t("settings.postProcessing.models.title")}>
         <ModelConfigurationPanel />
       </SettingsGroup>
 
@@ -143,7 +143,7 @@ export const ModelsConfiguration: React.FC = () => {
         onOpenChange={setProviderManagerOpen}
       >
         <Dialog.Content maxWidth="900px" style={{ maxHeight: "80vh" }}>
-          <Dialog.Title>{t("postProcessing.manageProviders")}</Dialog.Title>
+          <Dialog.Title>{t("settings.postProcessing.api.manageProviders")}</Dialog.Title>
           <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
             <ProviderManager onClose={() => setProviderManagerOpen(false)} />
           </div>

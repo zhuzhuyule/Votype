@@ -17,13 +17,13 @@ export const GeneralSettings: React.FC = () => {
   const { audioFeedbackEnabled } = useSettings();
   return (
     <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title={t("settings.groups.general")}>
+      <SettingsGroup title={t("settings.general.title")}>
         <VotypeShortcut shortcutId="transcribe" descriptionMode="tooltip" grouped={true} />
         <AppLanguageSelector descriptionMode="tooltip" grouped={true} />
         <LanguageSelector descriptionMode="tooltip" grouped={true} />
         <PushToTalk descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
-      <SettingsGroup title={t("settings.groups.sound")}>
+      <SettingsGroup title={t("settings.sound.title")}>
         <MicrophoneSelector descriptionMode="tooltip" grouped={true} />
         <AudioFeedback descriptionMode="tooltip" grouped={true} />
         <OutputDeviceSelector

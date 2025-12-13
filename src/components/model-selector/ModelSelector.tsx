@@ -116,7 +116,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             break;
           case "loading_failed":
             setModelStatus("error");
-            setModelError(error || t("error.failedLoadModel"));
+            setModelError(error || t("modelSelector.modelError"));
             break;
           case "unloaded":
             setModelStatus("unloaded");
@@ -285,7 +285,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       const modelList = await invoke<ModelInfo[]>("get_available_models");
       setModels(modelList);
     } catch (err) {
-      console.error(t("error.failedLoadModels"), err);
+      console.error("Failed to load available models", err);
     }
   };
 
@@ -308,9 +308,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         setModelStatus("none");
       }
     } catch (err) {
-      console.error(t("error.failedLoadCurrentModel"), err);
+      console.error("Failed to load current model", err);
       setModelStatus("error");
-      setModelError(t("error.failedCheckModelStatus"));
+      setModelError(t("modelSelector.modelError"));
     }
   };
 
@@ -352,9 +352,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       if (extractingModels.size === 1) {
         const [modelId] = Array.from(extractingModels);
         const model = models.find((m) => m.id === modelId);
-        return t("modelSelector.extracting", { name: model?.name || t("modelSelector.model") });
+        return model?.name
+          ? t("modelSelector.extracting", { modelName: model.name })
+          : t("modelSelector.extractingGeneric");
       } else {
-        return t("modelSelector.extractingMultiple", { count: extractingModels.size });
+        return t("modelSelector.extractingMultiple", {
+          count: extractingModels.size,
+        });
       }
     }
 
@@ -386,11 +390,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       case "ready":
         return currentModel?.name || t("modelSelector.modelReady");
       case "loading":
-        return currentModel ? t("modelSelector.loading", { name: currentModel.name }) : t("modelSelector.loading");
+        return currentModel
+          ? t("modelSelector.loading", { modelName: currentModel.name })
+          : t("modelSelector.loadingGeneric");
       case "extracting":
         return currentModel
-          ? t("modelSelector.extracting", { name: currentModel.name })
-          : t("modelSelector.extracting");
+          ? t("modelSelector.extracting", { modelName: currentModel.name })
+          : t("modelSelector.extractingGeneric");
       case "error":
         return modelError || t("modelSelector.modelError");
       case "unloaded":

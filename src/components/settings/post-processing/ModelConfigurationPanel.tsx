@@ -27,16 +27,16 @@ const MODEL_TYPE_INFO: Record<
   { labelKey: string; hintKey: string }
 > = {
   text: {
-    labelKey: "modelConfiguration.modelTypes.text.label",
-    hintKey: "modelConfiguration.modelTypes.text.hint",
+    labelKey: "settings.postProcessing.models.modelTypes.text.label",
+    hintKey: "settings.postProcessing.models.modelTypes.text.hint",
   },
   asr: {
-    labelKey: "modelConfiguration.modelTypes.asr.label",
-    hintKey: "modelConfiguration.modelTypes.asr.hint",
+    labelKey: "settings.postProcessing.models.modelTypes.asr.label",
+    hintKey: "settings.postProcessing.models.modelTypes.asr.hint",
   },
   other: {
-    labelKey: "modelConfiguration.modelTypes.other.label",
-    hintKey: "modelConfiguration.modelTypes.other.hint",
+    labelKey: "settings.postProcessing.models.modelTypes.other.label",
+    hintKey: "settings.postProcessing.models.modelTypes.other.hint",
   },
 };
 
@@ -174,9 +174,11 @@ export const ModelConfigurationPanel: React.FC = () => {
     >
       <Dialog.Root open={isModelPickerOpen} onOpenChange={setIsModelPickerOpen}>
         <Dialog.Content maxWidth="450px">
-          <Dialog.Title>{t("modelConfiguration.selectModel")}</Dialog.Title>
+          <Dialog.Title>
+            {t("settings.postProcessing.models.selectModel.title")}
+          </Dialog.Title>
           <Dialog.Description>
-            {t("modelConfiguration.selectModelDescription")}
+            {t("settings.postProcessing.models.selectModel.description")}
           </Dialog.Description>
 
           <Flex direction="column" gap="4" mt="4">
@@ -192,16 +194,22 @@ export const ModelConfigurationPanel: React.FC = () => {
               }}
             >
               <SegmentedControl.Item value="select">
-                {t("modelConfiguration.segmented.selectModel")}
+                {t(
+                  "settings.postProcessing.models.selectModel.segmented.selectModel",
+                )}
               </SegmentedControl.Item>
               <SegmentedControl.Item value="custom">
-                {t("modelConfiguration.segmented.customModel")}
+                {t(
+                  "settings.postProcessing.models.selectModel.segmented.customModel",
+                )}
               </SegmentedControl.Item>
             </SegmentedControl.Root>
 
             {isManualModelEntry ? (
               <TextField.Root
-                placeholder={t("modelConfiguration.customModelPlaceholder")}
+                placeholder={t(
+                  "settings.postProcessing.models.selectModel.customModelPlaceholder",
+                )}
                 value={pendingModelId || ""}
                 onChange={(event) => setPendingModelId(event.target.value)}
               />
@@ -212,8 +220,8 @@ export const ModelConfigurationPanel: React.FC = () => {
                 onSelect={(value) => setPendingModelId(value)}
                 placeholder={
                   availableModels.length === 0
-                    ? t("modelConfiguration.placeholderEmpty")
-                    : t("modelConfiguration.placeholder")
+                    ? t("settings.postProcessing.models.selectModel.placeholderEmpty")
+                    : t("settings.postProcessing.models.selectModel.placeholder")
                 }
                 className="w-full"
                 enableFilter={true}
@@ -222,7 +230,7 @@ export const ModelConfigurationPanel: React.FC = () => {
 
             <Box>
               <Text size="2" weight="medium" mb="2">
-                {t("modelConfiguration.usageTypeTitle")}
+                {t("settings.postProcessing.models.selectModel.usageTypeTitle")}
               </Text>
               <RadioCards.Root
                 columns="3"
@@ -249,10 +257,14 @@ export const ModelConfigurationPanel: React.FC = () => {
             {pendingModelType === "other" && (
               <Box>
                 <Text size="2" weight="medium" mb="1">
-                  {t("modelConfiguration.customLabelTitle")}
+                  {t(
+                    "settings.postProcessing.models.selectModel.customLabelTitle",
+                  )}
                 </Text>
                 <TextField.Root
-                  placeholder={t("modelConfiguration.customLabelPlaceholder")}
+                  placeholder={t(
+                    "settings.postProcessing.models.selectModel.customLabelPlaceholder",
+                  )}
                   value={customTypeLabel}
                   onChange={(event) => setCustomTypeLabel(event.target.value)}
                 />
@@ -263,7 +275,7 @@ export const ModelConfigurationPanel: React.FC = () => {
           <Flex justify="end" gap="3" mt="5">
             <Dialog.Close>
               <Button variant="soft" color="gray">
-                {t("modelConfiguration.cancel")}
+                {t("common.cancel")}
               </Button>
             </Dialog.Close>
             <Dialog.Close>
@@ -290,7 +302,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                   }
                 }}
               >
-                {t("modelConfiguration.confirm")}
+                {t("common.add")}
               </Button>
             </Dialog.Close>
           </Flex>
@@ -300,7 +312,7 @@ export const ModelConfigurationPanel: React.FC = () => {
       <Box className="space-y-4">
         <Flex align="center" justify="between">
           <Text size="2" weight="medium">
-            {t("modelConfiguration.title")}
+            {t("settings.postProcessing.models.title")}
           </Text>
           <Flex gap="2">
             {cachedModels.length > 0 && (
@@ -310,9 +322,9 @@ export const ModelConfigurationPanel: React.FC = () => {
                 size="2"
               >
                 {isEditMode ? (
-                  <><IconCheck /> {t("ui.complete")}</>
+                  <><IconCheck /> {t("common.done")}</>
                 ) : (
-                  <><IconPencil /> {t("ui.edit")}</>
+                  <><IconPencil /> {t("common.edit")}</>
                 )}
               </Button>
             )}
@@ -322,28 +334,28 @@ export const ModelConfigurationPanel: React.FC = () => {
               disabled={state.isFetchingModels}
               className="shadow-sm hover:shadow-md transition-shadow"
             >
-              {t("modelConfiguration.addModel")}
+              {t("settings.postProcessing.models.addModel")}
             </Button>
           </Flex>
         </Flex>
         <Text size="1" color="gray" className="max-w-prose">
-          {t("modelConfiguration.description")}
+          {t("settings.postProcessing.models.description")}
         </Text>
         <Flex wrap="wrap" gap="2" className="gap-4">
           <Text size="1" className="text-mid-gray/80">
-            {t("modelConfiguration.stats.asr", {
+            {t("settings.postProcessing.models.stats.asr", {
               count: cachedModels.filter((model) => model.model_type === "asr")
                 .length,
             })}
           </Text>
           <Text size="1" className="text-mid-gray/80">
-            {t("modelConfiguration.stats.text", {
+            {t("settings.postProcessing.models.stats.text", {
               count: cachedModels.filter((model) => model.model_type === "text")
                 .length,
             })}
           </Text>
           <Text size="1" className="text-mid-gray/80">
-            {t("modelConfiguration.stats.other", {
+            {t("settings.postProcessing.models.stats.other", {
               count: cachedModels.filter(
                 (model) => model.model_type === "other",
               ).length,
@@ -353,10 +365,10 @@ export const ModelConfigurationPanel: React.FC = () => {
         {cachedModels.length === 0 ? (
           <Box className="text-center py-6 px-4 rounded-lg border-2 border-dashed border-mid-gray/20 bg-mid-gray/5">
             <Text size="2" className="mb-1 text-mid-gray">
-              {t("modelConfiguration.emptyTitle")}
+              {t("settings.postProcessing.models.empty.title")}
             </Text>
             <Text size="1" className="text-mid-gray/70">
-              {t("modelConfiguration.emptyDescription")}
+              {t("settings.postProcessing.models.empty.description")}
             </Text>
           </Box>
         ) : (
@@ -476,7 +488,7 @@ export const ModelConfigurationPanel: React.FC = () => {
                                   right: "8px",
                                   zIndex: 10,
                                 }}
-                                title={t("modelConfiguration.remove")}
+                                title={t("common.remove")}
                               >
                                 <IconTrash width="14" height="14" />
                               </IconButton>

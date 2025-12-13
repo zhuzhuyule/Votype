@@ -170,6 +170,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
     app_handle.manage(post_processing_manager.clone());
+    app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
+        tray::TrayIconState::Idle,
+    )));
 
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
@@ -383,6 +386,7 @@ pub fn run() {
             shortcut::change_onboarding_completed_setting,
             shortcut::change_translate_to_english_setting,
             shortcut::change_selected_language_setting,
+            shortcut::change_app_language_setting,
             shortcut::change_overlay_position_setting,
             shortcut::change_debug_mode_setting,
             shortcut::change_word_correction_threshold_setting,

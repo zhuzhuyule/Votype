@@ -31,10 +31,12 @@ export const TranslateToEnglish: React.FC<TranslateToEnglishProps> = React.memo(
         const currentModelDisplayName = models.find(
           (model) => model.id === currentModel,
         )?.name;
-        return t("translateToEnglish.unsupportedModel", { model: currentModelDisplayName });
+        return t("settings.advanced.translateToEnglish.descriptionUnsupported", {
+          model: currentModelDisplayName,
+        });
       }
 
-      return t("translateToEnglish.description");
+      return t("settings.advanced.translateToEnglish.description");
     }, [t, models, currentModel, isDisabledTranslation]);
 
     // Listen for model state changes to update UI reactively
@@ -54,7 +56,7 @@ export const TranslateToEnglish: React.FC<TranslateToEnglishProps> = React.memo(
         onChange={(enabled) => updateSetting("translate_to_english", enabled)}
         isUpdating={isUpdating("translate_to_english")}
         disabled={isDisabledTranslation}
-        label={t("translateToEnglish.title")}
+        label={t("settings.advanced.translateToEnglish.label")}
         description={description}
         descriptionMode={descriptionMode}
         grouped={grouped}

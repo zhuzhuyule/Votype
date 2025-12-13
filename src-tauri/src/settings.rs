@@ -183,6 +183,8 @@ impl SoundTheme {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppSettings {
     pub bindings: HashMap<String, ShortcutBinding>,
+    #[serde(default = "default_app_language")]
+    pub app_language: String,
     pub push_to_talk: bool,
     pub audio_feedback: bool,
     #[serde(default = "default_audio_feedback_volume")]
@@ -261,6 +263,10 @@ pub struct AppSettings {
 
 fn default_model() -> String {
     "".to_string()
+}
+
+fn default_app_language() -> String {
+    "en".to_string()
 }
 
 fn default_always_on_microphone() -> bool {
@@ -492,6 +498,7 @@ pub fn get_default_settings() -> AppSettings {
 
     AppSettings {
         bindings,
+        app_language: default_app_language(),
         push_to_talk: true,
         audio_feedback: false,
         audio_feedback_volume: default_audio_feedback_volume(),

@@ -46,8 +46,8 @@ export const HistoryLimit: React.FC<HistoryLimitProps> = ({
 
   return (
     <SettingContainer
-      title={t("historyLimit.title")}
-      description={t("historyLimit.description")}
+      title={t("settings.debug.historyLimit.title")}
+      description={t("settings.debug.historyLimit.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       layout="horizontal"

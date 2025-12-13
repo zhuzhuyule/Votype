@@ -44,8 +44,8 @@ export const LogLevelSelector: React.FC<LogLevelSelectorProps> = ({
 
   return (
     <SettingContainer
-      title={t("logLevel.title")}
-      description={t("logLevel.description")}
+      title={t("settings.debug.logLevel.title")}
+      description={t("settings.debug.logLevel.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
       layout="horizontal"

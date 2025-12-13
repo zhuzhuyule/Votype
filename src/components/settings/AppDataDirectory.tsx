@@ -44,8 +44,8 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
 
   return (
     <SettingContainer
-      title={t("appData.title")}
-      description={t("appData.description")}
+      title={t("settings.about.appDataDirectory.title")}
+      description={t("settings.about.appDataDirectory.description")}
       layout="stacked"
       descriptionMode={descriptionMode}
       grouped={grouped}
@@ -55,7 +55,7 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
           className="rounded px-3 py-2 font-mono text-sm break-all flex-1 min-w-0"
           style={{ backgroundColor: "var(--gray-3, #f3f4f6)" }}
         >
-          {appDirPath || t("appData.loading")}
+          {appDirPath || t("common.loading")}
         </Text>
         {appDirPath && (
           <>
@@ -64,7 +64,7 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
               variant="ghost"
               color={copied ? "green" : "gray"}
               onClick={handleCopy}
-              title={copied ? t("appData.copied") : t("appData.copyPath")}
+              title={copied ? t("common.copied") : t("common.copy")}
             >
               {copied ? <IconCheck /> : <IconCopy />}
             </IconButton>
@@ -73,7 +73,7 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
               size="2"
               variant="ghost"
               disabled={!appDirPath}
-              title={t("appData.open")}
+              title={t("common.open")}
             >
               <IconFolderOpen />
             </IconButton>

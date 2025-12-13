@@ -4,6 +4,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
+import {
+  getTranslatedModelDescription,
+  getTranslatedModelName,
+} from "../../lib/utils/modelTranslation";
 import Badge from "../ui/Badge";
 
 interface ModelCardProps {
@@ -54,14 +58,14 @@ const ModelCard: React.FC<ModelCardProps> = ({
               weight="bold"
               className="group-hover:text-logo-primary transition-colors"
             >
-              {model.name}
+              {getTranslatedModelName(model, t)}
             </Text>
             {isFeatured && (
-              <Badge variant="primary">{t("modelCard.recommended")}</Badge>
+              <Badge variant="primary">{t("onboarding.recommended")}</Badge>
             )}
           </Flex>
           <Text size="2" color="gray" className="leading-relaxed">
-            {t(model.description)}
+            {getTranslatedModelDescription(model, t)}
           </Text>
         </Flex>
 
@@ -69,7 +73,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text size="1" color="gray" className="w-16 text-right">
-                {t("modelCard.accuracy")}
+                {t("onboarding.modelCard.accuracy")}
               </Text>
               <div className="w-20 h-2 bg-mid-gray/20 rounded-full overflow-hidden">
                 <div
@@ -80,7 +84,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
             </Flex>
             <Flex align="center" gap="2">
               <Text size="1" color="gray" className="w-16 text-right">
-                {t("modelCard.speed")}
+                {t("onboarding.modelCard.speed")}
               </Text>
               <div className="w-20 h-2 bg-mid-gray/20 rounded-full overflow-hidden">
                 <div
@@ -105,7 +109,7 @@ const DownloadSize = ({ sizeMb }: { sizeMb: number }) => {
         aria-hidden="true"
         className="h-3.5 w-3.5 text-text/45"
       />
-      <Text className="sr-only">{t("modelCard.downloadSize")}</Text>
+      <Text className="sr-only">{t("modelSelector.downloadSize")}</Text>
       <Text weight="medium" color="gray">
         {formatModelSize(sizeMb)}
       </Text>

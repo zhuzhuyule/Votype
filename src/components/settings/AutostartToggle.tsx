@@ -20,8 +20,8 @@ export const AutostartToggle: React.FC<AutostartToggleProps> = React.memo(
         checked={autostartEnabled}
         onChange={(enabled) => updateSetting("autostart_enabled", enabled)}
         isUpdating={isUpdating("autostart_enabled")}
-        label={t("startup.title")}
-        description={t("startup.description")}
+        label={t("settings.advanced.autostart.label")}
+        description={t("settings.advanced.autostart.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       />

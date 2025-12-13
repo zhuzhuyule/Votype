@@ -20,8 +20,8 @@ export const PushToTalk: React.FC<PushToTalkProps> = React.memo(
         checked={pttEnabled}
         onChange={(enabled) => updateSetting("push_to_talk", enabled)}
         isUpdating={isUpdating("push_to_talk")}
-        label={t("pushToTalk.title")}
-        description={t("pushToTalk.description")}
+        label={t("settings.general.pushToTalk.label")}
+        description={t("settings.general.pushToTalk.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       />

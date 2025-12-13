@@ -4,7 +4,6 @@
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
-    "debug": "Debug",
     "about": "Info"
   },
   "onboarding": {
@@ -18,27 +17,21 @@
     },
     "models": {
       "small": {
-        "name": "Whisper Small",
         "description": "Schnell und recht genau."
       },
       "medium": {
-        "name": "Whisper Medium",
         "description": "Gute Genauigkeit, mittlere Geschwindigkeit"
       },
       "turbo": {
-        "name": "Whisper Turbo",
         "description": "Ausgewogene Genauigkeit und Geschwindigkeit."
       },
       "large": {
-        "name": "Whisper Large",
         "description": "Gute Genauigkeit, aber langsam."
       },
       "parakeet-tdt-0.6b-v2": {
-        "name": "Parakeet V2",
         "description": "Nur Englisch. Das beste Modell für englischsprachige Nutzer."
       },
       "parakeet-tdt-0.6b-v3": {
-        "name": "Parakeet V3",
         "description": "Schnell und genau"
       }
     },
@@ -101,8 +94,7 @@
         "description": "Wähle die Sprache für die Spracherkennung. Auto erkennt die Sprache automatisch, die Auswahl einer bestimmten Sprache kann die Genauigkeit verbessern.",
         "descriptionUnsupported": "Das Parakeet-Modell erkennt die Sprache automatisch. Keine manuelle Auswahl erforderlich.",
         "searchPlaceholder": "Sprachen suchen...",
-        "noResults": "Keine Sprachen gefunden",
-        "auto": "Auto"
+        "noResults": "Keine Sprachen gefunden"
       },
       "pushToTalk": {
         "label": "Push-to-Talk",
@@ -207,33 +199,28 @@
           "description": "Wähle einen OpenAI-kompatiblen Anbieter."
         },
         "appleIntelligence": {
-          "title": "Apple Intelligence",
           "description": "Läuft vollständig auf dem Gerät. Kein API-Schlüssel oder Netzwerkzugriff erforderlich.",
           "requirements": "Erfordert einen Apple Silicon Mac mit macOS Tahoe (26.0) oder neuer. Apple Intelligence muss in den Systemeinstellungen aktiviert sein."
         },
         "baseUrl": {
           "title": "Basis-URL",
-          "description": "API-Basis-URL für den ausgewählten Anbieter. Nur der benutzerdefinierte Anbieter kann bearbeitet werden.",
-          "placeholder": "https://api.openai.com/v1"
+          "description": "API-Basis-URL für den ausgewählten Anbieter. Nur der benutzerdefinierte Anbieter kann bearbeitet werden."
         },
         "apiKey": {
           "title": "API-Schlüssel",
-          "description": "API-Schlüssel für den ausgewählten Anbieter.",
-          "placeholder": "sk-..."
+          "description": "API-Schlüssel für den ausgewählten Anbieter."
         },
         "model": {
           "title": "Modell",
           "descriptionApple": "Gib ein optionales numerisches Token-Limit an oder behalte die Standard-Gerätevorgabe.",
           "descriptionCustom": "Gib die Modellkennung an, die von deinem benutzerdefinierten Endpunkt erwartet wird.",
           "descriptionDefault": "Wähle ein Modell des ausgewählten Anbieters.",
-          "placeholderApple": "Apple Intelligence",
           "placeholderWithOptions": "Modell suchen oder auswählen",
           "placeholderNoOptions": "Modellnamen eingeben",
           "refreshModels": "Modelle aktualisieren"
         }
       },
       "prompts": {
-        "title": "Prompt",
         "selectedPrompt": {
           "title": "Ausgewählter Prompt",
           "description": "Wähle eine Vorlage zur Verfeinerung von Transkriptionen oder erstelle eine neue. Verwende ${output} im Prompt-Text, um auf das erfasste Transkript zu verweisen."
@@ -266,7 +253,6 @@
       "deleteError": "Eintrag konnte nicht gelöscht werden. Bitte versuche es erneut."
     },
     "debug": {
-      "title": "Debug",
       "logDirectory": {
         "title": "Log-Verzeichnis",
         "description": "Speicherort der Log-Dateien"
@@ -331,7 +317,6 @@
     "about": {
       "title": "Info",
       "version": {
-        "title": "Version",
         "description": "Aktuelle Version von Handy"
       },
       "appDataDirectory": {
@@ -351,7 +336,6 @@
       "acknowledgments": {
         "title": "Danksagungen",
         "whisper": {
-          "title": "Whisper.cpp",
           "description": "Hochleistungs-Inferenz des Whisper-Spracherkennungsmodells von OpenAI",
           "details": "Handy verwendet Whisper.cpp für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
         }
@@ -393,6 +377,13 @@
     "yes": "Ja",
     "no": "Nein",
     "noOptionsFound": "Keine Optionen gefunden"
+  },
+  "overlay": {
+    "status": {
+      "recording": "Aufnahme...",
+      "transcribing": "Transkription...",
+      "llm": "Nachbearbeitung..."
+    }
   },
   "accessibility": {
     "permissionsRequired": "Bedienungshilfen-Berechtigungen erforderlich",

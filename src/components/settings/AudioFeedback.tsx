@@ -21,8 +21,8 @@ export const AudioFeedback: React.FC<AudioFeedbackProps> = React.memo(
         checked={audioFeedbackEnabled}
         onChange={(enabled) => updateSetting("audio_feedback", enabled)}
         isUpdating={isUpdating("audio_feedback")}
-        label={t("audioFeedback.title")}
-        description={t("audioFeedback.description")}
+        label={t("settings.sound.audioFeedback.label")}
+        description={t("settings.sound.audioFeedback.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       />

@@ -2,6 +2,8 @@
   "sidebar": {
     "general": "General",
     "advanced": "Advanced",
+    "models": "Models",
+    "prompts": "Prompts",
     "postProcessing": "Post Process",
     "history": "History",
     "debug": "Debug",
@@ -68,7 +70,39 @@
     "modelError": "Model Error",
     "modelUnloaded": "Model Unloaded",
     "noModelDownloadRequired": "No Model - Download Required",
-    "deleteModel": "Delete {{modelName}}"
+    "deleteModel": "Delete {{modelName}}",
+    "local": "Local",
+    "online": "Online",
+    "onlineAsr": "Online ASR",
+    "onlineAsrModels": "Online ASR Models",
+    "clickToEnableOnlineAsr": "Click to enable Online ASR",
+    "onlineAsrActive": "Online ASR active"
+  },
+  "models": {
+    "small": {
+      "name": "Whisper Small",
+      "description": "Fast and fairly accurate."
+    },
+    "medium": {
+      "name": "Whisper Medium",
+      "description": "Good accuracy, medium speed"
+    },
+    "turbo": {
+      "name": "Whisper Turbo",
+      "description": "Balanced accuracy and speed."
+    },
+    "large": {
+      "name": "Whisper Large",
+      "description": "Good accuracy, but slow."
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "name": "Parakeet V2",
+      "description": "English only. The best model for English speakers."
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "name": "Parakeet V3",
+      "description": "Fast and accurate"
+    }
   },
   "settings": {
     "general": {
@@ -148,7 +182,8 @@
         "options": {
           "none": "None",
           "bottom": "Bottom",
-          "top": "Top"
+          "top": "Top",
+          "follow": "Follow Cursor"
         }
       },
       "pasteMethod": {
@@ -230,6 +265,32 @@
           "placeholderWithOptions": "Search or select a model",
           "placeholderNoOptions": "Type a model name",
           "refreshModels": "Refresh models"
+        },
+        "manageProviders": "Manage Providers",
+        "providers": {
+          "title": "Providers",
+          "add": "Add Provider",
+          "builtInBadge": "Built-in",
+          "empty": {
+            "title": "No providers",
+            "description": "Add a provider to get started."
+          },
+          "deleteConfirm": {
+            "title": "Delete provider?",
+            "description": "This will remove the provider and any associated models."
+          },
+          "dialog": {
+            "createTitle": "Create Provider",
+            "editTitle": "Edit Provider"
+          },
+          "fields": {
+            "name": "Provider Name",
+            "namePlaceholder": "My Provider",
+            "baseUrl": "Base URL",
+            "modelsEndpoint": "Models Endpoint",
+            "modelsEndpointPlaceholder": "/models"
+          },
+          "resetUrl": "Reset URL"
         }
       },
       "prompts": {
@@ -252,6 +313,48 @@
         "cancel": "Cancel",
         "selectToEdit": "Select a prompt above to view and edit its details.",
         "createFirst": "Click 'Create New Prompt' above to create your first post-processing prompt."
+      },
+      "models": {
+        "title": "Models",
+        "description": "Add and manage models used for post-processing.",
+        "addModel": "Add Model",
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "text": "Text: {{count}}",
+          "other": "Other: {{count}}"
+        },
+        "empty": {
+          "title": "No models configured",
+          "description": "Add a model to get started."
+        },
+        "modelTypes": {
+          "text": {
+            "label": "Text",
+            "hint": "Text refinement and formatting"
+          },
+          "asr": {
+            "label": "ASR",
+            "hint": "Speech recognition"
+          },
+          "other": {
+            "label": "Other",
+            "hint": "Custom usage"
+          }
+        },
+        "selectModel": {
+          "title": "Select Model",
+          "description": "Choose a model to add or enter one manually.",
+          "segmented": {
+            "selectModel": "Select",
+            "customModel": "Custom"
+          },
+          "customModelPlaceholder": "Enter model id...",
+          "placeholder": "Select a model...",
+          "placeholderEmpty": "No models available",
+          "usageTypeTitle": "Usage Type",
+          "customLabelTitle": "Custom Label",
+          "customLabelPlaceholder": "Enter label..."
+        }
       }
     },
     "history": {
@@ -263,13 +366,25 @@
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
-      "deleteError": "Failed to delete entry. Please try again."
+      "deleteError": "Failed to delete entry. Please try again.",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "earlier": "Earlier"
+      },
+      "content": {
+        "improved": "Improved",
+        "original": "Original"
+      }
     },
     "debug": {
       "title": "Debug",
       "logDirectory": {
         "title": "Log Directory",
-        "description": "Location where log files are stored"
+        "description": "Location where log files are stored",
+        "error": "Error loading log directory: {{error}}"
       },
       "logLevel": {
         "title": "Log Level",
@@ -323,6 +438,8 @@
         "description": "Add a space after pasted transcription"
       },
       "paths": {
+        "title": "Paths",
+        "description": "Common filesystem paths Handy uses",
         "appData": "App Data:",
         "models": "Models:",
         "settings": "Settings:"
@@ -358,6 +475,90 @@
       }
     }
   },
+  "overlay": {
+    "status": {
+      "recording": "Recording...",
+      "transcribing": "Transcribing...",
+      "llm": "Post Processing..."
+    }
+  },
+  "soundPicker": {
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "custom": "Custom",
+    "preview": "Preview"
+  },
+  "theme": {
+    "title": "Theme",
+    "themeMode": {
+      "title": "Theme Mode",
+      "description": "Choose how Handy looks",
+      "light": "Light",
+      "lightDesc": "Always use the light theme",
+      "dark": "Dark",
+      "darkDesc": "Always use the dark theme",
+      "system": "System",
+      "systemDesc": "Match your system theme"
+    },
+    "accentColor": {
+      "title": "Accent Color",
+      "description": "Choose the accent color used throughout the app",
+      "current": "Current: {{color}}",
+      "ruby": "Ruby",
+      "gray": "Gray",
+      "gold": "Gold",
+      "bronze": "Bronze",
+      "brown": "Brown",
+      "indigo": "Indigo",
+      "blue": "Blue",
+      "iris": "Iris",
+      "purple": "Purple",
+      "violet": "Violet",
+      "pink": "Pink",
+      "plum": "Plum",
+      "red": "Red",
+      "tomato": "Tomato",
+      "crimson": "Crimson",
+      "orange": "Orange",
+      "amber": "Amber",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "grass": "Grass",
+      "jade": "Jade",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "mint": "Mint",
+      "sky": "Sky"
+    },
+    "panelStyle": {
+      "title": "Panel Style",
+      "description": "Choose between translucent or solid panels",
+      "translucent": "Translucent",
+      "translucentDesc": "Frosted glass effect",
+      "solid": "Solid",
+      "solidDesc": "Opaque panels"
+    },
+    "cornerRadius": {
+      "title": "Corner Radius",
+      "description": "Adjust the roundness of corners",
+      "sharp": "Sharp",
+      "sharpDesc": "No corner rounding",
+      "soft": "Soft",
+      "softDesc": "Slightly rounded corners",
+      "default": "Default",
+      "defaultDesc": "Standard corner rounding",
+      "rounded": "Rounded",
+      "roundedDesc": "More rounded corners",
+      "capsule": "Capsule",
+      "capsuleDesc": "Fully rounded corners"
+    },
+    "scaling": {
+      "title": "Scaling",
+      "description": "Adjust UI scale",
+      "current": "Current: {{scale}}"
+    }
+  },
   "footer": {
     "downloadingModel": "Downloading {{model}}...",
     "checkingUpdates": "Checking for updates...",
@@ -377,6 +578,10 @@
     "save": "Save",
     "cancel": "Cancel",
     "reset": "Reset",
+    "copy": "Copy",
+    "copied": "Copied",
+    "skip": "Skip",
+    "models": "Models",
     "add": "Add",
     "remove": "Remove",
     "delete": "Delete",
@@ -392,13 +597,21 @@
     "off": "Off",
     "yes": "Yes",
     "no": "No",
-    "noOptionsFound": "No options found"
+    "noOptionsFound": "No options found",
+    "selectOption": "Select an option",
+    "filterOptions": "Filter options...",
+    "noMatchingOptions": "No matching options",
+    "notAvailable": "Not available",
+    "addNewOption": "Add new option",
+    "useInput": "Use \"{{input}}\"",
+    "done": "Done"
   },
   "accessibility": {
     "permissionsRequired": "Accessibility Permissions Required",
     "permissionsDescription": "Handy needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "verify": "Verify"
   },
   "errors": {
     "loadDirectory": "Error loading directory: {{error}}"

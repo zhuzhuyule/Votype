@@ -25,8 +25,8 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
     const { t } = useTranslation();
     const selectedMicrophone =
       getSetting("selected_microphone") === "default"
-        ? t("microphone.default")
-        : getSetting("selected_microphone") || t("microphone.default");
+        ? t("common.default")
+        : getSetting("selected_microphone") || t("common.default");
 
     const handleMicrophoneSelect = async (deviceName: string) => {
       await updateSetting("selected_microphone", deviceName);
@@ -43,8 +43,8 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
 
     return (
       <SettingContainer
-        title={t("microphone.title")}
-        description={t("microphone.description")}
+        title={t("settings.sound.microphone.title")}
+        description={t("settings.sound.microphone.description")}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
@@ -61,8 +61,8 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
             onSelect={handleMicrophoneSelect}
             placeholder={
               isLoading || audioDevices.length === 0
-                ? t("microphone.loading")
-                : t("microphone.selectPlaceholder")
+                ? t("settings.sound.microphone.loading")
+                : t("settings.sound.microphone.placeholder")
             }
             disabled={
               isUpdating("selected_microphone") ||

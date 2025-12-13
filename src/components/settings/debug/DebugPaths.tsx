@@ -17,23 +17,23 @@ export const DebugPaths: React.FC<DebugPathsProps> = ({
 
   return (
     <SettingContainer
-      title={t("debugPaths.title")}
-      description={t("debugPaths.description")}
+      title={t("settings.debug.paths.title")}
+      description={t("settings.debug.paths.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
     >
       <ActionWrapper>
         <Flex direction="column" gap="2" className="text-sm text-gray-600">
           <Flex>
-            <Text weight="medium">{t("debugPaths.appData")}:</Text>{" "}
+            <Text weight="medium">{t("settings.debug.paths.appData")}:</Text>{" "}
             <Text className="font-mono text-xs">%APPDATA%/votype</Text>
           </Flex>
           <Flex>
-            <Text weight="medium">{t("debugPaths.models")}:</Text>{" "}
+            <Text weight="medium">{t("settings.debug.paths.models")}:</Text>{" "}
             <Text className="font-mono text-xs">%APPDATA%/votype/models</Text>
           </Flex>
           <Flex>
-            <Text weight="medium">{t("debugPaths.settings")}:</Text>{" "}
+            <Text weight="medium">{t("settings.debug.paths.settings")}:</Text>{" "}
             <Text className="font-mono text-xs">
               %APPDATA%/votype/settings_store.json
             </Text>

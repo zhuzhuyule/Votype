@@ -1,8 +1,11 @@
 use crate::settings;
+use std::sync::Mutex;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIcon;
 use tauri::{AppHandle, Manager, Theme};
+
+pub struct ManagedTrayIconState(pub Mutex<TrayIconState>);
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum TrayIconState {
@@ -56,6 +59,10 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState) -> &'static str {
 }
 
 pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
+    if let Ok(mut state) = app.state::<ManagedTrayIconState>().0.lock() {
+        *state = icon.clone();
+    }
+
     let tray = app.state::<TrayIcon>();
     let theme = get_current_theme(app);
 
@@ -74,8 +81,72 @@ pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
     update_tray_menu(app, &icon);
 }
 
+#[derive(Clone, Copy)]
+enum TrayTextKey {
+    Settings,
+    CheckForUpdates,
+    Quit,
+    Cancel,
+}
+
+fn tray_text(lang_code: &str, key: TrayTextKey) -> &'static str {
+    let lang = lang_code
+        .split(['-', '_'])
+        .next()
+        .unwrap_or("en")
+        .to_lowercase();
+
+    match (lang.as_str(), key) {
+        // Chinese (Simplified)
+        ("zh", TrayTextKey::Settings) => "设置...",
+        ("zh", TrayTextKey::CheckForUpdates) => "检查更新...",
+        ("zh", TrayTextKey::Quit) => "退出",
+        ("zh", TrayTextKey::Cancel) => "取消",
+
+        // Japanese
+        ("ja", TrayTextKey::Settings) => "設定...",
+        ("ja", TrayTextKey::CheckForUpdates) => "アップデートを確認...",
+        ("ja", TrayTextKey::Quit) => "終了",
+        ("ja", TrayTextKey::Cancel) => "キャンセル",
+
+        // German
+        ("de", TrayTextKey::Settings) => "Einstellungen...",
+        ("de", TrayTextKey::CheckForUpdates) => "Nach Updates suchen...",
+        ("de", TrayTextKey::Quit) => "Beenden",
+        ("de", TrayTextKey::Cancel) => "Abbrechen",
+
+        // French
+        ("fr", TrayTextKey::Settings) => "Paramètres...",
+        ("fr", TrayTextKey::CheckForUpdates) => "Rechercher des mises à jour...",
+        ("fr", TrayTextKey::Quit) => "Quitter",
+        ("fr", TrayTextKey::Cancel) => "Annuler",
+
+        // Spanish
+        ("es", TrayTextKey::Settings) => "Configuración...",
+        ("es", TrayTextKey::CheckForUpdates) => "Buscar actualizaciones...",
+        ("es", TrayTextKey::Quit) => "Salir",
+        ("es", TrayTextKey::Cancel) => "Cancelar",
+
+        // Vietnamese
+        ("vi", TrayTextKey::Settings) => "Cài đặt...",
+        ("vi", TrayTextKey::CheckForUpdates) => "Kiểm tra cập nhật...",
+        ("vi", TrayTextKey::Quit) => "Thoát",
+        ("vi", TrayTextKey::Cancel) => "Hủy",
+
+        // English fallback
+        (_, TrayTextKey::Settings) => "Settings...",
+        (_, TrayTextKey::CheckForUpdates) => "Check for Updates...",
+        (_, TrayTextKey::Quit) => "Quit",
+        (_, TrayTextKey::Cancel) => "Cancel",
+    }
+}
+
 pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState) {
     let settings = settings::get_settings(app); // Added this line
+
+    if let Ok(mut managed_state) = app.state::<ManagedTrayIconState>().0.lock() {
+        *managed_state = state.clone();
+    }
 
     // Platform-specific accelerators
     #[cfg(target_os = "macos")]
@@ -87,24 +158,37 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState) {
     let version_label = format!("Votype v{}", env!("CARGO_PKG_VERSION"));
     let version_i = MenuItem::with_id(app, "version", &version_label, false, None::<&str>)
         .expect("failed to create version item");
-    let settings_i = MenuItem::with_id(app, "settings", "Settings...", true, settings_accelerator)
+    let settings_label = tray_text(&settings.app_language, TrayTextKey::Settings);
+    let settings_i = MenuItem::with_id(app, "settings", settings_label, true, settings_accelerator)
         .expect("failed to create settings item");
     let check_updates_i = MenuItem::with_id(
         app,
         "check_updates",
-        "Check for Updates...",
+        tray_text(&settings.app_language, TrayTextKey::CheckForUpdates),
         settings.update_checks_enabled,
         None::<&str>,
     )
     .expect("failed to create check updates item");
-    let quit_i = MenuItem::with_id(app, "quit", "Quit", true, quit_accelerator)
+    let quit_i = MenuItem::with_id(
+        app,
+        "quit",
+        tray_text(&settings.app_language, TrayTextKey::Quit),
+        true,
+        quit_accelerator,
+    )
         .expect("failed to create quit item");
     let separator = || PredefinedMenuItem::separator(app).expect("failed to create separator");
 
     let menu = match state {
         TrayIconState::Recording | TrayIconState::Transcribing => {
-            let cancel_i = MenuItem::with_id(app, "cancel", "Cancel", true, None::<&str>)
-                .expect("failed to create cancel item");
+            let cancel_i = MenuItem::with_id(
+                app,
+                "cancel",
+                tray_text(&settings.app_language, TrayTextKey::Cancel),
+                true,
+                None::<&str>,
+            )
+            .expect("failed to create cancel item");
             Menu::with_items(
                 app,
                 &[
