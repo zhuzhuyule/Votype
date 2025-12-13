@@ -35,6 +35,16 @@ static MIGRATIONS: &[M] = &[
          ALTER TABLE transcription_history ADD COLUMN char_count INTEGER;
          ALTER TABLE transcription_history ADD COLUMN corrected_char_count INTEGER;",
     ),
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN transcription_ms INTEGER;
+         ALTER TABLE transcription_history ADD COLUMN language TEXT;
+         ALTER TABLE transcription_history ADD COLUMN asr_model TEXT;",
+    ),
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN app_name TEXT;
+         ALTER TABLE transcription_history ADD COLUMN window_title TEXT;
+         ALTER TABLE transcription_history ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT 0;",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -50,6 +60,12 @@ pub struct HistoryEntry {
     pub duration_ms: Option<i64>,
     pub char_count: Option<i64>,
     pub corrected_char_count: Option<i64>,
+    pub transcription_ms: Option<i64>,
+    pub language: Option<String>,
+    pub asr_model: Option<String>,
+    pub app_name: Option<String>,
+    pub window_title: Option<String>,
+    pub deleted: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -553,7 +569,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -569,6 +585,12 @@ impl HistoryManager {
                 duration_ms: row.get("duration_ms")?,
                 char_count: row.get("char_count")?,
                 corrected_char_count: row.get("corrected_char_count")?,
+                transcription_ms: row.get("transcription_ms")?,
+                language: row.get("language")?,
+                asr_model: row.get("asr_model")?,
+                app_name: row.get("app_name")?,
+                window_title: row.get("window_title")?,
+                deleted: row.get("deleted")?,
             })
         })?;
 
@@ -614,7 +636,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -632,6 +654,12 @@ impl HistoryManager {
                     duration_ms: row.get("duration_ms")?,
                     char_count: row.get("char_count")?,
                     corrected_char_count: row.get("corrected_char_count")?,
+                    transcription_ms: row.get("transcription_ms")?,
+                    language: row.get("language")?,
+                    asr_model: row.get("asr_model")?,
+                    app_name: row.get("app_name")?,
+                    window_title: row.get("window_title")?,
+                    deleted: row.get("deleted")?,
                 })
             })
             .optional()?;
