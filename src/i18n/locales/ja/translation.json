@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "general": "一般",
+    "shortcuts": "ショートカット",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
     "history": "履歴",
@@ -65,6 +66,9 @@
     "deleteModel": "{{modelName}}を削除"
   },
   "settings": {
+    "shortcuts": {
+      "title": "ショートカット"
+    },
     "general": {
       "title": "一般",
       "shortcut": {

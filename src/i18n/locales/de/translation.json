@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "general": "Allgemein",
+    "shortcuts": "Tastenkürzel",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
@@ -64,6 +65,9 @@
     "deleteModel": "{{modelName}} löschen"
   },
   "settings": {
+    "shortcuts": {
+      "title": "Tastenkürzel"
+    },
     "general": {
       "title": "Allgemein",
       "shortcut": {

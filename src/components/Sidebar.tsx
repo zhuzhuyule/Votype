@@ -5,6 +5,7 @@ import {
   IconBug,
   IconHistory,
   IconInfoSquare,
+  IconKeyboard,
   IconSettings,
   IconSparkles,
 } from "@tabler/icons-react";
@@ -20,6 +21,7 @@ import {
   HistorySettings,
   ModelsConfiguration,
   PromptsConfiguration,
+  ShortcutsSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -50,6 +52,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.general",
     icon: IconSettings,
     component: GeneralSettings,
+    enabled: () => true,
+  },
+  shortcuts: {
+    labelKey: "sidebar.shortcuts",
+    icon: IconKeyboard,
+    component: ShortcutsSettings,
     enabled: () => true,
   },
   advanced: {

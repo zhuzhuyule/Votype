@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "shortcuts": "Atajos",
     "advanced": "Avanzado",
     "postProcessing": "Post Proceso",
     "history": "Historial",
@@ -64,6 +65,9 @@
     "deleteModel": "Eliminar {{modelName}}"
   },
   "settings": {
+    "shortcuts": {
+      "title": "Atajos"
+    },
     "general": {
       "shortcut": {
         "title": "Atajos de Votype",

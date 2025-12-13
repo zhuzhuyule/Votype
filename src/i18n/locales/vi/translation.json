@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "general": "Chung",
+    "shortcuts": "Phím tắt",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
     "history": "Lịch sử",
@@ -65,6 +66,9 @@
     "deleteModel": "Xóa {{modelName}}"
   },
   "settings": {
+    "shortcuts": {
+      "title": "Phím tắt"
+    },
     "general": {
       "title": "Chung",
       "shortcut": {

@@ -4,6 +4,7 @@ export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { DebugSettings } from "./debug/DebugSettings";
 export { GeneralSettings } from "./general/GeneralSettings";
 export { HistorySettings } from "./history/HistorySettings";
+export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";
 export { PromptsConfiguration } from "./post-processing/PromptsConfiguration";
 
@@ -27,4 +28,3 @@ export { HistoryLimit } from "./HistoryLimit";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
 export { RecordingRetentionPeriodSelector } from "./RecordingRetentionPeriod";
 export { StartHidden } from "./StartHidden";
-

@@ -1,6 +1,7 @@
 {
   "sidebar": {
     "general": "General",
+    "shortcuts": "Shortcuts",
     "advanced": "Advanced",
     "models": "Models",
     "prompts": "Prompts",
@@ -105,6 +106,9 @@
     }
   },
   "settings": {
+    "shortcuts": {
+      "title": "Shortcuts"
+    },
     "general": {
       "title": "General",
       "shortcut": {
