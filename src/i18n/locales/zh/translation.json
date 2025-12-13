@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "dashboard": "概览",
     "general": "通用",
     "shortcuts": "快捷键",
     "advanced": "高级",
@@ -9,6 +10,28 @@
     "history": "历史记录",
     "debug": "调试",
     "about": "关于"
+  },
+  "dashboard": {
+    "title": "概览",
+    "cards": {
+      "today": "今日",
+      "recent": "最近 {{days}} 天",
+      "allTime": "全部"
+    },
+    "metrics": {
+      "entries": "转写次数",
+      "duration": "音频时长",
+      "characters": "字符数",
+      "saved": "已收藏",
+      "postProcessed": "已后处理"
+    },
+    "activity": {
+      "title": "活跃度",
+      "subtitle": "最近 14 天"
+    },
+    "actions": {
+      "openRecordings": "录音目录"
+    }
   },
   "onboarding": {
     "subtitle": "请选择一个转录模型以开始使用",

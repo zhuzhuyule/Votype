@@ -1,4 +1,4 @@
-use crate::managers::history::{HistoryEntry, HistoryManager};
+use crate::managers::history::{HistoryDashboardStats, HistoryEntry, HistoryManager};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
@@ -45,6 +45,18 @@ pub async fn delete_history_entry(
 ) -> Result<(), String> {
     history_manager
         .delete_entry(id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_history_dashboard_stats(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    days: Option<u32>,
+) -> Result<HistoryDashboardStats, String> {
+    history_manager
+        .get_dashboard_stats(days.unwrap_or(30))
         .await
         .map_err(|e| e.to_string())
 }

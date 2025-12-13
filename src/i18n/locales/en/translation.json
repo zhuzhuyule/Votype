@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "dashboard": "Dashboard",
     "general": "General",
     "shortcuts": "Shortcuts",
     "advanced": "Advanced",
@@ -9,6 +10,28 @@
     "history": "History",
     "debug": "Debug",
     "about": "About"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "cards": {
+      "today": "Today",
+      "recent": "Last {{days}} days",
+      "allTime": "All time"
+    },
+    "metrics": {
+      "entries": "Transcriptions",
+      "duration": "Audio time",
+      "characters": "Characters",
+      "saved": "Saved",
+      "postProcessed": "Post processed"
+    },
+    "activity": {
+      "title": "Activity",
+      "subtitle": "Last 14 days"
+    },
+    "actions": {
+      "openRecordings": "Recordings"
+    }
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",

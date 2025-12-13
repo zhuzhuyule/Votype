@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "dashboard": "Tableau de bord",
     "general": "Général",
     "shortcuts": "Raccourcis",
     "advanced": "Avancé",
@@ -7,6 +8,28 @@
     "history": "Historique",
     "debug": "Débogage",
     "about": "À propos"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "cards": {
+      "today": "Aujourd'hui",
+      "recent": "{{days}} derniers jours",
+      "allTime": "Depuis le début"
+    },
+    "metrics": {
+      "entries": "Transcriptions",
+      "duration": "Durée audio",
+      "characters": "Caractères",
+      "saved": "Enregistrées",
+      "postProcessed": "Post-traitées"
+    },
+    "activity": {
+      "title": "Activité",
+      "subtitle": "14 derniers jours"
+    },
+    "actions": {
+      "openRecordings": "Enregistrements"
+    }
   },
   "onboarding": {
     "subtitle": "Pour commencer, choisissez un modèle de transcription",

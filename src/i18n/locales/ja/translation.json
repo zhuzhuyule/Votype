@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "dashboard": "ダッシュボード",
     "general": "一般",
     "shortcuts": "ショートカット",
     "advanced": "詳細設定",
@@ -7,6 +8,28 @@
     "history": "履歴",
     "debug": "デバッグ",
     "about": "概要"
+  },
+  "dashboard": {
+    "title": "ダッシュボード",
+    "cards": {
+      "today": "今日",
+      "recent": "直近 {{days}} 日",
+      "allTime": "全期間"
+    },
+    "metrics": {
+      "entries": "文字起こし回数",
+      "duration": "音声時間",
+      "characters": "文字数",
+      "saved": "保存済み",
+      "postProcessed": "後処理済み"
+    },
+    "activity": {
+      "title": "アクティビティ",
+      "subtitle": "直近 14 日"
+    },
+    "actions": {
+      "openRecordings": "録音"
+    }
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしモデルを選択してください",

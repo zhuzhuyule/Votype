@@ -1,5 +1,6 @@
 {
   "sidebar": {
+    "dashboard": "Bảng điều khiển",
     "general": "Chung",
     "shortcuts": "Phím tắt",
     "advanced": "Nâng cao",
@@ -7,6 +8,28 @@
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
     "about": "Giới thiệu"
+  },
+  "dashboard": {
+    "title": "Bảng điều khiển",
+    "cards": {
+      "today": "Hôm nay",
+      "recent": "{{days}} ngày gần đây",
+      "allTime": "Tất cả"
+    },
+    "metrics": {
+      "entries": "Bản ghi",
+      "duration": "Thời lượng âm thanh",
+      "characters": "Ký tự",
+      "saved": "Đã lưu",
+      "postProcessed": "Đã xử lý sau"
+    },
+    "activity": {
+      "title": "Hoạt động",
+      "subtitle": "14 ngày gần đây"
+    },
+    "actions": {
+      "openRecordings": "Bản ghi âm"
+    }
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",

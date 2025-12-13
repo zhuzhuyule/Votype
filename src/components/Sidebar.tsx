@@ -6,6 +6,7 @@ import {
   IconHistory,
   IconInfoSquare,
   IconKeyboard,
+  IconLayoutDashboard,
   IconSettings,
   IconSparkles,
 } from "@tabler/icons-react";
@@ -16,6 +17,7 @@ import VotypeHand from "./icons/VotypeHand";
 import {
   AboutSettings,
   AdvancedSettings,
+  Dashboard,
   DebugSettings,
   GeneralSettings,
   HistorySettings,
@@ -42,6 +44,12 @@ interface SectionConfig {
 }
 
 export const SECTIONS_CONFIG = {
+  dashboard: {
+    labelKey: "sidebar.dashboard",
+    icon: IconLayoutDashboard,
+    component: Dashboard,
+    enabled: () => true,
+  },
   history: {
     labelKey: "sidebar.history",
     icon: IconHistory,

@@ -1,11 +1,34 @@
 {
   "sidebar": {
+    "dashboard": "Panel",
     "shortcuts": "Atajos",
     "advanced": "Avanzado",
     "postProcessing": "Post Proceso",
     "history": "Historial",
     "debug": "Depuración",
     "about": "Acerca de"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "cards": {
+      "today": "Hoy",
+      "recent": "Últimos {{days}} días",
+      "allTime": "Todo el tiempo"
+    },
+    "metrics": {
+      "entries": "Transcripciones",
+      "duration": "Tiempo de audio",
+      "characters": "Caracteres",
+      "saved": "Guardadas",
+      "postProcessed": "Postprocesadas"
+    },
+    "activity": {
+      "title": "Actividad",
+      "subtitle": "Últimos 14 días"
+    },
+    "actions": {
+      "openRecordings": "Grabaciones"
+    }
   },
   "onboarding": {
     "subtitle": "Para comenzar, elige un modelo de transcripción",

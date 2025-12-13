@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, Local, Utc};
+use chrono::{DateTime, Local, TimeZone, Utc};
 use log::{debug, error, info};
 use rusqlite::{params, Connection, OptionalExtension};
 use rusqlite_migration::{Migrations, M};
@@ -50,6 +50,39 @@ pub struct HistoryEntry {
     pub duration_ms: Option<i64>,
     pub char_count: Option<i64>,
     pub corrected_char_count: Option<i64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HistoryTotals {
+    pub entries: i64,
+    pub saved_entries: i64,
+    pub post_processed_entries: i64,
+    pub duration_ms: i64,
+    pub char_count: i64,
+    pub corrected_char_count: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HistoryDayBucket {
+    /// Local calendar day in `YYYY-MM-DD` format.
+    pub day: String,
+    pub entries: i64,
+    pub duration_ms: i64,
+    pub char_count: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HistoryDashboardStats {
+    /// Metrics since the start of the user's local day.
+    pub today: HistoryTotals,
+    /// Metrics within the last N days (inclusive of today).
+    pub recent: HistoryTotals,
+    /// Per-day buckets within the last N days (local time).
+    pub recent_buckets: Vec<HistoryDayBucket>,
+    /// All-time totals.
+    pub all_time: HistoryTotals,
+    /// Number of days used for `recent`/`recent_buckets`.
+    pub recent_days: u32,
 }
 
 pub struct HistoryManager {
@@ -181,6 +214,128 @@ impl HistoryManager {
 
     fn get_connection(&self) -> Result<Connection> {
         Ok(Connection::open(&self.db_path)?)
+    }
+
+    fn query_totals_since(&self, conn: &Connection, start_timestamp: i64) -> Result<HistoryTotals> {
+        let mut stmt = conn.prepare(
+            "SELECT
+                COUNT(*) AS entries,
+                COALESCE(SUM(CASE WHEN saved = 1 THEN 1 ELSE 0 END), 0) AS saved_entries,
+                COALESCE(SUM(CASE WHEN post_processed_text IS NOT NULL AND post_processed_text != '' THEN 1 ELSE 0 END), 0) AS post_processed_entries,
+                COALESCE(SUM(duration_ms), 0) AS duration_ms,
+                COALESCE(SUM(char_count), 0) AS char_count,
+                COALESCE(SUM(corrected_char_count), 0) AS corrected_char_count
+             FROM transcription_history
+             WHERE timestamp >= ?1",
+        )?;
+
+        let totals = stmt.query_row(params![start_timestamp], |row| {
+            Ok(HistoryTotals {
+                entries: row.get("entries")?,
+                saved_entries: row.get("saved_entries")?,
+                post_processed_entries: row.get("post_processed_entries")?,
+                duration_ms: row.get("duration_ms")?,
+                char_count: row.get("char_count")?,
+                corrected_char_count: row.get("corrected_char_count")?,
+            })
+        })?;
+
+        Ok(totals)
+    }
+
+    fn query_all_time_totals(&self, conn: &Connection) -> Result<HistoryTotals> {
+        let mut stmt = conn.prepare(
+            "SELECT
+                COUNT(*) AS entries,
+                COALESCE(SUM(CASE WHEN saved = 1 THEN 1 ELSE 0 END), 0) AS saved_entries,
+                COALESCE(SUM(CASE WHEN post_processed_text IS NOT NULL AND post_processed_text != '' THEN 1 ELSE 0 END), 0) AS post_processed_entries,
+                COALESCE(SUM(duration_ms), 0) AS duration_ms,
+                COALESCE(SUM(char_count), 0) AS char_count,
+                COALESCE(SUM(corrected_char_count), 0) AS corrected_char_count
+             FROM transcription_history",
+        )?;
+
+        let totals = stmt.query_row([], |row| {
+            Ok(HistoryTotals {
+                entries: row.get("entries")?,
+                saved_entries: row.get("saved_entries")?,
+                post_processed_entries: row.get("post_processed_entries")?,
+                duration_ms: row.get("duration_ms")?,
+                char_count: row.get("char_count")?,
+                corrected_char_count: row.get("corrected_char_count")?,
+            })
+        })?;
+
+        Ok(totals)
+    }
+
+    fn query_day_buckets_since(
+        &self,
+        conn: &Connection,
+        start_timestamp: i64,
+    ) -> Result<Vec<HistoryDayBucket>> {
+        let mut stmt = conn.prepare(
+            "SELECT
+                strftime('%Y-%m-%d', timestamp, 'unixepoch', 'localtime') AS day,
+                COUNT(*) AS entries,
+                COALESCE(SUM(duration_ms), 0) AS duration_ms,
+                COALESCE(SUM(char_count), 0) AS char_count
+             FROM transcription_history
+             WHERE timestamp >= ?1
+             GROUP BY day
+             ORDER BY day ASC",
+        )?;
+
+        let rows = stmt.query_map(params![start_timestamp], |row| {
+            Ok(HistoryDayBucket {
+                day: row.get("day")?,
+                entries: row.get("entries")?,
+                duration_ms: row.get("duration_ms")?,
+                char_count: row.get("char_count")?,
+            })
+        })?;
+
+        let mut buckets = Vec::new();
+        for row in rows {
+            buckets.push(row?);
+        }
+        Ok(buckets)
+    }
+
+    pub async fn get_dashboard_stats(&self, recent_days: u32) -> Result<HistoryDashboardStats> {
+        let recent_days = recent_days.clamp(1, 365);
+        let conn = self.get_connection()?;
+
+        let now_utc = Utc::now();
+        let recent_start = now_utc
+            .checked_sub_signed(chrono::Duration::days(recent_days as i64))
+            .unwrap_or(now_utc)
+            .timestamp();
+
+        let now_local = Local::now();
+        let today_start_local = now_local
+            .date_naive()
+            .and_hms_opt(0, 0, 0)
+            .unwrap_or_else(|| now_local.naive_local());
+        let today_start = Local
+            .from_local_datetime(&today_start_local)
+            .single()
+            .unwrap_or(now_local)
+            .with_timezone(&Utc)
+            .timestamp();
+
+        let all_time = self.query_all_time_totals(&conn)?;
+        let recent = self.query_totals_since(&conn, recent_start)?;
+        let today = self.query_totals_since(&conn, today_start)?;
+        let recent_buckets = self.query_day_buckets_since(&conn, recent_start)?;
+
+        Ok(HistoryDashboardStats {
+            today,
+            recent,
+            recent_buckets,
+            all_time,
+            recent_days,
+        })
     }
 
     /// Save a transcription to history (both database and WAV file)

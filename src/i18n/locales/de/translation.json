@@ -1,11 +1,34 @@
 {
   "sidebar": {
+    "dashboard": "Übersicht",
     "general": "Allgemein",
     "shortcuts": "Tastenkürzel",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
     "about": "Info"
+  },
+  "dashboard": {
+    "title": "Übersicht",
+    "cards": {
+      "today": "Heute",
+      "recent": "Letzte {{days}} Tage",
+      "allTime": "Insgesamt"
+    },
+    "metrics": {
+      "entries": "Transkripte",
+      "duration": "Audiozeit",
+      "characters": "Zeichen",
+      "saved": "Gespeichert",
+      "postProcessed": "Nachbearbeitet"
+    },
+    "activity": {
+      "title": "Aktivität",
+      "subtitle": "Letzte 14 Tage"
+    },
+    "actions": {
+      "openRecordings": "Aufnahmen"
+    }
   },
   "onboarding": {
     "subtitle": "Wähle ein Transkriptionsmodell, um loszulegen",
