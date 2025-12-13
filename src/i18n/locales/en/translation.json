@@ -50,7 +50,7 @@
     }
   },
   "modelSelector": {
-    "welcome": "Welcome to Handy!",
+    "welcome": "Welcome to Votype!",
     "downloadPrompt": "Download a model below to get started with transcription.",
     "availableModels": "Available Models",
     "downloadModels": "Download Models",
@@ -108,7 +108,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Handy Shortcuts",
+        "title": "Votype Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
         "loading": "Loading shortcuts...",
         "none": "No shortcuts configured",
@@ -174,7 +174,7 @@
       },
       "autostart": {
         "label": "Launch on Startup",
-        "description": "Automatically start Handy when you log in to your computer."
+        "description": "Automatically start Votype when you log in to your computer."
       },
       "overlay": {
         "title": "Overlay Position",
@@ -392,7 +392,7 @@
       },
       "updateChecks": {
         "label": "Check for Updates",
-        "description": "Automatically check for new versions of Handy"
+        "description": "Automatically check for new versions of Votype"
       },
       "soundTheme": {
         "label": "Sound Theme",
@@ -439,7 +439,7 @@
       },
       "paths": {
         "title": "Paths",
-        "description": "Common filesystem paths Handy uses",
+        "description": "Common filesystem paths Votype uses",
         "appData": "App Data:",
         "models": "Models:",
         "settings": "Settings:"
@@ -449,11 +449,11 @@
       "title": "About",
       "version": {
         "title": "Version",
-        "description": "Current version of Handy"
+        "description": "Current version of Votype"
       },
       "appDataDirectory": {
         "title": "App Data Directory",
-        "description": "Location where Handy stores its data"
+        "description": "Location where Votype stores its data"
       },
       "sourceCode": {
         "title": "Source Code",
@@ -462,7 +462,7 @@
       },
       "supportDevelopment": {
         "title": "Support Development",
-        "description": "Help us continue building Handy",
+        "description": "Help us continue building Votype",
         "button": "Donate"
       },
       "acknowledgments": {
@@ -470,7 +470,7 @@
         "whisper": {
           "title": "Whisper.cpp",
           "description": "High-performance inference of OpenAI's Whisper automatic speech recognition model",
-          "details": "Handy uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
+          "details": "Votype uses Whisper.cpp for fast, local speech-to-text processing. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
       }
     }
@@ -492,7 +492,7 @@
     "title": "Theme",
     "themeMode": {
       "title": "Theme Mode",
-      "description": "Choose how Handy looks",
+      "description": "Choose how Votype looks",
       "light": "Light",
       "lightDesc": "Always use the light theme",
       "dark": "Dark",
@@ -608,7 +608,7 @@
   },
   "accessibility": {
     "permissionsRequired": "Accessibility Permissions Required",
-    "permissionsDescription": "Handy needs accessibility permissions to type transcribed text.",
+    "permissionsDescription": "Votype needs accessibility permissions to type transcribed text.",
     "openSettings": "Open System Settings",
     "dismiss": "Dismiss",
     "verify": "Verify"
@@ -618,6 +618,6 @@
   },
   "appLanguage": {
     "title": "Application Language",
-    "description": "Change the language of the Handy interface"
+    "description": "Change the language of the Votype interface"
   }
 }

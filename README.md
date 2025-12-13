@@ -82,16 +82,16 @@ This project is actively being developed and has some [known issues](https://git
 **Wayland Support (Linux):**
 
 - Limited or no support for Wayland display server
-- On Wayland the clipboard-based paste options (`Clipboard (CTRL+V)` / `Clipboard (Shift+Insert)`) copy the transcription once, then try to run [`wtype`](https://github.com/atx/wtype) (preferred) or [`dotool`](https://sr.ht/~geb/dotool/) to fire the paste keystroke. Install one of these tools to let Handy drive the compositor-friendly paste shortcut; otherwise it falls back to Enigo-generated key events, which may not work on Wayland.
+- On Wayland the clipboard-based paste options (`Clipboard (CTRL+V)` / `Clipboard (Shift+Insert)`) copy the transcription once, then try to run [`wtype`](https://github.com/atx/wtype) (preferred) or [`dotool`](https://sr.ht/~geb/dotool/) to fire the paste keystroke. Install one of these tools to let Votype drive the compositor-friendly paste shortcut; otherwise it falls back to Enigo-generated key events, which may not work on Wayland.
 
 ### Linux Notes
 
-- The recording overlay is disabled by default on Linux (`Overlay Position: None`) because certain compositors treat it as the active window. When the overlay is visible it can steal focus, which prevents Handy from pasting back into the application that triggered transcription. If you enable the overlay anyway, be aware that clipboard-based pasting might fail or end up in the wrong window.
+- The recording overlay is disabled by default on Linux (`Overlay Position: None`) because certain compositors treat it as the active window. When the overlay is visible it can steal focus, which prevents Votype from pasting back into the application that triggered transcription. If you enable the overlay anyway, be aware that clipboard-based pasting might fail or end up in the wrong window.
 - If you are having trouble with the app, running with the environment variable `WEBKIT_DISABLE_DMABUF_RENDERER=1` may help
-- You can manage global shortcuts outside of Handy and still control the app via signals. Sending `SIGUSR2` to the Handy process toggles recording on/off, which lets Wayland window managers or other hotkey daemons keep ownership of keybindings. Example (Sway):
+- You can manage global shortcuts outside of Votype and still control the app via signals. Sending `SIGUSR2` to the Votype process toggles recording on/off, which lets Wayland window managers or other hotkey daemons keep ownership of keybindings. Example (Sway):
 
   ```ini
-  bindsym $mod+o exec pkill -USR2 -n handy
+  bindsym $mod+o exec pkill -USR2 -n votype
   ```
 
   `pkill` here simply delivers the signal—it does not terminate the process.
@@ -247,7 +247,7 @@ Final structure should look like:
 
 ### How to Contribute
 
-1. **Check existing issues** at [github.com/zhuzhuyule/Handy/issues](https://github.com/zhuzhuyule/Handy/issues)
+1. **Check existing issues** at [existing issues](https://github.com/zhuzhuyule/Handy/issues)
 2. **Fork the repository** and create a feature branch
 3. **Test thoroughly** on your target platform
 4. **Submit a pull request** with clear description of changes
