@@ -40,6 +40,12 @@ interface SectionConfig {
 }
 
 export const SECTIONS_CONFIG = {
+  history: {
+    labelKey: "sidebar.history",
+    icon: IconHistory,
+    component: HistorySettings,
+    enabled: () => true,
+  },
   general: {
     labelKey: "sidebar.general",
     icon: IconSettings,
@@ -62,12 +68,6 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.prompts",
     icon: IconSparkles,
     component: PromptsConfiguration,
-    enabled: () => true,
-  },
-  history: {
-    labelKey: "sidebar.history",
-    icon: IconHistory,
-    component: HistorySettings,
     enabled: () => true,
   },
   debug: {
