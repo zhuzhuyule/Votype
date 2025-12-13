@@ -26,8 +26,48 @@
       "postProcessed": "已后处理"
     },
     "activity": {
-      "title": "活跃度",
-      "subtitle": "最近 14 天"
+      "title": "使用记录",
+      "subtitle": "近30天"
+    },
+    "range": {
+      "lastNDays": "近{{days}}天",
+      "allTime": "所有",
+      "today": "今日",
+      "buttons": {
+        "last7Days": "近7天",
+        "last30Days": "近30天",
+        "allTime": "所有"
+      }
+    },
+    "summary": {
+      "recording": {
+        "title": "累计语音输入",
+        "count": "共 {{count}} 次转写"
+      },
+      "transcription": {
+        "title": "生成文本",
+        "speed": "平均 {{rate}}/分"
+      },
+      "llm": {
+        "title": "大模型消耗情况",
+        "details": "命中率：{{hitRate}}",
+        "unknownApp": "未知应用"
+      },
+      "apps": {
+        "title": "最多使用的应用 Top 3",
+        "top3": "Top 3",
+        "empty": "暂无应用数据"
+      }
+    },
+    "details": {
+      "title": "历史记录",
+      "count": "共 {{count}} 条",
+      "meta": {
+        "chars": "{{value}} 字"
+      },
+      "audioRemoved": "录音已移除",
+      "empty": "暂无数据",
+      "loadMore": "加载更多"
     },
     "actions": {
       "openRecordings": "录音目录"

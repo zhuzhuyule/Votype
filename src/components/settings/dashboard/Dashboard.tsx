@@ -1,32 +1,38 @@
-import { Box, Button, Card, Flex, Grid, Heading, Text } from "@radix-ui/themes";
+import {
+  Box,
+  Button,
+  Card,
+  Flex,
+  Grid,
+  Heading,
+  Tabs,
+  Text,
+} from "@radix-ui/themes";
 import { IconFolderOpen } from "@tabler/icons-react";
-import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AudioPlayer } from "../../ui/AudioPlayer";
 
-interface HistoryTotals {
-  entries: number;
-  saved_entries: number;
-  post_processed_entries: number;
-  duration_ms: number;
-  char_count: number;
-  corrected_char_count: number;
-}
-
-interface HistoryDayBucket {
-  day: string; // YYYY-MM-DD (local)
-  entries: number;
-  duration_ms: number;
-  char_count: number;
-}
-
-interface HistoryDashboardStats {
-  today: HistoryTotals;
-  recent: HistoryTotals;
-  recent_buckets: HistoryDayBucket[];
-  all_time: HistoryTotals;
-  recent_days: number;
+interface HistoryEntry {
+  id: number;
+  file_name: string;
+  timestamp: number; // seconds since epoch (UTC)
+  saved: boolean;
+  title: string;
+  transcription_text: string;
+  post_processed_text?: string | null;
+  post_process_prompt?: string | null;
+  duration_ms?: number | null;
+  char_count?: number | null;
+  corrected_char_count?: number | null;
+  transcription_ms?: number | null;
+  language?: string | null;
+  asr_model?: string | null;
+  app_name?: string | null;
+  window_title?: string | null;
+  deleted: boolean;
 }
 
 const formatDurationMs = (durationMs: number) => {
@@ -47,81 +53,152 @@ const toLocalYmd = (date: Date) => {
   return `${y}-${m}-${d}`;
 };
 
-const MetricRow: React.FC<{ label: string; value: React.ReactNode }> = ({
-  label,
-  value,
-}) => (
-  <Flex justify="between" gap="4">
-    <Text size="2" color="gray">
-      {label}
-    </Text>
-    <Text size="2" weight="medium">
-      {value}
-    </Text>
-  </Flex>
-);
+const countUnicodeChars = (text: string) => Array.from(text).length;
 
-const StatsCard: React.FC<{
-  title: string;
-  totals: HistoryTotals;
-  labels: {
-    entries: string;
-    duration: string;
-    characters: string;
-    saved: string;
-    postProcessed: string;
-  };
-  numberFormat: Intl.NumberFormat;
-}> = ({ title, totals, labels, numberFormat }) => {
+type DashboardSelection =
+  | { type: "preset"; preset: "7d" | "30d" | "all" }
+  | { type: "day"; day: string };
+
+const formatEntryTime = (timestampSeconds: number) => {
+  const date = new Date(timestampSeconds * 1000);
+  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const fullDate = date.toLocaleDateString();
+  return { time, fullDate };
+};
+
+const DashboardEntryCard: React.FC<{
+  entry: HistoryEntry;
+  getAudioUrl: (fileName: string) => Promise<string | null>;
+}> = ({ entry, getAudioUrl }) => {
+  const { t } = useTranslation();
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioMissing, setAudioMissing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"improved" | "original">("improved");
+  const [shouldLoadAudio, setShouldLoadAudio] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!cardRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setShouldLoadAudio(true);
+        observer.disconnect();
+      },
+      { root: null, rootMargin: "200px", threshold: 0.01 },
+    );
+
+    observer.observe(cardRef.current);
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadAudio = async () => {
+      if (!shouldLoadAudio) return;
+      setAudioMissing(false);
+      const url = await getAudioUrl(entry.file_name);
+      if (cancelled) return;
+      setAudioUrl(url);
+      setAudioMissing(!url);
+    };
+    loadAudio();
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.file_name, getAudioUrl, shouldLoadAudio]);
+
+  const hasImprovement = !!entry.post_processed_text?.trim();
+
   return (
-    <Card>
-      <Flex direction="column" gap="3">
-        <Text size="2" color="gray">
-          {title}
-        </Text>
-        <Heading size="6">{numberFormat.format(totals.entries)}</Heading>
-        <Flex direction="column" gap="2">
-          <MetricRow
-            label={labels.duration}
-            value={formatDurationMs(totals.duration_ms)}
-          />
-          <MetricRow
-            label={labels.characters}
-            value={numberFormat.format(totals.char_count)}
-          />
-          <MetricRow
-            label={labels.saved}
-            value={numberFormat.format(totals.saved_entries)}
-          />
-          <MetricRow
-            label={labels.postProcessed}
-            value={numberFormat.format(totals.post_processed_entries)}
-          />
-        </Flex>
+    <Box
+      ref={cardRef}
+      className="bg-background/40 backdrop-blur-md border border-white/10 rounded-xl shadow-sm overflow-hidden"
+    >
+      <Flex direction="column" className="p-4">
+        {hasImprovement ? (
+          <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs.List size="1" className="mb-3">
+              <Tabs.Trigger value="improved">
+                {t("settings.history.content.improved")}
+              </Tabs.Trigger>
+              <Tabs.Trigger value="original">
+                {t("settings.history.content.original")}
+              </Tabs.Trigger>
+            </Tabs.List>
+            <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
+              <Tabs.Content value="improved">
+                <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
+                  {entry.post_processed_text}
+                </Text>
+              </Tabs.Content>
+              <Tabs.Content value="original">
+                <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
+                  {entry.transcription_text}
+                </Text>
+              </Tabs.Content>
+            </Box>
+          </Tabs.Root>
+        ) : (
+          <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
+            <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
+              {entry.transcription_text}
+            </Text>
+          </Box>
+        )}
+
+        {audioUrl && (
+          <Box className="pt-3 border-t border-white/5">
+            <AudioPlayer
+              src={audioUrl}
+              className="w-full"
+              onError={() => {
+                setAudioUrl(null);
+                setAudioMissing(true);
+              }}
+            />
+          </Box>
+        )}
+        {!audioUrl && audioMissing && (
+          <Box className="pt-3 border-t border-white/5">
+            <Text size="2" color="gray">
+              {t("dashboard.details.audioRemoved")}
+            </Text>
+          </Box>
+        )}
       </Flex>
-    </Card>
+    </Box>
   );
 };
 
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
-  const [stats, setStats] = useState<HistoryDashboardStats | null>(null);
+  const DETAIL_PAGE_SIZE = 10;
+  const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selection, setSelection] = useState<DashboardSelection>(() => ({
+    type: "day",
+    day: toLocalYmd(new Date()),
+  }));
+  const [detailCount, setDetailCount] = useState(DETAIL_PAGE_SIZE);
+  const detailsSentinelRef = useRef<HTMLDivElement | null>(null);
+  const audioUrlCacheRef = useRef<Map<string, string | null>>(new Map());
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(), []);
+  const todayYmd = useMemo(() => toLocalYmd(new Date()), []);
 
   useEffect(() => {
     let cancelled = false;
     const load = async (setBusy = true) => {
       try {
         if (setBusy) setLoading(true);
-        const res = await invoke<HistoryDashboardStats>(
-          "get_history_dashboard_stats",
-          { days: 30 },
-        );
-        if (!cancelled) setStats(res);
+        const res = await invoke<HistoryEntry[]>("get_history_entries");
+        if (!cancelled) setEntries(res);
       } catch (e) {
-        console.error("Failed to load dashboard stats:", e);
+        console.error("Failed to load history entries for dashboard:", e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -144,36 +221,189 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const labels = useMemo(
-    () => ({
-      entries: t("dashboard.metrics.entries"),
-      duration: t("dashboard.metrics.duration"),
-      characters: t("dashboard.metrics.characters"),
-      saved: t("dashboard.metrics.saved"),
-      postProcessed: t("dashboard.metrics.postProcessed"),
-    }),
-    [t],
-  );
-
-  const bars = useMemo(() => {
-    if (!stats) return [];
-    const daysToShow = Math.min(14, stats.recent_days);
-    const bucketsByDay = new Map(stats.recent_buckets.map((b) => [b.day, b]));
-
-    const days: { day: string; entries: number }[] = [];
-    for (let i = daysToShow - 1; i >= 0; i--) {
+  const last30Days = useMemo(() => {
+    const days: string[] = [];
+    for (let i = 29; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      const day = toLocalYmd(d);
-      days.push({ day, entries: bucketsByDay.get(day)?.entries ?? 0 });
+      days.push(toLocalYmd(d));
     }
+    return days;
+  }, []);
 
+  const bucketsByDay = useMemo(() => {
+    const map = new Map<string, { entries: number }>();
+    for (const entry of entries) {
+      const day = toLocalYmd(new Date(entry.timestamp * 1000));
+      const bucket = map.get(day) ?? { entries: 0 };
+      bucket.entries += 1;
+      map.set(day, bucket);
+    }
+    return map;
+  }, [entries]);
+
+  const selectedDays = useMemo(() => {
+    if (selection.type === "day") return new Set([selection.day]);
+    if (selection.preset === "30d" || selection.preset === "all") {
+      return new Set(last30Days);
+    }
+    return new Set(last30Days.slice(-7));
+  }, [last30Days, selection]);
+
+  const bars = useMemo(() => {
+    const days = last30Days.map((day) => ({
+      day,
+      entries: bucketsByDay.get(day)?.entries ?? 0,
+    }));
     const max = Math.max(1, ...days.map((d) => d.entries));
     return days.map((d) => ({
       ...d,
       heightPct: Math.round((d.entries / max) * 100),
+      selected: selectedDays.has(d.day),
+      isToday: d.day === todayYmd,
     }));
-  }, [stats]);
+  }, [bucketsByDay, last30Days, selectedDays, todayYmd]);
+
+  const selectionTitle = useMemo(() => {
+    if (selection.type === "day") {
+      if (selection.day === todayYmd) return t("dashboard.range.today");
+      return selection.day;
+    }
+    if (selection.preset === "7d") return t("dashboard.range.lastNDays", { days: 7 });
+    if (selection.preset === "30d")
+      return t("dashboard.range.lastNDays", { days: 30 });
+    return t("dashboard.range.allTime");
+  }, [selection, t, todayYmd]);
+
+  useEffect(() => {
+    setDetailCount(DETAIL_PAGE_SIZE);
+  }, [selectionTitle]);
+
+  const selectedEntries = useMemo(() => {
+    if (selection.type === "preset" && selection.preset === "all") return entries;
+    const getDay = (entry: HistoryEntry) =>
+      toLocalYmd(new Date(entry.timestamp * 1000));
+    if (selection.type === "day") {
+      return entries.filter((e) => getDay(e) === selection.day);
+    }
+    return entries.filter((e) => selectedDays.has(getDay(e)));
+  }, [entries, selectedDays, selection]);
+
+  const selectedDayTotals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const entry of selectedEntries) {
+      const day = toLocalYmd(new Date(entry.timestamp * 1000));
+      map.set(day, (map.get(day) ?? 0) + 1);
+    }
+    return map;
+  }, [selectedEntries]);
+
+  useEffect(() => {
+    if (!detailsSentinelRef.current) return;
+
+    const sentinel = detailsSentinelRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting) return;
+        setDetailCount((current) => {
+          if (current >= selectedEntries.length) return current;
+          return Math.min(current + DETAIL_PAGE_SIZE, selectedEntries.length);
+        });
+      },
+      { root: null, rootMargin: "200px", threshold: 0.01 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [selectedEntries.length]);
+
+  const summary = useMemo(() => {
+    let entryCount = 0;
+    let durationMs = 0;
+    let charCount = 0;
+    let transcriptionMs = 0;
+    let savedCount = 0;
+    let llmCalls = 0;
+    let llmHits = 0;
+    const appCounts = new Map<string, number>();
+
+    for (const entry of selectedEntries) {
+      entryCount += 1;
+      durationMs += entry.duration_ms ?? 0;
+      transcriptionMs += entry.transcription_ms ?? 0;
+
+      if (entry.saved) savedCount += 1;
+      if (entry.post_process_prompt?.trim()) llmCalls += 1;
+      if (entry.post_processed_text?.trim()) llmHits += 1;
+
+      const appName = entry.app_name?.trim();
+      if (appName) {
+        appCounts.set(appName, (appCounts.get(appName) ?? 0) + 1);
+      }
+
+      if (typeof entry.char_count === "number") {
+        charCount += entry.char_count;
+      } else if (entry.transcription_text) {
+        charCount += countUnicodeChars(entry.transcription_text);
+      }
+    }
+
+    const rtf = durationMs > 0 ? transcriptionMs / durationMs : 0;
+    const llmHitRate = llmCalls > 0 ? llmHits / llmCalls : 0;
+    const charsPerMinute =
+      durationMs > 0 ? (charCount / durationMs) * 60_000 : 0;
+    const topApps = Array.from(appCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    return {
+      entryCount,
+      durationMs,
+      charCount,
+      transcriptionMs,
+      rtf,
+      savedCount,
+      llmCalls,
+      llmHits,
+      llmHitRate,
+      charsPerMinute,
+      topApps,
+    };
+  }, [selectedEntries]);
+
+  const getAudioUrl = useCallback(async (fileName: string) => {
+    try {
+      if (audioUrlCacheRef.current.has(fileName)) {
+        return audioUrlCacheRef.current.get(fileName) ?? null;
+      }
+      const filePath = await invoke<string>("get_audio_file_path", {
+        fileName,
+        file_name: fileName,
+      });
+      const url = convertFileSrc(`${filePath}`, "asset");
+      audioUrlCacheRef.current.set(fileName, url);
+      return url;
+    } catch (error) {
+      console.error("Failed to get audio file path:", error);
+      return null;
+    }
+  }, []);
+
+  const detailEntries = useMemo(
+    () => selectedEntries.slice(0, detailCount),
+    [detailCount, selectedEntries],
+  );
+
+  const detailGroups = useMemo(() => {
+    const map = new Map<string, HistoryEntry[]>();
+    for (const entry of detailEntries) {
+      const day = toLocalYmd(new Date(entry.timestamp * 1000));
+      const group = map.get(day) ?? [];
+      group.push(entry);
+      map.set(day, group);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a));
+  }, [detailEntries]);
 
   return (
     <Flex direction="column" className="w-full max-w-5xl mx-auto" gap="4">
@@ -189,91 +419,271 @@ export const Dashboard: React.FC = () => {
         </Button>
       </Flex>
 
-      <Grid columns={{ initial: "1", sm: "3" }} gap="4">
-        <StatsCard
-          title={t("dashboard.cards.today")}
-          totals={
-            stats?.today ?? {
-              entries: 0,
-              saved_entries: 0,
-              post_processed_entries: 0,
-              duration_ms: 0,
-              char_count: 0,
-              corrected_char_count: 0,
-            }
-          }
-          labels={labels}
-          numberFormat={numberFormat}
-        />
-        <StatsCard
-          title={t("dashboard.cards.recent", { days: stats?.recent_days ?? 30 })}
-          totals={
-            stats?.recent ?? {
-              entries: 0,
-              saved_entries: 0,
-              post_processed_entries: 0,
-              duration_ms: 0,
-              char_count: 0,
-              corrected_char_count: 0,
-            }
-          }
-          labels={labels}
-          numberFormat={numberFormat}
-        />
-        <StatsCard
-          title={t("dashboard.cards.allTime")}
-          totals={
-            stats?.all_time ?? {
-              entries: 0,
-              saved_entries: 0,
-              post_processed_entries: 0,
-              duration_ms: 0,
-              char_count: 0,
-              corrected_char_count: 0,
-            }
-          }
-          labels={labels}
-          numberFormat={numberFormat}
-        />
+      <Grid columns={{ initial: "1", sm: "4" }} gap="4">
+        <Card className="sm:col-span-3">
+          <Flex direction="column" gap="3">
+            <Flex justify="between" align="baseline">
+              <Text size="2" color="gray">
+                {t("dashboard.activity.title")}
+              </Text>
+              <Text size="2" color="gray">
+                {t("dashboard.activity.subtitle")}
+              </Text>
+            </Flex>
+
+            <Flex gap="2" align="end" className="h-20">
+              {bars.map((b) => (
+                <button
+                  key={b.day}
+                  type="button"
+                  className="flex-1 rounded-sm transition-colors transition-transform hover:-translate-y-0.5"
+                  style={{
+                    height: `${Math.max(4, b.heightPct)}%`,
+                    backgroundColor: b.selected
+                      ? "var(--accent-9)"
+                      : "var(--gray-a6)",
+                    opacity: b.entries === 0 ? 0.2 : 0.9,
+                    cursor: "pointer",
+                    transform: b.isToday ? "translateY(-2px)" : undefined,
+                    boxShadow: b.isToday ? "0 6px 16px rgba(0,0,0,0.08)" : undefined,
+                  }}
+                  title={`${b.day}: ${b.entries}`}
+                  onClick={() => setSelection({ type: "day", day: b.day })}
+                />
+              ))}
+            </Flex>
+
+            <Flex justify="between">
+              <Text size="1" color="gray">
+                {bars[0]?.day ?? ""}
+              </Text>
+              <Text size="1" color="gray">
+                {bars[bars.length - 1]?.day ?? ""}
+              </Text>
+            </Flex>
+          </Flex>
+        </Card>
+
+        <Card>
+          <Flex direction="column" gap="2">
+            <Button
+              variant={
+                selection.type === "preset" && selection.preset === "7d"
+                  ? "solid"
+                  : "soft"
+              }
+              onClick={() => setSelection({ type: "preset", preset: "7d" })}
+              disabled={loading}
+            >
+              {t("dashboard.range.buttons.last7Days")}
+            </Button>
+            <Button
+              variant={
+                selection.type === "preset" && selection.preset === "30d"
+                  ? "solid"
+                  : "soft"
+              }
+              onClick={() => setSelection({ type: "preset", preset: "30d" })}
+              disabled={loading}
+            >
+              {t("dashboard.range.buttons.last30Days")}
+            </Button>
+            <Button
+              variant={
+                selection.type === "preset" && selection.preset === "all"
+                  ? "solid"
+                  : "soft"
+              }
+              onClick={() => setSelection({ type: "preset", preset: "all" })}
+              disabled={loading}
+            >
+              {t("dashboard.range.buttons.allTime")}
+            </Button>
+          </Flex>
+        </Card>
+      </Grid>
+
+      <Box>
+        <Heading size="5">{selectionTitle}</Heading>
+      </Box>
+
+      <Grid columns={{ initial: "1", sm: "4" }} gap="4">
+        <Card>
+          <Flex direction="column" gap="3">
+            <Text size="2" color="gray">
+              {t("dashboard.summary.recording.title")}
+            </Text>
+            <Heading size="6">{formatDurationMs(summary.durationMs)}</Heading>
+            <Text size="2" color="gray">
+              {t("dashboard.summary.recording.count", {
+                count: summary.entryCount,
+              })}
+            </Text>
+          </Flex>
+        </Card>
+
+        <Card>
+          <Flex direction="column" gap="3">
+            <Text size="2" color="gray">
+              {t("dashboard.summary.transcription.title")}
+            </Text>
+            <Heading size="6">{numberFormat.format(summary.charCount)}</Heading>
+            <Text size="2" color="gray">
+              {t("dashboard.summary.transcription.speed", {
+                rate: Math.round(summary.charsPerMinute),
+              })}
+            </Text>
+          </Flex>
+        </Card>
+
+        <Card>
+          <Flex direction="column" gap="3">
+            <Text size="2" color="gray">
+              {t("dashboard.summary.llm.title")}
+            </Text>
+            <Heading size="6">{numberFormat.format(summary.llmCalls)}</Heading>
+            <Flex direction="column" gap="1">
+              <Text size="2" color="gray">
+                {t("dashboard.summary.llm.details", {
+                  hitRate: `${(summary.llmHitRate * 100).toFixed(1)}%`,
+                })}
+              </Text>
+            </Flex>
+          </Flex>
+        </Card>
+
+        <Card>
+          <Flex direction="column" gap="3">
+            <Text size="2" color="gray">
+              {t("dashboard.summary.apps.title")}
+            </Text>
+            <Flex direction="column" gap="1">
+              {summary.topApps.length === 0 ? (
+                <Text size="2" color="gray">
+                  {t("dashboard.summary.apps.empty")}
+                </Text>
+              ) : (
+                summary.topApps.map(([app, count]) => (
+                  <Text key={app} size="2">
+                    {app} · {numberFormat.format(count)}
+                  </Text>
+                ))
+              )}
+            </Flex>
+          </Flex>
+        </Card>
       </Grid>
 
       <Card>
         <Flex direction="column" gap="3">
-          <Flex justify="between" align="baseline">
+          <Flex justify="between" align="center">
             <Text size="2" color="gray">
-              {t("dashboard.activity.title")}
+              {t("dashboard.details.title")}
             </Text>
             <Text size="2" color="gray">
-              {t("dashboard.activity.subtitle")}
+              {t("dashboard.details.count", {
+                count: selectedEntries.length,
+              })}
             </Text>
           </Flex>
 
-          <Flex gap="2" align="end" className="h-16">
-            {bars.map((b) => (
-              <Box
-                key={b.day}
-                className="flex-1 rounded-sm"
-                style={{
-                  height: `${b.heightPct}%`,
-                  backgroundColor: "var(--accent-9)",
-                  opacity: b.entries === 0 ? 0.2 : 0.9,
-                }}
-                title={`${b.day}: ${b.entries}`}
-              />
-            ))}
-          </Flex>
+          <Box className="relative pb-2">
+            {detailGroups.length === 0 ? (
+              <Text size="2" color="gray">
+                {t("dashboard.details.empty")}
+              </Text>
+            ) : (
+              detailGroups.map(([day, dayEntries]) => (
+                <Box key={day} className="relative pt-4">
+                  <Box className="bg-mid-gray/5 border border-mid-gray/10 rounded-md px-3 py-2">
+                    <Flex justify="between" align="center">
+                      <Text size="2" weight="bold" className="text-logo-primary">
+                        {day}
+                      </Text>
+                      <Text size="2" color="gray">
+                        {numberFormat.format(selectedDayTotals.get(day) ?? dayEntries.length)}
+                      </Text>
+                    </Flex>
+                  </Box>
 
-          <Flex justify="between">
-            <Text size="1" color="gray">
-              {bars[0]?.day ?? ""}
-            </Text>
-            <Text size="1" color="gray">
-              {bars[bars.length - 1]?.day ?? ""}
-            </Text>
-          </Flex>
+                  <Box className="pt-3 space-y-3">
+                    {dayEntries.map((entry, idx) => {
+                      const timeInfo = formatEntryTime(entry.timestamp);
+                      const appName = entry.app_name?.trim();
+                      const metaParts: string[] = [];
+                      if (typeof entry.duration_ms === "number" && entry.duration_ms > 0) {
+                        metaParts.push(formatDurationMs(entry.duration_ms));
+                      }
+                      if (typeof entry.char_count === "number" && entry.char_count > 0) {
+                        metaParts.push(
+                          t("dashboard.details.meta.chars", {
+                            value: numberFormat.format(entry.char_count),
+                          }),
+                        );
+                      }
+                      const meta = metaParts.join(" · ");
+
+                      const isLastGroup = day === detailGroups[detailGroups.length - 1]?.[0];
+                      const isLastEntry = isLastGroup && idx === dayEntries.length - 1;
+
+                      return (
+                        <Flex key={entry.id} gap="3" className="relative">
+                          <Box className="relative w-4 flex-shrink-0">
+                            <Box
+                              className={`absolute left-1/2 -translate-x-1/2 w-[2px] bg-mid-gray/20 ${
+                                isLastEntry ? "top-2 bottom-2" : "top-2 -bottom-3"
+                              }`}
+                            />
+                            <Box className="relative mt-2 w-2 h-2 rounded-full bg-logo-primary/60 border-2 border-background mx-auto" />
+                          </Box>
+
+                          <Box className="flex-1">
+                            <Flex justify="between" align="center" className="px-1 pb-2">
+                              <Flex gap="2" align="center" className="flex-wrap">
+                                <Text size="1" color="gray">
+                                  {timeInfo.time}
+                                </Text>
+                                {appName ? (
+                                  <Text size="1" color="gray">
+                                    {appName}
+                                  </Text>
+                                ) : null}
+                                {meta ? (
+                                  <Text size="1" color="gray">
+                                    {meta}
+                                  </Text>
+                                ) : null}
+                              </Flex>
+                            </Flex>
+
+                            <DashboardEntryCard entry={entry} getAudioUrl={getAudioUrl} />
+                          </Box>
+                        </Flex>
+                      );
+                    })}
+                  </Box>
+                </Box>
+              ))
+            )}
+            <div ref={detailsSentinelRef} className="h-1 w-full" />
+          </Box>
+
+          {detailCount < selectedEntries.length && (
+            <Flex justify="center">
+              <Button
+                variant="soft"
+                onClick={() =>
+                  setDetailCount((c) =>
+                    Math.min(c + DETAIL_PAGE_SIZE, selectedEntries.length),
+                  )
+                }
+              >
+                {t("dashboard.details.loadMore")}
+              </Button>
+            </Flex>
+          )}
         </Flex>
       </Card>
     </Flex>
   );
 };
-

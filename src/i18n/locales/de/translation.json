@@ -23,8 +23,48 @@
       "postProcessed": "Nachbearbeitet"
     },
     "activity": {
-      "title": "Aktivität",
-      "subtitle": "Letzte 14 Tage"
+      "title": "Nutzung",
+      "subtitle": "Letzte 30 Tage"
+    },
+    "range": {
+      "lastNDays": "Letzte {{days}} Tage",
+      "allTime": "Insgesamt",
+      "today": "Heute",
+      "buttons": {
+        "last7Days": "Letzte 7 Tage",
+        "last30Days": "Letzte 30 Tage",
+        "allTime": "Insgesamt"
+      }
+    },
+    "summary": {
+      "recording": {
+        "title": "Gesamte Spracheingabe",
+        "count": "{{count}} Transkriptionen"
+      },
+      "transcription": {
+        "title": "Erzeugter Text",
+        "speed": "Durchschnitt {{rate}}/Min"
+      },
+      "llm": {
+        "title": "LLM-Nutzung",
+        "details": "Trefferquote: {{hitRate}}",
+        "unknownApp": "Unbekannt"
+      },
+      "apps": {
+        "title": "Top 3 meistgenutzte Apps",
+        "top3": "Top 3",
+        "empty": "Keine App-Daten"
+      }
+    },
+    "details": {
+      "title": "Verlauf",
+      "count": "{{count}} Einträge",
+      "meta": {
+        "chars": "{{value}} Zeichen"
+      },
+      "audioRemoved": "Aufnahme entfernt",
+      "empty": "Keine Daten",
+      "loadMore": "Mehr laden"
     },
     "actions": {
       "openRecordings": "Aufnahmen"

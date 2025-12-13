@@ -24,8 +24,48 @@
       "postProcessed": "後処理済み"
     },
     "activity": {
-      "title": "アクティビティ",
-      "subtitle": "直近 14 日"
+      "title": "利用状況",
+      "subtitle": "直近 30 日"
+    },
+    "range": {
+      "lastNDays": "直近{{days}}日",
+      "allTime": "全期間",
+      "today": "今日",
+      "buttons": {
+        "last7Days": "直近7日",
+        "last30Days": "直近30日",
+        "allTime": "全期間"
+      }
+    },
+    "summary": {
+      "recording": {
+        "title": "音声入力の累計",
+        "count": "{{count}} 回の文字起こし"
+      },
+      "transcription": {
+        "title": "生成テキスト",
+        "speed": "平均 {{rate}}/分"
+      },
+      "llm": {
+        "title": "LLM 利用状況",
+        "details": "命中率: {{hitRate}}",
+        "unknownApp": "不明"
+      },
+      "apps": {
+        "title": "最も使用したアプリ Top 3",
+        "top3": "Top 3",
+        "empty": "アプリ情報なし"
+      }
+    },
+    "details": {
+      "title": "履歴",
+      "count": "{{count}} 件",
+      "meta": {
+        "chars": "{{value}} 文字"
+      },
+      "audioRemoved": "録音は削除されました",
+      "empty": "データがありません",
+      "loadMore": "さらに読み込む"
     },
     "actions": {
       "openRecordings": "録音"

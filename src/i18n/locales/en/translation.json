@@ -26,8 +26,48 @@
       "postProcessed": "Post processed"
     },
     "activity": {
-      "title": "Activity",
-      "subtitle": "Last 14 days"
+      "title": "Usage",
+      "subtitle": "Last 30 days"
+    },
+    "range": {
+      "lastNDays": "Last {{days}} days",
+      "allTime": "All time",
+      "today": "Today",
+      "buttons": {
+        "last7Days": "Last 7 days",
+        "last30Days": "Last 30 days",
+        "allTime": "All time"
+      }
+    },
+    "summary": {
+      "recording": {
+        "title": "Total voice input",
+        "count": "{{count}} transcriptions"
+      },
+      "transcription": {
+        "title": "Generated text",
+        "speed": "Average {{rate}}/min"
+      },
+      "llm": {
+        "title": "LLM usage",
+        "details": "Hit rate: {{hitRate}}",
+        "unknownApp": "Unknown"
+      },
+      "apps": {
+        "title": "Top 3 most used apps",
+        "top3": "Top 3",
+        "empty": "No app data"
+      }
+    },
+    "details": {
+      "title": "History",
+      "count": "{{count}} entries",
+      "meta": {
+        "chars": "{{value}} chars"
+      },
+      "audioRemoved": "Recording removed",
+      "empty": "No data",
+      "loadMore": "Load more"
     },
     "actions": {
       "openRecordings": "Recordings"

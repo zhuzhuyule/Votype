@@ -4,7 +4,6 @@ export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { Dashboard } from "./dashboard/Dashboard";
 export { DebugSettings } from "./debug/DebugSettings";
 export { GeneralSettings } from "./general/GeneralSettings";
-export { HistorySettings } from "./history/HistorySettings";
 export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";
 export { PromptsConfiguration } from "./post-processing/PromptsConfiguration";

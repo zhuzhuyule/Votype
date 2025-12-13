@@ -24,8 +24,48 @@
       "postProcessed": "Post-traitées"
     },
     "activity": {
-      "title": "Activité",
-      "subtitle": "14 derniers jours"
+      "title": "Utilisation",
+      "subtitle": "30 derniers jours"
+    },
+    "range": {
+      "lastNDays": "{{days}} derniers jours",
+      "allTime": "Depuis le début",
+      "today": "Aujourd'hui",
+      "buttons": {
+        "last7Days": "7 derniers jours",
+        "last30Days": "30 derniers jours",
+        "allTime": "Depuis le début"
+      }
+    },
+    "summary": {
+      "recording": {
+        "title": "Saisie vocale totale",
+        "count": "{{count}} transcriptions"
+      },
+      "transcription": {
+        "title": "Texte généré",
+        "speed": "Moyenne {{rate}}/min"
+      },
+      "llm": {
+        "title": "Consommation LLM",
+        "details": "Taux de réussite : {{hitRate}}",
+        "unknownApp": "Inconnue"
+      },
+      "apps": {
+        "title": "Top 3 applications les plus utilisées",
+        "top3": "Top 3",
+        "empty": "Aucune donnée d'app"
+      }
+    },
+    "details": {
+      "title": "Historique",
+      "count": "{{count}} entrées",
+      "meta": {
+        "chars": "{{value}} caractères"
+      },
+      "audioRemoved": "Enregistrement supprimé",
+      "empty": "Aucune donnée",
+      "loadMore": "Charger plus"
     },
     "actions": {
       "openRecordings": "Enregistrements"

@@ -5,11 +5,13 @@ import { IconPlayerPlay, IconPlayerPause } from "@tabler/icons-react";
 interface AudioPlayerProps {
   src: string;
   className?: string;
+  onError?: () => void;
 }
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   src,
   className = "",
+  onError,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -78,19 +80,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
+    const handleError = () => {
+      setIsPlaying(false);
+      onError?.();
+    };
 
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("play", handlePlay);
     audio.addEventListener("pause", handlePause);
+    audio.addEventListener("error", handleError);
 
     return () => {
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("error", handleError);
     };
-  }, []);
+  }, [onError]);
 
   const togglePlay = async () => {
     const audio = audioRef.current;

@@ -24,8 +24,48 @@
       "postProcessed": "Đã xử lý sau"
     },
     "activity": {
-      "title": "Hoạt động",
-      "subtitle": "14 ngày gần đây"
+      "title": "Sử dụng",
+      "subtitle": "30 ngày gần đây"
+    },
+    "range": {
+      "lastNDays": "{{days}} ngày qua",
+      "allTime": "Tất cả",
+      "today": "Hôm nay",
+      "buttons": {
+        "last7Days": "7 ngày qua",
+        "last30Days": "30 ngày qua",
+        "allTime": "Tất cả"
+      }
+    },
+    "summary": {
+      "recording": {
+        "title": "Tổng nhập giọng nói",
+        "count": "{{count}} lần chuyển đổi"
+      },
+      "transcription": {
+        "title": "Văn bản tạo ra",
+        "speed": "Trung bình {{rate}}/phút"
+      },
+      "llm": {
+        "title": "Mức dùng LLM",
+        "details": "Tỷ lệ trúng: {{hitRate}}",
+        "unknownApp": "Không rõ"
+      },
+      "apps": {
+        "title": "Top 3 ứng dụng dùng nhiều nhất",
+        "top3": "Top 3",
+        "empty": "Không có dữ liệu ứng dụng"
+      }
+    },
+    "details": {
+      "title": "Lịch sử",
+      "count": "{{count}} mục",
+      "meta": {
+        "chars": "{{value}} ký tự"
+      },
+      "audioRemoved": "Bản ghi đã bị xóa",
+      "empty": "Không có dữ liệu",
+      "loadMore": "Tải thêm"
     },
     "actions": {
       "openRecordings": "Bản ghi âm"

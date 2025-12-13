@@ -3,7 +3,6 @@ import {
   IconAdjustments,
   IconBrain,
   IconBug,
-  IconHistory,
   IconInfoSquare,
   IconKeyboard,
   IconLayoutDashboard,
@@ -20,7 +19,6 @@ import {
   Dashboard,
   DebugSettings,
   GeneralSettings,
-  HistorySettings,
   ModelsConfiguration,
   PromptsConfiguration,
   ShortcutsSettings,
@@ -48,12 +46,6 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.dashboard",
     icon: IconLayoutDashboard,
     component: Dashboard,
-    enabled: () => true,
-  },
-  history: {
-    labelKey: "sidebar.history",
-    icon: IconHistory,
-    component: HistorySettings,
     enabled: () => true,
   },
   general: {
