@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tar::Archive;
@@ -67,6 +68,42 @@ pub struct ModelInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+struct UserModelEntry {
+    id: String,
+    name: String,
+    description: String,
+    filename: String,
+    url: String,
+    size_mb: u64,
+    is_directory: bool,
+    engine_type: EngineType,
+    sherpa: Option<SherpaOnnxModelSpec>,
+    accuracy_score: f32,
+    speed_score: f32,
+}
+
+impl UserModelEntry {
+    fn into_model_info(self) -> ModelInfo {
+        ModelInfo {
+            id: self.id,
+            name: self.name,
+            description: self.description,
+            filename: self.filename,
+            url: Some(self.url),
+            size_mb: self.size_mb,
+            is_downloaded: false,
+            is_downloading: false,
+            partial_size: 0,
+            is_directory: self.is_directory,
+            engine_type: self.engine_type,
+            sherpa: self.sherpa,
+            accuracy_score: self.accuracy_score,
+            speed_score: self.speed_score,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadProgress {
     pub model_id: String,
     pub downloaded: u64,
@@ -77,10 +114,101 @@ pub struct DownloadProgress {
 pub struct ModelManager {
     app_handle: AppHandle,
     models_dir: PathBuf,
+    user_catalog_path: PathBuf,
     available_models: Mutex<HashMap<String, ModelInfo>>,
 }
 
 impl ModelManager {
+    fn read_user_catalog(path: &Path) -> Result<Vec<UserModelEntry>> {
+        if !path.exists() {
+            return Ok(Vec::new());
+        }
+        let data = fs::read_to_string(path)?;
+        if data.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        Ok(serde_json::from_str::<Vec<UserModelEntry>>(&data)?)
+    }
+
+    fn write_user_catalog(path: &Path, entries: &[UserModelEntry]) -> Result<()> {
+        let json = serde_json::to_string_pretty(entries)?;
+        fs::write(path, json)?;
+        Ok(())
+    }
+
+    fn filename_from_url(url: &str) -> Result<String> {
+        let without_query = url.split('?').next().unwrap_or(url);
+        let filename = without_query
+            .split('/')
+            .filter(|s| !s.is_empty())
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("URL missing filename"))?;
+        Ok(filename.to_string())
+    }
+
+    fn strip_archive_extensions(name: &str) -> String {
+        let mut s = name.to_string();
+        for ext in [".tar.bz2", ".tar.gz", ".tgz"] {
+            if s.ends_with(ext) {
+                s.truncate(s.len() - ext.len());
+                return s;
+            }
+        }
+        s
+    }
+
+    fn strip_known_prefixes(name: &str) -> String {
+        let s = name.trim();
+        let s = s.strip_prefix("sherpa-onnx-").unwrap_or(s);
+        s.to_string()
+    }
+
+    fn infer_sherpa_spec_from_name(name: &str) -> Option<SherpaOnnxModelSpec> {
+        let lower = name.to_lowercase();
+        let prefer_int8 = lower.contains("int8");
+        let mode = if lower.contains("streaming") {
+            SherpaOnnxAsrMode::Streaming
+        } else {
+            SherpaOnnxAsrMode::Offline
+        };
+        let family = if lower.contains("sense-voice") {
+            SherpaOnnxAsrFamily::SenseVoice
+        } else if lower.contains("fire-red-asr") {
+            SherpaOnnxAsrFamily::FireRedAsr
+        } else if lower.contains("paraformer") {
+            SherpaOnnxAsrFamily::Paraformer
+        } else {
+            SherpaOnnxAsrFamily::Transducer
+        };
+        Some(SherpaOnnxModelSpec {
+            mode,
+            family,
+            prefer_int8,
+        })
+    }
+
+    fn infer_engine_type_from_name(name: &str) -> EngineType {
+        let lower = name.to_lowercase();
+        if lower.contains("punct") || lower.contains("punctuation") {
+            EngineType::SherpaOnnxPunctuation
+        } else {
+            EngineType::SherpaOnnx
+        }
+    }
+
+    fn unique_model_id(models: &HashMap<String, ModelInfo>, preferred: &str) -> Result<String> {
+        if !models.contains_key(preferred) {
+            return Ok(preferred.to_string());
+        }
+        for i in 2..=9999u32 {
+            let candidate = format!("{}-{}", preferred, i);
+            if !models.contains_key(&candidate) {
+                return Ok(candidate);
+            }
+        }
+        Err(anyhow::anyhow!("Unable to allocate a unique model id"))
+    }
+
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create models directory in app data
         let models_dir = app_handle
@@ -92,6 +220,8 @@ impl ModelManager {
         if !models_dir.exists() {
             fs::create_dir_all(&models_dir)?;
         }
+
+        let user_catalog_path = models_dir.join("catalog.user.json");
 
         let mut available_models = HashMap::new();
 
@@ -557,9 +687,18 @@ impl ModelManager {
             },
         );
 
+        // Merge user-provided catalog entries.
+        if let Ok(user_entries) = Self::read_user_catalog(&user_catalog_path) {
+            for entry in user_entries {
+                let model = entry.into_model_info();
+                available_models.entry(model.id.clone()).or_insert(model);
+            }
+        }
+
         let manager = Self {
             app_handle: app_handle.clone(),
             models_dir,
+            user_catalog_path,
             available_models: Mutex::new(available_models),
         };
 
@@ -573,6 +712,59 @@ impl ModelManager {
         manager.auto_select_model_if_needed()?;
 
         Ok(manager)
+    }
+
+    pub fn add_model_from_url(&self, url: String) -> Result<String> {
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            return Err(anyhow::anyhow!("URL must start with http:// or https://"));
+        }
+
+        let archive_name = Self::filename_from_url(&url)?;
+        let base_name = Self::strip_archive_extensions(&archive_name);
+        let is_directory = archive_name.ends_with(".tar.gz")
+            || archive_name.ends_with(".tgz")
+            || archive_name.ends_with(".tar.bz2")
+            || archive_name.ends_with(".bz2");
+        let filename = if is_directory {
+            base_name.clone()
+        } else {
+            archive_name.clone()
+        };
+
+        let preferred_id = Self::strip_known_prefixes(&base_name);
+        let final_id = {
+            let models = self.available_models.lock().unwrap();
+            if models.contains_key(&preferred_id) {
+                return Ok(preferred_id);
+            }
+            Self::unique_model_id(&models, &preferred_id)?
+        };
+
+        let entry = UserModelEntry {
+            id: final_id.clone(),
+            name: preferred_id.replace('-', " "),
+            description: "modelSelector.userAddedModel".to_string(),
+            filename,
+            url: url.clone(),
+            size_mb: 0,
+            is_directory,
+            engine_type: Self::infer_engine_type_from_name(&base_name),
+            sherpa: Self::infer_sherpa_spec_from_name(&base_name),
+            accuracy_score: 0.8,
+            speed_score: 0.8,
+        };
+
+        let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
+        entries.push(entry.clone());
+        Self::write_user_catalog(&self.user_catalog_path, &entries)?;
+
+        {
+            let mut models = self.available_models.lock().unwrap();
+            models.insert(final_id.clone(), entry.into_model_info());
+        }
+        self.update_download_status()?;
+
+        Ok(final_id)
     }
 
     pub fn get_available_models(&self) -> Vec<ModelInfo> {
@@ -888,7 +1080,8 @@ impl ModelManager {
 
             // Open the downloaded archive file
             let archive_file = File::open(&partial_path)?;
-            let reader: Box<dyn Read> = if url.ends_with(".bz2") {
+            let url_path = url.split('?').next().unwrap_or(&url);
+            let reader: Box<dyn Read> = if url_path.ends_with(".bz2") {
                 Box::new(bzip2::read::BzDecoder::new(archive_file))
             } else {
                 // Default to gzip

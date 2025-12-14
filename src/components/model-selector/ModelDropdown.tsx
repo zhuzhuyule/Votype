@@ -6,6 +6,7 @@ import {
   IconCube,
   IconDeviceDesktop,
   IconDownload,
+  IconPlus,
   IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
@@ -42,6 +43,7 @@ interface ModelDropdownProps {
   selectedAsrModelId: string | null;
   onAsrModelSelect: (modelId: string) => void;
   onlineEnabled: boolean;
+  onAddModelFromUrl: () => void;
 }
 
 const ModelDropdown: React.FC<ModelDropdownProps> = ({
@@ -56,6 +58,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   selectedAsrModelId,
   onAsrModelSelect,
   onlineEnabled,
+  onAddModelFromUrl,
 }) => {
   const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -235,18 +238,31 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       )}
 
       <Box className="px-4 py-2 border-b border-mid-gray/10">
-        <TextField.Root
-          size="2"
-          placeholder={t("modelSelector.searchPlaceholder", {
-            defaultValue: "Search models…",
-          })}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        >
-          <TextField.Slot>
-            <IconSearch height="14" width="14" />
-          </TextField.Slot>
-        </TextField.Root>
+        <Flex gap="2" align="center">
+          <Box className="flex-1">
+            <TextField.Root
+              size="2"
+              placeholder={t("modelSelector.searchPlaceholder", {
+                defaultValue: "Search models…",
+              })}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            >
+              <TextField.Slot>
+                <IconSearch height="14" width="14" />
+              </TextField.Slot>
+            </TextField.Root>
+          </Box>
+          <IconButton
+            size="2"
+            variant="soft"
+            onClick={onAddModelFromUrl}
+            aria-label={t("modelSelector.addModelFromUrl")}
+            title={t("modelSelector.addModelFromUrl")}
+          >
+            <IconPlus height="16" width="16" />
+          </IconButton>
+        </Flex>
       </Box>
 
       <ScrollArea type="hover" scrollbars="vertical" className="max-h-[60vh]">

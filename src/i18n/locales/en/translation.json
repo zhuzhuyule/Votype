@@ -141,7 +141,10 @@
     "onlineAsr": "Online ASR",
     "onlineAsrModels": "Online ASR Models",
     "clickToEnableOnlineAsr": "Click to enable Online ASR",
-    "onlineAsrActive": "Online ASR active"
+    "onlineAsrActive": "Online ASR active",
+    "addModelFromUrl": "Add from URL",
+    "addModelFromUrlPrompt": "Paste a model download URL (e.g. .tar.bz2):",
+    "userAddedModel": "User-added model"
   },
   "models": {
     "sherpa-zipformer-zh-int8-2025-06-30": {

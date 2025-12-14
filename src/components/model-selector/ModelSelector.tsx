@@ -343,6 +343,25 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     }
   };
 
+  const handleAddModelFromUrl = async () => {
+    const url = window.prompt(t("modelSelector.addModelFromUrlPrompt"));
+    if (!url || !url.trim()) return;
+
+    try {
+      setModelError(null);
+      const modelId = await invoke<string>("add_model_from_url", {
+        url: url.trim(),
+      });
+      await loadModels();
+      await handleModelDownload(modelId);
+    } catch (err) {
+      const errorMsg = `${err}`;
+      setModelError(errorMsg);
+      setModelStatus("error");
+      onError?.(errorMsg);
+    }
+  };
+
   const getCurrentModel = () => {
     return models.find((m) => m.id === currentModelId);
   };
@@ -468,6 +487,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             selectedAsrModelId={settings?.selected_asr_model_id || null}
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
+            onAddModelFromUrl={handleAddModelFromUrl}
           />
         )}
       </div>

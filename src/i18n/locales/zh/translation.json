@@ -156,7 +156,10 @@
     "onlineAsr": "在线 ASR",
     "onlineAsrModels": "在线 ASR 模型",
     "clickToEnableOnlineAsr": "点击启用在线 ASR",
-    "onlineAsrActive": "在线 ASR 已启用"
+    "onlineAsrActive": "在线 ASR 已启用",
+    "addModelFromUrl": "从链接添加",
+    "addModelFromUrlPrompt": "粘贴模型下载链接（例如 .tar.bz2）：",
+    "userAddedModel": "用户添加的模型"
   },
   "models": {
     "sherpa-zipformer-zh-int8-2025-06-30": {

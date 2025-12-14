@@ -31,6 +31,16 @@ pub async fn download_model(
 }
 
 #[tauri::command]
+pub async fn add_model_from_url(
+    model_manager: State<'_, Arc<ModelManager>>,
+    url: String,
+) -> Result<String, String> {
+    model_manager
+        .add_model_from_url(url)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn delete_model(
     model_manager: State<'_, Arc<ModelManager>>,
     model_id: String,
