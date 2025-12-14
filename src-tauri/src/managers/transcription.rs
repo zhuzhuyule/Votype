@@ -25,7 +25,8 @@ use transcribe_rs::{
 use crate::sherpa::ffi_safe as sherpa_safe;
 use crate::sherpa::{find_sherpa_onnx, find_sherpa_tokens};
 
-mod sherpa_engine {
+#[cfg(any())]
+mod sherpa_engine_legacy {
     use super::*;
 
     pub(super) struct SherpaOnnxOnlineRecognizer {
@@ -645,6 +646,8 @@ mod sherpa_engine {
     }
 }
 
+mod sherpa_engine;
+
 use sherpa_engine::{
     SherpaOnnxOfflinePunctuation, SherpaOnnxOfflineRecognizer, SherpaOnnxOnlineRecognizer,
 };
@@ -920,7 +923,10 @@ impl TranscriptionManager {
                 LoadedEngine::Parakeet(engine)
             }
             EngineType::SherpaOnnx => {
-                let lower = model_info.filename.to_lowercase();
+                // Some catalog entries have generic filenames (e.g. `model.zip`), so infer
+                // Sherpa model family from multiple metadata fields.
+                let lower = format!("{} {} {}", model_id, model_info.filename, model_info.name)
+                    .to_lowercase();
                 let prefer_int8 = lower.contains("int8");
                 let is_streaming = lower.contains("streaming");
                 let is_paraformer = lower.contains("paraformer");
