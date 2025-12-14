@@ -173,6 +173,8 @@ const settingUpdaters: {
     invoke("change_punctuation_enabled_setting", { enabled: value }),
   punctuation_model: (value) =>
     invoke("change_punctuation_model_setting", { modelId: value }),
+  favorite_transcription_models: (value) =>
+    invoke("change_favorite_transcription_models_setting", { modelIds: value }),
   log_level: (value) => invoke("set_log_level", { level: value }),
   onboarding_completed: (value) =>
     invoke("change_onboarding_completed_setting", { completed: value }),

@@ -265,6 +265,8 @@ pub struct AppSettings {
     pub punctuation_enabled: bool,
     #[serde(default = "default_punctuation_model")]
     pub punctuation_model: String,
+    #[serde(default = "default_favorite_transcription_models")]
+    pub favorite_transcription_models: Vec<String>,
 }
 
 fn default_model() -> String {
@@ -432,6 +434,10 @@ fn default_punctuation_model() -> String {
     "punct-zh-en-ct-transformer-2024-04-12-int8".to_string()
 }
 
+fn default_favorite_transcription_models() -> Vec<String> {
+    Vec::new()
+}
+
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![LLMPrompt {
         id: "default_improve_transcriptions".to_string(),
@@ -558,6 +564,7 @@ pub fn get_default_settings() -> AppSettings {
         sense_voice_use_itn: default_sense_voice_use_itn(),
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
+        favorite_transcription_models: default_favorite_transcription_models(),
     }
 }
 

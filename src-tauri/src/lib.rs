@@ -416,6 +416,7 @@ pub fn run() {
             shortcut::change_append_trailing_space_setting,
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
+            shortcut::change_favorite_transcription_models_setting,
             trigger_update_check,
             commands::cancel_operation,
             commands::get_app_dir_path,

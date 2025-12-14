@@ -32,7 +32,7 @@ import {
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 
-type StatusFilter = "all" | "downloaded" | "favorites";
+type StatusFilter = "all" | "downloaded" | "favorites" | "recommended";
 
 type ModeKey = "streaming" | "offline" | "punctuation";
 
@@ -351,6 +351,8 @@ export const AsrModelsSettings: React.FC = () => {
         (m) =>
           m.engine_type !== "SherpaOnnxPunctuation" && favoriteSet.has(m.id),
       );
+    } else if (statusFilter === "recommended") {
+      list = list.filter((m) => RECOMMENDED_MODEL_IDS.has(m.id));
     }
 
     list = list.filter((m) => modeFilter.has(getModeKey(m)));
@@ -739,6 +741,10 @@ export const AsrModelsSettings: React.FC = () => {
                     ["all", t("settings.asrModels.filters.all")],
                     ["downloaded", t("settings.asrModels.filters.downloaded")],
                     ["favorites", t("settings.asrModels.filters.favorites")],
+                    [
+                      "recommended",
+                      t("settings.asrModels.filters.recommended"),
+                    ],
                   ] as const
                 ).map(([value, label]) => (
                   <Chip
