@@ -6,7 +6,9 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use serde::Serialize;
 use std::ffi::{CStr, CString};
+use std::fs;
 use std::mem;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -22,8 +24,102 @@ use transcribe_rs::{
     TranscriptionEngine,
 };
 
-struct SherpaStreamingZipformer {
+mod sherpa_safe {
+    use sherpa_rs_sys;
+    use std::os::raw::c_char;
+
+    extern "C" {
+        pub fn SafeSherpaOnnxCreateOnlineRecognizer(
+            config: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizerConfig,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer;
+        pub fn SafeSherpaOnnxDestroyOnlineRecognizer(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+        );
+        pub fn SafeSherpaOnnxCreateOnlineStream(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOnlineStream;
+        pub fn SafeSherpaOnnxDestroyOnlineStream(
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        );
+        pub fn SafeSherpaOnnxOnlineStreamAcceptWaveform(
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+            sample_rate: i32,
+            samples: *const f32,
+            n: i32,
+        ) -> i32;
+        pub fn SafeSherpaOnnxOnlineStreamInputFinished(
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        ) -> i32;
+        pub fn SafeSherpaOnnxIsOnlineStreamReady(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        ) -> i32;
+        pub fn SafeSherpaOnnxDecodeOnlineStream(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        ) -> i32;
+        pub fn SafeSherpaOnnxGetOnlineStreamResult(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOnlineRecognizerResult;
+        pub fn SafeSherpaOnnxDestroyOnlineRecognizerResult(
+            result: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizerResult,
+        );
+        pub fn SafeSherpaOnnxOnlineStreamIsEndpoint(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        ) -> i32;
+        pub fn SafeSherpaOnnxOnlineStreamReset(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+            stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        ) -> i32;
+
+        pub fn SafeSherpaOnnxCreateOfflineRecognizer(
+            config: *const sherpa_rs_sys::SherpaOnnxOfflineRecognizerConfig,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOfflineRecognizer;
+        pub fn SafeSherpaOnnxDestroyOfflineRecognizer(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOfflineRecognizer,
+        );
+        pub fn SafeSherpaOnnxCreateOfflineStream(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOfflineRecognizer,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOfflineStream;
+        pub fn SafeSherpaOnnxDestroyOfflineStream(
+            stream: *const sherpa_rs_sys::SherpaOnnxOfflineStream,
+        );
+        pub fn SafeSherpaOnnxAcceptWaveformOffline(
+            stream: *const sherpa_rs_sys::SherpaOnnxOfflineStream,
+            sample_rate: i32,
+            samples: *const f32,
+            n: i32,
+        ) -> i32;
+        pub fn SafeSherpaOnnxDecodeOfflineStream(
+            recognizer: *const sherpa_rs_sys::SherpaOnnxOfflineRecognizer,
+            stream: *const sherpa_rs_sys::SherpaOnnxOfflineStream,
+        ) -> i32;
+        pub fn SafeSherpaOnnxGetOfflineStreamResult(
+            stream: *const sherpa_rs_sys::SherpaOnnxOfflineStream,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOfflineRecognizerResult;
+        pub fn SafeSherpaOnnxDestroyOfflineRecognizerResult(
+            result: *const sherpa_rs_sys::SherpaOnnxOfflineRecognizerResult,
+        );
+
+        pub fn SafeSherpaOnnxCreateOfflinePunctuation(
+            config: *const sherpa_rs_sys::SherpaOnnxOfflinePunctuationConfig,
+        ) -> *const sherpa_rs_sys::SherpaOnnxOfflinePunctuation;
+        pub fn SafeSherpaOnnxDestroyOfflinePunctuation(
+            punct: *const sherpa_rs_sys::SherpaOnnxOfflinePunctuation,
+        );
+        pub fn SafeSherpaOfflinePunctuationAddPunct(
+            punct: *const sherpa_rs_sys::SherpaOnnxOfflinePunctuation,
+            text: *const c_char,
+        ) -> *const c_char;
+        pub fn SafeSherpaOfflinePunctuationFreeText(text: *const c_char);
+    }
+}
+
+struct SherpaOnnxOnlineRecognizer {
     recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+    _empty: CString,
     _encoder: CString,
     _decoder: CString,
     _joiner: CString,
@@ -32,8 +128,101 @@ struct SherpaStreamingZipformer {
     _decoding_method: CString,
 }
 
-impl SherpaStreamingZipformer {
-    fn new(
+struct SherpaOnnxOfflineRecognizer {
+    recognizer: *const sherpa_rs_sys::SherpaOnnxOfflineRecognizer,
+    _empty: CString,
+    _tokens: CString,
+    _provider: CString,
+    _decoding_method: CString,
+    // Model-specific fields (kept to own the CString memory).
+    _model: CString,
+    _language: CString,
+    _encoder: CString,
+    _decoder: CString,
+}
+
+struct SherpaOnnxOfflinePunctuation {
+    punct: *const sherpa_rs_sys::SherpaOnnxOfflinePunctuation,
+    _model: CString,
+    _provider: CString,
+}
+
+fn find_sherpa_tokens(model_dir: &Path) -> Result<PathBuf> {
+    let direct = model_dir.join("tokens.txt");
+    if direct.exists() {
+        return Ok(direct);
+    }
+
+    let mut candidates = Vec::new();
+    for entry in fs::read_dir(model_dir)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_lowercase();
+        if lower.contains("tokens") && lower.ends_with(".txt") {
+            candidates.push(entry.path());
+        }
+    }
+    candidates.sort();
+    candidates
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("Missing tokens file in {:?}", model_dir))
+}
+
+fn find_sherpa_onnx(model_dir: &Path, kind: &str, prefer_int8: bool) -> Result<PathBuf> {
+    let mut candidates = Vec::new();
+    for entry in fs::read_dir(model_dir)? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_lowercase();
+        if lower.ends_with(".onnx") && lower.contains(kind) {
+            candidates.push((lower, entry.path()));
+        }
+    }
+
+    if candidates.is_empty() {
+        let mut onnx_files = Vec::new();
+        for entry in fs::read_dir(model_dir)? {
+            let entry = entry?;
+            if !entry.file_type()?.is_file() {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name.to_lowercase().ends_with(".onnx") {
+                onnx_files.push(name);
+            }
+        }
+        onnx_files.sort();
+        return Err(anyhow::anyhow!(
+            "Missing {} ONNX in {:?}. Found: {:?}",
+            kind,
+            model_dir,
+            onnx_files
+        ));
+    }
+
+    candidates.sort_by(|a, b| a.0.cmp(&b.0));
+
+    if prefer_int8 {
+        if let Some((_, p)) = candidates
+            .iter()
+            .find(|(name, _)| name.contains("int8") || name.contains(".int8"))
+        {
+            return Ok(p.clone());
+        }
+    }
+
+    Ok(candidates[0].1.clone())
+}
+
+impl SherpaOnnxOnlineRecognizer {
+    fn new_transducer(
         encoder: String,
         decoder: String,
         joiner: String,
@@ -42,12 +231,15 @@ impl SherpaStreamingZipformer {
         num_threads: i32,
         debug: bool,
     ) -> Result<Self> {
+        let empty = CString::new("")?;
         let encoder = CString::new(encoder)?;
         let decoder = CString::new(decoder)?;
         let joiner = CString::new(joiner)?;
         let tokens = CString::new(tokens)?;
         let provider = CString::new(provider)?;
-        let decoding_method = CString::new("greedy_search")?;
+        // `modified_beam_search` is generally more stable than `greedy_search`
+        // for partial results (reduces repeated tokens/oscillation), at some CPU cost.
+        let decoding_method = CString::new("modified_beam_search")?;
 
         let mut online_model_config: sherpa_rs_sys::SherpaOnnxOnlineModelConfig =
             unsafe { mem::zeroed() };
@@ -60,24 +252,102 @@ impl SherpaStreamingZipformer {
             decoder: decoder.as_ptr(),
             joiner: joiner.as_ptr(),
         };
+        online_model_config.paraformer = sherpa_rs_sys::SherpaOnnxOnlineParaformerModelConfig {
+            encoder: empty.as_ptr(),
+            decoder: empty.as_ptr(),
+        };
 
         let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOnlineRecognizerConfig =
             unsafe { mem::zeroed() };
         recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.max_active_paths = 4;
         recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
             sample_rate: 16000,
             feature_dim: 80,
         };
+        recognizer_config.enable_endpoint = 1;
+        recognizer_config.rule1_min_trailing_silence = 2.4;
+        recognizer_config.rule2_min_trailing_silence = 1.2;
+        // Safeguard for long utterances: force an endpoint after ~20s.
+        recognizer_config.rule3_min_utterance_length = 20.0;
         recognizer_config.model_config = online_model_config;
 
         let recognizer =
-            unsafe { sherpa_rs_sys::SherpaOnnxCreateOnlineRecognizer(&recognizer_config) };
+            unsafe { sherpa_safe::SafeSherpaOnnxCreateOnlineRecognizer(&recognizer_config) };
         if recognizer.is_null() {
-            return Err(anyhow::anyhow!("Failed to create Sherpa streaming recognizer"));
+            return Err(anyhow::anyhow!(
+                "Failed to create Sherpa streaming recognizer"
+            ));
         }
 
         Ok(Self {
             recognizer,
+            _empty: empty,
+            _encoder: encoder,
+            _decoder: decoder,
+            _joiner: joiner,
+            _tokens: tokens,
+            _provider: provider,
+            _decoding_method: decoding_method,
+        })
+    }
+
+    fn new_paraformer(
+        encoder: String,
+        decoder: String,
+        tokens: String,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let empty = CString::new("")?;
+        let encoder = CString::new(encoder)?;
+        let decoder = CString::new(decoder)?;
+        let joiner = CString::new("")?;
+        let tokens = CString::new(tokens)?;
+        let provider = CString::new(provider)?;
+        // Paraformer online recognizer currently supports only `greedy_search`.
+        let decoding_method = CString::new("greedy_search")?;
+
+        let mut online_model_config: sherpa_rs_sys::SherpaOnnxOnlineModelConfig =
+            unsafe { mem::zeroed() };
+        online_model_config.debug = debug.into();
+        online_model_config.num_threads = num_threads;
+        online_model_config.provider = provider.as_ptr();
+        online_model_config.tokens = tokens.as_ptr();
+        online_model_config.transducer = sherpa_rs_sys::SherpaOnnxOnlineTransducerModelConfig {
+            encoder: empty.as_ptr(),
+            decoder: empty.as_ptr(),
+            joiner: empty.as_ptr(),
+        };
+        online_model_config.paraformer = sherpa_rs_sys::SherpaOnnxOnlineParaformerModelConfig {
+            encoder: encoder.as_ptr(),
+            decoder: decoder.as_ptr(),
+        };
+
+        let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOnlineRecognizerConfig =
+            unsafe { mem::zeroed() };
+        recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.max_active_paths = 4;
+        recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
+            sample_rate: 16000,
+            feature_dim: 80,
+        };
+        recognizer_config.enable_endpoint = 1;
+        recognizer_config.rule1_min_trailing_silence = 2.4;
+        recognizer_config.rule2_min_trailing_silence = 1.2;
+        recognizer_config.rule3_min_utterance_length = 20.0;
+        recognizer_config.model_config = online_model_config;
+
+        let recognizer =
+            unsafe { sherpa_safe::SafeSherpaOnnxCreateOnlineRecognizer(&recognizer_config) };
+        if recognizer.is_null() {
+            return Err(anyhow::anyhow!("Failed to create Sherpa online recognizer"));
+        }
+
+        Ok(Self {
+            recognizer,
+            _empty: empty,
             _encoder: encoder,
             _decoder: decoder,
             _joiner: joiner,
@@ -92,7 +362,7 @@ impl SherpaStreamingZipformer {
             return Ok(String::new());
         }
 
-        let stream = unsafe { sherpa_rs_sys::SherpaOnnxCreateOnlineStream(self.recognizer) };
+        let stream = unsafe { sherpa_safe::SafeSherpaOnnxCreateOnlineStream(self.recognizer) };
         if stream.is_null() {
             return Err(anyhow::anyhow!("Failed to create Sherpa online stream"));
         }
@@ -103,14 +373,19 @@ impl SherpaStreamingZipformer {
         while offset < samples.len() {
             let end = (offset + CHUNK_SAMPLES).min(samples.len());
             unsafe {
-                sherpa_rs_sys::SherpaOnnxOnlineStreamAcceptWaveform(
+                if sherpa_safe::SafeSherpaOnnxOnlineStreamAcceptWaveform(
                     stream,
                     sample_rate,
                     samples[offset..end].as_ptr(),
                     (end - offset) as i32,
-                );
-                while sherpa_rs_sys::SherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
-                    sherpa_rs_sys::SherpaOnnxDecodeOnlineStream(self.recognizer, stream);
+                ) != 1
+                {
+                    return Err(anyhow::anyhow!("Sherpa online accept waveform failed"));
+                }
+                while sherpa_safe::SafeSherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
+                    if sherpa_safe::SafeSherpaOnnxDecodeOnlineStream(self.recognizer, stream) != 1 {
+                        return Err(anyhow::anyhow!("Sherpa online decode failed"));
+                    }
                 }
             }
             offset = end;
@@ -120,20 +395,27 @@ impl SherpaStreamingZipformer {
         let tail_len = (sample_rate as usize * 3) / 10; // 0.3 seconds
         let tail = vec![0.0f32; tail_len];
         unsafe {
-            sherpa_rs_sys::SherpaOnnxOnlineStreamAcceptWaveform(
+            if sherpa_safe::SafeSherpaOnnxOnlineStreamAcceptWaveform(
                 stream,
                 sample_rate,
                 tail.as_ptr(),
                 tail.len() as i32,
-            );
-            sherpa_rs_sys::SherpaOnnxOnlineStreamInputFinished(stream);
-            while sherpa_rs_sys::SherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
-                sherpa_rs_sys::SherpaOnnxDecodeOnlineStream(self.recognizer, stream);
+            ) != 1
+            {
+                return Err(anyhow::anyhow!("Sherpa online accept waveform failed"));
+            }
+            if sherpa_safe::SafeSherpaOnnxOnlineStreamInputFinished(stream) != 1 {
+                return Err(anyhow::anyhow!("Sherpa online input_finished failed"));
+            }
+            while sherpa_safe::SafeSherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
+                if sherpa_safe::SafeSherpaOnnxDecodeOnlineStream(self.recognizer, stream) != 1 {
+                    return Err(anyhow::anyhow!("Sherpa online decode failed"));
+                }
             }
         }
 
         let result_ptr =
-            unsafe { sherpa_rs_sys::SherpaOnnxGetOnlineStreamResult(self.recognizer, stream) };
+            unsafe { sherpa_safe::SafeSherpaOnnxGetOnlineStreamResult(self.recognizer, stream) };
         let text = if result_ptr.is_null() {
             String::new()
         } else {
@@ -150,25 +432,377 @@ impl SherpaStreamingZipformer {
 
         unsafe {
             if !result_ptr.is_null() {
-                sherpa_rs_sys::SherpaOnnxDestroyOnlineRecognizerResult(result_ptr);
+                sherpa_safe::SafeSherpaOnnxDestroyOnlineRecognizerResult(result_ptr);
             }
-            sherpa_rs_sys::SherpaOnnxDestroyOnlineStream(stream);
+            sherpa_safe::SafeSherpaOnnxDestroyOnlineStream(stream);
+        }
+
+        Ok(text)
+    }
+
+    fn create_stream(&self) -> Result<*const sherpa_rs_sys::SherpaOnnxOnlineStream> {
+        let stream = unsafe { sherpa_safe::SafeSherpaOnnxCreateOnlineStream(self.recognizer) };
+        if stream.is_null() {
+            return Err(anyhow::anyhow!("Failed to create Sherpa online stream"));
+        }
+        Ok(stream)
+    }
+
+    fn accept_waveform(
+        &self,
+        stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+        sample_rate: i32,
+        samples: &[f32],
+    ) {
+        let ok = unsafe {
+            sherpa_safe::SafeSherpaOnnxOnlineStreamAcceptWaveform(
+                stream,
+                sample_rate,
+                samples.as_ptr(),
+                samples.len() as i32,
+            )
+        };
+        if ok != 1 {
+            warn!("Sherpa online accept_waveform failed (ignored)");
+        }
+    }
+
+    fn decode_ready(&self, stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream) {
+        unsafe {
+            while sherpa_safe::SafeSherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
+                if sherpa_safe::SafeSherpaOnnxDecodeOnlineStream(self.recognizer, stream) != 1 {
+                    warn!("Sherpa online decode failed (ignored)");
+                    break;
+                }
+            }
+        }
+    }
+
+    fn input_finished(&self, stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream) {
+        let ok = unsafe { sherpa_safe::SafeSherpaOnnxOnlineStreamInputFinished(stream) };
+        if ok != 1 {
+            warn!("Sherpa online input_finished failed (ignored)");
+        }
+    }
+
+    fn is_endpoint(&self, stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream) -> bool {
+        unsafe { sherpa_safe::SafeSherpaOnnxOnlineStreamIsEndpoint(self.recognizer, stream) == 1 }
+    }
+
+    fn reset_stream(&self, stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream) {
+        let ok = unsafe { sherpa_safe::SafeSherpaOnnxOnlineStreamReset(self.recognizer, stream) };
+        if ok != 1 {
+            warn!("Sherpa online reset_stream failed (ignored)");
+        }
+    }
+
+    fn get_text(&self, stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream) -> String {
+        let result_ptr =
+            unsafe { sherpa_safe::SafeSherpaOnnxGetOnlineStreamResult(self.recognizer, stream) };
+        if result_ptr.is_null() {
+            return String::new();
+        }
+
+        let text = unsafe { (*result_ptr).text };
+        let out = if text.is_null() {
+            String::new()
+        } else {
+            unsafe { CStr::from_ptr(text) }
+                .to_string_lossy()
+                .to_string()
+        };
+
+        unsafe {
+            sherpa_safe::SafeSherpaOnnxDestroyOnlineRecognizerResult(result_ptr);
+        }
+
+        out
+    }
+}
+
+unsafe impl Send for SherpaOnnxOnlineRecognizer {}
+unsafe impl Sync for SherpaOnnxOnlineRecognizer {}
+
+impl Drop for SherpaOnnxOnlineRecognizer {
+    fn drop(&mut self) {
+        unsafe {
+            sherpa_safe::SafeSherpaOnnxDestroyOnlineRecognizer(self.recognizer);
+        }
+    }
+}
+
+impl SherpaOnnxOfflineRecognizer {
+    fn new_fire_red_asr(
+        encoder: String,
+        decoder: String,
+        tokens: String,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let empty = CString::new("")?;
+        let encoder = CString::new(encoder)?;
+        let decoder = CString::new(decoder)?;
+        let model = CString::new("")?;
+        let language = CString::new("auto")?;
+        let tokens = CString::new(tokens)?;
+        let provider = CString::new(provider)?;
+        let decoding_method = CString::new("greedy_search")?;
+
+        let mut model_config: sherpa_rs_sys::SherpaOnnxOfflineModelConfig =
+            unsafe { mem::zeroed() };
+        model_config.tokens = tokens.as_ptr();
+        model_config.num_threads = num_threads;
+        model_config.debug = debug.into();
+        model_config.provider = provider.as_ptr();
+        model_config.fire_red_asr = sherpa_rs_sys::SherpaOnnxOfflineFireRedAsrModelConfig {
+            encoder: encoder.as_ptr(),
+            decoder: decoder.as_ptr(),
+        };
+        model_config.sense_voice = sherpa_rs_sys::SherpaOnnxOfflineSenseVoiceModelConfig {
+            model: empty.as_ptr(),
+            language: empty.as_ptr(),
+            use_itn: 0,
+        };
+
+        let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOfflineRecognizerConfig =
+            unsafe { mem::zeroed() };
+        recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
+            sample_rate: 16000,
+            feature_dim: 80,
+        };
+        recognizer_config.model_config = model_config;
+        recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.max_active_paths = 4;
+
+        let recognizer =
+            unsafe { sherpa_safe::SafeSherpaOnnxCreateOfflineRecognizer(&recognizer_config) };
+        if recognizer.is_null() {
+            return Err(anyhow::anyhow!(
+                "Failed to create Sherpa offline recognizer"
+            ));
+        }
+
+        Ok(Self {
+            recognizer,
+            _empty: empty,
+            _tokens: tokens,
+            _provider: provider,
+            _decoding_method: decoding_method,
+            _model: model,
+            _language: language,
+            _encoder: encoder,
+            _decoder: decoder,
+        })
+    }
+
+    fn new_sense_voice(
+        model: String,
+        tokens: String,
+        language: String,
+        use_itn: bool,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let empty = CString::new("")?;
+        let encoder = CString::new("")?;
+        let decoder = CString::new("")?;
+        let model = CString::new(model)?;
+        let language = CString::new(language)?;
+        let tokens = CString::new(tokens)?;
+        let provider = CString::new(provider)?;
+        let decoding_method = CString::new("greedy_search")?;
+
+        let mut model_config: sherpa_rs_sys::SherpaOnnxOfflineModelConfig =
+            unsafe { mem::zeroed() };
+        model_config.tokens = tokens.as_ptr();
+        model_config.num_threads = num_threads;
+        model_config.debug = debug.into();
+        model_config.provider = provider.as_ptr();
+        model_config.sense_voice = sherpa_rs_sys::SherpaOnnxOfflineSenseVoiceModelConfig {
+            model: model.as_ptr(),
+            language: language.as_ptr(),
+            use_itn: i32::from(use_itn),
+        };
+        model_config.fire_red_asr = sherpa_rs_sys::SherpaOnnxOfflineFireRedAsrModelConfig {
+            encoder: empty.as_ptr(),
+            decoder: empty.as_ptr(),
+        };
+
+        let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOfflineRecognizerConfig =
+            unsafe { mem::zeroed() };
+        recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
+            sample_rate: 16000,
+            feature_dim: 80,
+        };
+        recognizer_config.model_config = model_config;
+        recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.max_active_paths = 4;
+
+        let recognizer =
+            unsafe { sherpa_safe::SafeSherpaOnnxCreateOfflineRecognizer(&recognizer_config) };
+        if recognizer.is_null() {
+            return Err(anyhow::anyhow!(
+                "Failed to create Sherpa offline recognizer"
+            ));
+        }
+
+        Ok(Self {
+            recognizer,
+            _empty: empty,
+            _tokens: tokens,
+            _provider: provider,
+            _decoding_method: decoding_method,
+            _model: model,
+            _language: language,
+            _encoder: encoder,
+            _decoder: decoder,
+        })
+    }
+
+    fn decode(&self, sample_rate: i32, samples: &[f32]) -> Result<String> {
+        if samples.is_empty() {
+            return Ok(String::new());
+        }
+
+        let stream = unsafe { sherpa_safe::SafeSherpaOnnxCreateOfflineStream(self.recognizer) };
+        if stream.is_null() {
+            return Err(anyhow::anyhow!("Failed to create Sherpa offline stream"));
+        }
+
+        if unsafe {
+            sherpa_safe::SafeSherpaOnnxAcceptWaveformOffline(
+                stream,
+                sample_rate,
+                samples.as_ptr(),
+                samples.len() as i32,
+            )
+        } != 1
+        {
+            unsafe { sherpa_safe::SafeSherpaOnnxDestroyOfflineStream(stream) };
+            return Err(anyhow::anyhow!("Sherpa offline accept waveform failed"));
+        }
+        if unsafe { sherpa_safe::SafeSherpaOnnxDecodeOfflineStream(self.recognizer, stream) } != 1 {
+            unsafe { sherpa_safe::SafeSherpaOnnxDestroyOfflineStream(stream) };
+            return Err(anyhow::anyhow!("Sherpa offline decode failed"));
+        }
+
+        let result_ptr = unsafe { sherpa_safe::SafeSherpaOnnxGetOfflineStreamResult(stream) };
+        let text = if result_ptr.is_null() {
+            String::new()
+        } else {
+            let raw_text = unsafe { (*result_ptr).text };
+            if raw_text.is_null() {
+                String::new()
+            } else {
+                unsafe { CStr::from_ptr(raw_text) }
+                    .to_string_lossy()
+                    .trim()
+                    .to_string()
+            }
+        };
+
+        unsafe {
+            if !result_ptr.is_null() {
+                sherpa_safe::SafeSherpaOnnxDestroyOfflineRecognizerResult(result_ptr);
+            }
+            sherpa_safe::SafeSherpaOnnxDestroyOfflineStream(stream);
         }
 
         Ok(text)
     }
 }
 
-unsafe impl Send for SherpaStreamingZipformer {}
-unsafe impl Sync for SherpaStreamingZipformer {}
+unsafe impl Send for SherpaOnnxOfflineRecognizer {}
+unsafe impl Sync for SherpaOnnxOfflineRecognizer {}
 
-impl Drop for SherpaStreamingZipformer {
+impl Drop for SherpaOnnxOfflineRecognizer {
     fn drop(&mut self) {
         unsafe {
-            sherpa_rs_sys::SherpaOnnxDestroyOnlineRecognizer(self.recognizer);
+            sherpa_safe::SafeSherpaOnnxDestroyOfflineRecognizer(self.recognizer);
         }
     }
 }
+
+impl SherpaOnnxOfflinePunctuation {
+    fn new_ct_transformer(
+        model: String,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let model = CString::new(model)?;
+        let provider = CString::new(provider)?;
+
+        let config = sherpa_rs_sys::SherpaOnnxOfflinePunctuationConfig {
+            model: sherpa_rs_sys::SherpaOnnxOfflinePunctuationModelConfig {
+                ct_transformer: model.as_ptr(),
+                num_threads,
+                debug: debug.into(),
+                provider: provider.as_ptr(),
+            },
+        };
+
+        let punct = unsafe { sherpa_safe::SafeSherpaOnnxCreateOfflinePunctuation(&config) };
+        if punct.is_null() {
+            return Err(anyhow::anyhow!(
+                "Failed to create Sherpa offline punctuation model"
+            ));
+        }
+
+        Ok(Self {
+            punct,
+            _model: model,
+            _provider: provider,
+        })
+    }
+
+    fn add_punct(&self, text: &str) -> Result<String> {
+        if text.trim().is_empty() {
+            return Ok(String::new());
+        }
+        let input = CString::new(text)?;
+        let out_ptr = unsafe {
+            sherpa_safe::SafeSherpaOfflinePunctuationAddPunct(self.punct, input.as_ptr())
+        };
+        if out_ptr.is_null() {
+            return Ok(String::new());
+        }
+        let out = unsafe { CStr::from_ptr(out_ptr) }
+            .to_string_lossy()
+            .to_string();
+        unsafe {
+            sherpa_safe::SafeSherpaOfflinePunctuationFreeText(out_ptr);
+        }
+        Ok(out)
+    }
+}
+
+unsafe impl Send for SherpaOnnxOfflinePunctuation {}
+unsafe impl Sync for SherpaOnnxOfflinePunctuation {}
+
+impl Drop for SherpaOnnxOfflinePunctuation {
+    fn drop(&mut self) {
+        unsafe {
+            sherpa_safe::SafeSherpaOnnxDestroyOfflinePunctuation(self.punct);
+        }
+    }
+}
+
+struct SherpaOnlineSession {
+    stream: *const sherpa_rs_sys::SherpaOnnxOnlineStream,
+    sample_rate: i32,
+    committed_text: String,
+    last_text: String,
+    last_emit_ms: u64,
+    last_punct_emit_ms: u64,
+    last_punct_text: String,
+    last_punctuated_text: String,
+}
+
+unsafe impl Send for SherpaOnlineSession {}
+unsafe impl Sync for SherpaOnlineSession {}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct ModelStateEvent {
@@ -178,10 +812,19 @@ pub struct ModelStateEvent {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize)]
+pub struct SherpaPartialEvent {
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub punctuated_text: Option<String>,
+    pub is_final: bool,
+}
+
 enum LoadedEngine {
     Whisper(WhisperEngine),
     Parakeet(ParakeetEngine),
-    Sherpa(SherpaStreamingZipformer),
+    SherpaOnline(SherpaOnnxOnlineRecognizer),
+    SherpaOffline(SherpaOnnxOfflineRecognizer),
 }
 
 #[derive(Clone)]
@@ -195,6 +838,8 @@ pub struct TranscriptionManager {
     watcher_handle: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
     is_loading: Arc<Mutex<bool>>,
     loading_condvar: Arc<Condvar>,
+    sherpa_session: Arc<Mutex<Option<SherpaOnlineSession>>>,
+    punctuation: Arc<Mutex<Option<(String, SherpaOnnxOfflinePunctuation)>>>,
 }
 
 impl TranscriptionManager {
@@ -214,6 +859,8 @@ impl TranscriptionManager {
             watcher_handle: Arc::new(Mutex::new(None)),
             is_loading: Arc::new(Mutex::new(false)),
             loading_condvar: Arc::new(Condvar::new()),
+            sherpa_session: Arc::new(Mutex::new(None)),
+            punctuation: Arc::new(Mutex::new(None)),
         };
 
         // Start the idle watcher
@@ -289,12 +936,27 @@ impl TranscriptionManager {
         debug!("Starting to unload model");
 
         {
+            let mut session = self.sherpa_session.lock().unwrap();
+            if let Some(sess) = session.take() {
+                unsafe {
+                    sherpa_safe::SafeSherpaOnnxDestroyOnlineStream(sess.stream);
+                }
+            }
+        }
+
+        {
+            let mut punct = self.punctuation.lock().unwrap();
+            *punct = None;
+        }
+
+        {
             let mut engine = self.engine.lock().unwrap();
             if let Some(ref mut loaded_engine) = *engine {
                 match loaded_engine {
                     LoadedEngine::Whisper(ref mut whisper) => whisper.unload_model(),
                     LoadedEngine::Parakeet(ref mut parakeet) => parakeet.unload_model(),
-                    LoadedEngine::Sherpa(_) => {} // Dropped when enum is dropped
+                    LoadedEngine::SherpaOnline(_) => {} // Dropped when enum is dropped
+                    LoadedEngine::SherpaOffline(_) => {} // Dropped when enum is dropped
                 }
             }
             *engine = None; // Drop the engine to free memory
@@ -399,36 +1061,13 @@ impl TranscriptionManager {
                 LoadedEngine::Parakeet(engine)
             }
             EngineType::SherpaOnnx => {
-                let tokens = model_path.join("tokens.txt");
-                let encoder = model_path.join("encoder-epoch-99-avg-1.int8.onnx");
-                let decoder = model_path.join("decoder-epoch-99-avg-1.int8.onnx");
-                let joiner = model_path.join("joiner-epoch-99-avg-1.int8.onnx");
+                let lower = model_info.filename.to_lowercase();
+                let prefer_int8 = lower.contains("int8");
+                let is_streaming = lower.contains("streaming");
+                let is_paraformer = lower.contains("paraformer");
 
-                if !tokens.exists() || !encoder.exists() || !decoder.exists() || !joiner.exists() {
-                     let error_msg = format!("Missing required model files in {:?}", model_path);
-                     let _ = self.app_handle.emit(
-                        "model-state-changed",
-                        ModelStateEvent {
-                            event_type: "loading_failed".to_string(),
-                            model_id: Some(model_id.to_string()),
-                            model_name: Some(model_info.name.clone()),
-                            error: Some(error_msg.clone()),
-                        },
-                    );
-                    return Err(anyhow::anyhow!(error_msg));
-                }
-
-                let recognizer = SherpaStreamingZipformer::new(
-                    encoder.to_string_lossy().to_string(),
-                    decoder.to_string_lossy().to_string(),
-                    joiner.to_string_lossy().to_string(),
-                    tokens.to_string_lossy().to_string(),
-                    "cpu".to_string(),
-                    4,
-                    false,
-                )
-                .map_err(|e| {
-                    let error_msg = format!("Failed to create Sherpa streaming recognizer: {}", e);
+                let tokens = find_sherpa_tokens(&model_path).map_err(|e| {
+                    let error_msg = format!("Missing Sherpa tokens in {:?}: {}", model_path, e);
                     let _ = self.app_handle.emit(
                         "model-state-changed",
                         ModelStateEvent {
@@ -441,7 +1080,217 @@ impl TranscriptionManager {
                     anyhow::anyhow!(error_msg)
                 })?;
 
-                LoadedEngine::Sherpa(recognizer)
+                if is_streaming {
+                    let encoder =
+                        find_sherpa_onnx(&model_path, "encoder", prefer_int8).map_err(|e| {
+                            let error_msg =
+                                format!("Missing Sherpa encoder in {:?}: {}", model_path, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                    let decoder =
+                        find_sherpa_onnx(&model_path, "decoder", prefer_int8).map_err(|e| {
+                            let error_msg =
+                                format!("Missing Sherpa decoder in {:?}: {}", model_path, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                    let recognizer = if is_paraformer {
+                        SherpaOnnxOnlineRecognizer::new_paraformer(
+                            encoder.to_string_lossy().to_string(),
+                            decoder.to_string_lossy().to_string(),
+                            tokens.to_string_lossy().to_string(),
+                            "cpu".to_string(),
+                            4,
+                            false,
+                        )
+                    } else {
+                        let joiner =
+                            find_sherpa_onnx(&model_path, "joiner", prefer_int8).map_err(|e| {
+                                let error_msg =
+                                    format!("Missing Sherpa joiner in {:?}: {}", model_path, e);
+                                let _ = self.app_handle.emit(
+                                    "model-state-changed",
+                                    ModelStateEvent {
+                                        event_type: "loading_failed".to_string(),
+                                        model_id: Some(model_id.to_string()),
+                                        model_name: Some(model_info.name.clone()),
+                                        error: Some(error_msg.clone()),
+                                    },
+                                );
+                                anyhow::anyhow!(error_msg)
+                            })?;
+                        SherpaOnnxOnlineRecognizer::new_transducer(
+                            encoder.to_string_lossy().to_string(),
+                            decoder.to_string_lossy().to_string(),
+                            joiner.to_string_lossy().to_string(),
+                            tokens.to_string_lossy().to_string(),
+                            "cpu".to_string(),
+                            4,
+                            false,
+                        )
+                    }
+                    .map_err(|e| {
+                        let error_msg = format!("Failed to create Sherpa online recognizer: {}", e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+
+                    LoadedEngine::SherpaOnline(recognizer)
+                } else if lower.contains("sense-voice") {
+                    let model_file =
+                        find_sherpa_onnx(&model_path, "model", prefer_int8).map_err(|e| {
+                            let error_msg =
+                                format!("Missing SenseVoice model in {:?}: {}", model_path, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                    let settings = get_settings(&self.app_handle);
+                    let normalized_lang = match settings.selected_language.as_str() {
+                        "auto" => "auto".to_string(),
+                        "zh" | "zh-Hans" | "zh-Hant" => "zh".to_string(),
+                        "en" => "en".to_string(),
+                        "ja" => "ja".to_string(),
+                        "ko" => "ko".to_string(),
+                        "yue" | "zh-yue" => "yue".to_string(),
+                        _ => "auto".to_string(),
+                    };
+
+                    let recognizer = SherpaOnnxOfflineRecognizer::new_sense_voice(
+                        model_file.to_string_lossy().to_string(),
+                        tokens.to_string_lossy().to_string(),
+                        normalized_lang,
+                        settings.sense_voice_use_itn,
+                        "cpu".to_string(),
+                        4,
+                        false,
+                    )
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to create SenseVoice offline recognizer: {}", e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+
+                    LoadedEngine::SherpaOffline(recognizer)
+                } else if lower.contains("fire-red-asr") {
+                    let encoder =
+                        find_sherpa_onnx(&model_path, "encoder", prefer_int8).map_err(|e| {
+                            let error_msg =
+                                format!("Missing FireRedASR encoder in {:?}: {}", model_path, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                    let decoder =
+                        find_sherpa_onnx(&model_path, "decoder", prefer_int8).map_err(|e| {
+                            let error_msg =
+                                format!("Missing FireRedASR decoder in {:?}: {}", model_path, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                    let recognizer = SherpaOnnxOfflineRecognizer::new_fire_red_asr(
+                        encoder.to_string_lossy().to_string(),
+                        decoder.to_string_lossy().to_string(),
+                        tokens.to_string_lossy().to_string(),
+                        "cpu".to_string(),
+                        4,
+                        false,
+                    )
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to create FireRedASR offline recognizer: {}", e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+
+                    LoadedEngine::SherpaOffline(recognizer)
+                } else {
+                    let error_msg = format!("Unsupported Sherpa model: {}", model_info.filename);
+                    let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "loading_failed".to_string(),
+                            model_id: Some(model_id.to_string()),
+                            model_name: Some(model_info.name.clone()),
+                            error: Some(error_msg.clone()),
+                        },
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+            }
+            EngineType::SherpaOnnxPunctuation => {
+                return Err(anyhow::anyhow!(
+                    "Punctuation models cannot be loaded as transcription engines"
+                ));
             }
         };
 
@@ -498,6 +1347,240 @@ impl TranscriptionManager {
     pub fn get_current_model(&self) -> Option<String> {
         let current_model = self.current_model_id.lock().unwrap();
         current_model.clone()
+    }
+
+    fn wait_for_local_engine(&self) -> Result<()> {
+        let mut is_loading = self.is_loading.lock().unwrap();
+        while *is_loading {
+            is_loading = self.loading_condvar.wait(is_loading).unwrap();
+        }
+
+        let engine_guard = self.engine.lock().unwrap();
+        if engine_guard.is_none() {
+            return Err(anyhow::anyhow!("Model is not loaded for transcription."));
+        }
+        Ok(())
+    }
+
+    pub fn start_sherpa_online_session(&self) -> Result<()> {
+        self.wait_for_local_engine()?;
+
+        let engine_guard = self.engine.lock().unwrap();
+        let Some(LoadedEngine::SherpaOnline(recognizer)) = engine_guard.as_ref() else {
+            return Err(anyhow::anyhow!(
+                "Selected engine is not a Sherpa streaming model"
+            ));
+        };
+
+        let mut session_guard = self.sherpa_session.lock().unwrap();
+        if session_guard.is_some() {
+            return Ok(());
+        }
+
+        let stream = recognizer.create_stream()?;
+        *session_guard = Some(SherpaOnlineSession {
+            stream,
+            sample_rate: 16000,
+            committed_text: String::new(),
+            last_text: String::new(),
+            last_emit_ms: 0,
+            last_punct_emit_ms: 0,
+            last_punct_text: String::new(),
+            last_punctuated_text: String::new(),
+        });
+        Ok(())
+    }
+
+    pub fn feed_sherpa_online_session(&self, samples: &[f32]) -> Result<()> {
+        if samples.is_empty() {
+            return Ok(());
+        }
+        self.start_sherpa_online_session()?;
+
+        let settings = get_settings(&self.app_handle);
+
+        let now_ms = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let engine_guard = self.engine.lock().unwrap();
+        let Some(LoadedEngine::SherpaOnline(recognizer)) = engine_guard.as_ref() else {
+            return Err(anyhow::anyhow!(
+                "Selected engine is not a Sherpa streaming model"
+            ));
+        };
+
+        let mut session_guard = self.sherpa_session.lock().unwrap();
+        let Some(sess) = session_guard.as_mut() else {
+            return Err(anyhow::anyhow!("Sherpa session not initialized"));
+        };
+
+        recognizer.accept_waveform(sess.stream, sess.sample_rate, samples);
+        recognizer.decode_ready(sess.stream);
+
+        // Throttle event emission a bit to reduce frontend spam.
+        if now_ms.saturating_sub(sess.last_emit_ms) < 100 {
+            return Ok(());
+        }
+
+        let current = recognizer.get_text(sess.stream);
+        let current = current.trim().to_string();
+        let mut combined = sess.committed_text.clone();
+        if !current.is_empty() {
+            combined.push_str(&current);
+        }
+
+        let mut endpoint_triggered = false;
+        if recognizer.is_endpoint(sess.stream) {
+            endpoint_triggered = true;
+            if !current.is_empty() {
+                sess.committed_text.push_str(&current);
+                sess.committed_text.push('\n');
+            }
+            recognizer.reset_stream(sess.stream);
+            combined = sess.committed_text.clone();
+        }
+
+        if combined != sess.last_text {
+            let mut punctuated_text: Option<String> = None;
+            if settings.punctuation_enabled && !combined.trim().is_empty() {
+                let punct_model_id = settings.punctuation_model.trim();
+                if !punct_model_id.is_empty() {
+                    let is_downloaded = self
+                        .model_manager
+                        .get_model_info(punct_model_id)
+                        .is_some_and(|m| m.is_downloaded);
+                    if is_downloaded {
+                        let punct_due = endpoint_triggered
+                            || now_ms.saturating_sub(sess.last_punct_emit_ms) >= 1_000;
+                        if punct_due && combined != sess.last_punct_text {
+                            match self.apply_punctuation_multiline(punct_model_id, &combined) {
+                                Ok(punctuated) => {
+                                    if !punctuated.trim().is_empty() {
+                                        sess.last_punct_emit_ms = now_ms;
+                                        sess.last_punct_text = combined.clone();
+                                        sess.last_punctuated_text = punctuated.clone();
+                                        punctuated_text = Some(punctuated);
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("Streaming punctuation failed: {}", e);
+                                }
+                            }
+                        }
+
+                        // Avoid UI flicker: if we already have a punctuated prefix, keep emitting it
+                        // and just append the current raw suffix until the next punctuation refresh.
+                        if punctuated_text.is_none()
+                            && !sess.last_punct_text.is_empty()
+                            && !sess.last_punctuated_text.is_empty()
+                            && combined.starts_with(&sess.last_punct_text)
+                        {
+                            let suffix = &combined[sess.last_punct_text.len()..];
+                            let suffix_has_speech =
+                                !suffix.trim().is_empty() && !suffix.starts_with('\n');
+                            if suffix_has_speech
+                                && (sess.last_punctuated_text.ends_with('。')
+                                    || sess.last_punctuated_text.ends_with('.'))
+                            {
+                                // If the punctuation model ended the current partial with a period,
+                                // and we later continue speaking, keep the UI stable by removing
+                                // that terminal punctuation until the next punctuation refresh.
+                                sess.last_punctuated_text.pop();
+                            }
+                            punctuated_text =
+                                Some(format!("{}{}", sess.last_punctuated_text, suffix));
+                        }
+                    }
+                }
+            }
+
+            sess.last_text = combined.clone();
+            sess.last_emit_ms = now_ms;
+            let _ = self.app_handle.emit(
+                "sherpa-online-partial",
+                SherpaPartialEvent {
+                    text: combined,
+                    punctuated_text,
+                    is_final: false,
+                },
+            );
+        }
+
+        Ok(())
+    }
+
+    pub fn finish_sherpa_online_session(&self) -> Result<String> {
+        self.wait_for_local_engine()?;
+
+        let engine_guard = self.engine.lock().unwrap();
+        let Some(LoadedEngine::SherpaOnline(recognizer)) = engine_guard.as_ref() else {
+            return Err(anyhow::anyhow!(
+                "Selected engine is not a Sherpa streaming model"
+            ));
+        };
+
+        let sess = self.sherpa_session.lock().unwrap().take();
+        let Some(sess) = sess else {
+            return Ok(String::new());
+        };
+
+        // Add some tail paddings to flush the final tokens.
+        let tail_len = (sess.sample_rate as usize * 3) / 10; // 0.3 seconds
+        let tail = vec![0.0f32; tail_len];
+        recognizer.accept_waveform(sess.stream, sess.sample_rate, &tail);
+        recognizer.input_finished(sess.stream);
+        recognizer.decode_ready(sess.stream);
+
+        let current = recognizer.get_text(sess.stream);
+        let current = current.trim().to_string();
+        let mut combined = sess.committed_text;
+        if !current.is_empty() {
+            combined.push_str(&current);
+        }
+        let text = combined.trim_end().to_string();
+
+        unsafe {
+            sherpa_safe::SafeSherpaOnnxDestroyOnlineStream(sess.stream);
+        }
+
+        let settings = get_settings(&self.app_handle);
+        let mut punctuated_text: Option<String> = None;
+        let mut final_text = text.clone();
+        if settings.punctuation_enabled && !final_text.trim().is_empty() {
+            let punct_model_id = settings.punctuation_model.trim();
+            if !punct_model_id.is_empty() {
+                let is_downloaded = self
+                    .model_manager
+                    .get_model_info(punct_model_id)
+                    .is_some_and(|m| m.is_downloaded);
+                if is_downloaded {
+                    match self.apply_punctuation_multiline(punct_model_id, &final_text) {
+                        Ok(punctuated) => {
+                            if !punctuated.trim().is_empty() {
+                                punctuated_text = Some(punctuated.clone());
+                                final_text = punctuated;
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Final streaming punctuation failed: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+
+        let _ = self.app_handle.emit(
+            "sherpa-online-partial",
+            SherpaPartialEvent {
+                text,
+                punctuated_text,
+                is_final: true,
+            },
+        );
+
+        Ok(final_text)
     }
 
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
@@ -652,22 +1735,43 @@ impl TranscriptionManager {
                         .transcribe_samples(audio, Some(params))
                         .map_err(|e| anyhow::anyhow!("Parakeet transcription failed: {}", e))?
                 }
-                LoadedEngine::Sherpa(recognizer) => {
+                LoadedEngine::SherpaOnline(recognizer) => {
                     // `AudioRecorder` already resamples to 16kHz (constants::WHISPER_SAMPLE_RATE).
                     const SHERPA_SAMPLE_RATE: i32 = 16000;
-                    debug!("Sherpa input: {} samples @ {}Hz", audio.len(), SHERPA_SAMPLE_RATE);
+                    debug!(
+                        "Sherpa input: {} samples @ {}Hz",
+                        audio.len(),
+                        SHERPA_SAMPLE_RATE
+                    );
 
                     let text = recognizer.decode(SHERPA_SAMPLE_RATE, &audio)?;
-                    
+
                     transcribe_rs::TranscriptionResult {
                         text: text.clone(),
-                        segments: Some(vec![
-                            transcribe_rs::TranscriptionSegment {
-                                text: text.clone(),
-                                start: 0.0,
-                                end: 0.0,
-                            }
-                        ]),
+                        segments: Some(vec![transcribe_rs::TranscriptionSegment {
+                            text: text.clone(),
+                            start: 0.0,
+                            end: 0.0,
+                        }]),
+                    }
+                }
+                LoadedEngine::SherpaOffline(recognizer) => {
+                    const SHERPA_SAMPLE_RATE: i32 = 16000;
+                    debug!(
+                        "Sherpa offline input: {} samples @ {}Hz",
+                        audio.len(),
+                        SHERPA_SAMPLE_RATE
+                    );
+
+                    let text = recognizer.decode(SHERPA_SAMPLE_RATE, &audio)?;
+
+                    transcribe_rs::TranscriptionResult {
+                        text: text.clone(),
+                        segments: Some(vec![transcribe_rs::TranscriptionSegment {
+                            text: text.clone(),
+                            start: 0.0,
+                            end: 0.0,
+                        }]),
                     }
                 }
             }
@@ -696,7 +1800,35 @@ impl TranscriptionManager {
             translation_note
         );
 
-        let final_result = corrected_result.trim().to_string();
+        let mut final_result = corrected_result.trim().to_string();
+
+        if settings.punctuation_enabled && !final_result.is_empty() {
+            let punct_model_id = settings.punctuation_model.trim();
+            if !punct_model_id.is_empty() {
+                let should_try = self
+                    .model_manager
+                    .get_model_info(punct_model_id)
+                    .is_some_and(|m| m.is_downloaded);
+
+                if should_try {
+                    match self.apply_punctuation(punct_model_id, &final_result) {
+                        Ok(punctuated) => {
+                            if !punctuated.trim().is_empty() {
+                                final_result = punctuated.trim().to_string();
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Punctuation post-process failed: {}", e);
+                        }
+                    }
+                } else {
+                    debug!(
+                        "Punctuation enabled but model not downloaded: {}",
+                        punct_model_id
+                    );
+                }
+            }
+        }
 
         if final_result.is_empty() {
             info!("Transcription result is empty");
@@ -713,6 +1845,54 @@ impl TranscriptionManager {
         }
 
         Ok(final_result)
+    }
+
+    fn apply_punctuation(&self, punct_model_id: &str, text: &str) -> Result<String> {
+        let model_path = self.model_manager.get_model_path(punct_model_id)?;
+
+        let prefer_int8 = self
+            .model_manager
+            .get_model_info(punct_model_id)
+            .map(|m| m.filename.to_lowercase().contains("int8"))
+            .unwrap_or(true);
+
+        let model_file = find_sherpa_onnx(&model_path, "model", prefer_int8)?;
+        let model_file = model_file.to_string_lossy().to_string();
+
+        {
+            let mut guard = self.punctuation.lock().unwrap();
+            if let Some((loaded_id, punct)) = guard.as_ref() {
+                if loaded_id == punct_model_id {
+                    return punct.add_punct(text);
+                }
+            }
+
+            let punct = SherpaOnnxOfflinePunctuation::new_ct_transformer(
+                model_file,
+                "cpu".to_string(),
+                2,
+                false,
+            )?;
+            let out = punct.add_punct(text)?;
+            *guard = Some((punct_model_id.to_string(), punct));
+            Ok(out)
+        }
+    }
+
+    fn apply_punctuation_multiline(&self, punct_model_id: &str, text: &str) -> Result<String> {
+        if !text.contains('\n') {
+            return self.apply_punctuation(punct_model_id, text);
+        }
+
+        let mut out_lines = Vec::new();
+        for line in text.split('\n') {
+            if line.trim().is_empty() {
+                out_lines.push(String::new());
+                continue;
+            }
+            out_lines.push(self.apply_punctuation(punct_model_id, line)?);
+        }
+        Ok(out_lines.join("\n"))
     }
     fn emit_online_asr_status(&self, stage: &str, detail: Option<String>) {
         let _ = self.app_handle.emit(

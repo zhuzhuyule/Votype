@@ -4,6 +4,7 @@ use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
+use crate::managers::model::{EngineType, ModelManager};
 use crate::managers::transcription::TranscriptionManager;
 use crate::overlay::{
     show_llm_processing_overlay, show_recording_overlay, show_transcribing_overlay,
@@ -20,9 +21,10 @@ use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{debug, error, info};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Instant;
+use std::sync::{mpsc, Arc};
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
+use tauri::Emitter;
 use tauri::Manager;
 
 // Shortcut Action Trait
@@ -155,7 +157,10 @@ async fn maybe_post_process_transcription(
     );
 
     // Use model_id from the prompt, falling back to global selection
-    let target_model_cache_id = prompt.model_id.as_ref().or(settings.selected_prompt_model_id.as_ref());
+    let target_model_cache_id = prompt
+        .model_id
+        .as_ref()
+        .or(settings.selected_prompt_model_id.as_ref());
 
     let model = if let Some(selected_model_id) = target_model_cache_id {
         settings
@@ -312,7 +317,10 @@ async fn maybe_post_process_transcription(
                         .nth(100)
                         .map(|(i, _)| i)
                         .unwrap_or(processed_content.len());
-                    debug!("Output preview: '{}...'", &processed_content[..content_preview_end]);
+                    debug!(
+                        "Output preview: '{}...'",
+                        &processed_content[..content_preview_end]
+                    );
                     debug!("=== POST-PROCESSING DEBUG END ===");
                     Some(processed_content)
                 } else {
@@ -349,7 +357,7 @@ async fn maybe_post_process_transcription(
 
 fn remove_think_tags(content: &str) -> String {
     let mut processed_content = content.to_string();
-    
+
     // Remove <think>...</think> sections if present
     while let Some(think_start) = processed_content.find("<think>") {
         if let Some(think_end) = processed_content[think_start..].find("</think>") {
@@ -358,7 +366,7 @@ fn remove_think_tags(content: &str) -> String {
             break;
         }
     }
-    
+
     // Also handle escaped versions of the tags (often found in raw JSON or specific model outputs)
     while let Some(think_start) = processed_content.find("\\u003cthink\\u003e") {
         if let Some(think_end) = processed_content[think_start..].find("\\u003c/think\\u003e") {
@@ -393,21 +401,17 @@ fn parse_custom_provider_error(error_str: &str) -> Option<String> {
 
             // Parse the content field from this JSON snippet
             if let Some(content_field_start) = json_content.find("\"content\":\"") {
-                if let Some(content_field_end) =
-                    json_content[content_field_start + 11..].find("\"")
+                if let Some(content_field_end) = json_content[content_field_start + 11..].find("\"")
                 {
-                    let raw_content = &json_content[content_field_start + 11
-                        ..content_field_start + 11 + content_field_end];
+                    let raw_content = &json_content
+                        [content_field_start + 11..content_field_start + 11 + content_field_end];
                     debug!("Raw content extracted: {}", raw_content);
 
                     let processed_content = clean_response_content(raw_content);
 
                     if !processed_content.is_empty() {
                         info!("Successfully extracted and processed content from custom provider response");
-                        debug!(
-                            "Final content length: {} chars",
-                            processed_content.len()
-                        );
+                        debug!("Final content length: {} chars", processed_content.len());
                         // Safe character boundary slicing for preview
                         let final_preview_end = processed_content
                             .char_indices()
@@ -429,13 +433,12 @@ fn parse_custom_provider_error(error_str: &str) -> Option<String> {
     // Fallback: Try to extract the response content directly from the error
     if let Some(content_start) = error_str.find("\"content\":\"") {
         if let Some(content_end) = error_str[content_start + 11..].find("\",\"role\"") {
-            let content =
-                &error_str[content_start + 11..content_start + 11 + content_end];
+            let content = &error_str[content_start + 11..content_start + 11 + content_end];
             info!("Successfully extracted content from custom provider response");
             debug!("Extracted content length: {} chars", content.len());
-            
+
             let processed_content = clean_response_content(content);
-            
+
             // Safe character boundary slicing for preview
             let extracted_preview_end = processed_content
                 .char_indices()
@@ -458,14 +461,11 @@ fn parse_custom_provider_error(error_str: &str) -> Option<String> {
         // Look for content in a different pattern for service_tier errors
         if let Some(content_start) = error_str.find("\\\"content\\\":\\\"") {
             if let Some(content_end) = error_str[content_start + 12..].find("\\\"") {
-                let content =
-                    &error_str[content_start + 12..content_start + 12 + content_end];
-                
+                let content = &error_str[content_start + 12..content_start + 12 + content_end];
+
                 let processed_content = clean_response_content(content);
-                
-                info!(
-                    "Successfully extracted content from service_tier error response"
-                );
+
+                info!("Successfully extracted content from service_tier error response");
                 debug!(
                     "Extracted content length: {} chars",
                     processed_content.len()
@@ -556,7 +556,11 @@ impl ShortcutAction for TranscribeAction {
         show_recording_overlay(app);
 
         let rm = app.state::<Arc<AudioRecordingManager>>();
-        
+        // Reset any previous online transcription wiring.
+        rm.set_speech_frame_sender(None);
+        rm.set_online_transcription_receiver(None);
+        let mm = app.state::<Arc<ModelManager>>();
+
         // Increment transcription ID to invalidate any pending previous transcriptions
         let new_id = rm.increment_transcription_id();
         debug!("Starting new transcription session with ID: {}", new_id);
@@ -565,6 +569,44 @@ impl ShortcutAction for TranscribeAction {
         let settings = get_settings(app);
         let is_always_on = settings.always_on_microphone;
         debug!("Microphone mode - always_on: {}", is_always_on);
+
+        let use_sherpa_online = !settings.online_asr_enabled
+            && mm
+                .get_model_info(&settings.selected_model)
+                .map(|m| {
+                    matches!(m.engine_type, EngineType::SherpaOnnx)
+                        && m.filename.to_lowercase().contains("streaming")
+                })
+                .unwrap_or(false);
+
+        if use_sherpa_online {
+            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
+            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
+            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
+
+            rm.set_speech_frame_sender(Some(frame_tx));
+            rm.set_online_transcription_receiver(Some(final_rx));
+
+            let app_handle = (*app).clone();
+            std::thread::spawn(move || {
+                let result = (|| -> anyhow::Result<String> {
+                    tm.start_sherpa_online_session()?;
+                    while let Ok(frame) = frame_rx.recv() {
+                        tm.feed_sherpa_online_session(&frame)?;
+                    }
+                    tm.finish_sherpa_online_session()
+                })();
+
+                if let Err(e) = &result {
+                    error!("Sherpa online transcription worker failed: {}", e);
+                }
+                let _ = app_handle.emit(
+                    "sherpa-online-worker-exited",
+                    serde_json::json!({ "ok": result.is_ok() }),
+                );
+                let _ = final_tx.send(result);
+            });
+        }
 
         let mut recording_started = false;
         if is_always_on {
@@ -605,6 +647,11 @@ impl ShortcutAction for TranscribeAction {
             }
         }
 
+        if !recording_started && use_sherpa_online {
+            rm.set_speech_frame_sender(None);
+            rm.set_online_transcription_receiver(None);
+        }
+
         if recording_started {
             // Dynamically register the cancel shortcut in a separate task to avoid deadlock
             shortcut::register_cancel_shortcut(app);
@@ -627,7 +674,9 @@ impl ShortcutAction for TranscribeAction {
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
         let tm = Arc::clone(&app.state::<Arc<TranscriptionManager>>());
         let hm = Arc::clone(&app.state::<Arc<HistoryManager>>());
-        let ppm = Arc::clone(&app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>());
+        let ppm = Arc::clone(
+            &app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>(),
+        );
 
         change_tray_icon(app, TrayIconState::Transcribing);
         show_transcribing_overlay(app);
@@ -659,7 +708,20 @@ impl ShortcutAction for TranscribeAction {
 
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone(); // Clone for history saving
-                match tm.transcribe(samples_clone) {
+                let transcription_result = if let Some(rx) = rm.take_online_transcription_receiver()
+                {
+                    match rx.recv_timeout(Duration::from_secs(30)) {
+                        Ok(res) => res,
+                        Err(err) => Err(anyhow::anyhow!(
+                            "Timed out waiting for Sherpa online transcription: {}",
+                            err
+                        )),
+                    }
+                } else {
+                    tm.transcribe(samples_clone)
+                };
+
+                match transcription_result {
                     Ok(transcription) => {
                         debug!(
                             "Transcription completed in {:?}: '{}'",
@@ -681,7 +743,8 @@ impl ShortcutAction for TranscribeAction {
 
                             // Save history immediately (original)
                             // Calculate duration (assuming 16kHz)
-                            let duration_ms = (samples_clone.len() as f64 / 16000.0 * 1000.0) as i64;
+                            let duration_ms =
+                                (samples_clone.len() as f64 / 16000.0 * 1000.0) as i64;
 
                             let history_id = match hm_clone
                                 .save_transcription(
@@ -721,21 +784,25 @@ impl ShortcutAction for TranscribeAction {
                                     let mut post_process_prompt = String::new();
 
                                     // First, check if Chinese variant conversion is needed
-                                    if let Some(converted_text) =
-                                        maybe_convert_chinese_variant(&settings_clone, &transcription_clone).await
-                                    {
-                                        final_text = converted_text;
-                                    }
-                                    // Then apply regular LLM post-processing if enabled
-                                    else if let Some(processed_text) = maybe_post_process_transcription(
-                                        &ah_clone,
+                                    if let Some(converted_text) = maybe_convert_chinese_variant(
                                         &settings_clone,
                                         &transcription_clone,
                                     )
                                     .await
                                     {
+                                        final_text = converted_text;
+                                    }
+                                    // Then apply regular LLM post-processing if enabled
+                                    else if let Some(processed_text) =
+                                        maybe_post_process_transcription(
+                                            &ah_clone,
+                                            &settings_clone,
+                                            &transcription_clone,
+                                        )
+                                        .await
+                                    {
                                         final_text = processed_text;
-                                        
+
                                         // Get the prompt that was used
                                         if let Some(prompt_id) =
                                             &settings_clone.post_process_selected_prompt_id
@@ -767,13 +834,20 @@ impl ShortcutAction for TranscribeAction {
                                     }
 
                                     // Check ID again before pasting after post-processing
-                                    if rm_clone.get_current_transcription_id() != current_transcription_id {
+                                    if rm_clone.get_current_transcription_id()
+                                        != current_transcription_id
+                                    {
                                         info!("New recording started during post-processing (ID mismatch). Skipping paste.");
                                         let ah_clone_inner = ah_clone.clone();
-                                        ah_clone.run_on_main_thread(move || {
-                                            utils::hide_recording_overlay(&ah_clone_inner);
-                                            change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
-                                        }).unwrap_or_default();
+                                        ah_clone
+                                            .run_on_main_thread(move || {
+                                                utils::hide_recording_overlay(&ah_clone_inner);
+                                                change_tray_icon(
+                                                    &ah_clone_inner,
+                                                    TrayIconState::Idle,
+                                                );
+                                            })
+                                            .unwrap_or_default();
                                         return;
                                     }
 
@@ -782,12 +856,8 @@ impl ShortcutAction for TranscribeAction {
                                     ah_clone
                                         .run_on_main_thread(move || {
                                             utils::hide_recording_overlay(&ah_clone_inner);
-                                            change_tray_icon(
-                                                &ah_clone_inner,
-                                                TrayIconState::Idle,
-                                            );
-                                            if let Err(e) =
-                                                utils::paste(final_text, ah_clone_inner)
+                                            change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
+                                            if let Err(e) = utils::paste(final_text, ah_clone_inner)
                                             {
                                                 error!("Failed to paste transcription: {}", e);
                                             }

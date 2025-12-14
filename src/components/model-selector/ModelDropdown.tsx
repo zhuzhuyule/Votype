@@ -1,16 +1,22 @@
-import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
+import { Box, Flex, IconButton, ScrollArea, Text, TextField } from "@radix-ui/themes";
 import {
   IconCheck,
+  IconChevronDown,
   IconCloud,
   IconCube,
   IconDeviceDesktop,
   IconDownload,
+  IconSearch,
   IconTrash,
 } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { formatModelSize } from "../../lib/utils/format";
+import {
+  getTranslatedModelDescription,
+  getTranslatedModelName,
+} from "../../lib/utils/modelTranslation";
 import { ProgressBar } from "../shared";
 
 interface DownloadProgress {
@@ -52,8 +58,64 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   onlineEnabled,
 }) => {
   const { t } = useTranslation();
-  const availableModels = models.filter((m) => m.is_downloaded);
-  const downloadableModels = models.filter((m) => !m.is_downloaded);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [expandedSections, setExpandedSections] = React.useState(() => new Set(["downloaded", "downloadable", "online"]));
+
+  const matchesQuery = React.useCallback(
+    (model: { name: string; id: string; description?: string }, query: string) => {
+      if (!query.trim()) return true;
+      const q = query.trim().toLowerCase();
+      return (
+        model.name.toLowerCase().includes(q) ||
+        model.id.toLowerCase().includes(q) ||
+        (model.description ?? "").toLowerCase().includes(q)
+      );
+    },
+    [],
+  );
+
+  const getFamily = React.useCallback((model: ModelInfo) => {
+    if (model.id.startsWith("sherpa-")) return "Sherpa (Streaming)";
+    if (model.id.startsWith("parakeet-")) return "Parakeet";
+    if (["small", "medium", "turbo", "large"].includes(model.id)) return "Whisper";
+    return "Other";
+  }, []);
+
+  const orderFamily = (family: string) => {
+    switch (family) {
+      case "Whisper":
+        return 0;
+      case "Parakeet":
+        return 1;
+      case "Sherpa (Streaming)":
+        return 2;
+      default:
+        return 3;
+    }
+  };
+
+  const availableModels = models
+    .filter((m) => m.is_downloaded)
+    .filter((m) => matchesQuery(m, searchQuery))
+    .sort((a, b) => {
+      const fa = orderFamily(getFamily(a));
+      const fb = orderFamily(getFamily(b));
+      if (fa !== fb) return fa - fb;
+      if (a.id === currentModelId) return -1;
+      if (b.id === currentModelId) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+  const downloadableModels = models
+    .filter((m) => !m.is_downloaded)
+    .filter((m) => matchesQuery(m, searchQuery))
+    .sort((a, b) => {
+      const fa = orderFamily(getFamily(a));
+      const fb = orderFamily(getFamily(b));
+      if (fa !== fb) return fa - fb;
+      return a.size_mb - b.size_mb;
+    });
+
   const isFirstRun = availableModels.length === 0 && models.length > 0;
 
   const handleDeleteClick = async (e: React.MouseEvent, modelId: string) => {
@@ -81,9 +143,76 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     onModelDownload(modelId);
   };
 
-  return (
+  const toggleSection = (key: string) => {
+    setExpandedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
-    <Box className="absolute bottom-full left-0 mb-2 w-96 bg-background/95 backdrop-blur-sm border border-mid-gray/20 rounded-xl shadow-2xl py-2 z-50 shadow-black/20 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom-left">
+  const renderSectionHeader = (
+    key: string,
+    icon: React.ReactNode,
+    label: string,
+    count: number,
+  ) => {
+    const isOpen = expandedSections.has(key);
+    return (
+      <Box
+        role="button"
+        tabIndex={0}
+        onClick={() => toggleSection(key)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleSection(key);
+          }
+        }}
+        className="px-4 py-2 text-xs font-medium text-text/60 uppercase tracking-wider flex items-center justify-between cursor-pointer select-none hover:bg-mid-gray/5"
+      >
+        <Flex align="center" gap="2">
+          {icon}
+          <span>
+            {label}{" "}
+            <span className="text-text/40 font-normal">({count})</span>
+          </span>
+        </Flex>
+        <IconChevronDown
+          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        />
+      </Box>
+    );
+  };
+
+  const renderGroupedModels = (list: ModelInfo[], renderItem: (m: ModelInfo) => React.ReactNode) => {
+    const groups = new Map<string, ModelInfo[]>();
+    for (const model of list) {
+      const key = getFamily(model);
+      const arr = groups.get(key) ?? [];
+      arr.push(model);
+      groups.set(key, arr);
+    }
+    const ordered = Array.from(groups.entries()).sort(
+      ([a], [b]) => orderFamily(a) - orderFamily(b),
+    );
+    return (
+      <>
+        {ordered.map(([family, items]) => (
+          <Box key={family}>
+            <Box className="px-4 pt-2 pb-1 text-[11px] font-medium text-text/45 uppercase tracking-wider">
+              {family} <span className="text-text/30 font-normal">({items.length})</span>
+            </Box>
+            {items.map(renderItem)}
+          </Box>
+        ))}
+      </>
+    );
+  };
+
+  return (
+    <Box className="absolute bottom-full left-0 mb-2 w-[28rem] max-h-[70vh] bg-background/95 backdrop-blur-sm border border-mid-gray/20 rounded-xl shadow-2xl z-50 shadow-black/20 overflow-hidden animate-in fade-in zoom-in-95 duration-200 origin-bottom-left">
       {/* First Run Welcome */}
       {isFirstRun && (
         <Box className="px-4 py-3 bg-logo-primary/5 border-b border-logo-primary/10">
@@ -96,14 +225,33 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         </Box>
       )}
 
-      {/* Available Models */}
-      {availableModels.length > 0 && (
-        <Box className="py-1">
-          <Flex align="center" gap="2" className="px-4 py-1.5 text-xs font-medium text-text/50 uppercase tracking-wider">
-            <IconDeviceDesktop className="w-3.5 h-3.5" />
-            {t("modelSelector.availableModels")}
-          </Flex>
-          {availableModels.map((model) => {
+      <Box className="px-4 py-2 border-b border-mid-gray/10">
+        <TextField.Root
+          size="2"
+          placeholder={t("modelSelector.searchPlaceholder", {
+            defaultValue: "Search models…",
+          })}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        >
+          <TextField.Slot>
+            <IconSearch height="14" width="14" />
+          </TextField.Slot>
+        </TextField.Root>
+      </Box>
+
+      <ScrollArea type="hover" scrollbars="vertical" className="max-h-[60vh]">
+        {/* Downloaded Models */}
+        {availableModels.length > 0 &&
+          renderSectionHeader(
+            "downloaded",
+            <IconDeviceDesktop className="w-3.5 h-3.5" />,
+            t("modelSelector.availableModels"),
+            availableModels.length,
+          )}
+        {availableModels.length > 0 && expandedSections.has("downloaded") && (
+          <Box className="py-1">
+            {renderGroupedModels(availableModels, (model) => {
             const isActive = !onlineEnabled && currentModelId === model.id;
             return (
               <Box
@@ -125,7 +273,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   <Box>
                     <Flex align="center" gap="2" mb="1">
                       <Text size="2" weight="medium" className={isActive ? "text-logo-primary" : "text-text"}>
-                        {model.name}
+                        {getTranslatedModelName(model, t)}
                       </Text>
                       <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium" size="1">
                         {formatModelSize(model.size_mb)}
@@ -133,9 +281,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                     </Flex>
 	                    {model.description && (
 	                      <Text className="text-xs text-text/50 block leading-tight" size="1">
-	                        {t(model.description, {
-	                          defaultValue: model.description,
-	                        })}
+	                        {getTranslatedModelDescription(model, t)}
 	                      </Text>
 	                    )}
                   </Box>
@@ -155,21 +301,24 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                 </Flex>
               </Box>
             );
-          })}
-        </Box>
-      )}
+            })}
+          </Box>
+        )}
 
       {/* Online ASR Models */}
       {asrModels.length > 0 && (
-        <Box className="py-1">
-          {(availableModels.length > 0 || isFirstRun) && (
-            <Box className="mx-4 my-2 border-t border-mid-gray/10" />
+        <>
+          {renderSectionHeader(
+            "online",
+            <IconCloud className="w-3.5 h-3.5" />,
+            t("modelSelector.onlineAsrModels"),
+            asrModels.filter((m) => matchesQuery(m, searchQuery)).length,
           )}
-          <Flex align="center" gap="2" className="px-4 py-1.5 text-xs font-medium text-text/50 uppercase tracking-wider">
-            <IconCloud className="w-3.5 h-3.5" />
-            {t("modelSelector.onlineAsrModels")}
-          </Flex>
-	          {asrModels.map((model) => {
+          {expandedSections.has("online") && (
+            <Box className="py-1">
+	            {asrModels
+                .filter((m) => matchesQuery(m, searchQuery))
+                .map((model) => {
 	            const isActive = onlineEnabled && selectedAsrModelId === model.id;
 	            return (
 	              <Box
@@ -200,19 +349,24 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 	                  {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />}
 	                </Flex>
 	              </Box>
-            );
-          })}
-        </Box>
+              );
+            })}
+          </Box>
+          )}
+        </>
       )}
 
       {/* Downloadable Models */}
-	      {downloadableModels.length > 0 && (
-	        <Box className="py-1 bg-mid-gray/5 mt-2 border-t border-mid-gray/10">
-	          <Flex align="center" gap="2" className="px-4 py-2 text-xs font-medium text-text/50 uppercase tracking-wider">
-	            <IconDownload className="w-3.5 h-3.5" />
-	            {t("modelSelector.downloadModels")}
-	          </Flex>
-	          {downloadableModels.map((model) => {
+	      {downloadableModels.length > 0 &&
+          renderSectionHeader(
+            "downloadable",
+            <IconDownload className="w-3.5 h-3.5" />,
+            t("modelSelector.downloadModels"),
+            downloadableModels.length,
+          )}
+	      {downloadableModels.length > 0 && expandedSections.has("downloadable") && (
+	        <Box className="py-1 bg-mid-gray/5 border-t border-mid-gray/10">
+	          {renderGroupedModels(downloadableModels, (model) => {
 	            const isDownloading = downloadProgress.has(model.id);
 	            const progress = downloadProgress.get(model.id);
 
@@ -225,7 +379,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   <Box>
                     <Flex align="center" gap="2" mb="1">
                       <Text size="2" weight="medium" className="text-text">
-                        {model.name}
+                        {getTranslatedModelName(model, t)}
                       </Text>
                       <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium" size="1">
                         {formatModelSize(model.size_mb)}
@@ -237,9 +391,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 	                      )}
 	                    </Flex>
 		                    <Text className="text-xs text-text/50 block leading-tight" size="1">
-		                      {t(model.description, {
-		                        defaultValue: model.description,
-		                      })}
+		                      {getTranslatedModelDescription(model, t)}
 		                    </Text>
 	                  </Box>
 
@@ -282,7 +434,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       )}
 
 	      {/* No Models Available */}
-	      {availableModels.length === 0 && downloadableModels.length === 0 && (
+	      {availableModels.length === 0 && downloadableModels.length === 0 && asrModels.length === 0 && (
 	        <Box className="px-4 py-8 text-center">
 	          <IconCube className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
 	          <Text className="text-sm text-text/60" size="2">
@@ -290,7 +442,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 	          </Text>
 	        </Box>
 	      )}
-	    </Box>
+      </ScrollArea>
+    </Box>
 	  );
 };
 

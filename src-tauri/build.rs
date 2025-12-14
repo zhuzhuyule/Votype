@@ -1,8 +1,19 @@
 fn main() {
+    build_sherpa_safe_shim();
+
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     build_apple_intelligence_bridge();
 
     tauri_build::build()
+}
+
+fn build_sherpa_safe_shim() {
+    println!("cargo:rerun-if-changed=cpp/sherpa_safe.cc");
+    cc::Build::new()
+        .cpp(true)
+        .file("cpp/sherpa_safe.cc")
+        .flag_if_supported("-std=c++17")
+        .compile("sherpa_safe");
 }
 
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]

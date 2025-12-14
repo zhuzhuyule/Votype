@@ -3,7 +3,7 @@ use crate::helpers::clamshell;
 use crate::settings::{get_settings, AppSettings};
 use crate::utils;
 use log::{debug, error, info};
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::Instant;
 use tauri::Manager;
 
@@ -117,6 +117,7 @@ pub enum MicrophoneMode {
 fn create_audio_recorder(
     vad_path: &str,
     app_handle: &tauri::AppHandle,
+    speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
 ) -> Result<AudioRecorder, anyhow::Error> {
     let silero = SileroVad::new(vad_path, 0.3)
         .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
@@ -131,6 +132,11 @@ fn create_audio_recorder(
             let app_handle = app_handle.clone();
             move |levels| {
                 utils::emit_levels(&app_handle, &levels);
+            }
+        })
+        .with_speech_callback(move |speech_frame| {
+            if let Some(tx) = speech_frame_tx.lock().unwrap().as_ref() {
+                let _ = tx.send(speech_frame);
             }
         });
 
@@ -150,6 +156,8 @@ pub struct AudioRecordingManager {
     is_recording: Arc<Mutex<bool>>,
     did_mute: Arc<Mutex<bool>>,
     current_transcription_id: Arc<std::sync::atomic::AtomicU64>,
+    speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
+    online_transcription_rx: Arc<Mutex<Option<mpsc::Receiver<anyhow::Result<String>>>>>,
 }
 
 impl AudioRecordingManager {
@@ -173,6 +181,8 @@ impl AudioRecordingManager {
             is_recording: Arc::new(Mutex::new(false)),
             did_mute: Arc::new(Mutex::new(false)),
             current_transcription_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            speech_frame_tx: Arc::new(Mutex::new(None)),
+            online_transcription_rx: Arc::new(Mutex::new(None)),
         };
 
         // Always-on?  Open immediately.
@@ -181,6 +191,23 @@ impl AudioRecordingManager {
         }
 
         Ok(manager)
+    }
+
+    pub fn set_speech_frame_sender(&self, tx: Option<mpsc::Sender<Vec<f32>>>) {
+        *self.speech_frame_tx.lock().unwrap() = tx;
+    }
+
+    pub fn set_online_transcription_receiver(
+        &self,
+        rx: Option<mpsc::Receiver<anyhow::Result<String>>>,
+    ) {
+        *self.online_transcription_rx.lock().unwrap() = rx;
+    }
+
+    pub fn take_online_transcription_receiver(
+        &self,
+    ) -> Option<mpsc::Receiver<anyhow::Result<String>>> {
+        self.online_transcription_rx.lock().unwrap().take()
     }
 
     /* ---------- helper methods --------------------------------------------- */
@@ -263,6 +290,7 @@ impl AudioRecordingManager {
             *recorder_opt = Some(create_audio_recorder(
                 vad_path.to_str().unwrap(),
                 &self.app_handle,
+                self.speech_frame_tx.clone(),
             )?);
         }
 
@@ -300,6 +328,7 @@ impl AudioRecordingManager {
             if *self.is_recording.lock().unwrap() {
                 let _ = rec.stop();
                 *self.is_recording.lock().unwrap() = false;
+                self.set_speech_frame_sender(None);
             }
             let _ = rec.close();
         }
@@ -396,6 +425,7 @@ impl AudioRecordingManager {
                 };
 
                 *self.is_recording.lock().unwrap() = false;
+                self.set_speech_frame_sender(None);
 
                 // In on-demand mode turn the mic off again
                 if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
@@ -436,6 +466,8 @@ impl AudioRecordingManager {
             }
 
             *self.is_recording.lock().unwrap() = false;
+            self.set_speech_frame_sender(None);
+            self.set_online_transcription_receiver(None);
 
             // In on-demand mode turn the mic off again
             if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {

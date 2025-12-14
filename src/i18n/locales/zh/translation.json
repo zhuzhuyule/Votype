@@ -83,6 +83,27 @@
       "speed": "速度"
     },
     "models": {
+      "sherpa-zipformer-zh-int8-2025-06-30": {
+        "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
+      },
+      "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+        "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
+      },
+      "sherpa-zipformer-en-kroko-2025-08-06": {
+        "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+      },
+      "sherpa-zipformer-de-kroko-2025-08-06": {
+        "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+      },
+      "sherpa-zipformer-es-kroko-2025-08-06": {
+        "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。"
+      },
+      "sherpa-zipformer-fr-kroko-2025-08-06": {
+        "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+      },
+      "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+        "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
+      },
       "small": {
         "description": "快速且相当准确。"
       },
@@ -110,6 +131,7 @@
   "modelSelector": {
     "welcome": "欢迎使用 Votype！",
     "downloadPrompt": "请下载以下模型以开始转录。",
+    "searchPlaceholder": "搜索模型…",
     "availableModels": "可用模型",
     "downloadModels": "下载模型",
     "chooseModel": "选择模型",
@@ -137,6 +159,50 @@
     "onlineAsrActive": "在线 ASR 已启用"
   },
   "models": {
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "name": "Sherpa 中文",
+      "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "name": "Sherpa 中文 XL",
+      "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "name": "Sherpa 英语",
+      "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "name": "Sherpa 德语",
+      "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "name": "Sherpa 西班牙语",
+      "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。"
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "name": "Sherpa 法语",
+      "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "name": "Sherpa 俄语",
+      "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "name": "Sherpa 中英 Paraformer",
+      "description": "流式中英识别，适合实时字幕，速度快，准确率尚可。"
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "name": "SenseVoice 多语",
+      "description": "离线多语识别：中/英/日/韩/粤；Int8 量化；速度和占用中等；更新于 2025-09-09。"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "name": "中英标点（小）",
+      "description": "给中英混合文本补标点和断句；Int8，体积小速度快；更新于 2024-04-12。"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "name": "中英标点（大）",
+      "description": "给中英混合文本补标点和断句；更大更准但更慢；更新于 2024-04-12。"
+    },
     "small": {
       "description": "快速且相当准确。"
     },
@@ -271,6 +337,15 @@
         "label": "翻译为英语",
         "description": "在转录过程中自动将其他语言的语音翻译为英语。",
         "descriptionUnsupported": "{{model}} 模型不支持翻译功能。"
+      },
+      "punctuation": {
+        "label": "自动加标点",
+        "description": "给最终转录结果补标点（{{model}}）。",
+        "model": {
+          "title": "标点模型",
+          "description": "选择一个用于中英混合的标点模型，只作用于最终结果。",
+          "notDownloaded": "当前选择的标点模型还没下载。"
+        }
       },
       "modelUnload": {
         "title": "卸载模型",

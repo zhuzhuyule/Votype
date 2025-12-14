@@ -105,6 +105,9 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   online_asr_enabled: false,
   selected_asr_model_id: null,
   selected_prompt_model_id: null,
+  sense_voice_use_itn: true,
+  punctuation_enabled: false,
+  punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -167,6 +170,10 @@ const settingUpdaters: {
     invoke("change_mute_while_recording_setting", { enabled: value }),
   append_trailing_space: (value) =>
     invoke("change_append_trailing_space_setting", { enabled: value }),
+  punctuation_enabled: (value) =>
+    invoke("change_punctuation_enabled_setting", { enabled: value }),
+  punctuation_model: (value) =>
+    invoke("change_punctuation_model_setting", { modelId: value }),
   log_level: (value) => invoke("set_log_level", { level: value }),
   onboarding_completed: (value) =>
     invoke("change_onboarding_completed_setting", { completed: value }),

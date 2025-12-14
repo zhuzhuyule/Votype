@@ -13,14 +13,13 @@ use crate::settings::{
     PasteMethod, PostProcessProvider, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
-use crate::ManagedToggleState;
 use crate::tray::{ManagedTrayIconState, TrayIconState};
+use crate::ManagedToggleState;
 use chrono::Utc;
 
 pub fn init_shortcuts(app: &AppHandle) {
     let default_bindings = settings::get_default_settings().bindings;
     let user_settings = settings::load_or_create_app_settings(app);
-
 
     // Register all default shortcuts, applying user customizations
     for (id, default_binding) in default_bindings {
@@ -243,13 +242,17 @@ pub fn change_debug_mode_setting(app: AppHandle, enabled: bool) -> Result<(), St
     } else {
         log::LevelFilter::Info
     };
-    
-    // We need to access the atomic from lib.rs. 
+
+    // We need to access the atomic from lib.rs.
     // Since it's in the crate root, we can access it via crate::CONSOLE_LOG_LEVEL
     use std::sync::atomic::Ordering;
     crate::CONSOLE_LOG_LEVEL.store(console_level as u8, Ordering::Relaxed);
-    
-    log::info!("Debug mode changed to: {}. Console log level set to: {:?}", enabled, console_level);
+
+    log::info!(
+        "Debug mode changed to: {}. Console log level set to: {:?}",
+        enabled,
+        console_level
+    );
 
     // Emit event to notify frontend of debug mode change
     let _ = app.emit(
@@ -888,7 +891,9 @@ pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Re
                 return Err("Selected model is not a Text model".to_string());
             }
             // Update the per-provider model selection
-            settings.post_process_models.insert(model.provider_id.clone(), model.model_id.clone());
+            settings
+                .post_process_models
+                .insert(model.provider_id.clone(), model.model_id.clone());
         }
     }
 
@@ -1028,6 +1033,22 @@ pub fn change_append_trailing_space_setting(app: AppHandle, enabled: bool) -> Re
     settings.append_trailing_space = enabled;
     settings::write_settings(&app, settings);
 
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_punctuation_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.punctuation_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_punctuation_model_setting(app: AppHandle, model_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.punctuation_model = model_id;
+    settings::write_settings(&app, settings);
     Ok(())
 }
 

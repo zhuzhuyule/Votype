@@ -369,7 +369,9 @@ impl HistoryManager {
 
         // Calculate char counts
         let char_count = Some(transcription_text.chars().count() as i64);
-        let corrected_char_count = post_processed_text.as_ref().map(|s| s.chars().count() as i64);
+        let corrected_char_count = post_processed_text
+            .as_ref()
+            .map(|s| s.chars().count() as i64);
 
         // Save WAV file
         let file_path = self.recordings_dir.join(&file_name);
@@ -416,7 +418,7 @@ impl HistoryManager {
             "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![file_name, timestamp, false, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count],
         )?;
-        
+
         let id = conn.last_insert_rowid();
         debug!("Saved transcription to database with id: {}", id);
         Ok(id)

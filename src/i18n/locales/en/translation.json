@@ -116,6 +116,7 @@
   "modelSelector": {
     "welcome": "Welcome to Votype!",
     "downloadPrompt": "Download a model below to get started with transcription.",
+    "searchPlaceholder": "Search models…",
     "availableModels": "Available Models",
     "downloadModels": "Download Models",
     "chooseModel": "Choose a Model",
@@ -143,6 +144,50 @@
     "onlineAsrActive": "Online ASR active"
   },
   "models": {
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "name": "Sherpa Chinese",
+      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "name": "Sherpa Chinese XL",
+      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "name": "Sherpa English",
+      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "name": "Sherpa German",
+      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "name": "Sherpa Spanish",
+      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "name": "Sherpa French",
+      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "name": "Sherpa Russian",
+      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16."
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "name": "Sherpa Chinese + English (Paraformer)",
+      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "name": "SenseVoice Multilingual",
+      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "name": "Punctuation (Chinese + English)",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "name": "Punctuation (Chinese + English) Large",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+    },
     "small": {
       "name": "Whisper Small",
       "description": "Fast and fairly accurate."
@@ -276,6 +321,15 @@
         "label": "Translate to English",
         "description": "Automatically translate speech from other languages to English during transcription.",
         "descriptionUnsupported": "Translation is not supported by the {{model}} model."
+      },
+      "punctuation": {
+        "label": "Add Punctuation",
+        "description": "Adds punctuation to the final transcript ({{model}}).",
+        "model": {
+          "title": "Punctuation Model",
+          "description": "Choose a punctuation model for zh+en mixed text. Only applied to the final result.",
+          "notDownloaded": "Selected model is not downloaded yet."
+        }
       },
       "modelUnload": {
         "title": "Unload Model",

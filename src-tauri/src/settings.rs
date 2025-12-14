@@ -259,6 +259,12 @@ pub struct AppSettings {
     pub mute_while_recording: bool,
     #[serde(default)]
     pub append_trailing_space: bool,
+    #[serde(default = "default_sense_voice_use_itn")]
+    pub sense_voice_use_itn: bool,
+    #[serde(default = "default_punctuation_enabled")]
+    pub punctuation_enabled: bool,
+    #[serde(default = "default_punctuation_model")]
+    pub punctuation_model: String,
 }
 
 fn default_model() -> String {
@@ -414,6 +420,18 @@ fn default_post_process_models() -> HashMap<String, String> {
     map
 }
 
+fn default_sense_voice_use_itn() -> bool {
+    true
+}
+
+fn default_punctuation_enabled() -> bool {
+    false
+}
+
+fn default_punctuation_model() -> String {
+    "punct-zh-en-ct-transformer-2024-04-12-int8".to_string()
+}
+
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![LLMPrompt {
         id: "default_improve_transcriptions".to_string(),
@@ -537,6 +555,9 @@ pub fn get_default_settings() -> AppSettings {
         selected_prompt_model_id: None,
         mute_while_recording: false,
         append_trailing_space: false,
+        sense_voice_use_itn: default_sense_voice_use_itn(),
+        punctuation_enabled: default_punctuation_enabled(),
+        punctuation_model: default_punctuation_model(),
     }
 }
 

@@ -56,6 +56,15 @@ pub async fn set_active_model(
         return Err(format!("Model not downloaded: {}", model_id));
     }
 
+    if matches!(
+        model_info.engine_type,
+        crate::managers::model::EngineType::SherpaOnnxPunctuation
+    ) {
+        return Err(
+            "Punctuation models cannot be selected as the active transcription model".to_string(),
+        );
+    }
+
     // 如果启用了在线 ASR，不要加载本地模型，只更新设置
     let mut settings = get_settings(&app_handle);
     if !settings.online_asr_enabled {

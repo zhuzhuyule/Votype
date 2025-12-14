@@ -18,6 +18,7 @@ pub enum EngineType {
     Whisper,
     Parakeet,
     SherpaOnnx,
+    SherpaOnnxPunctuation,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -184,21 +185,220 @@ impl ModelManager {
         );
 
         available_models.insert(
-            "sherpa-zipformer-bilingual".to_string(),
+            "sherpa-zipformer-zh-int8-2025-06-30".to_string(),
             ModelInfo {
-                id: "sherpa-zipformer-bilingual".to_string(),
-                name: "Sherpa Bilingual (Zipformer)".to_string(),
-                description: "models.sherpa-zipformer-bilingual.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2".to_string()),
-                size_mb: 230,
+                id: "sherpa-zipformer-zh-int8-2025-06-30".to_string(),
+                name: "Sherpa Chinese".to_string(),
+                description: "models.sherpa-zipformer-zh-int8-2025-06-30.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2".to_string()),
+                size_mb: 127,
                 is_downloaded: false,
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
-                accuracy_score: 0.85,
+                accuracy_score: 0.82,
+                speed_score: 0.97,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-zh-xlarge-int8-2025-06-30".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-zh-xlarge-int8-2025-06-30".to_string(),
+                name: "Sherpa Chinese XL".to_string(),
+                description: "models.sherpa-zipformer-zh-xlarge-int8-2025-06-30.description"
+                    .to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30.tar.bz2".to_string()),
+                size_mb: 570,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.90,
+                speed_score: 0.70,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-en-kroko-2025-08-06".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-en-kroko-2025-08-06".to_string(),
+                name: "Sherpa English".to_string(),
+                description: "models.sherpa-zipformer-en-kroko-2025-08-06.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06.tar.bz2".to_string()),
+                size_mb: 55,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.78,
+                speed_score: 0.98,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-de-kroko-2025-08-06".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-de-kroko-2025-08-06".to_string(),
+                name: "Sherpa German".to_string(),
+                description: "models.sherpa-zipformer-de-kroko-2025-08-06.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-de-kroko-2025-08-06".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-de-kroko-2025-08-06.tar.bz2".to_string()),
+                size_mb: 55,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.78,
+                speed_score: 0.98,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-es-kroko-2025-08-06".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-es-kroko-2025-08-06".to_string(),
+                name: "Sherpa Spanish".to_string(),
+                description: "models.sherpa-zipformer-es-kroko-2025-08-06.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-es-kroko-2025-08-06".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-es-kroko-2025-08-06.tar.bz2".to_string()),
+                size_mb: 119,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.80,
                 speed_score: 0.95,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-fr-kroko-2025-08-06".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-fr-kroko-2025-08-06".to_string(),
+                name: "Sherpa French".to_string(),
+                description: "models.sherpa-zipformer-fr-kroko-2025-08-06.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-fr-kroko-2025-08-06".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-fr-kroko-2025-08-06.tar.bz2".to_string()),
+                size_mb: 55,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.78,
+                speed_score: 0.98,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-ru-vosk-int8-2025-08-16".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-ru-vosk-int8-2025-08-16".to_string(),
+                name: "Sherpa Russian".to_string(),
+                description: "models.sherpa-zipformer-ru-vosk-int8-2025-08-16.description"
+                    .to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-small-ru-vosk-int8-2025-08-16"
+                    .to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-ru-vosk-int8-2025-08-16.tar.bz2".to_string()),
+                size_mb: 23,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.70,
+                speed_score: 0.99,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-paraformer-zh-en-streaming".to_string(),
+            ModelInfo {
+                id: "sherpa-paraformer-zh-en-streaming".to_string(),
+                name: "Sherpa Chinese + English Paraformer".to_string(),
+                description: "models.sherpa-paraformer-zh-en-streaming.description".to_string(),
+                filename: "sherpa-onnx-streaming-paraformer-bilingual-zh-en".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2".to_string()),
+                size_mb: 1000,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.84,
+                speed_score: 0.92,
+            },
+        );
+
+        // Punctuation (post-processing): zh+en mixed.
+        available_models.insert(
+            "punct-zh-en-ct-transformer-2024-04-12-int8".to_string(),
+            ModelInfo {
+                id: "punct-zh-en-ct-transformer-2024-04-12-int8".to_string(),
+                name: "Punctuation Chinese + English".to_string(),
+                description: "models.punct-zh-en-ct-transformer-2024-04-12-int8.description"
+                    .to_string(),
+                filename: "sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8"
+                    .to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8.tar.bz2".to_string()),
+                size_mb: 62,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnxPunctuation,
+                accuracy_score: 0.80,
+                speed_score: 0.95,
+            },
+        );
+
+        available_models.insert(
+            "punct-zh-en-ct-transformer-2024-04-12".to_string(),
+            ModelInfo {
+                id: "punct-zh-en-ct-transformer-2024-04-12".to_string(),
+                name: "Punctuation Chinese + English (Large)".to_string(),
+                description: "models.punct-zh-en-ct-transformer-2024-04-12.description".to_string(),
+                filename: "sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12"
+                    .to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/punctuation-models/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12.tar.bz2".to_string()),
+                size_mb: 266,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnxPunctuation,
+                accuracy_score: 0.88,
+                speed_score: 0.70,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09".to_string(),
+            ModelInfo {
+                id: "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09".to_string(),
+                name: "Sherpa SenseVoice Multilingual".to_string(),
+                description:
+                    "models.sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09.description"
+                        .to_string(),
+                filename: "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2".to_string()),
+                size_mb: 166,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.87,
+                speed_score: 0.75,
             },
         );
 

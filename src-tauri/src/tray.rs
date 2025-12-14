@@ -176,7 +176,7 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState) {
         true,
         quit_accelerator,
     )
-        .expect("failed to create quit item");
+    .expect("failed to create quit item");
     let separator = || PredefinedMenuItem::separator(app).expect("failed to create separator");
 
     let menu = match state {

@@ -160,9 +160,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
-    let post_processing_manager = Arc::new(
-        managers::post_processing::PostProcessingManager::new()
-    );
+    let post_processing_manager = Arc::new(managers::post_processing::PostProcessingManager::new());
 
     // Add managers to Tauri's managed state
     app_handle.manage(recording_manager.clone());
@@ -271,38 +269,37 @@ pub fn run() {
     // when the variable is unset
     let console_filter = build_console_filter();
 
-    let mut builder = tauri::Builder::default()
-        .plugin(
-            LogBuilder::new()
-                .level(log::LevelFilter::Trace) // Set to most verbose level globally
-                .max_file_size(500_000)
-                .rotation_strategy(RotationStrategy::KeepOne)
-                .clear_targets()
-                .targets([
-                    // Console output respects RUST_LOG environment variable OR dynamic console level
-                    Target::new(TargetKind::Stdout).filter({
-                        let console_filter = console_filter.clone();
-                        move |metadata| {
-                            // Check RUST_LOG filter first
-                            if console_filter.enabled(metadata) {
-                                return true;
-                            }
-                            // Fallback to dynamic console level
-                            let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
-                            metadata.level() <= level_filter_from_u8(console_level)
+    let mut builder = tauri::Builder::default().plugin(
+        LogBuilder::new()
+            .level(log::LevelFilter::Trace) // Set to most verbose level globally
+            .max_file_size(500_000)
+            .rotation_strategy(RotationStrategy::KeepOne)
+            .clear_targets()
+            .targets([
+                // Console output respects RUST_LOG environment variable OR dynamic console level
+                Target::new(TargetKind::Stdout).filter({
+                    let console_filter = console_filter.clone();
+                    move |metadata| {
+                        // Check RUST_LOG filter first
+                        if console_filter.enabled(metadata) {
+                            return true;
                         }
-                    }),
-                    // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
-                    Target::new(TargetKind::LogDir {
-                        file_name: Some("votype".into()),
-                    })
-                    .filter(|metadata| {
-                        let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
-                        metadata.level() <= level_filter_from_u8(file_level)
-                    }),
-                ])
-                .build(),
-        );
+                        // Fallback to dynamic console level
+                        let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
+                        metadata.level() <= level_filter_from_u8(console_level)
+                    }
+                }),
+                // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
+                Target::new(TargetKind::LogDir {
+                    file_name: Some("votype".into()),
+                })
+                .filter(|metadata| {
+                    let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
+                    metadata.level() <= level_filter_from_u8(file_level)
+                }),
+            ])
+            .build(),
+    );
 
     #[cfg(target_os = "macos")]
     {
@@ -332,7 +329,7 @@ pub fn run() {
             let file_log_level: log::Level = settings.log_level.clone().into();
             // Store the file log level in the atomic for the filter to use
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
-            
+
             // Initialize console log level based on debug_mode
             let console_level = if settings.debug_mode {
                 log::LevelFilter::Debug
@@ -416,6 +413,8 @@ pub fn run() {
             shortcut::resume_binding,
             shortcut::change_mute_while_recording_setting,
             shortcut::change_append_trailing_space_setting,
+            shortcut::change_punctuation_enabled_setting,
+            shortcut::change_punctuation_model_setting,
             trigger_update_check,
             commands::cancel_operation,
             commands::get_app_dir_path,
