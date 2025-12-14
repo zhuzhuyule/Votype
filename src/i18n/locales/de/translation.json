@@ -6,7 +6,11 @@
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
-    "about": "Info"
+    "about": "Info",
+    "models": "Modelle",
+    "asrModels": "ASR-Modelle",
+    "prompts": "Prompts",
+    "debug": "Debug"
   },
   "dashboard": {
     "title": "Übersicht",
@@ -81,22 +85,28 @@
     },
     "models": {
       "small": {
-        "description": "Schnell und recht genau."
+        "description": "Schnell und recht genau.",
+        "name": "Whisper Small"
       },
       "medium": {
-        "description": "Gute Genauigkeit, mittlere Geschwindigkeit"
+        "description": "Gute Genauigkeit, mittlere Geschwindigkeit",
+        "name": "Whisper Medium"
       },
       "turbo": {
-        "description": "Ausgewogene Genauigkeit und Geschwindigkeit."
+        "description": "Ausgewogene Genauigkeit und Geschwindigkeit.",
+        "name": "Whisper Turbo"
       },
       "large": {
-        "description": "Gute Genauigkeit, aber langsam."
+        "description": "Gute Genauigkeit, aber langsam.",
+        "name": "Whisper Large"
       },
       "parakeet-tdt-0.6b-v2": {
-        "description": "Nur Englisch. Das beste Modell für englischsprachige Nutzer."
+        "description": "Nur Englisch. Das beste Modell für englischsprachige Nutzer.",
+        "name": "Parakeet V2"
       },
       "parakeet-tdt-0.6b-v3": {
-        "description": "Schnell und genau"
+        "description": "Schnell und genau",
+        "name": "Parakeet V3"
       }
     },
     "errors": {
@@ -125,7 +135,17 @@
     "modelError": "Modellfehler",
     "modelUnloaded": "Modell entladen",
     "noModelDownloadRequired": "Kein Modell - Download erforderlich",
-    "deleteModel": "{{modelName}} löschen"
+    "deleteModel": "{{modelName}} löschen",
+    "searchPlaceholder": "Modelle suchen…",
+    "local": "Lokal",
+    "online": "Online",
+    "onlineAsr": "Online-ASR",
+    "onlineAsrModels": "Online-ASR-Modelle",
+    "clickToEnableOnlineAsr": "Klicken, um Online-ASR zu aktivieren",
+    "onlineAsrActive": "Online-ASR aktiv",
+    "addModelFromUrl": "Von URL hinzufügen",
+    "addModelFromUrlPrompt": "Modell-Download-URL einfügen (z. B. .tar.bz2):",
+    "userAddedModel": "Benutzerdefiniertes Modell"
   },
   "settings": {
     "shortcuts": {
@@ -161,7 +181,8 @@
         "description": "Wähle die Sprache für die Spracherkennung. Auto erkennt die Sprache automatisch, die Auswahl einer bestimmten Sprache kann die Genauigkeit verbessern.",
         "descriptionUnsupported": "Das Parakeet-Modell erkennt die Sprache automatisch. Keine manuelle Auswahl erforderlich.",
         "searchPlaceholder": "Sprachen suchen...",
-        "noResults": "Keine Sprachen gefunden"
+        "noResults": "Keine Sprachen gefunden",
+        "auto": "Auto"
       },
       "pushToTalk": {
         "label": "Push-to-Talk",
@@ -207,7 +228,8 @@
         "options": {
           "none": "Keine",
           "bottom": "Unten",
-          "top": "Oben"
+          "top": "Oben",
+          "follow": "Follow Cursor"
         }
       },
       "pasteMethod": {
@@ -254,6 +276,15 @@
         "placeholder": "Wort hinzufügen",
         "add": "Hinzufügen",
         "remove": "{{word}} entfernen"
+      },
+      "punctuation": {
+        "label": "Interpunktion hinzufügen",
+        "description": "Fügt Satzzeichen zum endgültigen Transkript hinzu ({{model}}).",
+        "model": {
+          "title": "Interpunktionsmodell",
+          "description": "Wähle ein Interpunktionsmodell für gemischten Text (zh+en). Wird nur auf das Endergebnis angewendet.",
+          "notDownloaded": "Das ausgewählte Modell wurde noch nicht heruntergeladen."
+        }
       }
     },
     "postProcessing": {
@@ -267,15 +298,18 @@
         },
         "appleIntelligence": {
           "description": "Läuft vollständig auf dem Gerät. Kein API-Schlüssel oder Netzwerkzugriff erforderlich.",
-          "requirements": "Erfordert einen Apple Silicon Mac mit macOS Tahoe (26.0) oder neuer. Apple Intelligence muss in den Systemeinstellungen aktiviert sein."
+          "requirements": "Erfordert einen Apple Silicon Mac mit macOS Tahoe (26.0) oder neuer. Apple Intelligence muss in den Systemeinstellungen aktiviert sein.",
+          "title": "Apple Intelligence"
         },
         "baseUrl": {
           "title": "Basis-URL",
-          "description": "API-Basis-URL für den ausgewählten Anbieter. Nur der benutzerdefinierte Anbieter kann bearbeitet werden."
+          "description": "API-Basis-URL für den ausgewählten Anbieter. Nur der benutzerdefinierte Anbieter kann bearbeitet werden.",
+          "placeholder": "https://api.openai.com/v1"
         },
         "apiKey": {
           "title": "API-Schlüssel",
-          "description": "API-Schlüssel für den ausgewählten Anbieter."
+          "description": "API-Schlüssel für den ausgewählten Anbieter.",
+          "placeholder": "sk-..."
         },
         "model": {
           "title": "Modell",
@@ -284,7 +318,34 @@
           "descriptionDefault": "Wähle ein Modell des ausgewählten Anbieters.",
           "placeholderWithOptions": "Modell suchen oder auswählen",
           "placeholderNoOptions": "Modellnamen eingeben",
-          "refreshModels": "Modelle aktualisieren"
+          "refreshModels": "Modelle aktualisieren",
+          "placeholderApple": "Apple Intelligence"
+        },
+        "manageProviders": "Anbieter verwalten",
+        "providers": {
+          "title": "Anbieter",
+          "add": "Anbieter hinzufügen",
+          "builtInBadge": "Integriert",
+          "empty": {
+            "title": "Keine Anbieter",
+            "description": "Füge einen Anbieter hinzu, um zu beginnen."
+          },
+          "deleteConfirm": {
+            "title": "Anbieter löschen?",
+            "description": "Dies entfernt den Anbieter und alle zugehörigen Modelle."
+          },
+          "dialog": {
+            "createTitle": "Anbieter erstellen",
+            "editTitle": "Anbieter bearbeiten"
+          },
+          "fields": {
+            "name": "Anbietername",
+            "namePlaceholder": "Mein Anbieter",
+            "baseUrl": "Basis-URL",
+            "modelsEndpoint": "Modell-Endpunkt",
+            "modelsEndpointPlaceholder": "/models"
+          },
+          "resetUrl": "URL zurücksetzen"
         }
       },
       "prompts": {
@@ -305,7 +366,50 @@
         "createPrompt": "Prompt erstellen",
         "cancel": "Abbrechen",
         "selectToEdit": "Wähle oben einen Prompt aus, um dessen Details anzuzeigen und zu bearbeiten.",
-        "createFirst": "Klicke oben auf 'Neuen Prompt erstellen', um deinen ersten Nachbearbeitungs-Prompt zu erstellen."
+        "createFirst": "Klicke oben auf 'Neuen Prompt erstellen', um deinen ersten Nachbearbeitungs-Prompt zu erstellen.",
+        "title": "Prompt"
+      },
+      "models": {
+        "title": "Modelle",
+        "description": "Füge Modelle für die Nachbearbeitung hinzu und verwalte sie.",
+        "addModel": "Modell hinzufügen",
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "text": "Text: {{count}}",
+          "other": "Andere: {{count}}"
+        },
+        "empty": {
+          "title": "Keine Modelle konfiguriert",
+          "description": "Füge ein Modell hinzu, um zu beginnen."
+        },
+        "modelTypes": {
+          "text": {
+            "label": "Text",
+            "hint": "Textverfeinerung und Formatierung"
+          },
+          "asr": {
+            "label": "ASR",
+            "hint": "Spracherkennung"
+          },
+          "other": {
+            "label": "Andere",
+            "hint": "Benutzerdefinierte Nutzung"
+          }
+        },
+        "selectModel": {
+          "title": "Modell auswählen",
+          "description": "Wähle ein Modell zum Hinzufügen oder gib eines manuell ein.",
+          "segmented": {
+            "selectModel": "Auswählen",
+            "customModel": "Benutzerdefiniert"
+          },
+          "customModelPlaceholder": "Modell-ID eingeben...",
+          "placeholder": "Modell auswählen...",
+          "placeholderEmpty": "Keine Modelle verfügbar",
+          "usageTypeTitle": "Nutzungstyp",
+          "customLabelTitle": "Benutzerdefiniertes Label",
+          "customLabelPlaceholder": "Label eingeben..."
+        }
       }
     },
     "history": {
@@ -317,12 +421,24 @@
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
-      "deleteError": "Eintrag konnte nicht gelöscht werden. Bitte versuche es erneut."
+      "deleteError": "Eintrag konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "earlier": "Earlier"
+      },
+      "content": {
+        "improved": "Improved",
+        "original": "Original"
+      }
     },
     "debug": {
       "logDirectory": {
         "title": "Log-Verzeichnis",
-        "description": "Speicherort der Log-Dateien"
+        "description": "Speicherort der Log-Dateien",
+        "error": "Error loading log directory: {{error}}"
       },
       "logLevel": {
         "title": "Log-Level",
@@ -378,13 +494,17 @@
       "paths": {
         "appData": "App-Daten:",
         "models": "Modelle:",
-        "settings": "Einstellungen:"
-      }
+        "settings": "Einstellungen:",
+        "title": "Paths",
+        "description": "Common filesystem paths Votype uses"
+      },
+      "title": "Debug"
     },
     "about": {
       "title": "Info",
       "version": {
-        "description": "Aktuelle Version von Votype"
+        "description": "Aktuelle Version von Votype",
+        "title": "Version"
       },
       "appDataDirectory": {
         "title": "App-Datenverzeichnis",
@@ -404,9 +524,100 @@
         "title": "Danksagungen",
         "whisper": {
           "description": "Hochleistungs-Inferenz des Whisper-Spracherkennungsmodells von OpenAI",
-          "details": "Votype verwendet Whisper.cpp für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
+          "details": "Votype verwendet Whisper.cpp für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit.",
+          "title": "Whisper.cpp"
         }
       }
+    },
+    "asrModels": {
+      "title": "Sprachmodelle",
+      "description": "Verwalte lokale Transkriptionsmodelle und steuere, welche in der Schnellauswahl erscheinen.",
+      "reset": "Zurücksetzen",
+      "idLabel": "ID: {{id}}",
+      "addFromUrl": "Hinzufügen & Herunterladen",
+      "install": {
+        "placeholder": "Modell-URL einfügen…",
+        "tooltip": "Von URL installieren"
+      },
+      "quickSettings": {
+        "title": "Schnelleinstellungen",
+        "description": "Diese gelten global. Interpunktionsmodelle können in der Bibliothek unten gelöscht werden."
+      },
+      "addSection": {
+        "title": "Installieren",
+        "description": "Füge eine Modell-URL ein. Die App erkennt den Modelltyp anhand des Dateinamens."
+      },
+      "pipeline": {
+        "title": "Pipeline",
+        "description": "Globale Nachbearbeitung, die automatisch nach der Transkription angewendet werden kann.",
+        "punctuation": "Auto-Interpunktion",
+        "punctuationHint": "Verwendet das ausgewählte Interpunktionsmodell, um Satzzeichen hinzuzufügen.",
+        "punctuationModel": "Interpunktionsmodell",
+        "punctuationModelHint": "Wähle, welches Interpunktionsmodell verwendet werden soll.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Inverse Textnormalisierung: Grundlegende Formatierung (z. B. Zahlen)."
+      },
+      "library": {
+        "title": "Bibliothek",
+        "description": "Wähle Favoriten für die Schnellauswahl aus.",
+        "searchPlaceholder": "Modelle suchen…",
+        "count": "{{count}} Modelle"
+      },
+      "favorite": "Favorit",
+      "filters": {
+        "all": "Alle",
+        "downloaded": "Heruntergeladen",
+        "favorites": "Favoriten",
+        "status": "Status",
+        "mode": "Modus",
+        "language": "Sprache",
+        "type": "Typ"
+      },
+      "groupBy": {
+        "mode": "Modus",
+        "language": "Sprache",
+        "type": "Typ"
+      },
+      "groups": {
+        "streaming": "Streaming",
+        "offline": "Offline",
+        "multilingual": "Mehrsprachig",
+        "punctuation": "Interpunktion"
+      },
+      "types": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "punctuation": "Interpunktion"
+      },
+      "typeChips": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "sherpa_transducer": "Sherpa Transducer",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_fire_red_asr": "Sherpa FireRedASR",
+        "punctuation": "Interpunktion",
+        "other": "Andere"
+      },
+      "languages": {
+        "zh": "Chinesisch",
+        "yue": "Kantonesisch",
+        "en": "Englisch",
+        "ja": "Japanisch",
+        "ko": "Koreanisch",
+        "de": "Deutsch",
+        "es": "Spanisch",
+        "fr": "Französisch",
+        "ru": "Russisch",
+        "multilingual": "Mehrsprachig",
+        "other": "Andere"
+      },
+      "status": {
+        "downloaded": "Heruntergeladen",
+        "notDownloaded": "Nicht heruntergeladen"
+      },
+      "download": "Herunterladen",
+      "delete": "Löschen"
     }
   },
   "footer": {
@@ -443,7 +654,18 @@
     "off": "Aus",
     "yes": "Ja",
     "no": "Nein",
-    "noOptionsFound": "Keine Optionen gefunden"
+    "noOptionsFound": "Keine Optionen gefunden",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "skip": "Überspringen",
+    "models": "Modelle",
+    "selectOption": "Option auswählen",
+    "filterOptions": "Optionen filtern...",
+    "noMatchingOptions": "Keine passenden Optionen",
+    "notAvailable": "Nicht verfügbar",
+    "addNewOption": "Neue Option hinzufügen",
+    "useInput": "\"{{input}}\" verwenden",
+    "done": "Fertig"
   },
   "overlay": {
     "status": {
@@ -456,7 +678,8 @@
     "permissionsRequired": "Bedienungshilfen-Berechtigungen erforderlich",
     "permissionsDescription": "Votype benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
     "openSettings": "Systemeinstellungen öffnen",
-    "dismiss": "Schließen"
+    "dismiss": "Schließen",
+    "verify": "Verify"
   },
   "errors": {
     "loadDirectory": "Fehler beim Laden des Verzeichnisses: {{error}}"
@@ -464,5 +687,168 @@
   "appLanguage": {
     "title": "Anwendungssprache",
     "description": "Sprache der Votype-Oberfläche ändern"
+  },
+  "models": {
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "name": "Sherpa Chinese (CTC Small)",
+      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01."
+    },
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "name": "Sherpa Chinese",
+      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "name": "Sherpa Chinese XL",
+      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "name": "Sherpa English",
+      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "name": "Sherpa German",
+      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "name": "Sherpa Spanish",
+      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "name": "Sherpa French",
+      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "name": "Sherpa Russian",
+      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16."
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "name": "Sherpa Chinese + English (Paraformer)",
+      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
+    },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "name": "Sherpa Paraformer Chinese (INT8)",
+      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07."
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "name": "Sherpa Paraformer Chinese (Small)",
+      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09."
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "name": "Sherpa Paraformer Zh+Yue+En",
+      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy."
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "name": "SenseVoice Multilingual",
+      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "name": "Punctuation (Chinese + English)",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "name": "Punctuation (Chinese + English) Large",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+    },
+    "small": {
+      "name": "Whisper Small",
+      "description": "Fast and fairly accurate."
+    },
+    "medium": {
+      "name": "Whisper Medium",
+      "description": "Good accuracy, medium speed"
+    },
+    "turbo": {
+      "name": "Whisper Turbo",
+      "description": "Balanced accuracy and speed."
+    },
+    "large": {
+      "name": "Whisper Large",
+      "description": "Good accuracy, but slow."
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "name": "Parakeet V2",
+      "description": "English only. The best model for English speakers."
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "name": "Parakeet V3",
+      "description": "Fast and accurate"
+    }
+  },
+  "soundPicker": {
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "custom": "Custom",
+    "preview": "Preview"
+  },
+  "theme": {
+    "title": "Design",
+    "themeMode": {
+      "title": "Designmodus",
+      "description": "Wähle das Erscheinungsbild von Votype",
+      "light": "Hell",
+      "lightDesc": "Immer helles Design verwenden",
+      "dark": "Dunkel",
+      "darkDesc": "Immer dunkles Design verwenden",
+      "system": "System",
+      "systemDesc": "An Systemdesign anpassen"
+    },
+    "accentColor": {
+      "title": "Akzentfarbe",
+      "description": "Wähle die Akzentfarbe für die App",
+      "current": "Aktuell: {{color}}",
+      "ruby": "Rubin",
+      "gray": "Grau",
+      "gold": "Gold",
+      "bronze": "Bronze",
+      "brown": "Braun",
+      "indigo": "Indigo",
+      "blue": "Blau",
+      "iris": "Iris",
+      "purple": "Lila",
+      "violet": "Violett",
+      "pink": "Pink",
+      "plum": "Pflaume",
+      "red": "Rot",
+      "tomato": "Tomate",
+      "crimson": "Karmesin",
+      "orange": "Orange",
+      "amber": "Bernstein",
+      "yellow": "Gelb",
+      "lime": "Limette",
+      "green": "Grün",
+      "grass": "Gras",
+      "jade": "Jade",
+      "teal": "Petrol",
+      "cyan": "Cyan",
+      "mint": "Minze",
+      "sky": "Himmelblau"
+    },
+    "panelStyle": {
+      "title": "Panel-Stil",
+      "description": "Wähle zwischen transparenten oder soliden Panels",
+      "translucent": "Translucent",
+      "translucentDesc": "Milchglas-Effekt",
+      "solid": "Solid",
+      "solidDesc": "Undurchsichtige Panels"
+    },
+    "cornerRadius": {
+      "title": "Eckenradius",
+      "description": "Passe die Rundung der Ecken an",
+      "sharp": "Scharf",
+      "sharpDesc": "Keine Rundung",
+      "soft": "Weich",
+      "softDesc": "Leicht abgerundete Ecken",
+      "default": "Standard",
+      "defaultDesc": "Standard-Rundung",
+      "rounded": "Rund",
+      "roundedDesc": "Stark abgerundete Ecken",
+      "capsule": "Kapsel",
+      "capsuleDesc": "Vollständig abgerundete Ecken"
+    },
+    "scaling": {
+      "title": "Skalierung",
+      "description": "UI-Skalierung anpassen",
+      "current": "Aktuell: {{scale}}"
+    }
   }
 }

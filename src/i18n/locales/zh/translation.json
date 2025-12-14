@@ -106,22 +106,28 @@
         "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
       },
       "small": {
-        "description": "快速且相当准确。"
+        "description": "快速且相当准确。",
+        "name": "Whisper Small"
       },
       "medium": {
-        "description": "准确度高，速度适中"
+        "description": "准确度高，速度适中",
+        "name": "Whisper Medium"
       },
       "turbo": {
-        "description": "准确度和速度均衡。"
+        "description": "准确度和速度均衡。",
+        "name": "Whisper Turbo"
       },
       "large": {
-        "description": "准确度高，但速度较慢。"
+        "description": "准确度高，但速度较慢。",
+        "name": "Whisper Large"
       },
       "parakeet-tdt-0.6b-v2": {
-        "description": "仅支持英语。英语用户的最佳模型。"
+        "description": "仅支持英语。英语用户的最佳模型。",
+        "name": "Parakeet V2"
       },
       "parakeet-tdt-0.6b-v3": {
-        "description": "快速且准确"
+        "description": "快速且准确",
+        "name": "Parakeet V3"
       }
     },
     "errors": {
@@ -224,22 +230,28 @@
       "description": "给中英混合文本补标点和断句；更大更准但更慢；更新于 2024-04-12。"
     },
     "small": {
-      "description": "快速且相当准确。"
+      "description": "快速且相当准确。",
+      "name": "Whisper Small"
     },
     "medium": {
-      "description": "准确度高，速度适中"
+      "description": "准确度高，速度适中",
+      "name": "Whisper Medium"
     },
     "turbo": {
-      "description": "准确度和速度均衡。"
+      "description": "准确度和速度均衡。",
+      "name": "Whisper Turbo"
     },
     "large": {
-      "description": "准确度高，但速度较慢。"
+      "description": "准确度高，但速度较慢。",
+      "name": "Whisper Large"
     },
     "parakeet-tdt-0.6b-v2": {
-      "description": "仅支持英语。英语用户的最佳模型。"
+      "description": "仅支持英语。英语用户的最佳模型。",
+      "name": "Parakeet V2"
     },
     "parakeet-tdt-0.6b-v3": {
-      "description": "快速且准确"
+      "description": "快速且准确",
+      "name": "Parakeet V3"
     }
   },
   "overlay": {
@@ -490,15 +502,18 @@
         },
         "appleIntelligence": {
           "description": "完全在设备上运行。无需 API 密钥或网络访问。",
-          "requirements": "需要运行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac。必须在系统设置中启用 Apple Intelligence。"
+          "requirements": "需要运行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac。必须在系统设置中启用 Apple Intelligence。",
+          "title": "Apple Intelligence"
         },
         "baseUrl": {
           "title": "基础 URL",
-          "description": "所选提供商的 API 基础 URL。仅自定义提供商可编辑。"
+          "description": "所选提供商的 API 基础 URL。仅自定义提供商可编辑。",
+          "placeholder": "https://api.openai.com/v1"
         },
         "apiKey": {
           "title": "API 密钥",
-          "description": "所选提供商的 API 密钥。"
+          "description": "所选提供商的 API 密钥。",
+          "placeholder": "sk-..."
         },
         "model": {
           "title": "模型",
@@ -507,7 +522,8 @@
           "descriptionDefault": "选择所选提供商提供的模型。",
           "placeholderWithOptions": "搜索或选择模型",
           "placeholderNoOptions": "输入模型名称",
-          "refreshModels": "刷新模型"
+          "refreshModels": "刷新模型",
+          "placeholderApple": "Apple Intelligence"
         },
         "manageProviders": "管理提供商",
         "providers": {
@@ -530,7 +546,8 @@
             "name": "提供商名称",
             "namePlaceholder": "我的提供商",
             "baseUrl": "基础 URL",
-            "modelsEndpoint": "模型接口路径"
+            "modelsEndpoint": "模型接口路径",
+            "modelsEndpointPlaceholder": "/models"
           },
           "resetUrl": "重置 URL"
         }
@@ -570,7 +587,8 @@
             "hint": "文本润色与格式化"
           },
           "asr": {
-            "hint": "语音识别"
+            "hint": "语音识别",
+            "label": "ASR"
           },
           "other": {
             "label": "其他",
@@ -590,6 +608,11 @@
           "usageTypeTitle": "用途类型",
           "customLabelTitle": "自定义标签",
           "customLabelPlaceholder": "输入标签..."
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "text": "文本: {{count}}",
+          "other": "其他: {{count}}"
         }
       }
     },
@@ -606,13 +629,21 @@
       "content": {
         "improved": "优化后",
         "original": "原文"
+      },
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "earlier": "Earlier"
       }
     },
     "debug": {
       "title": "调试",
       "logDirectory": {
         "title": "日志目录",
-        "description": "日志文件的存储位置"
+        "description": "日志文件的存储位置",
+        "error": "加载日志目录时出错: {{error}}"
       },
       "logLevel": {
         "title": "日志级别",
@@ -621,6 +652,10 @@
       "updateChecks": {
         "label": "检查更新",
         "description": "自动检查 Votype 的新版本"
+      },
+      "destroySettingsWindowOnClose": {
+        "label": "关闭时销毁设置窗口",
+        "description": "关闭设置窗口时销毁以释放资源；可从托盘菜单重新打开。"
       },
       "soundTheme": {
         "label": "声音主题",
@@ -668,7 +703,9 @@
       "paths": {
         "appData": "应用数据:",
         "models": "模型:",
-        "settings": "设置:"
+        "settings": "设置:",
+        "title": "路径",
+        "description": "Votype 使用的通用文件路径"
       }
     },
     "about": {
@@ -695,7 +732,8 @@
         "title": "致谢",
         "whisper": {
           "description": "OpenAI Whisper 自动语音识别模型的高性能推理",
-          "details": "Votype 使用 Whisper.cpp 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。"
+          "details": "Votype 使用 Whisper.cpp 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。",
+          "title": "Whisper.cpp"
         }
       }
     }
@@ -807,13 +845,23 @@
     "yes": "是",
     "no": "否",
     "noOptionsFound": "未找到选项",
-    "done": "完成"
+    "done": "完成",
+    "copy": "复制",
+    "copied": "已复制",
+    "skip": "跳过",
+    "selectOption": "选择选项",
+    "filterOptions": "筛选选项...",
+    "noMatchingOptions": "无匹配选项",
+    "notAvailable": "不可用",
+    "addNewOption": "添加新选项",
+    "useInput": "使用 \"{{input}}\""
   },
   "accessibility": {
     "permissionsRequired": "需要辅助功能权限",
     "permissionsDescription": "Votype 需要辅助功能权限才能输入转录的文字。",
     "openSettings": "打开系统设置",
-    "dismiss": "关闭"
+    "dismiss": "关闭",
+    "verify": "验证"
   },
   "errors": {
     "loadDirectory": "加载目录时出错: {{error}}"
@@ -821,5 +869,11 @@
   "appLanguage": {
     "title": "应用语言",
     "description": "更改 Votype 界面的语言"
+  },
+  "soundPicker": {
+    "marimba": "马林巴琴",
+    "pop": "流行",
+    "custom": "自定义",
+    "preview": "预览"
   }
 }

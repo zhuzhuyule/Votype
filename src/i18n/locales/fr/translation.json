@@ -7,7 +7,10 @@
     "postProcessing": "Post-traitement",
     "history": "Historique",
     "debug": "Débogage",
-    "about": "À propos"
+    "about": "À propos",
+    "models": "Modèles",
+    "asrModels": "Modèles ASR",
+    "prompts": "Prompts"
   },
   "dashboard": {
     "title": "Tableau de bord",
@@ -82,22 +85,28 @@
     },
     "models": {
       "small": {
-        "description": "Rapide et assez précis."
+        "description": "Rapide et assez précis.",
+        "name": "Whisper Small"
       },
       "medium": {
-        "description": "Bonne précision, vitesse moyenne"
+        "description": "Bonne précision, vitesse moyenne",
+        "name": "Whisper Medium"
       },
       "turbo": {
-        "description": "Équilibre entre précision et vitesse."
+        "description": "Équilibre entre précision et vitesse.",
+        "name": "Whisper Turbo"
       },
       "large": {
-        "description": "Bonne précision, mais lent."
+        "description": "Bonne précision, mais lent.",
+        "name": "Whisper Large"
       },
       "parakeet-tdt-0.6b-v2": {
-        "description": "Anglais uniquement. Le meilleur modèle pour les anglophones."
+        "description": "Anglais uniquement. Le meilleur modèle pour les anglophones.",
+        "name": "Parakeet V2"
       },
       "parakeet-tdt-0.6b-v3": {
-        "description": "Rapide et précis"
+        "description": "Rapide et précis",
+        "name": "Parakeet V3"
       }
     },
     "errors": {
@@ -126,7 +135,17 @@
     "modelError": "Erreur du Modèle",
     "modelUnloaded": "Modèle Déchargé",
     "noModelDownloadRequired": "Aucun Modèle - Téléchargement Requis",
-    "deleteModel": "Supprimer {{modelName}}"
+    "deleteModel": "Supprimer {{modelName}}",
+    "searchPlaceholder": "Rechercher des modèles…",
+    "local": "Local",
+    "online": "En ligne",
+    "onlineAsr": "ASR en ligne",
+    "onlineAsrModels": "Modèles ASR en ligne",
+    "clickToEnableOnlineAsr": "Cliquez pour activer ASR en ligne",
+    "onlineAsrActive": "ASR en ligne actif",
+    "addModelFromUrl": "Ajouter depuis URL",
+    "addModelFromUrlPrompt": "Coller l'URL de téléchargement du modèle (ex: .tar.bz2) :",
+    "userAddedModel": "Modèle ajouté par l'utilisateur"
   },
   "settings": {
     "shortcuts": {
@@ -162,7 +181,8 @@
         "description": "Sélectionnez la langue pour la reconnaissance vocale. Auto déterminera automatiquement la langue, tandis que sélectionner une langue spécifique peut améliorer la précision pour cette langue.",
         "descriptionUnsupported": "Le modèle Parakeet détecte automatiquement la langue. Aucune sélection manuelle n'est nécessaire.",
         "searchPlaceholder": "Rechercher des langues...",
-        "noResults": "Aucune langue trouvée"
+        "noResults": "Aucune langue trouvée",
+        "auto": "Auto"
       },
       "pushToTalk": {
         "label": "Appuyer pour parler",
@@ -174,7 +194,8 @@
       "microphone": {
         "description": "Sélectionnez votre microphone préféré",
         "placeholder": "Sélectionner un microphone...",
-        "loading": "Chargement..."
+        "loading": "Chargement...",
+        "title": "Microphone"
       },
       "audioFeedback": {
         "label": "Retour audio",
@@ -187,7 +208,8 @@
         "loading": "Chargement..."
       },
       "volume": {
-        "description": "Ajuster le volume des sons de retour audio"
+        "description": "Ajuster le volume des sons de retour audio",
+        "title": "Volume"
       }
     },
     "advanced": {
@@ -206,7 +228,8 @@
         "options": {
           "none": "Aucune",
           "bottom": "Bas",
-          "top": "Haut"
+          "top": "Haut",
+          "follow": "Follow Cursor"
         }
       },
       "pasteMethod": {
@@ -216,7 +239,8 @@
           "clipboard": "Presse-papiers ({{modifier}}+V)",
           "clipboardCtrlShiftV": "Presse-papiers (Ctrl+Shift+V)",
           "clipboardShiftInsert": "Presse-papiers (Shift+Insert)",
-          "none": "Aucun"
+          "none": "Aucun",
+          "direct": "Direct"
         }
       },
       "clipboardHandling": {
@@ -252,6 +276,15 @@
         "placeholder": "Ajouter un mot",
         "add": "Ajouter",
         "remove": "Supprimer {{word}}"
+      },
+      "punctuation": {
+        "label": "Ajouter de la ponctuation",
+        "description": "Ajoute de la ponctuation à la transcription finale ({{model}}).",
+        "model": {
+          "title": "Modèle de ponctuation",
+          "description": "Choisissez un modèle de ponctuation pour le texte mixte zh+en. Appliqué uniquement au résultat final.",
+          "notDownloaded": "Le modèle sélectionné n'est pas encore téléchargé."
+        }
       }
     },
     "postProcessing": {
@@ -265,15 +298,18 @@
         },
         "appleIntelligence": {
           "description": "Fonctionne entièrement sur l'appareil. Aucune clé API ni accès réseau n'est requis.",
-          "requirements": "Nécessite un Mac Apple Silicon exécutant macOS Tahoe (26.0) ou une version ultérieure. Apple Intelligence doit être activé dans les Préférences Système."
+          "requirements": "Nécessite un Mac Apple Silicon exécutant macOS Tahoe (26.0) ou une version ultérieure. Apple Intelligence doit être activé dans les Préférences Système.",
+          "title": "Apple Intelligence"
         },
         "baseUrl": {
           "title": "URL de base",
-          "description": "URL de base de l'API pour le fournisseur sélectionné. Seul le fournisseur personnalisé peut être modifié."
+          "description": "URL de base de l'API pour le fournisseur sélectionné. Seul le fournisseur personnalisé peut être modifié.",
+          "placeholder": "https://api.openai.com/v1"
         },
         "apiKey": {
           "title": "Clé API",
-          "description": "Clé API pour le fournisseur sélectionné."
+          "description": "Clé API pour le fournisseur sélectionné.",
+          "placeholder": "sk-..."
         },
         "model": {
           "title": "Modèle",
@@ -282,7 +318,34 @@
           "descriptionDefault": "Choisissez un modèle exposé par le fournisseur sélectionné.",
           "placeholderWithOptions": "Rechercher ou sélectionner un modèle",
           "placeholderNoOptions": "Tapez un nom de modèle",
-          "refreshModels": "Actualiser les modèles"
+          "refreshModels": "Actualiser les modèles",
+          "placeholderApple": "Apple Intelligence"
+        },
+        "manageProviders": "Gérer les fournisseurs",
+        "providers": {
+          "title": "Fournisseurs",
+          "add": "Ajouter un fournisseur",
+          "builtInBadge": "Intégré",
+          "empty": {
+            "title": "Aucun fournisseur",
+            "description": "Ajoutez un fournisseur pour commencer."
+          },
+          "deleteConfirm": {
+            "title": "Supprimer le fournisseur ?",
+            "description": "Cela supprimera le fournisseur et tous les modèles associés."
+          },
+          "dialog": {
+            "createTitle": "Créer un fournisseur",
+            "editTitle": "Modifier le fournisseur"
+          },
+          "fields": {
+            "name": "Nom du fournisseur",
+            "namePlaceholder": "Mon fournisseur",
+            "baseUrl": "URL de base",
+            "modelsEndpoint": "Point de terminaison des modèles",
+            "modelsEndpointPlaceholder": "/models"
+          },
+          "resetUrl": "Réinitialiser l'URL"
         }
       },
       "prompts": {
@@ -303,7 +366,50 @@
         "createPrompt": "Créer le prompt",
         "cancel": "Annuler",
         "selectToEdit": "Sélectionnez un prompt ci-dessus pour voir et modifier ses détails.",
-        "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement."
+        "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement.",
+        "title": "Prompt"
+      },
+      "models": {
+        "title": "Modèles",
+        "description": "Ajouter et gérer les modèles utilisés pour le post-traitement.",
+        "addModel": "Ajouter un modèle",
+        "stats": {
+          "asr": "ASR : {{count}}",
+          "text": "Texte : {{count}}",
+          "other": "Autre : {{count}}"
+        },
+        "empty": {
+          "title": "Aucun modèle configuré",
+          "description": "Ajoutez un modèle pour commencer."
+        },
+        "modelTypes": {
+          "text": {
+            "label": "Texte",
+            "hint": "Affinage et formatage du texte"
+          },
+          "asr": {
+            "label": "ASR",
+            "hint": "Reconnaissance vocale"
+          },
+          "other": {
+            "label": "Autre",
+            "hint": "Utilisation personnalisée"
+          }
+        },
+        "selectModel": {
+          "title": "Sélectionner un modèle",
+          "description": "Choisissez un modèle à ajouter ou entrez-en un manuellement.",
+          "segmented": {
+            "selectModel": "Sélectionner",
+            "customModel": "Personnalisé"
+          },
+          "customModelPlaceholder": "Entrer l'identifiant du modèle...",
+          "placeholder": "Sélectionner un modèle...",
+          "placeholderEmpty": "Aucun modèle disponible",
+          "usageTypeTitle": "Type d'utilisation",
+          "customLabelTitle": "Libellé personnalisé",
+          "customLabelPlaceholder": "Entrer le libellé..."
+        }
       }
     },
     "history": {
@@ -315,13 +421,25 @@
       "save": "Enregistrer la transcription",
       "unsave": "Retirer des favoris",
       "delete": "Supprimer l'entrée",
-      "deleteError": "Échec de la suppression de l'entrée. Veuillez réessayer."
+      "deleteError": "Échec de la suppression de l'entrée. Veuillez réessayer.",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "earlier": "Earlier"
+      },
+      "content": {
+        "improved": "Improved",
+        "original": "Original"
+      }
     },
     "debug": {
       "title": "Débogage",
       "logDirectory": {
         "title": "Répertoire des journaux",
-        "description": "Emplacement où les fichiers journaux sont stockés"
+        "description": "Emplacement où les fichiers journaux sont stockés",
+        "error": "Error loading log directory: {{error}}"
       },
       "logLevel": {
         "title": "Niveau de journalisation",
@@ -341,11 +459,18 @@
       },
       "historyLimit": {
         "title": "Limite d'historique",
-        "description": "Nombre maximum d'entrées d'historique à conserver"
+        "description": "Nombre maximum d'entrées d'historique à conserver",
+        "entries": "entries"
       },
       "recordingRetention": {
         "title": "Conservation des enregistrements",
-        "description": "Durée de conservation des enregistrements audio"
+        "description": "Durée de conservation des enregistrements audio",
+        "never": "Never",
+        "preserveLimit": "Preserve {{count}} Recordings",
+        "days3": "After 3 Days",
+        "weeks2": "After 2 Weeks",
+        "months3": "After 3 Months",
+        "placeholder": "Select retention period..."
       },
       "alwaysOnMicrophone": {
         "label": "Microphone toujours actif",
@@ -370,13 +495,16 @@
       "paths": {
         "appData": "Données de l'application :",
         "models": "Modèles :",
-        "settings": "Paramètres :"
+        "settings": "Paramètres :",
+        "title": "Paths",
+        "description": "Common filesystem paths Votype uses"
       }
     },
     "about": {
       "title": "À propos",
       "version": {
-        "description": "Version actuelle de Votype"
+        "description": "Version actuelle de Votype",
+        "title": "Version"
       },
       "appDataDirectory": {
         "title": "Répertoire des données de l'application",
@@ -396,9 +524,100 @@
         "title": "Remerciements",
         "whisper": {
           "description": "Inférence haute performance du modèle de reconnaissance vocale automatique Whisper d'OpenAI",
-          "details": "Votype utilise Whisper.cpp pour un traitement rapide et local de la parole en texte. Merci au travail incroyable de Georgi Gerganov et des contributeurs."
+          "details": "Votype utilise Whisper.cpp pour un traitement rapide et local de la parole en texte. Merci au travail incroyable de Georgi Gerganov et des contributeurs.",
+          "title": "Whisper.cpp"
         }
       }
+    },
+    "asrModels": {
+      "title": "Modèles de parole",
+      "description": "Gérer les modèles de transcription locaux et contrôler lesquels apparaissent dans le sélecteur rapide.",
+      "reset": "Réinitialiser",
+      "idLabel": "id : {{id}}",
+      "addFromUrl": "Ajouter & Télécharger",
+      "install": {
+        "placeholder": "Coller l'URL du modèle…",
+        "tooltip": "Installer depuis URL"
+      },
+      "quickSettings": {
+        "title": "Réglages rapides",
+        "description": "S'appliquent globalement. Supprimez les modèles de ponctuation dans la bibliothèque ci-dessous."
+      },
+      "addSection": {
+        "title": "Installer",
+        "description": "Collez une URL de modèle. L'application déduira le type de modèle du nom de fichier."
+      },
+      "pipeline": {
+        "title": "Pipeline",
+        "description": "Post-traitement global pouvant être appliqué automatiquement après la transcription.",
+        "punctuation": "Ponctuation auto",
+        "punctuationHint": "Utilise le modèle de ponctuation sélectionné pour ajouter des sauts de phrase.",
+        "punctuationModel": "Modèle de ponctuation",
+        "punctuationModelHint": "Choisir le modèle de ponctuation à utiliser.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Normalisation inverse du texte : formatage de base (ex. nombres)."
+      },
+      "library": {
+        "title": "Bibliothèque",
+        "description": "Choisissez des favoris à afficher dans le sélecteur rapide.",
+        "searchPlaceholder": "Rechercher des modèles…",
+        "count": "{{count}} modèles"
+      },
+      "favorite": "Favori",
+      "filters": {
+        "all": "Tous",
+        "downloaded": "Téléchargés",
+        "favorites": "Favoris",
+        "status": "Statut",
+        "mode": "Mode",
+        "language": "Langue",
+        "type": "Type"
+      },
+      "groupBy": {
+        "mode": "Mode",
+        "language": "Langue",
+        "type": "Type"
+      },
+      "groups": {
+        "streaming": "Streaming",
+        "offline": "Hors ligne",
+        "multilingual": "Multilingue",
+        "punctuation": "Ponctuation"
+      },
+      "types": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "punctuation": "Ponctuation"
+      },
+      "typeChips": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "sherpa_transducer": "Sherpa Transducer",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_fire_red_asr": "Sherpa FireRedASR",
+        "punctuation": "Ponctuation",
+        "other": "Autre"
+      },
+      "languages": {
+        "zh": "Chinois",
+        "yue": "Cantonais",
+        "en": "Anglais",
+        "ja": "Japonais",
+        "ko": "Coréen",
+        "de": "Allemand",
+        "es": "Espagnol",
+        "fr": "Français",
+        "ru": "Russe",
+        "multilingual": "Multilingue",
+        "other": "Autre"
+      },
+      "status": {
+        "downloaded": "Téléchargé",
+        "notDownloaded": "Non téléchargé"
+      },
+      "download": "Télécharger",
+      "delete": "Supprimer"
     }
   },
   "footer": {
@@ -435,7 +654,18 @@
     "off": "Désactivé",
     "yes": "Oui",
     "no": "Non",
-    "noOptionsFound": "Aucune option trouvée"
+    "noOptionsFound": "Aucune option trouvée",
+    "copy": "Copier",
+    "copied": "Copié",
+    "skip": "Ignorer",
+    "models": "Modèles",
+    "selectOption": "Sélectionner une option",
+    "filterOptions": "Filtrer les options...",
+    "noMatchingOptions": "Aucune option correspondante",
+    "notAvailable": "Non disponible",
+    "addNewOption": "Ajouter une option",
+    "useInput": "Utiliser \"{{input}}\"",
+    "done": "Terminé"
   },
   "overlay": {
     "status": {
@@ -448,7 +678,8 @@
     "permissionsRequired": "Autorisations d'accessibilité requises",
     "permissionsDescription": "Votype a besoin des autorisations d'accessibilité pour taper le texte transcrit.",
     "openSettings": "Ouvrir les Préférences Système",
-    "dismiss": "Ignorer"
+    "dismiss": "Ignorer",
+    "verify": "Verify"
   },
   "errors": {
     "loadDirectory": "Erreur lors du chargement du répertoire : {{error}}"
@@ -457,5 +688,168 @@
     "title": "Langue de l'application",
     "description": "Changer la langue de l'interface de Votype"
   },
-  "_comment": "French translation for Votype."
+  "_comment": "French translation for Votype.",
+  "models": {
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "name": "Sherpa Chinese (CTC Small)",
+      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01."
+    },
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "name": "Sherpa Chinese",
+      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "name": "Sherpa Chinese XL",
+      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "name": "Sherpa English",
+      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "name": "Sherpa German",
+      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "name": "Sherpa Spanish",
+      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "name": "Sherpa French",
+      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "name": "Sherpa Russian",
+      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16."
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "name": "Sherpa Chinese + English (Paraformer)",
+      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
+    },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "name": "Sherpa Paraformer Chinese (INT8)",
+      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07."
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "name": "Sherpa Paraformer Chinese (Small)",
+      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09."
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "name": "Sherpa Paraformer Zh+Yue+En",
+      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy."
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "name": "SenseVoice Multilingual",
+      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "name": "Punctuation (Chinese + English)",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "name": "Punctuation (Chinese + English) Large",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+    },
+    "small": {
+      "name": "Whisper Small",
+      "description": "Fast and fairly accurate."
+    },
+    "medium": {
+      "name": "Whisper Medium",
+      "description": "Good accuracy, medium speed"
+    },
+    "turbo": {
+      "name": "Whisper Turbo",
+      "description": "Balanced accuracy and speed."
+    },
+    "large": {
+      "name": "Whisper Large",
+      "description": "Good accuracy, but slow."
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "name": "Parakeet V2",
+      "description": "English only. The best model for English speakers."
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "name": "Parakeet V3",
+      "description": "Fast and accurate"
+    }
+  },
+  "soundPicker": {
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "custom": "Custom",
+    "preview": "Preview"
+  },
+  "theme": {
+    "title": "Thème",
+    "themeMode": {
+      "title": "Mode de thème",
+      "description": "Choisissez l'apparence de Votype",
+      "light": "Clair",
+      "lightDesc": "Toujours utiliser le thème clair",
+      "dark": "Sombre",
+      "darkDesc": "Toujours utiliser le thème sombre",
+      "system": "Système",
+      "systemDesc": "Utiliser le thème du système"
+    },
+    "accentColor": {
+      "title": "Couleur d'accentuation",
+      "description": "Choisissez la couleur d'accentuation utilisée dans l'application",
+      "current": "Actuel : {{color}}",
+      "ruby": "Rubis",
+      "gray": "Gris",
+      "gold": "Or",
+      "bronze": "Bronze",
+      "brown": "Marron",
+      "indigo": "Indigo",
+      "blue": "Bleu",
+      "iris": "Iris",
+      "purple": "Violet",
+      "violet": "Violet foncé",
+      "pink": "Rose",
+      "plum": "Prune",
+      "red": "Rouge",
+      "tomato": "Tomate",
+      "crimson": "Cramoisi",
+      "orange": "Orange",
+      "amber": "Ambre",
+      "yellow": "Jaune",
+      "lime": "Citron vert",
+      "green": "Vert",
+      "grass": "Herbe",
+      "jade": "Jade",
+      "teal": "Sarcelle",
+      "cyan": "Cyan",
+      "mint": "Menthe",
+      "sky": "Ciel"
+    },
+    "panelStyle": {
+      "title": "Style de panneau",
+      "description": "Choisissez entre des panneaux translucides ou opaques",
+      "translucent": "Translucide",
+      "translucentDesc": "Effet verre dépoli",
+      "solid": "Solide",
+      "solidDesc": "Panneaux opaques"
+    },
+    "cornerRadius": {
+      "title": "Rayon des coins",
+      "description": "Ajuster l'arrondi des coins",
+      "sharp": "Vif",
+      "sharpDesc": "Pas d'arrondi",
+      "soft": "Doux",
+      "softDesc": "Coins légèrement arrondis",
+      "default": "Défaut",
+      "defaultDesc": "Arrondi standard",
+      "rounded": "Arrondi",
+      "roundedDesc": "Coins plus arrondis",
+      "capsule": "Capsule",
+      "capsuleDesc": "Coins entièrement arrondis"
+    },
+    "scaling": {
+      "title": "Mise à l'échelle",
+      "description": "Ajuster l'échelle de l'interface",
+      "current": "Actuel : {{scale}}"
+    }
+  }
 }

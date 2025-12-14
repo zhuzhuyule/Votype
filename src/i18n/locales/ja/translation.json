@@ -7,7 +7,10 @@
     "postProcessing": "後処理",
     "history": "履歴",
     "debug": "デバッグ",
-    "about": "概要"
+    "about": "概要",
+    "models": "モデル",
+    "asrModels": "ASRモデル",
+    "prompts": "プロンプト"
   },
   "dashboard": {
     "title": "ダッシュボード",
@@ -82,22 +85,28 @@
     },
     "models": {
       "small": {
-        "description": "高速でそこそこ正確。"
+        "description": "高速でそこそこ正確。",
+        "name": "Whisper Small"
       },
       "medium": {
-        "description": "良好な精度、中程度の速度"
+        "description": "良好な精度、中程度の速度",
+        "name": "Whisper Medium"
       },
       "turbo": {
-        "description": "精度と速度のバランスが良い。"
+        "description": "精度と速度のバランスが良い。",
+        "name": "Whisper Turbo"
       },
       "large": {
-        "description": "良好な精度、ただし低速。"
+        "description": "良好な精度、ただし低速。",
+        "name": "Whisper Large"
       },
       "parakeet-tdt-0.6b-v2": {
-        "description": "英語のみ。英語話者に最適なモデル。"
+        "description": "英語のみ。英語話者に最適なモデル。",
+        "name": "Parakeet V2"
       },
       "parakeet-tdt-0.6b-v3": {
-        "description": "高速で正確"
+        "description": "高速で正確",
+        "name": "Parakeet V3"
       }
     },
     "errors": {
@@ -126,7 +135,17 @@
     "modelError": "モデルエラー",
     "modelUnloaded": "モデルがアンロードされました",
     "noModelDownloadRequired": "モデルなし - ダウンロードが必要",
-    "deleteModel": "{{modelName}}を削除"
+    "deleteModel": "{{modelName}}を削除",
+    "searchPlaceholder": "モデルを検索…",
+    "local": "ローカル",
+    "online": "オンライン",
+    "onlineAsr": "オンラインASR",
+    "onlineAsrModels": "オンラインASRモデル",
+    "clickToEnableOnlineAsr": "クリックしてオンラインASRを有効にする",
+    "onlineAsrActive": "オンラインASR有効",
+    "addModelFromUrl": "URLから追加",
+    "addModelFromUrlPrompt": "モデルのダウンロードURLを貼り付け (例: .tar.bz2):",
+    "userAddedModel": "ユーザー追加モデル"
   },
   "settings": {
     "shortcuts": {
@@ -209,7 +228,8 @@
         "options": {
           "none": "なし",
           "bottom": "下",
-          "top": "上"
+          "top": "上",
+          "follow": "Follow Cursor"
         }
       },
       "pasteMethod": {
@@ -256,6 +276,15 @@
         "placeholder": "単語を追加",
         "add": "追加",
         "remove": "{{word}}を削除"
+      },
+      "punctuation": {
+        "label": "句読点を追加",
+        "description": "最終的な文字起こしに句読点を追加します ({{model}})。",
+        "model": {
+          "title": "句読点モデル",
+          "description": "zh+en混合テキスト用の句読点モデルを選択。最終結果にのみ適用されます。",
+          "notDownloaded": "選択したモデルはまだダウンロードされていません。"
+        }
       }
     },
     "postProcessing": {
@@ -269,15 +298,18 @@
         },
         "appleIntelligence": {
           "description": "完全にデバイス上で動作。APIキーやネットワークアクセスは不要。",
-          "requirements": "macOS Tahoe（26.0）以降を実行するApple Silicon Macが必要です。システム設定でApple Intelligenceを有効にする必要があります。"
+          "requirements": "macOS Tahoe（26.0）以降を実行するApple Silicon Macが必要です。システム設定でApple Intelligenceを有効にする必要があります。",
+          "title": "Apple Intelligence"
         },
         "baseUrl": {
           "title": "ベースURL",
-          "description": "選択したプロバイダーのAPIベースURL。カスタムプロバイダーのみ編集可能。"
+          "description": "選択したプロバイダーのAPIベースURL。カスタムプロバイダーのみ編集可能。",
+          "placeholder": "https://api.openai.com/v1"
         },
         "apiKey": {
           "title": "APIキー",
-          "description": "選択したプロバイダーのAPIキー。"
+          "description": "選択したプロバイダーのAPIキー。",
+          "placeholder": "sk-..."
         },
         "model": {
           "title": "モデル",
@@ -286,7 +318,34 @@
           "descriptionDefault": "選択したプロバイダーが提供するモデルを選択。",
           "placeholderWithOptions": "モデルを検索または選択",
           "placeholderNoOptions": "モデル名を入力",
-          "refreshModels": "モデルを更新"
+          "refreshModels": "モデルを更新",
+          "placeholderApple": "Apple Intelligence"
+        },
+        "manageProviders": "プロバイダー管理",
+        "providers": {
+          "title": "プロバイダー",
+          "add": "プロバイダーを追加",
+          "builtInBadge": "組み込み",
+          "empty": {
+            "title": "プロバイダーなし",
+            "description": "開始するにはプロバイダーを追加してください。"
+          },
+          "deleteConfirm": {
+            "title": "プロバイダーを削除しますか？",
+            "description": "これにより、プロバイダーと関連するすべてのモデルが削除されます。"
+          },
+          "dialog": {
+            "createTitle": "プロバイダーを作成",
+            "editTitle": "プロバイダーを編集"
+          },
+          "fields": {
+            "name": "プロバイダー名",
+            "namePlaceholder": "My Provider",
+            "baseUrl": "ベースURL",
+            "modelsEndpoint": "モデルエンドポイント",
+            "modelsEndpointPlaceholder": "/models"
+          },
+          "resetUrl": "URLをリセット"
         }
       },
       "prompts": {
@@ -309,6 +368,48 @@
         "cancel": "キャンセル",
         "selectToEdit": "上からプロンプトを選択して、詳細を表示・編集します。",
         "createFirst": "上の「新しいプロンプトを作成」をクリックして、最初の後処理プロンプトを作成してください。"
+      },
+      "models": {
+        "title": "モデル",
+        "description": "後処理に使用するモデルを追加・管理します。",
+        "addModel": "モデルを追加",
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "text": "テキスト: {{count}}",
+          "other": "その他: {{count}}"
+        },
+        "empty": {
+          "title": "モデルが設定されていません",
+          "description": "開始するにはモデルを追加してください。"
+        },
+        "modelTypes": {
+          "text": {
+            "label": "テキスト",
+            "hint": "テキストの改善とフォーマット"
+          },
+          "asr": {
+            "label": "ASR",
+            "hint": "音声認識"
+          },
+          "other": {
+            "label": "その他",
+            "hint": "カスタム用途"
+          }
+        },
+        "selectModel": {
+          "title": "モデルを選択",
+          "description": "追加するモデルを選択するか、手動で入力してください。",
+          "segmented": {
+            "selectModel": "選択",
+            "customModel": "カスタム"
+          },
+          "customModelPlaceholder": "モデルIDを入力...",
+          "placeholder": "モデルを選択...",
+          "placeholderEmpty": "利用可能なモデルがありません",
+          "usageTypeTitle": "使用タイプ",
+          "customLabelTitle": "カスタムラベル",
+          "customLabelPlaceholder": "ラベルを入力..."
+        }
       }
     },
     "history": {
@@ -320,13 +421,25 @@
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",
-      "deleteError": "エントリーの削除に失敗しました。もう一度お試しください。"
+      "deleteError": "エントリーの削除に失敗しました。もう一度お試しください。",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "earlier": "Earlier"
+      },
+      "content": {
+        "improved": "Improved",
+        "original": "Original"
+      }
     },
     "debug": {
       "title": "デバッグ",
       "logDirectory": {
         "title": "ログディレクトリ",
-        "description": "ログファイルの保存場所"
+        "description": "ログファイルの保存場所",
+        "error": "Error loading log directory: {{error}}"
       },
       "logLevel": {
         "title": "ログレベル",
@@ -382,7 +495,9 @@
       "paths": {
         "appData": "アプリデータ:",
         "models": "モデル:",
-        "settings": "設定:"
+        "settings": "設定:",
+        "title": "Paths",
+        "description": "Common filesystem paths Votype uses"
       }
     },
     "about": {
@@ -409,9 +524,100 @@
         "title": "謝辞",
         "whisper": {
           "description": "OpenAIのWhisper自動音声認識モデルの高性能推論",
-          "details": "Handyは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。"
+          "details": "Handyは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。",
+          "title": "Whisper.cpp"
         }
       }
+    },
+    "asrModels": {
+      "title": "音声モデル",
+      "description": "ローカルの文字起こしモデルを管理し、クイックセレクターに表示するモデルを制御します。",
+      "reset": "リセット",
+      "idLabel": "ID: {{id}}",
+      "addFromUrl": "追加＆ダウンロード",
+      "install": {
+        "placeholder": "モデルURLを貼り付け…",
+        "tooltip": "URLからインストール"
+      },
+      "quickSettings": {
+        "title": "クイック設定",
+        "description": "これらは全体に適用されます。下のライブラリで句読点モデルを削除してください。"
+      },
+      "addSection": {
+        "title": "インストール",
+        "description": "モデルURLを貼り付け。アプリはファイル名からモデルタイプを推測します。"
+      },
+      "pipeline": {
+        "title": "パイプライン",
+        "description": "文字起こし後に自動的に適用できる全体的な後処理。",
+        "punctuation": "自動句読点",
+        "punctuationHint": "選択した句読点モデルを使用して文の区切りを追加します。",
+        "punctuationModel": "句読点モデル",
+        "punctuationModelHint": "使用する句読点モデルを選択。",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "逆テキスト正規化：基本的なフォーマット（例：数字）。"
+      },
+      "library": {
+        "title": "ライブラリ",
+        "description": "クイックセレクターに表示するお気に入りを選択。",
+        "searchPlaceholder": "モデルを検索…",
+        "count": "{{count}} モデル"
+      },
+      "favorite": "お気に入り",
+      "filters": {
+        "all": "すべて",
+        "downloaded": "ダウンロード済み",
+        "favorites": "お気に入り",
+        "status": "ステータス",
+        "mode": "モード",
+        "language": "言語",
+        "type": "タイプ"
+      },
+      "groupBy": {
+        "mode": "モード",
+        "language": "言語",
+        "type": "タイプ"
+      },
+      "groups": {
+        "streaming": "ストリーミング",
+        "offline": "オフライン",
+        "multilingual": "多言語",
+        "punctuation": "句読点"
+      },
+      "types": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "punctuation": "句読点"
+      },
+      "typeChips": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "sherpa_transducer": "Sherpa Transducer",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_fire_red_asr": "Sherpa FireRedASR",
+        "punctuation": "句読点",
+        "other": "その他"
+      },
+      "languages": {
+        "zh": "中国語",
+        "yue": "広東語",
+        "en": "英語",
+        "ja": "日本語",
+        "ko": "韓国語",
+        "de": "ドイツ語",
+        "es": "スペイン語",
+        "fr": "フランス語",
+        "ru": "ロシア語",
+        "multilingual": "多言語",
+        "other": "その他"
+      },
+      "status": {
+        "downloaded": "ダウンロード済み",
+        "notDownloaded": "未ダウンロード"
+      },
+      "download": "ダウンロード",
+      "delete": "削除"
     }
   },
   "footer": {
@@ -448,7 +654,18 @@
     "off": "オフ",
     "yes": "はい",
     "no": "いいえ",
-    "noOptionsFound": "オプションが見つかりません"
+    "noOptionsFound": "オプションが見つかりません",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "skip": "スキップ",
+    "models": "モデル",
+    "selectOption": "オプションを選択",
+    "filterOptions": "オプションをフィルタ...",
+    "noMatchingOptions": "一致するオプションなし",
+    "notAvailable": "利用不可",
+    "addNewOption": "新しいオプションを追加",
+    "useInput": "\"{{input}}\"を使用",
+    "done": "完了"
   },
   "overlay": {
     "status": {
@@ -461,7 +678,8 @@
     "permissionsRequired": "アクセシビリティ権限が必要です",
     "permissionsDescription": "Handyが文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
     "openSettings": "システム設定を開く",
-    "dismiss": "閉じる"
+    "dismiss": "閉じる",
+    "verify": "Verify"
   },
   "errors": {
     "loadDirectory": "ディレクトリの読み込みエラー: {{error}}"
@@ -469,5 +687,168 @@
   "appLanguage": {
     "title": "アプリケーション言語",
     "description": "Handyインターフェースの言語を変更"
+  },
+  "models": {
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "name": "Sherpa Chinese (CTC Small)",
+      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01."
+    },
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "name": "Sherpa Chinese",
+      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "name": "Sherpa Chinese XL",
+      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30."
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "name": "Sherpa English",
+      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "name": "Sherpa German",
+      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "name": "Sherpa Spanish",
+      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "name": "Sherpa French",
+      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06."
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "name": "Sherpa Russian",
+      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16."
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "name": "Sherpa Chinese + English (Paraformer)",
+      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
+    },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "name": "Sherpa Paraformer Chinese (INT8)",
+      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07."
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "name": "Sherpa Paraformer Chinese (Small)",
+      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09."
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "name": "Sherpa Paraformer Zh+Yue+En",
+      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy."
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "name": "SenseVoice Multilingual",
+      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "name": "Punctuation (Chinese + English)",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "name": "Punctuation (Chinese + English) Large",
+      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+    },
+    "small": {
+      "name": "Whisper Small",
+      "description": "Fast and fairly accurate."
+    },
+    "medium": {
+      "name": "Whisper Medium",
+      "description": "Good accuracy, medium speed"
+    },
+    "turbo": {
+      "name": "Whisper Turbo",
+      "description": "Balanced accuracy and speed."
+    },
+    "large": {
+      "name": "Whisper Large",
+      "description": "Good accuracy, but slow."
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "name": "Parakeet V2",
+      "description": "English only. The best model for English speakers."
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "name": "Parakeet V3",
+      "description": "Fast and accurate"
+    }
+  },
+  "soundPicker": {
+    "marimba": "Marimba",
+    "pop": "Pop",
+    "custom": "Custom",
+    "preview": "Preview"
+  },
+  "theme": {
+    "title": "テーマ",
+    "themeMode": {
+      "title": "テーマモード",
+      "description": "Votypeの外観を選択",
+      "light": "ライト",
+      "lightDesc": "常にライトテーマを使用",
+      "dark": "ダーク",
+      "darkDesc": "常にダークテーマを使用",
+      "system": "システム",
+      "systemDesc": "システムのテーマに合わせる"
+    },
+    "accentColor": {
+      "title": "アクセントカラー",
+      "description": "アプリ全体で使用するアクセントカラーを選択",
+      "current": "現在: {{color}}",
+      "ruby": "Ruby",
+      "gray": "Gray",
+      "gold": "Gold",
+      "bronze": "Bronze",
+      "brown": "Brown",
+      "indigo": "Indigo",
+      "blue": "Blue",
+      "iris": "Iris",
+      "purple": "Purple",
+      "violet": "Violet",
+      "pink": "Pink",
+      "plum": "Plum",
+      "red": "Red",
+      "tomato": "Tomato",
+      "crimson": "Crimson",
+      "orange": "Orange",
+      "amber": "Amber",
+      "yellow": "Yellow",
+      "lime": "Lime",
+      "green": "Green",
+      "grass": "Grass",
+      "jade": "Jade",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "mint": "Mint",
+      "sky": "Sky"
+    },
+    "panelStyle": {
+      "title": "パネルスタイル",
+      "description": "半透明かソリッドなパネルを選択",
+      "translucent": "半透明",
+      "translucentDesc": "すりガラス効果",
+      "solid": "ソリッド",
+      "solidDesc": "不透明なパネル"
+    },
+    "cornerRadius": {
+      "title": "角の丸み",
+      "description": "角の丸みを調整",
+      "sharp": "シャープ",
+      "sharpDesc": "丸みなし",
+      "soft": "ソフト",
+      "softDesc": "わずかに丸い角",
+      "default": "デフォルト",
+      "defaultDesc": "標準的な丸み",
+      "rounded": "丸い",
+      "roundedDesc": "より丸い角",
+      "capsule": "カプセル",
+      "capsuleDesc": "完全に丸い角"
+    },
+    "scaling": {
+      "title": "スケーリング",
+      "description": "UIスケールを調整",
+      "current": "現在: {{scale}}"
+    }
   }
 }

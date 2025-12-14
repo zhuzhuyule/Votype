@@ -625,6 +625,10 @@
         "label": "Check for Updates",
         "description": "Automatically check for new versions of Votype"
       },
+      "destroySettingsWindowOnClose": {
+        "label": "Destroy Settings Window on Close",
+        "description": "When closing the settings window, destroy it (free resources). Reopen from the tray menu."
+      },
       "soundTheme": {
         "label": "Sound Theme",
         "description": "Choose a sound theme for recording start and stop feedback"
