@@ -1,6 +1,6 @@
-import { Flex, ScrollArea } from "@radix-ui/themes";
+import { Flex, ScrollArea, Spinner, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
@@ -10,10 +10,21 @@ import { SECTIONS_CONFIG, Sidebar, SidebarSection } from "./components/Sidebar";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
 
+// 加载状态组件
+const SettingsLoadingFallback = () => (
+  <Flex direction="column" align="center" justify="center" className="h-full py-20">
+    <Spinner size="3" />
+  </Flex>
+);
+
 const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
     SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.general.component;
-  return <ActiveComponent />;
+  return (
+    <Suspense fallback={<SettingsLoadingFallback />}>
+      <ActiveComponent />
+    </Suspense>
+  );
 };
 
 function App() {

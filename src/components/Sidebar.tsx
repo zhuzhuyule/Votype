@@ -9,21 +9,39 @@ import {
   IconSettings,
   IconSparkles,
 } from "@tabler/icons-react";
-import React from "react";
+import React, { lazy } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
 import VotypeHand from "./icons/VotypeHand";
-import {
-  AboutSettings,
-  AdvancedSettings,
-  AsrModelsSettings,
-  Dashboard,
-  DebugSettings,
-  GeneralSettings,
-  ModelsConfiguration,
-  PromptsConfiguration,
-  ShortcutsSettings,
-} from "./settings";
+
+// 使用懒加载导入所有设置组件，减少初始 bundle 大小
+const Dashboard = lazy(() =>
+  import("./settings/dashboard/Dashboard").then(m => ({ default: m.Dashboard }))
+);
+const GeneralSettings = lazy(() =>
+  import("./settings/general/GeneralSettings").then(m => ({ default: m.GeneralSettings }))
+);
+const ShortcutsSettings = lazy(() =>
+  import("./settings/shortcuts/ShortcutsSettings").then(m => ({ default: m.ShortcutsSettings }))
+);
+const AdvancedSettings = lazy(() =>
+  import("./settings/advanced/AdvancedSettings").then(m => ({ default: m.AdvancedSettings }))
+);
+const ModelsConfiguration = lazy(() =>
+  import("./settings/post-processing/ModelsConfiguration").then(m => ({ default: m.ModelsConfiguration }))
+);
+const AsrModelsSettings = lazy(() =>
+  import("./settings/asr-models/AsrModelsSettings").then(m => ({ default: m.AsrModelsSettings }))
+);
+const PromptsConfiguration = lazy(() =>
+  import("./settings/post-processing/PromptsConfiguration").then(m => ({ default: m.PromptsConfiguration }))
+);
+const DebugSettings = lazy(() =>
+  import("./settings/debug/DebugSettings").then(m => ({ default: m.DebugSettings }))
+);
+const AboutSettings = lazy(() =>
+  import("./settings/about/AboutSettings").then(m => ({ default: m.AboutSettings }))
+);
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
