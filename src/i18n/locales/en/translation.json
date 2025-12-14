@@ -148,6 +148,10 @@
     "userAddedModel": "User-added model"
   },
   "models": {
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "name": "Sherpa Chinese (CTC Small)",
+      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01."
+    },
     "sherpa-zipformer-zh-int8-2025-06-30": {
       "name": "Sherpa Chinese",
       "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."

@@ -194,7 +194,13 @@ export const ModelInfoSchema = z.object({
   sherpa: z
     .object({
       mode: z.enum(["Streaming", "Offline"]),
-      family: z.enum(["Transducer", "Paraformer", "SenseVoice", "FireRedAsr"]),
+      family: z.enum([
+        "Transducer",
+        "Zipformer2Ctc",
+        "Paraformer",
+        "SenseVoice",
+        "FireRedAsr",
+      ]),
       prefer_int8: z.boolean(),
     })
     .optional(),

@@ -312,7 +312,9 @@ impl TranscriptionManager {
                         .to_lowercase();
                     let prefer_int8 = lower.contains("int8");
                     let is_streaming = lower.contains("streaming");
-                    let family = if lower.contains("paraformer") {
+                    let family = if lower.contains("ctc") {
+                        crate::managers::model::SherpaOnnxAsrFamily::Zipformer2Ctc
+                    } else if lower.contains("paraformer") {
                         crate::managers::model::SherpaOnnxAsrFamily::Paraformer
                     } else if lower.contains("sense-voice") {
                         crate::managers::model::SherpaOnnxAsrFamily::SenseVoice
@@ -349,6 +351,53 @@ impl TranscriptionManager {
                 })?;
 
                 if matches!(mode, crate::managers::model::SherpaOnnxAsrMode::Streaming) {
+                    if matches!(
+                        family,
+                        crate::managers::model::SherpaOnnxAsrFamily::Zipformer2Ctc
+                    ) {
+                        let model_file = find_sherpa_onnx(&model_path, "ctc", prefer_int8)
+                            .or_else(|_| find_sherpa_onnx(&model_path, "model", prefer_int8))
+                            .map_err(|e| {
+                                let error_msg =
+                                    format!("Missing Sherpa CTC model in {:?}: {}", model_path, e);
+                                let _ = self.app_handle.emit(
+                                    "model-state-changed",
+                                    ModelStateEvent {
+                                        event_type: "loading_failed".to_string(),
+                                        model_id: Some(model_id.to_string()),
+                                        model_name: Some(model_info.name.clone()),
+                                        error: Some(error_msg.clone()),
+                                    },
+                                );
+                                anyhow::anyhow!(error_msg)
+                            })?;
+
+                        let recognizer = SherpaOnnxOnlineRecognizer::new_zipformer2_ctc(
+                            model_file.to_string_lossy().to_string(),
+                            tokens.to_string_lossy().to_string(),
+                            "cpu".to_string(),
+                            4,
+                            false,
+                        )
+                        .map_err(|e| {
+                            let error_msg = format!(
+                                "Failed to create Sherpa zipformer2 CTC recognizer: {}",
+                                e
+                            );
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                        LoadedEngine::SherpaOnline(recognizer)
+                    } else {
                     let encoder =
                         find_sherpa_onnx(&model_path, "encoder", prefer_int8).map_err(|e| {
                             let error_msg =
@@ -434,6 +483,7 @@ impl TranscriptionManager {
                     })?;
 
                     LoadedEngine::SherpaOnline(recognizer)
+                    }
                 } else if matches!(
                     family,
                     crate::managers::model::SherpaOnnxAsrFamily::SenseVoice

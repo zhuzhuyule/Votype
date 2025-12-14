@@ -362,6 +362,11 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         duration_ms: Option<i64>,
+        transcription_ms: Option<i64>,
+        language: Option<String>,
+        asr_model: Option<String>,
+        app_name: Option<String>,
+        window_title: Option<String>,
     ) -> Result<i64> {
         let timestamp = Utc::now().timestamp();
         let file_name = format!("votype-{}.wav", timestamp);
@@ -386,6 +391,11 @@ impl HistoryManager {
             post_processed_text,
             post_process_prompt,
             duration_ms,
+            transcription_ms,
+            language,
+            asr_model,
+            app_name,
+            window_title,
             char_count,
             corrected_char_count,
         )?;
@@ -410,13 +420,18 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         duration_ms: Option<i64>,
+        transcription_ms: Option<i64>,
+        language: Option<String>,
+        asr_model: Option<String>,
+        app_name: Option<String>,
+        window_title: Option<String>,
         char_count: Option<i64>,
         corrected_char_count: Option<i64>,
     ) -> Result<i64> {
         let conn = self.get_connection()?;
         conn.execute(
-            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
-            params![file_name, timestamp, false, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count],
+            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+            params![file_name, timestamp, false, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count],
         )?;
 
         let id = conn.last_insert_rowid();

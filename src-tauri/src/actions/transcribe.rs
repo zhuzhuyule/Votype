@@ -169,6 +169,14 @@ impl ShortcutAction for TranscribeAction {
                     samples.len()
                 );
 
+                let active_window_snapshot = active_window::fetch_active_window().ok();
+                if let Some(info) = &active_window_snapshot {
+                    debug!(
+                        "Active window (snapshot): app='{}' title='{}' pid={} window_id={}",
+                        info.app_name, info.title, info.process_id, info.window_id
+                    );
+                }
+
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone();
                 let transcription_result = if let Some(rx) = rm.take_online_transcription_receiver()
@@ -186,26 +194,28 @@ impl ShortcutAction for TranscribeAction {
 
                 match transcription_result {
                     Ok(transcription) => {
+                        let transcription_ms = transcription_time.elapsed().as_millis() as i64;
                         debug!(
                             "Transcription completed in {:?}: '{}'",
                             transcription_time.elapsed(),
                             transcription
                         );
                         if !transcription.is_empty() {
-                            let active_window_snapshot = active_window::fetch_active_window().ok();
-                            if let Some(info) = &active_window_snapshot {
-                                debug!(
-                                    "Active window: app='{}' title='{}' pid={} window_id={}",
-                                    info.app_name, info.title, info.process_id, info.window_id
-                                );
-                            }
-
                             let settings = get_settings(&ah);
                             let transcription_clone = transcription.clone();
                             let samples_clone = samples.clone();
 
                             let duration_ms =
                                 (samples_clone.len() as f64 / 16000.0 * 1000.0) as i64;
+
+                            let asr_model = if settings.online_asr_enabled {
+                                settings
+                                    .selected_asr_model_id
+                                    .clone()
+                                    .unwrap_or_else(|| "online".to_string())
+                            } else {
+                                settings.selected_model.clone()
+                            };
 
                             let history_id = match hm
                                 .save_transcription(
@@ -214,6 +224,15 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                     None,
                                     Some(duration_ms),
+                                    Some(transcription_ms),
+                                    Some(settings.selected_language.clone()),
+                                    Some(asr_model),
+                                    active_window_snapshot
+                                        .as_ref()
+                                        .map(|info| info.app_name.clone()),
+                                    active_window_snapshot
+                                        .as_ref()
+                                        .map(|info| info.title.clone()),
                                 )
                                 .await
                             {

@@ -106,6 +106,7 @@ const getTypeKey = (m: ModelInfo): TypeKey => {
   if (m.engine_type === "SherpaOnnx") {
     switch (m.sherpa?.family) {
       case "Transducer":
+      case "Zipformer2Ctc":
         return "sherpa_transducer";
       case "Paraformer":
         return "sherpa_paraformer";

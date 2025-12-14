@@ -6,6 +6,7 @@ pub(super) struct SherpaOnnxOnlineRecognizer {
     _encoder: CString,
     _decoder: CString,
     _joiner: CString,
+    _model: CString,
     _tokens: CString,
     _provider: CString,
     _decoding_method: CString,
@@ -44,6 +45,7 @@ impl SherpaOnnxOnlineRecognizer {
         let encoder = CString::new(encoder)?;
         let decoder = CString::new(decoder)?;
         let joiner = CString::new(joiner)?;
+        let model = CString::new("")?;
         let tokens = CString::new(tokens)?;
         let provider = CString::new(provider)?;
         // `modified_beam_search` is generally more stable than `greedy_search`
@@ -95,6 +97,78 @@ impl SherpaOnnxOnlineRecognizer {
             _encoder: encoder,
             _decoder: decoder,
             _joiner: joiner,
+            _model: model,
+            _tokens: tokens,
+            _provider: provider,
+            _decoding_method: decoding_method,
+        })
+    }
+
+    pub(super) fn new_zipformer2_ctc(
+        model: String,
+        tokens: String,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let empty = CString::new("")?;
+        let encoder = CString::new("")?;
+        let decoder = CString::new("")?;
+        let joiner = CString::new("")?;
+        let model = CString::new(model)?;
+        let tokens = CString::new(tokens)?;
+        let provider = CString::new(provider)?;
+        let decoding_method = CString::new("greedy_search")?;
+
+        let mut online_model_config: sherpa_rs_sys::SherpaOnnxOnlineModelConfig =
+            unsafe { mem::zeroed() };
+        online_model_config.debug = debug.into();
+        online_model_config.num_threads = num_threads;
+        online_model_config.provider = provider.as_ptr();
+        online_model_config.tokens = tokens.as_ptr();
+        online_model_config.transducer = sherpa_rs_sys::SherpaOnnxOnlineTransducerModelConfig {
+            encoder: empty.as_ptr(),
+            decoder: empty.as_ptr(),
+            joiner: empty.as_ptr(),
+        };
+        online_model_config.paraformer = sherpa_rs_sys::SherpaOnnxOnlineParaformerModelConfig {
+            encoder: empty.as_ptr(),
+            decoder: empty.as_ptr(),
+        };
+        online_model_config.zipformer2_ctc =
+            sherpa_rs_sys::SherpaOnnxOnlineZipformer2CtcModelConfig {
+                model: model.as_ptr(),
+            };
+
+        let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOnlineRecognizerConfig =
+            unsafe { mem::zeroed() };
+        recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.max_active_paths = 4;
+        recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
+            sample_rate: 16000,
+            feature_dim: 80,
+        };
+        recognizer_config.enable_endpoint = 1;
+        recognizer_config.rule1_min_trailing_silence = 2.4;
+        recognizer_config.rule2_min_trailing_silence = 1.2;
+        recognizer_config.rule3_min_utterance_length = 20.0;
+        recognizer_config.model_config = online_model_config;
+
+        let recognizer =
+            unsafe { sherpa_safe::SafeSherpaOnnxCreateOnlineRecognizer(&recognizer_config) };
+        if recognizer.is_null() {
+            return Err(anyhow::anyhow!(
+                "Failed to create Sherpa zipformer2 CTC recognizer"
+            ));
+        }
+
+        Ok(Self {
+            recognizer,
+            _empty: empty,
+            _encoder: encoder,
+            _decoder: decoder,
+            _joiner: joiner,
+            _model: model,
             _tokens: tokens,
             _provider: provider,
             _decoding_method: decoding_method,
@@ -113,6 +187,7 @@ impl SherpaOnnxOnlineRecognizer {
         let encoder = CString::new(encoder)?;
         let decoder = CString::new(decoder)?;
         let joiner = CString::new("")?;
+        let model = CString::new("")?;
         let tokens = CString::new(tokens)?;
         let provider = CString::new(provider)?;
         // Paraformer online recognizer currently supports only `greedy_search`.
@@ -160,6 +235,7 @@ impl SherpaOnnxOnlineRecognizer {
             _encoder: encoder,
             _decoder: decoder,
             _joiner: joiner,
+            _model: model,
             _tokens: tokens,
             _provider: provider,
             _decoding_method: decoding_method,

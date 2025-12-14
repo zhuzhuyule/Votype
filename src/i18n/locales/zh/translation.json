@@ -163,6 +163,10 @@
     "userAddedModel": "用户添加的模型"
   },
   "models": {
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "name": "Sherpa 中文（CTC 小）",
+      "description": "流式中文识别（Zipformer2 CTC）；体积小、速度极快（INT8）；更新于 2025-04-01。"
+    },
     "sherpa-zipformer-zh-int8-2025-06-30": {
       "name": "Sherpa 中文",
       "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"

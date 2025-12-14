@@ -32,6 +32,8 @@ pub enum SherpaOnnxAsrMode {
 pub enum SherpaOnnxAsrFamily {
     /// Online transducer (e.g. streaming zipformer) via encoder/decoder/joiner.
     Transducer,
+    /// Online zipformer2 CTC models (streaming) via a single `*.onnx` file.
+    Zipformer2Ctc,
     /// Online paraformer via encoder/decoder.
     Paraformer,
     /// Offline SenseVoice via `model.onnx`.
@@ -175,6 +177,8 @@ impl ModelManager {
             SherpaOnnxAsrFamily::SenseVoice
         } else if lower.contains("fire-red-asr") {
             SherpaOnnxAsrFamily::FireRedAsr
+        } else if lower.contains("ctc") {
+            SherpaOnnxAsrFamily::Zipformer2Ctc
         } else if lower.contains("paraformer") {
             SherpaOnnxAsrFamily::Paraformer
         } else {
@@ -345,6 +349,32 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.85,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-small-ctc-zh-int8-2025-04-01".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-small-ctc-zh-int8-2025-04-01".to_string(),
+                name: "Sherpa Chinese (CTC Small)".to_string(),
+                description:
+                    "models.sherpa-zipformer-small-ctc-zh-int8-2025-04-01.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01"
+                    .to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01.tar.bz2".to_string()),
+                size_mb: 21,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Zipformer2Ctc,
+                    prefer_int8: true,
+                }),
+                accuracy_score: 0.80,
+                speed_score: 0.98,
             },
         );
 
