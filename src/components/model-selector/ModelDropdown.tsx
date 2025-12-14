@@ -75,9 +75,14 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   );
 
   const getFamily = React.useCallback((model: ModelInfo) => {
-    if (model.id.startsWith("sherpa-")) return "Sherpa (Streaming)";
-    if (model.id.startsWith("parakeet-")) return "Parakeet";
-    if (["small", "medium", "turbo", "large"].includes(model.id)) return "Whisper";
+    if (model.engine_type === "Whisper") return "Whisper";
+    if (model.engine_type === "Parakeet") return "Parakeet";
+    if (model.engine_type === "SherpaOnnxPunctuation") return "Punctuation";
+    if (model.engine_type === "SherpaOnnx") {
+      if (model.sherpa?.mode === "Streaming") return "Sherpa (Streaming)";
+      if (model.sherpa?.mode === "Offline") return "Sherpa (Offline)";
+      return "Sherpa";
+    }
     return "Other";
   }, []);
 
@@ -89,8 +94,12 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         return 1;
       case "Sherpa (Streaming)":
         return 2;
-      default:
+      case "Sherpa (Offline)":
         return 3;
+      case "Punctuation":
+        return 4;
+      default:
+        return 5;
     }
   };
 

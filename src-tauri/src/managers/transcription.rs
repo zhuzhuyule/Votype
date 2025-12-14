@@ -329,6 +329,11 @@ impl TranscriptionManager {
                     (mode, family, prefer_int8)
                 };
 
+                debug!(
+                    "Sherpa model spec resolved: mode={:?}, family={:?}, prefer_int8={}",
+                    mode, family, prefer_int8
+                );
+
                 let tokens = find_sherpa_tokens(&model_path).map_err(|e| {
                     let error_msg = format!("Missing Sherpa tokens in {:?}: {}", model_path, e);
                     let _ = self.app_handle.emit(
