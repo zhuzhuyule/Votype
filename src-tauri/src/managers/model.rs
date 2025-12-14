@@ -22,6 +22,32 @@ pub enum EngineType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SherpaOnnxAsrMode {
+    Streaming,
+    Offline,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SherpaOnnxAsrFamily {
+    /// Online transducer (e.g. streaming zipformer) via encoder/decoder/joiner.
+    Transducer,
+    /// Online paraformer via encoder/decoder.
+    Paraformer,
+    /// Offline SenseVoice via `model.onnx`.
+    SenseVoice,
+    /// Offline FireRedASR via encoder/decoder.
+    FireRedAsr,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SherpaOnnxModelSpec {
+    pub mode: SherpaOnnxAsrMode,
+    pub family: SherpaOnnxAsrFamily,
+    /// Whether to prefer int8 variants when searching for model files.
+    pub prefer_int8: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
@@ -34,6 +60,8 @@ pub struct ModelInfo {
     pub partial_size: u64,
     pub is_directory: bool,
     pub engine_type: EngineType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sherpa: Option<SherpaOnnxModelSpec>,
     pub accuracy_score: f32, // 0.0 to 1.0, higher is more accurate
     pub speed_score: f32,    // 0.0 to 1.0, higher is faster
 }
@@ -82,6 +110,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: false,
                 engine_type: EngineType::Whisper,
+                sherpa: None,
                 accuracy_score: 0.60,
                 speed_score: 0.85,
             },
@@ -102,6 +131,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: false,
                 engine_type: EngineType::Whisper,
+                sherpa: None,
                 accuracy_score: 0.75,
                 speed_score: 0.60,
             },
@@ -121,6 +151,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: false,
                 engine_type: EngineType::Whisper,
+                sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.40,
             },
@@ -140,6 +171,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: false,
                 engine_type: EngineType::Whisper,
+                sherpa: None,
                 accuracy_score: 0.85,
                 speed_score: 0.30,
             },
@@ -160,6 +192,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::Parakeet,
+                sherpa: None,
                 accuracy_score: 0.85,
                 speed_score: 0.85,
             },
@@ -179,6 +212,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::Parakeet,
+                sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.85,
             },
@@ -198,6 +232,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: true,
+                }),
                 accuracy_score: 0.82,
                 speed_score: 0.97,
             },
@@ -218,6 +257,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: true,
+                }),
                 accuracy_score: 0.90,
                 speed_score: 0.70,
             },
@@ -237,6 +281,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: false,
+                }),
                 accuracy_score: 0.78,
                 speed_score: 0.98,
             },
@@ -256,6 +305,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: false,
+                }),
                 accuracy_score: 0.78,
                 speed_score: 0.98,
             },
@@ -275,6 +329,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: false,
+                }),
                 accuracy_score: 0.80,
                 speed_score: 0.95,
             },
@@ -294,6 +353,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: false,
+                }),
                 accuracy_score: 0.78,
                 speed_score: 0.98,
             },
@@ -315,6 +379,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Transducer,
+                    prefer_int8: true,
+                }),
                 accuracy_score: 0.70,
                 speed_score: 0.99,
             },
@@ -334,6 +403,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Streaming,
+                    family: SherpaOnnxAsrFamily::Paraformer,
+                    prefer_int8: false,
+                }),
                 accuracy_score: 0.84,
                 speed_score: 0.92,
             },
@@ -356,6 +430,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnxPunctuation,
+                sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.95,
             },
@@ -376,6 +451,7 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnxPunctuation,
+                sherpa: None,
                 accuracy_score: 0.88,
                 speed_score: 0.70,
             },
@@ -397,6 +473,11 @@ impl ModelManager {
                 partial_size: 0,
                 is_directory: true,
                 engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::SenseVoice,
+                    prefer_int8: true,
+                }),
                 accuracy_score: 0.87,
                 speed_score: 0.75,
             },
