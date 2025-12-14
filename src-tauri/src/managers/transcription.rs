@@ -5,6 +5,8 @@ use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
 use log::{debug, error, info, warn};
 use serde::Serialize;
+use std::ffi::{CStr, CString};
+use std::mem;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -20,6 +22,154 @@ use transcribe_rs::{
     TranscriptionEngine,
 };
 
+struct SherpaStreamingZipformer {
+    recognizer: *const sherpa_rs_sys::SherpaOnnxOnlineRecognizer,
+    _encoder: CString,
+    _decoder: CString,
+    _joiner: CString,
+    _tokens: CString,
+    _provider: CString,
+    _decoding_method: CString,
+}
+
+impl SherpaStreamingZipformer {
+    fn new(
+        encoder: String,
+        decoder: String,
+        joiner: String,
+        tokens: String,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let encoder = CString::new(encoder)?;
+        let decoder = CString::new(decoder)?;
+        let joiner = CString::new(joiner)?;
+        let tokens = CString::new(tokens)?;
+        let provider = CString::new(provider)?;
+        let decoding_method = CString::new("greedy_search")?;
+
+        let mut online_model_config: sherpa_rs_sys::SherpaOnnxOnlineModelConfig =
+            unsafe { mem::zeroed() };
+        online_model_config.debug = debug.into();
+        online_model_config.num_threads = num_threads;
+        online_model_config.provider = provider.as_ptr();
+        online_model_config.tokens = tokens.as_ptr();
+        online_model_config.transducer = sherpa_rs_sys::SherpaOnnxOnlineTransducerModelConfig {
+            encoder: encoder.as_ptr(),
+            decoder: decoder.as_ptr(),
+            joiner: joiner.as_ptr(),
+        };
+
+        let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOnlineRecognizerConfig =
+            unsafe { mem::zeroed() };
+        recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
+            sample_rate: 16000,
+            feature_dim: 80,
+        };
+        recognizer_config.model_config = online_model_config;
+
+        let recognizer =
+            unsafe { sherpa_rs_sys::SherpaOnnxCreateOnlineRecognizer(&recognizer_config) };
+        if recognizer.is_null() {
+            return Err(anyhow::anyhow!("Failed to create Sherpa streaming recognizer"));
+        }
+
+        Ok(Self {
+            recognizer,
+            _encoder: encoder,
+            _decoder: decoder,
+            _joiner: joiner,
+            _tokens: tokens,
+            _provider: provider,
+            _decoding_method: decoding_method,
+        })
+    }
+
+    fn decode(&self, sample_rate: i32, samples: &[f32]) -> Result<String> {
+        if samples.is_empty() {
+            return Ok(String::new());
+        }
+
+        let stream = unsafe { sherpa_rs_sys::SherpaOnnxCreateOnlineStream(self.recognizer) };
+        if stream.is_null() {
+            return Err(anyhow::anyhow!("Failed to create Sherpa online stream"));
+        }
+
+        // Feed audio in small chunks to match streaming usage.
+        const CHUNK_SAMPLES: usize = 3200; // 0.2s at 16kHz
+        let mut offset = 0usize;
+        while offset < samples.len() {
+            let end = (offset + CHUNK_SAMPLES).min(samples.len());
+            unsafe {
+                sherpa_rs_sys::SherpaOnnxOnlineStreamAcceptWaveform(
+                    stream,
+                    sample_rate,
+                    samples[offset..end].as_ptr(),
+                    (end - offset) as i32,
+                );
+                while sherpa_rs_sys::SherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
+                    sherpa_rs_sys::SherpaOnnxDecodeOnlineStream(self.recognizer, stream);
+                }
+            }
+            offset = end;
+        }
+
+        // Add some tail paddings to flush the final tokens.
+        let tail_len = (sample_rate as usize * 3) / 10; // 0.3 seconds
+        let tail = vec![0.0f32; tail_len];
+        unsafe {
+            sherpa_rs_sys::SherpaOnnxOnlineStreamAcceptWaveform(
+                stream,
+                sample_rate,
+                tail.as_ptr(),
+                tail.len() as i32,
+            );
+            sherpa_rs_sys::SherpaOnnxOnlineStreamInputFinished(stream);
+            while sherpa_rs_sys::SherpaOnnxIsOnlineStreamReady(self.recognizer, stream) == 1 {
+                sherpa_rs_sys::SherpaOnnxDecodeOnlineStream(self.recognizer, stream);
+            }
+        }
+
+        let result_ptr =
+            unsafe { sherpa_rs_sys::SherpaOnnxGetOnlineStreamResult(self.recognizer, stream) };
+        let text = if result_ptr.is_null() {
+            String::new()
+        } else {
+            let raw_text = unsafe { (*result_ptr).text };
+            if raw_text.is_null() {
+                String::new()
+            } else {
+                unsafe { CStr::from_ptr(raw_text) }
+                    .to_string_lossy()
+                    .trim()
+                    .to_string()
+            }
+        };
+
+        unsafe {
+            if !result_ptr.is_null() {
+                sherpa_rs_sys::SherpaOnnxDestroyOnlineRecognizerResult(result_ptr);
+            }
+            sherpa_rs_sys::SherpaOnnxDestroyOnlineStream(stream);
+        }
+
+        Ok(text)
+    }
+}
+
+unsafe impl Send for SherpaStreamingZipformer {}
+unsafe impl Sync for SherpaStreamingZipformer {}
+
+impl Drop for SherpaStreamingZipformer {
+    fn drop(&mut self) {
+        unsafe {
+            sherpa_rs_sys::SherpaOnnxDestroyOnlineRecognizer(self.recognizer);
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct ModelStateEvent {
     pub event_type: String,
@@ -31,6 +181,7 @@ pub struct ModelStateEvent {
 enum LoadedEngine {
     Whisper(WhisperEngine),
     Parakeet(ParakeetEngine),
+    Sherpa(SherpaStreamingZipformer),
 }
 
 #[derive(Clone)]
@@ -143,6 +294,7 @@ impl TranscriptionManager {
                 match loaded_engine {
                     LoadedEngine::Whisper(ref mut whisper) => whisper.unload_model(),
                     LoadedEngine::Parakeet(ref mut parakeet) => parakeet.unload_model(),
+                    LoadedEngine::Sherpa(_) => {} // Dropped when enum is dropped
                 }
             }
             *engine = None; // Drop the engine to free memory
@@ -245,6 +397,51 @@ impl TranscriptionManager {
                         anyhow::anyhow!(error_msg)
                     })?;
                 LoadedEngine::Parakeet(engine)
+            }
+            EngineType::SherpaOnnx => {
+                let tokens = model_path.join("tokens.txt");
+                let encoder = model_path.join("encoder-epoch-99-avg-1.int8.onnx");
+                let decoder = model_path.join("decoder-epoch-99-avg-1.int8.onnx");
+                let joiner = model_path.join("joiner-epoch-99-avg-1.int8.onnx");
+
+                if !tokens.exists() || !encoder.exists() || !decoder.exists() || !joiner.exists() {
+                     let error_msg = format!("Missing required model files in {:?}", model_path);
+                     let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "loading_failed".to_string(),
+                            model_id: Some(model_id.to_string()),
+                            model_name: Some(model_info.name.clone()),
+                            error: Some(error_msg.clone()),
+                        },
+                    );
+                    return Err(anyhow::anyhow!(error_msg));
+                }
+
+                let recognizer = SherpaStreamingZipformer::new(
+                    encoder.to_string_lossy().to_string(),
+                    decoder.to_string_lossy().to_string(),
+                    joiner.to_string_lossy().to_string(),
+                    tokens.to_string_lossy().to_string(),
+                    "cpu".to_string(),
+                    4,
+                    false,
+                )
+                .map_err(|e| {
+                    let error_msg = format!("Failed to create Sherpa streaming recognizer: {}", e);
+                    let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "loading_failed".to_string(),
+                            model_id: Some(model_id.to_string()),
+                            model_name: Some(model_info.name.clone()),
+                            error: Some(error_msg.clone()),
+                        },
+                    );
+                    anyhow::anyhow!(error_msg)
+                })?;
+
+                LoadedEngine::Sherpa(recognizer)
             }
         };
 
@@ -454,6 +651,24 @@ impl TranscriptionManager {
                     parakeet_engine
                         .transcribe_samples(audio, Some(params))
                         .map_err(|e| anyhow::anyhow!("Parakeet transcription failed: {}", e))?
+                }
+                LoadedEngine::Sherpa(recognizer) => {
+                    // `AudioRecorder` already resamples to 16kHz (constants::WHISPER_SAMPLE_RATE).
+                    const SHERPA_SAMPLE_RATE: i32 = 16000;
+                    debug!("Sherpa input: {} samples @ {}Hz", audio.len(), SHERPA_SAMPLE_RATE);
+
+                    let text = recognizer.decode(SHERPA_SAMPLE_RATE, &audio)?;
+                    
+                    transcribe_rs::TranscriptionResult {
+                        text: text.clone(),
+                        segments: Some(vec![
+                            transcribe_rs::TranscriptionSegment {
+                                text: text.clone(),
+                                start: 0.0,
+                                end: 0.0,
+                            }
+                        ]),
+                    }
                 }
             }
         };

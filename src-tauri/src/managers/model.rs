@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tar::Archive;
@@ -17,6 +17,7 @@ use tauri::{AppHandle, Emitter, Manager};
 pub enum EngineType {
     Whisper,
     Parakeet,
+    SherpaOnnx,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -179,6 +180,25 @@ impl ModelManager {
                 engine_type: EngineType::Parakeet,
                 accuracy_score: 0.80,
                 speed_score: 0.85,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-zipformer-bilingual".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-bilingual".to_string(),
+                name: "Sherpa Bilingual (Zipformer)".to_string(),
+                description: "models.sherpa-zipformer-bilingual.description".to_string(),
+                filename: "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20.tar.bz2".to_string()),
+                size_mb: 230,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                accuracy_score: 0.85,
+                speed_score: 0.95,
             },
         );
 
@@ -511,10 +531,15 @@ impl ModelManager {
             // Create temporary extraction directory
             fs::create_dir_all(&temp_extract_dir)?;
 
-            // Open the downloaded tar.gz file
-            let tar_gz = File::open(&partial_path)?;
-            let tar = GzDecoder::new(tar_gz);
-            let mut archive = Archive::new(tar);
+            // Open the downloaded archive file
+            let archive_file = File::open(&partial_path)?;
+            let reader: Box<dyn Read> = if url.ends_with(".bz2") {
+                Box::new(bzip2::read::BzDecoder::new(archive_file))
+            } else {
+                // Default to gzip
+                Box::new(GzDecoder::new(archive_file))
+            };
+            let mut archive = Archive::new(reader);
 
             // Extract to the temporary directory first
             archive.unpack(&temp_extract_dir).map_err(|e| {

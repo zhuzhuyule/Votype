@@ -19,7 +19,7 @@ const renderSettingsContent = (section: SidebarSection) => {
 function App() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [currentSection, setCurrentSection] =
-    useState<SidebarSection>("general");
+    useState<SidebarSection>("dashboard");
   const { settings, updateSetting } = useSettings();
 
   useEffect(() => {

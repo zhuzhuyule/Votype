@@ -5,10 +5,12 @@ import {
   Flex,
   Grid,
   Heading,
+  IconButton,
   Tabs,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
-import { IconFolderOpen } from "@tabler/icons-react";
+import { IconCopy, IconFolderOpen, IconStar, IconTrash } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -69,7 +71,22 @@ const formatEntryTime = (timestampSeconds: number) => {
 const DashboardEntryCard: React.FC<{
   entry: HistoryEntry;
   getAudioUrl: (fileName: string) => Promise<string | null>;
-}> = ({ entry, getAudioUrl }) => {
+  metaText: string;
+  timeText: string;
+  appName: string | null;
+  onCopy: (text: string) => void;
+  onToggleSaved: (id: number) => void;
+  onDelete: (id: number) => void;
+}> = ({
+  entry,
+  getAudioUrl,
+  metaText,
+  timeText,
+  appName,
+  onCopy,
+  onToggleSaved,
+  onDelete,
+}) => {
   const { t } = useTranslation();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioMissing, setAudioMissing] = useState(false);
@@ -119,6 +136,76 @@ const DashboardEntryCard: React.FC<{
       className="bg-background/40 backdrop-blur-md border border-white/10 rounded-xl shadow-sm overflow-hidden"
     >
       <Flex direction="column" className="p-4">
+        <Flex justify="between" align="center" className="pb-3">
+          <Flex gap="2" align="center" className="flex-wrap">
+            <Text size="1" color="gray">
+              {timeText}
+            </Text>
+            {appName ? (
+              <Text size="1" color="gray">
+                {appName}
+              </Text>
+            ) : null}
+            {metaText ? (
+              <Text size="1" color="gray">
+                {metaText}
+              </Text>
+            ) : null}
+          </Flex>
+
+          <Flex gap="1" align="center">
+            <Tooltip content={t("settings.history.copyToClipboard")}>
+              <IconButton
+                variant="ghost"
+                size="2"
+                onClick={() => {
+                  const text =
+                    hasImprovement && activeTab === "improved"
+                      ? entry.post_processed_text ?? entry.transcription_text
+                      : entry.transcription_text;
+                  onCopy(text ?? "");
+                }}
+                className="text-text/60 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
+              >
+                <IconCopy className="w-4 h-4" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip
+              content={
+                entry.saved
+                  ? t("settings.history.unsave")
+                  : t("settings.history.save")
+              }
+            >
+              <IconButton
+                variant="ghost"
+                size="2"
+                onClick={() => onToggleSaved(entry.id)}
+                className={`transition-colors ${
+                  entry.saved
+                    ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
+                    : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
+                }`}
+              >
+                <IconStar className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip content={t("settings.history.delete")}>
+              <IconButton
+                variant="ghost"
+                size="2"
+                color="red"
+                onClick={() => onDelete(entry.id)}
+                className="text-text/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+              >
+                <IconTrash className="w-4 h-4" />
+              </IconButton>
+            </Tooltip>
+          </Flex>
+        </Flex>
+
         {hasImprovement ? (
           <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <Tabs.List size="1" className="mb-3">
@@ -389,6 +476,34 @@ export const Dashboard: React.FC = () => {
     }
   }, []);
 
+  const onCopy = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+    }
+  }, []);
+
+  const onToggleSaved = useCallback(async (id: number) => {
+    try {
+      await invoke("toggle_history_entry_saved", { id });
+    } catch (error) {
+      console.error("Failed to toggle saved status:", error);
+    }
+  }, []);
+
+  const onDelete = useCallback(
+    async (id: number) => {
+      try {
+        await invoke("delete_history_entry", { id });
+      } catch (error) {
+        console.error("Failed to delete entry:", error);
+        alert(t("settings.history.deleteError"));
+      }
+    },
+    [t],
+  );
+
   const detailEntries = useMemo(
     () => selectedEntries.slice(0, detailCount),
     [detailCount, selectedEntries],
@@ -623,42 +738,18 @@ export const Dashboard: React.FC = () => {
                       }
                       const meta = metaParts.join(" · ");
 
-                      const isLastGroup = day === detailGroups[detailGroups.length - 1]?.[0];
-                      const isLastEntry = isLastGroup && idx === dayEntries.length - 1;
-
                       return (
-                        <Flex key={entry.id} gap="3" className="relative">
-                          <Box className="relative w-4 flex-shrink-0">
-                            <Box
-                              className={`absolute left-1/2 -translate-x-1/2 w-[2px] bg-mid-gray/20 ${
-                                isLastEntry ? "top-2 bottom-2" : "top-2 -bottom-3"
-                              }`}
-                            />
-                            <Box className="relative mt-2 w-2 h-2 rounded-full bg-logo-primary/60 border-2 border-background mx-auto" />
-                          </Box>
-
-                          <Box className="flex-1">
-                            <Flex justify="between" align="center" className="px-1 pb-2">
-                              <Flex gap="2" align="center" className="flex-wrap">
-                                <Text size="1" color="gray">
-                                  {timeInfo.time}
-                                </Text>
-                                {appName ? (
-                                  <Text size="1" color="gray">
-                                    {appName}
-                                  </Text>
-                                ) : null}
-                                {meta ? (
-                                  <Text size="1" color="gray">
-                                    {meta}
-                                  </Text>
-                                ) : null}
-                              </Flex>
-                            </Flex>
-
-                            <DashboardEntryCard entry={entry} getAudioUrl={getAudioUrl} />
-                          </Box>
-                        </Flex>
+                        <DashboardEntryCard
+                          key={entry.id}
+                          entry={entry}
+                          getAudioUrl={getAudioUrl}
+                          metaText={meta}
+                          timeText={timeInfo.time}
+                          appName={appName ?? null}
+                          onCopy={onCopy}
+                          onToggleSaved={onToggleSaved}
+                          onDelete={onDelete}
+                        />
                       );
                     })}
                   </Box>
