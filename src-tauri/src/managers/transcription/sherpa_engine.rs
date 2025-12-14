@@ -341,6 +341,68 @@ impl Drop for SherpaOnnxOnlineRecognizer {
 }
 
 impl SherpaOnnxOfflineRecognizer {
+    pub(super) fn new_paraformer(
+        model: String,
+        tokens: String,
+        provider: String,
+        num_threads: i32,
+        debug: bool,
+    ) -> Result<Self> {
+        let empty = CString::new("")?;
+        let encoder = CString::new("")?;
+        let decoder = CString::new("")?;
+        let model = CString::new(model)?;
+        let language = CString::new("")?;
+        let tokens = CString::new(tokens)?;
+        let provider = CString::new(provider)?;
+        let decoding_method = CString::new("greedy_search")?;
+
+        let mut model_config: sherpa_rs_sys::SherpaOnnxOfflineModelConfig =
+            unsafe { mem::zeroed() };
+        model_config.tokens = tokens.as_ptr();
+        model_config.num_threads = num_threads;
+        model_config.debug = debug.into();
+        model_config.provider = provider.as_ptr();
+        model_config.paraformer = sherpa_rs_sys::SherpaOnnxOfflineParaformerModelConfig {
+            model: model.as_ptr(),
+        };
+        // Ensure other model configs are well-defined even if unused.
+        model_config.fire_red_asr = sherpa_rs_sys::SherpaOnnxOfflineFireRedAsrModelConfig {
+            encoder: empty.as_ptr(),
+            decoder: empty.as_ptr(),
+        };
+
+        let mut recognizer_config: sherpa_rs_sys::SherpaOnnxOfflineRecognizerConfig =
+            unsafe { mem::zeroed() };
+        recognizer_config.feat_config = sherpa_rs_sys::SherpaOnnxFeatureConfig {
+            sample_rate: 16000,
+            feature_dim: 80,
+        };
+        recognizer_config.model_config = model_config;
+        recognizer_config.decoding_method = decoding_method.as_ptr();
+        recognizer_config.max_active_paths = 4;
+
+        let recognizer =
+            unsafe { sherpa_safe::SafeSherpaOnnxCreateOfflineRecognizer(&recognizer_config) };
+        if recognizer.is_null() {
+            return Err(anyhow::anyhow!(
+                "Failed to create Sherpa offline recognizer"
+            ));
+        }
+
+        Ok(Self {
+            recognizer,
+            _empty: empty,
+            _tokens: tokens,
+            _provider: provider,
+            _decoding_method: decoding_method,
+            _model: model,
+            _language: language,
+            _encoder: encoder,
+            _decoder: decoder,
+        })
+    }
+
     pub(super) fn new_fire_red_asr(
         encoder: String,
         decoder: String,

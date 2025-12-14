@@ -191,6 +191,18 @@
       "name": "Sherpa 中英 Paraformer",
       "description": "流式中英识别，适合实时字幕，速度快，准确率尚可。"
     },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "name": "Sherpa 中文 Paraformer（INT8）",
+      "description": "离线中文识别；INT8；速度快，准确率良好；更新于 2025-10-07。"
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "name": "Sherpa 中文 Paraformer（小）",
+      "description": "离线中文识别；体积小速度快；准确率尚可；更新于 2024-03-09。"
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "name": "Sherpa 中/粤/英 Paraformer",
+      "description": "离线中/粤/英三语识别；体积较大；准确率良好。"
+    },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
       "name": "SenseVoice 多语",
       "description": "离线多语识别：中/英/日/韩/粤；Int8 量化；速度和占用中等；更新于 2025-09-09。"

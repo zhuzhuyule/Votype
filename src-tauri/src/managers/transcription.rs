@@ -487,6 +487,49 @@ impl TranscriptionManager {
                     LoadedEngine::SherpaOffline(recognizer)
                 } else if matches!(
                     family,
+                    crate::managers::model::SherpaOnnxAsrFamily::Paraformer
+                ) {
+                    let model_file =
+                        find_sherpa_onnx(&model_path, "model", prefer_int8).map_err(|e| {
+                            let error_msg =
+                                format!("Missing Paraformer model in {:?}: {}", model_path, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                    let recognizer = SherpaOnnxOfflineRecognizer::new_paraformer(
+                        model_file.to_string_lossy().to_string(),
+                        tokens.to_string_lossy().to_string(),
+                        "cpu".to_string(),
+                        4,
+                        false,
+                    )
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to create Paraformer offline recognizer: {}", e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+
+                    LoadedEngine::SherpaOffline(recognizer)
+                } else if matches!(
+                    family,
                     crate::managers::model::SherpaOnnxAsrFamily::FireRedAsr
                 ) {
                     let encoder =

@@ -184,6 +184,14 @@ export const ModelInfoSchema = z.object({
   is_downloading: z.boolean(),
   partial_size: z.number(),
   is_directory: z.boolean(),
+  engine_type: z.enum(["Whisper", "Parakeet", "SherpaOnnx", "SherpaOnnxPunctuation"]),
+  sherpa: z
+    .object({
+      mode: z.enum(["Streaming", "Offline"]),
+      family: z.enum(["Transducer", "Paraformer", "SenseVoice", "FireRedAsr"]),
+      prefer_int8: z.boolean(),
+    })
+    .optional(),
   accuracy_score: z.number(),
   speed_score: z.number(),
 });

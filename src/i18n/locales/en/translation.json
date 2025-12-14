@@ -176,6 +176,18 @@
       "name": "Sherpa Chinese + English (Paraformer)",
       "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
     },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "name": "Sherpa Paraformer Chinese (INT8)",
+      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07."
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "name": "Sherpa Paraformer Chinese (Small)",
+      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09."
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "name": "Sherpa Paraformer Zh+Yue+En",
+      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy."
+    },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
       "name": "SenseVoice Multilingual",
       "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."

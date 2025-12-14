@@ -1,21 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-
-interface ModelInfo {
-  id: string;
-  name: string;
-  description: string;
-  filename: string;
-  url?: string;
-  size_mb: number;
-  is_downloaded: boolean;
-  is_downloading: boolean;
-  partial_size: number;
-  is_directory: boolean;
-  accuracy_score: number;
-  speed_score: number;
-}
+import type { ModelInfo } from "../lib/types";
 
 interface DownloadProgress {
   model_id: string;

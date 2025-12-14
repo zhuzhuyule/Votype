@@ -483,6 +483,80 @@ impl ModelManager {
             },
         );
 
+        // Offline Paraformer (non-streaming): Chinese / trilingual.
+        available_models.insert(
+            "sherpa-paraformer-zh-int8-2025-10-07".to_string(),
+            ModelInfo {
+                id: "sherpa-paraformer-zh-int8-2025-10-07".to_string(),
+                name: "Sherpa Paraformer Chinese".to_string(),
+                description: "models.sherpa-paraformer-zh-int8-2025-10-07.description".to_string(),
+                filename: "sherpa-onnx-paraformer-zh-int8-2025-10-07".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-paraformer-zh-int8-2025-10-07.tar.bz2".to_string()),
+                size_mb: 218,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::Paraformer,
+                    prefer_int8: true,
+                }),
+                accuracy_score: 0.82,
+                speed_score: 0.95,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-paraformer-zh-small-2024-03-09".to_string(),
+            ModelInfo {
+                id: "sherpa-paraformer-zh-small-2024-03-09".to_string(),
+                name: "Sherpa Paraformer Chinese (Small)".to_string(),
+                description: "models.sherpa-paraformer-zh-small-2024-03-09.description".to_string(),
+                filename: "sherpa-onnx-paraformer-zh-small-2024-03-09".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-paraformer-zh-small-2024-03-09.tar.bz2".to_string()),
+                size_mb: 75,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::Paraformer,
+                    prefer_int8: false,
+                }),
+                accuracy_score: 0.78,
+                speed_score: 0.97,
+            },
+        );
+
+        available_models.insert(
+            "sherpa-paraformer-trilingual-zh-cantonese-en".to_string(),
+            ModelInfo {
+                id: "sherpa-paraformer-trilingual-zh-cantonese-en".to_string(),
+                name: "Sherpa Paraformer Zh+Yue+En".to_string(),
+                description: "models.sherpa-paraformer-trilingual-zh-cantonese-en.description"
+                    .to_string(),
+                filename: "sherpa-onnx-paraformer-trilingual-zh-cantonese-en".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-paraformer-trilingual-zh-cantonese-en.tar.bz2".to_string()),
+                size_mb: 1011,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::SherpaOnnx,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::Paraformer,
+                    prefer_int8: false,
+                }),
+                accuracy_score: 0.80,
+                speed_score: 0.93,
+            },
+        );
+
         let manager = Self {
             app_handle: app_handle.clone(),
             models_dir,
