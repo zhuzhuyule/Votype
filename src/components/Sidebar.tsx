@@ -16,6 +16,7 @@ import VotypeHand from "./icons/VotypeHand";
 import {
   AboutSettings,
   AdvancedSettings,
+  AsrModelsSettings,
   Dashboard,
   DebugSettings,
   GeneralSettings,
@@ -70,6 +71,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.models",
     icon: IconBrain,
     component: ModelsConfiguration,
+    enabled: () => true,
+  },
+  asrModels: {
+    labelKey: "sidebar.asrModels",
+    icon: IconBrain,
+    component: AsrModelsSettings,
     enabled: () => true,
   },
   prompts: {

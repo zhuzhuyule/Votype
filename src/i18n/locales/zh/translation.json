@@ -5,6 +5,7 @@
     "shortcuts": "快捷键",
     "advanced": "高级",
     "models": "模型",
+    "asrModels": "语音模型",
     "prompts": "提示词",
     "postProcessing": "后处理",
     "history": "历史记录",
@@ -245,6 +246,14 @@
     }
   },
   "settings": {
+    "asrModels": {
+      "title": "语音模型",
+      "description": "管理本地转录模型，并控制哪些模型会出现在左下角的快捷列表里。",
+      "addFromUrl": "添加并下载",
+      "showInQuickList": "在快捷列表中显示",
+      "download": "下载",
+      "delete": "删除"
+    },
     "shortcuts": {
       "title": "快捷键"
     },

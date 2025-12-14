@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { Button, Dialog, Flex, Text, TextField } from "@radix-ui/themes";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
@@ -48,6 +49,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   const [currentModelId, setCurrentModelId] = useState<string>("");
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
   const [modelError, setModelError] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [addUrl, setAddUrl] = useState("");
   const [modelDownloadProgress, setModelDownloadProgress] = useState<
     Map<string, DownloadProgress>
   >(new Map());
@@ -343,17 +346,21 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     }
   };
 
-  const handleAddModelFromUrl = async () => {
-    const url = window.prompt(t("modelSelector.addModelFromUrlPrompt"));
-    if (!url || !url.trim()) return;
+  const openAddModelDialog = () => {
+    setAddUrl("");
+    setIsAddDialogOpen(true);
+  };
+
+  const submitAddModelFromUrl = async () => {
+    const url = addUrl.trim();
+    if (!url) return;
 
     try {
       setModelError(null);
-      const modelId = await invoke<string>("add_model_from_url", {
-        url: url.trim(),
-      });
+      const modelId = await invoke<string>("add_model_from_url", { url });
       await loadModels();
       await handleModelDownload(modelId);
+      setIsAddDialogOpen(false);
     } catch (err) {
       const errorMsg = `${err}`;
       setModelError(errorMsg);
@@ -457,6 +464,15 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       ? "text-blue-700 bg-blue-50 border border-blue-200"
       : "text-emerald-600 bg-emerald-50 border border-emerald-200";
 
+  const hiddenModels = useMemo(
+    () => new Set(settings?.hidden_transcription_models ?? []),
+    [settings?.hidden_transcription_models],
+  );
+
+  const modelsForQuickSelector = useMemo(() => {
+    return models.filter((m) => !hiddenModels.has(m.id) || m.id === currentModelId);
+  }, [models, hiddenModels, currentModelId]);
+
   return (
     <>
       {/* Model Status and Switcher */}
@@ -476,7 +492,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         {/* Model Dropdown */}
         {showModelDropdown && (
           <ModelDropdown
-            models={models}
+            models={modelsForQuickSelector}
             currentModelId={currentModelId}
             downloadProgress={modelDownloadProgress}
             onModelSelect={handleModelSelect}
@@ -487,10 +503,44 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             selectedAsrModelId={settings?.selected_asr_model_id || null}
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
-            onAddModelFromUrl={handleAddModelFromUrl}
+            onAddModelFromUrl={openAddModelDialog}
           />
         )}
       </div>
+
+      <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog.Content maxWidth="520px">
+          <Dialog.Title>{t("modelSelector.addModelFromUrl")}</Dialog.Title>
+          <Dialog.Description>
+            <Text size="2" color="gray">
+              {t("modelSelector.addModelFromUrlPrompt")}
+            </Text>
+          </Dialog.Description>
+
+          <Flex direction="column" gap="3" mt="4">
+            <TextField.Root
+              placeholder="https://…"
+              value={addUrl}
+              onChange={(e) => setAddUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitAddModelFromUrl();
+                }
+              }}
+            />
+
+            <Flex justify="end" gap="2">
+              <Dialog.Close>
+                <Button variant="soft">{t("common.cancel", { defaultValue: "Cancel" })}</Button>
+              </Dialog.Close>
+              <Button onClick={submitAddModelFromUrl}>
+                {t("common.add", { defaultValue: "Add" })}
+              </Button>
+            </Flex>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
 
       {/* Download Progress Bar for Models */}
       <DownloadProgressDisplay

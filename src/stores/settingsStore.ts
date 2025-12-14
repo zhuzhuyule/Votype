@@ -108,6 +108,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   sense_voice_use_itn: true,
   punctuation_enabled: false,
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
+  hidden_transcription_models: [],
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {

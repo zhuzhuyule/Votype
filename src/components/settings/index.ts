@@ -7,6 +7,7 @@ export { GeneralSettings } from "./general/GeneralSettings";
 export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";
 export { PromptsConfiguration } from "./post-processing/PromptsConfiguration";
+export { AsrModelsSettings } from "./asr-models/AsrModelsSettings";
 
 // Individual setting components
 export { AlwaysOnMicrophone } from "./AlwaysOnMicrophone";

@@ -159,6 +159,7 @@ export const SettingsSchema = z.object({
     .string()
     .optional()
     .default("punct-zh-en-ct-transformer-2024-04-12-int8"),
+  hidden_transcription_models: z.array(z.string()).optional().default([]),
 });
 
 export const BindingResponseSchema = z.object({

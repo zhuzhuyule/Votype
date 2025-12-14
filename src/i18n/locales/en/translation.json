@@ -5,6 +5,7 @@
     "shortcuts": "Shortcuts",
     "advanced": "Advanced",
     "models": "Models",
+    "asrModels": "ASR Models",
     "prompts": "Prompts",
     "postProcessing": "Post Process",
     "history": "History",
@@ -229,6 +230,14 @@
     }
   },
   "settings": {
+    "asrModels": {
+      "title": "Speech Models",
+      "description": "Manage local transcription models and control which ones appear in the quick selector.",
+      "addFromUrl": "Add & Download",
+      "showInQuickList": "Show in quick list",
+      "download": "Download",
+      "delete": "Delete"
+    },
     "shortcuts": {
       "title": "Shortcuts"
     },
