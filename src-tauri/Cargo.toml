@@ -70,7 +70,6 @@ flate2 = "1.0"
 transcribe-rs = "0.1.4"
 active-win-pos-rs = "0.9.1"
 ferrous-opencc = "0.2.3"
-sherpa-rs = "0.6.8"
 sherpa-rs-sys = "0.6.8"
 bzip2 = "0.6.1"
 

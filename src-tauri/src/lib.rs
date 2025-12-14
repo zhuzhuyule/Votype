@@ -13,6 +13,7 @@ mod managers;
 mod online_asr;
 mod overlay;
 mod settings;
+mod sherpa;
 mod shortcut;
 mod signal_handle;
 mod tray;
