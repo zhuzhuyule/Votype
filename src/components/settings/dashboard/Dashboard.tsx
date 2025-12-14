@@ -10,7 +10,12 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import { IconCopy, IconFolderOpen, IconStar, IconTrash } from "@tabler/icons-react";
+import {
+  IconCopy,
+  IconFolderOpen,
+  IconStar,
+  IconTrash,
+} from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -68,7 +73,8 @@ const formatEntryTime = (timestampSeconds: number) => {
   return { time, fullDate };
 };
 
-const DashboardEntryCard: React.FC<{
+// 使用 React.memo 优化，避免不必要的重渲染
+const DashboardEntryCard = React.memo<{
   entry: HistoryEntry;
   getAudioUrl: (fileName: string) => Promise<string | null>;
   metaText: string;
@@ -77,16 +83,18 @@ const DashboardEntryCard: React.FC<{
   onCopy: (text: string) => void;
   onToggleSaved: (id: number) => void;
   onDelete: (id: number) => void;
-}> = ({
-  entry,
-  getAudioUrl,
-  metaText,
-  timeText,
-  appName,
-  onCopy,
-  onToggleSaved,
-  onDelete,
-}) => {
+}>((
+  {
+    entry,
+    getAudioUrl,
+    metaText,
+    timeText,
+    appName,
+    onCopy,
+    onToggleSaved,
+    onDelete,
+  }
+) => {
   const { t } = useTranslation();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioMissing, setAudioMissing] = useState(false);
@@ -182,11 +190,10 @@ const DashboardEntryCard: React.FC<{
                 variant="ghost"
                 size="2"
                 onClick={() => onToggleSaved(entry.id)}
-                className={`transition-colors ${
-                  entry.saved
-                    ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
-                    : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
-                }`}
+                className={`transition-colors ${entry.saved
+                  ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
+                  : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
+                  }`}
               >
                 <IconStar className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
               </IconButton>
@@ -259,7 +266,17 @@ const DashboardEntryCard: React.FC<{
       </Flex>
     </Box>
   );
-};
+}, (prevProps, nextProps) => {
+  // 自定义比较函数：只有这些属性变化时才重新渲染
+  return (
+    prevProps.entry.id === nextProps.entry.id &&
+    prevProps.entry.saved === nextProps.entry.saved &&
+    prevProps.entry.transcription_text === nextProps.entry.transcription_text &&
+    prevProps.entry.post_processed_text === nextProps.entry.post_processed_text
+  );
+});
+
+DashboardEntryCard.displayName = 'DashboardEntryCard';
 
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();

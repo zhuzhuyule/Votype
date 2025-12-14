@@ -1,14 +1,16 @@
-import { Flex, ScrollArea, Spinner, Text } from "@radix-ui/themes";
+import { Flex, ScrollArea, Spinner } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import "./App.css";
-import AccessibilityPermissions from "./components/AccessibilityPermissions";
-import Footer from "./components/footer";
 import Onboarding from "./components/onboarding";
 import { SECTIONS_CONFIG, Sidebar, SidebarSection } from "./components/Sidebar";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
+
+// 懒加载非关键组件以改善首屏加载性能
+const AccessibilityPermissions = lazy(() => import("./components/AccessibilityPermissions"));
+const Footer = lazy(() => import("./components/footer"));
 
 // 加载状态组件
 const SettingsLoadingFallback = () => (
@@ -32,6 +34,15 @@ function App() {
   const [currentSection, setCurrentSection] =
     useState<SidebarSection>("dashboard");
   const { settings, updateSetting } = useSettings();
+
+  // 延迟加载非关键组件
+  const [showNonCritical, setShowNonCritical] = useState(false);
+
+  useEffect(() => {
+    // 延迟 500ms 加载非关键组件，让主界面先渲染
+    const timer = setTimeout(() => setShowNonCritical(true), 500);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -116,14 +127,22 @@ function App() {
                   gap="6"
                   className="min-w-[600px] max-w-[1200px] mx-auto w-full"
                 >
-                  <AccessibilityPermissions />
+                  {showNonCritical && (
+                    <Suspense fallback={null}>
+                      <AccessibilityPermissions />
+                    </Suspense>
+                  )}
                   {renderSettingsContent(currentSection)}
                 </Flex>
               </ScrollArea>
             </Flex>
           </Flex>
           {/* Fixed footer at bottom */}
-          <Footer />
+          {showNonCritical && (
+            <Suspense fallback={null}>
+              <Footer />
+            </Suspense>
+          )}
         </Flex>
       )}
     </RadixThemeProvider>
