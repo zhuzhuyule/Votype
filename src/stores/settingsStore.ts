@@ -1,12 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
-import {
-  AudioDevice,
-  CachedModel,
-  ModelType,
-  Settings,
-} from "../lib/types";
+import { AudioDevice, CachedModel, ModelType, Settings } from "../lib/types";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -51,7 +46,10 @@ interface SettingsStore {
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
   setPostProcessModelOptions: (providerId: string, models: string[]) => void;
   addCachedModel: (model: CachedModel) => Promise<void>;
-  updateCachedModelType: (modelId: string, modelType: ModelType) => Promise<void>;
+  updateCachedModelType: (
+    modelId: string,
+    modelType: ModelType,
+  ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;
@@ -108,7 +106,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   sense_voice_use_itn: true,
   punctuation_enabled: false,
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
-  hidden_transcription_models: [],
+  favorite_transcription_models: [],
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -365,15 +363,15 @@ export const useSettingsStore = create<SettingsStore>()(
         set((state) => ({
           settings: state.settings
             ? {
-              ...state.settings,
-              bindings: {
-                ...state.settings.bindings,
-                [id]: {
-                  ...state.settings.bindings[id],
-                  current_binding: binding,
+                ...state.settings,
+                bindings: {
+                  ...state.settings.bindings,
+                  [id]: {
+                    ...state.settings.bindings[id],
+                    current_binding: binding,
+                  },
                 },
-              },
-            }
+              }
             : null,
         }));
 
@@ -386,15 +384,15 @@ export const useSettingsStore = create<SettingsStore>()(
           set((state) => ({
             settings: state.settings
               ? {
-                ...state.settings,
-                bindings: {
-                  ...state.settings.bindings,
-                  [id]: {
-                    ...state.settings.bindings[id],
-                    current_binding: originalBinding,
+                  ...state.settings,
+                  bindings: {
+                    ...state.settings.bindings,
+                    [id]: {
+                      ...state.settings.bindings[id],
+                      current_binding: originalBinding,
+                    },
                   },
-                },
-              }
+                }
               : null,
           }));
         }

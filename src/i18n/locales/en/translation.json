@@ -233,8 +233,90 @@
     "asrModels": {
       "title": "Speech Models",
       "description": "Manage local transcription models and control which ones appear in the quick selector.",
+      "reset": "Reset",
+      "idLabel": "id: {{id}}",
       "addFromUrl": "Add & Download",
-      "showInQuickList": "Show in quick list",
+      "install": {
+        "placeholder": "Paste model URL…",
+        "tooltip": "Install from URL"
+      },
+      "quickSettings": {
+        "title": "Quick Settings",
+        "description": "These apply globally. Delete punctuation models in the library below."
+      },
+      "addSection": {
+        "title": "Install",
+        "description": "Paste a model URL. The app will infer the model type from the filename."
+      },
+      "pipeline": {
+        "title": "Pipeline",
+        "description": "Global post-processing that can be applied automatically after transcription.",
+        "punctuation": "Auto punctuation",
+        "punctuationHint": "Uses the selected punctuation model to add sentence breaks.",
+        "punctuationModel": "Punctuation model",
+        "punctuationModelHint": "Choose which punctuation model to use.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Inverse text normalization: basic formatting (e.g. numbers)."
+      },
+      "library": {
+        "title": "Library",
+        "description": "Pick favorites to show in the quick selector.",
+        "searchPlaceholder": "Search models…",
+        "count": "{{count}} models"
+      },
+      "favorite": "Favorite",
+      "filters": {
+        "all": "All",
+        "downloaded": "Downloaded",
+        "favorites": "Favorites",
+        "status": "Status",
+        "mode": "Mode",
+        "language": "Language",
+        "type": "Type"
+      },
+      "groupBy": {
+        "mode": "Mode",
+        "language": "Language",
+        "type": "Type"
+      },
+      "groups": {
+        "streaming": "Streaming",
+        "offline": "Offline",
+        "multilingual": "Multilingual",
+        "punctuation": "Punctuation"
+      },
+      "types": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "punctuation": "Punctuation"
+      },
+      "typeChips": {
+        "whisper": "Whisper",
+        "parakeet": "Parakeet",
+        "sherpa_transducer": "Sherpa Transducer",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_fire_red_asr": "Sherpa FireRedASR",
+        "punctuation": "Punctuation",
+        "other": "Other"
+      },
+      "languages": {
+        "zh": "Chinese",
+        "yue": "Cantonese",
+        "en": "English",
+        "ja": "Japanese",
+        "ko": "Korean",
+        "de": "German",
+        "es": "Spanish",
+        "fr": "French",
+        "ru": "Russian",
+        "multilingual": "Multilingual",
+        "other": "Other"
+      },
+      "status": {
+        "downloaded": "Downloaded",
+        "notDownloaded": "Not downloaded"
+      },
       "download": "Download",
       "delete": "Delete"
     },

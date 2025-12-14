@@ -7,6 +7,7 @@ interface SettingsGroupProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   defaultOpen?: boolean;
+  framed?: boolean;
 }
 
 export const SettingsGroup: React.FC<SettingsGroupProps> = ({
@@ -14,6 +15,7 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   description,
   children,
   actions,
+  framed = true,
 }) => {
   const headerContent = (
     <>
@@ -44,7 +46,7 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
       <Flex justify="between" align="center">
         {headerContent}
       </Flex>
-      <Card>{children}</Card>
+      {framed ? <Card>{children}</Card> : children}
     </Box>
   );
 };

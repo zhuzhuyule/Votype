@@ -159,7 +159,7 @@ export const SettingsSchema = z.object({
     .string()
     .optional()
     .default("punct-zh-en-ct-transformer-2024-04-12-int8"),
-  hidden_transcription_models: z.array(z.string()).optional().default([]),
+  favorite_transcription_models: z.array(z.string()).optional().default([]),
 });
 
 export const BindingResponseSchema = z.object({
@@ -185,7 +185,12 @@ export const ModelInfoSchema = z.object({
   is_downloading: z.boolean(),
   partial_size: z.number(),
   is_directory: z.boolean(),
-  engine_type: z.enum(["Whisper", "Parakeet", "SherpaOnnx", "SherpaOnnxPunctuation"]),
+  engine_type: z.enum([
+    "Whisper",
+    "Parakeet",
+    "SherpaOnnx",
+    "SherpaOnnxPunctuation",
+  ]),
   sherpa: z
     .object({
       mode: z.enum(["Streaming", "Offline"]),

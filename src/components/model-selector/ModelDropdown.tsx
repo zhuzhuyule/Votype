@@ -1,4 +1,4 @@
-import { Box, Flex, IconButton, ScrollArea, Text, TextField } from "@radix-ui/themes";
+import { Box, Flex, IconButton, ScrollArea, Text } from "@radix-ui/themes";
 import {
   IconCheck,
   IconChevronDown,
@@ -6,9 +6,6 @@ import {
   IconCube,
   IconDeviceDesktop,
   IconDownload,
-  IconPlus,
-  IconSearch,
-  IconTrash,
 } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -19,6 +16,13 @@ import {
   getTranslatedModelName,
 } from "../../lib/utils/modelTranslation";
 import { ProgressBar } from "../shared";
+
+const RECOMMENDED_MODEL_IDS = new Set([
+  "sherpa-paraformer-zh-en-streaming",
+  "sherpa-paraformer-trilingual-zh-cantonese-en",
+  "punct-zh-en-ct-transformer-2024-04-12-int8",
+  "sherpa-paraformer-zh-small-2024-03-09",
+]);
 
 interface DownloadProgress {
   model_id: string;
@@ -33,8 +37,6 @@ interface ModelDropdownProps {
   downloadProgress: Map<string, DownloadProgress>;
   onModelSelect: (modelId: string) => void;
   onModelDownload: (modelId: string) => void;
-  onModelDelete: (modelId: string) => Promise<void>;
-  onError?: (error: string) => void;
   asrModels: {
     id: string;
     name: string;
@@ -43,7 +45,6 @@ interface ModelDropdownProps {
   selectedAsrModelId: string | null;
   onAsrModelSelect: (modelId: string) => void;
   onlineEnabled: boolean;
-  onAddModelFromUrl: () => void;
 }
 
 const ModelDropdown: React.FC<ModelDropdownProps> = ({
@@ -52,29 +53,14 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   downloadProgress,
   onModelSelect,
   onModelDownload,
-  onModelDelete,
-  onError,
   asrModels,
   selectedAsrModelId,
   onAsrModelSelect,
   onlineEnabled,
-  onAddModelFromUrl,
 }) => {
   const { t } = useTranslation();
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [expandedSections, setExpandedSections] = React.useState(() => new Set(["downloaded", "downloadable", "online"]));
-
-  const matchesQuery = React.useCallback(
-    (model: { name: string; id: string; description?: string }, query: string) => {
-      if (!query.trim()) return true;
-      const q = query.trim().toLowerCase();
-      return (
-        model.name.toLowerCase().includes(q) ||
-        model.id.toLowerCase().includes(q) ||
-        (model.description ?? "").toLowerCase().includes(q)
-      );
-    },
-    [],
+  const [expandedSections, setExpandedSections] = React.useState(
+    () => new Set(["downloaded", "downloadable", "online"]),
   );
 
   const getFamily = React.useCallback((model: ModelInfo) => {
@@ -108,7 +94,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   const availableModels = models
     .filter((m) => m.is_downloaded)
-    .filter((m) => matchesQuery(m, searchQuery))
     .sort((a, b) => {
       const fa = orderFamily(getFamily(a));
       const fb = orderFamily(getFamily(b));
@@ -120,7 +105,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   const downloadableModels = models
     .filter((m) => !m.is_downloaded)
-    .filter((m) => matchesQuery(m, searchQuery))
     .sort((a, b) => {
       const fa = orderFamily(getFamily(a));
       const fb = orderFamily(getFamily(b));
@@ -129,17 +113,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     });
 
   const isFirstRun = availableModels.length === 0 && models.length > 0;
-
-  const handleDeleteClick = async (e: React.MouseEvent, modelId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    try {
-      await onModelDelete(modelId);
-    } catch (err) {
-      onError?.(err instanceof Error ? err.message : String(err));
-    }
-  };
 
   const handleModelClick = (modelId: string) => {
     if (downloadProgress.has(modelId)) {
@@ -187,8 +160,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         <Flex align="center" gap="2">
           {icon}
           <span>
-            {label}{" "}
-            <span className="text-text/40 font-normal">({count})</span>
+            {label} <span className="text-text/40 font-normal">({count})</span>
           </span>
         </Flex>
         <IconChevronDown
@@ -198,7 +170,10 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     );
   };
 
-  const renderGroupedModels = (list: ModelInfo[], renderItem: (m: ModelInfo) => React.ReactNode) => {
+  const renderGroupedModels = (
+    list: ModelInfo[],
+    renderItem: (m: ModelInfo) => React.ReactNode,
+  ) => {
     const groups = new Map<string, ModelInfo[]>();
     for (const model of list) {
       const key = getFamily(model);
@@ -214,7 +189,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         {ordered.map(([family, items]) => (
           <Box key={family}>
             <Box className="px-4 pt-2 pb-1 text-[11px] font-medium text-text/45 uppercase tracking-wider">
-              {family} <span className="text-text/30 font-normal">({items.length})</span>
+              {family}{" "}
+              <span className="text-text/30 font-normal">({items.length})</span>
             </Box>
             {items.map(renderItem)}
           </Box>
@@ -228,7 +204,10 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       {/* First Run Welcome */}
       {isFirstRun && (
         <Box className="px-4 py-3 bg-logo-primary/5 border-b border-logo-primary/10">
-          <Text className="text-sm font-medium text-logo-primary mb-1 block" size="2">
+          <Text
+            className="text-sm font-medium text-logo-primary mb-1 block"
+            size="2"
+          >
             {t("modelSelector.welcome")}
           </Text>
           <Text className="text-xs text-text/70" size="1">
@@ -236,34 +215,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           </Text>
         </Box>
       )}
-
-      <Box className="px-4 py-2 border-b border-mid-gray/10">
-        <Flex gap="2" align="center">
-          <Box className="flex-1">
-            <TextField.Root
-              size="2"
-              placeholder={t("modelSelector.searchPlaceholder", {
-                defaultValue: "Search models…",
-              })}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            >
-              <TextField.Slot>
-                <IconSearch height="14" width="14" />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
-          <IconButton
-            size="2"
-            variant="soft"
-            onClick={onAddModelFromUrl}
-            aria-label={t("modelSelector.addModelFromUrl")}
-            title={t("modelSelector.addModelFromUrl")}
-          >
-            <IconPlus height="16" width="16" />
-          </IconButton>
-        </Flex>
-      </Box>
 
       <ScrollArea type="hover" scrollbars="vertical" className="max-h-[60vh]">
         {/* Downloaded Models */}
@@ -277,199 +228,251 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
         {availableModels.length > 0 && expandedSections.has("downloaded") && (
           <Box className="py-1">
             {renderGroupedModels(availableModels, (model) => {
-            const isActive = !onlineEnabled && currentModelId === model.id;
-            return (
-              <Box
-                key={model.id}
-                onClick={() => handleModelClick(model.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleModelClick(model.id);
-                  }
-                }}
-                tabIndex={0}
-                role="button"
-                className={`w-full px-4 py-2.5 text-left hover:bg-mid-gray/5 transition-all cursor-pointer focus:outline-none border-l-2 group ${
-                  isActive ? "bg-logo-primary/5 border-logo-primary" : "border-transparent"
-                }`}
-              >
-                <Flex justify="between" align="center">
-                  <Box>
-                    <Flex align="center" gap="2" mb="1">
-                      <Text size="2" weight="medium" className={isActive ? "text-logo-primary" : "text-text"}>
-                        {getTranslatedModelName(model, t)}
-                      </Text>
-                      <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium" size="1">
-                        {formatModelSize(model.size_mb)}
-                      </Text>
-                    </Flex>
-	                    {model.description && (
-	                      <Text className="text-xs text-text/50 block leading-tight" size="1">
-	                        {getTranslatedModelDescription(model, t)}
-	                      </Text>
-	                    )}
-                  </Box>
-                  <Flex align="center" gap="3">
-                    {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />}
-                    <IconButton
-                      variant="ghost"
-                      color="red"
-                      size="1"
-                      onClick={(e) => handleDeleteClick(e, model.id)}
-                      className="rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
-                      title={t("modelSelector.deleteModel", { modelName: model.name })}
-                    >
-                      <IconTrash className="w-4 h-4" />
-                    </IconButton>
+              const isActive = !onlineEnabled && currentModelId === model.id;
+              return (
+                <Box
+                  key={model.id}
+                  onClick={() => handleModelClick(model.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleModelClick(model.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  className={`w-full px-4 py-2.5 text-left hover:bg-mid-gray/5 transition-all cursor-pointer focus:outline-none border-l-2 group ${
+                    isActive
+                      ? "bg-logo-primary/5 border-logo-primary"
+                      : "border-transparent"
+                  }`}
+                >
+                  <Flex justify="between" align="center">
+                    <Box>
+                      <Flex align="center" gap="2" mb="1">
+                        <Text
+                          size="2"
+                          weight="medium"
+                          className={
+                            isActive ? "text-logo-primary" : "text-text"
+                          }
+                        >
+                          {getTranslatedModelName(model, t)}
+                        </Text>
+                        {RECOMMENDED_MODEL_IDS.has(model.id) ? (
+                          <Text
+                            className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium border border-amber-100"
+                            size="1"
+                          >
+                            {t("onboarding.recommended")}
+                          </Text>
+                        ) : null}
+                        <Text
+                          className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium"
+                          size="1"
+                        >
+                          {formatModelSize(model.size_mb)}
+                        </Text>
+                      </Flex>
+                      {model.description && (
+                        <Text
+                          className="text-xs text-text/50 block leading-tight"
+                          size="1"
+                        >
+                          {getTranslatedModelDescription(model, t)}
+                        </Text>
+                      )}
+                    </Box>
+                    {isActive && (
+                      <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
+                    )}
                   </Flex>
-                </Flex>
-              </Box>
-            );
+                </Box>
+              );
             })}
           </Box>
         )}
 
-      {/* Online ASR Models */}
-      {asrModels.length > 0 && (
-        <>
-          {renderSectionHeader(
-            "online",
-            <IconCloud className="w-3.5 h-3.5" />,
-            t("modelSelector.onlineAsrModels"),
-            asrModels.filter((m) => matchesQuery(m, searchQuery)).length,
-          )}
-          {expandedSections.has("online") && (
-            <Box className="py-1">
-	            {asrModels
-                .filter((m) => matchesQuery(m, searchQuery))
-                .map((model) => {
-	            const isActive = onlineEnabled && selectedAsrModelId === model.id;
-	            return (
-	              <Box
-                key={model.id}
-                onClick={() => {
-                  onAsrModelSelect(model.id);
-                }}
-                className={`w-full px-4 py-2.5 text-left transition-all cursor-pointer focus:outline-none hover:bg-mid-gray/5 border-l-2 ${
-                  isActive ? "bg-logo-primary/5 border-logo-primary" : "border-transparent"
-                }`}
-              >
-                <Flex justify="between" align="center">
-                  <Box>
-                    <Flex align="center" gap="2" mb="1">
-                      <Text size="2" weight="medium" className={isActive ? "text-logo-primary" : "text-text"}>
-                        {model.name}
-                      </Text>
-                      <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium border border-blue-100" size="1">
-                        {model.providerLabel}
-                      </Text>
-	                    </Flex>
-	                    <Text className="text-xs text-text/50 block leading-tight" size="1">
-	                      {onlineEnabled
-	                        ? t("modelSelector.onlineAsrActive")
-	                        : t("modelSelector.clickToEnableOnlineAsr")}
-	                    </Text>
-	                  </Box>
-	                  {isActive && <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />}
-	                </Flex>
-	              </Box>
-              );
-            })}
-          </Box>
-          )}
-        </>
-      )}
+        {/* Online ASR Models */}
+        {asrModels.length > 0 && (
+          <>
+            {renderSectionHeader(
+              "online",
+              <IconCloud className="w-3.5 h-3.5" />,
+              t("modelSelector.onlineAsrModels"),
+              asrModels.length,
+            )}
+            {expandedSections.has("online") && (
+              <Box className="py-1">
+                {asrModels.map((model) => {
+                  const isActive =
+                    onlineEnabled && selectedAsrModelId === model.id;
+                  return (
+                    <Box
+                      key={model.id}
+                      onClick={() => {
+                        onAsrModelSelect(model.id);
+                      }}
+                      className={`w-full px-4 py-2.5 text-left transition-all cursor-pointer focus:outline-none hover:bg-mid-gray/5 border-l-2 ${
+                        isActive
+                          ? "bg-logo-primary/5 border-logo-primary"
+                          : "border-transparent"
+                      }`}
+                    >
+                      <Flex justify="between" align="center">
+                        <Box>
+                          <Flex align="center" gap="2" mb="1">
+                            <Text
+                              size="2"
+                              weight="medium"
+                              className={
+                                isActive ? "text-logo-primary" : "text-text"
+                              }
+                            >
+                              {model.name}
+                            </Text>
+                            <Text
+                              className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium border border-blue-100"
+                              size="1"
+                            >
+                              {model.providerLabel}
+                            </Text>
+                          </Flex>
+                          <Text
+                            className="text-xs text-text/50 block leading-tight"
+                            size="1"
+                          >
+                            {onlineEnabled
+                              ? t("modelSelector.onlineAsrActive")
+                              : t("modelSelector.clickToEnableOnlineAsr")}
+                          </Text>
+                        </Box>
+                        {isActive && (
+                          <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0 ml-3" />
+                        )}
+                      </Flex>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+          </>
+        )}
 
-      {/* Downloadable Models */}
-	      {downloadableModels.length > 0 &&
+        {/* Downloadable Models */}
+        {downloadableModels.length > 0 &&
           renderSectionHeader(
             "downloadable",
             <IconDownload className="w-3.5 h-3.5" />,
             t("modelSelector.downloadModels"),
             downloadableModels.length,
           )}
-	      {downloadableModels.length > 0 && expandedSections.has("downloadable") && (
-	        <Box className="py-1 bg-mid-gray/5 border-t border-mid-gray/10">
-	          {renderGroupedModels(downloadableModels, (model) => {
-	            const isDownloading = downloadProgress.has(model.id);
-	            const progress = downloadProgress.get(model.id);
+        {downloadableModels.length > 0 &&
+          expandedSections.has("downloadable") && (
+            <Box className="py-1 bg-mid-gray/5 border-t border-mid-gray/10">
+              {renderGroupedModels(downloadableModels, (model) => {
+                const isDownloading = downloadProgress.has(model.id);
+                const progress = downloadProgress.get(model.id);
 
-            return (
-              <Box
-                key={model.id}
-                className="w-full px-4 py-2.5 text-left hover:bg-mid-gray/5 transition-all border-l-2 border-transparent group"
-              >
-                <Flex justify="between" align="center">
-                  <Box>
-                    <Flex align="center" gap="2" mb="1">
-                      <Text size="2" weight="medium" className="text-text">
-                        {getTranslatedModelName(model, t)}
-                      </Text>
-                      <Text className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium" size="1">
-                        {formatModelSize(model.size_mb)}
-                      </Text>
-	                      {model.id === "small" && isFirstRun && (
-	                        <Text className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium" size="1">
-	                          {t("onboarding.recommended")}
-	                        </Text>
-	                      )}
-	                    </Flex>
-		                    <Text className="text-xs text-text/50 block leading-tight" size="1">
-		                      {getTranslatedModelDescription(model, t)}
-		                    </Text>
-	                  </Box>
-
-                  <Box className="flex-shrink-0 ml-3">
-                    {isDownloading && progress ? (
-                      <Box className="w-20">
-                        <Text className="text-xs text-logo-primary font-medium text-right block mb-1" size="1">
-                          {Math.max(0, Math.min(100, Math.round(progress.percentage)))}%
+                return (
+                  <Box
+                    key={model.id}
+                    className="w-full px-4 py-2.5 text-left hover:bg-mid-gray/5 transition-all border-l-2 border-transparent group"
+                  >
+                    <Flex justify="between" align="center">
+                      <Box>
+                        <Flex align="center" gap="2" mb="1">
+                          <Text size="2" weight="medium" className="text-text">
+                            {getTranslatedModelName(model, t)}
+                          </Text>
+                          <Text
+                            className="text-[10px] px-1.5 py-0.5 rounded-full bg-mid-gray/10 text-text/60 font-medium"
+                            size="1"
+                          >
+                            {formatModelSize(model.size_mb)}
+                          </Text>
+                          {model.id === "small" && isFirstRun && (
+                            <Text
+                              className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium"
+                              size="1"
+                            >
+                              {t("onboarding.recommended")}
+                            </Text>
+                          )}
+                        </Flex>
+                        <Text
+                          className="text-xs text-text/50 block leading-tight"
+                          size="1"
+                        >
+                          {getTranslatedModelDescription(model, t)}
                         </Text>
-                        <ProgressBar
-                          progress={[
-                            {
-                              id: model.id,
-                              percentage: Math.max(0, Math.min(100, Math.round(progress.percentage))),
-                            },
-                          ]}
-                          size="small"
-                        />
                       </Box>
-                    ) : (
-                      <IconButton
-                        variant="ghost"
-                        size="1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownloadClick(model.id);
-	                        }}
-	                        className="rounded-full hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-	                        title={t("modelSelector.download")}
-	                      >
-	                        <IconDownload className="w-4 h-4" />
-	                      </IconButton>
-	                    )}
-	                  </Box>
-                </Flex>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
 
-	      {/* No Models Available */}
-	      {availableModels.length === 0 && downloadableModels.length === 0 && asrModels.length === 0 && (
-	        <Box className="px-4 py-8 text-center">
-	          <IconCube className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
-	          <Text className="text-sm text-text/60" size="2">
-	            {t("modelSelector.noModelsAvailable")}
-	          </Text>
-	        </Box>
-	      )}
+                      <Box className="flex-shrink-0 ml-3">
+                        {isDownloading && progress ? (
+                          <Box className="w-20">
+                            <Text
+                              className="text-xs text-logo-primary font-medium text-right block mb-1"
+                              size="1"
+                            >
+                              {Math.max(
+                                0,
+                                Math.min(100, Math.round(progress.percentage)),
+                              )}
+                              %
+                            </Text>
+                            <ProgressBar
+                              progress={[
+                                {
+                                  id: model.id,
+                                  percentage: Math.max(
+                                    0,
+                                    Math.min(
+                                      100,
+                                      Math.round(progress.percentage),
+                                    ),
+                                  ),
+                                },
+                              ]}
+                              size="small"
+                            />
+                          </Box>
+                        ) : (
+                          <IconButton
+                            variant="ghost"
+                            size="1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadClick(model.id);
+                            }}
+                            className="rounded-full hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title={t("modelSelector.download")}
+                          >
+                            <IconDownload className="w-4 h-4" />
+                          </IconButton>
+                        )}
+                      </Box>
+                    </Flex>
+                  </Box>
+                );
+              })}
+            </Box>
+          )}
+
+        {/* No Models Available */}
+        {availableModels.length === 0 &&
+          downloadableModels.length === 0 &&
+          asrModels.length === 0 && (
+            <Box className="px-4 py-8 text-center">
+              <IconCube className="w-8 h-8 text-mid-gray/30 mx-auto mb-2" />
+              <Text className="text-sm text-text/60" size="2">
+                {t("modelSelector.noModelsAvailable")}
+              </Text>
+            </Box>
+          )}
       </ScrollArea>
     </Box>
-	  );
+  );
 };
 
 export default ModelDropdown;

@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Button, Dialog, Flex, Text, TextField } from "@radix-ui/themes";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
@@ -49,8 +48,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   const [currentModelId, setCurrentModelId] = useState<string>("");
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
   const [modelError, setModelError] = useState<string | null>(null);
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [addUrl, setAddUrl] = useState("");
   const [modelDownloadProgress, setModelDownloadProgress] = useState<
     Map<string, DownloadProgress>
   >(new Map());
@@ -346,29 +343,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     }
   };
 
-  const openAddModelDialog = () => {
-    setAddUrl("");
-    setIsAddDialogOpen(true);
-  };
-
-  const submitAddModelFromUrl = async () => {
-    const url = addUrl.trim();
-    if (!url) return;
-
-    try {
-      setModelError(null);
-      const modelId = await invoke<string>("add_model_from_url", { url });
-      await loadModels();
-      await handleModelDownload(modelId);
-      setIsAddDialogOpen(false);
-    } catch (err) {
-      const errorMsg = `${err}`;
-      setModelError(errorMsg);
-      setModelStatus("error");
-      onError?.(errorMsg);
-    }
-  };
-
   const getCurrentModel = () => {
     return models.find((m) => m.id === currentModelId);
   };
@@ -397,7 +371,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         );
         return t("modelSelector.downloading", { percentage });
       } else {
-        return t("modelSelector.downloadingMultiple", { count: modelDownloadProgress.size });
+        return t("modelSelector.downloadingMultiple", {
+          count: modelDownloadProgress.size,
+        });
       }
     }
 
@@ -434,12 +410,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     }
   };
 
-  const handleModelDelete = async (modelId: string) => {
-    await invoke("delete_model", { modelId });
-    await loadModels();
-    setModelError(null);
-  };
-
   const handleAsrModelSelect = async (modelId: string) => {
     try {
       if (!settings?.online_asr_enabled) {
@@ -464,14 +434,38 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       ? "text-blue-700 bg-blue-50 border border-blue-200"
       : "text-emerald-600 bg-emerald-50 border border-emerald-200";
 
-  const hiddenModels = useMemo(
-    () => new Set(settings?.hidden_transcription_models ?? []),
-    [settings?.hidden_transcription_models],
+  const favoriteModels = useMemo(
+    () => new Set(settings?.favorite_transcription_models ?? []),
+    [settings?.favorite_transcription_models],
   );
 
   const modelsForQuickSelector = useMemo(() => {
-    return models.filter((m) => !hiddenModels.has(m.id) || m.id === currentModelId);
-  }, [models, hiddenModels, currentModelId]);
+    const selectable = models.filter(
+      (m) => m.engine_type !== "SherpaOnnxPunctuation",
+    );
+
+    const base =
+      favoriteModels.size === 0
+        ? (() => {
+            const downloaded = selectable.filter((m) => m.is_downloaded);
+            return downloaded.length > 0 ? downloaded : selectable;
+          })()
+        : selectable.filter(
+            (m) => favoriteModels.has(m.id) || m.id === currentModelId,
+          );
+
+    const withCurrent =
+      currentModelId && !base.some((m) => m.id === currentModelId)
+        ? [...base, ...selectable.filter((m) => m.id === currentModelId)]
+        : base;
+
+    return withCurrent.slice().sort((a, b) => {
+      if (a.id === currentModelId) return -1;
+      if (b.id === currentModelId) return 1;
+      if (a.is_downloaded !== b.is_downloaded) return a.is_downloaded ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [models, favoriteModels, currentModelId]);
 
   return (
     <>
@@ -497,50 +491,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             downloadProgress={modelDownloadProgress}
             onModelSelect={handleModelSelect}
             onModelDownload={handleModelDownload}
-            onModelDelete={handleModelDelete}
-            onError={onError}
             asrModels={asrModels}
             selectedAsrModelId={settings?.selected_asr_model_id || null}
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
-            onAddModelFromUrl={openAddModelDialog}
           />
         )}
       </div>
-
-      <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <Dialog.Content maxWidth="520px">
-          <Dialog.Title>{t("modelSelector.addModelFromUrl")}</Dialog.Title>
-          <Dialog.Description>
-            <Text size="2" color="gray">
-              {t("modelSelector.addModelFromUrlPrompt")}
-            </Text>
-          </Dialog.Description>
-
-          <Flex direction="column" gap="3" mt="4">
-            <TextField.Root
-              placeholder="https://…"
-              value={addUrl}
-              onChange={(e) => setAddUrl(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  submitAddModelFromUrl();
-                }
-              }}
-            />
-
-            <Flex justify="end" gap="2">
-              <Dialog.Close>
-                <Button variant="soft">{t("common.cancel", { defaultValue: "Cancel" })}</Button>
-              </Dialog.Close>
-              <Button onClick={submitAddModelFromUrl}>
-                {t("common.add", { defaultValue: "Add" })}
-              </Button>
-            </Flex>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
 
       {/* Download Progress Bar for Models */}
       <DownloadProgressDisplay
