@@ -114,10 +114,8 @@ pub(crate) async fn maybe_post_process_transcription(
         return None;
     }
 
-    info!(
-        "Starting LLM post-processing with provider '{}' (model: {})",
-        provider.id, model
-    );
+    info!("Starting LLM post-processing with provider '{}' (model: {})", provider.id, model);
+    info!("[LLM Input (Raw)] {}", transcription);
 
     if show_overlay {
         show_llm_processing_overlay(app_handle);
@@ -223,6 +221,7 @@ pub(crate) async fn maybe_post_process_transcription(
     if out.trim().is_empty() {
         None
     } else {
+        info!("[LLM Output (Post-processed)] {}", out);
         debug!("=== POST-PROCESSING DEBUG END ===");
         Some(out)
     }

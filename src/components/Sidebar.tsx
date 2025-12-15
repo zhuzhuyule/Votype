@@ -58,6 +58,7 @@ interface SectionConfig {
   icon: React.ComponentType<IconProps>;
   component: React.ComponentType;
   enabled: (settings: any) => boolean;
+  shortcutKey: string;
 }
 
 export const SECTIONS_CONFIG = {
@@ -66,54 +67,63 @@ export const SECTIONS_CONFIG = {
     icon: IconLayoutDashboard,
     component: Dashboard,
     enabled: () => true,
+    shortcutKey: "1",
   },
   general: {
     labelKey: "sidebar.general",
     icon: IconSettings,
     component: GeneralSettings,
     enabled: () => true,
+    shortcutKey: "2",
   },
   shortcuts: {
     labelKey: "sidebar.shortcuts",
     icon: IconKeyboard,
     component: ShortcutsSettings,
     enabled: () => true,
+    shortcutKey: "3",
   },
   advanced: {
     labelKey: "sidebar.advanced",
     icon: IconAdjustments,
     component: AdvancedSettings,
     enabled: () => true,
+    shortcutKey: "4",
   },
   models: {
     labelKey: "sidebar.models",
     icon: IconBrain,
     component: ModelsConfiguration,
     enabled: () => true,
+    shortcutKey: "5",
   },
   asrModels: {
     labelKey: "sidebar.asrModels",
     icon: IconBrain,
     component: AsrModelsSettings,
     enabled: () => true,
+    shortcutKey: "6",
   },
   prompts: {
     labelKey: "sidebar.prompts",
     icon: IconSparkles,
     component: PromptsConfiguration,
     enabled: () => true,
+    shortcutKey: "7",
   },
   debug: {
     labelKey: "sidebar.debug",
     icon: IconBug,
     component: DebugSettings,
     enabled: (settings) => settings?.debug_mode ?? false,
+    shortcutKey: "8",
   },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoSquare,
     component: AboutSettings,
     enabled: () => true,
+    shortcutKey: "9",
   },
 } as const satisfies Record<string, SectionConfig>;
 
@@ -125,6 +135,7 @@ interface SidebarProps {
 type SectionWithLabel = SectionConfig & {
   id: SidebarSection;
   label: string;
+  shortcutKey: string;
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -159,8 +170,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <Flex
               key={section.id}
-              gap="2"
               align="center"
+              justify="between"
               p="2"
               className={`w-full cursor-pointer rounded-lg transition-colors ${isActive
                 ? ""
@@ -176,9 +187,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
               onClick={() => onSectionChange(section.id)}
             >
-              <Icon width={24} height={24} />
-              <Text size="2" weight="medium">
-                {section.label}
+              <Flex gap="2" align="center">
+                <Icon width={24} height={24} />
+                <Text size="2" weight="medium">
+                  {section.label}
+                </Text>
+              </Flex>
+              <Text size="1" className={`${isActive ? "opacity-90" : "opacity-50"}`}>
+                {section.shortcutKey}
               </Text>
             </Flex>
           );

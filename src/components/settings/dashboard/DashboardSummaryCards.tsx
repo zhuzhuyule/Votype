@@ -1,4 +1,5 @@
-import { Card, Flex, Grid, Heading, Text } from "@radix-ui/themes";
+import { Box, Card, Flex, Grid, Heading, Text } from "@radix-ui/themes";
+import { IconApps, IconBrain, IconFileText, IconMicrophone } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
@@ -31,8 +32,11 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
 
   return (
     <Grid columns={{ initial: "1", sm: "4" }} gap="4">
-      <Card>
-        <Flex direction="column" gap="3">
+      <Card className="relative overflow-hidden">
+        <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
+          <IconMicrophone size="100" className="text-logo-primary opacity-10" />
+        </Box>
+        <Flex direction="column" gap="3" className="relative z-10">
           <Text size="2" color="gray">
             {t("dashboard.summary.recording.title")}
           </Text>
@@ -45,8 +49,11 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Flex>
       </Card>
 
-      <Card>
-        <Flex direction="column" gap="3">
+      <Card className="relative overflow-hidden">
+        <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
+          <IconFileText size="100" className="text-blue-500 opacity-10" />
+        </Box>
+        <Flex direction="column" gap="3" className="relative z-10">
           <Text size="2" color="gray">
             {t("dashboard.summary.transcription.title")}
           </Text>
@@ -59,8 +66,11 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Flex>
       </Card>
 
-      <Card>
-        <Flex direction="column" gap="3">
+      <Card className="relative overflow-hidden">
+        <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
+          <IconBrain size="100" className="text-purple-500 opacity-10" />
+        </Box>
+        <Flex direction="column" gap="3" className="relative z-10">
           <Text size="2" color="gray">
             {t("dashboard.summary.llm.title")}
           </Text>
@@ -75,12 +85,15 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Flex>
       </Card>
 
-      <Card>
-        <Flex direction="column" gap="3">
+      <Card className="relative overflow-hidden">
+        <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
+          <IconApps size="100" className="text-green-500 opacity-10" />
+        </Box>
+        <Flex direction="column" gap="2" className="relative z-10">
           <Text size="2" color="gray">
             {t("dashboard.summary.apps.title")}
           </Text>
-          <Flex direction="column" gap="1">
+          <Flex direction="column" gap="3px">
             {summary.topApps.length === 0 ? (
               <Text size="2" color="gray">
                 {t("dashboard.summary.apps.empty")}

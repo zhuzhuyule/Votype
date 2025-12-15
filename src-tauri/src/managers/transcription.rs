@@ -55,8 +55,8 @@ struct OfflineVadSegment {
 
 struct OfflineRealtimeJob {
     now_ms: u64,
-    prefix_text: String,
-    audio: Vec<f32>,
+    stable_text: String,
+    tail_audio: Vec<f32>,
 }
 
 struct SherpaOfflineSession {
@@ -121,6 +121,56 @@ pub struct TranscriptionManager {
 }
 
 impl TranscriptionManager {
+    fn join_stable_offline_text(prefix_text: &str, recent_segments: &VecDeque<OfflineVadSegment>) -> String {
+        let mut out = prefix_text.trim().to_string();
+        for seg in recent_segments.iter() {
+            let t = seg.text.trim();
+            if t.is_empty() {
+                continue;
+            }
+            out = Self::merge_text_with_overlap(&out, t);
+        }
+        out
+    }
+
+    fn merge_text_with_overlap(stable_text: &str, tail_text: &str) -> String {
+        let stable = stable_text.trim_end();
+        let tail = tail_text.trim_start();
+        if stable.is_empty() {
+            return tail_text.trim().to_string();
+        }
+        if tail.is_empty() {
+            return stable.to_string();
+        }
+
+        let stable_chars: Vec<char> = stable.chars().collect();
+        let tail_chars: Vec<char> = tail.chars().collect();
+        let max_overlap = stable_chars.len().min(tail_chars.len()).min(200);
+
+        // Allow small overlaps to avoid duplicate Chinese characters at chunk boundaries.
+        for overlap in (3..=max_overlap).rev() {
+            let stable_suffix: String = stable_chars[stable_chars.len() - overlap..].iter().collect();
+            let tail_prefix: String = tail_chars[..overlap].iter().collect();
+            if stable_suffix == tail_prefix {
+                let tail_rest: String = tail_chars[overlap..].iter().collect();
+                let tail_rest = tail_rest.trim_start();
+                if tail_rest.is_empty() {
+                    return stable.to_string();
+                }
+                if stable.ends_with('\n') {
+                    return format!("{}{}", stable, tail_rest);
+                }
+                return format!("{}\n{}", stable, tail_rest);
+            }
+        }
+
+        if stable.ends_with('\n') {
+            format!("{}{}", stable, tail)
+        } else {
+            format!("{}\n{}", stable, tail)
+        }
+    }
+
     pub fn new(app_handle: &AppHandle, model_manager: Arc<ModelManager>) -> Result<Self> {
         let manager = Self {
             engine: Arc::new(Mutex::new(None)),
@@ -1062,13 +1112,15 @@ impl TranscriptionManager {
         let (tx, rx) = std::sync::mpsc::sync_channel::<OfflineRealtimeJob>(1);
         std::thread::spawn(move || {
             let mut punctuation_cache: Option<(String, SherpaOnnxOfflinePunctuation)> = None;
+            let mut last_log_time = std::time::Instant::now();
+            
             while let Ok(mut job) = rx.recv() {
                 // Coalesce: keep only the latest pending job.
                 while let Ok(next) = rx.try_recv() {
                     job = next;
                 }
 
-                if let Err(e) = tm.process_offline_realtime_job(job, &mut punctuation_cache) {
+                if let Err(e) = tm.process_offline_realtime_job(job, &mut punctuation_cache, &mut last_log_time) {
                     warn!("Offline realtime decode failed: {}", e);
                 }
             }
@@ -1112,11 +1164,13 @@ impl TranscriptionManager {
 
     fn enqueue_sherpa_offline_realtime_partial(&self, now_ms: u64) -> Result<()> {
         const SAMPLE_RATE: usize = 16000;
-        const FULL_CONTEXT_SECONDS: f64 = 30.0;
 
         let settings = get_settings(&self.app_handle);
+        let window_seconds = settings.offline_vad_force_window_seconds.max(1) as usize;
+        let window_samples = window_seconds * SAMPLE_RATE;
+        let context_samples = (SAMPLE_RATE as f64 * 0.6) as usize; // small context for boundary continuity
 
-        let (prefix_text, audio, tx) = {
+        let (stable_text, tail_audio, tx) = {
             let session_guard = self.sherpa_offline_session.lock().unwrap();
             let Some(sess) = session_guard.as_ref() else {
                 return Ok(());
@@ -1126,37 +1180,21 @@ impl TranscriptionManager {
                 return Ok(());
             }
 
-            let total_seconds = sess.all_samples.len() as f64 / SAMPLE_RATE as f64;
-            let window_seconds = settings.offline_vad_force_window_seconds.max(1) as usize;
-            let window_samples = window_seconds * SAMPLE_RATE;
+            let stable_text = Self::join_stable_offline_text(&sess.prefix_text, &sess.recent_segments);
 
-            if total_seconds <= FULL_CONTEXT_SECONDS {
-                (
-                    String::new(),
-                    sess.all_samples.clone(),
-                    sess.realtime_tx.clone(),
-                )
-            } else if !sess.recent_segments.is_empty() {
-                let mut out = Vec::new();
-                for seg in sess.recent_segments.iter() {
-                    out.extend_from_slice(&seg.audio);
+            let mut out = Vec::new();
+            if let Some(last_seg) = sess.recent_segments.back() {
+                if !last_seg.audio.is_empty() && context_samples > 0 {
+                    let start = last_seg.audio.len().saturating_sub(context_samples);
+                    out.extend_from_slice(&last_seg.audio[start..]);
                 }
-                if !sess.pending_audio.is_empty() {
-                    let start = sess
-                        .pending_audio
-                        .len()
-                        .saturating_sub(window_samples);
-                    out.extend_from_slice(&sess.pending_audio[start..]);
-                }
-                (sess.prefix_text.clone(), out, sess.realtime_tx.clone())
-            } else {
-                let start = sess.all_samples.len().saturating_sub(window_samples);
-                (
-                    String::new(),
-                    sess.all_samples[start..].to_vec(),
-                    sess.realtime_tx.clone(),
-                )
             }
+            if !sess.pending_audio.is_empty() {
+                let start = sess.pending_audio.len().saturating_sub(window_samples);
+                out.extend_from_slice(&sess.pending_audio[start..]);
+            }
+
+            (stable_text, out, sess.realtime_tx.clone())
         };
 
         let Some(tx) = tx else {
@@ -1164,8 +1202,8 @@ impl TranscriptionManager {
         };
         let _ = tx.try_send(OfflineRealtimeJob {
             now_ms,
-            prefix_text,
-            audio,
+            stable_text,
+            tail_audio,
         });
 
         Ok(())
@@ -1175,6 +1213,7 @@ impl TranscriptionManager {
         &self,
         job: OfflineRealtimeJob,
         punctuation_cache: &mut Option<(String, SherpaOnnxOfflinePunctuation)>,
+        last_log_time: &mut std::time::Instant,
     ) -> Result<()> {
         // Best-effort: do not block final transcription or model operations.
         let recognizer = match self.engine.try_lock() {
@@ -1185,21 +1224,19 @@ impl TranscriptionManager {
             Err(_) => return Ok(()),
         };
 
-        let decode_guard = match self.sherpa_offline_decode_lock.try_lock() {
-            Ok(g) => g,
-            Err(_) => return Ok(()),
-        };
-        let window_text = recognizer.decode(16000, &job.audio)?.trim().to_string();
-        drop(decode_guard);
-        let display_text = if job.prefix_text.trim().is_empty() {
-            window_text.clone()
-        } else if window_text.is_empty() {
-            job.prefix_text.trim().to_string()
-        } else if job.prefix_text.ends_with('\n') {
-            format!("{}{}", job.prefix_text, window_text)
+        let tail_text = if job.tail_audio.is_empty() {
+            String::new()
         } else {
-            format!("{}\n{}", job.prefix_text.trim_end(), window_text)
+            let decode_guard = match self.sherpa_offline_decode_lock.try_lock() {
+                Ok(g) => g,
+                Err(_) => return Ok(()),
+            };
+            let t = recognizer.decode(16000, &job.tail_audio)?.trim().to_string();
+            drop(decode_guard);
+            t
         };
+
+        let display_text = Self::merge_text_with_overlap(&job.stable_text, &tail_text);
 
         let display_text = display_text.trim().to_string();
         if display_text.is_empty() {
@@ -1278,11 +1315,30 @@ impl TranscriptionManager {
         let _ = self.app_handle.emit(
             "sherpa-offline-partial",
             SherpaPartialEvent {
-                text: display_text,
-                punctuated_text,
+                text: display_text.clone(),
+                punctuated_text: punctuated_text.clone(),
                 is_final: false,
             },
         );
+
+        // Periodic logging of valid overlay content (every ~5s)
+        if last_log_time.elapsed().as_secs() >= 5 {
+            let log_text = punctuated_text.as_ref().unwrap_or(&display_text);
+            let clean_log_text = log_text.replace('\n', " ");
+
+            // Safe truncation for UTF-8 characters
+            let char_count = clean_log_text.chars().count();
+            let preview = if char_count > 100 {
+                 let skip = char_count - 100;
+                 let tail: String = clean_log_text.chars().skip(skip).collect();
+                 format!("...{}", tail)
+            } else {
+                 clean_log_text
+            };
+
+            info!("[Overlay Preview] chars={} {}", char_count, preview);
+            *last_log_time = std::time::Instant::now();
+        }
 
         Ok(())
     }
@@ -1311,7 +1367,82 @@ impl TranscriptionManager {
             sess.last_force_ms = now_ms;
         }
 
+        self.maybe_roll_sherpa_offline_pending(now_ms)?;
         self.enqueue_sherpa_offline_realtime_partial(now_ms)
+    }
+
+    fn maybe_roll_sherpa_offline_pending(&self, now_ms: u64) -> Result<()> {
+        const SAMPLE_RATE: usize = 16000;
+        const ROLL_SECONDS: usize = 5;
+        const OVERLAP_MS: usize = 600;
+
+        let settings = get_settings(&self.app_handle);
+        let window_seconds = settings.offline_vad_force_window_seconds.max(1) as usize;
+        let window_samples = window_seconds * SAMPLE_RATE;
+        let roll_samples = ROLL_SECONDS * SAMPLE_RATE;
+        let overlap_samples = (SAMPLE_RATE * OVERLAP_MS) / 1000;
+
+        let chunk_audio = {
+            let mut session_guard = self.sherpa_offline_session.lock().unwrap();
+            let Some(sess) = session_guard.as_mut() else {
+                return Ok(());
+            };
+
+            if sess.pending_audio.len() <= window_samples + roll_samples {
+                return Ok(());
+            }
+
+            let take = (roll_samples + overlap_samples).min(sess.pending_audio.len());
+            let chunk = sess.pending_audio[..take].to_vec();
+            let drain = roll_samples.min(sess.pending_audio.len());
+            sess.pending_audio.drain(0..drain);
+            sess.last_voice_ms = now_ms;
+            chunk
+        };
+
+        // Best-effort: if engine/decode lock is busy, skip and try again on the next interval.
+        let recognizer = match self.engine.try_lock() {
+            Ok(g) => match g.as_ref() {
+                Some(LoadedEngine::SherpaOffline(recognizer)) => Arc::clone(recognizer),
+                _ => return Ok(()),
+            },
+            Err(_) => return Ok(()),
+        };
+
+        let decoded_text = match self.sherpa_offline_decode_lock.try_lock() {
+            Ok(_guard) => match recognizer.decode(16000, &chunk_audio) {
+                Ok(t) => t.trim().to_string(),
+                Err(e) => {
+                    warn!("Offline rolling decode failed: {}", e);
+                    String::new()
+                }
+            },
+            Err(_) => return Ok(()),
+        };
+
+        if decoded_text.trim().is_empty() {
+            return Ok(());
+        }
+
+        {
+            let mut session_guard = self.sherpa_offline_session.lock().unwrap();
+            if let Some(sess) = session_guard.as_mut() {
+                sess.recent_segments.push_back(OfflineVadSegment {
+                    audio: chunk_audio,
+                    text: decoded_text,
+                });
+                while sess.recent_segments.len() > 3 {
+                    if let Some(old) = sess.recent_segments.pop_front() {
+                        let old_text = old.text.trim();
+                        if !old_text.is_empty() {
+                            sess.prefix_text = Self::merge_text_with_overlap(&sess.prefix_text, old_text);
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Check for silence timeout and trigger segment transcription if needed.
@@ -1335,16 +1466,29 @@ impl TranscriptionManager {
             };
 
             let silence_duration_ms = now_ms.saturating_sub(sess.last_voice_ms);
-            if silence_duration_ms < SILENCE_TIMEOUT_MS || sess.pending_audio.len() < MIN_SEGMENT_SAMPLES {
+            
+            // Allow manual override of the max segment size via the "force window" setting,
+            // but ensure a reasonable minimum (e.g. 60s) to avoid frequent cutting.
+            let settings = get_settings(&self.app_handle);
+            let window_secs = settings.offline_vad_force_window_seconds.max(30) as f64;
+            // Force commit if buffer grows beyond ~1.5x the window or 60s, whichever is larger,
+            // to prevents unbounded growth during continuous speech.
+            let max_samples = (window_secs * 1.5).max(60.0) * 16000.0;
+            let force_commit = sess.pending_audio.len() as f64 > max_samples;
+
+            if !force_commit && (silence_duration_ms < SILENCE_TIMEOUT_MS || sess.pending_audio.len() < MIN_SEGMENT_SAMPLES) {
                 return Ok(());
             }
 
             debug!(
-                "Offline VAD silence detected ({}ms), committing {} samples",
+                "Offline VAD commit: silence={}ms, samples={}, force={}",
                 silence_duration_ms,
-                sess.pending_audio.len()
+                sess.pending_audio.len(),
+                force_commit
             );
 
+            // If forced, we treat it as if voice "just ended" to mark the boundary,
+            // though physically the user is still speaking.
             sess.last_voice_ms = now_ms;
             std::mem::take(&mut sess.pending_audio)
         };
@@ -1376,15 +1520,19 @@ impl TranscriptionManager {
             if let Some(sess) = session_guard.as_mut() {
                 sess.recent_segments
                     .push_back(OfflineVadSegment { audio: segment_audio, text: segment_text });
-                while sess.recent_segments.len() > 3 {
+
+                // Keep recent segments buffer within ~30s to prevent ONNX reshape errors
+                // and keep realtime decoding fast.
+                let mut current_samples: usize = sess.recent_segments.iter().map(|s| s.audio.len()).sum();
+                const MAX_RECENT_SAMPLES: usize = 30 * 16000; 
+
+                while current_samples > MAX_RECENT_SAMPLES && !sess.recent_segments.is_empty() {
                     if let Some(old) = sess.recent_segments.pop_front() {
                         let old_text = old.text.trim();
                         if !old_text.is_empty() {
-                            if !sess.prefix_text.trim().is_empty() {
-                                sess.prefix_text.push('\n');
-                            }
-                            sess.prefix_text.push_str(old_text);
+                            sess.prefix_text = Self::merge_text_with_overlap(&sess.prefix_text, old_text);
                         }
+                        current_samples -= old.audio.len();
                     }
                 }
             }
@@ -1434,6 +1582,8 @@ impl TranscriptionManager {
             let _decode_guard = self.sherpa_offline_decode_lock.lock().unwrap();
             recognizer.decode(16000, &sess.all_samples)?
         };
+
+        info!("[Raw Transcription] {}", text.trim());
 
         let text = text.trim().to_string();
         let settings = get_settings(&self.app_handle);
@@ -1953,19 +2103,9 @@ impl TranscriptionManager {
     }
 
     fn apply_punctuation_multiline(&self, punct_model_id: &str, text: &str) -> Result<String> {
-        if !text.contains('\n') {
-            return self.apply_punctuation(punct_model_id, text);
-        }
-
-        let mut out_lines = Vec::new();
-        for line in text.split('\n') {
-            if line.trim().is_empty() {
-                out_lines.push(String::new());
-                continue;
-            }
-            out_lines.push(self.apply_punctuation(punct_model_id, line)?);
-        }
-        Ok(out_lines.join("\n"))
+        // Replace newlines with spaces to ensure the text is processed as a single line
+        let single_line_text = text.replace('\n', " ");
+        self.apply_punctuation(punct_model_id, &single_line_text)
     }
     fn emit_online_asr_status(&self, stage: &str, detail: Option<String>) {
         let _ = self.app_handle.emit(

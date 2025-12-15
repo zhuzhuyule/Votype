@@ -48,10 +48,10 @@ function App() {
     checkOnboardingStatus();
   }, []);
 
-  // Handle keyboard shortcuts for debug mode toggle
+  // Handle keyboard shortcuts for settings navigation and debug mode
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Ctrl+Shift+D (Windows/Linux) or Cmd+Shift+D (macOS)
+      // Check for Ctrl+Shift+D (Windows/Linux) or Cmd+Shift+D (macOS) for debug toggle
       const isDebugShortcut =
         event.shiftKey &&
         event.key.toLowerCase() === "d" &&
@@ -61,6 +61,35 @@ function App() {
         event.preventDefault();
         const currentDebugMode = settings?.debug_mode ?? false;
         updateSetting("debug_mode", !currentDebugMode);
+        return;
+      }
+
+      // Check for Cmd/Ctrl + Number (1-9) for settings navigation
+      const isSettingsShortcut = (event.ctrlKey || event.metaKey) && /^[1-9]$/.test(event.key);
+
+      if (isSettingsShortcut) {
+        event.preventDefault();
+        const sectionIndex = parseInt(event.key, 10) - 1;
+        const sections: SidebarSection[] = [
+          "dashboard",
+          "general",
+          "shortcuts",
+          "advanced",
+          "models",
+          "asrModels",
+          "prompts",
+          "about",
+        ];
+
+        // Only include debug section if debug mode is enabled
+        if (settings?.debug_mode) {
+          sections.splice(7, 0, "debug"); // Insert debug at position 8 (key 8)
+        }
+
+        if (sectionIndex < sections.length) {
+          const targetSection = sections[sectionIndex];
+          setCurrentSection(targetSection);
+        }
       }
     };
 
