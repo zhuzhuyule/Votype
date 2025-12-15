@@ -58,7 +58,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   const [extractingModels, setExtractingModels] = useState<Set<string>>(
     new Set(),
   );
-  const { settings, selectAsrModel, toggleOnlineAsr } = useSettings();
+  const { settings, selectAsrModel, toggleOnlineAsr, updateSetting } =
+    useSettings();
 
   const cachedModels = settings?.cached_models || [];
   const providerNameMap = useMemo(() => {
@@ -410,12 +411,17 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     }
   };
 
-  const handleAsrModelSelect = async (modelId: string) => {
+  const handleAsrModelSelect = async (
+    modelId: string,
+    opts?: { keepOpen?: boolean },
+  ) => {
     try {
       if (!settings?.online_asr_enabled) {
         await toggleOnlineAsr(true);
       }
-      setShowModelDropdown(false);
+      if (!opts?.keepOpen) {
+        setShowModelDropdown(false);
+      }
       await selectAsrModel(modelId);
     } catch (err) {
       const errorMsg = `${err}`;
@@ -467,6 +473,34 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     });
   }, [models, favoriteModels, currentModelId]);
 
+  const realtimeModelsForQuickSelector = useMemo(() => {
+    const sherpaDownloaded = models.filter(
+      (m) =>
+        m.is_downloaded &&
+        m.engine_type === "SherpaOnnx" &&
+        Boolean(m.sherpa) &&
+        m.id !== currentModelId,
+    );
+
+    const selectedRealtimeId = settings?.post_process_secondary_model_id ?? null;
+    const ensureSelected =
+      selectedRealtimeId && !sherpaDownloaded.some((m) => m.id === selectedRealtimeId)
+        ? sherpaDownloaded.filter((m) => m.id === selectedRealtimeId)
+        : [];
+
+    const list = [...sherpaDownloaded, ...ensureSelected];
+    return list
+      .filter(
+        (m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx,
+      )
+      .sort((a, b) => {
+        const fa = favoriteModels.has(a.id);
+        const fb = favoriteModels.has(b.id);
+        if (fa !== fb) return fa ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [models, favoriteModels, currentModelId, settings?.post_process_secondary_model_id]);
+
   return (
     <>
       {/* Model Status and Switcher */}
@@ -495,6 +529,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             selectedAsrModelId={settings?.selected_asr_model_id || null}
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
+            realtimeModels={realtimeModelsForQuickSelector}
+            selectedRealtimeModelId={settings?.post_process_secondary_model_id ?? null}
+            realtimeEnabled={settings?.post_process_use_secondary_output || false}
+            onRealtimeModelSelect={async (modelId) => {
+              await updateSetting("post_process_secondary_model_id", modelId);
+              await updateSetting("post_process_use_secondary_output", Boolean(modelId));
+            }}
           />
         )}
       </div>

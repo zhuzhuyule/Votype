@@ -1037,6 +1037,82 @@ pub fn change_append_trailing_space_setting(app: AppHandle, enabled: bool) -> Re
 }
 
 #[tauri::command]
+pub fn change_post_process_use_secondary_output_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_use_secondary_output = enabled;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "post_process_use_secondary_output",
+            "value": enabled
+        }),
+    );
+
+    // If the user disables secondary output while using online ASR, proactively unload any
+    // previously-loaded local model to reduce memory usage.
+    if !enabled {
+        let settings = settings::get_settings(&app);
+        if settings.online_asr_enabled {
+            if let Some(tm) =
+                app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>(
+                )
+            {
+                let _ = tm.abort_sherpa_online_session();
+                let _ = tm.abort_sherpa_offline_session();
+                let _ = tm.unload_model();
+            }
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_post_process_use_local_candidate_when_online_asr_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_use_local_candidate_when_online_asr = enabled;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "post_process_use_local_candidate_when_online_asr",
+            "value": enabled
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_post_process_secondary_model_id_setting(
+    app: AppHandle,
+    model_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_secondary_model_id = model_id;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "post_process_secondary_model_id",
+            "value": settings::get_settings(&app).post_process_secondary_model_id
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn change_offline_vad_force_interval_ms_setting(app: AppHandle, value: u64) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.offline_vad_force_interval_ms = value;

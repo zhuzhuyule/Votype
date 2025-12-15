@@ -25,10 +25,14 @@ pub(crate) async fn maybe_post_process_transcription(
     app_handle: &AppHandle,
     settings: &AppSettings,
     transcription: &str,
+    streaming_transcription: Option<&str>,
 ) -> Option<String> {
     debug!("=== POST-PROCESSING DEBUG START ===");
     debug!("Post-processing enabled: {}", settings.post_process_enabled);
     debug!("Input transcription length: {} chars", transcription.len());
+    if let Some(s) = streaming_transcription {
+        debug!("Input streaming transcription length: {} chars", s.len());
+    }
 
     let transcription_preview_end = transcription
         .char_indices()
@@ -116,7 +120,10 @@ pub(crate) async fn maybe_post_process_transcription(
 
     show_llm_processing_overlay(app_handle);
 
-    let processed_prompt = prompt.prompt.replace("${output}", transcription);
+    let processed_prompt = prompt
+        .prompt
+        .replace("${output}", transcription)
+        .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
 
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]

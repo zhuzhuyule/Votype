@@ -109,6 +109,9 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   favorite_transcription_models: [],
   offline_vad_force_interval_ms: 2000,
   offline_vad_force_window_seconds: 30,
+  post_process_use_secondary_output: false,
+  post_process_use_local_candidate_when_online_asr: false,
+  post_process_secondary_model_id: null,
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -165,6 +168,12 @@ const settingUpdaters: {
   history_limit: (value) => invoke("update_history_limit", { limit: value }),
   post_process_enabled: (value) =>
     invoke("change_post_process_enabled_setting", { enabled: value }),
+  post_process_use_secondary_output: (value) =>
+    invoke("change_post_process_use_secondary_output_setting", { enabled: value }),
+  post_process_use_local_candidate_when_online_asr: (value) =>
+    invoke("change_post_process_use_local_candidate_when_online_asr_setting", { enabled: value }),
+  post_process_secondary_model_id: (value) =>
+    invoke("change_post_process_secondary_model_id_setting", { modelId: value }),
   post_process_selected_prompt_id: (value) =>
     invoke("set_post_process_selected_prompt", { id: value }),
   mute_while_recording: (value) =>

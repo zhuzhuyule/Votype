@@ -12,6 +12,7 @@ import "./RecordingOverlay.css";
 
 type OverlayState = "recording" | "transcribing" | "llm";
 type SherpaPartialEvent = { text: string; punctuated_text?: string; is_final: boolean };
+type OverlayErrorEvent = { code?: string; message?: string };
 
 const normalizeDictatedPunctuation = (input: string) => {
   // Lightweight normalization for common dictated punctuation words.
@@ -68,6 +69,7 @@ const RecordingOverlay: React.FC = () => {
   const [accentColor, setAccentColor] = useState<string>(getAccentColor);
   const [realtimeText, setRealtimeText] = useState<string>("");
   const [realtimeIsFinal, setRealtimeIsFinal] = useState<boolean>(false);
+  const [errorText, setErrorText] = useState<string>("");
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OverlayState>("recording");
@@ -89,6 +91,7 @@ const RecordingOverlay: React.FC = () => {
         setState(overlayState);
         stateRef.current = overlayState;
         setIsVisible(true);
+        setErrorText("");
         // Once the stop signal arrives we should immediately show "transcribing" rather than
         // stale partial text, and ignore any non-final partials that might still arrive.
         allowNonFinalRef.current = overlayState === "recording";
@@ -108,9 +111,21 @@ const RecordingOverlay: React.FC = () => {
         setIsVisible(false);
         setRealtimeText("");
         setRealtimeIsFinal(false);
+        setErrorText("");
         // Next session can accept non-final partials again.
         allowNonFinalRef.current = true;
         finalLockedRef.current = false;
+      });
+
+      const unlistenError = await listen<OverlayErrorEvent>("overlay-error", (event) => {
+        const payload = (event.payload ?? {}) as OverlayErrorEvent;
+        if (payload.message) {
+          setErrorText(payload.message);
+          return;
+        }
+        if (payload.code === "transcription_failed_saved") {
+          setErrorText(t("overlay.error.transcriptionFailedSaved"));
+        }
       });
 
       // Listen for mic-level updates
@@ -179,6 +194,7 @@ const RecordingOverlay: React.FC = () => {
       return () => {
         unlistenShow();
         unlistenHide();
+        unlistenError();
         unlistenLevel();
         unlistenSherpaOnlinePartial();
         unlistenSherpaOfflinePartial();
@@ -220,6 +236,7 @@ const RecordingOverlay: React.FC = () => {
       : realtimeText;
 
   const showRealtimeText = realtimeDisplayText.length > 0 && state === "recording";
+  const showErrorText = Boolean(errorText) && state !== "recording";
 
   return (
     <div className="overlay-root">
@@ -258,7 +275,10 @@ const RecordingOverlay: React.FC = () => {
             </>
           )}
           {!showRealtimeText && state !== "recording" && (
-            <div className="status-text">{statusTextMap[state]}</div>
+            <div className="status-text">
+              {statusTextMap[state]}
+              {showErrorText && <div className="mt-1 text-xs text-text/60">{errorText}</div>}
+            </div>
           )}
         </div>
 

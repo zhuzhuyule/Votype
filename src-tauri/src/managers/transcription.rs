@@ -1002,12 +1002,20 @@ impl TranscriptionManager {
         Ok(final_text)
     }
 
-    pub fn abort_sherpa_online_session(&self) {
+    pub fn abort_sherpa_online_session(&self) -> Option<String> {
         let sess = self.sherpa_session.lock().unwrap().take();
         if let Some(sess) = sess {
+            let text = sess.last_text;
             unsafe {
                 sherpa_safe::SafeSherpaOnnxDestroyOnlineStream(sess.stream);
             }
+            if text.trim().is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        } else {
+            None
         }
     }
 
@@ -1469,10 +1477,18 @@ impl TranscriptionManager {
         Ok(final_text)
     }
 
-    pub fn abort_sherpa_offline_session(&self) {
+    pub fn abort_sherpa_offline_session(&self) -> Option<String> {
         let sess = self.sherpa_offline_session.lock().unwrap().take();
         if let Some(mut sess) = sess {
             let _ = sess.realtime_tx.take();
+            let text = sess.last_emit_text;
+            if text.trim().is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        } else {
+            None
         }
     }
 
@@ -1733,6 +1749,169 @@ impl TranscriptionManager {
         // Check if we should immediately unload the model after transcription
         if settings.model_unload_timeout == ModelUnloadTimeout::Immediately {
             info!("Immediately unloading model after transcription");
+            if let Err(e) = self.unload_model() {
+                error!("Failed to immediately unload model: {}", e);
+            }
+        }
+
+        Ok(final_result)
+    }
+
+    /// Like `transcribe()`, but forcibly bypasses Online ASR and uses the currently selected
+    /// local engine. This is best-effort and may trigger a local model load if needed.
+    pub fn transcribe_local_only(&self, audio: Vec<f32>) -> Result<String> {
+        // Update last activity timestamp
+        self.last_activity.store(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64,
+            Ordering::Relaxed,
+        );
+
+        let st = std::time::Instant::now();
+
+        debug!("Local-only audio vector length: {}", audio.len());
+
+        if audio.is_empty() {
+            return Ok(String::new());
+        }
+
+        let settings = get_settings(&self.app_handle);
+
+        // Ensure local model is loaded (Online ASR mode skips preloading).
+        if !self.is_model_loaded() {
+            self.initiate_model_load();
+        }
+        self.wait_for_local_engine()?;
+
+        let result = {
+            let mut engine_guard = self.engine.lock().unwrap();
+            let engine = engine_guard.as_mut().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Model failed to load after auto-load attempt. Please check your model settings."
+                )
+            })?;
+
+            match engine {
+                LoadedEngine::Whisper(whisper_engine) => {
+                    let whisper_language = if settings.selected_language == "auto" {
+                        None
+                    } else {
+                        let normalized = if settings.selected_language == "zh-Hans"
+                            || settings.selected_language == "zh-Hant"
+                        {
+                            "zh".to_string()
+                        } else {
+                            settings.selected_language.clone()
+                        };
+                        Some(normalized)
+                    };
+
+                    let params = WhisperInferenceParams {
+                        language: whisper_language,
+                        translate: settings.translate_to_english,
+                        ..Default::default()
+                    };
+
+                    whisper_engine
+                        .transcribe_samples(audio, Some(params))
+                        .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))?
+                }
+                LoadedEngine::Parakeet(parakeet_engine) => {
+                    let params = ParakeetInferenceParams {
+                        timestamp_granularity: TimestampGranularity::Segment,
+                        ..Default::default()
+                    };
+
+                    parakeet_engine
+                        .transcribe_samples(audio, Some(params))
+                        .map_err(|e| anyhow::anyhow!("Parakeet transcription failed: {}", e))?
+                }
+                LoadedEngine::SherpaOnline(recognizer) => {
+                    const SHERPA_SAMPLE_RATE: i32 = 16000;
+                    debug!(
+                        "Sherpa streaming (local-only) input: {} samples @ {}Hz",
+                        audio.len(),
+                        SHERPA_SAMPLE_RATE
+                    );
+
+                    let text = recognizer.decode(SHERPA_SAMPLE_RATE, &audio)?;
+
+                    transcribe_rs::TranscriptionResult {
+                        text: text.clone(),
+                        segments: Some(vec![transcribe_rs::TranscriptionSegment {
+                            text: text.clone(),
+                            start: 0.0,
+                            end: 0.0,
+                        }]),
+                    }
+                }
+                LoadedEngine::SherpaOffline(recognizer) => {
+                    const SHERPA_SAMPLE_RATE: i32 = 16000;
+                    debug!(
+                        "Sherpa offline (local-only) input: {} samples @ {}Hz",
+                        audio.len(),
+                        SHERPA_SAMPLE_RATE
+                    );
+
+                    let _decode_guard = self.sherpa_offline_decode_lock.lock().unwrap();
+                    let text = recognizer.decode(SHERPA_SAMPLE_RATE, &audio)?;
+
+                    transcribe_rs::TranscriptionResult {
+                        text: text.clone(),
+                        segments: Some(vec![transcribe_rs::TranscriptionSegment {
+                            text: text.clone(),
+                            start: 0.0,
+                            end: 0.0,
+                        }]),
+                    }
+                }
+            }
+        };
+
+        let corrected_result = if !settings.custom_words.is_empty() {
+            apply_custom_words(
+                &result.text,
+                &settings.custom_words,
+                settings.word_correction_threshold,
+            )
+        } else {
+            result.text
+        };
+
+        let et = std::time::Instant::now();
+        info!(
+            "Local-only transcription completed in {}ms",
+            (et - st).as_millis()
+        );
+
+        let mut final_result = corrected_result.trim().to_string();
+
+        if settings.punctuation_enabled && !final_result.is_empty() {
+            let punct_model_id = settings.punctuation_model.trim();
+            if !punct_model_id.is_empty() {
+                let should_try = self
+                    .model_manager
+                    .get_model_info(punct_model_id)
+                    .is_some_and(|m| m.is_downloaded);
+
+                if should_try {
+                    match self.apply_punctuation(punct_model_id, &final_result) {
+                        Ok(punctuated) => {
+                            if !punctuated.trim().is_empty() {
+                                final_result = punctuated.trim().to_string();
+                            }
+                        }
+                        Err(e) => {
+                            warn!("Punctuation post-process failed: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+
+        if settings.model_unload_timeout == ModelUnloadTimeout::Immediately {
             if let Err(e) = self.unload_model() {
                 error!("Failed to immediately unload model: {}", e);
             }

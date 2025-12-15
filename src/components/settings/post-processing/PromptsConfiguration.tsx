@@ -20,6 +20,7 @@ import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { Textarea } from "../../ui/Textarea";
 import { PostProcessingToggle } from "../PostProcessingToggle";
+import { SecondaryTranscriptFusion } from "./SecondaryTranscriptFusion";
 
 const DisabledNotice: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -309,9 +310,9 @@ export const PromptsConfiguration: React.FC = () => {
     <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
       <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
         <PostProcessingToggle grouped={true} />
+        <SecondaryTranscriptFusion grouped={true} />
         <PromptSettings />
       </SettingsGroup>
     </Flex>
   );
 };
-

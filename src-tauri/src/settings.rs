@@ -235,6 +235,12 @@ pub struct AppSettings {
     pub clipboard_handling: ClipboardHandling,
     #[serde(default = "default_post_process_enabled")]
     pub post_process_enabled: bool,
+    #[serde(default = "default_post_process_use_secondary_output")]
+    pub post_process_use_secondary_output: bool,
+    #[serde(default = "default_post_process_use_local_candidate_when_online_asr")]
+    pub post_process_use_local_candidate_when_online_asr: bool,
+    #[serde(default)]
+    pub post_process_secondary_model_id: Option<String>,
     #[serde(default = "default_post_process_provider_id")]
     pub post_process_provider_id: String,
     #[serde(default = "default_post_process_providers")]
@@ -345,6 +351,14 @@ fn default_sound_theme() -> SoundTheme {
 }
 
 fn default_post_process_enabled() -> bool {
+    false
+}
+
+fn default_post_process_use_secondary_output() -> bool {
+    false
+}
+
+fn default_post_process_use_local_candidate_when_online_asr() -> bool {
     false
 }
 
@@ -561,6 +575,10 @@ pub fn get_default_settings() -> AppSettings {
         paste_method: PasteMethod::default(),
         clipboard_handling: ClipboardHandling::default(),
         post_process_enabled: default_post_process_enabled(),
+        post_process_use_secondary_output: default_post_process_use_secondary_output(),
+        post_process_use_local_candidate_when_online_asr:
+            default_post_process_use_local_candidate_when_online_asr(),
+        post_process_secondary_model_id: None,
         post_process_provider_id: default_post_process_provider_id(),
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),

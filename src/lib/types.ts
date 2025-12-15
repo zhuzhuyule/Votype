@@ -138,6 +138,9 @@ export const SettingsSchema = z.object({
   paste_method: PasteMethodSchema.optional().default("ctrl_v"),
   clipboard_handling: ClipboardHandlingSchema.optional().default("dont_modify"),
   post_process_enabled: z.boolean().optional().default(false),
+  post_process_use_secondary_output: z.boolean().optional().default(false),
+  post_process_use_local_candidate_when_online_asr: z.boolean().optional().default(false),
+  post_process_secondary_model_id: z.string().nullable().optional().default(null),
   post_process_provider_id: z.string().optional().default("openai"),
   post_process_providers: z
     .array(PostProcessProviderSchema)

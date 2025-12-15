@@ -166,7 +166,16 @@
     "onlineAsrActive": "在线 ASR 已启用",
     "addModelFromUrl": "从链接添加",
     "addModelFromUrlPrompt": "粘贴模型下载链接（例如 .tar.bz2）：",
-    "userAddedModel": "用户添加的模型"
+    "userAddedModel": "用户添加的模型",
+    "realtimeModel": {
+      "title": "实时转录模型",
+      "open": "选择实时转录模型",
+      "enabled": "已启用",
+      "off": "关闭",
+      "selected": "实时：{{modelName}}",
+      "offHint": "使用在线 ASR 时不显示实时字幕。",
+      "empty": "没有可用的本地模型。请先下载（并收藏）一个 Sherpa 模型。"
+    }
   },
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
@@ -259,6 +268,9 @@
       "recording": "录音中…",
       "transcribing": "转录中…",
       "llm": "后处理中…"
+    },
+    "error": {
+      "transcriptionFailedSaved": "转录失败（已保存到历史记录）"
     }
   },
   "settings": {
@@ -494,7 +506,20 @@
     },
     "postProcessing": {
       "title": "后处理",
-      "disabledNotice": "后处理当前已禁用。请在调试设置中启用以进行配置。",
+      "disabledNotice": "后处理当前已禁用。启用后即可进行配置。",
+      "fusion": {
+        "enabled": {
+          "label": "使用实时转录（融合）",
+          "description": "后处理时同时提供两份转录：${output}（最终）和 ${streaming_output}（第二份）。"
+        },
+        "secondaryModel": {
+          "title": "实时转录模型（在线 ASR）",
+          "description": "仅在启用在线 ASR 时使用：该本地模型用于实时字幕，并作为第二份转录提供给后处理。",
+          "placeholder": "选择模型…",
+          "auto": "自动",
+          "autoDescription": "使用当前本地模型"
+        }
+      },
       "api": {
         "title": "API（兼容 OpenAI）",
         "provider": {

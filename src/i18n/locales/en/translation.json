@@ -145,7 +145,16 @@
     "onlineAsrActive": "Online ASR active",
     "addModelFromUrl": "Add from URL",
     "addModelFromUrlPrompt": "Paste a model download URL (e.g. .tar.bz2):",
-    "userAddedModel": "User-added model"
+    "userAddedModel": "User-added model",
+    "realtimeModel": {
+      "title": "Realtime transcription model",
+      "open": "Choose realtime transcription model",
+      "enabled": "Enabled",
+      "off": "Off",
+      "selected": "Realtime: {{modelName}}",
+      "offHint": "No realtime subtitles while using Online ASR.",
+      "empty": "No eligible local models. Download (and favorite) a Sherpa model first."
+    }
   },
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
@@ -466,7 +475,20 @@
     },
     "postProcessing": {
       "title": "Post Process",
-      "disabledNotice": "Post processing is currently disabled. Enable it in Debug settings to configure.",
+      "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
+      "fusion": {
+        "enabled": {
+          "label": "Use realtime transcript (fusion)",
+          "description": "Provide two transcripts to the post-processing prompt: ${output} (final) and ${streaming_output} (secondary)."
+        },
+        "secondaryModel": {
+          "title": "Realtime transcription model (Online ASR)",
+          "description": "Only used when Online ASR is enabled. This local model provides realtime subtitles and the secondary transcript.",
+          "placeholder": "Select model...",
+          "auto": "Auto",
+          "autoDescription": "Use current local model"
+        }
+      },
       "api": {
         "title": "API (OpenAI Compatible)",
         "provider": {
@@ -722,6 +744,9 @@
       "recording": "Recording...",
       "transcribing": "Transcribing...",
       "llm": "Post Processing..."
+    },
+    "error": {
+      "transcriptionFailedSaved": "Transcription failed (audio saved to History)"
     }
   },
   "soundPicker": {
