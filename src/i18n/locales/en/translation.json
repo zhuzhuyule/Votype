@@ -28,7 +28,8 @@
     },
     "activity": {
       "title": "Usage",
-      "subtitle": "Last 30 days"
+      "subtitle": "Last 30 days",
+      "entries": "{{count}} entries"
     },
     "range": {
       "lastNDays": "Last {{days}} days",

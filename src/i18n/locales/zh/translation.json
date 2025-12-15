@@ -28,7 +28,8 @@
     },
     "activity": {
       "title": "使用记录",
-      "subtitle": "近30天"
+      "subtitle": "近30天",
+      "entries": "共 {{count}} 条记录"
     },
     "range": {
       "lastNDays": "近{{days}}天",

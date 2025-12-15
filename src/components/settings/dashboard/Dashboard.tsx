@@ -177,7 +177,7 @@ const DashboardEntryCard = React.memo<{
             ) : null}
           </Flex>
 
-          <Flex gap="1" align="center">
+          <Flex gap="2" align="center">
             {retranscribing ? (
               <Text size="1" color="gray" className="animate-pulse mr-2">
                 {t("dashboard.actions.retranscribing")}
@@ -599,23 +599,35 @@ export const Dashboard: React.FC = () => {
 
             <Flex gap="2" align="end" className="h-20">
               {bars.map((b) => (
-                <button
+                <Tooltip
                   key={b.day}
-                  type="button"
-                  className="flex-1 rounded-sm transition-colors transition-transform hover:-translate-y-0.5"
-                  style={{
-                    height: `${Math.max(4, b.heightPct)}%`,
-                    backgroundColor: b.selected
-                      ? "var(--accent-9)"
-                      : "var(--gray-a6)",
-                    opacity: b.entries === 0 ? 0.2 : 0.9,
-                    cursor: "pointer",
-                    transform: b.isToday ? "translateY(-2px)" : undefined,
-                    boxShadow: b.isToday ? "0 6px 16px rgba(0,0,0,0.08)" : undefined,
-                  }}
-                  title={`${b.day}: ${b.entries}`}
-                  onClick={() => setSelection({ type: "day", day: b.day })}
-                />
+                  content={
+                    <Flex direction="column" gap="1">
+                      <Text size="2" weight="bold">
+                        {b.day}
+                      </Text>
+                      <Text size="2">
+                        {t("dashboard.activity.entries", { count: b.entries })}
+                      </Text>
+                    </Flex>
+                  }
+                >
+                  <button
+                    type="button"
+                    className="flex-1 rounded-sm transition-colors transition-transform hover:-translate-y-0.5"
+                    style={{
+                      height: `${Math.max(4, b.heightPct)}%`,
+                      backgroundColor: b.selected
+                        ? "var(--accent-9)"
+                        : "var(--gray-a6)",
+                      opacity: b.entries === 0 ? 0.2 : 0.9,
+                      cursor: "pointer",
+                      transform: b.isToday ? "translateY(-2px)" : undefined,
+                      boxShadow: b.isToday ? "0 6px 16px rgba(0,0,0,0.08)" : undefined,
+                    }}
+                    onClick={() => setSelection({ type: "day", day: b.day })}
+                  />
+                </Tooltip>
               ))}
             </Flex>
 
