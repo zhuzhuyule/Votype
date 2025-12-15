@@ -26,6 +26,7 @@ pub(crate) async fn maybe_post_process_transcription(
     settings: &AppSettings,
     transcription: &str,
     streaming_transcription: Option<&str>,
+    show_overlay: bool,
 ) -> Option<String> {
     debug!("=== POST-PROCESSING DEBUG START ===");
     debug!("Post-processing enabled: {}", settings.post_process_enabled);
@@ -118,7 +119,9 @@ pub(crate) async fn maybe_post_process_transcription(
         provider.id, model
     );
 
-    show_llm_processing_overlay(app_handle);
+    if show_overlay {
+        show_llm_processing_overlay(app_handle);
+    }
 
     let processed_prompt = prompt
         .prompt

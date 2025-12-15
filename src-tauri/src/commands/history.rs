@@ -193,6 +193,7 @@ pub async fn retranscribe_history_entry(
                 &settings,
                 &transcription_text,
                 None,
+                false,
             ).await {
                 final_text = Some(processed);
                 

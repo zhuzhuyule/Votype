@@ -1,0 +1,23 @@
+export interface HistoryEntry {
+  id: number;
+  file_name: string;
+  timestamp: number;
+  saved: boolean;
+  title: string;
+  transcription_text: string;
+  post_processed_text?: string | null;
+  post_process_prompt?: string | null;
+  duration_ms?: number | null;
+  char_count?: number | null;
+  corrected_char_count?: number | null;
+  transcription_ms?: number | null;
+  language?: string | null;
+  asr_model?: string | null;
+  app_name?: string | null;
+  window_title?: string | null;
+  deleted: boolean;
+}
+
+export type DashboardSelection =
+  | { type: "preset"; preset: "7d" | "30d" | "all" }
+  | { type: "day"; day: string };

@@ -5,312 +5,22 @@ import {
   Flex,
   Grid,
   Heading,
-  IconButton,
-  Tabs,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import {
-  IconCopy,
-  IconFolderOpen,
-  IconReload,
-  IconStar,
-  IconTrash,
-} from "@tabler/icons-react";
+import { IconFolderOpen } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioPlayer } from "../../ui/AudioPlayer";
-
-interface HistoryEntry {
-  id: number;
-  file_name: string;
-  timestamp: number; // seconds since epoch (UTC)
-  saved: boolean;
-  title: string;
-  transcription_text: string;
-  post_processed_text?: string | null;
-  post_process_prompt?: string | null;
-  duration_ms?: number | null;
-  char_count?: number | null;
-  corrected_char_count?: number | null;
-  transcription_ms?: number | null;
-  language?: string | null;
-  asr_model?: string | null;
-  app_name?: string | null;
-  window_title?: string | null;
-  deleted: boolean;
-}
-
-const formatDurationMs = (durationMs: number) => {
-  const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m ${seconds}s`;
-  return `${seconds}s`;
-};
-
-const toLocalYmd = (date: Date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
-const countUnicodeChars = (text: string) => Array.from(text).length;
-
-type DashboardSelection =
-  | { type: "preset"; preset: "7d" | "30d" | "all" }
-  | { type: "day"; day: string };
-
-const formatEntryTime = (timestampSeconds: number) => {
-  const date = new Date(timestampSeconds * 1000);
-  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const fullDate = date.toLocaleDateString();
-  return { time, fullDate };
-};
-
-// 使用 React.memo 优化，避免不必要的重渲染
-const DashboardEntryCard = React.memo<{
-  entry: HistoryEntry;
-  getAudioUrl: (fileName: string) => Promise<string | null>;
-  metaText: string;
-  timeText: string;
-  appName: string | null;
-  onCopy: (text: string) => void;
-  onToggleSaved: (id: number) => void;
-  onDelete: (id: number) => void;
-  onRetranscribe: (id: number) => Promise<void>;
-}>((
-  {
-    entry,
-    getAudioUrl,
-    metaText,
-    timeText,
-    appName,
-    onCopy,
-    onToggleSaved,
-    onDelete,
-    onRetranscribe,
-  }
-) => {
-  const { t } = useTranslation();
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [audioMissing, setAudioMissing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"improved" | "original">("improved");
-  const [shouldLoadAudio, setShouldLoadAudio] = useState(false);
-  const [retranscribing, setRetranscribing] = useState(false);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-
-  const onRetranscribeClick = async () => {
-    if (retranscribing) return;
-    setRetranscribing(true);
-    try {
-      await onRetranscribe(entry.id);
-    } catch (e) {
-      console.error("Retranscribe failed", e);
-    } finally {
-      setRetranscribing(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!cardRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0]?.isIntersecting) return;
-        setShouldLoadAudio(true);
-        observer.disconnect();
-      },
-      { root: null, rootMargin: "200px", threshold: 0.01 },
-    );
-
-    observer.observe(cardRef.current);
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadAudio = async () => {
-      if (!shouldLoadAudio) return;
-      setAudioMissing(false);
-      const url = await getAudioUrl(entry.file_name);
-      if (cancelled) return;
-      setAudioUrl(url);
-      setAudioMissing(!url);
-    };
-    loadAudio();
-    return () => {
-      cancelled = true;
-    };
-  }, [entry.file_name, getAudioUrl, shouldLoadAudio]);
-
-  const hasImprovement = !!entry.post_processed_text?.trim();
-
-  return (
-    <Box
-      ref={cardRef}
-      className="bg-background/40 backdrop-blur-md border border-white/10 rounded-xl shadow-sm overflow-hidden"
-    >
-      <Flex direction="column" className="p-4">
-        <Flex justify="between" align="center" className="pb-3">
-          <Flex gap="2" align="center" className="flex-wrap">
-            <Text size="1" color="gray">
-              {timeText}
-            </Text>
-            {appName ? (
-              <Text size="1" color="gray">
-                {appName}
-              </Text>
-            ) : null}
-            {metaText ? (
-              <Text size="1" color="gray">
-                {metaText}
-              </Text>
-            ) : null}
-          </Flex>
-
-          <Flex gap="2" align="center">
-            {retranscribing ? (
-              <Text size="1" color="gray" className="animate-pulse mr-2">
-                {t("dashboard.actions.retranscribing")}
-              </Text>
-            ) : null}
-
-            <Tooltip content={t("dashboard.actions.retranscribe")}>
-              <IconButton
-                variant="ghost"
-                size="2"
-                disabled={retranscribing}
-                onClick={onRetranscribeClick}
-                className="text-text/60 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
-              >
-                <IconReload className={`w-4 h-4 ${retranscribing ? "animate-spin" : ""}`} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={t("settings.history.copyToClipboard")}>
-              <IconButton
-                variant="ghost"
-                size="2"
-                onClick={() => {
-                  const text =
-                    hasImprovement && activeTab === "improved"
-                      ? entry.post_processed_text ?? entry.transcription_text
-                      : entry.transcription_text;
-                  onCopy(text ?? "");
-                }}
-                className="text-text/60 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
-              >
-                <IconCopy className="w-4 h-4" />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip
-              content={
-                entry.saved
-                  ? t("settings.history.unsave")
-                  : t("settings.history.save")
-              }
-            >
-              <IconButton
-                variant="ghost"
-                size="2"
-                onClick={() => onToggleSaved(entry.id)}
-                className={`transition-colors ${entry.saved
-                  ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
-                  : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
-                  }`}
-              >
-                <IconStar className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
-              </IconButton>
-            </Tooltip>
-
-            <Tooltip content={t("settings.history.delete")}>
-              <IconButton
-                variant="ghost"
-                size="2"
-                color="red"
-                onClick={() => onDelete(entry.id)}
-                className="text-text/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
-              >
-                <IconTrash className="w-4 h-4" />
-              </IconButton>
-            </Tooltip>
-          </Flex>
-        </Flex>
-
-        {hasImprovement ? (
-          <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <Tabs.List size="1" className="mb-3">
-              <Tabs.Trigger value="improved">
-                {t("settings.history.content.improved")}
-              </Tabs.Trigger>
-              <Tabs.Trigger value="original">
-                {t("settings.history.content.original")}
-              </Tabs.Trigger>
-            </Tabs.List>
-            <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
-              <Tabs.Content value="improved">
-                <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
-                  {entry.post_processed_text}
-                </Text>
-              </Tabs.Content>
-              <Tabs.Content value="original">
-                <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
-                  {entry.transcription_text}
-                </Text>
-              </Tabs.Content>
-            </Box>
-          </Tabs.Root>
-        ) : (
-          <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
-            <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
-              {entry.transcription_text}
-            </Text>
-          </Box>
-        )}
-
-        {audioUrl && (
-          <Box className="pt-3 border-t border-white/5">
-            <AudioPlayer
-              src={audioUrl}
-              className="w-full"
-              onError={() => {
-                setAudioUrl(null);
-                setAudioMissing(true);
-              }}
-            />
-          </Box>
-        )}
-        {!audioUrl && audioMissing && (
-          <Box className="pt-3 border-t border-white/5">
-            <Text size="2" color="gray">
-              {t("dashboard.details.audioRemoved")}
-            </Text>
-          </Box>
-        )}
-      </Flex>
-    </Box>
-  );
-}, (prevProps, nextProps) => {
-  // 自定义比较函数：只有这些属性变化时才重新渲染
-  return (
-    prevProps.entry.id === nextProps.entry.id &&
-    prevProps.entry.saved === nextProps.entry.saved &&
-    prevProps.entry.transcription_text === nextProps.entry.transcription_text &&
-    prevProps.entry.post_processed_text === nextProps.entry.post_processed_text
-  );
-});
-
-DashboardEntryCard.displayName = 'DashboardEntryCard';
+import { DashboardEntryCard } from "./DashboardEntryCard";
+import type { HistoryEntry, DashboardSelection } from "./dashboardTypes";
+import {
+  formatDurationMs,
+  toLocalYmd,
+  countUnicodeChars,
+  formatEntryTime,
+} from "./dashboardUtils";
 
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
@@ -601,6 +311,7 @@ export const Dashboard: React.FC = () => {
               {bars.map((b) => (
                 <Tooltip
                   key={b.day}
+                  side="bottom"
                   content={
                     <Flex direction="column" gap="1">
                       <Text size="2" weight="bold">
@@ -614,7 +325,7 @@ export const Dashboard: React.FC = () => {
                 >
                   <button
                     type="button"
-                    className="flex-1 rounded-sm transition-colors transition-transform hover:-translate-y-0.5"
+                    className="flex-1 rounded-sm transition-all hover:border-2! hover:border-logo-primary!"
                     style={{
                       height: `${Math.max(4, b.heightPct)}%`,
                       backgroundColor: b.selected
@@ -624,6 +335,7 @@ export const Dashboard: React.FC = () => {
                       cursor: "pointer",
                       transform: b.isToday ? "translateY(-2px)" : undefined,
                       boxShadow: b.isToday ? "0 6px 16px rgba(0,0,0,0.08)" : undefined,
+                      border: "2px solid transparent",
                     }}
                     onClick={() => setSelection({ type: "day", day: b.day })}
                   />
@@ -783,7 +495,6 @@ export const Dashboard: React.FC = () => {
                       </Text>
                     </Flex>
                   </Box>
-
                   <Box className="pt-3 space-y-3">
                     {dayEntries.map((entry, idx) => {
                       const timeInfo = formatEntryTime(entry.timestamp);
@@ -800,7 +511,6 @@ export const Dashboard: React.FC = () => {
                         );
                       }
                       const meta = metaParts.join(" · ");
-
                       return (
                         <DashboardEntryCard
                           key={entry.id}

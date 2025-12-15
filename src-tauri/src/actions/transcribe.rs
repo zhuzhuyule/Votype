@@ -638,6 +638,7 @@ impl ShortcutAction for TranscribeAction {
                                                 &settings_clone,
                                                 &transcription_clone,
                                                 secondary.as_deref(),
+                                                true,
                                             )
                                             .await
                                         } {
