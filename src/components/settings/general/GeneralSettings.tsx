@@ -15,7 +15,7 @@ export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
   const { audioFeedbackEnabled } = useSettings();
   return (
-    <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
+    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.general.title")}>
         <AppLanguageSelector descriptionMode="tooltip" grouped={true} />
         <LanguageSelector descriptionMode="tooltip" grouped={true} />

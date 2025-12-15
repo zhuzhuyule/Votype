@@ -13,7 +13,7 @@ export const ShortcutsSettings: React.FC = () => {
   const debugMode = settings?.debug_mode ?? false;
 
   return (
-    <Flex direction="column" className="max-w-3xl w-full mx-auto space-y-6">
+    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.shortcuts.title")}>
         <VotypeShortcut shortcutId="transcribe" descriptionMode="tooltip" grouped={true} />
         {debugMode ? (

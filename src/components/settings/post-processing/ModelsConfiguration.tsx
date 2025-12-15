@@ -117,7 +117,7 @@ export const ModelsConfiguration: React.FC = () => {
   const [isProviderManagerOpen, setProviderManagerOpen] = useState(false);
 
   return (
-    <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
+    <Flex direction="column" gap="6" className="max-w-5xl w-full mx-auto">
       <SettingsGroup
         title={t("settings.postProcessing.api.title")}
         actions={

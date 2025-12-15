@@ -307,7 +307,7 @@ export const PromptsConfiguration: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <Flex direction="column" gap="6" className="max-w-3xl w-full mx-auto">
+    <Flex direction="column" gap="6" className="max-w-5xl w-full mx-auto">
       <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
         <PostProcessingToggle grouped={true} />
         <SecondaryTranscriptFusion grouped={true} />
