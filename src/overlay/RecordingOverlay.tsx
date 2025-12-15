@@ -61,10 +61,12 @@ const RecordingOverlay: React.FC = () => {
       });
 
       // Clear realtime text when returning to "recording" after a cycle.
-      const unlistenWorkerExit = await listen("sherpa-online-worker-exited", () => {
+      const clearRealtime = () => {
         setRealtimeText("");
         setRealtimeIsFinal(false);
-      });
+      };
+      const unlistenOnlineWorkerExit = await listen("sherpa-online-worker-exited", clearRealtime);
+      const unlistenOfflineWorkerExit = await listen("sherpa-offline-worker-exited", clearRealtime);
 
       // Listen for mic-level updates
       const unlistenLevel = await listen<number[]>("mic-level", (event) => {
@@ -80,17 +82,24 @@ const RecordingOverlay: React.FC = () => {
         setLevels(smoothed.slice(0, 9));
       });
 
-      const unlistenSherpaPartial = await listen<SherpaPartialEvent>(
+      const handlePartial = (event: { payload: SherpaPartialEvent }) => {
+        const payload = event.payload as SherpaPartialEvent;
+        const rawText = (payload?.punctuated_text ?? payload?.text ?? "").trim();
+        const text = payload?.punctuated_text
+          ? rawText
+          : normalizeDictatedPunctuation(rawText);
+        setRealtimeText(text);
+        setRealtimeIsFinal(Boolean(payload?.is_final));
+      };
+
+      const unlistenSherpaOnlinePartial = await listen<SherpaPartialEvent>(
         "sherpa-online-partial",
-        (event) => {
-          const payload = event.payload as SherpaPartialEvent;
-          const rawText = (payload?.punctuated_text ?? payload?.text ?? "").trim();
-          const text = payload?.punctuated_text
-            ? rawText
-            : normalizeDictatedPunctuation(rawText);
-          setRealtimeText(text);
-          setRealtimeIsFinal(Boolean(payload?.is_final));
-        },
+        handlePartial as any,
+      );
+
+      const unlistenSherpaOfflinePartial = await listen<SherpaPartialEvent>(
+        "sherpa-offline-partial",
+        handlePartial as any,
       );
 
       // Listen for theme changes from localStorage (when main app changes theme)
@@ -107,8 +116,10 @@ const RecordingOverlay: React.FC = () => {
         unlistenShow();
         unlistenHide();
         unlistenLevel();
-        unlistenSherpaPartial();
-        unlistenWorkerExit();
+        unlistenSherpaOnlinePartial();
+        unlistenSherpaOfflinePartial();
+        unlistenOnlineWorkerExit();
+        unlistenOfflineWorkerExit();
         window.removeEventListener("storage", handleStorageChange);
       };
     };

@@ -1052,6 +1052,17 @@ pub fn change_punctuation_model_setting(app: AppHandle, model_id: String) -> Res
     Ok(())
 }
 
+#[tauri::command]
+pub fn change_favorite_transcription_models_setting(
+    app: AppHandle,
+    model_ids: Vec<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.favorite_transcription_models = model_ids;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 /// Determine whether a shortcut string contains at least one non-modifier key.
 /// We allow single non-modifier keys (e.g. "f5" or "space") but disallow
 /// modifier-only combos (e.g. "ctrl" or "ctrl+shift").

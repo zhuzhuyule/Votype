@@ -59,6 +59,14 @@ impl ShortcutAction for TranscribeAction {
                 })
                 .unwrap_or(false);
 
+        // Check if we should use offline VAD streaming (for non-streaming Sherpa models)
+        let use_sherpa_offline = !settings.online_asr_enabled
+            && !use_sherpa_online
+            && mm
+                .get_model_info(&settings.selected_model)
+                .map(|m| matches!(m.engine_type, EngineType::SherpaOnnx))
+                .unwrap_or(false);
+
         if use_sherpa_online {
             let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
             let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
@@ -82,6 +90,56 @@ impl ShortcutAction for TranscribeAction {
                 }
                 let _ = app_handle.emit(
                     "sherpa-online-worker-exited",
+                    serde_json::json!({ "ok": result.is_ok() }),
+                );
+                let _ = final_tx.send(result);
+            });
+        } else if use_sherpa_offline {
+            // Sherpa offline model with VAD streaming
+            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
+            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
+            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
+
+            rm.set_speech_frame_sender(Some(frame_tx));
+            rm.set_online_transcription_receiver(Some(final_rx));
+
+            let app_handle = (*app).clone();
+            std::thread::spawn(move || {
+                let result = (|| -> anyhow::Result<String> {
+                    tm.start_sherpa_offline_session()?;
+
+                    // Note: the audio pipeline emits *continuous* frames; when VAD reports
+                    // non-speech it forwards a zeroed frame. Use those "silent" frames to
+                    // drive the speech->silence transition logic.
+                    loop {
+                        match frame_rx.recv_timeout(Duration::from_millis(100)) {
+                            Ok(frame) => {
+                                let is_silence = frame.iter().all(|v| v.abs() <= 1e-7);
+                                if is_silence {
+                                    tm.check_sherpa_offline_silence()?;
+                                } else {
+                                    tm.feed_sherpa_offline_session(&frame)?;
+                                }
+                            }
+                            Err(mpsc::RecvTimeoutError::Timeout) => {
+                                // Check for silence timeout
+                                tm.check_sherpa_offline_silence()?;
+                            }
+                            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                                // Channel closed, finish session
+                                break;
+                            }
+                        }
+                    }
+
+                    tm.finish_sherpa_offline_session()
+                })();
+
+                if let Err(e) = &result {
+                    error!("Sherpa offline transcription worker failed: {}", e);
+                }
+                let _ = app_handle.emit(
+                    "sherpa-offline-worker-exited",
                     serde_json::json!({ "ok": result.is_ok() }),
                 );
                 let _ = final_tx.send(result);
@@ -117,7 +175,7 @@ impl ShortcutAction for TranscribeAction {
             }
         }
 
-        if !recording_started && use_sherpa_online {
+        if !recording_started && (use_sherpa_online || use_sherpa_offline) {
             rm.set_speech_frame_sender(None);
             rm.set_online_transcription_receiver(None);
         }
