@@ -1037,6 +1037,43 @@ pub fn change_append_trailing_space_setting(app: AppHandle, enabled: bool) -> Re
 }
 
 #[tauri::command]
+pub fn change_offline_vad_force_interval_ms_setting(app: AppHandle, value: u64) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.offline_vad_force_interval_ms = value;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "offline_vad_force_interval_ms",
+            "value": value
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_offline_vad_force_window_seconds_setting(
+    app: AppHandle,
+    value: u64,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.offline_vad_force_window_seconds = value;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "offline_vad_force_window_seconds",
+            "value": value
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn change_punctuation_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.punctuation_enabled = enabled;

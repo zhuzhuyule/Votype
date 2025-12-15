@@ -267,6 +267,10 @@ pub struct AppSettings {
     pub punctuation_model: String,
     #[serde(default = "default_favorite_transcription_models")]
     pub favorite_transcription_models: Vec<String>,
+    #[serde(default = "default_offline_vad_force_interval_ms")]
+    pub offline_vad_force_interval_ms: u64,
+    #[serde(default = "default_offline_vad_force_window_seconds")]
+    pub offline_vad_force_window_seconds: u64,
 }
 
 fn default_model() -> String {
@@ -438,6 +442,14 @@ fn default_favorite_transcription_models() -> Vec<String> {
     Vec::new()
 }
 
+fn default_offline_vad_force_interval_ms() -> u64 {
+    2000
+}
+
+fn default_offline_vad_force_window_seconds() -> u64 {
+    30
+}
+
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![LLMPrompt {
         id: "default_improve_transcriptions".to_string(),
@@ -565,6 +577,8 @@ pub fn get_default_settings() -> AppSettings {
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
         favorite_transcription_models: default_favorite_transcription_models(),
+        offline_vad_force_interval_ms: default_offline_vad_force_interval_ms(),
+        offline_vad_force_window_seconds: default_offline_vad_force_window_seconds(),
     }
 }
 

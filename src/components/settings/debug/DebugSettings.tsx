@@ -11,6 +11,8 @@ import { SoundPicker } from "../SoundPicker";
 import { UpdateChecksToggle } from "../UpdateChecksToggle";
 import { LogDirectory } from "./LogDirectory";
 import { LogLevelSelector } from "./LogLevelSelector";
+import { OfflineVadRealtimeInterval } from "./OfflineVadRealtimeInterval";
+import { OfflineVadRealtimeWindow } from "./OfflineVadRealtimeWindow";
 import { WordCorrectionThreshold } from "./WordCorrectionThreshold";
 
 export const DebugSettings: React.FC = () => {
@@ -22,6 +24,8 @@ export const DebugSettings: React.FC = () => {
         <LogDirectory grouped={true} />
         <LogLevelSelector grouped={true} />
         <UpdateChecksToggle descriptionMode="tooltip" grouped={true} />
+        <OfflineVadRealtimeInterval descriptionMode="tooltip" grouped={true} />
+        <OfflineVadRealtimeWindow descriptionMode="tooltip" grouped={true} />
         <SoundPicker
           label={t("settings.debug.soundTheme.label")}
           description={t("settings.debug.soundTheme.description")}

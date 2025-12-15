@@ -673,6 +673,12 @@
         "label": "Append Trailing Space",
         "description": "Add a space after pasted transcription"
       },
+      "offlineVadRealtime": {
+        "intervalLabel": "Offline realtime interval (ms)",
+        "intervalDescription": "Force a realtime refresh every N ms (0 to disable).",
+        "windowLabel": "Offline realtime window (s)",
+        "windowDescription": "When total audio exceeds 30s, realtime decoding uses the last N seconds when there are no VAD segments."
+      },
       "paths": {
         "title": "Paths",
         "description": "Common filesystem paths Votype uses",

@@ -414,6 +414,8 @@ pub fn run() {
             shortcut::resume_binding,
             shortcut::change_mute_while_recording_setting,
             shortcut::change_append_trailing_space_setting,
+            shortcut::change_offline_vad_force_interval_ms_setting,
+            shortcut::change_offline_vad_force_window_seconds_setting,
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,

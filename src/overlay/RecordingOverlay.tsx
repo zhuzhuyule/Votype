@@ -29,6 +29,37 @@ const normalizeDictatedPunctuation = (input: string) => {
     .replace(/分号/g, "；");
 };
 
+const stripTrailingSentencePunctuation = (input: string) => {
+  let out = input.trimEnd();
+  if (!out) return out;
+
+  // For in-progress display: if the model already produced a sentence terminator,
+  // temporarily hide it to convey "still listening".
+  out = out.replace(/[。！？.!?]+$/g, "");
+  // Also strip trailing ellipsis forms.
+  out = out.replace(/·+$/g, "");
+  return out.trimEnd();
+};
+
+const useAnimatedEllipsis = (enabled: boolean) => {
+  const [ellipsis, setEllipsis] = useState("…");
+  useEffect(() => {
+    if (!enabled) {
+      setEllipsis("");
+      return;
+    }
+    const frames = ["·", "··", "···"];
+    let idx = 0;
+    setEllipsis(frames[idx]);
+    const id = window.setInterval(() => {
+      idx = (idx + 1) % frames.length;
+      setEllipsis(frames[idx]);
+    }, 350);
+    return () => window.clearInterval(id);
+  }, [enabled]);
+  return ellipsis;
+};
+
 const RecordingOverlay: React.FC = () => {
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
@@ -39,6 +70,16 @@ const RecordingOverlay: React.FC = () => {
   const [realtimeIsFinal, setRealtimeIsFinal] = useState<boolean>(false);
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
+  const stateRef = useRef<OverlayState>("recording");
+  const allowNonFinalRef = useRef<boolean>(true);
+  const finalLockedRef = useRef<boolean>(false);
+  const animatedEllipsis = useAnimatedEllipsis(
+    isVisible && state === "recording" && realtimeText.trim().length > 0 && !realtimeIsFinal,
+  );
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     const setupEventListeners = async () => {
@@ -46,8 +87,17 @@ const RecordingOverlay: React.FC = () => {
       const unlistenShow = await listen("show-overlay", (event) => {
         const overlayState = event.payload as OverlayState;
         setState(overlayState);
+        stateRef.current = overlayState;
         setIsVisible(true);
+        // Once the stop signal arrives we should immediately show "transcribing" rather than
+        // stale partial text, and ignore any non-final partials that might still arrive.
+        allowNonFinalRef.current = overlayState === "recording";
         if (overlayState === "recording") {
+          finalLockedRef.current = false;
+        }
+        // Reset the realtime view when entering a new phase. In particular, once the stop signal
+        // arrives we should immediately show "transcribing" rather than stale partial text.
+        if (overlayState === "recording" || overlayState === "transcribing") {
           setRealtimeText("");
           setRealtimeIsFinal(false);
         }
@@ -58,15 +108,10 @@ const RecordingOverlay: React.FC = () => {
         setIsVisible(false);
         setRealtimeText("");
         setRealtimeIsFinal(false);
+        // Next session can accept non-final partials again.
+        allowNonFinalRef.current = true;
+        finalLockedRef.current = false;
       });
-
-      // Clear realtime text when returning to "recording" after a cycle.
-      const clearRealtime = () => {
-        setRealtimeText("");
-        setRealtimeIsFinal(false);
-      };
-      const unlistenOnlineWorkerExit = await listen("sherpa-online-worker-exited", clearRealtime);
-      const unlistenOfflineWorkerExit = await listen("sherpa-offline-worker-exited", clearRealtime);
 
       // Listen for mic-level updates
       const unlistenLevel = await listen<number[]>("mic-level", (event) => {
@@ -84,12 +129,31 @@ const RecordingOverlay: React.FC = () => {
 
       const handlePartial = (event: { payload: SherpaPartialEvent }) => {
         const payload = event.payload as SherpaPartialEvent;
+        const isFinal = Boolean(payload?.is_final);
+        // Once we enter "transcribing"/"llm", the overlay should not display long text anymore.
+        // Showing any late partial/final payloads here causes confusing "flash back" to old text.
+        if (stateRef.current !== "recording") {
+          return;
+        }
+        if (finalLockedRef.current) {
+          return;
+        }
+        if (!isFinal && !allowNonFinalRef.current) {
+          return;
+        }
         const rawText = (payload?.punctuated_text ?? payload?.text ?? "").trim();
         const text = payload?.punctuated_text
           ? rawText
           : normalizeDictatedPunctuation(rawText);
         setRealtimeText(text);
-        setRealtimeIsFinal(Boolean(payload?.is_final));
+        setRealtimeIsFinal(isFinal);
+
+        // After we have displayed a final result, ignore any subsequent non-final partials from
+        // background workers until a new recording starts.
+        if (isFinal) {
+          allowNonFinalRef.current = false;
+          finalLockedRef.current = true;
+        }
       };
 
       const unlistenSherpaOnlinePartial = await listen<SherpaPartialEvent>(
@@ -118,8 +182,6 @@ const RecordingOverlay: React.FC = () => {
         unlistenLevel();
         unlistenSherpaOnlinePartial();
         unlistenSherpaOfflinePartial();
-        unlistenOnlineWorkerExit();
-        unlistenOfflineWorkerExit();
         window.removeEventListener("storage", handleStorageChange);
       };
     };
@@ -136,7 +198,7 @@ const RecordingOverlay: React.FC = () => {
     const el = realtimeScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [realtimeText, isVisible]);
+  }, [realtimeText, realtimeIsFinal, state, isVisible]);
 
   const getIcon = () => {
     if (state === "recording") {
@@ -152,8 +214,12 @@ const RecordingOverlay: React.FC = () => {
     llm: t("overlay.status.llm"),
   };
 
-  const showRealtimeText =
-    realtimeText.length > 0 && (state === "recording" || state === "transcribing");
+  const realtimeDisplayText =
+    state === "recording" && !realtimeIsFinal
+      ? `${stripTrailingSentencePunctuation(realtimeText)}${animatedEllipsis}`.trim()
+      : realtimeText;
+
+  const showRealtimeText = realtimeDisplayText.length > 0 && state === "recording";
 
   return (
     <div className="overlay-root">
@@ -170,7 +236,7 @@ const RecordingOverlay: React.FC = () => {
               ref={realtimeScrollRef}
               className={`realtime-scroll ${realtimeIsFinal ? "final" : ""}`}
             >
-              <div className="realtime-text">{realtimeText}</div>
+              <div className="realtime-text">{realtimeDisplayText}</div>
             </div>
           )}
 

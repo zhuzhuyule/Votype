@@ -5,6 +5,7 @@ use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
 use log::{debug, error, info, warn};
 use serde::Serialize;
+use std::collections::VecDeque;
 use std::ffi::{CStr, CString};
 use std::mem;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -47,27 +48,36 @@ unsafe impl Sync for SherpaOnlineSession {}
 
 /// Session for VAD-based streaming with offline models.
 /// Accumulates audio segments and transcribes each segment when silence is detected.
+struct OfflineVadSegment {
+    audio: Vec<f32>,
+    text: String,
+}
+
+struct OfflineRealtimeJob {
+    now_ms: u64,
+    prefix_text: String,
+    audio: Vec<f32>,
+}
+
 struct SherpaOfflineSession {
     /// All audio samples collected during recording (for final re-transcription)
     all_samples: Vec<f32>,
     /// Current pending audio segment waiting for transcription
     pending_audio: Vec<f32>,
-    /// Accumulated transcription text from all segments
-    committed_text: String,
-    /// Last emitted text (for change detection)
-    last_text: String,
-    /// Current partial text being built
-    current_partial: String,
+    /// Rolling window of the most recent VAD segments (for contextual realtime decode)
+    recent_segments: VecDeque<OfflineVadSegment>,
+    /// Stable prefix text older than `recent_segments`
+    prefix_text: String,
+    /// Timestamp of last speech frame received (for silence detection)
+    last_voice_ms: u64,
     /// Timestamp of last emission (for throttling)
     last_emit_ms: u64,
-    /// Timestamp of last audio frame received (for silence detection)
-    last_frame_ms: u64,
-    /// Number of consecutive silent frames
-    silence_frames: usize,
-    /// Punctuation state
-    last_punct_emit_ms: u64,
-    last_punct_text: String,
-    last_punctuated_text: String,
+    /// Timestamp of last forced emission (2s interval)
+    last_force_ms: u64,
+    /// Last emitted display text (for change detection)
+    last_emit_text: String,
+    /// Sender for the realtime decode worker. Dropping it stops the worker.
+    realtime_tx: Option<std::sync::mpsc::SyncSender<OfflineRealtimeJob>>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -89,8 +99,8 @@ pub struct SherpaPartialEvent {
 enum LoadedEngine {
     Whisper(WhisperEngine),
     Parakeet(ParakeetEngine),
-    SherpaOnline(SherpaOnnxOnlineRecognizer),
-    SherpaOffline(SherpaOnnxOfflineRecognizer),
+    SherpaOnline(Arc<SherpaOnnxOnlineRecognizer>),
+    SherpaOffline(Arc<SherpaOnnxOfflineRecognizer>),
 }
 
 #[derive(Clone)]
@@ -106,6 +116,7 @@ pub struct TranscriptionManager {
     loading_condvar: Arc<Condvar>,
     sherpa_session: Arc<Mutex<Option<SherpaOnlineSession>>>,
     sherpa_offline_session: Arc<Mutex<Option<SherpaOfflineSession>>>,
+    sherpa_offline_decode_lock: Arc<Mutex<()>>,
     punctuation: Arc<Mutex<Option<(String, SherpaOnnxOfflinePunctuation)>>>,
 }
 
@@ -128,6 +139,7 @@ impl TranscriptionManager {
             loading_condvar: Arc::new(Condvar::new()),
             sherpa_session: Arc::new(Mutex::new(None)),
             sherpa_offline_session: Arc::new(Mutex::new(None)),
+            sherpa_offline_decode_lock: Arc::new(Mutex::new(())),
             punctuation: Arc::new(Mutex::new(None)),
         };
 
@@ -197,6 +209,16 @@ impl TranscriptionManager {
     pub fn is_model_loaded(&self) -> bool {
         let engine = self.engine.lock().unwrap();
         engine.is_some()
+    }
+
+    pub fn is_current_sherpa_online(&self) -> bool {
+        let engine_guard = self.engine.lock().unwrap();
+        matches!(engine_guard.as_ref(), Some(LoadedEngine::SherpaOnline(_)))
+    }
+
+    pub fn is_current_sherpa_offline(&self) -> bool {
+        let engine_guard = self.engine.lock().unwrap();
+        matches!(engine_guard.as_ref(), Some(LoadedEngine::SherpaOffline(_)))
     }
 
     pub fn unload_model(&self) -> Result<()> {
@@ -423,7 +445,7 @@ impl TranscriptionManager {
                             anyhow::anyhow!(error_msg)
                         })?;
 
-                        LoadedEngine::SherpaOnline(recognizer)
+                        LoadedEngine::SherpaOnline(Arc::new(recognizer))
                     } else {
                     let encoder =
                         find_sherpa_onnx(&model_path, "encoder", prefer_int8).map_err(|e| {
@@ -509,7 +531,7 @@ impl TranscriptionManager {
                         anyhow::anyhow!(error_msg)
                     })?;
 
-                    LoadedEngine::SherpaOnline(recognizer)
+                    LoadedEngine::SherpaOnline(Arc::new(recognizer))
                     }
                 } else if matches!(
                     family,
@@ -566,7 +588,7 @@ impl TranscriptionManager {
                         anyhow::anyhow!(error_msg)
                     })?;
 
-                    LoadedEngine::SherpaOffline(recognizer)
+                    LoadedEngine::SherpaOffline(Arc::new(recognizer))
                 } else if matches!(
                     family,
                     crate::managers::model::SherpaOnnxAsrFamily::Paraformer
@@ -609,7 +631,7 @@ impl TranscriptionManager {
                         anyhow::anyhow!(error_msg)
                     })?;
 
-                    LoadedEngine::SherpaOffline(recognizer)
+                    LoadedEngine::SherpaOffline(Arc::new(recognizer))
                 } else if matches!(
                     family,
                     crate::managers::model::SherpaOnnxAsrFamily::FireRedAsr
@@ -669,7 +691,7 @@ impl TranscriptionManager {
                         anyhow::anyhow!(error_msg)
                     })?;
 
-                    LoadedEngine::SherpaOffline(recognizer)
+                    LoadedEngine::SherpaOffline(Arc::new(recognizer))
                 } else {
                     let error_msg = format!("Unsupported Sherpa model: {}", model_info.filename);
                     let _ = self.app_handle.emit(
@@ -980,6 +1002,15 @@ impl TranscriptionManager {
         Ok(final_text)
     }
 
+    pub fn abort_sherpa_online_session(&self) {
+        let sess = self.sherpa_session.lock().unwrap().take();
+        if let Some(sess) = sess {
+            unsafe {
+                sherpa_safe::SafeSherpaOnnxDestroyOnlineStream(sess.stream);
+            }
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Sherpa Offline VAD Streaming Session
     // ─────────────────────────────────────────────────────────────────────────
@@ -1008,16 +1039,36 @@ impl TranscriptionManager {
         *session_guard = Some(SherpaOfflineSession {
             all_samples: Vec::new(),
             pending_audio: Vec::new(),
-            committed_text: String::new(),
-            last_text: String::new(),
-            current_partial: String::new(),
+            recent_segments: VecDeque::new(),
+            prefix_text: String::new(),
+            last_voice_ms: now_ms,
             last_emit_ms: 0,
-            last_frame_ms: now_ms,
-            silence_frames: 0,
-            last_punct_emit_ms: 0,
-            last_punct_text: String::new(),
-            last_punctuated_text: String::new(),
+            last_force_ms: now_ms,
+            last_emit_text: String::new(),
+            realtime_tx: None,
         });
+
+        // Start a lightweight realtime decode worker for UI feedback. This worker is best-effort:
+        // it skips work if the engine is busy (e.g. final transcription) to avoid deadlocks.
+        let tm = self.clone();
+        let (tx, rx) = std::sync::mpsc::sync_channel::<OfflineRealtimeJob>(1);
+        std::thread::spawn(move || {
+            let mut punctuation_cache: Option<(String, SherpaOnnxOfflinePunctuation)> = None;
+            while let Ok(mut job) = rx.recv() {
+                // Coalesce: keep only the latest pending job.
+                while let Ok(next) = rx.try_recv() {
+                    job = next;
+                }
+
+                if let Err(e) = tm.process_offline_realtime_job(job, &mut punctuation_cache) {
+                    warn!("Offline realtime decode failed: {}", e);
+                }
+            }
+        });
+
+        if let Some(sess) = session_guard.as_mut() {
+            sess.realtime_tx = Some(tx);
+        }
 
         debug!("Started Sherpa offline streaming session");
         Ok(())
@@ -1046,9 +1097,213 @@ impl TranscriptionManager {
         // Accumulate pending audio for segment transcription
         sess.pending_audio.extend_from_slice(samples);
         // Update timestamp - this is used to detect when speech stops
-        sess.last_frame_ms = now_ms;
+        sess.last_voice_ms = now_ms;
 
         Ok(())
+    }
+
+    fn enqueue_sherpa_offline_realtime_partial(&self, now_ms: u64) -> Result<()> {
+        const SAMPLE_RATE: usize = 16000;
+        const FULL_CONTEXT_SECONDS: f64 = 30.0;
+
+        let settings = get_settings(&self.app_handle);
+
+        let (prefix_text, audio, tx) = {
+            let session_guard = self.sherpa_offline_session.lock().unwrap();
+            let Some(sess) = session_guard.as_ref() else {
+                return Ok(());
+            };
+
+            if sess.all_samples.is_empty() {
+                return Ok(());
+            }
+
+            let total_seconds = sess.all_samples.len() as f64 / SAMPLE_RATE as f64;
+            let window_seconds = settings.offline_vad_force_window_seconds.max(1) as usize;
+            let window_samples = window_seconds * SAMPLE_RATE;
+
+            if total_seconds <= FULL_CONTEXT_SECONDS {
+                (
+                    String::new(),
+                    sess.all_samples.clone(),
+                    sess.realtime_tx.clone(),
+                )
+            } else if !sess.recent_segments.is_empty() {
+                let mut out = Vec::new();
+                for seg in sess.recent_segments.iter() {
+                    out.extend_from_slice(&seg.audio);
+                }
+                if !sess.pending_audio.is_empty() {
+                    let start = sess
+                        .pending_audio
+                        .len()
+                        .saturating_sub(window_samples);
+                    out.extend_from_slice(&sess.pending_audio[start..]);
+                }
+                (sess.prefix_text.clone(), out, sess.realtime_tx.clone())
+            } else {
+                let start = sess.all_samples.len().saturating_sub(window_samples);
+                (
+                    String::new(),
+                    sess.all_samples[start..].to_vec(),
+                    sess.realtime_tx.clone(),
+                )
+            }
+        };
+
+        let Some(tx) = tx else {
+            return Ok(());
+        };
+        let _ = tx.try_send(OfflineRealtimeJob {
+            now_ms,
+            prefix_text,
+            audio,
+        });
+
+        Ok(())
+    }
+
+    fn process_offline_realtime_job(
+        &self,
+        job: OfflineRealtimeJob,
+        punctuation_cache: &mut Option<(String, SherpaOnnxOfflinePunctuation)>,
+    ) -> Result<()> {
+        // Best-effort: do not block final transcription or model operations.
+        let recognizer = match self.engine.try_lock() {
+            Ok(g) => match g.as_ref() {
+                Some(LoadedEngine::SherpaOffline(recognizer)) => Arc::clone(recognizer),
+                _ => return Ok(()),
+            },
+            Err(_) => return Ok(()),
+        };
+
+        let decode_guard = match self.sherpa_offline_decode_lock.try_lock() {
+            Ok(g) => g,
+            Err(_) => return Ok(()),
+        };
+        let window_text = recognizer.decode(16000, &job.audio)?.trim().to_string();
+        drop(decode_guard);
+        let display_text = if job.prefix_text.trim().is_empty() {
+            window_text.clone()
+        } else if window_text.is_empty() {
+            job.prefix_text.trim().to_string()
+        } else if job.prefix_text.ends_with('\n') {
+            format!("{}{}", job.prefix_text, window_text)
+        } else {
+            format!("{}\n{}", job.prefix_text.trim_end(), window_text)
+        };
+
+        let display_text = display_text.trim().to_string();
+        if display_text.is_empty() {
+            return Ok(());
+        }
+
+        let settings = get_settings(&self.app_handle);
+        let mut punctuated_text: Option<String> = None;
+        if settings.punctuation_enabled {
+            let punct_model_id = settings.punctuation_model.trim();
+            if !punct_model_id.is_empty() {
+                let is_downloaded = self
+                    .model_manager
+                    .get_model_info(punct_model_id)
+                    .is_some_and(|m| m.is_downloaded);
+                if is_downloaded {
+                    if punctuation_cache
+                        .as_ref()
+                        .is_none_or(|(id, _)| id != punct_model_id)
+                    {
+                        let model_path = self.model_manager.get_model_path(punct_model_id)?;
+                        let prefer_int8 = self
+                            .model_manager
+                            .get_model_info(punct_model_id)
+                            .map(|m| m.filename.to_lowercase().contains("int8"))
+                            .unwrap_or(true);
+
+                        let model_file = find_sherpa_onnx(&model_path, "model", prefer_int8)?
+                            .to_string_lossy()
+                            .to_string();
+
+                        let punct = SherpaOnnxOfflinePunctuation::new_ct_transformer(
+                            model_file,
+                            "cpu".to_string(),
+                            2,
+                            false,
+                        )?;
+                        *punctuation_cache = Some((punct_model_id.to_string(), punct));
+                    }
+
+                    if let Some((_, punct)) = punctuation_cache.as_ref() {
+                        let punctuated = if display_text.contains('\n') {
+                            let mut out_lines = Vec::new();
+                            for line in display_text.split('\n') {
+                                if line.trim().is_empty() {
+                                    out_lines.push(String::new());
+                                } else {
+                                    out_lines.push(punct.add_punct(line)?);
+                                }
+                            }
+                            out_lines.join("\n")
+                        } else {
+                            punct.add_punct(&display_text)?
+                        };
+
+                        let punctuated = punctuated.trim().to_string();
+                        if !punctuated.is_empty() {
+                            punctuated_text = Some(punctuated);
+                        }
+                    }
+                }
+            }
+        }
+
+        {
+            let mut session_guard = self.sherpa_offline_session.lock().unwrap();
+            if let Some(sess) = session_guard.as_mut() {
+                if sess.last_emit_text == display_text {
+                    return Ok(());
+                }
+                sess.last_emit_text = display_text.clone();
+                sess.last_emit_ms = job.now_ms;
+            }
+        }
+
+        let _ = self.app_handle.emit(
+            "sherpa-offline-partial",
+            SherpaPartialEvent {
+                text: display_text,
+                punctuated_text,
+                is_final: false,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Force a realtime emission on an interval to improve long-utterance feedback.
+    pub fn maybe_force_sherpa_offline_partial(&self) -> Result<()> {
+        let now_ms = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let settings = get_settings(&self.app_handle);
+        let interval_ms = settings.offline_vad_force_interval_ms;
+        if interval_ms == 0 {
+            return Ok(());
+        }
+
+        {
+            let mut session_guard = self.sherpa_offline_session.lock().unwrap();
+            let Some(sess) = session_guard.as_mut() else {
+                return Ok(());
+            };
+            if now_ms.saturating_sub(sess.last_force_ms) < interval_ms {
+                return Ok(());
+            }
+            sess.last_force_ms = now_ms;
+        }
+
+        self.enqueue_sherpa_offline_realtime_partial(now_ms)
     }
 
     /// Check for silence timeout and trigger segment transcription if needed.
@@ -1065,79 +1320,69 @@ impl TranscriptionManager {
         const SILENCE_TIMEOUT_MS: u64 = 200;
         const MIN_SEGMENT_SAMPLES: usize = 1600; // Minimum 100ms of audio to transcribe
 
-        let mut session_guard = self.sherpa_offline_session.lock().unwrap();
-        let Some(sess) = session_guard.as_mut() else {
-            return Ok(());
-        };
+        let segment_audio = {
+            let mut session_guard = self.sherpa_offline_session.lock().unwrap();
+            let Some(sess) = session_guard.as_mut() else {
+                return Ok(());
+            };
 
-        // Check if enough time has passed since last speech frame
-        let silence_duration_ms = now_ms.saturating_sub(sess.last_frame_ms);
-        if silence_duration_ms >= SILENCE_TIMEOUT_MS
-            && sess.pending_audio.len() >= MIN_SEGMENT_SAMPLES
-        {
-            // VAD detected silence - transcribe the FULL accumulated audio for better context
-            let audio_to_transcribe = sess.all_samples.clone();
-            // Clear pending audio to avoid re-transcribing
-            sess.pending_audio.clear();
-            // Reset timer to prevent repeated transcriptions
-            sess.last_frame_ms = now_ms;
-            drop(session_guard);
+            let silence_duration_ms = now_ms.saturating_sub(sess.last_voice_ms);
+            if silence_duration_ms < SILENCE_TIMEOUT_MS || sess.pending_audio.len() < MIN_SEGMENT_SAMPLES {
+                return Ok(());
+            }
 
             debug!(
-                "Silence detected, transcribing {} samples",
-                audio_to_transcribe.len()
+                "Offline VAD silence detected ({}ms), committing {} samples",
+                silence_duration_ms,
+                sess.pending_audio.len()
             );
 
-            let settings = get_settings(&self.app_handle);
+            sess.last_voice_ms = now_ms;
+            std::mem::take(&mut sess.pending_audio)
+        };
+
+        // Segment commits must be reliable, otherwise long recordings will "lose" the stable
+        // prefix. We avoid holding `engine` during decode to prevent deadlocks with stop/final
+        // transcription, but we do serialize offline decodes via `sherpa_offline_decode_lock`.
+        let recognizer = {
             let engine_guard = self.engine.lock().unwrap();
-            if let Some(LoadedEngine::SherpaOffline(recognizer)) = engine_guard.as_ref() {
-                match recognizer.decode(16000, &audio_to_transcribe) {
-                    Ok(segment_text) => {
-                        let segment_text = segment_text.trim().to_string();
-                        let mut session_guard = self.sherpa_offline_session.lock().unwrap();
-                        if let Some(sess) = session_guard.as_mut() {
-                            // Store the current transcription
-                            sess.current_partial = segment_text.clone();
-                            sess.last_emit_ms = now_ms;
+            match engine_guard.as_ref() {
+                Some(LoadedEngine::SherpaOffline(recognizer)) => Arc::clone(recognizer),
+                _ => return Ok(()),
+            }
+        };
 
-                            // Apply punctuation if enabled
-                            let mut punctuated_text: Option<String> = None;
-                            if settings.punctuation_enabled && !segment_text.is_empty() {
-                                let punct_model_id = settings.punctuation_model.trim();
-                                if !punct_model_id.is_empty() {
-                                    let is_downloaded = self
-                                        .model_manager
-                                        .get_model_info(punct_model_id)
-                                        .is_some_and(|m| m.is_downloaded);
-                                    if is_downloaded {
-                                        if let Ok(punctuated) =
-                                            self.apply_punctuation_multiline(punct_model_id, &segment_text)
-                                        {
-                                            if !punctuated.trim().is_empty() {
-                                                punctuated_text = Some(punctuated);
-                                            }
-                                        }
-                                    }
-                                }
+        let segment_text = {
+            let _decode_guard = self.sherpa_offline_decode_lock.lock().unwrap();
+            match recognizer.decode(16000, &segment_audio) {
+                Ok(t) => t.trim().to_string(),
+                Err(e) => {
+                    warn!("Offline segment decode failed: {}", e);
+                    String::new()
+                }
+            }
+        };
+
+        {
+            let mut session_guard = self.sherpa_offline_session.lock().unwrap();
+            if let Some(sess) = session_guard.as_mut() {
+                sess.recent_segments
+                    .push_back(OfflineVadSegment { audio: segment_audio, text: segment_text });
+                while sess.recent_segments.len() > 3 {
+                    if let Some(old) = sess.recent_segments.pop_front() {
+                        let old_text = old.text.trim();
+                        if !old_text.is_empty() {
+                            if !sess.prefix_text.trim().is_empty() {
+                                sess.prefix_text.push('\n');
                             }
-
-                            // Emit partial result
-                            let _ = self.app_handle.emit(
-                                "sherpa-offline-partial",
-                                SherpaPartialEvent {
-                                    text: segment_text,
-                                    punctuated_text,
-                                    is_final: false,
-                                },
-                            );
+                            sess.prefix_text.push_str(old_text);
                         }
-                    }
-                    Err(e) => {
-                        warn!("Segment transcription on silence failed: {}", e);
                     }
                 }
             }
         }
+
+        self.enqueue_sherpa_offline_realtime_partial(now_ms)?;
 
         Ok(())
     }
@@ -1148,9 +1393,12 @@ impl TranscriptionManager {
         self.wait_for_local_engine()?;
 
         let sess = self.sherpa_offline_session.lock().unwrap().take();
-        let Some(sess) = sess else {
+        let Some(mut sess) = sess else {
             return Ok(String::new());
         };
+
+        // Stop realtime worker ASAP (it's best-effort and should not contend with final decode).
+        let _ = sess.realtime_tx.take();
 
         if sess.all_samples.is_empty() {
             return Ok(String::new());
@@ -1161,16 +1409,23 @@ impl TranscriptionManager {
             sess.all_samples.len()
         );
 
-        // Re-transcribe the complete audio for best quality
-        let engine_guard = self.engine.lock().unwrap();
-        let text = if let Some(LoadedEngine::SherpaOffline(recognizer)) = engine_guard.as_ref() {
-            recognizer.decode(16000, &sess.all_samples)?
-        } else {
-            return Err(anyhow::anyhow!(
-                "Selected engine is not a Sherpa offline model"
-            ));
+        // Re-transcribe the complete audio for best quality. Avoid holding `engine` during decode
+        // to prevent contention with stop/unload; serialize offline decodes explicitly.
+        let recognizer = {
+            let engine_guard = self.engine.lock().unwrap();
+            match engine_guard.as_ref() {
+                Some(LoadedEngine::SherpaOffline(recognizer)) => Arc::clone(recognizer),
+                _ => {
+                    return Err(anyhow::anyhow!(
+                        "Selected engine is not a Sherpa offline model"
+                    ));
+                }
+            }
         };
-        drop(engine_guard);
+        let text = {
+            let _decode_guard = self.sherpa_offline_decode_lock.lock().unwrap();
+            recognizer.decode(16000, &sess.all_samples)?
+        };
 
         let text = text.trim().to_string();
         let settings = get_settings(&self.app_handle);
@@ -1212,6 +1467,13 @@ impl TranscriptionManager {
         );
 
         Ok(final_text)
+    }
+
+    pub fn abort_sherpa_offline_session(&self) {
+        let sess = self.sherpa_offline_session.lock().unwrap().take();
+        if let Some(mut sess) = sess {
+            let _ = sess.realtime_tx.take();
+        }
     }
 
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
@@ -1394,6 +1656,7 @@ impl TranscriptionManager {
                         SHERPA_SAMPLE_RATE
                     );
 
+                    let _decode_guard = self.sherpa_offline_decode_lock.lock().unwrap();
                     let text = recognizer.decode(SHERPA_SAMPLE_RATE, &audio)?;
 
                     transcribe_rs::TranscriptionResult {

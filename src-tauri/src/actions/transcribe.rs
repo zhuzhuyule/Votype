@@ -5,7 +5,7 @@ use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, S
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::{EngineType, ModelManager};
-use crate::managers::transcription::TranscriptionManager;
+use crate::managers::transcription::{SherpaPartialEvent, TranscriptionManager};
 use crate::overlay::{show_recording_overlay, show_transcribing_overlay};
 use crate::settings::get_settings;
 use crate::shortcut;
@@ -117,13 +117,16 @@ impl ShortcutAction for TranscribeAction {
                                 let is_silence = frame.iter().all(|v| v.abs() <= 1e-7);
                                 if is_silence {
                                     tm.check_sherpa_offline_silence()?;
+                                    tm.maybe_force_sherpa_offline_partial()?;
                                 } else {
                                     tm.feed_sherpa_offline_session(&frame)?;
+                                    tm.maybe_force_sherpa_offline_partial()?;
                                 }
                             }
                             Err(mpsc::RecvTimeoutError::Timeout) => {
                                 // Check for silence timeout
                                 tm.check_sherpa_offline_silence()?;
+                                tm.maybe_force_sherpa_offline_partial()?;
                             }
                             Err(mpsc::RecvTimeoutError::Disconnected) => {
                                 // Channel closed, finish session
@@ -237,18 +240,15 @@ impl ShortcutAction for TranscribeAction {
 
                 let transcription_time = Instant::now();
                 let samples_clone = samples.clone();
-                let transcription_result = if let Some(rx) = rm.take_online_transcription_receiver()
-                {
-                    match rx.recv_timeout(Duration::from_secs(30)) {
-                        Ok(res) => res,
-                        Err(err) => Err(anyhow::anyhow!(
-                            "Timed out waiting for Sherpa online transcription: {}",
-                            err
-                        )),
-                    }
-                } else {
-                    tm.transcribe(samples_clone)
-                };
+                let had_streaming_worker = rm.take_online_transcription_receiver().is_some();
+                if had_streaming_worker {
+                    // Cancel streaming/offline sessions so stop never waits on in-flight partial/final decode.
+                    tm.abort_sherpa_online_session();
+                    tm.abort_sherpa_offline_session();
+                }
+
+                // Always compute the final transcription from full audio on stop.
+                let transcription_result = tm.transcribe(samples_clone);
 
                 match transcription_result {
                     Ok(transcription) => {
@@ -260,6 +260,32 @@ impl ShortcutAction for TranscribeAction {
                         );
                         if !transcription.is_empty() {
                             let settings = get_settings(&ah);
+                            // If we canceled a streaming/offline Sherpa worker on stop, it won't
+                            // emit the final partial event. Emit a final payload here so the overlay
+                            // shows the completed text (useful for long offline VAD streaming).
+                            if tm.is_current_sherpa_offline() {
+                                let punctuated_text =
+                                    settings.punctuation_enabled.then(|| transcription.clone());
+                                let _ = ah.emit(
+                                    "sherpa-offline-partial",
+                                    SherpaPartialEvent {
+                                        text: transcription.clone(),
+                                        punctuated_text,
+                                        is_final: true,
+                                    },
+                                );
+                            } else if tm.is_current_sherpa_online() {
+                                let punctuated_text =
+                                    settings.punctuation_enabled.then(|| transcription.clone());
+                                let _ = ah.emit(
+                                    "sherpa-online-partial",
+                                    SherpaPartialEvent {
+                                        text: transcription.clone(),
+                                        punctuated_text,
+                                        is_final: true,
+                                    },
+                                );
+                            }
                             let transcription_clone = transcription.clone();
                             let samples_clone = samples.clone();
 

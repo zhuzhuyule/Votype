@@ -107,6 +107,8 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   punctuation_enabled: false,
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
   favorite_transcription_models: [],
+  offline_vad_force_interval_ms: 2000,
+  offline_vad_force_window_seconds: 30,
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -175,6 +177,10 @@ const settingUpdaters: {
     invoke("change_punctuation_model_setting", { modelId: value }),
   favorite_transcription_models: (value) =>
     invoke("change_favorite_transcription_models_setting", { modelIds: value }),
+  offline_vad_force_interval_ms: (value) =>
+    invoke("change_offline_vad_force_interval_ms_setting", { value }),
+  offline_vad_force_window_seconds: (value) =>
+    invoke("change_offline_vad_force_window_seconds_setting", { value }),
   log_level: (value) => invoke("set_log_level", { level: value }),
   onboarding_completed: (value) =>
     invoke("change_onboarding_completed_setting", { completed: value }),

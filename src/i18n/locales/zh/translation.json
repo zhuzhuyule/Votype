@@ -701,6 +701,12 @@
         "label": "追加尾部空格",
         "description": "在粘贴的转录后添加空格"
       },
+      "offlineVadRealtime": {
+        "intervalLabel": "离线实时回显间隔（毫秒）",
+        "intervalDescription": "每隔 N 毫秒强制刷新一次回显（0 表示关闭）。",
+        "windowLabel": "离线实时回显窗口（秒）",
+        "windowDescription": "当总音频超过 30 秒且没有 VAD 分段时，仅转录最近 N 秒用于回显。"
+      },
       "paths": {
         "appData": "应用数据:",
         "models": "模型:",
