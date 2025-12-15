@@ -1,6 +1,7 @@
 use crate::managers::history::{HistoryDashboardStats, HistoryEntry, HistoryManager};
+use crate::managers::transcription::TranscriptionManager;
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
 pub async fn get_history_entries(
@@ -102,6 +103,115 @@ pub async fn update_recording_retention_period(
     history_manager
         .cleanup_old_entries()
         .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn retranscribe_history_entry(
+    app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    transcription_manager: State<'_, Arc<TranscriptionManager>>,
+    id: i64,
+) -> Result<(), String> {
+    use crate::audio_toolkit::read_wav_file;
+    use crate::settings::get_settings;
+
+    let entries = history_manager
+        .get_history_entries()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let entry = entries
+        .into_iter()
+        .find(|e| e.id == id)
+        .ok_or_else(|| format!("History entry not found: {}", id))?;
+
+    let file_path = history_manager.get_audio_file_path(&entry.file_name);
+    let samples = read_wav_file(&file_path).map_err(|e| e.to_string())?;
+    
+    // Ensure we have a valid duration even if missing in original entry
+    let duration_ms = (samples.len() as f64 / 16000.0 * 1000.0) as i64;
+
+    let settings = get_settings(&app);
+    let model_id = if settings.online_asr_enabled {
+        settings
+            .selected_asr_model_id
+            .clone()
+            .unwrap_or_else(|| "online".to_string())
+    } else {
+        settings.selected_model.clone()
+    };
+
+    // If using local model, ensure it's loaded
+    if !settings.online_asr_enabled {
+        transcription_manager
+            .load_model(&model_id)
+            .map_err(|e| e.to_string())?;
+    }
+
+    let start_time = std::time::Instant::now();
+    let transcription_text = transcription_manager
+        .transcribe(samples)
+        .map_err(|e| e.to_string())?;
+    let elapsed = start_time.elapsed().as_millis() as i64;
+    
+    let char_count = transcription_text.chars().count() as i64;
+    
+    // Update the existing entry using the manager method
+    history_manager
+        .update_transcription_content(
+            id,
+            transcription_text.clone(),
+            model_id,
+            settings.selected_language.clone(),
+            duration_ms,
+            elapsed,
+            char_count,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Emit event to refresh UI for the raw transcription
+    let _ = app.emit("history-updated", ());
+
+    // --- Post-processing ---
+    if settings.post_process_enabled {
+        use crate::actions::post_process::{maybe_convert_chinese_variant, maybe_post_process_transcription};
+        
+        // 1. Try Chinese variant conversion
+        let mut final_text = None;
+        let mut post_process_prompt_text = String::new();
+
+        if let Some(converted) = maybe_convert_chinese_variant(&settings, &transcription_text).await {
+            final_text = Some(converted);
+        } else {
+            // 2. Try LLM post-processing
+            // For re-transcription, we don't have a separate streaming result, so we pass None.
+            if let Some(processed) = maybe_post_process_transcription(
+                &app,
+                &settings,
+                &transcription_text,
+                None,
+            ).await {
+                final_text = Some(processed);
+                
+                // Find the prompt text to save
+                if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
+                    if let Some(prompt) = settings.post_process_prompts.iter().find(|p| &p.id == prompt_id) {
+                        post_process_prompt_text = prompt.prompt.clone();
+                    }
+                }
+            }
+        }
+
+        if let Some(text) = final_text {
+            history_manager
+                .update_transcription_post_processing(id, text, post_process_prompt_text)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+    }
 
     Ok(())
 }

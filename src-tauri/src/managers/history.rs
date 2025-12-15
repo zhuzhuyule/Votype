@@ -463,7 +463,53 @@ impl HistoryManager {
         Ok(())
     }
 
+    pub async fn update_transcription_content(
+        &self,
+        id: i64,
+        transcription_text: String,
+        asr_model: String,
+        language: String,
+        duration_ms: i64,
+        transcription_ms: i64,
+        char_count: i64,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+
+        conn.execute(
+            "UPDATE transcription_history SET 
+                transcription_text = ?1, 
+                asr_model = ?2, 
+                language = ?3,
+                duration_ms = ?4,
+                transcription_ms = ?5,
+                post_processed_text = NULL,
+                post_process_prompt = NULL,
+                corrected_char_count = NULL,
+                char_count = ?6
+             WHERE id = ?7",
+            params![
+                transcription_text,
+                asr_model,
+                language,
+                duration_ms,
+                transcription_ms,
+                char_count,
+                id
+            ],
+        )?;
+
+        debug!("Updated transcription {} with re-transcription results", id);
+
+        // Emit history updated event
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
+        Ok(())
+    }
+
     pub fn cleanup_old_entries(&self) -> Result<()> {
+
         let retention_period = crate::settings::get_recording_retention_period(&self.app_handle);
 
         match retention_period {

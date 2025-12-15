@@ -24,3 +24,33 @@ pub async fn save_wav_file<P: AsRef<Path>>(file_path: P, samples: &[f32]) -> Res
     debug!("Saved WAV file: {:?}", file_path.as_ref());
     Ok(())
 }
+
+/// Read audio samples from a WAV file
+pub fn read_wav_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<f32>> {
+    let mut reader = hound::WavReader::open(file_path.as_ref())?;
+    let spec = reader.spec();
+
+    // We only support 16-bit integer samples for now (as that's what we save)
+    if spec.sample_format != hound::SampleFormat::Int || spec.bits_per_sample != 16 {
+        return Err(anyhow::anyhow!(
+            "Unsupported WAV format: {:?}. Only 16-bit integer supported.",
+            spec
+        ));
+    }
+
+    // Read samples and convert to f32
+    let samples: Result<Vec<f32>, _> = reader
+        .samples::<i16>()
+        .map(|s| s.map(|v| v as f32 / i16::MAX as f32))
+        .collect();
+
+    let samples = samples?;
+    debug!(
+        "Read WAV file: {:?} ({} samples, {}Hz)",
+        file_path.as_ref(),
+        samples.len(),
+        spec.sample_rate
+    );
+
+    Ok(samples)
+}

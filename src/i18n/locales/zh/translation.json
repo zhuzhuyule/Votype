@@ -71,7 +71,10 @@
       "loadMore": "加载更多"
     },
     "actions": {
-      "openRecordings": "录音目录"
+      "openRecordings": "录音目录",
+      "retranscribe": "使用原音频重新转录",
+      "retranscribing": "重新转录中...",
+      "retranscribeFailed": "重新转录失败"
     }
   },
   "onboarding": {

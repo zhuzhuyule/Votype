@@ -13,6 +13,7 @@ import {
 import {
   IconCopy,
   IconFolderOpen,
+  IconReload,
   IconStar,
   IconTrash,
 } from "@tabler/icons-react";
@@ -83,6 +84,7 @@ const DashboardEntryCard = React.memo<{
   onCopy: (text: string) => void;
   onToggleSaved: (id: number) => void;
   onDelete: (id: number) => void;
+  onRetranscribe: (id: number) => Promise<void>;
 }>((
   {
     entry,
@@ -93,6 +95,7 @@ const DashboardEntryCard = React.memo<{
     onCopy,
     onToggleSaved,
     onDelete,
+    onRetranscribe,
   }
 ) => {
   const { t } = useTranslation();
@@ -100,7 +103,20 @@ const DashboardEntryCard = React.memo<{
   const [audioMissing, setAudioMissing] = useState(false);
   const [activeTab, setActiveTab] = useState<"improved" | "original">("improved");
   const [shouldLoadAudio, setShouldLoadAudio] = useState(false);
+  const [retranscribing, setRetranscribing] = useState(false);
   const cardRef = useRef<HTMLDivElement | null>(null);
+
+  const onRetranscribeClick = async () => {
+    if (retranscribing) return;
+    setRetranscribing(true);
+    try {
+      await onRetranscribe(entry.id);
+    } catch (e) {
+      console.error("Retranscribe failed", e);
+    } finally {
+      setRetranscribing(false);
+    }
+  };
 
   useEffect(() => {
     if (!cardRef.current) return;
@@ -162,6 +178,24 @@ const DashboardEntryCard = React.memo<{
           </Flex>
 
           <Flex gap="1" align="center">
+            {retranscribing ? (
+              <Text size="1" color="gray" className="animate-pulse mr-2">
+                {t("dashboard.actions.retranscribing")}
+              </Text>
+            ) : null}
+
+            <Tooltip content={t("dashboard.actions.retranscribe")}>
+              <IconButton
+                variant="ghost"
+                size="2"
+                disabled={retranscribing}
+                onClick={onRetranscribeClick}
+                className="text-text/60 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
+              >
+                <IconReload className={`w-4 h-4 ${retranscribing ? "animate-spin" : ""}`} />
+              </IconButton>
+            </Tooltip>
+
             <Tooltip content={t("settings.history.copyToClipboard")}>
               <IconButton
                 variant="ghost"
@@ -766,6 +800,14 @@ export const Dashboard: React.FC = () => {
                           onCopy={onCopy}
                           onToggleSaved={onToggleSaved}
                           onDelete={onDelete}
+                          onRetranscribe={async (id) => {
+                            try {
+                              await invoke("retranscribe_history_entry", { id });
+                            } catch (e) {
+                              console.error("Retranscribe invocation failed", e);
+                              alert(t("dashboard.actions.retranscribeFailed"));
+                            }
+                          }}
                         />
                       );
                     })}

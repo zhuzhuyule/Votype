@@ -469,7 +469,8 @@ pub fn run() {
             commands::history::get_audio_file_path,
             commands::history::delete_history_entry,
             commands::history::update_history_limit,
-            commands::history::update_recording_retention_period
+            commands::history::update_recording_retention_period,
+            commands::history::retranscribe_history_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::AppHandle;
 
-mod post_process;
+pub mod post_process;
 mod transcribe;
 
 // Shortcut Action Trait

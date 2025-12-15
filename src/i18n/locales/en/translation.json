@@ -71,7 +71,10 @@
       "loadMore": "Load more"
     },
     "actions": {
-      "openRecordings": "Recordings"
+      "openRecordings": "Recordings",
+      "retranscribe": "Re-transcribe using audio",
+      "retranscribing": "Retranscribing...",
+      "retranscribeFailed": "Re-transcription failed"
     }
   },
   "onboarding": {
