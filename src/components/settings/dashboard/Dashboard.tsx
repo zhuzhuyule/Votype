@@ -1,19 +1,12 @@
-import {
-  Box,
-  Button,
-  Card,
-  Flex,
-  Grid,
-  Heading,
-  Text,
-  Tooltip,
-} from "@radix-ui/themes";
-import { IconFolderOpen } from "@tabler/icons-react";
+import { Box, Heading } from "@radix-ui/themes";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DashboardEntryCard } from "./DashboardEntryCard";
+import { DashboardActivityChart } from "./DashboardActivityChart";
+import { DashboardDetailsList } from "./DashboardDetailsList";
+import { DashboardHeader } from "./DashboardHeader";
+import { DashboardSummaryCards } from "./DashboardSummaryCards";
 import type { HistoryEntry, DashboardSelection } from "./dashboardTypes";
 import {
   formatDurationMs,
@@ -282,280 +275,51 @@ export const Dashboard: React.FC = () => {
   }, [detailEntries]);
 
   return (
-    <Flex direction="column" className="w-full max-w-5xl mx-auto" gap="4">
-      <Flex justify="between" align="center" gap="4">
-        <Heading size="7">{t("dashboard.title")}</Heading>
-        <Button
-          variant="soft"
-          onClick={() => invoke("open_recordings_folder")}
-          disabled={loading}
-        >
-          <IconFolderOpen width={18} height={18} />
-          {t("dashboard.actions.openRecordings")}
-        </Button>
-      </Flex>
+    <Box className="w-full max-w-5xl mx-auto space-y-4">
+      <DashboardHeader loading={loading} />
 
-      <Grid columns={{ initial: "1", sm: "4" }} gap="4">
-        <Card className="sm:col-span-3">
-          <Flex direction="column" gap="3">
-            <Flex justify="between" align="baseline">
-              <Text size="2" color="gray">
-                {t("dashboard.activity.title")}
-              </Text>
-              <Text size="2" color="gray">
-                {t("dashboard.activity.subtitle")}
-              </Text>
-            </Flex>
+      <DashboardActivityChart
+        bars={bars}
+        selection={selection}
+        loading={loading}
+        onSelectDay={(day) => setSelection({ type: "day", day })}
+        onSelectPreset={(preset) => setSelection({ type: "preset", preset })}
+      />
 
-            <Flex gap="2" align="end" className="h-20">
-              {bars.map((b) => (
-                <Tooltip
-                  key={b.day}
-                  side="bottom"
-                  content={
-                    <Flex direction="column" gap="1">
-                      <Text size="2" weight="bold">
-                        {b.day}
-                      </Text>
-                      <Text size="2">
-                        {t("dashboard.activity.entries", { count: b.entries })}
-                      </Text>
-                    </Flex>
-                  }
-                >
-                  <button
-                    type="button"
-                    className="flex-1 rounded-sm transition-all hover:border-2! hover:border-logo-primary!"
-                    style={{
-                      height: `${Math.max(4, b.heightPct)}%`,
-                      backgroundColor: b.selected
-                        ? "var(--accent-9)"
-                        : "var(--gray-a6)",
-                      opacity: b.entries === 0 ? 0.2 : 0.9,
-                      cursor: "pointer",
-                      transform: b.isToday ? "translateY(-2px)" : undefined,
-                      boxShadow: b.isToday ? "0 6px 16px rgba(0,0,0,0.08)" : undefined,
-                      border: "2px solid transparent",
-                    }}
-                    onClick={() => setSelection({ type: "day", day: b.day })}
-                  />
-                </Tooltip>
-              ))}
-            </Flex>
+      <Heading size="5">{selectionTitle}</Heading>
 
-            <Flex justify="between">
-              <Text size="1" color="gray">
-                {bars[0]?.day ?? ""}
-              </Text>
-              <Text size="1" color="gray">
-                {bars[bars.length - 1]?.day ?? ""}
-              </Text>
-            </Flex>
-          </Flex>
-        </Card>
+      <DashboardSummaryCards
+        summary={summary}
+        numberFormat={numberFormat}
+        formatDurationMs={formatDurationMs}
+      />
 
-        <Card>
-          <Flex direction="column" gap="2">
-            <Button
-              variant={
-                selection.type === "preset" && selection.preset === "7d"
-                  ? "solid"
-                  : "soft"
-              }
-              onClick={() => setSelection({ type: "preset", preset: "7d" })}
-              disabled={loading}
-            >
-              {t("dashboard.range.buttons.last7Days")}
-            </Button>
-            <Button
-              variant={
-                selection.type === "preset" && selection.preset === "30d"
-                  ? "solid"
-                  : "soft"
-              }
-              onClick={() => setSelection({ type: "preset", preset: "30d" })}
-              disabled={loading}
-            >
-              {t("dashboard.range.buttons.last30Days")}
-            </Button>
-            <Button
-              variant={
-                selection.type === "preset" && selection.preset === "all"
-                  ? "solid"
-                  : "soft"
-              }
-              onClick={() => setSelection({ type: "preset", preset: "all" })}
-              disabled={loading}
-            >
-              {t("dashboard.range.buttons.allTime")}
-            </Button>
-          </Flex>
-        </Card>
-      </Grid>
-
-      <Box>
-        <Heading size="5">{selectionTitle}</Heading>
-      </Box>
-
-      <Grid columns={{ initial: "1", sm: "4" }} gap="4">
-        <Card>
-          <Flex direction="column" gap="3">
-            <Text size="2" color="gray">
-              {t("dashboard.summary.recording.title")}
-            </Text>
-            <Heading size="6">{formatDurationMs(summary.durationMs)}</Heading>
-            <Text size="2" color="gray">
-              {t("dashboard.summary.recording.count", {
-                count: summary.entryCount,
-              })}
-            </Text>
-          </Flex>
-        </Card>
-
-        <Card>
-          <Flex direction="column" gap="3">
-            <Text size="2" color="gray">
-              {t("dashboard.summary.transcription.title")}
-            </Text>
-            <Heading size="6">{numberFormat.format(summary.charCount)}</Heading>
-            <Text size="2" color="gray">
-              {t("dashboard.summary.transcription.speed", {
-                rate: Math.round(summary.charsPerMinute),
-              })}
-            </Text>
-          </Flex>
-        </Card>
-
-        <Card>
-          <Flex direction="column" gap="3">
-            <Text size="2" color="gray">
-              {t("dashboard.summary.llm.title")}
-            </Text>
-            <Heading size="6">{numberFormat.format(summary.llmCalls)}</Heading>
-            <Flex direction="column" gap="1">
-              <Text size="2" color="gray">
-                {t("dashboard.summary.llm.details", {
-                  hitRate: `${(summary.llmHitRate * 100).toFixed(1)}%`,
-                })}
-              </Text>
-            </Flex>
-          </Flex>
-        </Card>
-
-        <Card>
-          <Flex direction="column" gap="3">
-            <Text size="2" color="gray">
-              {t("dashboard.summary.apps.title")}
-            </Text>
-            <Flex direction="column" gap="1">
-              {summary.topApps.length === 0 ? (
-                <Text size="2" color="gray">
-                  {t("dashboard.summary.apps.empty")}
-                </Text>
-              ) : (
-                summary.topApps.map(([app, count]) => (
-                  <Text key={app} size="2">
-                    {app} · {numberFormat.format(count)}
-                  </Text>
-                ))
-              )}
-            </Flex>
-          </Flex>
-        </Card>
-      </Grid>
-
-      <Card>
-        <Flex direction="column" gap="3">
-          <Flex justify="between" align="center">
-            <Text size="2" color="gray">
-              {t("dashboard.details.title")}
-            </Text>
-            <Text size="2" color="gray">
-              {t("dashboard.details.count", {
-                count: selectedEntries.length,
-              })}
-            </Text>
-          </Flex>
-
-          <Box className="relative pb-2">
-            {detailGroups.length === 0 ? (
-              <Text size="2" color="gray">
-                {t("dashboard.details.empty")}
-              </Text>
-            ) : (
-              detailGroups.map(([day, dayEntries]) => (
-                <Box key={day} className="relative pt-4">
-                  <Box className="bg-mid-gray/5 border border-mid-gray/10 rounded-md px-3 py-2">
-                    <Flex justify="between" align="center">
-                      <Text size="2" weight="bold" className="text-logo-primary">
-                        {day}
-                      </Text>
-                      <Text size="2" color="gray">
-                        {numberFormat.format(selectedDayTotals.get(day) ?? dayEntries.length)}
-                      </Text>
-                    </Flex>
-                  </Box>
-                  <Box className="pt-3 space-y-3">
-                    {dayEntries.map((entry, idx) => {
-                      const timeInfo = formatEntryTime(entry.timestamp);
-                      const appName = entry.app_name?.trim();
-                      const metaParts: string[] = [];
-                      if (typeof entry.duration_ms === "number" && entry.duration_ms > 0) {
-                        metaParts.push(formatDurationMs(entry.duration_ms));
-                      }
-                      if (typeof entry.char_count === "number" && entry.char_count > 0) {
-                        metaParts.push(
-                          t("dashboard.details.meta.chars", {
-                            value: numberFormat.format(entry.char_count),
-                          }),
-                        );
-                      }
-                      const meta = metaParts.join(" · ");
-                      return (
-                        <DashboardEntryCard
-                          key={entry.id}
-                          entry={entry}
-                          getAudioUrl={getAudioUrl}
-                          metaText={meta}
-                          timeText={timeInfo.time}
-                          appName={appName ?? null}
-                          onCopy={onCopy}
-                          onToggleSaved={onToggleSaved}
-                          onDelete={onDelete}
-                          onRetranscribe={async (id) => {
-                            try {
-                              await invoke("retranscribe_history_entry", { id });
-                            } catch (e) {
-                              console.error("Retranscribe invocation failed", e);
-                              alert(t("dashboard.actions.retranscribeFailed"));
-                            }
-                          }}
-                        />
-                      );
-                    })}
-                  </Box>
-                </Box>
-              ))
-            )}
-            <div ref={detailsSentinelRef} className="h-1 w-full" />
-          </Box>
-
-          {detailCount < selectedEntries.length && (
-            <Flex justify="center">
-              <Button
-                variant="soft"
-                onClick={() =>
-                  setDetailCount((c) =>
-                    Math.min(c + DETAIL_PAGE_SIZE, selectedEntries.length),
-                  )
-                }
-              >
-                {t("dashboard.details.loadMore")}
-              </Button>
-            </Flex>
-          )}
-        </Flex>
-      </Card>
-    </Flex>
+      <DashboardDetailsList
+        entries={detailEntries}
+        selectionTitle={selectionTitle}
+        selectedDayTotals={selectedDayTotals}
+        getAudioUrl={getAudioUrl}
+        onCopy={onCopy}
+        onToggleSaved={onToggleSaved}
+        onDelete={onDelete}
+        onRetranscribe={async (id) => {
+          try {
+            await invoke("retranscribe_history_entry", { id });
+          } catch (e) {
+            console.error("Retranscribe invocation failed", e);
+            alert(t("dashboard.actions.retranscribeFailed"));
+          }
+        }}
+        onLoadMore={() =>
+          setDetailCount((c) =>
+            Math.min(c + DETAIL_PAGE_SIZE, selectedEntries.length),
+          )
+        }
+        detailCount={detailCount}
+        formatDurationMs={formatDurationMs}
+        numberFormat={numberFormat}
+        t={t}
+      />
+    </Box>
   );
 };
