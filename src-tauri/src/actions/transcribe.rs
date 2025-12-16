@@ -340,6 +340,17 @@ impl ShortcutAction for TranscribeAction {
 
             let stop_recording_time = Instant::now();
             if let Some(samples) = rm.stop_recording(&binding_id) {
+                // If samples are very short (e.g., < 0.3s), likely no speech, so skip transcription.
+                if samples.len() < 4800 {
+                    debug!(
+                        "Recording too short or empty ({} samples), skipping transcription and error.",
+                        samples.len()
+                    );
+                    utils::hide_recording_overlay(&ah);
+                    change_tray_icon(&ah, TrayIconState::Idle);
+                    return;
+                }
+
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
                     stop_recording_time.elapsed(),
@@ -771,5 +782,9 @@ impl ShortcutAction for TranscribeAction {
             "TranscribeAction::stop completed in {:?}",
             stop_time.elapsed()
         );
+    }
+
+    fn mode(&self) -> super::ActionMode {
+        super::ActionMode::Stateful
     }
 }

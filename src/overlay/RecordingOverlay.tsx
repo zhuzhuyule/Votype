@@ -79,6 +79,8 @@ const RecordingOverlay: React.FC = () => {
     isVisible && state === "recording" && realtimeText.trim().length > 0 && !realtimeIsFinal,
   );
 
+  
+
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
