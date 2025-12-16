@@ -2,7 +2,6 @@
 export { AboutSettings } from "./about/AboutSettings";
 export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { Dashboard } from "./dashboard/Dashboard";
-export { DebugSettings } from "./debug/DebugSettings";
 export { GeneralSettings } from "./general/GeneralSettings";
 export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
+import type { BindingResponse } from "../lib/types";
 import { AudioDevice, CachedModel, ModelType, Settings } from "../lib/types";
 
 interface SettingsStore {
@@ -392,7 +393,33 @@ export const useSettingsStore = create<SettingsStore>()(
             : null,
         }));
 
-        await invoke("change_binding", { id, binding });
+        const response = await invoke<BindingResponse>("change_binding", {
+          id,
+          binding,
+        });
+
+        if (!response?.success) {
+          throw new Error(response?.error || "Failed to change binding");
+        }
+
+        const canonicalBinding =
+          response.binding?.current_binding ?? binding;
+
+        // Sync with backend-canonicalized binding (e.g. whitespace/alias normalization)
+        set((state) => ({
+          settings: state.settings
+            ? {
+                ...state.settings,
+                bindings: {
+                  ...state.settings.bindings,
+                  [id]: {
+                    ...state.settings.bindings[id],
+                    current_binding: canonicalBinding,
+                  },
+                },
+              }
+            : null,
+        }));
       } catch (error) {
         console.error(`Failed to update binding ${id}:`, error);
 
@@ -413,6 +440,7 @@ export const useSettingsStore = create<SettingsStore>()(
               : null,
           }));
         }
+        throw error;
       } finally {
         setUpdating(updateKey, false);
       }
