@@ -92,58 +92,6 @@ struct ShortcutToggleStates {
 
 type ManagedToggleState = Mutex<ShortcutToggleStates>;
 
-fn show_main_window(app: &AppHandle) {
-    // Check if the main window exists
-    if let Some(main_window) = app.get_webview_window("main") {
-        // Window exists, just show and focus it
-        if let Err(e) = main_window.show() {
-            log::error!("Failed to show window: {}", e);
-        }
-        if let Err(e) = main_window.set_focus() {
-            log::error!("Failed to focus window: {}", e);
-        }
-    } else {
-        // Window doesn't exist, create a new one
-        log::info!("Main window not found, creating new window");
-        match create_main_window(app) {
-            Ok(_) => log::info!("Successfully created new main window"),
-            Err(e) => log::error!("Failed to create main window: {}", e),
-        }
-
-        // After creating the window, attempt to bring it to front
-        if let Some(main_window) = app.get_webview_window("main") {
-            let _ = main_window.show();
-            if let Err(e) = main_window.set_focus() {
-                log::error!("Failed to focus newly created main window: {}", e);
-            }
-        }
-    }
-
-    // On macOS, ensure the app becomes active
-    #[cfg(target_os = "macos")]
-    {
-        if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
-            log::error!("Failed to set activation policy to Regular: {}", e);
-        }
-    }
-}
-
-fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::WebviewUrl;
-
-    let _window =
-        tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/index.html".into()))
-            .title("Votype")
-            .inner_size(1300.0, 1000.0)
-            .min_inner_size(680.0, 570.0)
-            .resizable(true)
-            .maximizable(false)
-            .visible(true)
-            .build()?;
-
-    Ok(())
-}
-
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Initialize the input state (Enigo singleton for keyboard/mouse simulation)
     let enigo_state = input::EnigoState::new().expect("Failed to initialize input state (Enigo)");
@@ -210,12 +158,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         .icon_as_template(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
-                show_main_window(app);
+                let _ = utils::show_or_create_main_window(app, Some("dashboard"));
             }
             "check_updates" => {
                 let settings = settings::get_settings(app);
                 if settings.update_checks_enabled {
-                    show_main_window(app);
+                    let _ = utils::show_or_create_main_window(app, Some("dashboard"));
                     let _ = app.emit("check-for-updates", ());
                 }
             }
@@ -309,7 +257,7 @@ pub fn run() {
 
     builder
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            show_main_window(app);
+            let _ = utils::show_or_create_main_window(app, Some("dashboard"));
         }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
@@ -345,15 +293,14 @@ pub fn run() {
 
             // Show main window only if not starting hidden
             if !settings.start_hidden {
-                show_main_window(&app_handle);
+                let _ = utils::show_or_create_main_window(&app_handle, Some("dashboard"));
             }
 
             Ok(())
         })
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { .. } => {
-                // Allow the window to be destroyed instead of hidden
-                // This will free up resources when the main window is closed
+                // Window close behavior is controlled by settings elsewhere; do not force-hide here.
                 #[cfg(target_os = "macos")]
                 {
                     let res = window
@@ -432,6 +379,9 @@ pub fn run() {
             commands::open_app_data_dir,
             commands::get_active_window_info,
             commands::get_cursor_position,
+            commands::show_main_window,
+            commands::get_first_history_entry,
+            commands::paste_text_to_active_window,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,

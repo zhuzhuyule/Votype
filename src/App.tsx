@@ -1,5 +1,6 @@
 import { Flex, ScrollArea, Spinner } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "sonner";
 import "./App.css";
@@ -44,23 +45,63 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    checkOnboardingStatus();
-  }, []);
+    useEffect(() => {
 
-  // Handle keyboard shortcuts for settings navigation and debug mode
+      checkOnboardingStatus();
+
+    }, []);
+
+  
+
+    // Listen for navigate-to-settings event from Rust
+
+    useEffect(() => {
+
+      let unlisten: (() => void) | undefined;
+
+  
+
+      const setupListener = async () => {
+
+        unlisten = await listen("navigate-to-settings", (event: { payload: string }) => {
+
+          // Navigate to the specified settings section
+
+          setCurrentSection(event.payload as SidebarSection);
+
+        });
+
+      };
+
+  
+
+      setupListener();
+
+  
+
+      return () => {
+
+        if (unlisten) {
+
+          unlisten();
+
+        }
+
+      };
+
+    }, []);
+
+  
+
+    // Handle keyboard shortcuts for settings navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Ctrl+Shift+D (Windows/Linux) or Cmd+Shift+D (macOS) for debug toggle
-      const isDebugShortcut =
-        event.shiftKey &&
-        event.key.toLowerCase() === "d" &&
-        (event.ctrlKey || event.metaKey);
+      // Check for Cmd/Ctrl + , (Comma) for General settings (common convention)
+      const isPreferencesShortcut = (event.ctrlKey || event.metaKey) && event.key === ",";
 
-      if (isDebugShortcut) {
+      if (isPreferencesShortcut) {
         event.preventDefault();
-        const currentDebugMode = settings?.debug_mode ?? false;
-        updateSetting("debug_mode", !currentDebugMode);
+        setCurrentSection("general");
         return;
       }
 
@@ -81,11 +122,6 @@ function App() {
           "about",
         ];
 
-        // Only include debug section if debug mode is enabled
-        if (settings?.debug_mode) {
-          sections.splice(7, 0, "debug"); // Insert debug at position 8 (key 8)
-        }
-
         if (sectionIndex < sections.length) {
           const targetSection = sections[sectionIndex];
           setCurrentSection(targetSection);
@@ -100,7 +136,7 @@ function App() {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [settings?.debug_mode, updateSetting]);
+  }, []);
 
   // Re-check onboarding status when settings are loaded
   useEffect(() => {

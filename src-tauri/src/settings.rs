@@ -545,6 +545,34 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: "escape".to_string(),
         },
     );
+    bindings.insert(
+        "open_settings".to_string(),
+        ShortcutBinding {
+            id: "open_settings".to_string(),
+            name: "Open Settings".to_string(),
+            description: "Opens the settings window.".to_string(),
+            default_binding: if cfg!(target_os = "macos") {
+                "command+option+s".to_string()
+            } else {
+                "ctrl+alt+s".to_string()
+            },
+            current_binding: if cfg!(target_os = "macos") {
+                "command+option+s".to_string()
+            } else {
+                "ctrl+alt+s".to_string()
+            },
+        },
+    );
+    bindings.insert(
+        "paste_first_entry".to_string(),
+        ShortcutBinding {
+            id: "paste_first_entry".to_string(),
+            name: "Paste First Entry".to_string(),
+            description: "Pastes the first history entry to the active window.".to_string(),
+            default_binding: "ctrl+shift+v".to_string(),
+            current_binding: "ctrl+shift+v".to_string(),
+        },
+    );
 
     AppSettings {
         bindings,

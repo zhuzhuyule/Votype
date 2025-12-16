@@ -16,6 +16,8 @@ export const ShortcutsSettings: React.FC = () => {
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.shortcuts.title")}>
         <VotypeShortcut shortcutId="transcribe" descriptionMode="tooltip" grouped={true} />
+        <VotypeShortcut shortcutId="paste_first_entry" descriptionMode="tooltip" grouped={true} />
+        <VotypeShortcut shortcutId="open_settings" descriptionMode="tooltip" grouped={true} />
         {debugMode ? (
           <VotypeShortcut
             shortcutId="cancel"
