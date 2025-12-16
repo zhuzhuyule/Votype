@@ -3,13 +3,94 @@ use crate::shortcut;
 use crate::ManagedToggleState;
 use log::{info, warn};
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager};
 
 // Re-export all utility modules for easy access
 // pub use crate::audio_feedback::*;
 pub use crate::clipboard::*;
 pub use crate::overlay::*;
 pub use crate::tray::*;
+
+pub fn show_or_create_main_window(
+    app: &AppHandle,
+    section: Option<&str>,
+) -> Result<(tauri::WebviewWindow, bool), String> {
+    let mut created = false;
+
+    // On macOS, ensure the app can become active before creating/showing windows.
+    #[cfg(target_os = "macos")]
+    {
+        if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
+            log::error!("Failed to set activation policy to Regular: {}", e);
+        }
+    }
+
+    if app.get_webview_window("main").is_none() {
+        created = true;
+        create_main_window(app).map_err(|e| format!("Failed to create main window: {e}"))?;
+    }
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or_else(|| "Main window not found".to_string())?;
+
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+
+    // Some platforms (notably macOS) can fail to bring a newly-created or just-closed window
+    // to front on the first call; retry shortly to avoid "needs two presses".
+    let app_for_retry = app.clone();
+    tauri::async_runtime::spawn(async move {
+        for delay in [Duration::from_millis(120), Duration::from_millis(350)] {
+            tokio::time::sleep(delay).await;
+            if let Some(w) = app_for_retry.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.unminimize();
+                let _ = w.set_focus();
+            }
+        }
+    });
+
+    if let Some(section) = section {
+        let app_for_emit = app.clone();
+        let section = section.to_string();
+        tauri::async_runtime::spawn(async move {
+            if created {
+                tokio::time::sleep(Duration::from_millis(350)).await;
+            }
+
+            // If the JS side isn't ready yet, retry once shortly after.
+            for delay in [Duration::from_millis(0), Duration::from_millis(200)] {
+                tokio::time::sleep(delay).await;
+                if let Some(w) = app_for_emit.get_webview_window("main") {
+                    if w.emit("navigate-to-settings", section.clone()).is_ok() {
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    Ok((window, created))
+}
+
+fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri::WebviewUrl;
+
+    let _window =
+        tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("/index.html".into()))
+            .title("Votype")
+            .inner_size(1300.0, 1000.0)
+            .min_inner_size(680.0, 570.0)
+            .resizable(true)
+            .maximizable(false)
+            .visible(true)
+            .build()?;
+
+    Ok(())
+}
 
 /// Centralized cancellation function that can be called from anywhere in the app.
 /// Handles cancelling both recording and transcription operations and updates UI state.

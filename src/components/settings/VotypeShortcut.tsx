@@ -147,7 +147,7 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
       const updatedKeyPressed = keyPressed.filter((k) => k !== key);
       if (updatedKeyPressed.length === 0 && recordedKeys.length > 0) {
         // Create the shortcut string from all recorded keys
-        const newShortcut = recordedKeys.join(" + ");
+        const newShortcut = recordedKeys.join("+");
 
         if (editingShortcutId && bindings[editingShortcutId]) {
           try {

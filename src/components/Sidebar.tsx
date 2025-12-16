@@ -36,9 +36,6 @@ const AsrModelsSettings = lazy(() =>
 const PromptsConfiguration = lazy(() =>
   import("./settings/post-processing/PromptsConfiguration").then(m => ({ default: m.PromptsConfiguration }))
 );
-const DebugSettings = lazy(() =>
-  import("./settings/debug/DebugSettings").then(m => ({ default: m.DebugSettings }))
-);
 const AboutSettings = lazy(() =>
   import("./settings/about/AboutSettings").then(m => ({ default: m.AboutSettings }))
 );
@@ -111,19 +108,12 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "7",
   },
-  debug: {
-    labelKey: "sidebar.debug",
-    icon: IconBug,
-    component: DebugSettings,
-    enabled: (settings) => settings?.debug_mode ?? false,
-    shortcutKey: "8",
-  },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoSquare,
     component: AboutSettings,
     enabled: () => true,
-    shortcutKey: "9",
+    shortcutKey: "8",
   },
 } as const satisfies Record<string, SectionConfig>;
 
@@ -146,7 +136,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { settings } = useSettings();
 
   const availableSections: SectionWithLabel[] = Object.entries(SECTIONS_CONFIG)
-    .filter(([_, config]) => config.enabled(settings))
+    .filter(([_, config]) => config.enabled())
     .map(([id, config]) => ({
       id: id as SidebarSection,
       ...config,

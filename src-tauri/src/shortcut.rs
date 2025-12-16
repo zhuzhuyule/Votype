@@ -1,12 +1,10 @@
 use log::{error, warn};
 use serde::Serialize;
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
-use crate::actions::ACTION_MAP;
-use crate::managers::audio::AudioRecordingManager;
+use crate::actions::{ActionMode, ACTION_MAP};
 use crate::settings::ShortcutBinding;
 use crate::settings::{
     self, get_settings, CachedModel, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
@@ -45,6 +43,41 @@ pub struct BindingResponse {
     error: Option<String>,
 }
 
+fn canonicalize_shortcut_string(raw: &str) -> String {
+    raw.split('+')
+        .map(|p| p.trim().to_lowercase())
+        .filter(|p| !p.is_empty())
+        .map(|p| match p.as_str() {
+            "control" => "ctrl".to_string(),
+            "esc" => "escape".to_string(),
+            "cmd" => "command".to_string(),
+            "win" | "windows" => "super".to_string(),
+            "meta" => {
+                #[cfg(target_os = "macos")]
+                {
+                    "command".to_string()
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    "super".to_string()
+                }
+            }
+            "alt" => {
+                #[cfg(target_os = "macos")]
+                {
+                    "option".to_string()
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    "alt".to_string()
+                }
+            }
+            other => other.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
 #[tauri::command]
 pub fn change_binding(
     app: AppHandle,
@@ -70,7 +103,7 @@ pub fn change_binding(
     // It's managed dynamically, so we don't register/unregister here
     if id == "cancel" {
         if let Some(mut b) = settings.bindings.get(&id).cloned() {
-            b.current_binding = binding;
+            b.current_binding = canonicalize_shortcut_string(&binding);
             settings.bindings.insert(id.clone(), b.clone());
             settings::write_settings(&app, settings);
             return Ok(BindingResponse {
@@ -86,6 +119,8 @@ pub fn change_binding(
         let error_msg = format!("Failed to unregister shortcut: {}", e);
         error!("change_binding error: {}", error_msg);
     }
+
+    let binding = canonicalize_shortcut_string(&binding);
 
     // Validate the new shortcut before we touch the current registration
     if let Err(e) = validate_shortcut_string(&binding) {
@@ -124,9 +159,13 @@ pub fn change_binding(
 
 #[tauri::command]
 pub fn reset_binding(app: AppHandle, id: String) -> Result<BindingResponse, String> {
-    let binding = settings::get_stored_binding(&app, &id);
+    let default_binding = settings::get_default_settings()
+        .bindings
+        .get(&id)
+        .map(|b| b.default_binding.clone())
+        .unwrap_or_else(|| settings::get_stored_binding(&app, &id).default_binding);
 
-    return change_binding(app, id, binding.default_binding);
+    change_binding(app, id, default_binding)
 }
 
 #[tauri::command]
@@ -1241,22 +1280,24 @@ pub fn unregister_cancel_shortcut(app: &AppHandle) {
 }
 
 pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
+    let binding_str = canonicalize_shortcut_string(&binding.current_binding);
+
     // Validate human-level rules first
-    if let Err(e) = validate_shortcut_string(&binding.current_binding) {
+    if let Err(e) = validate_shortcut_string(&binding_str) {
         warn!(
             "_register_shortcut validation error for binding '{}': {}",
-            binding.current_binding, e
+            binding_str, e
         );
         return Err(e);
     }
 
     // Parse shortcut and return error if it fails
-    let shortcut = match binding.current_binding.parse::<Shortcut>() {
+    let shortcut = match binding_str.parse::<Shortcut>() {
         Ok(s) => s,
         Err(e) => {
             let error_msg = format!(
                 "Failed to parse shortcut '{}': {}",
-                binding.current_binding, e
+                binding_str, e
             );
             error!("_register_shortcut parse error: {}", error_msg);
             return Err(error_msg);
@@ -1265,7 +1306,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
 
     // Prevent duplicate registrations that would silently shadow one another
     if app.global_shortcut().is_registered(shortcut) {
-        let error_msg = format!("Shortcut '{}' is already in use", binding.current_binding);
+        let error_msg = format!("Shortcut '{}' is already in use", binding_str);
         warn!("_register_shortcut duplicate error: {}", error_msg);
         return Err(error_msg);
     }
@@ -1280,38 +1321,53 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                 let settings = get_settings(ah);
 
                 if let Some(action) = ACTION_MAP.get(&binding_id_for_closure) {
-                    if binding_id_for_closure == "cancel" {
-                        let audio_manager = ah.state::<Arc<AudioRecordingManager>>();
-                        if audio_manager.is_recording() && event.state == ShortcutState::Pressed {
-                            action.start(ah, &binding_id_for_closure, &shortcut_string);
-                        }
-                        return;
-                    } else if settings.push_to_talk {
-                        if event.state == ShortcutState::Pressed {
-                            action.start(ah, &binding_id_for_closure, &shortcut_string);
-                        } else if event.state == ShortcutState::Released {
-                            action.stop(ah, &binding_id_for_closure, &shortcut_string);
-                        }
-                    } else {
-                        if event.state == ShortcutState::Pressed {
-                            let toggle_state_manager = ah.state::<ManagedToggleState>();
-
-                            let mut states = toggle_state_manager.lock().expect("Failed to lock toggle state manager");
-
-                            let is_currently_active = states.active_toggles
-                                .entry(binding_id_for_closure.clone())
-                                .or_insert(false);
-
-                            if *is_currently_active {
-                                action.stop(
-                                    ah,
-                                    &binding_id_for_closure,
-                                    &shortcut_string,
-                                );
-                                *is_currently_active = false; // Update state to inactive
-                            } else {
+                    let mode = action.mode();
+                    match mode {
+                        ActionMode::Stateless => {
+                            // Stateless actions (Paste, Settings, Cancel, etc.)
+                            // Fire on Released to avoid double-trigger and modifier interference
+                            if event.state == ShortcutState::Released {
                                 action.start(ah, &binding_id_for_closure, &shortcut_string);
-                                *is_currently_active = true; // Update state to active
+                            }
+                        }
+                        ActionMode::Stateful => {
+                            // Stateful actions (Transcribe)
+                            // Handle PTT vs Toggle based on user settings
+                            if settings.push_to_talk {
+                                if event.state == ShortcutState::Pressed {
+                                    action.start(ah, &binding_id_for_closure, &shortcut_string);
+                                } else if event.state == ShortcutState::Released {
+                                    action.stop(ah, &binding_id_for_closure, &shortcut_string);
+                                }
+                            } else {
+                                // Toggle logic
+                                if event.state == ShortcutState::Pressed {
+                                    let toggle_state_manager = ah.state::<ManagedToggleState>();
+                                    let mut states = toggle_state_manager
+                                        .lock()
+                                        .expect("Failed to lock toggle state manager");
+
+                                    let is_currently_active = states
+                                        .active_toggles
+                                        .entry(binding_id_for_closure.clone())
+                                        .or_insert(false);
+
+                                    if *is_currently_active {
+                                        action.stop(
+                                            ah,
+                                            &binding_id_for_closure,
+                                            &shortcut_string,
+                                        );
+                                        *is_currently_active = false;
+                                    } else {
+                                        action.start(
+                                            ah,
+                                            &binding_id_for_closure,
+                                            &shortcut_string,
+                                        );
+                                        *is_currently_active = true;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1324,7 +1380,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
             }
         })
         .map_err(|e| {
-            let error_msg = format!("Couldn't register shortcut '{}': {}", binding.current_binding, e);
+            let error_msg = format!("Couldn't register shortcut '{}': {}", binding_str, e);
             error!("_register_shortcut registration error: {}", error_msg);
             error_msg
         })?;
@@ -1333,12 +1389,13 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
 }
 
 pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
-    let shortcut = match binding.current_binding.parse::<Shortcut>() {
+    let binding_str = canonicalize_shortcut_string(&binding.current_binding);
+    let shortcut = match binding_str.parse::<Shortcut>() {
         Ok(s) => s,
         Err(e) => {
             let error_msg = format!(
                 "Failed to parse shortcut '{}' for unregistration: {}",
-                binding.current_binding, e
+                binding_str, e
             );
             error!("_unregister_shortcut parse error: {}", error_msg);
             return Err(error_msg);
@@ -1348,7 +1405,7 @@ pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<
     app.global_shortcut().unregister(shortcut).map_err(|e| {
         let error_msg = format!(
             "Failed to unregister shortcut '{}': {}",
-            binding.current_binding, e
+            binding_str, e
         );
         error!("_unregister_shortcut error: {}", error_msg);
         error_msg
