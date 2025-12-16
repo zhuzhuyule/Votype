@@ -1,3 +1,4 @@
+import { Box, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useEffect, useRef, useState } from "react";
@@ -10,25 +11,9 @@ import {
 import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
-type OverlayState = "recording" | "transcribing" | "llm";
+export type OverlayState = "recording" | "transcribing" | "llm";
 type SherpaPartialEvent = { text: string; punctuated_text?: string; is_final: boolean };
 type OverlayErrorEvent = { code?: string; message?: string };
-
-const normalizeDictatedPunctuation = (input: string) => {
-  // Lightweight normalization for common dictated punctuation words.
-  // This is only for overlay display; the final transcription path can still
-  // apply its own post-processing.
-  return input
-    .replace(/点点点/g, "…")
-    .replace(/省略号/g, "…")
-    .replace(/逗号/g, "，")
-    .replace(/句号/g, "。")
-    .replace(/问号/g, "？")
-    .replace(/叹号/g, "！")
-    .replace(/感叹号/g, "！")
-    .replace(/冒号/g, "：")
-    .replace(/分号/g, "；");
-};
 
 const stripTrailingSentencePunctuation = (input: string) => {
   let out = input.trimEnd();
@@ -61,10 +46,14 @@ const useAnimatedEllipsis = (enabled: boolean) => {
   return ellipsis;
 };
 
-const RecordingOverlay: React.FC = () => {
+interface RecordingOverlayProps {
+  initialState: OverlayState;
+}
+
+const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => {
   const { t } = useTranslation();
-  const [isVisible, setIsVisible] = useState(false);
-  const [state, setState] = useState<OverlayState>("recording");
+  // isVisible is implicitly true if we are mounted
+  const [state, setState] = useState<OverlayState>(initialState);
   const [levels, setLevels] = useState<number[]>(Array(16).fill(0));
   const [accentColor, setAccentColor] = useState<string>(getAccentColor);
   const [realtimeText, setRealtimeText] = useState<string>("");
@@ -72,53 +61,33 @@ const RecordingOverlay: React.FC = () => {
   const [errorText, setErrorText] = useState<string>("");
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
-  const stateRef = useRef<OverlayState>("recording");
+  const stateRef = useRef<OverlayState>(initialState);
   const allowNonFinalRef = useRef<boolean>(true);
   const finalLockedRef = useRef<boolean>(false);
   const animatedEllipsis = useAnimatedEllipsis(
-    isVisible && state === "recording" && realtimeText.trim().length > 0 && !realtimeIsFinal,
+    state === "recording" && realtimeText.trim().length > 0 && !realtimeIsFinal,
   );
-
-  
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
+  // If initial state changes (unlikely if unmounted, but good practice)
+  useEffect(() => {
+    setState(initialState);
+    stateRef.current = initialState;
+    if (initialState === "recording") {
+      finalLockedRef.current = false;
+      allowNonFinalRef.current = true;
+      setRealtimeText("");
+      setRealtimeIsFinal(false);
+      setErrorText("");
+    }
+  }, [initialState]);
+
+
   useEffect(() => {
     const setupEventListeners = async () => {
-      // Listen for show-overlay event from Rust
-      const unlistenShow = await listen("show-overlay", (event) => {
-        const overlayState = event.payload as OverlayState;
-        setState(overlayState);
-        stateRef.current = overlayState;
-        setIsVisible(true);
-        setErrorText("");
-        // Once the stop signal arrives we should immediately show "transcribing" rather than
-        // stale partial text, and ignore any non-final partials that might still arrive.
-        allowNonFinalRef.current = overlayState === "recording";
-        if (overlayState === "recording") {
-          finalLockedRef.current = false;
-        }
-        // Reset the realtime view when entering a new phase. In particular, once the stop signal
-        // arrives we should immediately show "transcribing" rather than stale partial text.
-        if (overlayState === "recording" || overlayState === "transcribing") {
-          setRealtimeText("");
-          setRealtimeIsFinal(false);
-        }
-      });
-
-      // Listen for hide-overlay event from Rust
-      const unlistenHide = await listen("hide-overlay", () => {
-        setIsVisible(false);
-        setRealtimeText("");
-        setRealtimeIsFinal(false);
-        setErrorText("");
-        // Next session can accept non-final partials again.
-        allowNonFinalRef.current = true;
-        finalLockedRef.current = false;
-      });
-
       const unlistenError = await listen<OverlayErrorEvent>("overlay-error", (event) => {
         const payload = (event.payload ?? {}) as OverlayErrorEvent;
         if (payload.message) {
@@ -158,10 +127,10 @@ const RecordingOverlay: React.FC = () => {
         if (!isFinal && !allowNonFinalRef.current) {
           return;
         }
-        const rawText = (payload?.punctuated_text ?? payload?.text ?? "").trim();
-        const text = payload?.punctuated_text
-          ? rawText
-          : normalizeDictatedPunctuation(rawText);
+
+        // Use raw text or punctuated text directly, no normalization
+        const text = (payload?.punctuated_text ?? payload?.text ?? "").trim();
+
         setRealtimeText(text);
         setRealtimeIsFinal(isFinal);
 
@@ -183,6 +152,20 @@ const RecordingOverlay: React.FC = () => {
         handlePartial as any,
       );
 
+      const unlistenStateUpdate = await listen("show-overlay", (event) => {
+        const overlayState = event.payload as OverlayState;
+        setState(overlayState);
+        // Reset buffer if restarting recording
+        if (overlayState === 'recording') {
+          setRealtimeText("");
+          setRealtimeIsFinal(false);
+          setErrorText("");
+          allowNonFinalRef.current = true;
+          finalLockedRef.current = false;
+        }
+      });
+
+
       // Listen for theme changes from localStorage (when main app changes theme)
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === STORAGE_KEY) {
@@ -194,18 +177,17 @@ const RecordingOverlay: React.FC = () => {
 
       // Cleanup function
       return () => {
-        unlistenShow();
-        unlistenHide();
         unlistenError();
         unlistenLevel();
         unlistenSherpaOnlinePartial();
         unlistenSherpaOfflinePartial();
+        unlistenStateUpdate();
         window.removeEventListener("storage", handleStorageChange);
       };
     };
 
     setupEventListeners();
-  }, []);
+  }, []); // Run once on mount
 
   // Update CSS variable when accent color changes
   useEffect(() => {
@@ -216,7 +198,7 @@ const RecordingOverlay: React.FC = () => {
     const el = realtimeScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [realtimeText, realtimeIsFinal, state, isVisible]);
+  }, [realtimeText, realtimeIsFinal, state]);
 
   const getIcon = () => {
     if (state === "recording") {
@@ -241,29 +223,28 @@ const RecordingOverlay: React.FC = () => {
   const showErrorText = Boolean(errorText) && state !== "recording";
 
   return (
-    <div className="overlay-root">
-      <div
-        className={`recording-overlay ${isVisible ? "fade-in" : ""} ${
-          showRealtimeText ? "has-realtime" : ""
-        }`}
+    <Box className="overlay-root">
+      <Box
+        className={`recording-overlay fade-in ${showRealtimeText ? "has-realtime" : ""
+          }`}
       >
-        <div className="overlay-left">{getIcon()}</div>
+        <Flex className="overlay-left">{getIcon()}</Flex>
 
-        <div className="overlay-middle">
+        <Flex className="overlay-middle">
           {showRealtimeText && (
-            <div
+            <Box
               ref={realtimeScrollRef}
               className={`realtime-scroll ${realtimeIsFinal ? "final" : ""}`}
             >
-              <div className="realtime-text">{realtimeDisplayText}</div>
-            </div>
+              <Text className="realtime-text">{realtimeDisplayText}</Text>
+            </Box>
           )}
 
           {!showRealtimeText && state === "recording" && (
             <>
-              <div className="bars-container">
+              <Flex className="bars-container">
                 {levels.map((v, i) => (
-                  <div
+                  <Box
                     key={i}
                     className="bar"
                     style={{
@@ -273,31 +254,31 @@ const RecordingOverlay: React.FC = () => {
                     }}
                   />
                 ))}
-              </div>
+              </Flex>
             </>
           )}
           {!showRealtimeText && state !== "recording" && (
-            <div className="status-text">
-              {statusTextMap[state]}
-              {showErrorText && <div className="mt-1 text-xs text-text/60">{errorText}</div>}
-            </div>
+            <Flex direction="column" className="status-text" align="center">
+              <Text>{statusTextMap[state]}</Text>
+              {showErrorText && <Text className="mt-1 text-xs text-text/60">{errorText}</Text>}
+            </Flex>
           )}
-        </div>
+        </Flex>
 
-        <div className="overlay-right">
+        <Flex className="overlay-right">
           {state === "recording" && (
-            <div
+            <Box
               className="cancel-button"
               onClick={() => {
                 invoke("cancel_operation");
               }}
             >
               <CancelIcon />
-            </div>
+            </Box>
           )}
-        </div>
-      </div>
-    </div>
+        </Flex>
+      </Box>
+    </Box>
   );
 };
 
