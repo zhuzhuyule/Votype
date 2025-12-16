@@ -105,3 +105,32 @@ pub fn get_active_window_info() -> Result<active_window::ActiveWindowInfo, Strin
 pub fn get_cursor_position() -> Result<active_window::CursorPosition, String> {
     active_window::fetch_cursor_position()
 }
+
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) -> Result<(), String> {
+    crate::utils::show_or_create_main_window(&app, Some("dashboard"))
+        .map(|_| ())
+        .map_err(|e| e)
+}
+
+#[tauri::command]
+pub fn get_first_history_entry(app: AppHandle) -> Result<Option<crate::managers::history::HistoryEntry>, String> {
+    use std::sync::Arc;
+    use tauri::async_runtime::block_on;
+    use crate::managers::history::HistoryManager;
+    
+    // Get the history manager state
+    let history_manager = app.state::<Arc<HistoryManager>>();
+    
+    // Get all history entries
+    let entries = block_on(history_manager.get_history_entries())
+        .map_err(|e| e.to_string())?;
+    
+    // Return the first non-deleted entry
+    Ok(entries.into_iter().find(|e| !e.deleted))
+}
+
+#[tauri::command]
+pub fn paste_text_to_active_window(app: AppHandle, text: String) -> Result<(), String> {
+    crate::clipboard::paste(text, app)
+}
