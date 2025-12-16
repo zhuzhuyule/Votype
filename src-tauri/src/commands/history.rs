@@ -129,7 +129,7 @@ pub async fn retranscribe_history_entry(
 
     let file_path = history_manager.get_audio_file_path(&entry.file_name);
     let samples = read_wav_file(&file_path).map_err(|e| e.to_string())?;
-    
+
     // Ensure we have a valid duration even if missing in original entry
     let duration_ms = (samples.len() as f64 / 16000.0 * 1000.0) as i64;
 
@@ -155,9 +155,9 @@ pub async fn retranscribe_history_entry(
         .transcribe(samples)
         .map_err(|e| e.to_string())?;
     let elapsed = start_time.elapsed().as_millis() as i64;
-    
+
     let char_count = transcription_text.chars().count() as i64;
-    
+
     // Update the existing entry using the manager method
     history_manager
         .update_transcription_content(
@@ -177,29 +177,33 @@ pub async fn retranscribe_history_entry(
 
     // --- Post-processing ---
     if settings.post_process_enabled {
-        use crate::actions::post_process::{maybe_convert_chinese_variant, maybe_post_process_transcription};
-        
+        use crate::actions::post_process::{
+            maybe_convert_chinese_variant, maybe_post_process_transcription,
+        };
+
         // 1. Try Chinese variant conversion
         let mut final_text = None;
         let mut post_process_prompt_text = String::new();
 
-        if let Some(converted) = maybe_convert_chinese_variant(&settings, &transcription_text).await {
+        if let Some(converted) = maybe_convert_chinese_variant(&settings, &transcription_text).await
+        {
             final_text = Some(converted);
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            if let Some(processed) = maybe_post_process_transcription(
-                &app,
-                &settings,
-                &transcription_text,
-                None,
-                false,
-            ).await {
+            if let Some(processed) =
+                maybe_post_process_transcription(&app, &settings, &transcription_text, None, false)
+                    .await
+            {
                 final_text = Some(processed);
-                
+
                 // Find the prompt text to save
                 if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                    if let Some(prompt) = settings.post_process_prompts.iter().find(|p| &p.id == prompt_id) {
+                    if let Some(prompt) = settings
+                        .post_process_prompts
+                        .iter()
+                        .find(|p| &p.id == prompt_id)
+                    {
                         post_process_prompt_text = prompt.prompt.clone();
                     }
                 }

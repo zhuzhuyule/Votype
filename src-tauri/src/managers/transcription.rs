@@ -121,7 +121,10 @@ pub struct TranscriptionManager {
 }
 
 impl TranscriptionManager {
-    fn join_stable_offline_text(prefix_text: &str, recent_segments: &VecDeque<OfflineVadSegment>) -> String {
+    fn join_stable_offline_text(
+        prefix_text: &str,
+        recent_segments: &VecDeque<OfflineVadSegment>,
+    ) -> String {
         let mut out = prefix_text.trim().to_string();
         for seg in recent_segments.iter() {
             let t = seg.text.trim();
@@ -149,7 +152,9 @@ impl TranscriptionManager {
 
         // Allow small overlaps to avoid duplicate Chinese characters at chunk boundaries.
         for overlap in (3..=max_overlap).rev() {
-            let stable_suffix: String = stable_chars[stable_chars.len() - overlap..].iter().collect();
+            let stable_suffix: String = stable_chars[stable_chars.len() - overlap..]
+                .iter()
+                .collect();
             let tail_prefix: String = tail_chars[..overlap].iter().collect();
             if stable_suffix == tail_prefix {
                 let tail_rest: String = tail_chars[overlap..].iter().collect();
@@ -479,10 +484,8 @@ impl TranscriptionManager {
                             false,
                         )
                         .map_err(|e| {
-                            let error_msg = format!(
-                                "Failed to create Sherpa zipformer2 CTC recognizer: {}",
-                                e
-                            );
+                            let error_msg =
+                                format!("Failed to create Sherpa zipformer2 CTC recognizer: {}", e);
                             let _ = self.app_handle.emit(
                                 "model-state-changed",
                                 ModelStateEvent {
@@ -497,55 +500,10 @@ impl TranscriptionManager {
 
                         LoadedEngine::SherpaOnline(Arc::new(recognizer))
                     } else {
-                    let encoder =
-                        find_sherpa_onnx(&model_path, "encoder", prefer_int8).map_err(|e| {
-                            let error_msg =
-                                format!("Missing Sherpa encoder in {:?}: {}", model_path, e);
-                            let _ = self.app_handle.emit(
-                                "model-state-changed",
-                                ModelStateEvent {
-                                    event_type: "loading_failed".to_string(),
-                                    model_id: Some(model_id.to_string()),
-                                    model_name: Some(model_info.name.clone()),
-                                    error: Some(error_msg.clone()),
-                                },
-                            );
-                            anyhow::anyhow!(error_msg)
-                        })?;
-
-                    let decoder =
-                        find_sherpa_onnx(&model_path, "decoder", prefer_int8).map_err(|e| {
-                            let error_msg =
-                                format!("Missing Sherpa decoder in {:?}: {}", model_path, e);
-                            let _ = self.app_handle.emit(
-                                "model-state-changed",
-                                ModelStateEvent {
-                                    event_type: "loading_failed".to_string(),
-                                    model_id: Some(model_id.to_string()),
-                                    model_name: Some(model_info.name.clone()),
-                                    error: Some(error_msg.clone()),
-                                },
-                            );
-                            anyhow::anyhow!(error_msg)
-                        })?;
-
-                    let recognizer = if matches!(
-                        family,
-                        crate::managers::model::SherpaOnnxAsrFamily::Paraformer
-                    ) {
-                        SherpaOnnxOnlineRecognizer::new_paraformer(
-                            encoder.to_string_lossy().to_string(),
-                            decoder.to_string_lossy().to_string(),
-                            tokens.to_string_lossy().to_string(),
-                            "cpu".to_string(),
-                            4,
-                            false,
-                        )
-                    } else {
-                        let joiner =
-                            find_sherpa_onnx(&model_path, "joiner", prefer_int8).map_err(|e| {
+                        let encoder = find_sherpa_onnx(&model_path, "encoder", prefer_int8)
+                            .map_err(|e| {
                                 let error_msg =
-                                    format!("Missing Sherpa joiner in {:?}: {}", model_path, e);
+                                    format!("Missing Sherpa encoder in {:?}: {}", model_path, e);
                                 let _ = self.app_handle.emit(
                                     "model-state-changed",
                                     ModelStateEvent {
@@ -557,31 +515,77 @@ impl TranscriptionManager {
                                 );
                                 anyhow::anyhow!(error_msg)
                             })?;
-                        SherpaOnnxOnlineRecognizer::new_transducer(
-                            encoder.to_string_lossy().to_string(),
-                            decoder.to_string_lossy().to_string(),
-                            joiner.to_string_lossy().to_string(),
-                            tokens.to_string_lossy().to_string(),
-                            "cpu".to_string(),
-                            4,
-                            false,
-                        )
-                    }
-                    .map_err(|e| {
-                        let error_msg = format!("Failed to create Sherpa online recognizer: {}", e);
-                        let _ = self.app_handle.emit(
-                            "model-state-changed",
-                            ModelStateEvent {
-                                event_type: "loading_failed".to_string(),
-                                model_id: Some(model_id.to_string()),
-                                model_name: Some(model_info.name.clone()),
-                                error: Some(error_msg.clone()),
-                            },
-                        );
-                        anyhow::anyhow!(error_msg)
-                    })?;
 
-                    LoadedEngine::SherpaOnline(Arc::new(recognizer))
+                        let decoder = find_sherpa_onnx(&model_path, "decoder", prefer_int8)
+                            .map_err(|e| {
+                                let error_msg =
+                                    format!("Missing Sherpa decoder in {:?}: {}", model_path, e);
+                                let _ = self.app_handle.emit(
+                                    "model-state-changed",
+                                    ModelStateEvent {
+                                        event_type: "loading_failed".to_string(),
+                                        model_id: Some(model_id.to_string()),
+                                        model_name: Some(model_info.name.clone()),
+                                        error: Some(error_msg.clone()),
+                                    },
+                                );
+                                anyhow::anyhow!(error_msg)
+                            })?;
+
+                        let recognizer = if matches!(
+                            family,
+                            crate::managers::model::SherpaOnnxAsrFamily::Paraformer
+                        ) {
+                            SherpaOnnxOnlineRecognizer::new_paraformer(
+                                encoder.to_string_lossy().to_string(),
+                                decoder.to_string_lossy().to_string(),
+                                tokens.to_string_lossy().to_string(),
+                                "cpu".to_string(),
+                                4,
+                                false,
+                            )
+                        } else {
+                            let joiner = find_sherpa_onnx(&model_path, "joiner", prefer_int8)
+                                .map_err(|e| {
+                                    let error_msg =
+                                        format!("Missing Sherpa joiner in {:?}: {}", model_path, e);
+                                    let _ = self.app_handle.emit(
+                                        "model-state-changed",
+                                        ModelStateEvent {
+                                            event_type: "loading_failed".to_string(),
+                                            model_id: Some(model_id.to_string()),
+                                            model_name: Some(model_info.name.clone()),
+                                            error: Some(error_msg.clone()),
+                                        },
+                                    );
+                                    anyhow::anyhow!(error_msg)
+                                })?;
+                            SherpaOnnxOnlineRecognizer::new_transducer(
+                                encoder.to_string_lossy().to_string(),
+                                decoder.to_string_lossy().to_string(),
+                                joiner.to_string_lossy().to_string(),
+                                tokens.to_string_lossy().to_string(),
+                                "cpu".to_string(),
+                                4,
+                                false,
+                            )
+                        }
+                        .map_err(|e| {
+                            let error_msg =
+                                format!("Failed to create Sherpa online recognizer: {}", e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
+
+                        LoadedEngine::SherpaOnline(Arc::new(recognizer))
                     }
                 } else if matches!(
                     family,
@@ -1113,14 +1117,16 @@ impl TranscriptionManager {
         std::thread::spawn(move || {
             let mut punctuation_cache: Option<(String, SherpaOnnxOfflinePunctuation)> = None;
             let mut last_log_time = std::time::Instant::now();
-            
+
             while let Ok(mut job) = rx.recv() {
                 // Coalesce: keep only the latest pending job.
                 while let Ok(next) = rx.try_recv() {
                     job = next;
                 }
 
-                if let Err(e) = tm.process_offline_realtime_job(job, &mut punctuation_cache, &mut last_log_time) {
+                if let Err(e) =
+                    tm.process_offline_realtime_job(job, &mut punctuation_cache, &mut last_log_time)
+                {
                     warn!("Offline realtime decode failed: {}", e);
                 }
             }
@@ -1180,7 +1186,8 @@ impl TranscriptionManager {
                 return Ok(());
             }
 
-            let stable_text = Self::join_stable_offline_text(&sess.prefix_text, &sess.recent_segments);
+            let stable_text =
+                Self::join_stable_offline_text(&sess.prefix_text, &sess.recent_segments);
 
             let mut out = Vec::new();
             if let Some(last_seg) = sess.recent_segments.back() {
@@ -1231,7 +1238,10 @@ impl TranscriptionManager {
                 Ok(g) => g,
                 Err(_) => return Ok(()),
             };
-            let t = recognizer.decode(16000, &job.tail_audio)?.trim().to_string();
+            let t = recognizer
+                .decode(16000, &job.tail_audio)?
+                .trim()
+                .to_string();
             drop(decode_guard);
             t
         };
@@ -1329,11 +1339,11 @@ impl TranscriptionManager {
             // Safe truncation for UTF-8 characters
             let char_count = clean_log_text.chars().count();
             let preview = if char_count > 100 {
-                 let skip = char_count - 100;
-                 let tail: String = clean_log_text.chars().skip(skip).collect();
-                 format!("...{}", tail)
+                let skip = char_count - 100;
+                let tail: String = clean_log_text.chars().skip(skip).collect();
+                format!("...{}", tail)
             } else {
-                 clean_log_text
+                clean_log_text
             };
 
             info!("[Overlay Preview] chars={} {}", char_count, preview);
@@ -1435,7 +1445,8 @@ impl TranscriptionManager {
                     if let Some(old) = sess.recent_segments.pop_front() {
                         let old_text = old.text.trim();
                         if !old_text.is_empty() {
-                            sess.prefix_text = Self::merge_text_with_overlap(&sess.prefix_text, old_text);
+                            sess.prefix_text =
+                                Self::merge_text_with_overlap(&sess.prefix_text, old_text);
                         }
                     }
                 }
@@ -1466,7 +1477,7 @@ impl TranscriptionManager {
             };
 
             let silence_duration_ms = now_ms.saturating_sub(sess.last_voice_ms);
-            
+
             // Allow manual override of the max segment size via the "force window" setting,
             // but ensure a reasonable minimum (e.g. 60s) to avoid frequent cutting.
             let settings = get_settings(&self.app_handle);
@@ -1476,7 +1487,10 @@ impl TranscriptionManager {
             let max_samples = (window_secs * 1.5).max(60.0) * 16000.0;
             let force_commit = sess.pending_audio.len() as f64 > max_samples;
 
-            if !force_commit && (silence_duration_ms < SILENCE_TIMEOUT_MS || sess.pending_audio.len() < MIN_SEGMENT_SAMPLES) {
+            if !force_commit
+                && (silence_duration_ms < SILENCE_TIMEOUT_MS
+                    || sess.pending_audio.len() < MIN_SEGMENT_SAMPLES)
+            {
                 return Ok(());
             }
 
@@ -1518,19 +1532,23 @@ impl TranscriptionManager {
         {
             let mut session_guard = self.sherpa_offline_session.lock().unwrap();
             if let Some(sess) = session_guard.as_mut() {
-                sess.recent_segments
-                    .push_back(OfflineVadSegment { audio: segment_audio, text: segment_text });
+                sess.recent_segments.push_back(OfflineVadSegment {
+                    audio: segment_audio,
+                    text: segment_text,
+                });
 
                 // Keep recent segments buffer within ~30s to prevent ONNX reshape errors
                 // and keep realtime decoding fast.
-                let mut current_samples: usize = sess.recent_segments.iter().map(|s| s.audio.len()).sum();
-                const MAX_RECENT_SAMPLES: usize = 30 * 16000; 
+                let mut current_samples: usize =
+                    sess.recent_segments.iter().map(|s| s.audio.len()).sum();
+                const MAX_RECENT_SAMPLES: usize = 30 * 16000;
 
                 while current_samples > MAX_RECENT_SAMPLES && !sess.recent_segments.is_empty() {
                     if let Some(old) = sess.recent_segments.pop_front() {
                         let old_text = old.text.trim();
                         if !old_text.is_empty() {
-                            sess.prefix_text = Self::merge_text_with_overlap(&sess.prefix_text, old_text);
+                            sess.prefix_text =
+                                Self::merge_text_with_overlap(&sess.prefix_text, old_text);
                         }
                         current_samples -= old.audio.len();
                     }

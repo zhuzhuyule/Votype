@@ -1,6 +1,8 @@
 use crate::input;
+use crate::managers::audio::AudioRecordingManager;
 use crate::settings;
 use crate::settings::OverlayPosition;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(not(target_os = "macos"))]
@@ -313,8 +315,17 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
         let _ = overlay_window.emit("hide-overlay", ());
         // Hide the window after a short delay to allow animation to complete
         let window_clone = overlay_window.clone();
+        let app_handle_clone = app_handle.clone();
+
         std::thread::spawn(move || {
             std::thread::sleep(std::time::Duration::from_millis(300));
+
+            // Check if we started recording again during the fade-out
+            let rm = app_handle_clone.state::<Arc<AudioRecordingManager>>();
+            if rm.is_recording() {
+                return;
+            }
+
             let _ = window_clone.hide();
         });
     }

@@ -250,7 +250,10 @@ impl ShortcutAction for TranscribeAction {
                 })();
 
                 if let Err(e) = &result {
-                    error!("Secondary Sherpa offline transcription worker failed: {}", e);
+                    error!(
+                        "Secondary Sherpa offline transcription worker failed: {}",
+                        e
+                    );
                 }
                 let _ = app_handle.emit(
                     "sherpa-offline-worker-exited",
@@ -598,131 +601,125 @@ impl ShortcutAction for TranscribeAction {
                         }
                     };
 
-                            if rm.get_current_transcription_id() != current_transcription_id {
-                                info!(
+                    if rm.get_current_transcription_id() != current_transcription_id {
+                        info!(
                                     "New recording started during transcription (ID mismatch: {} != {}). Skipping paste/post-processing.",
                                     rm.get_current_transcription_id(),
                                     current_transcription_id
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                change_tray_icon(&ah, TrayIconState::Idle);
+                        utils::hide_recording_overlay(&ah);
+                        change_tray_icon(&ah, TrayIconState::Idle);
+                        return;
+                    }
+
+                    if settings.post_process_enabled {
+                        let ah_clone = ah.clone();
+                        let settings_clone = settings.clone();
+                        let rm_clone = Arc::clone(&rm);
+                        let hm_clone = Arc::clone(&hm);
+                        let ppm_clone = Arc::clone(&ppm);
+                        let secondary_result_for_post = secondary_result.clone();
+                        let incremental_result_for_post = incremental_result.clone();
+
+                        let task = tokio::spawn(async move {
+                            let mut final_text = transcription_clone.clone();
+                            let mut post_process_prompt = String::new();
+
+                            if let Some(converted_text) =
+                                maybe_convert_chinese_variant(&settings_clone, &transcription_clone)
+                                    .await
+                            {
+                                final_text = converted_text;
+                            } else if let Some(processed_text) = {
+                                let secondary = if settings_clone.post_process_use_secondary_output
+                                {
+                                    let mut secondary = secondary_result_for_post
+                                        .clone()
+                                        .or_else(|| incremental_result_for_post.clone());
+                                    if secondary.is_none() {
+                                        secondary = Some(transcription_clone.clone());
+                                    }
+                                    secondary
+                                } else {
+                                    None
+                                };
+
+                                maybe_post_process_transcription(
+                                    &ah_clone,
+                                    &settings_clone,
+                                    &transcription_clone,
+                                    secondary.as_deref(),
+                                    true,
+                                )
+                                .await
+                            } {
+                                final_text = processed_text;
+
+                                if let Some(prompt_id) =
+                                    &settings_clone.post_process_selected_prompt_id
+                                {
+                                    if let Some(prompt) = settings_clone
+                                        .post_process_prompts
+                                        .iter()
+                                        .find(|p| &p.id == prompt_id)
+                                    {
+                                        post_process_prompt = prompt.prompt.clone();
+                                    }
+                                }
+                            }
+
+                            if let Some(history_id) = history_id {
+                                let prompt_to_store = post_process_prompt.clone();
+                                if let Err(e) = hm_clone
+                                    .update_transcription_post_processing(
+                                        history_id,
+                                        final_text.clone(),
+                                        prompt_to_store,
+                                    )
+                                    .await
+                                {
+                                    error!(
+                                        "Failed to update transcription with post-processing: {}",
+                                        e
+                                    );
+                                }
+                            }
+
+                            if rm_clone.get_current_transcription_id() != current_transcription_id {
+                                info!(
+                                    "New recording started during post-processing; skipping paste."
+                                );
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
                                 return;
                             }
 
-                            if settings.post_process_enabled {
-                                let ah_clone = ah.clone();
-                                let settings_clone = settings.clone();
-                                let rm_clone = Arc::clone(&rm);
-                                let hm_clone = Arc::clone(&hm);
-                                let ppm_clone = Arc::clone(&ppm);
-                                let secondary_result_for_post = secondary_result.clone();
-                                let incremental_result_for_post = incremental_result.clone();
-
-                                let task = tokio::spawn(async move {
-                                    let mut final_text = transcription_clone.clone();
-                                    let mut post_process_prompt = String::new();
-
-                                    if let Some(converted_text) = maybe_convert_chinese_variant(
-                                        &settings_clone,
-                                        &transcription_clone,
-                                    )
-                                    .await
-                                    {
-                                        final_text = converted_text;
-                                    } else if let Some(processed_text) = {
-                                            let secondary = if settings_clone
-                                                .post_process_use_secondary_output
-                                            {
-                                                let mut secondary = secondary_result_for_post
-                                                    .clone()
-                                                    .or_else(|| incremental_result_for_post.clone());
-                                                if secondary.is_none() {
-                                                    secondary = Some(transcription_clone.clone());
-                                                }
-                                                secondary
-                                            } else {
-                                                None
-                                            };
-
-                                            maybe_post_process_transcription(
-                                                &ah_clone,
-                                                &settings_clone,
-                                                &transcription_clone,
-                                                secondary.as_deref(),
-                                                true,
-                                            )
-                                            .await
-                                        } {
-                                        final_text = processed_text;
-
-                                        if let Some(prompt_id) =
-                                            &settings_clone.post_process_selected_prompt_id
-                                        {
-                                            if let Some(prompt) = settings_clone
-                                                .post_process_prompts
-                                                .iter()
-                                                .find(|p| &p.id == prompt_id)
-                                            {
-                                                post_process_prompt = prompt.prompt.clone();
-                                            }
-                                        }
-                                    }
-
-                                    if let Some(history_id) = history_id {
-                                        let prompt_to_store = post_process_prompt.clone();
-                                        if let Err(e) = hm_clone
-                                            .update_transcription_post_processing(
-                                                history_id,
-                                                final_text.clone(),
-                                                prompt_to_store,
-                                            )
-                                            .await
-                                        {
-                                            error!(
-                                                "Failed to update transcription with post-processing: {}",
-                                                e
-                                            );
-                                        }
-                                    }
-
-                                    if rm_clone.get_current_transcription_id()
-                                        != current_transcription_id
-                                    {
-                                        info!("New recording started during post-processing; skipping paste.");
-                                        utils::hide_recording_overlay(&ah_clone);
-                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                        return;
-                                    }
-
-                                    let ah_clone_inner = ah_clone.clone();
-                                    ah_clone
-                                        .run_on_main_thread(move || {
-                                            utils::hide_recording_overlay(&ah_clone_inner);
-                                            change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
-                                            if let Err(e) = utils::paste(final_text, ah_clone_inner)
-                                            {
-                                                error!("Failed to paste transcription: {}", e);
-                                            }
-                                        })
-                                        .unwrap_or_else(|e| {
-                                            error!("Failed to run paste on main thread: {:?}", e)
-                                        });
-                                });
-
-                                ppm_clone.set_current_task(task.abort_handle());
-                            } else {
-                                let ah_clone = ah.clone();
-                                ah.run_on_main_thread(move || {
-                                    utils::hide_recording_overlay(&ah_clone);
-                                    change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                    if let Err(e) = utils::paste(transcription_clone, ah_clone) {
+                            let ah_clone_inner = ah_clone.clone();
+                            ah_clone
+                                .run_on_main_thread(move || {
+                                    utils::hide_recording_overlay(&ah_clone_inner);
+                                    change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
+                                    if let Err(e) = utils::paste(final_text, ah_clone_inner) {
                                         error!("Failed to paste transcription: {}", e);
                                     }
                                 })
                                 .unwrap_or_else(|e| {
                                     error!("Failed to run paste on main thread: {:?}", e)
                                 });
+                        });
+
+                        ppm_clone.set_current_task(task.abort_handle());
+                    } else {
+                        let ah_clone = ah.clone();
+                        ah.run_on_main_thread(move || {
+                            utils::hide_recording_overlay(&ah_clone);
+                            change_tray_icon(&ah_clone, TrayIconState::Idle);
+                            if let Err(e) = utils::paste(transcription_clone, ah_clone) {
+                                error!("Failed to paste transcription: {}", e);
                             }
+                        })
+                        .unwrap_or_else(|e| error!("Failed to run paste on main thread: {:?}", e));
+                    }
                 } else {
                     let err_msg = primary_error.unwrap_or_else(|| "unknown".to_string());
                     debug!("Global Shortcut Transcription error: {}", err_msg);

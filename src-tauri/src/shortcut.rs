@@ -1097,9 +1097,8 @@ pub fn change_post_process_use_secondary_output_setting(
     if !enabled {
         let settings = settings::get_settings(&app);
         if settings.online_asr_enabled {
-            if let Some(tm) =
-                app.try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>(
-                )
+            if let Some(tm) = app
+                .try_state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>()
             {
                 let _ = tm.abort_sherpa_online_session();
                 let _ = tm.abort_sherpa_offline_session();
@@ -1152,7 +1151,10 @@ pub fn change_post_process_secondary_model_id_setting(
 }
 
 #[tauri::command]
-pub fn change_offline_vad_force_interval_ms_setting(app: AppHandle, value: u64) -> Result<(), String> {
+pub fn change_offline_vad_force_interval_ms_setting(
+    app: AppHandle,
+    value: u64,
+) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.offline_vad_force_interval_ms = value;
     settings::write_settings(&app, settings);
@@ -1295,10 +1297,7 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
     let shortcut = match binding_str.parse::<Shortcut>() {
         Ok(s) => s,
         Err(e) => {
-            let error_msg = format!(
-                "Failed to parse shortcut '{}': {}",
-                binding_str, e
-            );
+            let error_msg = format!("Failed to parse shortcut '{}': {}", binding_str, e);
             error!("_register_shortcut parse error: {}", error_msg);
             return Err(error_msg);
         }
@@ -1403,10 +1402,7 @@ pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<
     };
 
     app.global_shortcut().unregister(shortcut).map_err(|e| {
-        let error_msg = format!(
-            "Failed to unregister shortcut '{}': {}",
-            binding_str, e
-        );
+        let error_msg = format!("Failed to unregister shortcut '{}': {}", binding_str, e);
         error!("_unregister_shortcut error: {}", error_msg);
         error_msg
     })?;

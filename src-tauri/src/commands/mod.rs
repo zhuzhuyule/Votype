@@ -114,18 +114,19 @@ pub fn show_main_window(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn get_first_history_entry(app: AppHandle) -> Result<Option<crate::managers::history::HistoryEntry>, String> {
+pub fn get_first_history_entry(
+    app: AppHandle,
+) -> Result<Option<crate::managers::history::HistoryEntry>, String> {
+    use crate::managers::history::HistoryManager;
     use std::sync::Arc;
     use tauri::async_runtime::block_on;
-    use crate::managers::history::HistoryManager;
-    
+
     // Get the history manager state
     let history_manager = app.state::<Arc<HistoryManager>>();
-    
+
     // Get all history entries
-    let entries = block_on(history_manager.get_history_entries())
-        .map_err(|e| e.to_string())?;
-    
+    let entries = block_on(history_manager.get_history_entries()).map_err(|e| e.to_string())?;
+
     // Return the first non-deleted entry
     Ok(entries.into_iter().find(|e| !e.deleted))
 }

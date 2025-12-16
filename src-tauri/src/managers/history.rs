@@ -509,7 +509,6 @@ impl HistoryManager {
     }
 
     pub fn cleanup_old_entries(&self) -> Result<()> {
-
         let retention_period = crate::settings::get_recording_retention_period(&self.app_handle);
 
         match retention_period {

@@ -1,114 +1,108 @@
-# AGENTS.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Development Commands
-
-**Prerequisites:**
-
-- [Rust](https://rustup.rs/) (latest stable)
-- [Bun](https://bun.sh/) package manager
-
-**Core Development:**
-
-```bash
-# Install dependencies
-bun install
-
-# Run in development mode
-bun run tauri dev
-# If cmake error on macOS:
-CMAKE_POLICY_VERSION_MINIMUM=3.5 bun run tauri dev
-
-# Build for production
-bun run tauri build
-
-# Frontend only development
-bun run dev        # Start Vite dev server
-bun run build      # Build frontend (TypeScript + Vite)
-bun run preview    # Preview built frontend
-```
-
-**Model Setup (Required for Development):**
-
-```bash
-# Create models directory
-mkdir -p src-tauri/resources/models
-
-# Download required VAD model
-curl -o src-tauri/resources/models/silero_vad_v4.onnx https://blob.handy.computer/silero_vad_v4.onnx
-```
-
-## Architecture Overview
-
-Votype is a cross-platform desktop speech-to-text application built with Tauri (Rust backend + React/TypeScript frontend).
-
-### Core Components
-
-**Backend (Rust - src-tauri/src/):**
-
-- `lib.rs` - Main application entry point with Tauri setup, tray menu, and managers
-- `managers/` - Core business logic managers:
-  - `audio.rs` - Audio recording and device management
-  - `model.rs` - Whisper model downloading and management
-  - `transcription.rs` - Speech-to-text processing pipeline
-- `audio_toolkit/` - Low-level audio processing:
-  - `audio/` - Device enumeration, recording, resampling
-  - `vad/` - Voice Activity Detection using Silero VAD
-- `commands/` - Tauri command handlers for frontend communication
-- `shortcut.rs` - Global keyboard shortcut handling
-- `settings.rs` - Application settings management
-
-**Frontend (React/TypeScript - src/):**
-
-- `App.tsx` - Main application component with onboarding flow
-- `components/settings/` - Settings UI components
-- `components/model-selector/` - Model management interface
-- `hooks/` - React hooks for settings and model management
-- `lib/types.ts` - Shared TypeScript type definitions
-
-### Key Architecture Patterns
-
-**Manager Pattern:** Core functionality is organized into managers (Audio, Model, Transcription) that are initialized at startup and managed by Tauri's state system.
-
-**Command-Event Architecture:** Frontend communicates with backend via Tauri commands, backend sends updates via events.
-
-**Pipeline Processing:** Audio → VAD → Whisper → Text output with configurable components at each stage.
-
-### Technology Stack
-
-**Core Libraries:**
-
-- `whisper-rs` - Local Whisper inference with GPU acceleration
-- `cpal` - Cross-platform audio I/O
-- `vad-rs` - Voice Activity Detection
-- `rdev` - Global keyboard shortcuts
-- `rubato` - Audio resampling
-- `rodio` - Audio playback for feedback sounds
-
-**Platform-Specific Features:**
-
-- macOS: Metal acceleration for Whisper, accessibility permissions
-- Windows: Vulkan acceleration, code signing
-- Linux: OpenBLAS + Vulkan acceleration
-
-### Application Flow
-
-1. **Initialization:** App starts minimized to tray, loads settings, initializes managers
-2. **Model Setup:** First-run downloads preferred Whisper model (Small/Medium/Turbo/Large)
-3. **Recording:** Global shortcut triggers audio recording with VAD filtering
-4. **Processing:** Audio sent to Whisper model for transcription
-5. **Output:** Text pasted to active application via system clipboard
-
-### Settings System
-
-Settings are stored using Tauri's store plugin with reactive updates:
-
-- Keyboard shortcuts (configurable, supports push-to-talk)
-- Audio devices (microphone/output selection)
-- Model preferences (Small/Medium/Turbo/Large Whisper variants)
-- Audio feedback and translation options
-
-### Single Instance Architecture
-
-The app enforces single instance behavior - launching when already running brings the settings window to front rather than creating a new process.
+# Votype Project Context                                                 
+                                                                         
+## Project Overview                                                      
+                                                                         
+**Votype** (formerly Handy) is a cross-platform, offline speech-to-text  
+desktop application built with **Tauri**. It allows users to transcribe  
+speech directly into any text field using global shortcuts, ensuring     
+privacy by processing audio locally.                                     
+                                                                         
+### Key Features                                                         
+*   **Offline First:** Uses local models (Whisper, Parakeet) for         
+transcription.                                                           
+*   **Cross-Platform:** Runs on macOS, Windows, and Linux.               
+*   **Privacy Focused:** Audio is processed locally; no data is sent to  
+the cloud.                                                               
+*   **Global Shortcuts:** Trigger recording/transcription from anywhere  
+in the OS.                                                               
+                                                                         
+## Architecture & Tech Stack                                             
+                                                                         
+The project follows the standard Tauri architecture:                     
+                                                                         
+### Frontend (`src/`)                                                    
+*   **Framework:** React (v18) + TypeScript.                             
+*   **Build Tool:** Vite.                                                
+*   **Styling:** Tailwind CSS (v4).                                      
+*   **State Management:** Zustand.                                       
+*   **UI Components:** Radix UI Themes.                                  
+*   **Internationalization:** i18next.                                   
+                                                                         
+### Backend (`src-tauri/`)                                               
+*   **Framework:** Tauri v2 (Rust).                                      
+*   **Audio Processing:**                                                
+    *   `cpal`: Cross-platform audio input/output.                       
+    *   `vad-rs`: Voice Activity Detection (Silero).                     
+    *   `rubato`: Audio resampling.                                      
+    *   `hound`: WAV encoding/decoding.                                  
+*   **Machine Learning / ASR:**                                          
+    *   `whisper-rs`: Bindings for OpenAI's Whisper models.              
+    *   `transcribe-rs`: CPU-optimized Parakeet models.                  
+    *   `sherpa-rs-sys`: Bindings for Sherpa (likely for additional      
+model support).                                                          
+*   **System Integration:**                                              
+    *   `rdev`: Global keyboard shortcuts and mouse events.              
+    *   `enigo`: Cross-platform input simulation (for pasting text).     
+    *   `active-win-pos-rs`: Active window detection.                    
+    *   `tauri-plugin-clipboard-manager`: Clipboard access.              
+                                                                         
+## Development Setup                                                     
+                                                                         
+**Prerequisites:**                                                       
+*   **Rust:** Latest stable version (`rustup`).                          
+*   **Node.js / Bun:** The project uses **Bun** as the preferred package 
+manager (see `tauri.conf.json` and `BUILD.md`), though `npm` lockfiles   
+exist.                                                                   
+*   **Platform-specific build tools:** Xcode Command Line Tools (macOS), 
+Visual Studio C++ Build Tools (Windows), `build-essential` & audio libs  
+(Linux).                                                                 
+                                                                         
+### Key Commands                                                         
+                                                                         
+| Action | Command | Description |                                       
+| :--- | :--- | :--- |                                                   
+| **Install Dependencies** | `bun install` | Install frontend            
+dependencies. |                                                          
+| **Start Dev Server** | `bun tauri dev` | Starts the Tauri app in       
+development mode with hot-reloading. |                                   
+| **Build Production** | `bun tauri build` | Builds the optimized        
+application bundle / installer. |                                        
+| **Format Code** | `npm run format` | Runs Prettier for frontend and    
+`cargo fmt` for backend. |                                               
+| **Frontend Format** | `npm run format:frontend` | Runs Prettier on     
+`src/`. |                                                                
+| **Backend Format** | `npm run format:backend` | Runs `cargo fmt` in    
+`src-tauri/`. |                                                          
+                                                                         
+## Directory Structure                                                   
+                                                                         
+*   **`src/`**: React frontend application.                              
+    *   `applets/`: Specialized UI modules (e.g., notebook).             
+    *   `components/`: Reusable UI components.                           
+    *   `hooks/`: Custom React hooks (e.g., `useModels`, `useSettings`). 
+    *   `stores/`: Zustand state stores.                                 
+    *   `lib/`: Utilities and type definitions.                          
+    *   `overlay/`: Separate entry point for the recording overlay       
+window.                                                                  
+*   **`src-tauri/`**: Rust backend.                                      
+    *   `src/`: Rust source code.                                        
+        *   `main.rs`: Entry point.                                      
+        *   `sherpa.rs`, `online_asr.rs`: ASR logic.                     
+        *   `tray.rs`: System tray implementation.                       
+    *   `capabilities/`: Tauri permission configurations.                
+    *   `resources/`: Bundled assets (icons, sounds, default models).    
+    *   `tauri.conf.json`: Main Tauri configuration file.                
+                                                                         
+## Development Conventions                                               
+                                                                         
+*   **Package Manager:** Prefer `bun` for running scripts and installing 
+packages, but respect `package-lock.json` if `bun.lock` is out of sync   
+or if explicitly required.                                               
+*   **Code Style:**                                                      
+    *   **Frontend:** Prettier + ESLint.                                 
+    *   **Backend:** Rust standard style (`rustfmt`).                    
+*   **Commits:** Follow conventional commits if possible (not explicitly 
+enforced but good practice).                                             
+*   **Permissions:** Tauri v2 uses a capability-based permission system  
+(`src-tauri/capabilities/`). New plugin usage usually requires updating  
+these files.         

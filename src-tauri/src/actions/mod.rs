@@ -95,22 +95,25 @@ impl ShortcutAction for PasteFirstEntryAction {
             binding_id,
             shortcut_str
         );
-        
+
         // Get the first history entry and paste it
         match crate::commands::get_first_history_entry(app.clone()) {
             Ok(Some(entry)) => {
                 // Use post_processed_text if available, otherwise use transcription_text
-                let text_to_paste = entry.post_processed_text
+                let text_to_paste = entry
+                    .post_processed_text
                     .or_else(|| Some(entry.transcription_text))
                     .unwrap_or_default();
-                
+
                 if text_to_paste.is_empty() {
                     log::warn!("First entry has no text to paste");
                     return;
                 }
-                
+
                 // Paste the text to the active window
-                if let Err(e) = crate::commands::paste_text_to_active_window(app.clone(), text_to_paste) {
+                if let Err(e) =
+                    crate::commands::paste_text_to_active_window(app.clone(), text_to_paste)
+                {
                     log::error!("Failed to paste text to active window: {}", e);
                 } else {
                     log::info!("Successfully pasted first entry to active window");
