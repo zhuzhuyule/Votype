@@ -343,6 +343,10 @@
     },
     "general": {
       "title": "General",
+      "groups": {
+        "language": "Language",
+        "input": "Input Mode"
+      },
       "shortcut": {
         "title": "Votype Shortcuts",
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
@@ -404,6 +408,13 @@
     },
     "advanced": {
       "title": "Advanced",
+      "groups": {
+        "behavior": "Behavior",
+        "input": "Input & Clipboard",
+        "transcription": "Transcription & Models",
+        "data": "Data & Storage",
+        "system": "System & Debug"
+      },
       "startHidden": {
         "label": "Start Hidden",
         "description": "Launch to system tray without opening the window."
@@ -639,6 +650,12 @@
     },
     "debug": {
       "title": "Debug",
+      "groups": {
+        "system": "System & Logging",
+        "audio": "Audio & Processing",
+        "data": "Data Management",
+        "text": "Text Processing"
+      },
       "logDirectory": {
         "title": "Log Directory",
         "description": "Location where log files are stored",
