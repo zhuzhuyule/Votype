@@ -28,7 +28,8 @@
     },
     "activity": {
       "title": "利用状況",
-      "subtitle": "直近 30 日"
+      "subtitle": "直近 30 日",
+      "entries": "合 {{count}} 件"
     },
     "range": {
       "lastNDays": "直近{{days}}日",
@@ -117,6 +118,7 @@
   "modelSelector": {
     "welcome": "Handyへようこそ！",
     "downloadPrompt": "文字起こしを開始するには、下からモデルをダウンロードしてください。",
+    "realtimeModel": "リアルタイムモデル",
     "availableModels": "利用可能なモデル",
     "downloadModels": "モデルをダウンロード",
     "chooseModel": "モデルを選択",
@@ -168,6 +170,14 @@
           "cancel": {
             "name": "キャンセル",
             "description": "現在の録音をキャンセルします。"
+          },
+          "open_settings": {
+            "name": "設定を開く",
+            "description": "設定ウィンドウを開きます。"
+          },
+          "paste_first_entry": {
+            "name": "最初のエントリを貼り付け",
+            "description": "履歴の最初のエントリをアクティブウィンドウに貼り付けます。"
           }
         },
         "errors": {

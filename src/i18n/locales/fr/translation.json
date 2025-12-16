@@ -28,7 +28,8 @@
     },
     "activity": {
       "title": "Utilisation",
-      "subtitle": "30 derniers jours"
+      "subtitle": "30 derniers jours",
+      "entries": "{{count}} entrées"
     },
     "range": {
       "lastNDays": "{{days}} derniers jours",
@@ -117,6 +118,7 @@
   "modelSelector": {
     "welcome": "Bienvenue sur Votype !",
     "downloadPrompt": "Téléchargez un modèle ci-dessous pour commencer la transcription.",
+    "realtimeModel": "Modèle temps réel",
     "availableModels": "Modèles Disponibles",
     "downloadModels": "Télécharger des Modèles",
     "chooseModel": "Choisir un Modèle",
@@ -168,6 +170,14 @@
           "cancel": {
             "name": "Annuler",
             "description": "Annule l'enregistrement en cours."
+          },
+          "open_settings": {
+            "name": "Ouvrir les paramètres",
+            "description": "Ouvre la fenêtre des paramètres."
+          },
+          "paste_first_entry": {
+            "name": "Coller la première entrée",
+            "description": "Colle la première entrée de l'historique dans la fenêtre active."
           }
         },
         "errors": {

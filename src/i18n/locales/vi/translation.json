@@ -28,7 +28,8 @@
     },
     "activity": {
       "title": "Sử dụng",
-      "subtitle": "30 ngày gần đây"
+      "subtitle": "30 ngày gần đây",
+      "entries": "Tổng cộng {{count}} mục"
     },
     "range": {
       "lastNDays": "{{days}} ngày qua",
@@ -117,6 +118,7 @@
   "modelSelector": {
     "welcome": "Chào mừng đến với Votype!",
     "downloadPrompt": "Tải xuống mô hình bên dưới để bắt đầu chuyển đổi.",
+    "realtimeModel": "Mô hình thời gian thực",
     "availableModels": "Các Mô Hình Có Sẵn",
     "downloadModels": "Tải Xuống Mô Hình",
     "chooseModel": "Chọn Mô Hình",
@@ -168,6 +170,14 @@
           "cancel": {
             "name": "Hủy",
             "description": "Hủy bản ghi hiện tại."
+          },
+          "open_settings": {
+            "name": "Mở cài đặt",
+            "description": "Mở cửa sổ cài đặt."
+          },
+          "paste_first_entry": {
+            "name": "Dán mục đầu tiên",
+            "description": "Dán mục đầu tiên từ lịch sử vào cửa sổ hoạt động."
           }
         },
         "errors": {

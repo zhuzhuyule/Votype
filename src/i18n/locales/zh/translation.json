@@ -393,6 +393,14 @@
           "cancel": {
             "name": "取消",
             "description": "取消当前录制。"
+          },
+          "open_settings": {
+            "name": "打开设置",
+            "description": "打开设置窗口。"
+          },
+          "paste_first_entry": {
+            "name": "粘贴第一条记录",
+            "description": "将第一条历史记录粘贴到活动窗口。"
           }
         },
         "errors": {
