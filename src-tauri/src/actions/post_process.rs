@@ -12,13 +12,21 @@ use log::{debug, error, info};
 use tauri::AppHandle;
 
 fn clean_response_content(content: &str) -> String {
-    content
+    let mut text = content
         .replace("\\n", "\n")
         .replace("\\t", "\t")
         .replace("\\\"", "\"")
-        .replace("\\\\", "\\")
-        .trim()
-        .to_string()
+        .replace("\\\\", "\\");
+
+    while let Some(start) = text.find("<think>") {
+        if let Some(end) = text[start..].find("</think>") {
+            text.replace_range(start..start + end + 8, "");
+        } else {
+            break;
+        }
+    }
+
+    text.trim().to_string()
 }
 
 pub(crate) async fn maybe_post_process_transcription(
