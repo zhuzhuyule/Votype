@@ -1,75 +1,231 @@
 import { invoke } from "@tauri-apps/api/core";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import {
+  AlertDialog,
   Badge,
   Box,
   Button,
-  Dialog,
   Flex,
   IconButton,
-  RadioCards,
-  SegmentedControl,
   Text,
-  TextField
 } from "@radix-ui/themes";
-import { IconCheck, IconPencil, IconTrash } from "@tabler/icons-react";
+import { IconCircle, IconCircleCheckFilled, IconPlayerPlay, IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel, ModelType } from "../../../lib/types";
 
-import { Dropdown } from "../../ui/Dropdown";
-import { SettingContainer } from "../../ui/SettingContainer";
-import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
+// Helper to render a section of models
+const renderModelSection = ({
+  type,
+  allModels,
+  providerMap,
+  settings,
+  isUpdating,
+  handleRemove,
+  t,
+  refreshSettings,
+  allowSelection,
+  contentStyle = "",
+  hideIfEmpty = true
+}: {
+  type: ModelType,
+  allModels: CachedModel[],
+  providerMap: Record<string, string>,
+  settings: any,
+  isUpdating: (id: string) => boolean,
+  handleRemove: (id: string) => void,
+  t: any,
+  refreshSettings: () => Promise<void>,
+  allowSelection: boolean,
+  headerStyle?: string,
+  contentStyle?: string,
+  hideIfEmpty?: boolean
+}) => {
+  const models = allModels.filter(m => m.model_type === type);
 
-const MODEL_TYPE_INFO: Record<
-  ModelType,
-  { labelKey: string; hintKey: string }
-> = {
-  text: {
-    labelKey: "settings.postProcessing.models.modelTypes.text.label",
-    hintKey: "settings.postProcessing.models.modelTypes.text.hint",
-  },
-  asr: {
-    labelKey: "settings.postProcessing.models.modelTypes.asr.label",
-    hintKey: "settings.postProcessing.models.modelTypes.asr.hint",
-  },
-  other: {
-    labelKey: "settings.postProcessing.models.modelTypes.other.label",
-    hintKey: "settings.postProcessing.models.modelTypes.other.hint",
-  },
-};
-
-const MODEL_TYPE_ORDER: ModelType[] = ["text", "asr", "other"];
-
-const buildCacheId = (modelId: string, providerId: string) => {
-  if (globalThis.crypto?.randomUUID) {
-    return globalThis.crypto.randomUUID();
+  if (hideIfEmpty && models.length === 0) {
+    return (
+      <Flex align="center" justify="center" p="4" className="bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+        <Text size="1" color="gray" className="opacity-70">
+          {t("settings.postProcessing.models.empty.description")}
+        </Text>
+      </Flex>
+    );
   }
-  return `${providerId}-${modelId}-${Date.now()}`;
+
+  // Group models by provider
+  const groupedModels: Record<string, CachedModel[]> = {};
+  models.forEach(model => {
+    const providerKey = model.provider_id;
+    if (!groupedModels[providerKey]) {
+      groupedModels[providerKey] = [];
+    }
+    groupedModels[providerKey].push(model);
+  });
+
+  return (
+    <Flex direction="column" className="h-full">
+      <Box className={`space-y-4 flex-1 ${contentStyle}`}>
+        {Object.entries(groupedModels).map(([providerId, providerModels], index) => (
+          <Box key={providerId} className={index > 0 ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/10" : ""}>
+            {/* Minimal Provider Header - Uppercase small label */}
+            <Text size="1" weight="bold" className="px-1 mb-2 block uppercase text-xs opacity-60 tracking-wider text-gray-500 dark:text-gray-400">
+              {providerMap[providerId] ?? providerId}
+            </Text>
+
+            {/* Models list for this provider */}
+            <Box className="">
+              {providerModels.map((model, index) => {
+                const isRemoving = isUpdating(`cached_model_remove:${model.id}`);
+                const isSelected = allowSelection && settings?.selected_prompt_model_id === model.id;
+
+                return (
+                  <Flex
+                    key={model.id}
+                    align="center"
+                    justify="between"
+                    className={`
+                      px-2 py-2 transition-colors cursor-pointer group rounded-md
+                      ${isSelected ? "bg-indigo-50/50 dark:bg-indigo-500/20" : "hover:bg-gray-100/50 dark:hover:bg-white/5"}
+                    `}
+                    onClick={async () => {
+                      if (allowSelection && !isRemoving) {
+                        try {
+                          await invoke("select_post_process_model", { modelId: model.id });
+                          await refreshSettings();
+                        } catch (e) {
+                          console.error(e);
+                        }
+                      }
+                    }}
+                  >
+                    <Flex align="center" gap="3" className="flex-1 min-w-0">
+
+                      {allowSelection && (
+                        isSelected ? <IconCircleCheckFilled size={20} className="text-logo-primary" /> : <IconCircle size={20} />
+                      )}
+
+                      <Box className="flex-1 min-w-0">
+                        <Text size="2" weight={isSelected ? "medium" : "regular"} className="text-gray-900 dark:text-gray-200 truncate block leading-snug">
+                          {model.name}
+                        </Text>
+                      </Box>
+
+                      {model.custom_label && (
+                        <Badge size="1" variant="soft" color="indigo" className="ml-2">
+                          {model.custom_label}
+                        </Badge>
+                      )}
+                    </Flex>
+                    {/* Actions - Visible on Hover */}
+                    <Flex gap="3" className="opacity-0 group-hover:opacity-100 transition-opacity pl-2">
+                      <IconButton
+                        size="1"
+                        variant="ghost"
+                        color="green"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const toastId = toast.loading(t("settings.postProcessing.api.testing"));
+                          try {
+                            const result = await invoke<string>("test_post_process_model_inference", {
+                              providerId: model.provider_id,
+                              model: model.model_id,
+                              input: "OK", // Simple input
+                            });
+                            toast.dismiss(toastId);
+                            // We might expect 'OK' or similar, but just showing the success toast is enough
+                            toast.success(t("settings.postProcessing.api.testSuccess"), {
+                              duration: 5000,
+                              closeButton: true,
+                            });
+                          } catch (error) {
+                            toast.dismiss(toastId);
+                            let errorMessage = String(error);
+                            // Simple normalization if it's an object/error instance
+                            if (error instanceof Error) errorMessage = error.message;
+
+                            toast.error(t("settings.postProcessing.api.testFailed", { error: errorMessage }), {
+                              duration: Infinity,
+                              closeButton: true,
+                              style: { color: "red" },
+                            });
+                          }
+                        }}
+                        title={t("settings.postProcessing.api.testConnection")}
+                      >
+                        <IconPlayerPlay size={14} />
+                      </IconButton>
+
+                      <AlertDialog.Root>
+                        <AlertDialog.Trigger>
+                          <IconButton
+                            size="1"
+                            variant="ghost"
+                            color="red"
+                            onClick={(e) => {
+                              // Prevent selection when clicking delete
+                              e.stopPropagation();
+                              // We need to stop propagation on the trigger but AlertDialog handles the rest
+                            }}
+                            disabled={!!isRemoving}
+                            title={t("common.delete")}
+                          >
+                            <IconTrash size={14} />
+                          </IconButton>
+                        </AlertDialog.Trigger>
+                        <AlertDialog.Content maxWidth="450px" onClick={(e) => e.stopPropagation()}>
+                          <AlertDialog.Title>{t("settings.postProcessing.models.deleteConfirm.title")}</AlertDialog.Title>
+                          <AlertDialog.Description size="2">
+                            {t("settings.postProcessing.models.deleteConfirm.description")}
+                          </AlertDialog.Description>
+                          <Flex gap="3" mt="4" justify="end">
+                            <AlertDialog.Cancel>
+                              <Button variant="soft" color="gray">
+                                {t("common.cancel")}
+                              </Button>
+                            </AlertDialog.Cancel>
+                            <AlertDialog.Action>
+                              <Button variant="solid" color="red" onClick={(e) => {
+                                e.stopPropagation(); // Just in case
+                                handleRemove(model.id);
+                              }}>
+                                {t("common.delete")}
+                              </Button>
+                            </AlertDialog.Action>
+                          </Flex>
+                        </AlertDialog.Content>
+                      </AlertDialog.Root>
+                    </Flex>
+                  </Flex>
+                );
+              })}
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Flex>
+  );
 };
 
-export const ModelConfigurationPanel: React.FC = () => {
-  const state = usePostProcessProviderState();
+export interface ModelListPanelProps {
+  targetType: ModelType | ModelType[];
+}
+
+export const ModelListPanel: React.FC<ModelListPanelProps> = ({
+  targetType
+}) => {
   const {
     settings,
-    addCachedModel,
-    updateCachedModelType,
     removeCachedModel,
     isUpdating,
     refreshSettings,
   } = useSettings();
 
   const { t } = useTranslation();
-  const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
-  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
-  const [pendingModelType, setPendingModelType] = useState<ModelType>("text");
-  const [customTypeLabel, setCustomTypeLabel] = useState("");
-  const [isManualModelEntry, setIsManualModelEntry] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-
   const cachedModels = settings?.cached_models ?? [];
-  const providerId = state.selectedProviderId;
+
   const providerNameMap = useMemo(() => {
     const map: Record<string, string> = {};
     settings?.post_process_providers.forEach((provider) => {
@@ -78,71 +234,6 @@ export const ModelConfigurationPanel: React.FC = () => {
     return map;
   }, [settings?.post_process_providers]);
 
-  const configuredIds = useMemo(() => {
-    return new Set(cachedModels.map((model) => model.model_id));
-  }, [cachedModels]);
-
-  const localizedModelTypeOptions = useMemo(
-    () =>
-      MODEL_TYPE_ORDER.map((modelType) => ({
-        value: modelType,
-        label: t(MODEL_TYPE_INFO[modelType].labelKey),
-        hint: t(MODEL_TYPE_INFO[modelType].hintKey),
-      })),
-    [t],
-  );
-
-  const availableModels = useMemo(() => {
-    return state.modelOptions.filter(
-      (option) => option.value && !configuredIds.has(option.value),
-    );
-  }, [state.modelOptions, configuredIds]);
-
-  useEffect(() => {
-    if (availableModels.length === 0) {
-      if (!isManualModelEntry) {
-        setPendingModelId(null);
-      }
-      return;
-    }
-    setPendingModelId((current) => {
-      if (isManualModelEntry && current) {
-        return current;
-      }
-      if (
-        current &&
-        availableModels.some((option) => option.value === current)
-      ) {
-        return current;
-      }
-      return availableModels[0].value;
-    });
-  }, [availableModels, isManualModelEntry]);
-
-  const handleAddModel = useCallback(
-    async (modelId: string, modelType: ModelType, customLabel?: string) => {
-      if (!providerId) return;
-      const newModel: CachedModel = {
-        id: buildCacheId(modelId, providerId),
-        name: modelId,
-        model_type: modelType,
-        provider_id: providerId,
-        model_id: modelId,
-        added_at: new Date().toISOString(),
-        custom_label: customLabel ? customLabel.trim() : undefined,
-      };
-      await addCachedModel(newModel);
-    },
-    [addCachedModel, providerId],
-  );
-
-  const handleTypeUpdate = useCallback(
-    async (modelId: string, modelType: ModelType) => {
-      await updateCachedModelType(modelId, modelType);
-    },
-    [updateCachedModelType],
-  );
-
   const handleRemoveModel = useCallback(
     async (modelId: string) => {
       await removeCachedModel(modelId);
@@ -150,375 +241,29 @@ export const ModelConfigurationPanel: React.FC = () => {
     [removeCachedModel],
   );
 
-  useEffect(() => {
-    if (pendingModelType !== "other") {
-      setCustomTypeLabel("");
-    }
-  }, [pendingModelType]);
-
-  // 打开弹窗时自动刷新模型列表
-  useEffect(() => {
-    if (isModelPickerOpen && !state.isFetchingModels) {
-      state.handleRefreshModels();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModelPickerOpen]); // 只在弹窗打开/关闭时触发，避免重复刷新
+  const typesToRender = Array.isArray(targetType) ? targetType : [targetType];
+  const primaryType = typesToRender[0];
 
   return (
-    <SettingContainer
-      title=""
-      description=""
-      layout="stacked"
-      descriptionMode="inline"
-      grouped={true}
-    >
-      <Dialog.Root open={isModelPickerOpen} onOpenChange={setIsModelPickerOpen}>
-        <Dialog.Content maxWidth="450px">
-          <Dialog.Title>
-            {t("settings.postProcessing.models.selectModel.title")}
-          </Dialog.Title>
-          <Dialog.Description>
-            {t("settings.postProcessing.models.selectModel.description")}
-          </Dialog.Description>
-
-          <Flex direction="column" gap="4" mt="4">
-            <SegmentedControl.Root
-              defaultValue="select"
-              onValueChange={(value) => {
-                setIsManualModelEntry(value === "custom");
-                if (value === "select") {
-                  setPendingModelId(availableModels[0]?.value || null);
-                } else {
-                  setPendingModelId("");
-                }
-              }}
-            >
-              <SegmentedControl.Item value="select">
-                {t(
-                  "settings.postProcessing.models.selectModel.segmented.selectModel",
-                )}
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="custom">
-                {t(
-                  "settings.postProcessing.models.selectModel.segmented.customModel",
-                )}
-              </SegmentedControl.Item>
-            </SegmentedControl.Root>
-
-            {isManualModelEntry ? (
-              <TextField.Root
-                placeholder={t(
-                  "settings.postProcessing.models.selectModel.customModelPlaceholder",
-                )}
-                value={pendingModelId || ""}
-                onChange={(event) => setPendingModelId(event.target.value)}
-              />
-            ) : (
-              <Dropdown
-                options={availableModels}
-                selectedValue={pendingModelId || undefined}
-                onSelect={(value) => setPendingModelId(value)}
-                placeholder={
-                  availableModels.length === 0
-                    ? t("settings.postProcessing.models.selectModel.placeholderEmpty")
-                    : t("settings.postProcessing.models.selectModel.placeholder")
-                }
-                className="w-full"
-                enableFilter={true}
-              />
-            )}
-
-            <Box>
-              <Text size="2" weight="medium" mb="2">
-                {t("settings.postProcessing.models.selectModel.usageTypeTitle")}
-              </Text>
-              <RadioCards.Root
-                columns="3"
-                value={pendingModelType}
-                onValueChange={(value) =>
-                  setPendingModelType(value as ModelType)
-                }
-              >
-                {localizedModelTypeOptions.map((option) => (
-                  <RadioCards.Item key={option.value} value={option.value}>
-                    <Flex direction="column">
-                      <Text size="2" weight="medium">
-                        {option.label}
-                      </Text>
-                      <Text size="1" color="gray">
-                        {option.hint}
-                      </Text>
-                    </Flex>
-                  </RadioCards.Item>
-                ))}
-              </RadioCards.Root>
-            </Box>
-
-            {pendingModelType === "other" && (
-              <Box>
-                <Text size="2" weight="medium" mb="1">
-                  {t(
-                    "settings.postProcessing.models.selectModel.customLabelTitle",
-                  )}
-                </Text>
-                <TextField.Root
-                  placeholder={t(
-                    "settings.postProcessing.models.selectModel.customLabelPlaceholder",
-                  )}
-                  value={customTypeLabel}
-                  onChange={(event) => setCustomTypeLabel(event.target.value)}
-                />
-              </Box>
-            )}
-          </Flex>
-
-          <Flex justify="end" gap="3" mt="5">
-            <Dialog.Close>
-              <Button variant="soft" color="gray">
-                {t("common.cancel")}
-              </Button>
-            </Dialog.Close>
-            <Dialog.Close>
-              <Button
-                variant="solid"
-                disabled={
-                  !pendingModelId ||
-                  isUpdating("cached_model_add") ||
-                  (pendingModelType === "other" && !customTypeLabel.trim())
-                }
-                onClick={async () => {
-                  if (pendingModelId) {
-                    await handleAddModel(
-                      pendingModelId,
-                      pendingModelType,
-                      pendingModelType === "other"
-                        ? customTypeLabel
-                        : undefined,
-                    );
-                    setPendingModelId(null);
-                    setPendingModelType("text");
-                    setCustomTypeLabel("");
-                    setIsManualModelEntry(false);
-                  }
-                }}
-              >
-                {t("common.add")}
-              </Button>
-            </Dialog.Close>
-          </Flex>
-        </Dialog.Content>
-      </Dialog.Root>
-
-      <Box className="space-y-4">
-        <Flex align="center" justify="between">
-          <Text size="2" weight="medium">
-            {t("settings.postProcessing.models.title")}
-          </Text>
-          <Flex gap="2">
-            {cachedModels.length > 0 && (
-              <Button
-                onClick={() => setIsEditMode(!isEditMode)}
-                variant={isEditMode ? "solid" : "soft"}
-                size="2"
-              >
-                {isEditMode ? (
-                  <><IconCheck /> {t("common.done")}</>
-                ) : (
-                  <><IconPencil /> {t("common.edit")}</>
-                )}
-              </Button>
-            )}
-            <Button
-              onClick={() => setIsModelPickerOpen(true)}
-              variant="solid"
-              disabled={state.isFetchingModels}
-              className="shadow-sm hover:shadow-md transition-shadow"
-            >
-              {t("settings.postProcessing.models.addModel")}
-            </Button>
-          </Flex>
-        </Flex>
-        <Text size="1" color="gray" className="max-w-prose">
-          {t("settings.postProcessing.models.description")}
-        </Text>
-        <Flex wrap="wrap" gap="2" className="gap-4">
-          <Text size="1" className="text-mid-gray/80">
-            {t("settings.postProcessing.models.stats.asr", {
-              count: cachedModels.filter((model) => model.model_type === "asr")
-                .length,
-            })}
-          </Text>
-          <Text size="1" className="text-mid-gray/80">
-            {t("settings.postProcessing.models.stats.text", {
-              count: cachedModels.filter((model) => model.model_type === "text")
-                .length,
-            })}
-          </Text>
-          <Text size="1" className="text-mid-gray/80">
-            {t("settings.postProcessing.models.stats.other", {
-              count: cachedModels.filter(
-                (model) => model.model_type === "other",
-              ).length,
-            })}
-          </Text>
-        </Flex>
-        {cachedModels.length === 0 ? (
-          <Box className="text-center py-6 px-4 rounded-lg border-2 border-dashed border-mid-gray/20 bg-mid-gray/5">
-            <Text size="2" className="mb-1 text-mid-gray">
-              {t("settings.postProcessing.models.empty.title")}
-            </Text>
-            <Text size="1" className="text-mid-gray/70">
-              {t("settings.postProcessing.models.empty.description")}
-            </Text>
-          </Box>
-        ) : (
-          <Box className="space-y-6">
-            {MODEL_TYPE_ORDER.map((modelType) => {
-              const models = cachedModels.filter(
-                (model) => model.model_type === modelType,
-              );
-              if (models.length === 0) return null;
-
-              return (
-                <Box key={modelType} className="space-y-3">
-                  <Flex align="center" gap="2">
-                    <Text
-                      size="2"
-                      weight="medium"
-                      className="px-3 py-1 rounded-full border border-mid-gray/30 text-text"
-                    >
-                      {t(MODEL_TYPE_INFO[modelType].labelKey)}
-                    </Text>
-                    <Text size="1" color="gray">
-                      {models.length} {t("common.models")}
-                    </Text>
-                  </Flex>
-                  <Box className="relative">
-                    <Box
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-                        gap: "12px",
-                      }}
-                    >
-                      {models.map((cachedModel) => {
-                        const isRemoving = isUpdating(
-                          `cached_model_remove:${cachedModel.id}`,
-                        );
-                        const isSelected =
-                          settings?.selected_prompt_model_id === cachedModel.id;
-
-                        return (
-                          <Box
-                            key={cachedModel.id}
-                            className={`
-                              relative rounded-lg border transition-all duration-200 cursor-pointer
-                              ${isSelected
-                                ? "border-logo-primary bg-logo-primary/5 ring-1 ring-logo-primary"
-                                : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                              }
-                            `}
-                            onClick={async () => {
-                              if (!isEditMode && !isRemoving) {
-                                try {
-                                  await invoke("select_post_process_model", {
-                                    modelId: cachedModel.id,
-                                  });
-                                  await refreshSettings();
-                                } catch (e) {
-                                  console.error(
-                                    "Failed to set default model",
-                                    e,
-                                  );
-                                }
-                              }
-                            }}
-                          >
-                            <Flex
-                              direction="column"
-                              gap="2"
-                              p="3"
-                              height="100%"
-                              className="min-h-[80px]"
-                            >
-                              <Flex
-                                direction="column"
-                                gap="1"
-                                className="flex-1 min-w-0 pr-6"
-                              >
-                                <Text
-                                  size="2"
-                                  weight="medium"
-                                  className="truncate"
-                                >
-                                  {cachedModel.name}
-                                </Text>
-                                <Text
-                                  size="1"
-                                  color="gray"
-                                  className="truncate"
-                                >
-                                  {providerNameMap[cachedModel.provider_id] ??
-                                    cachedModel.provider_id}
-                                </Text>
-                              </Flex>
-                              {cachedModel.custom_label && (
-                                <Text
-                                  size="1"
-                                  weight="medium"
-                                  className="px-2 py-0.5 rounded bg-background/60 text-logo-primary border border-logo-primary/30 w-fit"
-                                >
-                                  {cachedModel.custom_label}
-                                </Text>
-                              )}
-                            </Flex>
-                            {isEditMode && (
-                              <IconButton
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveModel(cachedModel.id);
-                                }}
-                                variant="ghost"
-                                size="1"
-                                disabled={!!isRemoving}
-                                color="red"
-                                style={{
-                                  position: "absolute",
-                                  top: "8px",
-                                  right: "8px",
-                                  zIndex: 10,
-                                }}
-                                title={t("common.remove")}
-                              >
-                                <IconTrash width="14" height="14" />
-                              </IconButton>
-                            )}
-                            {isSelected && !isEditMode && (
-                              <Box
-                                style={{
-                                  position: "absolute",
-                                  bottom: "8px",
-                                  right: "8px",
-                                }}
-                              >
-                                <Badge color="indigo" variant="solid" radius="full">
-                                  {t("common.default") || "Default"}
-                                </Badge>
-                              </Box>
-                            )}
-                          </Box>
-                        );
-                      })}
-                    </Box>
-                  </Box>
-                </Box>
-              );
-            })}
-          </Box>
-        )}
-      </Box>
-    </SettingContainer>
+    <Box>
+      {typesToRender.map(type => (
+        <Box key={type} className="mb-4 last:mb-0">
+          {renderModelSection({
+            type,
+            allModels: cachedModels,
+            providerMap: providerNameMap,
+            settings,
+            isUpdating,
+            handleRemove: handleRemoveModel,
+            t,
+            refreshSettings,
+            allowSelection: type === 'text',
+            hideIfEmpty: false // We handle empty state inside
+          })}
+        </Box>
+      ))}
+    </Box>
   );
 };
 
-ModelConfigurationPanel.displayName = "ModelConfigurationPanel";
+ModelListPanel.displayName = "ModelListPanel";

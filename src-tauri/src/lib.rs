@@ -369,12 +369,14 @@ pub fn run() {
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,
+            shortcut::test_post_process_model_inference,
             trigger_update_check,
             commands::cancel_operation,
             commands::get_app_dir_path,
             commands::get_log_dir_path,
             commands::set_log_level,
             commands::open_recordings_folder,
+            commands::get_recordings_folder_path,
             commands::open_log_dir,
             commands::open_app_data_dir,
             commands::get_active_window_info,
@@ -420,7 +422,8 @@ pub fn run() {
             commands::history::delete_history_entry,
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,
-            commands::history::retranscribe_history_entry
+            commands::history::retranscribe_history_entry,
+            commands::log_to_console
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

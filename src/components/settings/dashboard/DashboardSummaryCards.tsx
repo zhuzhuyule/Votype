@@ -1,5 +1,5 @@
 import { Box, Card, Flex, Grid, Heading, Text } from "@radix-ui/themes";
-import { IconApps, IconBrain, IconFileText, IconMicrophone } from "@tabler/icons-react";
+import { IconApps, IconCpu, IconFileText, IconMicrophone } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
@@ -32,7 +32,14 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
 
   return (
     <Grid columns={{ initial: "1", sm: "4" }} gap="4">
-      <Card className="relative overflow-hidden">
+      <Card
+        className="relative overflow-hidden"
+        style={{
+          backgroundColor: "var(--color-panel-solid)",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          border: "1px solid var(--gray-a3)"
+        }}
+      >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
           <IconMicrophone size="100" className="text-logo-primary opacity-10" />
         </Box>
@@ -49,7 +56,14 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Flex>
       </Card>
 
-      <Card className="relative overflow-hidden">
+      <Card
+        className="relative overflow-hidden"
+        style={{
+          backgroundColor: "var(--color-panel-solid)",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          border: "1px solid var(--gray-a3)"
+        }}
+      >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
           <IconFileText size="100" className="text-blue-500 opacity-10" />
         </Box>
@@ -66,9 +80,16 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Flex>
       </Card>
 
-      <Card className="relative overflow-hidden">
+      <Card
+        className="relative overflow-hidden"
+        style={{
+          backgroundColor: "var(--color-panel-solid)",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          border: "1px solid var(--gray-a3)"
+        }}
+      >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
-          <IconBrain size="100" className="text-purple-500 opacity-10" />
+          <IconCpu size="100" className="text-purple-500 opacity-10" />
         </Box>
         <Flex direction="column" gap="3" className="relative z-10">
           <Text size="2" color="gray">
@@ -85,7 +106,14 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Flex>
       </Card>
 
-      <Card className="relative overflow-hidden">
+      <Card
+        className="relative overflow-hidden"
+        style={{
+          backgroundColor: "var(--color-panel-solid)",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          border: "1px solid var(--gray-a3)"
+        }}
+      >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
           <IconApps size="100" className="text-green-500 opacity-10" />
         </Box>

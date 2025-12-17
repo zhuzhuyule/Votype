@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useSettings } from "../../../hooks/useSettings";
-import { useSettingsStore } from "../../../stores/settingsStore";
 import type { PostProcessProvider } from "../../../lib/types";
-import type { ModelOption } from "./types";
 import type { DropdownOption } from "../../ui/Dropdown";
+import type { ModelOption } from "./types";
 
 type PostProcessProviderState = {
   enabled: boolean;
@@ -13,11 +12,13 @@ type PostProcessProviderState = {
   isCustomProvider: boolean;
   isAppleProvider: boolean;
   baseUrl: string;
-  handleBaseUrlChange: (value: string) => void;
+  handleBaseUrlChange: (value: string) => Promise<void>;
   isBaseUrlUpdating: boolean;
   apiKey: string;
-  handleApiKeyChange: (value: string) => void;
+  handleApiKeyChange: (value: string) => Promise<void>;
   isApiKeyUpdating: boolean;
+  modelsEndpoint: string;
+  handleModelsEndpointChange: (value: string) => void;
   model: string;
   handleModelChange: (value: string) => void;
   modelOptions: ModelOption[];
@@ -27,6 +28,7 @@ type PostProcessProviderState = {
   handleModelSelect: (value: string) => void;
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
+  testConnection: () => Promise<boolean>;
 };
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
@@ -41,6 +43,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     updatePostProcessModel,
     fetchPostProcessModels,
     postProcessModelOptions,
+    updateCustomProvider,
   } = useSettings();
 
   const enabled = settings?.post_process_enabled || false;
@@ -65,6 +68,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   const baseUrl = selectedProvider?.base_url ?? "";
   const apiKey = settings?.post_process_api_keys?.[selectedProviderId] ?? "";
   const model = settings?.post_process_models?.[selectedProviderId] ?? "";
+  const modelsEndpoint = selectedProvider?.models_endpoint ?? "";
 
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
@@ -83,26 +87,40 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   );
 
   const handleBaseUrlChange = useCallback(
-    (value: string) => {
-      if (!selectedProvider || !selectedProvider.allow_base_url_edit) {
+    async (value: string) => {
+      if (!selectedProvider) {
         return;
       }
       const trimmed = value.trim();
       if (trimmed && trimmed !== baseUrl) {
-        void updatePostProcessBaseUrl(selectedProvider.id, trimmed);
+        await updatePostProcessBaseUrl(selectedProvider.id, trimmed);
       }
     },
     [selectedProvider, baseUrl, updatePostProcessBaseUrl],
   );
 
   const handleApiKeyChange = useCallback(
-    (value: string) => {
+    async (value: string) => {
       const trimmed = value.trim();
       if (trimmed !== apiKey) {
-        void updatePostProcessApiKey(selectedProviderId, trimmed);
+        await updatePostProcessApiKey(selectedProviderId, trimmed);
       }
     },
     [apiKey, selectedProviderId, updatePostProcessApiKey],
+  );
+
+  const handleModelsEndpointChange = useCallback(
+    (value: string) => {
+      if (!selectedProviderId) return;
+      const trimmed = value.trim();
+      if (trimmed !== modelsEndpoint) {
+        void updateCustomProvider({
+          providerId: selectedProviderId,
+          modelsEndpoint: trimmed,
+        });
+      }
+    },
+    [selectedProviderId, modelsEndpoint, updateCustomProvider],
   );
 
   const handleModelChange = useCallback(
@@ -131,7 +149,20 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   const handleRefreshModels = useCallback(() => {
     if (isAppleProvider) return;
-    void fetchPostProcessModels(selectedProviderId);
+    fetchPostProcessModels(selectedProviderId).catch((error) => {
+      // Error is already logged in store, we just prevent unhandled promise rejection here
+      // Optionally we could toast an error here if we wanted auto-feedback
+    });
+  }, [fetchPostProcessModels, isAppleProvider, selectedProviderId]);
+
+  const testConnection = useCallback(async () => {
+    if (isAppleProvider) return true;
+    try {
+      await fetchPostProcessModels(selectedProviderId);
+      return true;
+    } catch (error) {
+      return false;
+    }
   }, [fetchPostProcessModels, isAppleProvider, selectedProviderId]);
 
   const availableModelsRaw = postProcessModelOptions[selectedProviderId] || [];
@@ -197,5 +228,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     handleModelSelect,
     handleModelCreate,
     handleRefreshModels,
+    modelsEndpoint,
+    handleModelsEndpointChange,
+    testConnection,
   };
 };

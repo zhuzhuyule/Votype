@@ -2,7 +2,7 @@
 name = "votype"
 version = "0.6.8"
 description = "Votype"
-authors = ["cjpais"]
+authors = ["zhuzhuyule"]
 edition = "2021"
 license = "MIT"
 default-run = "votype"

@@ -455,12 +455,14 @@ pub fn change_post_process_base_url_setting(
         .post_process_provider_mut(&provider_id)
         .expect("Provider looked up above must exist");
 
-    if !provider.allow_base_url_edit {
-        return Err(format!(
-            "Provider '{}' does not allow editing the base URL",
-            label
-        ));
-    }
+    // if !provider.allow_base_url_edit {
+    //     return Err(format!(
+    //         "Provider '{}' does not allow editing the base URL",
+    //         label
+    //     ));
+    // }
+
+    println!("DEBUG: Updating Base URL for provider '{}' to '{}'", provider_id, base_url);
 
     provider.base_url = base_url;
     settings::write_settings(&app, settings);
@@ -490,6 +492,7 @@ pub fn change_post_process_api_key_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
+    println!("DEBUG: Updating API Key for provider '{}' (length: {})", provider_id, api_key.len());
     settings.post_process_api_keys.insert(provider_id, api_key);
     settings::write_settings(&app, settings);
     Ok(())
@@ -956,11 +959,13 @@ async fn fetch_models_manual(
         .unwrap_or("models");
     let endpoint = format!("{}/{}", base_url, models_endpoint);
 
+    println!("DEBUG: Real Request URL: {}", endpoint);
+    
     // Create HTTP client with headers
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
         "HTTP-Referer",
-        reqwest::header::HeaderValue::from_static("https://github.com/cjpais/Votype"),
+        reqwest::header::HeaderValue::from_static("https://github.com/zhuzhuyule/Votype"),
     );
     headers.insert(
         "X-Title",
@@ -970,6 +975,7 @@ async fn fetch_models_manual(
     // Add provider-specific headers
     if provider.id == "anthropic" {
         if !api_key.is_empty() {
+            println!("DEBUG: Adding x-api-key header");
             headers.insert(
                 "x-api-key",
                 reqwest::header::HeaderValue::from_str(&api_key)
@@ -981,12 +987,15 @@ async fn fetch_models_manual(
             reqwest::header::HeaderValue::from_static("2023-06-01"),
         );
     } else if !api_key.is_empty() {
+        println!("DEBUG: Adding Authorization Bearer header");
         headers.insert(
             "Authorization",
             reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
                 .map_err(|e| format!("Invalid API key: {}", e))?,
         );
     }
+
+    println!("DEBUG: Request Headers: {:?}", headers);
 
     let http_client = reqwest::Client::builder()
         .default_headers(headers)
@@ -1001,12 +1010,15 @@ async fn fetch_models_manual(
         .await
         .map_err(|e| format!("Failed to fetch models: {}", e))?;
 
-    if !response.status().is_success() {
-        let status = response.status();
+    let status = response.status();
+    println!("DEBUG: Response Status: {}", status);
+
+    if !status.is_success() {
         let error_text = response
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".to_string());
+        println!("DEBUG: Response Error Body: {}", error_text);
         return Err(format!(
             "Model list request failed ({}): {}",
             status, error_text
@@ -1014,10 +1026,15 @@ async fn fetch_models_manual(
     }
 
     // Parse the response
-    let parsed: serde_json::Value = response
-        .json()
+    let body_text = response
+        .text()
         .await
-        .map_err(|e| format!("Failed to parse response: {}", e))?;
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+    
+    // println!("DEBUG: Response Body: {}", body_text); // Uncomment if needed, but might be large
+
+    let parsed: serde_json::Value = serde_json::from_str(&body_text)
+        .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
     let mut models = Vec::new();
 
@@ -1038,7 +1055,11 @@ async fn fetch_models_manual(
                 models.push(model.to_string());
             }
         }
+    } else {
+        return Err(format!("Invalid response format: expected JSON array or object with 'data' array. Got: {:?}", parsed));
     }
+
+    println!("DEBUG: Successfully parsed {} models: {:?}", models.len(), models);
 
     Ok(models)
 }
@@ -1408,4 +1429,60 @@ pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<
     })?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn test_post_process_model_inference(
+    app: AppHandle,
+    provider_id: String,
+    model: String,
+    input: Option<String>,
+) -> Result<String, String> {
+    let settings = settings::get_settings(&app);
+
+    let provider = settings
+        .post_process_providers
+        .iter()
+        .find(|p| p.id == provider_id)
+        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
+
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider_id)
+        .cloned()
+        .unwrap_or_default();
+
+    println!(
+        "DEBUG: Testing inference for provider='{}', model='{}'",
+        provider_id, model
+    );
+
+    let client = crate::llm_client::create_client(provider, api_key)?;
+
+    let messages = vec![async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
+        .content(input.unwrap_or_else(|| "Please return OK".to_string()))
+        .build()
+        .map_err(|e| format!("Failed to build message: {}", e))?
+        .into()];
+
+    let request = async_openai::types::CreateChatCompletionRequestArgs::default()
+        .model(model)
+        .messages(messages)
+        .max_tokens(50_u16)
+        .build()
+        .map_err(|e| format!("Failed to build request: {}", e))?;
+
+    let response = client
+        .chat()
+        .create(request)
+        .await
+        .map_err(|e| format!("Inference failed: {}", e))?;
+
+    let content = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+        .unwrap_or_else(|| "No content returned".to_string());
+
+    Ok(content)
 }

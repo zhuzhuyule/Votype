@@ -24,40 +24,40 @@ export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-6">
+    <Flex direction="column" className="max-w-4xl w-full mx-auto space-y-8 pb-10">
       <SettingsGroup title={t("settings.advanced.groups.behavior")}>
-        <StartHidden descriptionMode="tooltip" grouped={true} />
-        <AutostartToggle descriptionMode="tooltip" grouped={true} />
-        <ShowOverlay descriptionMode="tooltip" grouped={true} />
-        <UpdateChecksToggle descriptionMode="tooltip" grouped={true} />
+        <StartHidden descriptionMode="inline" grouped={true} />
+        <AutostartToggle descriptionMode="inline" grouped={true} />
+        <ShowOverlay descriptionMode="inline" grouped={true} />
+        <UpdateChecksToggle descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.input")}>
-        <PasteMethodSetting descriptionMode="tooltip" grouped={true} />
-        <ClipboardHandlingSetting descriptionMode="tooltip" grouped={true} />
-        <AppendTrailingSpace descriptionMode="tooltip" grouped={true} />
+        <PasteMethodSetting descriptionMode="inline" grouped={true} />
+        <ClipboardHandlingSetting descriptionMode="inline" grouped={true} />
+        <AppendTrailingSpace descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>
-        <TranslateToEnglish descriptionMode="tooltip" grouped={true} />
-        <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
-        <CustomWords descriptionMode="tooltip" grouped />
-        <WordCorrectionThreshold descriptionMode="tooltip" grouped={true} />
+        <TranslateToEnglish descriptionMode="inline" grouped={true} />
+        <ModelUnloadTimeoutSetting descriptionMode="inline" grouped={true} />
+        <CustomWords descriptionMode="inline" grouped />
+        <WordCorrectionThreshold descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.data")}>
-        <HistoryLimit descriptionMode="tooltip" grouped={true} />
+        <HistoryLimit descriptionMode="inline" grouped={true} />
         <RecordingRetentionPeriodSelector
-          descriptionMode="tooltip"
+          descriptionMode="inline"
           grouped={true}
         />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.system")}>
-        <LogDirectory grouped={true} />
-        <LogLevelSelector grouped={true} />
-        <OfflineVadRealtimeInterval descriptionMode="tooltip" grouped={true} />
-        <OfflineVadRealtimeWindow descriptionMode="tooltip" grouped={true} />
+        <LogDirectory descriptionMode="inline" grouped={true} />
+        <LogLevelSelector descriptionMode="inline" grouped={true} />
+        <OfflineVadRealtimeInterval descriptionMode="inline" grouped={true} />
+        <OfflineVadRealtimeWindow descriptionMode="inline" grouped={true} />
       </SettingsGroup>
     </Flex>
   );

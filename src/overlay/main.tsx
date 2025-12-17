@@ -22,6 +22,9 @@ const OverlayApp: React.FC = () => {
 
     const unlistenHide = listen("hide-overlay", () => {
       setMounted(false);
+      setTimeout(() => {
+        window.location.reload();
+      }, 10);
     });
 
     return () => {
@@ -30,15 +33,12 @@ const OverlayApp: React.FC = () => {
     };
   }, []);
 
-  if (!mounted) {
-    return null;
-  }
 
-  return (
+  return mounted ? (
     <Suspense fallback={<Box className="overlay-root" />}>
       <RecordingOverlay initialState={initialState} />
     </Suspense>
-  );
+  ) : null;
 };
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

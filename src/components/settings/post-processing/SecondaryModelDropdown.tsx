@@ -11,6 +11,7 @@ import {
 
 const RECOMMENDED_MODEL_IDS = new Set([
   "sherpa-paraformer-zh-en-streaming",
+  "sherpa-zipformer-small-ctc-zh-int8-2025-04-01",
   "sherpa-paraformer-trilingual-zh-cantonese-en",
   "sherpa-paraformer-zh-small-2024-03-09",
 ]);

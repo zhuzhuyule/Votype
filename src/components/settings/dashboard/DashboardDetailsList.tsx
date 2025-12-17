@@ -1,6 +1,6 @@
-import { Box, Button, Card, Flex, Heading, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Heading, Text } from "@radix-ui/themes";
 import React, { useEffect, useMemo, useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { SettingsGroup } from "../../ui/SettingsGroup";
 import { DashboardEntryCard } from "./DashboardEntryCard";
 import type { HistoryEntry } from "./dashboardTypes";
 import { formatEntryTime } from "./dashboardUtils";
@@ -66,84 +66,88 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
   }, [entries]);
 
   return (
-    <Card>
-      <Flex direction="column" gap="3">
-        <Flex justify="between" align="center">
+    <SettingsGroup
+      title={t("dashboard.details.title")}
+      actions={
+        <Text size="2" color="gray">
+          {t("dashboard.details.count", {
+            count: entries.length,
+          })}
+        </Text>
+      }
+    >
+      <Box className="relative pb-2">
+        {detailGroups.length === 0 ? (
           <Text size="2" color="gray">
-            {t("dashboard.details.title")}
+            {t("dashboard.details.empty")}
           </Text>
-          <Text size="2" color="gray">
-            {t("dashboard.details.count", {
-              count: entries.length,
-            })}
-          </Text>
-        </Flex>
-
-        <Box className="relative pb-2">
-          {detailGroups.length === 0 ? (
-            <Text size="2" color="gray">
-              {t("dashboard.details.empty")}
-            </Text>
-          ) : (
-            detailGroups.map(([day, dayEntries]) => (
-              <Box key={day} className="relative pt-4">
-                <Box className="bg-mid-gray/5 border border-mid-gray/10 rounded-md px-3 py-2">
-                  <Flex justify="between" align="center">
-                    <Heading size="3" className="text-logo-primary">
-                      {day}
-                    </Heading>
-                    <Text size="2" color="gray">
-                      {numberFormat.format(selectedDayTotals.get(day) ?? dayEntries.length)}
-                    </Text>
-                  </Flex>
-                </Box>
-                <Box className="pt-3 space-y-3">
-                  {dayEntries.map((entry) => {
-                    const timeInfo = formatEntryTime(entry.timestamp);
-                    const appName = entry.app_name?.trim();
-                    const metaParts: string[] = [];
-                    if (typeof entry.duration_ms === "number" && entry.duration_ms > 0) {
-                      metaParts.push(formatDurationMs(entry.duration_ms));
-                    }
-                    if (typeof entry.char_count === "number" && entry.char_count > 0) {
-                      metaParts.push(
-                        t("dashboard.details.meta.chars", {
-                          value: numberFormat.format(entry.char_count),
-                        }),
-                      );
-                    }
-                    const meta = metaParts.join(" · ");
-
-                    return (
-                      <DashboardEntryCard
-                        key={entry.id}
-                        entry={entry}
-                        getAudioUrl={getAudioUrl}
-                        metaText={meta}
-                        timeText={timeInfo.time}
-                        appName={appName ?? null}
-                        onCopy={onCopy}
-                        onToggleSaved={onToggleSaved}
-                        onDelete={onDelete}
-                        onRetranscribe={onRetranscribe}
-                      />
-                    );
-                  })}
-                </Box>
+        ) : (
+          detailGroups.map(([day, dayEntries]) => (
+            <Box key={day} className="relative">
+              <Box className="bg-mid-gray/5 border border-mid-gray/10 rounded-md px-3 py-2">
+                <Flex justify="between" align="center">
+                  <Heading size="3" className="text-logo-primary">
+                    {day}
+                  </Heading>
+                  <Text size="2" color="gray">
+                    {numberFormat.format(
+                      selectedDayTotals.get(day) ?? dayEntries.length,
+                    )}
+                  </Text>
+                </Flex>
               </Box>
-            ))
-          )}
-          <div ref={detailsSentinelRef} className="h-1 w-full" />
-        </Box>
+              <Box className="pt-3 space-y-3">
+                {dayEntries.map((entry) => {
+                  const timeInfo = formatEntryTime(entry.timestamp);
+                  const appName = entry.app_name?.trim();
+                  const metaParts: string[] = [];
+                  if (
+                    typeof entry.duration_ms === "number" &&
+                    entry.duration_ms > 0
+                  ) {
+                    metaParts.push(formatDurationMs(entry.duration_ms));
+                  }
+                  if (
+                    typeof entry.char_count === "number" &&
+                    entry.char_count > 0
+                  ) {
+                    metaParts.push(
+                      t("dashboard.details.meta.chars", {
+                        value: numberFormat.format(entry.char_count),
+                      }),
+                    );
+                  }
+                  const meta = metaParts.join(" · ");
 
-        {entries.length < detailCount && (
-          <Flex justify="center">
-            <Button variant="soft" onClick={onLoadMore}>
-              {t("dashboard.details.loadMore")}
-            </Button>
-          </Flex>
+                  return (
+                    <DashboardEntryCard
+                      key={entry.id}
+                      entry={entry}
+                      getAudioUrl={getAudioUrl}
+                      metaText={meta}
+                      timeText={timeInfo.time}
+                      appName={appName ?? null}
+                      onCopy={onCopy}
+                      onToggleSaved={onToggleSaved}
+                      onDelete={onDelete}
+                      onRetranscribe={onRetranscribe}
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+          ))
         )}
-      </Flex>
-    </Card>
+        <div detail-sentinel="" ref={detailsSentinelRef} className="h-1 w-full" />
+      </Box>
+
+      {entries.length < detailCount && (
+        <Flex justify="center">
+          <Button variant="soft" onClick={onLoadMore}>
+            {t("dashboard.details.loadMore")}
+          </Button>
+        </Flex>
+      )}
+    </SettingsGroup>
   );
 };

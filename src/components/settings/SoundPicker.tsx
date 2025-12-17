@@ -1,21 +1,23 @@
+import { IconButton } from "@radix-ui/themes";
+import { IconPlayerPlay } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Dropdown, DropdownOption } from "../ui/Dropdown";
-import { IconPlayerPlay } from "@tabler/icons-react";
-import { SettingContainer } from "../ui/SettingContainer";
-import { ActionWrapper } from "../ui/ActionWrapper";
-import { useSettingsStore } from "../../stores/settingsStore";
 import { useSettings } from "../../hooks/useSettings";
-import { IconButton } from "@radix-ui/themes";
+import { useSettingsStore } from "../../stores/settingsStore";
+import { ActionWrapper } from "../ui/ActionWrapper";
+import { Dropdown, DropdownOption } from "../ui/Dropdown";
+import { SettingContainer } from "../ui/SettingContainer";
 
 interface SoundPickerProps {
   label: string;
   description: string;
+  descriptionMode?: "inline" | "tooltip";
 }
 
 export const SoundPicker: React.FC<SoundPickerProps> = ({
   label,
   description,
+  descriptionMode = "inline",
 }) => {
   const { t } = useTranslation();
   const { getSetting, updateSetting } = useSettings();
@@ -43,6 +45,7 @@ export const SoundPicker: React.FC<SoundPickerProps> = ({
     <SettingContainer
       title={label}
       description={description}
+      descriptionMode={descriptionMode}
       grouped
       layout="horizontal"
     >

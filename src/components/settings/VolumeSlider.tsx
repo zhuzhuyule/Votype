@@ -21,7 +21,7 @@ export const VolumeSlider: React.FC<{ disabled?: boolean }> = ({
       step={0.1}
       label={t("settings.sound.volume.title")}
       description={t("settings.sound.volume.description")}
-      descriptionMode="tooltip"
+      descriptionMode="inline"
       grouped
       formatValue={(value) => `${Math.round(value * 100)}%`}
       disabled={disabled}

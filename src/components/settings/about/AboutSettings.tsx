@@ -7,6 +7,7 @@ import { VotypeHand } from "../../icons/VotypeHand";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AppDataDirectory } from "../AppDataDirectory";
+import { RecordingsDirectory } from "../RecordingsDirectory";
 
 export const AboutSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -35,23 +36,26 @@ export const AboutSettings: React.FC = () => {
   };
 
   return (
-    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-6">
+    <Flex direction="column" className="max-w-4xl w-full mx-auto space-y-8 pb-10">
       <SettingsGroup title={t("settings.about.title")}>
-        <div className="flex flex-col items-center gap-4 mb-8">
-          <VotypeHand size={36} />
+        <Flex direction="column" align="center" gap="4" py="4">
+          <VotypeHand size={48} />
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">
+            <Text size="5" weight="bold">Votype</Text>
+            <p className="text-sm text-gray-500 mt-1">
               {t("settings.about.version.title")}: {version}
             </p>
           </div>
-        </div>
+        </Flex>
 
-        <AppDataDirectory descriptionMode="tooltip" grouped={true} />
+        <AppDataDirectory descriptionMode="inline" grouped={true} />
+        <RecordingsDirectory descriptionMode="inline" grouped={true} />
 
         <SettingContainer
           title={t("settings.about.sourceCode.title")}
           description={t("settings.about.sourceCode.description")}
           grouped={true}
+          descriptionMode="inline"
         >
           <Button
             variant="outline"
@@ -66,6 +70,7 @@ export const AboutSettings: React.FC = () => {
           title={t("settings.about.supportDevelopment.title")}
           description={t("settings.about.supportDevelopment.description")}
           grouped={true}
+          descriptionMode="inline"
         >
           <Button
             variant="solid"
@@ -83,6 +88,7 @@ export const AboutSettings: React.FC = () => {
           description={t("settings.about.acknowledgments.whisper.description")}
           grouped={true}
           layout="stacked"
+          descriptionMode="inline"
         >
           <Text size="2" color="gray">
             {t("settings.about.acknowledgments.whisper.details")}

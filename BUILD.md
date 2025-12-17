@@ -49,7 +49,7 @@ This guide covers how to set up the development environment and build Votype fro
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:cjpais/Votype.git
+git clone git@github.com:zhuzhuyule/Votype.git
 cd Votype
 ```
 

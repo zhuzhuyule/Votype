@@ -2,51 +2,79 @@ import { Box, Card, Flex, Heading, Text } from "@radix-ui/themes";
 import React from "react";
 
 interface SettingsGroupProps {
-  title?: string;
-  description?: string;
+  title?: React.ReactNode;
+  titleClassName?: string;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
-  defaultOpen?: boolean;
   framed?: boolean;
 }
 
 export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   title,
+  titleClassName,
   description,
   children,
   actions,
   framed = true,
 }) => {
-  const headerContent = (
-    <>
-      {title && (
-        <Box px="3">
-          <Heading
-            as="h2"
-            size="3"
-            weight="medium"
-            color="gray"
-            className="capitalize tracking-wide"
-          >
-            {title}
-          </Heading>
+  const header = (
+    <Box mb="2">
+      <Flex justify="between" align="center">
+        <Box>
+          {title && (
+            <Heading
+              size="4"
+              weight="bold"
+              highContrast={!titleClassName}
+              style={!titleClassName ? { color: "var(--gray-12)" } : undefined}
+              className={titleClassName}
+            >
+              {title}
+            </Heading>
+          )}
           {description && (
-            <Text size="1" color="gray" mt="1">
+            <Text size="2" color="gray" mt="1" style={{ display: 'block' }}>
               {description}
             </Text>
           )}
         </Box>
-      )}
-      {actions && <Box px="3">{actions}</Box>}
-    </>
+        {actions && <Box>{actions}</Box>}
+      </Flex>
+    </Box>
   );
 
+  const content = (
+    <Flex direction="column" gap="1">
+      {React.Children.map(children, (child, index) => (
+        <React.Fragment key={index}>
+          {/* Custom separator line if needed, currently just spacing */}
+          {child}
+        </React.Fragment>
+      ))}
+    </Flex>
+  );
+
+  if (framed) {
+    return (
+      <Card
+        size="3"
+        style={{
+          backgroundColor: "var(--color-panel-solid)",
+          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
+          border: "1px solid var(--gray-a3)"
+        }}
+      >
+        {header}
+        {content}
+      </Card>
+    );
+  }
+
   return (
-    <Box className="space-y-2 min-w-200">
-      <Flex justify="between" align="center">
-        {headerContent}
-      </Flex>
-      {framed ? <Card>{children}</Card> : children}
+    <Box>
+      {header}
+      {content}
     </Box>
   );
 };

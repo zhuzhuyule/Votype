@@ -108,7 +108,7 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
               ) : null}
             </Flex>
 
-            <Flex align="center" className="flex gap-5">
+            <Flex align="center" className="flex gap-4">
               {retranscribing ? (
                 <Text size="1" color="gray" className="animate-pulse mr-2">
                   {t("dashboard.actions.retranscribing")}

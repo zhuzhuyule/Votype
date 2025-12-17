@@ -2,12 +2,12 @@ import { Flex, Text } from "@radix-ui/themes";
 import {
   IconAdjustments,
   IconBrain,
-  IconBug,
+  IconDeviceDesktop,
   IconInfoSquare,
   IconKeyboard,
   IconLayoutDashboard,
   IconSettings,
-  IconSparkles,
+  IconSparkles
 } from "@tabler/icons-react";
 import React, { lazy } from "react";
 import { useTranslation } from "react-i18next";
@@ -96,7 +96,7 @@ export const SECTIONS_CONFIG = {
   },
   asrModels: {
     labelKey: "sidebar.asrModels",
-    icon: IconBrain,
+    icon: IconDeviceDesktop,
     component: AsrModelsSettings,
     enabled: () => true,
     shortcutKey: "6",

@@ -381,15 +381,15 @@ export const useSettingsStore = create<SettingsStore>()(
         set((state) => ({
           settings: state.settings
             ? {
-                ...state.settings,
-                bindings: {
-                  ...state.settings.bindings,
-                  [id]: {
-                    ...state.settings.bindings[id],
-                    current_binding: binding,
-                  },
+              ...state.settings,
+              bindings: {
+                ...state.settings.bindings,
+                [id]: {
+                  ...state.settings.bindings[id],
+                  current_binding: binding,
                 },
-              }
+              },
+            }
             : null,
         }));
 
@@ -409,15 +409,15 @@ export const useSettingsStore = create<SettingsStore>()(
         set((state) => ({
           settings: state.settings
             ? {
-                ...state.settings,
-                bindings: {
-                  ...state.settings.bindings,
-                  [id]: {
-                    ...state.settings.bindings[id],
-                    current_binding: canonicalBinding,
-                  },
+              ...state.settings,
+              bindings: {
+                ...state.settings.bindings,
+                [id]: {
+                  ...state.settings.bindings[id],
+                  current_binding: canonicalBinding,
                 },
-              }
+              },
+            }
             : null,
         }));
       } catch (error) {
@@ -428,15 +428,15 @@ export const useSettingsStore = create<SettingsStore>()(
           set((state) => ({
             settings: state.settings
               ? {
-                  ...state.settings,
-                  bindings: {
-                    ...state.settings.bindings,
-                    [id]: {
-                      ...state.settings.bindings[id],
-                      current_binding: originalBinding,
-                    },
+                ...state.settings,
+                bindings: {
+                  ...state.settings.bindings,
+                  [id]: {
+                    ...state.settings.bindings[id],
+                    current_binding: originalBinding,
                   },
-                }
+                },
+              }
               : null,
           }));
         }
@@ -559,6 +559,7 @@ export const useSettingsStore = create<SettingsStore>()(
       const updateKey = `post_process_models_fetch:${providerId}`;
       const { setUpdating, setPostProcessModelOptions } = get();
 
+
       setUpdating(updateKey, true);
 
       try {
@@ -572,7 +573,7 @@ export const useSettingsStore = create<SettingsStore>()(
       } catch (error) {
         console.error("Failed to fetch models:", error);
         // Don't cache empty array on error - let user retry
-        return [];
+        throw error;
       } finally {
         setUpdating(updateKey, false);
       }

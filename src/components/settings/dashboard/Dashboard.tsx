@@ -5,14 +5,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslation } from "react-i18next";
 import { DashboardActivityChart } from "./DashboardActivityChart";
 import { DashboardDetailsList } from "./DashboardDetailsList";
-import { DashboardHeader } from "./DashboardHeader";
 import { DashboardSummaryCards } from "./DashboardSummaryCards";
-import type { HistoryEntry, DashboardSelection } from "./dashboardTypes";
+import type { DashboardSelection, HistoryEntry } from "./dashboardTypes";
 import {
-  formatDurationMs,
-  toLocalYmd,
   countUnicodeChars,
-  formatEntryTime,
+  formatDurationMs,
+  toLocalYmd
 } from "./dashboardUtils";
 
 export const Dashboard: React.FC = () => {
@@ -275,9 +273,7 @@ export const Dashboard: React.FC = () => {
   }, [detailEntries]);
 
   return (
-    <Box className="w-full max-w-5xl mx-auto space-y-4">
-      <DashboardHeader loading={loading} />
-
+    <Box className="w-full max-w-4xl mx-auto space-y-8 pb-10">
       <DashboardActivityChart
         bars={bars}
         selection={selection}
@@ -286,8 +282,7 @@ export const Dashboard: React.FC = () => {
         onSelectPreset={(preset) => setSelection({ type: "preset", preset })}
       />
 
-      <Heading size="5">{selectionTitle}</Heading>
-
+      <Heading size="5" mb="4">{selectionTitle}</Heading>
       <DashboardSummaryCards
         summary={summary}
         numberFormat={numberFormat}

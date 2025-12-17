@@ -1,17 +1,18 @@
-import { Flex, Heading, Text } from "@radix-ui/themes";
+import { Box, Flex, Heading, Text } from "@radix-ui/themes";
 import React from "react";
 import { TooltipIcon } from "./TooltipIcon";
 
-interface SettingContainerProps {
+export interface SettingContainerProps {
   title: string;
-  description: string;
-  children: React.ReactNode;
+  description?: string;
+  children?: React.ReactNode;
   descriptionMode?: "inline" | "tooltip";
   grouped?: boolean;
   layout?: "horizontal" | "stacked";
   disabled?: boolean;
   tooltipPosition?: "top" | "bottom";
   actions?: React.ReactNode;
+  icon?: React.ElementType; // Icon prop
 }
 
 export const SettingContainer: React.FC<SettingContainerProps> = ({
@@ -19,54 +20,57 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   description,
   children,
   descriptionMode = "tooltip",
-  grouped = false,
   layout = "horizontal",
   disabled = false,
   tooltipPosition = "top",
-  actions,
+  icon: Icon,
 }) => {
-  const containerClass =
-    layout === "horizontal"
-      ? "flex-row justify-between! items-center"
-      : "flex-col";
+  const isHorizontal = layout === "horizontal";
 
   return (
     <Flex
       py="2"
-      px="3"
-      gap="2"
-      className={containerClass}
-      aria-disabled={disabled}
+      px="0"
+      align={isHorizontal ? "center" : "start"}
+      justify="between"
+      direction={isHorizontal ? "row" : "column"}
+      gap="4"
+      style={{
+        width: "100%",
+        opacity: disabled ? 0.5 : 1,
+        pointerEvents: disabled ? "none" : "auto",
+      }}
     >
-      {/* 左侧标题和说明 */}
-      <Flex align="center" gap="2">
-        <Heading
-          as="h2"
-          size="3"
-          weight="medium"
-          className={disabled ? "opacity-40" : ""}
-        >
-          {title}
-        </Heading>
-        {descriptionMode === "tooltip" ? (
-          <TooltipIcon
-            text={title}
-            description={description}
-            tooltipPosition={tooltipPosition}
-          />
-        ) : (
-          <Text
-            as="p"
-            size="2"
-            className={disabled ? "opacity-20" : "opacity-30"}
-          >
-            {description}
-          </Text>
+      <Flex gap="3" align="center" style={{ flex: 1, minWidth: 0 }}>
+        {Icon && (
+          <Box style={{ color: "var(--gray-10)", flexShrink: 0 }}>
+            <Icon size={20} />
+          </Box>
         )}
+        <Box>
+          <Flex align="center" gap="2">
+            <Heading size="2" weight="medium" style={{ lineHeight: "1.5" }}>
+              {title}
+            </Heading>
+            {descriptionMode === "tooltip" && description && (
+              <TooltipIcon
+                text={title}
+                description={description}
+                tooltipPosition={tooltipPosition}
+              />
+            )}
+          </Flex>
+          {descriptionMode !== "tooltip" && description && (
+            <Text size="2" color="gray" style={{ lineHeight: "1.4", display: 'block', marginTop: '2px' }}>
+              {description}
+            </Text>
+          )}
+        </Box>
       </Flex>
 
-      {/* 右侧内容区域 - 操作按钮和子内容都在同一行 */}
-      {children}
+      <Box style={{ flexShrink: 0 }}>
+        {children}
+      </Box>
     </Flex>
   );
 };

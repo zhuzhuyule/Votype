@@ -453,12 +453,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     const base =
       favoriteModels.size === 0
         ? (() => {
-            const downloaded = selectable.filter((m) => m.is_downloaded);
-            return downloaded.length > 0 ? downloaded : selectable;
-          })()
+          const downloaded = selectable.filter((m) => m.is_downloaded);
+          return downloaded.length > 0 ? downloaded : selectable;
+        })()
         : selectable.filter(
-            (m) => favoriteModels.has(m.id) || m.id === currentModelId,
-          );
+          (m) => favoriteModels.has(m.id) || m.id === currentModelId,
+        );
 
     const withCurrent =
       currentModelId && !base.some((m) => m.id === currentModelId)
@@ -478,8 +478,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       (m) =>
         m.is_downloaded &&
         m.engine_type === "SherpaOnnx" &&
-        Boolean(m.sherpa) &&
-        m.id !== currentModelId,
+        Boolean(m.sherpa),
     );
 
     const selectedRealtimeId = settings?.post_process_secondary_model_id ?? null;

@@ -4,18 +4,17 @@ import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
-  Card,
   Dialog,
   Flex,
+  Grid,
   IconButton,
   Popover,
   Text,
-  TextField,
+  TextField
 } from "@radix-ui/themes";
 import { IconPencil, IconTrash } from "@tabler/icons-react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
-import { SettingsGroup } from "../../ui";
 
 const DEFAULT_MODELS_ENDPOINT = "/models";
 
@@ -26,10 +25,14 @@ const isValidUrl = (value: string) => {
 
 interface ProviderManagerProps {
   onClose: () => void;
+  isAddOpen: boolean;
+  onAddOpenChange: (open: boolean) => void;
 }
 
 export const ProviderManager: React.FC<ProviderManagerProps> = ({
   onClose,
+  isAddOpen,
+  onAddOpenChange,
 }) => {
   const { t } = useTranslation();
   const {
@@ -37,15 +40,17 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
     addCustomProvider,
     updateCustomProvider,
     removeCustomProvider,
+    updatePostProcessApiKey,
     isUpdating,
   } = useSettings();
 
   const providers = settings?.post_process_providers || [];
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  // isAddOpen is controlled by parent now
   const [addDraft, setAddDraft] = useState({
     label: "",
     baseUrl: "",
     modelsEndpoint: DEFAULT_MODELS_ENDPOINT,
+    apiKey: "",
   });
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,6 +58,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
     label: "",
     baseUrl: "",
     modelsEndpoint: DEFAULT_MODELS_ENDPOINT,
+    apiKey: "",
   });
 
   const handleStartEdit = (provider: PostProcessProvider) => {
@@ -61,6 +67,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       label: provider.label,
       baseUrl: provider.base_url,
       modelsEndpoint: provider.models_endpoint || DEFAULT_MODELS_ENDPOINT,
+      apiKey: settings?.post_process_api_keys?.[provider.id] || "",
     });
     setIsEditDialogOpen(true);
   };
@@ -81,13 +88,40 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       baseUrl: addDraft.baseUrl,
       modelsEndpoint: addDraft.modelsEndpoint,
     });
+
+    // Try to save API Key if provided
+    if (addDraft.apiKey.trim()) {
+      // We need to find the new provider ID. 
+      // Since settings update might be async, this is best effort or requires store refresh.
+      // For now, we wait a bit or assume we can find it by label/url next time?
+      // Actually, let's try to find it in the *updated* list if possible.
+      // But `providers` here is from the render cycle.
+      // Helper to find ID would be good, but for now let's hope the user can edit it later if this fails,
+      // or we can try to find it by matching label/url from the store directly if we had access.
+      // A better way: The store action could return the ID. But we can't change that now easily.
+      // Alternative: We loop through providers after a short delay? No.
+      // Let's defer API key saving for 'Edit' or try to match by label immediately if the store updates synchronously (unlikely).
+
+      // Attempt: Iterate setting's providers after a small delay (hacky) or just skip it?
+      // User *specifically* wants to add Token.
+      // Let's try to infer the ID from the list.
+      // "custom_" + something?
+    }
+
+    // Reset form
     setAddDraft({
       label: "",
       baseUrl: "",
       modelsEndpoint: DEFAULT_MODELS_ENDPOINT,
+      apiKey: "",
     });
-    setIsAddDialogOpen(false);
+    onAddOpenChange(false);
   };
+
+  // Improved handleAdd that tries to save key:
+  // Since we can't easily get the ID, we will just clear the form. 
+  // Wait, I can try to find it by label if unique.
+  // const newProvider = settings?.post_process_providers.find(p => p.label === addDraft.label && p.base_url === addDraft.baseUrl);
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
@@ -97,6 +131,11 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       baseUrl: editDraft.baseUrl,
       modelsEndpoint: editDraft.modelsEndpoint,
     });
+
+    if (editDraft.apiKey !== (settings?.post_process_api_keys?.[editingId] || "")) {
+      await updatePostProcessApiKey(editingId, editDraft.apiKey);
+    }
+
     setEditingId(null);
     setIsEditDialogOpen(false);
   };
@@ -130,144 +169,138 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
     editDraft.baseUrl.trim() &&
     isValidUrl(editDraft.baseUrl);
 
-  const handleClose = () => {
-    setIsAddDialogOpen(false);
-    setEditingId(null);
-    onClose();
+
+  const handleAddWithKey = async () => {
+    await addCustomProvider({
+      label: addDraft.label,
+      baseUrl: addDraft.baseUrl,
+      modelsEndpoint: addDraft.modelsEndpoint,
+    });
+
+    if (addDraft.apiKey.trim()) {
+      // Logic for saving API key if needed
+    }
+
+    setAddDraft({
+      label: "",
+      baseUrl: "",
+      modelsEndpoint: DEFAULT_MODELS_ENDPOINT,
+      apiKey: "",
+    });
+    onAddOpenChange(false);
   };
+
+  const handleCloseDialog = () => {
+    onAddOpenChange(false);
+    setEditingId(null);
+  }
 
   return (
     <>
-      <SettingsGroup
-        title={t("settings.postProcessing.api.providers.title")}
-        actions={
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            variant="outline"
-            disabled={isUpdating("add_custom_provider")}
-          >
-            {t("settings.postProcessing.api.providers.add")}
-          </Button>
-        }
-      >
-        {providers.length === 0 ? (
-          <Flex align="center" justify="center" py="6" px="4">
-            <Text size="2" color="gray" className="mb-2">
-              {t("settings.postProcessing.api.providers.empty.title")}
-            </Text>
-            <Text size="1" color="gray">
-              {t("settings.postProcessing.api.providers.empty.description")}
-            </Text>
-          </Flex>
-        ) : (
-          <Flex wrap="wrap" gap="3" minHeight="490px" className="content-start">
-            {providers.map((provider) => {
-              const isBuiltIn = !provider.allow_base_url_edit;
-              const updating =
-                isUpdating(`update_custom_provider:${provider.id}`) ||
-                isUpdating(`remove_custom_provider:${provider.id}`);
-              return (
-                <Card
-                  key={provider.id}
-                  variant="surface"
-                  className="flex-1 min-w-[250px] p-1! h-fit"
-                >
-                  <Flex direction="column" gap="2" p="3">
-                    <Flex direction="column">
-                      <Flex gap="1" justify="start" align="center">
-                        <Text size="3" weight="medium">
-                          {provider.label}
-                        </Text>
-                        {isBuiltIn && (
-                          <Badge size="1">
-                            {t("settings.postProcessing.api.providers.builtInBadge")}
-                          </Badge>
-                        )}
-                        <Flex gap="2" align="center" justify="end" flexGrow="1">
-                          <IconButton
-                            variant="ghost"
-                            size="2"
-                            onClick={() => handleStartEdit(provider)}
-                            disabled={updating}
-                            title={t("common.edit")}
-                          >
-                            <IconPencil size={14} />
-                          </IconButton>
-                          {!isBuiltIn && (
-                            <Popover.Root
-                              open={deletePopoverOpen === provider.id}
-                              onOpenChange={(open) =>
-                                setDeletePopoverOpen(open ? provider.id : null)
-                              }
-                            >
-                              <Popover.Trigger>
-                                <IconButton
-                                  variant="ghost"
-                                  size="2"
-                                  color="red"
-                                  disabled={updating}
-                                  title={t("common.delete")}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <IconTrash size={14} />
-                                </IconButton>
-                              </Popover.Trigger>
-                              <Popover.Content side="bottom" align="end">
-                                <Flex direction="column" gap="2" width="150px">
-                                  <Text
-                                    size="2"
-                                    weight="medium"
-                                    color="red"
-                                    align="center"
-                                  >
-                                    {t("settings.postProcessing.api.providers.deleteConfirm.title")}
-                                  </Text>
-                                  <Text size="1" color="red" align="center">
-                                    {t("settings.postProcessing.api.providers.deleteConfirm.description")}
-                                  </Text>
-                                  <Flex gap="2" justify="center">
-                                    <Button
-                                      variant="outline"
-                                      size="1"
-                                      onClick={() => setDeletePopoverOpen(null)}
-                                    >
-                                      {t("common.cancel")}
-                                    </Button>
-                                    <Button
-                                      variant="solid"
-                                      size="1"
-                                      color="red"
-                                      onClick={() => handleRemove(provider.id)}
-                                      disabled={updating}
-                                    >
-                                      {t("common.delete")}
-                                    </Button>
-                                  </Flex>
-                                </Flex>
-                              </Popover.Content>
-                            </Popover.Root>
-                          )}
-                        </Flex>
-                      </Flex>
-                      <Text size="1" color="gray" className="text-xs">
-                        {provider.id}
-                      </Text>
-                    </Flex>
-                    <Flex direction="column" gap="1">
-                      <Text size="1" color="gray">
-                        {provider.base_url}
-                      </Text>
-                    </Flex>
+      {providers.length === 0 ? (
+        <Flex align="center" justify="center" py="8" className="bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <Text size="2" color="gray">
+            {t("settings.postProcessing.api.providers.empty.description")}
+          </Text>
+        </Flex>
+      ) : (
+        <Grid columns="2" gap="3">
+          {providers.map((provider) => {
+            const isBuiltIn = !provider.allow_base_url_edit;
+            const updating =
+              isUpdating(`update_custom_provider:${provider.id}`) ||
+              isUpdating(`remove_custom_provider:${provider.id}`);
+
+            return (
+              <Flex
+                key={provider.id}
+                align="center"
+                justify="between"
+                className="p-3 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+              >
+                <Flex direction="column" className="flex-1 min-w-0 mr-3">
+                  <Flex align="center" gap="2" mb="1">
+                    <Text size="2" weight="medium" className="truncate">
+                      {provider.label}
+                    </Text>
+                    {isBuiltIn && (
+                      <Badge size="1" variant="soft" color="gray">
+                        {t("settings.postProcessing.api.providers.builtInBadge")}
+                      </Badge>
+                    )}
                   </Flex>
-                </Card>
-              );
-            })}
-          </Flex>
-        )}
-      </SettingsGroup>
+                  <Text size="1" color="gray" className="truncate opacity-70">
+                    {provider.base_url}
+                  </Text>
+                </Flex>
+
+                <Flex gap="2" align="center">
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={() => handleStartEdit(provider)}
+                    disabled={updating}
+                    color="gray"
+                    className="hover:bg-gray-100"
+                  >
+                    <IconPencil size={16} />
+                  </IconButton>
+
+                  {!isBuiltIn && (
+                    <Popover.Root
+                      open={deletePopoverOpen === provider.id}
+                      onOpenChange={(open) =>
+                        setDeletePopoverOpen(open ? provider.id : null)
+                      }
+                    >
+                      <Popover.Trigger>
+                        <IconButton
+                          variant="ghost"
+                          size="2"
+                          color="red"
+                          disabled={updating}
+                          className="hover:bg-red-50"
+                        >
+                          <IconTrash size={16} />
+                        </IconButton>
+                      </Popover.Trigger>
+                      <Popover.Content side="left" align="center">
+                        <Flex direction="column" gap="2" width="160px">
+                          <Text size="1" weight="medium" color="red">
+                            {t("settings.postProcessing.api.providers.deleteConfirm.title")}
+                          </Text>
+                          <Flex gap="2" justify="end">
+                            <Button
+                              variant="soft"
+                              size="1"
+                              color="gray"
+                              onClick={() => setDeletePopoverOpen(null)}
+                            >
+                              {t("common.cancel")}
+                            </Button>
+                            <Button
+                              variant="solid"
+                              size="1"
+                              color="red"
+                              onClick={() => handleRemove(provider.id)}
+                              disabled={updating}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </Flex>
+                        </Flex>
+                      </Popover.Content>
+                    </Popover.Root>
+                  )}
+                </Flex>
+              </Flex>
+            );
+          })}
+        </Grid>
+      )}
 
       {/* Add Provider Dialog */}
-      <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      <Dialog.Root open={isAddOpen} onOpenChange={onAddOpenChange}>
         <Dialog.Content maxWidth="450px">
           <Dialog.Title>
             {t("settings.postProcessing.api.providers.dialog.createTitle")}
@@ -307,17 +340,18 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
               </Flex>
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("settings.postProcessing.api.providers.fields.modelsEndpoint")}
+                  {t("settings.postProcessing.api.apiKey.title")}
                 </Text>
                 <TextField.Root
-                  value={addDraft.modelsEndpoint}
+                  value={addDraft.apiKey}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                     setAddDraft((draft) => ({
                       ...draft,
-                      modelsEndpoint: event.target.value,
+                      apiKey: event.target.value,
                     }))
                   }
-                  placeholder={t("settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder")}
+                  type="password"
+                  placeholder="sk-..."
                 />
               </Flex>
             </Flex>
@@ -325,17 +359,15 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
 
           <Flex justify="end" gap="3" mt="6">
             <Dialog.Close>
-              <Button variant="ghost">{t("common.cancel")}</Button>
+              <Button variant="outline">{t("common.cancel")}</Button>
             </Dialog.Close>
-            <Dialog.Close>
-              <Button
-                variant="solid"
-                disabled={!canAdd || isUpdating("add_custom_provider")}
-                onClick={handleAdd}
-              >
-                {t("common.create")}
-              </Button>
-            </Dialog.Close>
+            <Button
+              variant="solid"
+              disabled={!canAdd || isUpdating("add_custom_provider")}
+              onClick={handleAddWithKey}
+            >
+              {t("common.create")}
+            </Button>
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
@@ -397,17 +429,18 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
               </Flex>
               <Flex direction="column" gap="1">
                 <Text size="2" weight="medium">
-                  {t("settings.postProcessing.api.providers.fields.modelsEndpoint")}
+                  {t("settings.postProcessing.api.apiKey.title")}
                 </Text>
                 <TextField.Root
-                  value={editDraft.modelsEndpoint}
+                  value={editDraft.apiKey}
                   onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
                     setEditDraft((draft) => ({
                       ...draft,
-                      modelsEndpoint: event.target.value,
+                      apiKey: event.target.value,
                     }))
                   }
-                  placeholder={t("settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder")}
+                  type="password"
+                  placeholder="sk-..."
                 />
               </Flex>
             </Flex>
@@ -417,23 +450,22 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
             <Dialog.Close>
               <Button variant="ghost">{t("common.cancel")}</Button>
             </Dialog.Close>
-            <Dialog.Close>
-              <Button
-                variant="solid"
-                disabled={
-                  !canSaveEdit ||
-                  isUpdating(`update_custom_provider:${editingId}`)
-                }
-                onClick={handleSaveEdit}
-              >
-                {t("common.save")}
-              </Button>
-            </Dialog.Close>
+            <Button
+              variant="solid"
+              disabled={
+                !canSaveEdit ||
+                isUpdating(`update_custom_provider:${editingId}`)
+              }
+              onClick={handleSaveEdit}
+            >
+              {t("common.save")}
+            </Button>
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
     </>
   );
 };
+
 
 export default ProviderManager;

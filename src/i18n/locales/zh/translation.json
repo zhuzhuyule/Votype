@@ -1,104 +1,292 @@
 {
-  "sidebar": {
-    "dashboard": "概览",
-    "general": "通用",
-    "shortcuts": "快捷键",
-    "advanced": "高级",
+  "accessibility": {
+    "dismiss": "关闭",
+    "openSettings": "打开系统设置",
+    "permissionsDescription": "Votype 需要辅助功能权限才能输入转录的文字。",
+    "permissionsRequired": "需要辅助功能权限",
+    "verify": "验证"
+  },
+  "appLanguage": {
+    "description": "更改 Votype 界面的语言",
+    "title": "应用语言"
+  },
+  "common": {
+    "add": "添加",
+    "addNewOption": "添加新选项",
+    "cancel": "取消",
+    "close": "关闭",
+    "copied": "已复制",
+    "copy": "复制",
+    "create": "创建",
+    "default": "默认",
+    "delete": "删除",
+    "disabled": "已禁用",
+    "done": "完成",
+    "edit": "编辑",
+    "enabled": "已启用",
+    "filterOptions": "筛选选项...",
+    "loading": "加载中...",
     "models": "模型",
-    "asrModels": "语音模型",
-    "prompts": "提示词",
-    "postProcessing": "后处理",
-    "history": "历史记录",
-    "debug": "调试",
-    "about": "关于"
+    "no": "否",
+    "noMatchingOptions": "无匹配选项",
+    "noOptionsFound": "未找到选项",
+    "notAvailable": "不可用",
+    "off": "关",
+    "on": "开",
+    "open": "打开",
+    "remove": "移除",
+    "reset": "重置",
+    "save": "保存",
+    "selectOption": "选择选项",
+    "skip": "跳过",
+    "update": "更新",
+    "useInput": "使用 \"{{input}}\"",
+    "yes": "是"
   },
   "dashboard": {
-    "title": "概览",
-    "cards": {
-      "today": "今日",
-      "recent": "最近 {{days}} 天",
-      "allTime": "全部"
-    },
-    "metrics": {
-      "entries": "转写次数",
-      "duration": "音频时长",
-      "characters": "字符数",
-      "saved": "已收藏",
-      "postProcessed": "已后处理"
-    },
-    "activity": {
-      "title": "使用记录",
-      "subtitle": "近30天",
-      "entries": "共 {{count}} 条记录"
-    },
-    "range": {
-      "lastNDays": "近{{days}}天",
-      "allTime": "所有",
-      "today": "今日",
-      "buttons": {
-        "last7Days": "近7天",
-        "last30Days": "近30天",
-        "allTime": "所有"
-      }
-    },
-    "summary": {
-      "recording": {
-        "title": "累计语音输入",
-        "count": "共 {{count}} 次转写"
-      },
-      "transcription": {
-        "title": "生成文本",
-        "speed": "平均 {{rate}}/分"
-      },
-      "llm": {
-        "title": "大模型消耗情况",
-        "details": "命中率：{{hitRate}}",
-        "unknownApp": "未知应用"
-      },
-      "apps": {
-        "title": "最多使用的应用 Top 3",
-        "top3": "Top 3",
-        "empty": "暂无应用数据"
-      }
-    },
-    "details": {
-      "title": "历史记录",
-      "count": "共 {{count}} 条",
-      "meta": {
-        "chars": "{{value}} 字"
-      },
-      "audioRemoved": "录音已移除",
-      "empty": "暂无数据",
-      "loadMore": "加载更多"
-    },
     "actions": {
       "openRecordings": "录音目录",
       "retranscribe": "使用原音频重新转录",
-      "retranscribing": "重新转录中...",
-      "retranscribeFailed": "重新转录失败"
+      "retranscribeFailed": "重新转录失败",
+      "retranscribing": "重新转录中..."
+    },
+    "activity": {
+      "entries": "共 {{count}} 条记录",
+      "subtitle": "近30天",
+      "title": "使用记录"
+    },
+    "cards": {
+      "allTime": "全部",
+      "recent": "最近 {{days}} 天",
+      "today": "今日"
+    },
+    "details": {
+      "audioRemoved": "录音已移除",
+      "count": "共 {{count}} 条",
+      "empty": "暂无数据",
+      "loadMore": "加载更多",
+      "meta": {
+        "chars": "{{value}} 字"
+      },
+      "title": "历史记录"
+    },
+    "metrics": {
+      "characters": "字符数",
+      "duration": "音频时长",
+      "entries": "转写次数",
+      "postProcessed": "已后处理",
+      "saved": "已收藏"
+    },
+    "range": {
+      "allTime": "所有",
+      "buttons": {
+        "allTime": "所有",
+        "last30Days": "近30天",
+        "last7Days": "近7天"
+      },
+      "lastNDays": "近{{days}}天",
+      "today": "今日"
+    },
+    "summary": {
+      "apps": {
+        "empty": "暂无应用数据",
+        "title": "最多使用的应用 Top 3",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "details": "命中率：{{hitRate}}",
+        "title": "大模型消耗情况",
+        "unknownApp": "未知应用"
+      },
+      "recording": {
+        "count": "共 {{count}} 次转写",
+        "title": "累计语音输入"
+      },
+      "transcription": {
+        "speed": "平均 {{rate}}/分",
+        "title": "生成文本"
+      }
+    },
+    "title": "概览"
+  },
+  "errors": {
+    "loadDirectory": "加载目录时出错: {{error}}"
+  },
+  "footer": {
+    "checkForUpdates": "检查更新",
+    "checkingUpdates": "检查更新中...",
+    "downloading": "下载中... {{progress}}%",
+    "downloadingModel": "正在下载 {{model}}...",
+    "downloadUpdate": "下载更新",
+    "installing": "安装中...",
+    "preparing": "准备中...",
+    "restart": "重启",
+    "updateAvailable": "有可用更新: {{version}}",
+    "updateAvailableShort": "有可用更新",
+    "updateCheckingDisabled": "更新检查已禁用",
+    "upToDate": "已是最新版本"
+  },
+  "models": {
+    "large": {
+      "description": "准确度高，但速度较慢。",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "准确度高，速度适中",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "仅支持英语。英语用户的最佳模型。",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "快速且准确",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "给中英混合文本补标点和断句；更大更准但更慢；更新于 2024-04-12。",
+      "name": "中英标点（大）"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "给中英混合文本补标点和断句；Int8，体积小速度快；更新于 2024-04-12。",
+      "name": "中英标点（小）"
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "description": "离线中/粤/英三语识别；体积较大；准确率良好。",
+      "name": "Sherpa 中/粤/英 Paraformer"
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "description": "流式中英识别，适合实时字幕，速度快，准确率尚可。",
+      "name": "Sherpa 中英 Paraformer"
+    },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "description": "离线中文识别；INT8；速度快，准确率良好；更新于 2025-10-07。",
+      "name": "Sherpa 中文 Paraformer（INT8）"
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "description": "离线中文识别；体积小速度快；准确率尚可；更新于 2024-03-09。",
+      "name": "Sherpa 中文 Paraformer（小）"
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "description": "离线多语识别：中/英/日/韩/粤；Int8 量化；速度和占用中等；更新于 2025-09-09。",
+      "name": "SenseVoice 多语"
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
+      "name": "Sherpa 德语"
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
+      "name": "Sherpa 英语"
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。",
+      "name": "Sherpa 西班牙语"
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
+      "name": "Sherpa 法语"
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。",
+      "name": "Sherpa 俄语"
+    },
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "description": "流式中文识别（Zipformer2 CTC）；体积小、速度极快（INT8）；更新于 2025-04-01。",
+      "name": "Sherpa 中文（CTC 小）"
+    },
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。",
+      "name": "Sherpa 中文"
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。",
+      "name": "Sherpa 中文 XL"
+    },
+    "small": {
+      "description": "快速且相当准确。",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "准确度和速度均衡。",
+      "name": "Whisper Turbo"
     }
   },
+  "modelSelector": {
+    "active": "活跃",
+    "addModelFromUrl": "从链接添加",
+    "addModelFromUrlPrompt": "粘贴模型下载链接（例如 .tar.bz2）：",
+    "availableModels": "可用模型",
+    "chooseModel": "选择模型",
+    "clickToEnableOnlineAsr": "点击启用在线 ASR",
+    "deleteModel": "删除 {{modelName}}",
+    "download": "下载",
+    "downloading": "下载中 {{percentage}}%",
+    "downloadingMultiple": "正在下载 {{count}} 个模型...",
+    "downloadModels": "下载模型",
+    "downloadPrompt": "请下载以下模型以开始转录。",
+    "downloadSize": "下载大小",
+    "extracting": "正在解压 {{modelName}}...",
+    "extractingGeneric": "解压中...",
+    "extractingMultiple": "正在解压 {{count}} 个模型...",
+    "loading": "正在加载 {{modelName}}...",
+    "loadingGeneric": "加载中...",
+    "local": "本地",
+    "modelError": "模型错误",
+    "modelReady": "模型已就绪",
+    "modelUnloaded": "模型已卸载",
+    "noModelDownloadRequired": "无模型 - 需要下载",
+    "noModelsAvailable": "没有可用的模型",
+    "online": "在线",
+    "onlineAsr": "在线 ASR",
+    "onlineAsrActive": "在线 ASR 已启用",
+    "onlineAsrModels": "在线 ASR 模型",
+    "realtimeModel": {
+      "empty": "没有可用的本地模型。请先下载（并收藏）一个 Sherpa 模型。",
+      "enabled": "已启用",
+      "off": "关闭",
+      "offHint": "无需展示本地模型的实时字幕（节省内存资源）",
+      "open": "选择实时转录模型",
+      "selected": "实时：{{modelName}}",
+      "title": "实时转录模型"
+    },
+    "searchPlaceholder": "搜索模型…",
+    "userAddedModel": "用户添加的模型",
+    "welcome": "欢迎使用 Votype！"
+  },
   "onboarding": {
-    "subtitle": "请选择一个转录模型以开始使用",
-    "recommended": "推荐",
     "download": "下载",
     "downloading": "下载中...",
+    "errors": {
+      "downloadModel": "模型下载失败: {{error}}",
+      "loadModels": "无法加载可用模型"
+    },
     "modelCard": {
       "accuracy": "准确度",
       "speed": "速度"
     },
     "models": {
-      "sherpa-zipformer-zh-int8-2025-06-30": {
-        "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
+      "large": {
+        "description": "准确度高，但速度较慢。",
+        "name": "Whisper Large"
       },
-      "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-        "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
+      "medium": {
+        "description": "准确度高，速度适中",
+        "name": "Whisper Medium"
       },
-      "sherpa-zipformer-en-kroko-2025-08-06": {
-        "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+      "parakeet-tdt-0.6b-v2": {
+        "description": "仅支持英语。英语用户的最佳模型。",
+        "name": "Parakeet V2"
+      },
+      "parakeet-tdt-0.6b-v3": {
+        "description": "快速且准确",
+        "name": "Parakeet V3"
       },
       "sherpa-zipformer-de-kroko-2025-08-06": {
         "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
+      },
+      "sherpa-zipformer-en-kroko-2025-08-06": {
+        "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
       },
       "sherpa-zipformer-es-kroko-2025-08-06": {
         "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。"
@@ -109,686 +297,36 @@
       "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
         "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
       },
+      "sherpa-zipformer-zh-int8-2025-06-30": {
+        "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
+      },
+      "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+        "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
+      },
       "small": {
         "description": "快速且相当准确。",
         "name": "Whisper Small"
       },
-      "medium": {
-        "description": "准确度高，速度适中",
-        "name": "Whisper Medium"
-      },
       "turbo": {
         "description": "准确度和速度均衡。",
         "name": "Whisper Turbo"
-      },
-      "large": {
-        "description": "准确度高，但速度较慢。",
-        "name": "Whisper Large"
-      },
-      "parakeet-tdt-0.6b-v2": {
-        "description": "仅支持英语。英语用户的最佳模型。",
-        "name": "Parakeet V2"
-      },
-      "parakeet-tdt-0.6b-v3": {
-        "description": "快速且准确",
-        "name": "Parakeet V3"
       }
     },
-    "errors": {
-      "loadModels": "无法加载可用模型",
-      "downloadModel": "模型下载失败: {{error}}"
-    }
-  },
-  "modelSelector": {
-    "welcome": "欢迎使用 Votype！",
-    "downloadPrompt": "请下载以下模型以开始转录。",
-    "searchPlaceholder": "搜索模型…",
-    "availableModels": "可用模型",
-    "downloadModels": "下载模型",
-    "chooseModel": "选择模型",
-    "active": "活跃",
-    "download": "下载",
-    "downloadSize": "下载大小",
-    "noModelsAvailable": "没有可用的模型",
-    "extracting": "正在解压 {{modelName}}...",
-    "extractingMultiple": "正在解压 {{count}} 个模型...",
-    "extractingGeneric": "解压中...",
-    "downloading": "下载中 {{percentage}}%",
-    "downloadingMultiple": "正在下载 {{count}} 个模型...",
-    "modelReady": "模型已就绪",
-    "loading": "正在加载 {{modelName}}...",
-    "loadingGeneric": "加载中...",
-    "modelError": "模型错误",
-    "modelUnloaded": "模型已卸载",
-    "noModelDownloadRequired": "无模型 - 需要下载",
-    "deleteModel": "删除 {{modelName}}",
-    "local": "本地",
-    "online": "在线",
-    "onlineAsr": "在线 ASR",
-    "onlineAsrModels": "在线 ASR 模型",
-    "clickToEnableOnlineAsr": "点击启用在线 ASR",
-    "onlineAsrActive": "在线 ASR 已启用",
-    "addModelFromUrl": "从链接添加",
-    "addModelFromUrlPrompt": "粘贴模型下载链接（例如 .tar.bz2）：",
-    "userAddedModel": "用户添加的模型",
-    "realtimeModel": {
-      "title": "实时转录模型",
-      "open": "选择实时转录模型",
-      "enabled": "已启用",
-      "off": "关闭",
-      "selected": "实时：{{modelName}}",
-      "offHint": "使用在线 ASR 时不显示实时字幕。",
-      "empty": "没有可用的本地模型。请先下载（并收藏）一个 Sherpa 模型。"
-    }
-  },
-  "models": {
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "name": "Sherpa 中文（CTC 小）",
-      "description": "流式中文识别（Zipformer2 CTC）；体积小、速度极快（INT8）；更新于 2025-04-01。"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "name": "Sherpa 中文",
-      "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "name": "Sherpa 中文 XL",
-      "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "name": "Sherpa 英语",
-      "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "name": "Sherpa 德语",
-      "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "name": "Sherpa 西班牙语",
-      "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "name": "Sherpa 法语",
-      "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "name": "Sherpa 俄语",
-      "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "name": "Sherpa 中英 Paraformer",
-      "description": "流式中英识别，适合实时字幕，速度快，准确率尚可。"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "name": "Sherpa 中文 Paraformer（INT8）",
-      "description": "离线中文识别；INT8；速度快，准确率良好；更新于 2025-10-07。"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "name": "Sherpa 中文 Paraformer（小）",
-      "description": "离线中文识别；体积小速度快；准确率尚可；更新于 2024-03-09。"
-    },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "name": "Sherpa 中/粤/英 Paraformer",
-      "description": "离线中/粤/英三语识别；体积较大；准确率良好。"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "name": "SenseVoice 多语",
-      "description": "离线多语识别：中/英/日/韩/粤；Int8 量化；速度和占用中等；更新于 2025-09-09。"
-    },
-    "punct-zh-en-ct-transformer-2024-04-12-int8": {
-      "name": "中英标点（小）",
-      "description": "给中英混合文本补标点和断句；Int8，体积小速度快；更新于 2024-04-12。"
-    },
-    "punct-zh-en-ct-transformer-2024-04-12": {
-      "name": "中英标点（大）",
-      "description": "给中英混合文本补标点和断句；更大更准但更慢；更新于 2024-04-12。"
-    },
-    "small": {
-      "description": "快速且相当准确。",
-      "name": "Whisper Small"
-    },
-    "medium": {
-      "description": "准确度高，速度适中",
-      "name": "Whisper Medium"
-    },
-    "turbo": {
-      "description": "准确度和速度均衡。",
-      "name": "Whisper Turbo"
-    },
-    "large": {
-      "description": "准确度高，但速度较慢。",
-      "name": "Whisper Large"
-    },
-    "parakeet-tdt-0.6b-v2": {
-      "description": "仅支持英语。英语用户的最佳模型。",
-      "name": "Parakeet V2"
-    },
-    "parakeet-tdt-0.6b-v3": {
-      "description": "快速且准确",
-      "name": "Parakeet V3"
-    }
+    "recommended": "推荐",
+    "subtitle": "请选择一个转录模型以开始使用"
   },
   "overlay": {
-    "status": {
-      "recording": "录音中…",
-      "transcribing": "转录中…",
-      "llm": "后处理中…"
-    },
     "error": {
       "transcriptionFailedSaved": "转录失败（已保存到历史记录）"
+    },
+    "status": {
+      "llm": "后处理中…",
+      "recording": "录音中…",
+      "transcribing": "转录中…"
     }
   },
   "settings": {
-    "asrModels": {
-      "title": "语音模型",
-      "description": "管理本地转录模型，并控制哪些模型会出现在左下角的快捷列表里。",
-      "reset": "重置",
-      "idLabel": "id: {{id}}",
-      "addFromUrl": "添加并下载",
-      "install": {
-        "placeholder": "粘贴模型链接…",
-        "tooltip": "从链接安装"
-      },
-      "quickSettings": {
-        "title": "快捷设置",
-        "description": "这些设置会全局生效；标点模型可在下方列表中删除。"
-      },
-      "addSection": {
-        "title": "安装",
-        "description": "粘贴模型下载链接，应用会根据文件名自动推断模型类型。"
-      },
-      "pipeline": {
-        "title": "流水线",
-        "description": "可在转录后自动应用的全局后处理能力。",
-        "punctuation": "自动标点",
-        "punctuationHint": "使用所选标点模型补标点与断句。",
-        "punctuationModel": "标点模型",
-        "punctuationModelHint": "选择用于自动加标点的模型。",
-        "itn": "ITN（SenseVoice）",
-        "itnHint": "逆文本归一化：基础格式化（例如数字）。"
-      },
-      "library": {
-        "title": "模型库",
-        "description": "收藏的模型会出现在左下角快捷列表中。",
-        "searchPlaceholder": "搜索模型…",
-        "count": "{{count}} 个模型"
-      },
-      "favorite": "收藏",
-      "filters": {
-        "all": "全部",
-        "downloaded": "已下载",
-        "favorites": "已收藏",
-        "recommended": "推荐",
-        "status": "状态",
-        "mode": "模式",
-        "language": "语言",
-        "type": "类型"
-      },
-      "groupBy": {
-        "mode": "模式",
-        "language": "语言",
-        "type": "类型"
-      },
-      "groups": {
-        "streaming": "流式",
-        "offline": "离线",
-        "multilingual": "多语言",
-        "punctuation": "标点"
-      },
-      "types": {
-        "whisper": "Whisper",
-        "parakeet": "Parakeet",
-        "punctuation": "标点"
-      },
-      "typeChips": {
-        "whisper": "Whisper",
-        "parakeet": "Parakeet",
-        "sherpa_transducer": "Sherpa Transducer",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_fire_red_asr": "Sherpa FireRed ASR",
-        "punctuation": "标点",
-        "other": "其他"
-      },
-      "languages": {
-        "zh": "中文",
-        "yue": "粤语",
-        "en": "英文",
-        "ja": "日语",
-        "ko": "韩语",
-        "de": "德语",
-        "es": "西班牙语",
-        "fr": "法语",
-        "ru": "俄语",
-        "multilingual": "多语言",
-        "other": "其他"
-      },
-      "status": {
-        "downloaded": "已下载",
-        "notDownloaded": "未下载"
-      },
-      "download": "下载",
-      "delete": "删除"
-    },
-    "shortcuts": {
-      "title": "快捷键"
-    },
-    "general": {
-      "title": "通用",
-      "groups": {
-        "language": "语言",
-        "input": "输入模式"
-      },
-      "shortcut": {
-        "title": "Votype 快捷键",
-        "description": "配置启动语音转文字录制的键盘快捷键",
-        "loading": "加载快捷键中...",
-        "none": "未配置快捷键",
-        "notFound": "未找到快捷键",
-        "pressKeys": "请按键...",
-        "bindings": {
-          "transcribe": {
-            "name": "转录",
-            "description": "将语音转换为文字。"
-          },
-          "cancel": {
-            "name": "取消",
-            "description": "取消当前录制。"
-          },
-          "open_settings": {
-            "name": "打开设置",
-            "description": "打开设置窗口。"
-          },
-          "paste_first_entry": {
-            "name": "粘贴第一条记录",
-            "description": "将第一条历史记录粘贴到活动窗口。"
-          }
-        },
-        "errors": {
-          "restore": "无法恢复原始快捷键",
-          "set": "无法设置快捷键: {{error}}",
-          "reset": "无法将快捷键重置为原始值"
-        }
-      },
-      "language": {
-        "title": "语言",
-        "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
-        "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
-        "searchPlaceholder": "搜索语言...",
-        "noResults": "未找到语言",
-        "auto": "自动"
-      },
-      "pushToTalk": {
-        "label": "按住说话",
-        "description": "按住录制，松开停止"
-      }
-    },
-    "sound": {
-      "title": "声音",
-      "microphone": {
-        "title": "麦克风",
-        "description": "选择您偏好的麦克风设备",
-        "placeholder": "选择麦克风...",
-        "loading": "加载中..."
-      },
-      "audioFeedback": {
-        "label": "音频反馈",
-        "description": "录制开始和停止时播放声音"
-      },
-      "outputDevice": {
-        "title": "输出设备",
-        "description": "选择用于反馈声音的音频输出设备",
-        "placeholder": "选择输出设备...",
-        "loading": "加载中..."
-      },
-      "volume": {
-        "title": "音量",
-        "description": "调整音频反馈的音量"
-      }
-    },
-    "advanced": {
-      "title": "高级",
-      "groups": {
-        "behavior": "行为",
-        "input": "输入与剪贴板",
-        "transcription": "转录与模型",
-        "data": "数据与存储",
-        "system": "系统与调试"
-      },
-      "startHidden": {
-        "label": "隐藏启动",
-        "description": "启动到系统托盘而不打开窗口。"
-      },
-      "autostart": {
-        "label": "开机启动",
-        "description": "登录计算机时自动启动 Votype。"
-      },
-      "overlay": {
-        "title": "悬浮窗位置",
-        "description": "在录制和转录期间显示可视反馈悬浮窗。在 Linux 上建议选择「无」。",
-        "options": {
-          "none": "无",
-          "bottom": "底部",
-          "top": "顶部",
-          "follow": "跟随光标"
-        }
-      },
-      "pasteMethod": {
-        "title": "粘贴方式",
-        "description": "选择文字插入方式。直接：通过系统输入模拟打字。无：跳过粘贴，仅更新历史记录/剪贴板。",
-        "options": {
-          "clipboard": "剪贴板 ({{modifier}}+V)",
-          "clipboardCtrlShiftV": "剪贴板 (Ctrl+Shift+V)",
-          "clipboardShiftInsert": "剪贴板 (Shift+Insert)",
-          "direct": "直接",
-          "none": "无"
-        }
-      },
-      "clipboardHandling": {
-        "title": "剪贴板处理",
-        "description": "不修改剪贴板将在转录后保留当前剪贴板内容。复制到剪贴板将在粘贴后将转录结果留在剪贴板中。",
-        "options": {
-          "dontModify": "不修改剪贴板",
-          "copyToClipboard": "复制到剪贴板"
-        }
-      },
-      "translateToEnglish": {
-        "label": "翻译为英语",
-        "description": "在转录过程中自动将其他语言的语音翻译为英语。",
-        "descriptionUnsupported": "{{model}} 模型不支持翻译功能。"
-      },
-      "punctuation": {
-        "label": "自动加标点",
-        "description": "给最终转录结果补标点（{{model}}）。",
-        "model": {
-          "title": "标点模型",
-          "description": "选择一个用于中英混合的标点模型，只作用于最终结果。",
-          "notDownloaded": "当前选择的标点模型还没下载。"
-        }
-      },
-      "modelUnload": {
-        "title": "卸载模型",
-        "description": "当模型在指定时间内未使用时自动释放 GPU/CPU 内存",
-        "options": {
-          "never": "从不",
-          "immediately": "立即",
-          "min2": "2 分钟后",
-          "min5": "5 分钟后",
-          "min10": "10 分钟后",
-          "min15": "15 分钟后",
-          "hour1": "1 小时后",
-          "sec5": "5 秒后（调试）"
-        }
-      },
-      "customWords": {
-        "title": "自定义词汇",
-        "description": "添加经常被误听或拼写错误的词汇。系统将自动将发音相似的词汇修正为您列表中的词汇。",
-        "placeholder": "添加词汇",
-        "add": "添加",
-        "remove": "删除 {{word}}"
-      }
-    },
-    "postProcessing": {
-      "title": "后处理",
-      "disabledNotice": "后处理当前已禁用。启用后即可进行配置。",
-      "fusion": {
-        "enabled": {
-          "label": "使用实时转录（融合）",
-          "description": "后处理时同时提供两份转录：${output}（最终）和 ${streaming_output}（第二份）。"
-        },
-        "secondaryModel": {
-          "title": "实时转录模型（在线 ASR）",
-          "description": "仅在启用在线 ASR 时使用：该本地模型用于实时字幕，并作为第二份转录提供给后处理。",
-          "placeholder": "选择模型…",
-          "auto": "自动",
-          "autoDescription": "使用当前本地模型"
-        }
-      },
-      "api": {
-        "title": "API（兼容 OpenAI）",
-        "provider": {
-          "title": "提供商",
-          "description": "选择一个兼容 OpenAI 的提供商。"
-        },
-        "appleIntelligence": {
-          "description": "完全在设备上运行。无需 API 密钥或网络访问。",
-          "requirements": "需要运行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac。必须在系统设置中启用 Apple Intelligence。",
-          "title": "Apple Intelligence"
-        },
-        "baseUrl": {
-          "title": "基础 URL",
-          "description": "所选提供商的 API 基础 URL。仅自定义提供商可编辑。",
-          "placeholder": "https://api.openai.com/v1"
-        },
-        "apiKey": {
-          "title": "API 密钥",
-          "description": "所选提供商的 API 密钥。",
-          "placeholder": "sk-..."
-        },
-        "model": {
-          "title": "模型",
-          "descriptionApple": "提供可选的数字令牌限制或保持默认的设备预设。",
-          "descriptionCustom": "提供自定义端点期望的模型标识符。",
-          "descriptionDefault": "选择所选提供商提供的模型。",
-          "placeholderWithOptions": "搜索或选择模型",
-          "placeholderNoOptions": "输入模型名称",
-          "refreshModels": "刷新模型",
-          "placeholderApple": "Apple Intelligence"
-        },
-        "manageProviders": "管理提供商",
-        "providers": {
-          "title": "提供商",
-          "add": "添加提供商",
-          "builtInBadge": "内置",
-          "empty": {
-            "title": "暂无提供商",
-            "description": "添加一个提供商以开始使用。"
-          },
-          "deleteConfirm": {
-            "title": "删除提供商？",
-            "description": "这将移除该提供商及其关联的模型。"
-          },
-          "dialog": {
-            "createTitle": "创建提供商",
-            "editTitle": "编辑提供商"
-          },
-          "fields": {
-            "name": "提供商名称",
-            "namePlaceholder": "我的提供商",
-            "baseUrl": "基础 URL",
-            "modelsEndpoint": "模型接口路径",
-            "modelsEndpointPlaceholder": "/models"
-          },
-          "resetUrl": "重置 URL"
-        }
-      },
-      "prompts": {
-        "title": "提示词",
-        "selectedPrompt": {
-          "title": "已选提示词",
-          "description": "选择用于优化转录的模板或创建新模板。在提示词文本中使用 ${output} 来引用捕获的转录。"
-        },
-        "noPrompts": "没有可用的提示词",
-        "selectPrompt": "选择提示词",
-        "createNew": "创建新提示词",
-        "promptLabel": "提示词名称",
-        "promptLabelPlaceholder": "输入提示词名称",
-        "promptInstructions": "提示词指令",
-        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
-        "promptTip": "提示：使用 <code>${output}</code> 将转录文本插入到您的提示词中。",
-        "updatePrompt": "更新提示词",
-        "deletePrompt": "删除提示词",
-        "createPrompt": "创建提示词",
-        "cancel": "取消",
-        "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
-        "createFirst": "点击上方的「创建新提示词」来创建您的第一个后处理提示词。"
-      },
-      "models": {
-        "title": "模型",
-        "description": "添加并管理用于后处理的模型。",
-        "addModel": "添加模型",
-        "empty": {
-          "title": "尚未配置模型",
-          "description": "添加一个模型以开始使用。"
-        },
-        "modelTypes": {
-          "text": {
-            "label": "文本",
-            "hint": "文本润色与格式化"
-          },
-          "asr": {
-            "hint": "语音识别",
-            "label": "ASR"
-          },
-          "other": {
-            "label": "其他",
-            "hint": "自定义用途"
-          }
-        },
-        "selectModel": {
-          "title": "选择模型",
-          "description": "选择要添加的模型，或手动输入模型 ID。",
-          "segmented": {
-            "selectModel": "选择",
-            "customModel": "自定义"
-          },
-          "customModelPlaceholder": "输入模型 ID...",
-          "placeholder": "选择模型...",
-          "placeholderEmpty": "暂无可用模型",
-          "usageTypeTitle": "用途类型",
-          "customLabelTitle": "自定义标签",
-          "customLabelPlaceholder": "输入标签..."
-        },
-        "stats": {
-          "asr": "ASR: {{count}}",
-          "text": "文本: {{count}}",
-          "other": "其他: {{count}}"
-        }
-      }
-    },
-    "history": {
-      "title": "历史记录",
-      "openFolder": "打开录音文件夹",
-      "loading": "加载历史记录中...",
-      "empty": "还没有转录记录。开始录制以建立您的历史记录！",
-      "copyToClipboard": "复制转录到剪贴板",
-      "save": "保存转录",
-      "unsave": "从已保存中移除",
-      "delete": "删除条目",
-      "deleteError": "删除条目失败，请重试。",
-      "content": {
-        "improved": "优化后",
-        "original": "原文"
-      },
-      "searchPlaceholder": "Search history...",
-      "timeline": {
-        "today": "Today",
-        "yesterday": "Yesterday",
-        "thisWeek": "This Week",
-        "earlier": "Earlier"
-      }
-    },
-    "debug": {
-      "title": "调试",
-      "groups": {
-        "system": "系统与日志",
-        "audio": "音频与处理",
-        "data": "数据管理",
-        "text": "文本处理"
-      },
-      "logDirectory": {
-        "title": "日志目录",
-        "description": "日志文件的存储位置",
-        "error": "加载日志目录时出错: {{error}}"
-      },
-      "logLevel": {
-        "title": "日志级别",
-        "description": "设置日志的详细程度"
-      },
-      "updateChecks": {
-        "label": "检查更新",
-        "description": "自动检查 Votype 的新版本"
-      },
-      "destroySettingsWindowOnClose": {
-        "label": "关闭时销毁设置窗口",
-        "description": "关闭设置窗口时销毁以释放资源；可从托盘菜单重新打开。"
-      },
-      "soundTheme": {
-        "label": "声音主题",
-        "description": "选择录制开始和停止反馈的声音主题"
-      },
-      "wordCorrectionThreshold": {
-        "title": "词汇修正阈值",
-        "description": "自定义词汇修正的灵敏度"
-      },
-      "historyLimit": {
-        "title": "历史记录上限",
-        "description": "保留的最大历史条目数",
-        "entries": "条"
-      },
-      "recordingRetention": {
-        "title": "录音保留",
-        "description": "保留音频录音的时长",
-        "never": "从不",
-        "preserveLimit": "保留 {{count}} 条录音",
-        "days3": "3 天后",
-        "weeks2": "2 周后",
-        "months3": "3 个月后",
-        "placeholder": "选择保留期限..."
-      },
-      "alwaysOnMicrophone": {
-        "label": "麦克风常开",
-        "description": "保持麦克风活跃以获得更快的响应"
-      },
-      "clamshellMicrophone": {
-        "title": "合盖麦克风",
-        "description": "笔记本电脑盖子关闭时使用的麦克风"
-      },
-      "postProcessingToggle": {
-        "label": "后处理",
-        "description": "启用转录后的 AI 文本优化"
-      },
-      "muteWhileRecording": {
-        "label": "录制时静音",
-        "description": "录制期间静音系统音频"
-      },
-      "appendTrailingSpace": {
-        "label": "追加尾部空格",
-        "description": "在粘贴的转录后添加空格"
-      },
-      "offlineVadRealtime": {
-        "intervalLabel": "离线实时回显间隔（毫秒）",
-        "intervalDescription": "每隔 N 毫秒强制刷新一次回显（0 表示关闭）。",
-        "windowLabel": "离线实时回显窗口（秒）",
-        "windowDescription": "当总音频超过 30 秒且没有 VAD 分段时，仅转录最近 N 秒用于回显。"
-      },
-      "paths": {
-        "appData": "应用数据:",
-        "models": "模型:",
-        "settings": "设置:",
-        "title": "路径",
-        "description": "Votype 使用的通用文件路径"
-      }
-    },
     "about": {
-      "title": "关于",
-      "version": {
-        "title": "版本",
-        "description": "Votype 的当前版本"
-      },
-      "appDataDirectory": {
-        "title": "应用数据目录",
-        "description": "Votype 存储数据的位置"
-      },
-      "sourceCode": {
-        "title": "源代码",
-        "description": "查看源代码并贡献",
-        "button": "在 GitHub 上查看"
-      },
-      "supportDevelopment": {
-        "title": "支持开发",
-        "description": "帮助我们继续开发 Votype",
-        "button": "捐赠"
-      },
       "acknowledgments": {
         "title": "致谢",
         "whisper": {
@@ -796,145 +334,643 @@
           "details": "Votype 使用 Whisper.cpp 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。",
           "title": "Whisper.cpp"
         }
+      },
+      "appDataDirectory": {
+        "description": "Votype 存储数据的位置",
+        "title": "应用数据目录"
+      },
+      "sourceCode": {
+        "button": "在 GitHub 上查看",
+        "description": "查看源代码并贡献",
+        "title": "源代码"
+      },
+      "supportDevelopment": {
+        "button": "捐赠",
+        "description": "帮助我们继续开发 Votype",
+        "title": "支持开发"
+      },
+      "title": "关于",
+      "version": {
+        "description": "Votype 的当前版本",
+        "title": "版本"
+      }
+    },
+    "advanced": {
+      "autostart": {
+        "description": "登录计算机时自动启动 Votype。",
+        "label": "开机启动"
+      },
+      "clipboardHandling": {
+        "description": "不修改剪贴板将在转录后保留当前剪贴板内容。复制到剪贴板将在粘贴后将转录结果留在剪贴板中。",
+        "options": {
+          "copyToClipboard": "复制到剪贴板",
+          "dontModify": "不修改剪贴板"
+        },
+        "title": "剪贴板处理"
+      },
+      "customWords": {
+        "add": "添加",
+        "description": "添加经常被误听或拼写错误的词汇。系统将自动将发音相似的词汇修正为您列表中的词汇。",
+        "placeholder": "添加词汇",
+        "remove": "删除 {{word}}",
+        "title": "自定义词汇"
+      },
+      "groups": {
+        "behavior": "行为",
+        "data": "数据与存储",
+        "input": "输入与剪贴板",
+        "system": "系统与调试",
+        "transcription": "转录与模型"
+      },
+      "modelUnload": {
+        "description": "当模型在指定时间内未使用时自动释放 GPU/CPU 内存",
+        "options": {
+          "hour1": "1 小时后",
+          "immediately": "立即",
+          "min10": "10 分钟后",
+          "min15": "15 分钟后",
+          "min2": "2 分钟后",
+          "min5": "5 分钟后",
+          "never": "从不",
+          "sec5": "5 秒后（调试）"
+        },
+        "title": "卸载模型"
+      },
+      "overlay": {
+        "description": "在录制和转录期间显示可视反馈悬浮窗。在 Linux 上建议选择「无」。",
+        "options": {
+          "bottom": "底部",
+          "follow": "跟随光标",
+          "none": "无",
+          "top": "顶部"
+        },
+        "title": "悬浮窗位置"
+      },
+      "pasteMethod": {
+        "description": "选择文字插入方式。直接：通过系统输入模拟打字。无：跳过粘贴，仅更新历史记录/剪贴板。",
+        "options": {
+          "clipboard": "剪贴板 ({{modifier}}+V)",
+          "clipboardCtrlShiftV": "剪贴板 (Ctrl+Shift+V)",
+          "clipboardShiftInsert": "剪贴板 (Shift+Insert)",
+          "direct": "直接",
+          "none": "无"
+        },
+        "title": "粘贴方式"
+      },
+      "punctuation": {
+        "description": "给最终转录结果补标点（{{model}}）。",
+        "label": "自动加标点",
+        "model": {
+          "description": "选择一个用于中英混合的标点模型，只作用于最终结果。",
+          "notDownloaded": "当前选择的标点模型还没下载。",
+          "title": "标点模型"
+        }
+      },
+      "startHidden": {
+        "description": "启动到系统托盘而不打开窗口。",
+        "label": "隐藏启动"
+      },
+      "title": "高级",
+      "translateToEnglish": {
+        "description": "在转录过程中自动将其他语言的语音翻译为英语。",
+        "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
+        "label": "翻译为英语"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "添加并下载",
+      "addSection": {
+        "description": "粘贴模型下载链接，应用会根据文件名自动推断模型类型。",
+        "title": "安装"
+      },
+      "delete": "删除",
+      "description": "管理本地转录模型，并控制哪些模型会出现在左下角的快捷列表里。",
+      "download": "下载",
+      "favorite": "收藏",
+      "filters": {
+        "all": "全部",
+        "downloaded": "已下载",
+        "favorites": "已收藏",
+        "language": "语言",
+        "mode": "模式",
+        "recommended": "推荐",
+        "status": "状态",
+        "type": "类型"
+      },
+      "groupBy": {
+        "language": "语言",
+        "mode": "模式",
+        "type": "类型"
+      },
+      "groups": {
+        "multilingual": "多语言",
+        "offline": "离线",
+        "punctuation": "标点",
+        "streaming": "流式"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "placeholder": "粘贴模型链接…",
+        "tooltip": "从链接安装"
+      },
+      "languages": {
+        "de": "德语",
+        "en": "英文",
+        "es": "西班牙语",
+        "fr": "法语",
+        "ja": "日语",
+        "ko": "韩语",
+        "multilingual": "多语言",
+        "other": "其他",
+        "ru": "俄语",
+        "yue": "粤语",
+        "zh": "中文"
+      },
+      "library": {
+        "count": "{{count}} 个模型",
+        "description": "收藏的模型会出现在左下角快捷列表中。",
+        "searchPlaceholder": "搜索模型…",
+        "title": "模型库"
+      },
+      "pipeline": {
+        "description": "可在转录后自动应用的全局后处理能力。",
+        "itn": "ITN（SenseVoice）",
+        "itnHint": "逆文本归一化：基础格式化（例如数字）。",
+        "punctuation": "自动标点",
+        "punctuationHint": "使用所选标点模型补标点与断句。",
+        "punctuationModel": "标点模型",
+        "punctuationModelHint": "选择用于自动加标点的模型。",
+        "title": "流水线"
+      },
+      "quickSettings": {
+        "description": "这些设置会全局生效；标点模型可在下方列表中删除。",
+        "title": "快捷设置"
+      },
+      "reset": "重置",
+      "status": {
+        "downloaded": "已下载",
+        "notDownloaded": "未下载"
+      },
+      "title": "本地模型",
+      "typeChips": {
+        "other": "其他",
+        "parakeet": "Parakeet",
+        "punctuation": "标点",
+        "sherpa_fire_red_asr": "Sherpa FireRed ASR",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_transducer": "Sherpa Transducer",
+        "whisper": "Whisper"
+      },
+      "types": {
+        "parakeet": "Parakeet",
+        "punctuation": "标点",
+        "whisper": "Whisper"
+      }
+    },
+    "debug": {
+      "alwaysOnMicrophone": {
+        "description": "保持麦克风活跃以获得更快的响应",
+        "label": "麦克风常开"
+      },
+      "appendTrailingSpace": {
+        "description": "在粘贴的转录后添加空格",
+        "label": "追加尾部空格"
+      },
+      "clamshellMicrophone": {
+        "description": "笔记本电脑盖子关闭时使用的麦克风",
+        "title": "合盖麦克风"
+      },
+      "destroySettingsWindowOnClose": {
+        "description": "关闭设置窗口时销毁以释放资源；可从托盘菜单重新打开。",
+        "label": "关闭时销毁设置窗口"
+      },
+      "groups": {
+        "audio": "音频与处理",
+        "data": "数据管理",
+        "system": "系统与日志",
+        "text": "文本处理"
+      },
+      "historyLimit": {
+        "description": "保留的最大历史条目数",
+        "entries": "条",
+        "title": "历史记录上限"
+      },
+      "logDirectory": {
+        "description": "日志文件的存储位置",
+        "error": "加载日志目录时出错: {{error}}",
+        "title": "日志目录"
+      },
+      "logLevel": {
+        "description": "设置日志的详细程度",
+        "title": "日志级别"
+      },
+      "muteWhileRecording": {
+        "description": "录制期间静音系统音频",
+        "label": "录制时静音"
+      },
+      "offlineVadRealtime": {
+        "intervalDescription": "每隔 N 毫秒强制刷新一次回显（0 表示关闭）。",
+        "intervalLabel": "离线实时回显间隔（毫秒）",
+        "windowDescription": "当总音频超过 30 秒且没有 VAD 分段时，仅转录最近 N 秒用于回显。",
+        "windowLabel": "离线实时回显窗口（秒）"
+      },
+      "paths": {
+        "appData": "应用数据:",
+        "description": "Votype 使用的通用文件路径",
+        "models": "模型:",
+        "settings": "设置:",
+        "title": "路径"
+      },
+      "postProcessingToggle": {
+        "description": "启用转录后的 AI 文本处理",
+        "label": "后期处理"
+      },
+      "recordingRetention": {
+        "days3": "3 天后",
+        "description": "保留音频录音的时长",
+        "months3": "3 个月后",
+        "never": "从不",
+        "placeholder": "选择保留期限...",
+        "preserveLimit": "保留 {{count}} 条录音",
+        "title": "录音保留",
+        "weeks2": "2 周后"
+      },
+      "soundTheme": {
+        "description": "选择录制开始和停止反馈的声音主题",
+        "label": "声音主题"
+      },
+      "title": "调试",
+      "updateChecks": {
+        "description": "自动检查 Votype 的新版本",
+        "label": "检查更新"
+      },
+      "wordCorrectionThreshold": {
+        "description": "自定义词汇修正的灵敏度",
+        "title": "词汇修正阈值"
+      }
+    },
+    "general": {
+      "groups": {
+        "input": "输入模式",
+        "language": "语言"
+      },
+      "language": {
+        "auto": "自动",
+        "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
+        "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
+        "noResults": "未找到语言",
+        "searchPlaceholder": "搜索语言...",
+        "title": "语言"
+      },
+      "pushToTalk": {
+        "description": "按住录制，松开停止",
+        "label": "按住说话"
+      },
+      "shortcut": {
+        "bindings": {
+          "cancel": {
+            "description": "取消当前录制。",
+            "name": "取消"
+          },
+          "open_settings": {
+            "description": "打开设置窗口。",
+            "name": "打开设置"
+          },
+          "paste_first_entry": {
+            "description": "将第一条历史记录粘贴到活动窗口。",
+            "name": "粘贴第一条记录"
+          },
+          "transcribe": {
+            "description": "将语音转换为文字。",
+            "name": "转录"
+          }
+        },
+        "description": "配置启动语音转文字录制的键盘快捷键",
+        "errors": {
+          "reset": "无法将快捷键重置为原始值",
+          "restore": "无法恢复原始快捷键",
+          "set": "无法设置快捷键: {{error}}"
+        },
+        "loading": "加载快捷键中...",
+        "none": "未配置快捷键",
+        "notFound": "未找到快捷键",
+        "pressKeys": "请按键...",
+        "title": "Votype 快捷键"
+      },
+      "title": "通用"
+    },
+    "history": {
+      "content": {
+        "improved": "优化后",
+        "original": "原文"
+      },
+      "copyToClipboard": "复制转录到剪贴板",
+      "delete": "删除条目",
+      "deleteError": "删除条目失败，请重试。",
+      "empty": "还没有转录记录。开始录制以建立您的历史记录！",
+      "loading": "加载历史记录中...",
+      "openFolder": "打开录音文件夹",
+      "save": "保存转录",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "earlier": "Earlier",
+        "thisWeek": "This Week",
+        "today": "Today",
+        "yesterday": "Yesterday"
+      },
+      "title": "历史记录",
+      "unsave": "从已保存中移除"
+    },
+    "postProcessing": {
+      "api": {
+        "apiKey": {
+          "description": "所选提供商的 API 密钥。",
+          "placeholder": "sk-...",
+          "title": "API 密钥"
+        },
+        "appleIntelligence": {
+          "description": "完全在设备上运行。无需 API 密钥或网络访问。",
+          "requirements": "需要运行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac。必须在系统设置中启用 Apple Intelligence。",
+          "title": "Apple Intelligence"
+        },
+        "baseUrl": {
+          "description": "所选提供商的 API 基础 URL。仅自定义提供商可编辑。",
+          "placeholder": "https://api.openai.com/v1",
+          "title": "基础 URL"
+        },
+        "manageProviders": "管理提供商",
+        "model": {
+          "descriptionApple": "提供可选的数字令牌限制或保持默认的设备预设。",
+          "descriptionCustom": "提供自定义端点期望的模型标识符。",
+          "descriptionDefault": "选择所选提供商提供的模型。",
+          "placeholderApple": "Apple Intelligence",
+          "placeholderNoOptions": "输入模型名称",
+          "placeholderWithOptions": "搜索或选择模型",
+          "refreshModels": "刷新模型",
+          "title": "模型"
+        },
+        "models": {
+          "deleteConfirm": {
+            "description": "你确定要删除此模型吗？此操作无法撤销。",
+            "title": "删除模型？"
+          }
+        },
+        "provider": {
+          "description": "选择一个兼容 OpenAI 的提供商。",
+          "title": "提供商"
+        },
+        "providers": {
+          "add": "添加提供商",
+          "advancedSettings": "高级设置",
+          "api": {
+            "model": {
+              "title": "使用的模型"
+            },
+            "testConnection": "测试模型推理",
+            "testFailed": "测试失败: {{error}}",
+            "testing": "正在测试连接...",
+            "testSuccess": "测试成功"
+          },
+          "builtInBadge": "内置",
+          "deleteConfirm": {
+            "description": "这将移除该提供商及其关联的模型。",
+            "title": "删除提供商？"
+          },
+          "dialog": {
+            "createTitle": "创建提供商",
+            "editTitle": "编辑提供商"
+          },
+          "empty": {
+            "description": "添加一个提供商以开始使用。",
+            "title": "暂无提供商"
+          },
+          "fields": {
+            "baseUrl": "基础 URL",
+            "modelsEndpoint": "模型接口路径",
+            "modelsEndpointPlaceholder": "/models",
+            "name": "提供商名称",
+            "namePlaceholder": "我的提供商"
+          },
+          "resetUrl": "重置 URL",
+          "testConnection": "测试连接",
+          "testFailed": "连接失败: {{error}}",
+          "testSuccess": "连接成功",
+          "title": "提供商"
+        },
+        "title": "API（兼容 OpenAI）"
+      },
+      "disabledNotice": "后期处理当前已禁用。启用后即可进行配置。",
+      "fusion": {
+        "enabled": {
+          "description": "后期处理时同时提供两份转录：${output}（最终）和 ${streaming_output}（第二份）。",
+          "label": "使用实时转录（融合）"
+        },
+        "secondaryModel": {
+          "auto": "自动",
+          "autoDescription": "使用当前本地模型",
+          "description": "仅在启用在线 ASR 时使用：该本地模型用于实时字幕，并作为第二份转录提供给后处理。",
+          "placeholder": "选择模型…",
+          "title": "实时转录模型（在线 ASR）"
+        }
+      },
+      "models": {
+        "addModel": "添加模型",
+        "description": "添加并管理用于后处理的模型。",
+        "empty": {
+          "description": "添加一个模型以开始使用。",
+          "title": "尚未配置模型"
+        },
+        "deleteConfirm": {
+          "title": "删除模型？",
+          "description": "你确定要删除此模型吗？此操作无法撤销。"
+        },
+        "modelTypes": {
+          "asr": {
+            "hint": "语音识别",
+            "label": "ASR"
+          },
+          "other": {
+            "hint": "自定义用途",
+            "label": "其他"
+          },
+          "text": {
+            "hint": "文本润色与格式化",
+            "label": "文本"
+          }
+        },
+        "selectModel": {
+          "customLabelPlaceholder": "输入标签...",
+          "customLabelTitle": "自定义标签",
+          "customModelPlaceholder": "输入模型 ID...",
+          "description": "选择要添加的模型，或手动输入模型 ID。",
+          "placeholder": "选择模型...",
+          "placeholderEmpty": "暂无可用模型",
+          "segmented": {
+            "customModel": "自定义",
+            "selectModel": "选择"
+          },
+          "title": "选择模型",
+          "usageTypeTitle": "用途类型"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "其他: {{count}}",
+          "text": "文本: {{count}}"
+        },
+        "title": "模型"
+      },
+      "prompts": {
+        "activeSet": "已设为默认提示词",
+        "cancel": "取消",
+        "createFirst": "点击上方的「创建新提示词」来创建您的第一个后期处理提示词。",
+        "createNew": "创建新提示词",
+        "createPrompt": "创建提示词",
+        "createSuccess": "提示词创建成功",
+        "deleteConfirm": {
+          "description": "此操作无法撤销。该提示词将被永久删除。",
+          "title": "删除提示词？"
+        },
+        "deleteFailed": "删除失败",
+        "deletePrompt": "删除提示词",
+        "deleteSuccess": "提示词删除成功",
+        "editPrompt": "编辑提示词",
+        "newPromptName": "新提示词",
+        "noPrompts": "没有可用的提示词",
+        "promptInstructions": "提示词指令",
+        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
+        "promptLabel": "提示词名称",
+        "promptLabelPlaceholder": "输入提示词名称",
+        "promptTip": "提示：<br/>使用 <code>${output}</code> 引用转录文本。<br/>使用 <code>${streaming_output}</code> 引用实时转录文本（仅作参考，可能为空）。",
+        "selectedPrompt": {
+          "description": "选择用于优化转录的模板或创建新模板。在提示词文本中使用 ${output} 来引用捕获的转录。",
+          "title": "已选提示词"
+        },
+        "selectPrompt": "选择提示词",
+        "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
+        "setAsActive": "设为默认",
+        "title": "提示词",
+        "updateFailed": "更新失败",
+        "updatePrompt": "更新提示词",
+        "updateSuccess": "提示词更新成功"
+      },
+      "title": "后期处理"
+    },
+    "shortcuts": {
+      "title": "快捷键"
+    },
+    "sound": {
+      "audioFeedback": {
+        "description": "录制开始和停止时播放声音",
+        "label": "音频反馈"
+      },
+      "microphone": {
+        "description": "选择您偏好的麦克风设备",
+        "loading": "加载中...",
+        "placeholder": "选择麦克风...",
+        "title": "麦克风"
+      },
+      "outputDevice": {
+        "description": "选择用于反馈声音的音频输出设备",
+        "loading": "加载中...",
+        "placeholder": "选择输出设备...",
+        "title": "输出设备"
+      },
+      "title": "声音",
+      "volume": {
+        "description": "调整音频反馈的音量",
+        "title": "音量"
       }
     }
   },
+  "sidebar": {
+    "about": "关于",
+    "advanced": "高级",
+    "asrModels": "语音模型",
+    "dashboard": "概览",
+    "debug": "调试",
+    "general": "通用",
+    "history": "历史记录",
+    "models": "模型",
+    "postProcessing": "后处理",
+    "prompts": "提示词",
+    "shortcuts": "快捷键"
+  },
+  "soundPicker": {
+    "custom": "自定义",
+    "marimba": "马林巴琴",
+    "pop": "流行",
+    "preview": "预览"
+  },
   "theme": {
-    "title": "主题",
-    "themeMode": {
-      "title": "主题模式",
-      "description": "选择 Votype 的外观",
-      "light": "浅色",
-      "lightDesc": "始终使用浅色主题",
-      "dark": "深色",
-      "darkDesc": "始终使用深色主题",
-      "system": "跟随系统",
-      "systemDesc": "与系统主题保持一致"
-    },
     "accentColor": {
-      "title": "强调色",
-      "description": "选择应用中使用的强调色",
-      "current": "当前：{{color}}",
-      "ruby": "红宝石",
-      "gray": "灰色",
-      "gold": "金色",
+      "amber": "琥珀",
+      "blue": "蓝色",
       "bronze": "青铜",
       "brown": "棕色",
+      "crimson": "绯红",
+      "current": "当前：{{color}}",
+      "cyan": "青色",
+      "description": "选择应用中使用的强调色",
+      "gold": "金色",
+      "grass": "草绿",
+      "gray": "灰色",
+      "green": "绿色",
       "indigo": "靛蓝",
-      "blue": "蓝色",
       "iris": "鸢尾",
-      "purple": "紫色",
-      "violet": "紫罗兰",
+      "jade": "翡翠",
+      "lime": "青柠",
+      "mint": "薄荷",
+      "orange": "橙色",
       "pink": "粉色",
       "plum": "梅紫",
+      "purple": "紫色",
       "red": "红色",
-      "tomato": "番茄红",
-      "crimson": "绯红",
-      "orange": "橙色",
-      "amber": "琥珀",
-      "yellow": "黄色",
-      "lime": "青柠",
-      "green": "绿色",
-      "grass": "草绿",
-      "jade": "翡翠",
+      "ruby": "红宝石",
+      "sky": "天蓝",
       "teal": "蓝绿",
-      "cyan": "青色",
-      "mint": "薄荷",
-      "sky": "天蓝"
-    },
-    "panelStyle": {
-      "title": "面板样式",
-      "description": "选择半透明或纯色面板",
-      "translucent": "半透明",
-      "translucentDesc": "磨砂玻璃效果",
-      "solid": "纯色",
-      "solidDesc": "不透明面板"
+      "title": "强调色",
+      "tomato": "番茄红",
+      "violet": "紫罗兰",
+      "yellow": "黄色"
     },
     "cornerRadius": {
-      "title": "圆角",
+      "capsule": "胶囊",
+      "capsuleDesc": "完全圆角",
+      "default": "默认",
+      "defaultDesc": "标准圆角",
       "description": "调整圆角程度",
+      "rounded": "圆润",
+      "roundedDesc": "更明显的圆角",
       "sharp": "锐角",
       "sharpDesc": "不使用圆角",
       "soft": "柔和",
       "softDesc": "轻微圆角",
-      "default": "默认",
-      "defaultDesc": "标准圆角",
-      "rounded": "圆润",
-      "roundedDesc": "更明显的圆角",
-      "capsule": "胶囊",
-      "capsuleDesc": "完全圆角"
+      "title": "圆角"
+    },
+    "panelStyle": {
+      "description": "选择半透明或纯色面板",
+      "solid": "纯色",
+      "solidDesc": "不透明面板",
+      "title": "面板样式",
+      "translucent": "半透明",
+      "translucentDesc": "磨砂玻璃效果"
     },
     "scaling": {
-      "title": "缩放",
+      "current": "当前：{{scale}}",
       "description": "调整界面缩放比例",
-      "current": "当前：{{scale}}"
-    }
-  },
-  "footer": {
-    "downloadingModel": "正在下载 {{model}}...",
-    "checkingUpdates": "检查更新中...",
-    "updateAvailable": "有可用更新: {{version}}",
-    "updateAvailableShort": "有可用更新",
-    "upToDate": "已是最新版本",
-    "downloadUpdate": "下载更新",
-    "restart": "重启",
-    "updateCheckingDisabled": "更新检查已禁用",
-    "downloading": "下载中... {{progress}}%",
-    "installing": "安装中...",
-    "preparing": "准备中...",
-    "checkForUpdates": "检查更新"
-  },
-  "common": {
-    "loading": "加载中...",
-    "save": "保存",
-    "cancel": "取消",
-    "reset": "重置",
-    "models": "模型",
-    "add": "添加",
-    "remove": "移除",
-    "delete": "删除",
-    "edit": "编辑",
-    "create": "创建",
-    "update": "更新",
-    "close": "关闭",
-    "open": "打开",
-    "default": "默认",
-    "enabled": "已启用",
-    "disabled": "已禁用",
-    "on": "开",
-    "off": "关",
-    "yes": "是",
-    "no": "否",
-    "noOptionsFound": "未找到选项",
-    "done": "完成",
-    "copy": "复制",
-    "copied": "已复制",
-    "skip": "跳过",
-    "selectOption": "选择选项",
-    "filterOptions": "筛选选项...",
-    "noMatchingOptions": "无匹配选项",
-    "notAvailable": "不可用",
-    "addNewOption": "添加新选项",
-    "useInput": "使用 \"{{input}}\""
-  },
-  "accessibility": {
-    "permissionsRequired": "需要辅助功能权限",
-    "permissionsDescription": "Votype 需要辅助功能权限才能输入转录的文字。",
-    "openSettings": "打开系统设置",
-    "dismiss": "关闭",
-    "verify": "验证"
-  },
-  "errors": {
-    "loadDirectory": "加载目录时出错: {{error}}"
-  },
-  "appLanguage": {
-    "title": "应用语言",
-    "description": "更改 Votype 界面的语言"
-  },
-  "soundPicker": {
-    "marimba": "马林巴琴",
-    "pop": "流行",
-    "custom": "自定义",
-    "preview": "预览"
+      "title": "缩放"
+    },
+    "themeMode": {
+      "dark": "深色",
+      "darkDesc": "始终使用深色主题",
+      "description": "选择 Votype 的外观",
+      "light": "浅色",
+      "lightDesc": "始终使用浅色主题",
+      "system": "跟随系统",
+      "systemDesc": "与系统主题保持一致",
+      "title": "主题模式"
+    },
+    "title": "主题"
   }
 }

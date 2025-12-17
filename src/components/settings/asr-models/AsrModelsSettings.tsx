@@ -11,7 +11,6 @@ import {
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
-import { invoke } from "@tauri-apps/api/core";
 import {
   IconDownload,
   IconPlus,
@@ -21,6 +20,7 @@ import {
   IconStarFilled,
   IconTrash,
 } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -62,6 +62,7 @@ type LanguageKey =
 const RECOMMENDED_MODEL_IDS = new Set([
   "sherpa-paraformer-zh-en-streaming",
   "sherpa-paraformer-trilingual-zh-cantonese-en",
+  "sherpa-zipformer-small-ctc-zh-int8-2025-04-01",
   "punct-zh-en-ct-transformer-2024-04-12-int8",
   "sherpa-paraformer-zh-small-2024-03-09",
 ]);
@@ -199,11 +200,10 @@ const Chip: React.FC<{
     <button
       type="button"
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
-        selected
-          ? "bg-logo-primary text-white border-logo-primary"
-          : "bg-background border-mid-gray/20 text-text/70 hover:border-logo-primary/40"
-      }`}
+      className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 border ${selected
+        ? "bg-logo-primary border-logo-primary text-white shadow-sm"
+        : "bg-surface border-mid-gray/20 text-text/80 hover:border-logo-primary/50 hover:bg-mid-gray/5 dark:text-gray-300 dark:bg-gray-800/40 dark:border-gray-700"
+        }`}
     >
       {label}
     </button>
@@ -467,14 +467,14 @@ export const AsrModelsSettings: React.FC = () => {
     const title = getTranslatedModelName(m, t);
     const description = getTranslatedModelDescription(m, t);
 
-    const typeKey = getTypeKey(m);
+    // ... (rest of variable definitions) ...
     const isRecommended = RECOMMENDED_MODEL_IDS.has(m.id);
     const languages = parseLanguageKeys(m);
     const isMultilingual = languages.includes("multilingual");
     const languageBadges = isMultilingual
       ? languages
-          .filter((l) => l !== "multilingual" && l !== "other")
-          .sort((a, b) => orderLanguage(a) - orderLanguage(b))
+        .filter((l) => l !== "multilingual" && l !== "other")
+        .sort((a, b) => orderLanguage(a) - orderLanguage(b))
       : languages.filter((l) => l !== "other");
 
     const size = m.size_mb;
@@ -489,20 +489,23 @@ export const AsrModelsSettings: React.FC = () => {
             ? "red"
             : "gray";
 
+    // Explicit TypeKey definition to fix scope issue if implied
+    const typeKey = getTypeKey(m);
+
     return (
-      <Card key={m.id} className="border border-mid-gray/10 bg-background/40">
+      <Card key={m.id} className="border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/40 backdrop-blur-sm">
         <Flex justify="between" align="start" gap="3">
           <Box className="min-w-0 flex-1">
             <Flex align="baseline" gap="2" className="min-w-0">
-              <Heading as="h3" size="3" weight="medium" className="truncate">
+              <Heading as="h3" size="3" weight="medium" className="truncate text-gray-900 dark:text-gray-100">
                 {title}
               </Heading>
-              <Text size="1" color="gray" className="truncate opacity-40">
+              <Text size="1" className="truncate text-gray-500 dark:text-gray-400 font-mono">
                 {t("settings.asrModels.idLabel", { id: m.id })}
               </Text>
             </Flex>
 
-            <Flex gap="2" wrap="wrap" mt="1">
+            <Flex gap="2" wrap="wrap" mt="2">
               {isMultilingual ? (
                 <Badge variant="soft" color="gray">
                   {t("settings.asrModels.groups.multilingual")}
@@ -544,8 +547,7 @@ export const AsrModelsSettings: React.FC = () => {
 
             <Text
               size="2"
-              color="gray"
-              className="whitespace-pre-line break-words line-clamp-2"
+              className="whitespace-pre-line break-words line-clamp-2 text-gray-600 dark:text-gray-300"
               mt="2"
             >
               {description}
@@ -583,25 +585,26 @@ export const AsrModelsSettings: React.FC = () => {
   ];
 
   return (
-    <SettingsGroup
-      title={t("settings.asrModels.title")}
-      description={t("settings.asrModels.description")}
-      framed={false}
-    >
-      <Box className="space-y-4">
-        {/* Two boxes: quick settings + library */}
-        <Card className="border border-mid-gray/10 bg-background/40">
-          <Flex direction="column" gap="3">
-            <Heading as="h3" size="3">
-              {t("settings.asrModels.quickSettings.title")}
-            </Heading>
+    <Flex direction="column" className="max-w-4xl w-full mx-auto space-y-8 pb-10">
+      <Box mb="4" px="1">
+        <Heading size="4" weight="bold" highContrast style={{ color: "var(--gray-12)" }}>
+          {t("settings.asrModels.title")}
+        </Heading>
+        <Text size="2" color="gray" mt="1" style={{ display: 'block' }}>
+          {t("settings.asrModels.description")}
+        </Text>
+      </Box>
 
+      <Box className="space-y-8">
+        {/* Quick Settings Group */}
+        <SettingsGroup title={t("settings.asrModels.quickSettings.title")}>
+          <Flex direction="column" gap="4" py="2">
             <Flex justify="between" align="center" gap="3" wrap="wrap">
               <Box>
                 <Text size="2" weight="medium">
                   {t("settings.asrModels.pipeline.punctuation")}
                 </Text>
-                <Text size="1" color="gray">
+                <Text size="1" color="gray" style={{ display: 'block' }}>
                   {t("settings.asrModels.pipeline.punctuationHint")}
                 </Text>
               </Box>
@@ -619,7 +622,7 @@ export const AsrModelsSettings: React.FC = () => {
                   <Text size="2" weight="medium">
                     {t("settings.asrModels.pipeline.punctuationModel")}
                   </Text>
-                  <Text size="1" color="gray">
+                  <Text size="1" color="gray" style={{ display: 'block' }}>
                     {t("settings.asrModels.pipeline.punctuationModelHint")}
                   </Text>
                 </Box>
@@ -640,7 +643,7 @@ export const AsrModelsSettings: React.FC = () => {
                 <Text size="2" weight="medium">
                   {t("settings.asrModels.pipeline.itn")}
                 </Text>
-                <Text size="1" color="gray">
+                <Text size="1" color="gray" style={{ display: 'block' }}>
                   {t("settings.asrModels.pipeline.itnHint")}
                 </Text>
               </Box>
@@ -652,39 +655,33 @@ export const AsrModelsSettings: React.FC = () => {
               />
             </Flex>
           </Flex>
-        </Card>
+        </SettingsGroup>
 
-        <Card className="border border-mid-gray/10 bg-background/40">
-          <Flex direction="column" gap="3">
-            <Flex justify="between" align="start" gap="3" wrap="wrap">
-              <Box>
-                <Heading as="h3" size="3">
-                  {t("settings.asrModels.library.title")}
-                </Heading>
-                <Text size="2" color="gray">
-                  {t("settings.asrModels.library.description")}
-                </Text>
-              </Box>
-
-              <Flex gap="2" align="center">
-                <Tooltip content={t("settings.asrModels.reset")}>
-                  <IconButton
-                    size="2"
-                    variant="soft"
-                    onClick={resetLibraryFilters}
-                    disabled={busy}
-                  >
-                    <IconRefresh className="w-4 h-4" />
-                  </IconButton>
-                </Tooltip>
-                <Badge variant="soft" color="gray">
-                  {t("settings.asrModels.library.count", {
-                    count: models.length,
-                  })}
-                </Badge>
-              </Flex>
+        {/* Library Group */}
+        <SettingsGroup
+          title={t("settings.asrModels.library.title")}
+          description={t("settings.asrModels.library.description")}
+          actions={
+            <Flex gap="2" align="center">
+              <Tooltip content={t("settings.asrModels.reset")}>
+                <IconButton
+                  size="2"
+                  variant="soft"
+                  onClick={resetLibraryFilters}
+                  disabled={busy}
+                >
+                  <IconRefresh className="w-4 h-4" />
+                </IconButton>
+              </Tooltip>
+              <Badge variant="soft" color="gray">
+                {t("settings.asrModels.library.count", {
+                  count: models.length,
+                })}
+              </Badge>
             </Flex>
-
+          }
+        >
+          <Flex direction="column" gap="4" py="2">
             <Flex gap="2" align="center" wrap="wrap">
               <Box className="flex-1 min-w-[260px]">
                 <TextField.Root
@@ -733,7 +730,7 @@ export const AsrModelsSettings: React.FC = () => {
             <Box className="space-y-2">
               {/* Status chips */}
               <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" color="gray" className="min-w-[56px]">
+                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
                   {t("settings.asrModels.filters.status")}
                 </Text>
                 {(
@@ -758,7 +755,7 @@ export const AsrModelsSettings: React.FC = () => {
 
               {/* Mode chips */}
               <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" color="gray" className="min-w-[56px]">
+                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
                   {t("settings.asrModels.filters.mode")}
                 </Text>
                 {(
@@ -781,7 +778,7 @@ export const AsrModelsSettings: React.FC = () => {
 
               {/* Language chips */}
               <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" color="gray" className="min-w-[56px]">
+                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
                   {t("settings.asrModels.filters.language")}
                 </Text>
                 {allLanguageKeys
@@ -801,7 +798,7 @@ export const AsrModelsSettings: React.FC = () => {
 
               {/* Type chips */}
               <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" color="gray" className="min-w-[56px]">
+                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
                   {t("settings.asrModels.filters.type")}
                 </Text>
                 {typeKeys
@@ -821,23 +818,39 @@ export const AsrModelsSettings: React.FC = () => {
             <Separator size="4" />
 
             <Box className="space-y-5">
-              {groupsByMode.map(([mode, list]) => (
-                <Box key={mode} className="space-y-2">
-                  <Flex justify="between" align="center">
-                    <Text size="2" weight="medium" color="gray">
-                      {t(`settings.asrModels.groups.${mode}`)}
-                    </Text>
-                    <Badge variant="soft" color="gray">
-                      {list.length}
-                    </Badge>
-                  </Flex>
-                  <Box className="space-y-2">{list.map(renderModelRow)}</Box>
-                </Box>
-              ))}
+              {groupsByMode.map(([mode, list]) => {
+                let textClass = "text-gray-700 dark:text-gray-300";
+                let badgeColor: "gray" | "blue" | "amber" = "gray";
+
+                if (mode === "streaming") {
+                  textClass = "text-blue-600 dark:text-blue-400";
+                  badgeColor = "blue";
+                } else if (mode === "offline") {
+                  textClass = "text-stone-600 dark:text-stone-300";
+                  badgeColor = "gray";
+                } else if (mode === "punctuation") {
+                  textClass = "text-amber-600 dark:text-amber-400";
+                  badgeColor = "amber";
+                }
+
+                return (
+                  <Box key={mode} className="space-y-2">
+                    <Flex justify="between" align="center">
+                      <Text size="2" weight="medium" className={textClass}>
+                        {t(`settings.asrModels.groups.${mode}`)}
+                      </Text>
+                      <Badge variant="soft" color={badgeColor}>
+                        {list.length}
+                      </Badge>
+                    </Flex>
+                    <Box className="space-y-2">{list.map(renderModelRow)}</Box>
+                  </Box>
+                );
+              })}
             </Box>
           </Flex>
-        </Card>
+        </SettingsGroup>
       </Box>
-    </SettingsGroup>
+    </Flex>
   );
 };

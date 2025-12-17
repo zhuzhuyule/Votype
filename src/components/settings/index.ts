@@ -1,12 +1,12 @@
 // Settings section components
 export { AboutSettings } from "./about/AboutSettings";
 export { AdvancedSettings } from "./advanced/AdvancedSettings";
+export { AsrModelsSettings } from "./asr-models/AsrModelsSettings";
 export { Dashboard } from "./dashboard/Dashboard";
 export { GeneralSettings } from "./general/GeneralSettings";
-export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";
 export { PromptsConfiguration } from "./post-processing/PromptsConfiguration";
-export { AsrModelsSettings } from "./asr-models/AsrModelsSettings";
+export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 
 // Individual setting components
 export { AlwaysOnMicrophone } from "./AlwaysOnMicrophone";
@@ -28,3 +28,4 @@ export { HistoryLimit } from "./HistoryLimit";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
 export { RecordingRetentionPeriodSelector } from "./RecordingRetentionPeriod";
 export { StartHidden } from "./StartHidden";
+

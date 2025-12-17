@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ToggleSwitch } from "../ui/ToggleSwitch";
 import { useSettings } from "../../hooks/useSettings";
+import { ToggleSwitch } from "../ui/ToggleSwitch";
 
 interface PostProcessingToggleProps {
   grouped?: boolean;
@@ -21,7 +21,7 @@ export const PostProcessingToggle: React.FC<PostProcessingToggleProps> =
         isUpdating={isUpdating("post_process_enabled")}
         label={t("settings.debug.postProcessingToggle.label")}
         description={t("settings.debug.postProcessingToggle.description")}
-        descriptionMode={"tooltip"}
+        descriptionMode={"inline"}
         tooltipPosition="top"
         grouped={grouped}
       />

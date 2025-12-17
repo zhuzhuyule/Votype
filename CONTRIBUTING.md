@@ -35,7 +35,7 @@ Before you begin, ensure you have the following installed:
 3. **Add upstream remote**:
 
    ```bash
-   git remote add upstream git@github.com:cjpais/Votype.git
+   git remote add upstream git@github.com:zhuzhuyule/Votype.git
    ```
 
 4. **Install dependencies**:
@@ -86,8 +86,8 @@ For more details, see the Architecture section in [README.md](README.md) or [AGE
 
 ### Before Submitting a Bug Report
 
-1. **Search existing issues** at [github.com/cjpais/Votype/issues](https://github.com/cjpais/Votype/issues)
-2. **Check discussions** at [github.com/cjpais/Votype/discussions](https://github.com/cjpais/Votype/discussions)
+1. **Search existing issues** at [github.com/zhuzhuyule/Votype/issues](https://github.com/zhuzhuyule/Votype/issues)
+2. **Check discussions** at [github.com/zhuzhuyule/Votype/discussions](https://github.com/zhuzhuyule/Votype/discussions)
 3. **Try the latest release** to see if the issue has been fixed
 4. **Enable debug mode** (`Cmd/Ctrl+Shift+D`) to gather diagnostic information
 
@@ -119,14 +119,14 @@ We use GitHub Discussions for feature requests rather than issues. This keeps is
 
 ### Before Suggesting a Feature
 
-1. **Search existing discussions** at [github.com/cjpais/Votype/discussions](https://github.com/cjpais/Votype/discussions)
+1. **Search existing discussions** at [github.com/zhuzhuyule/Votype/discussions](https://github.com/zhuzhuyule/Votype/discussions)
 2. **Check common feature requests**:
-   - [Post-processing / Editing Transcripts](https://github.com/cjpais/Votype/discussions/168)
-   - [Keyboard Shortcuts / Hotkeys](https://github.com/cjpais/Votype/discussions/211)
+   - [Post-processing / Editing Transcripts](https://github.com/zhuzhuyule/Votype/discussions/168)
+   - [Keyboard Shortcuts / Hotkeys](https://github.com/zhuzhuyule/Votype/discussions/211)
 
 ### Submitting a Feature Request
 
-1. Go to [Discussions](https://github.com/cjpais/Votype/discussions)
+1. Go to [Discussions](https://github.com/zhuzhuyule/Votype/discussions)
 2. Click "New discussion"
 3. Choose the appropriate category (Ideas, Feature Requests, etc.)
 4. Describe your feature idea including:
@@ -190,7 +190,7 @@ We use GitHub Discussions for feature requests rather than issues. This keeps is
    ```
 
 7. **Create a Pull Request**:
-   - Go to the [Votype repository](https://github.com/cjpais/Votype)
+   - Go to the [Votype repository](https://github.com/zhuzhuyule/Votype)
    - Click "New Pull Request"
    - Select your fork and branch
    - Fill out the PR template with:
@@ -272,7 +272,7 @@ Look for issues labeled `good first issue` or `help wanted` if you're new to the
 ## 📞 Getting Help
 
 - **Discord**: Join our [Discord community](https://discord.com/invite/WVBeWsNXK4)
-- **Discussions**: Ask questions in [GitHub Discussions](https://github.com/cjpais/Votype/discussions)
+- **Discussions**: Ask questions in [GitHub Discussions](https://github.com/zhuzhuyule/Votype/discussions)
 - **Email**: Reach out at [contact@votype.computer](mailto:contact@votype.computer)
 
 ## 📜 License

@@ -67,6 +67,18 @@ pub fn open_recordings_folder(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_recordings_folder_path(app: AppHandle) -> Result<String, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+
+    let recordings_dir = app_data_dir.join("recordings");
+
+    Ok(recordings_dir.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 pub fn open_log_dir(app: AppHandle) -> Result<(), String> {
     let log_dir = app
         .path()
@@ -134,4 +146,18 @@ pub fn get_first_history_entry(
 #[tauri::command]
 pub fn paste_text_to_active_window(app: AppHandle, text: String) -> Result<(), String> {
     crate::clipboard::paste(text, app)
+}
+
+#[tauri::command]
+pub fn log_to_console(msg: String, level: Option<String>) {
+    // Default to info if no level provided
+    let log_level = match level.as_deref() {
+        Some("error") => log::Level::Error,
+        Some("warn") => log::Level::Warn,
+        Some("debug") => log::Level::Debug,
+        Some("trace") => log::Level::Trace,
+        _ => log::Level::Info,
+    };
+
+    log::log!(log_level, "[Frontend] {}", msg);
 }
