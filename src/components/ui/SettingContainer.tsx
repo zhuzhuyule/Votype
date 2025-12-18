@@ -31,7 +31,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     <Flex
       py="2"
       px="0"
-      align={isHorizontal ? "center" : "start"}
+      align={isHorizontal ? "center" : "stretch"}
       justify="between"
       direction={isHorizontal ? "row" : "column"}
       gap="4"

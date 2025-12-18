@@ -90,12 +90,28 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
     const setupEventListeners = async () => {
       const unlistenError = await listen<OverlayErrorEvent>("overlay-error", (event) => {
         const payload = (event.payload ?? {}) as OverlayErrorEvent;
+
+        if (payload.code) {
+          // Map backend error codes to translation keys
+          const errorMap: Record<string, string> = {
+            "transcription_failed_saved": "overlay.error.transcriptionFailedSaved",
+            "llm_init_failed": "overlay.error.llmInitFailed",
+            "llm_request_failed": "overlay.error.llmRequestFailed",
+            "apple_intelligence_unavailable": "overlay.error.appleIntelligenceUnavailable",
+            "apple_intelligence_failed": "overlay.error.appleIntelligenceFailed",
+          };
+
+          const key = errorMap[payload.code];
+          if (key) {
+            setErrorText(t(key));
+            return;
+          }
+        }
+
+        // Fallback to raw message if provided (legacy or custom)
         if (payload.message) {
           setErrorText(payload.message);
           return;
-        }
-        if (payload.code === "transcription_failed_saved") {
-          setErrorText(t("overlay.error.transcriptionFailedSaved"));
         }
       });
 
@@ -201,6 +217,9 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
   }, [realtimeText, realtimeIsFinal, state]);
 
   const getIcon = () => {
+    if (Boolean(errorText) && state !== "recording") {
+      return <CancelIcon color="var(--ruby-9)" />;
+    }
     if (state === "recording") {
       return <MicrophoneIcon color={accentColor} />;
     } else {
@@ -259,8 +278,12 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
           )}
           {!showRealtimeText && state !== "recording" && (
             <Flex direction="column" className="status-text" align="center">
-              <Text>{statusTextMap[state]}</Text>
-              {showErrorText && <Text className="mt-1 text-xs text-text/60">{errorText}</Text>}
+              {!showErrorText && <Text>{statusTextMap[state]}</Text>}
+              {showErrorText && (
+                <Text style={{ color: "var(--ruby-9)", fontWeight: "bold" }}>
+                  {errorText}
+                </Text>
+              )}
             </Flex>
           )}
         </Flex>

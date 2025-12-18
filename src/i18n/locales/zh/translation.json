@@ -317,7 +317,11 @@
   },
   "overlay": {
     "error": {
-      "transcriptionFailedSaved": "转录失败（已保存到历史记录）"
+      "transcriptionFailedSaved": "转录失败（已保存）",
+      "llmInitFailed": "LLM 初始化失败，请检查 Key/URL",
+      "llmRequestFailed": "LLM 请求失败，请检查网络/API",
+      "appleIntelligenceUnavailable": "Apple Intelligence 不可用",
+      "appleIntelligenceFailed": "Apple Intelligence 调用失败"
     },
     "status": {
       "llm": "后处理中…",
@@ -338,6 +342,10 @@
       "appDataDirectory": {
         "description": "Votype 存储数据的位置",
         "title": "应用数据目录"
+      },
+      "recordingsDirectory": {
+        "description": "保存音频录音的位置",
+        "title": "录音目录"
       },
       "sourceCode": {
         "button": "在 GitHub 上查看",
@@ -776,14 +784,18 @@
       },
       "models": {
         "addModel": "添加模型",
+        "tabs": {
+          "remote": "在线模型",
+          "local": "本地模型"
+        },
+        "deleteConfirm": {
+          "description": "你确定要删除此模型吗？此操作无法撤销。",
+          "title": "删除模型？"
+        },
         "description": "添加并管理用于后处理的模型。",
         "empty": {
           "description": "添加一个模型以开始使用。",
           "title": "尚未配置模型"
-        },
-        "deleteConfirm": {
-          "title": "删除模型？",
-          "description": "你确定要删除此模型吗？此操作无法撤销。"
         },
         "modelTypes": {
           "asr": {
@@ -822,7 +834,13 @@
       },
       "prompts": {
         "activeSet": "已设为默认提示词",
+        "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
         "cancel": "取消",
+        "commandPrefixTitle": "语音指令前缀",
+        "commandPrefixPlaceholder": "例如：帮我,请",
+        "commandPrefixDescription": "设置后说出 [前缀][提示词别名] 即可动态触发提示词（支持多前缀，用\",\"分隔）",
+        "aliasLabel": "别名 / 触发词",
+        "aliasPlaceholder": "例如：翻译，翻译英语",
         "createFirst": "点击上方的「创建新提示词」来创建您的第一个后期处理提示词。",
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",
@@ -837,6 +855,9 @@
         "editPrompt": "编辑提示词",
         "newPromptName": "新提示词",
         "noPrompts": "没有可用的提示词",
+        "noAliases": "暂无别名",
+        "noPrefixes": "暂无指令前缀",
+        "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
         "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
         "promptLabel": "提示词名称",

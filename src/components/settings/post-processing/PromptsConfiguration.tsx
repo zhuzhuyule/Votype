@@ -1,16 +1,18 @@
 import {
   AlertDialog,
+  Badge,
   Box,
   Button,
   Flex,
   Grid,
   Heading,
+  IconButton,
   Tabs,
   Text,
   TextArea,
   TextField
 } from "@radix-ui/themes";
-import { IconCheck, IconDeviceFloppy, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconCheck, IconDeviceFloppy, IconPlus, IconTrash, IconX } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -19,6 +21,7 @@ import { toast } from "sonner";
 import { useSettings } from "../../../hooks/useSettings";
 import type { LLMPrompt } from "../../../lib/types";
 import { Dropdown } from "../../ui/Dropdown";
+import { SettingContainer } from "../../ui/SettingContainer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 
@@ -38,7 +41,32 @@ const PromptsConfiguration: React.FC = () => {
   // Local edit state
   const [draftName, setDraftName] = useState("");
   const [draftContent, setDraftContent] = useState("");
+  const [draftAlias, setDraftAlias] = useState("");
   const [draftModelId, setDraftModelId] = useState<string | null>(null);
+  const [aliasError, setAliasError] = useState<string | null>(null);
+  const [currentAliasInput, setCurrentAliasInput] = useState("");
+
+  // Helper to parse aliases from string
+  const currentAliases = useMemo(() => {
+    return draftAlias
+      .split(/[,，]/)
+      .map(a => a.trim())
+      .filter(a => a.length > 0);
+  }, [draftAlias]);
+
+
+  // Command Prefixes State
+  const [prefixes, setPrefixes] = useState("");
+  const [currentPrefixInput, setCurrentPrefixInput] = useState("");
+  const lastLoadedPrefixesRef = useRef<string | null>(null);
+
+  // Derived: List of prefixes
+  const currentPrefixes = useMemo(() => {
+    return prefixes
+      .split(/[,，]/)
+      .map(a => a.trim())
+      .filter(a => a.length > 0);
+  }, [prefixes]);
 
   // Derived: Is the current tab a "Create New" tab?
   const isCreating = currentTab === "NEW";
@@ -55,7 +83,9 @@ const PromptsConfiguration: React.FC = () => {
       if (lastLoadedTabRef.current !== "NEW") {
         setDraftName(t("settings.postProcessing.prompts.newPromptName"));
         setDraftContent("");
+        setDraftAlias("");
         setDraftModelId(null);
+        setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
       return;
@@ -64,7 +94,9 @@ const PromptsConfiguration: React.FC = () => {
     if (viewingPrompt && viewingPrompt.id !== lastLoadedTabRef.current) {
       setDraftName(viewingPrompt.name);
       setDraftContent(viewingPrompt.prompt);
+      setDraftAlias(viewingPrompt.alias || "");
       setDraftModelId(viewingPrompt.model_id || null);
+      setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
     // If viewingPrompt is null but tab isn't NEW (e.g. deleted), handle gracefully? 
@@ -76,9 +108,29 @@ const PromptsConfiguration: React.FC = () => {
     }
   }, [currentTab, viewingPrompt, t, prompts]);
 
+  // Sync Prefixes from Settings
+  useEffect(() => {
+    const backendPrefixes = settings?.command_prefixes || "";
+    if (backendPrefixes !== lastLoadedPrefixesRef.current) {
+      setPrefixes(backendPrefixes);
+      lastLoadedPrefixesRef.current = backendPrefixes;
+    }
+  }, [settings?.command_prefixes]);
+
   // --- Computed Data ---
   const cachedModels = settings?.cached_models || [];
   const textModels = useMemo(() => {
+    // Determine the label for the "Default" option based on global selection
+    const globalDefaultId = settings?.selected_prompt_model_id;
+    const globalDefaultModel = globalDefaultId
+      ? cachedModels.find((m) => m.id === globalDefaultId)
+      : null;
+
+    let defaultLabel = t("common.default");
+    if (globalDefaultModel) {
+      defaultLabel += ` (${globalDefaultModel.custom_label || globalDefaultModel.name})`;
+    }
+
     const options = cachedModels
       .filter((model) => model.model_type === "text")
       .map((model) => {
@@ -91,12 +143,86 @@ const PromptsConfiguration: React.FC = () => {
           label: `${model.custom_label || model.name} (${providerLabel})`,
         };
       });
-    return [{ value: "default", label: t("common.default") }, ...options];
-  }, [cachedModels, settings?.post_process_providers, t]);
+    return [{ value: "default", label: defaultLabel }, ...options];
+  }, [cachedModels, settings?.post_process_providers, settings?.selected_prompt_model_id, t]);
 
   // --- Handlers ---
+  const validateAliases = (inputAliases: string, currentPromptId: string | "NEW"): string | null => {
+    if (!inputAliases.trim()) return null;
+
+    const newAliases = inputAliases.split(/[,，]/)
+      .map(a => a.trim().toLowerCase())
+      .filter(a => a.length > 0);
+
+    for (const prompt of prompts) {
+      if (prompt.id === currentPromptId) continue;
+
+      const existingAliases = (prompt.alias || "").split(/[,，]/)
+        .map(a => a.trim().toLowerCase())
+        .filter(a => a.length > 0);
+
+      // Also check prompt Name as an implicit alias/trigger
+      const existingName = prompt.name.trim().toLowerCase();
+      if (existingName) {
+        existingAliases.push(existingName);
+      }
+
+      for (const newAlias of newAliases) {
+        if (existingAliases.includes(newAlias)) {
+          return t("settings.postProcessing.prompts.aliasDuplicate", { alias: newAlias, promptName: prompt.name });
+        }
+      }
+    }
+    return null;
+  };
+
+  const handleAddAlias = () => {
+    const val = currentAliasInput.trim();
+    if (!val) return;
+
+    // Check for duplicates in current list
+    if (currentAliases.some(a => a.toLowerCase() === val.toLowerCase())) {
+      setCurrentAliasInput(""); // Clear duplicate input
+      return;
+    }
+
+    // Prepare new full alias string to validate against OTHER prompts
+    const newAliasList = [...currentAliases, val];
+    const newAliasString = newAliasList.join(",");
+
+    const error = validateAliases(val, isCreating ? "NEW" : (viewingPrompt?.id || ""));
+    if (error) {
+      setAliasError(error);
+      return;
+    }
+
+    setDraftAlias(newAliasString);
+    setCurrentAliasInput("");
+    setAliasError(null);
+  };
+
+  const handleRemoveAlias = (aliasToRemove: string) => {
+    const newAliases = currentAliases.filter(a => a !== aliasToRemove);
+    setDraftAlias(newAliases.join(","));
+  };
+
+  const handleAliasKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddAlias();
+    }
+  };
+
+
   const handleSave = async () => {
     if (!draftName.trim() || !draftContent.trim()) return;
+
+    // Validate Aliases
+    const conflictError = validateAliases(draftAlias, isCreating ? "NEW" : (viewingPrompt?.id || ""));
+    if (conflictError) {
+      setAliasError(conflictError);
+      return;
+    }
 
     try {
       if (isCreating) {
@@ -104,6 +230,7 @@ const PromptsConfiguration: React.FC = () => {
           name: draftName.trim(),
           prompt: draftContent.trim(),
           modelId: draftModelId === "default" ? null : draftModelId,
+          alias: draftAlias.trim() || null,
         });
         await refreshSettings();
         // Switch to the new prompt
@@ -119,6 +246,7 @@ const PromptsConfiguration: React.FC = () => {
           name: draftName.trim(),
           prompt: draftContent.trim(),
           modelId: draftModelId === "default" ? null : draftModelId,
+          alias: draftAlias.trim() || null,
         });
         await refreshSettings();
         toast.success(t("settings.postProcessing.prompts.updateSuccess"));
@@ -150,15 +278,52 @@ const PromptsConfiguration: React.FC = () => {
     }
   };
 
+  const handleSavePrefixes = async (newPrefixesStr: string) => {
+    setPrefixes(newPrefixesStr);
+    await invoke("set_command_prefixes", { prefixes: newPrefixesStr.trim() || null });
+    await refreshSettings();
+    // Toast is optional for frequent updates, but good for feedback
+    // toast.success(t("settings.postProcessing.prompts.prefixesSaved"));
+  };
+
+  const handleAddPrefix = () => {
+    const val = currentPrefixInput.trim();
+    if (!val) return;
+
+    if (currentPrefixes.some(p => p.toLowerCase() === val.toLowerCase())) {
+      setCurrentPrefixInput("");
+      return;
+    }
+
+    const newPrefixList = [...currentPrefixes, val];
+    const newPrefixesStr = newPrefixList.join(",");
+    handleSavePrefixes(newPrefixesStr);
+    setCurrentPrefixInput("");
+  };
+
+  const handleRemovePrefix = (prefixToRemove: string) => {
+    const newPrefixList = currentPrefixes.filter(p => p !== prefixToRemove);
+    const newPrefixesStr = newPrefixList.join(",");
+    handleSavePrefixes(newPrefixesStr);
+  };
+
+  const handlePrefixKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddPrefix();
+    }
+  };
+
   const isDirty = useMemo(() => {
     if (isCreating) return true;
     if (!viewingPrompt) return false;
     return (
       draftName !== viewingPrompt.name ||
       draftContent !== viewingPrompt.prompt ||
+      draftAlias !== (viewingPrompt.alias || "") ||
       (draftModelId || null) !== (viewingPrompt.model_id || null)
     );
-  }, [isCreating, viewingPrompt, draftName, draftContent, draftModelId]);
+  }, [isCreating, viewingPrompt, draftName, draftContent, draftAlias, draftModelId]);
 
   // Calculate tabs to show
   // We append a special "ADD_BUTTON" value to the list just for rendering the trigger
@@ -170,8 +335,53 @@ const PromptsConfiguration: React.FC = () => {
         <PostProcessingToggle grouped={true} />
 
         {enabled && (
-          <Box pt="2" pb="4">
-            <Tabs.Root value={currentTab} onValueChange={setCurrentTab}>
+          <Box pb="2">
+            {/* Command Prefixes Configuration */}
+            <SettingContainer
+              title={t("settings.postProcessing.prompts.commandPrefixTitle")}
+              description={t("settings.postProcessing.prompts.commandPrefixDescription")}
+              descriptionMode="inline"
+              grouped
+              layout="stacked"
+            >
+              <Grid columns="2" gap="4" align="center" width="100%">
+                {/* Left: Input */}
+                <Flex gap="2">
+                  <TextField.Root
+                    variant="surface"
+                    value={currentPrefixInput}
+                    onChange={e => setCurrentPrefixInput(e.target.value)}
+                    onKeyDown={handlePrefixKeyDown}
+                    placeholder={t("settings.postProcessing.prompts.commandPrefixPlaceholder")}
+                    className="flex-1"
+                  />
+                  <IconButton variant="soft" color="gray" onClick={handleAddPrefix} disabled={!currentPrefixInput.trim()}>
+                    <IconPlus size={16} />
+                  </IconButton>
+                </Flex>
+
+                {/* Right: Tags */}
+                <Flex wrap="wrap" gap="2" align="center">
+                  {currentPrefixes.map((prefix, i) => (
+                    <Badge key={i} size="2" variant="soft" color="orange" className="px-2 py-1 gap-1 cursor-default">
+                      {prefix}
+                      <IconX
+                        size={13}
+                        className="cursor-pointer hover:text-red-600 opacity-60 hover:opacity-100 transition-opacity"
+                        onClick={() => handleRemovePrefix(prefix)}
+                      />
+                    </Badge>
+                  ))}
+                  {currentPrefixes.length === 0 && (
+                    <Text size="1" color="gray" className="italic opacity-70">
+                      {t("settings.postProcessing.prompts.noPrefixes") || "No prefixes added"}
+                    </Text>
+                  )}
+                </Flex>
+              </Grid>
+            </SettingContainer>
+
+            <Tabs.Root value={currentTab} onValueChange={setCurrentTab} className="pt-4">
               <Tabs.List>
                 {tabItems.map(prompt => (
                   <Tabs.Trigger key={prompt.id} value={prompt.id} className="relative pr-6">
@@ -243,7 +453,7 @@ const PromptsConfiguration: React.FC = () => {
                     </Flex>
                   </Flex>
 
-                  {/* Form - Top Row */}
+                  {/* Form - Top Row: Prompt Name & Model */}
                   <Grid columns="2" gap="4">
                     <Box>
                       <Text size="2" weight="medium" mb="1" as="div">{t("settings.postProcessing.prompts.promptLabel")}</Text>
@@ -254,6 +464,7 @@ const PromptsConfiguration: React.FC = () => {
                         placeholder={t("settings.postProcessing.prompts.promptLabelPlaceholder")}
                       />
                     </Box>
+
                     <Flex direction="column" className="min-w-0">
                       <Text size="2" weight="medium" mb="1" as="div">{t("settings.postProcessing.api.model.title")}</Text>
                       <Dropdown
@@ -265,6 +476,54 @@ const PromptsConfiguration: React.FC = () => {
                       />
                     </Flex>
                   </Grid>
+
+                  {/* Form - Second Row: Aliases (Input Left, Tags Right) */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" as="div">{t("settings.postProcessing.prompts.aliasLabel") || "Alias / Trigger"}</Text>
+
+                    <Grid columns="2" gap="4" align="center">
+                      {/* Left: Input Field */}
+                      <Flex gap="2">
+                        <TextField.Root
+                          variant="surface"
+                          placeholder={t("settings.postProcessing.prompts.aliasPlaceholder") || "Type alias and Enter..."}
+                          value={currentAliasInput}
+                          onChange={e => {
+                            setCurrentAliasInput(e.target.value);
+                            if (aliasError) setAliasError(null);
+                          }}
+                          onKeyDown={handleAliasKeyDown}
+                          className="flex-1"
+                        />
+                        <IconButton variant="soft" color="gray" onClick={handleAddAlias} disabled={!currentAliasInput.trim()}>
+                          <IconPlus size={16} />
+                        </IconButton>
+                      </Flex>
+
+                      {/* Right: Tags Display */}
+                      <Flex wrap="wrap" gap="2" align="center">
+                        {currentAliases.map((alias, i) => (
+                          <Badge key={i} size="2" variant="soft" color="indigo" className="px-2 py-1 gap-1 cursor-default">
+                            {alias}
+                            <IconX
+                              size={13}
+                              className="cursor-pointer hover:text-red-600 opacity-60 hover:opacity-100 transition-opacity"
+                              onClick={() => handleRemoveAlias(alias)}
+                            />
+                          </Badge>
+                        ))}
+                        {currentAliases.length === 0 && (
+                          <Text size="1" color="gray" className="italic opacity-70">
+                            {t("settings.postProcessing.prompts.noAliases") || "No aliases added"}
+                          </Text>
+                        )}
+                      </Flex>
+                    </Grid>
+
+                    {aliasError && (
+                      <Text size="1" color="red" mt="1">{aliasError}</Text>
+                    )}
+                  </Box>
 
                   {/* Form - Main Editor */}
                   <ResizableEditor

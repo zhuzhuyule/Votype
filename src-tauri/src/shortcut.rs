@@ -446,7 +446,7 @@ pub fn change_post_process_base_url_setting(
     base_url: String,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    let label = settings
+    let _label = settings
         .post_process_provider(&provider_id)
         .map(|provider| provider.label.clone())
         .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
@@ -529,6 +529,14 @@ pub fn change_post_process_model_setting(
 }
 
 #[tauri::command]
+pub fn set_command_prefixes(app: AppHandle, prefixes: Option<String>) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.command_prefixes = prefixes;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn set_post_process_provider(app: AppHandle, provider_id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
@@ -543,6 +551,7 @@ pub fn add_post_process_prompt(
     name: String,
     prompt: String,
     model_id: Option<String>,
+    alias: Option<String>,
 ) -> Result<LLMPrompt, String> {
     let mut settings = settings::get_settings(&app);
 
@@ -554,6 +563,7 @@ pub fn add_post_process_prompt(
         name,
         prompt,
         model_id,
+        alias,
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
@@ -569,6 +579,7 @@ pub fn update_post_process_prompt(
     name: String,
     prompt: String,
     model_id: Option<String>,
+    alias: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
@@ -580,6 +591,7 @@ pub fn update_post_process_prompt(
         existing_prompt.name = name;
         existing_prompt.prompt = prompt;
         existing_prompt.model_id = model_id;
+        existing_prompt.alias = alias;
         settings::write_settings(&app, settings);
         Ok(())
     } else {
@@ -936,6 +948,9 @@ pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Re
             settings
                 .post_process_models
                 .insert(model.provider_id.clone(), model.model_id.clone());
+            
+            // Also switch the active provider to the one owning this model
+            settings.post_process_provider_id = model.provider_id.clone();
         }
     }
 

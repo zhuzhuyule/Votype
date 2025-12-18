@@ -23,6 +23,8 @@ pub struct LLMPrompt {
     pub prompt: String,
     #[serde(default)]
     pub model_id: Option<String>,
+    #[serde(default)]
+    pub alias: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -254,6 +256,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
+    pub command_prefixes: Option<String>,
+    #[serde(default)]
     pub cached_models: Vec<CachedModel>,
     #[serde(default)]
     pub online_asr_enabled: bool,
@@ -470,6 +474,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
         name: "Improve Transcriptions".to_string(),
         prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
         model_id: None,
+        alias: None,
     }]
 }
 
@@ -613,6 +618,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        command_prefixes: None,
         cached_models: Vec::new(),
         online_asr_enabled: false,
         selected_asr_model_id: None,

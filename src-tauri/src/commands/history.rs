@@ -191,9 +191,11 @@ pub async fn retranscribe_history_entry(
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            if let Some(processed) =
+            let (llm_result, _) =
                 maybe_post_process_transcription(&app, &settings, &transcription_text, None, false)
-                    .await
+                    .await;
+
+            if let Some(processed) = llm_result
             {
                 final_text = Some(processed);
 

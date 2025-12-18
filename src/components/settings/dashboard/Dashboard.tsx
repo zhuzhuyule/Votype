@@ -273,7 +273,7 @@ export const Dashboard: React.FC = () => {
   }, [detailEntries]);
 
   return (
-    <Box className="w-full max-w-4xl mx-auto space-y-8 pb-10">
+    <Box className="w-full max-w-5xl mx-auto space-y-8 pb-10">
       <DashboardActivityChart
         bars={bars}
         selection={selection}

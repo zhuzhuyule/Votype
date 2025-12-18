@@ -2,7 +2,6 @@ import { Flex, Text } from "@radix-ui/themes";
 import {
   IconAdjustments,
   IconBrain,
-  IconDeviceDesktop,
   IconInfoSquare,
   IconKeyboard,
   IconLayoutDashboard,
@@ -28,10 +27,7 @@ const AdvancedSettings = lazy(() =>
   import("./settings/advanced/AdvancedSettings").then(m => ({ default: m.AdvancedSettings }))
 );
 const ModelsConfiguration = lazy(() =>
-  import("./settings/post-processing/ModelsConfiguration").then(m => ({ default: m.ModelsConfiguration }))
-);
-const AsrModelsSettings = lazy(() =>
-  import("./settings/asr-models/AsrModelsSettings").then(m => ({ default: m.AsrModelsSettings }))
+  import("./settings/ModelsSettings").then(m => ({ default: m.ModelsSettings }))
 );
 const PromptsConfiguration = lazy(() =>
   import("./settings/post-processing/PromptsConfiguration").then(m => ({ default: m.PromptsConfiguration }))
@@ -73,13 +69,7 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "2",
   },
-  shortcuts: {
-    labelKey: "sidebar.shortcuts",
-    icon: IconKeyboard,
-    component: ShortcutsSettings,
-    enabled: () => true,
-    shortcutKey: "3",
-  },
+  
   advanced: {
     labelKey: "sidebar.advanced",
     icon: IconAdjustments,
@@ -94,19 +84,19 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "5",
   },
-  asrModels: {
-    labelKey: "sidebar.asrModels",
-    icon: IconDeviceDesktop,
-    component: AsrModelsSettings,
-    enabled: () => true,
-    shortcutKey: "6",
-  },
   prompts: {
     labelKey: "sidebar.prompts",
     icon: IconSparkles,
     component: PromptsConfiguration,
     enabled: () => true,
     shortcutKey: "7",
+  },
+  shortcuts: {
+    labelKey: "sidebar.shortcuts",
+    icon: IconKeyboard,
+    component: ShortcutsSettings,
+    enabled: () => true,
+    shortcutKey: "3",
   },
   about: {
     labelKey: "sidebar.about",

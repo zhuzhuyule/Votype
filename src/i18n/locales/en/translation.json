@@ -297,7 +297,11 @@
   },
   "overlay": {
     "error": {
-      "transcriptionFailedSaved": "Transcription failed (audio saved to History)"
+      "appleIntelligenceFailed": "Apple Intelligence Failed. Check system.",
+      "appleIntelligenceUnavailable": "Apple Intelligence Unavailable.",
+      "llmInitFailed": "LLM Initialization Failed. Check keys/URL.",
+      "llmRequestFailed": "LLM Request Failed. Check network/API.",
+      "transcriptionFailedSaved": "Transcription failed (saved)"
     },
     "status": {
       "llm": "Post Processing...",
@@ -318,6 +322,10 @@
       "appDataDirectory": {
         "description": "Location where Votype stores its data",
         "title": "App Data Directory"
+      },
+      "recordingsDirectory": {
+        "description": "Location where audio recordings are saved",
+        "title": "Recordings Directory"
       },
       "sourceCode": {
         "button": "View on GitHub",
@@ -756,14 +764,18 @@
       },
       "models": {
         "addModel": "Add Model",
+        "tabs": {
+          "remote": "Online Models",
+          "local": "Local Models"
+        },
+        "deleteConfirm": {
+          "description": "Are you sure you want to delete this model? This action cannot be undone.",
+          "title": "Delete Model?"
+        },
         "description": "Add and manage models used for post-processing.",
         "empty": {
           "description": "Add a model to get started.",
           "title": "No models configured"
-        },
-        "deleteConfirm": {
-          "title": "Delete Model?",
-          "description": "Are you sure you want to delete this model? This action cannot be undone."
         },
         "modelTypes": {
           "asr": {
@@ -802,7 +814,13 @@
       },
       "prompts": {
         "activeSet": "Set as default prompt",
+        "aliasDuplicate": "Alias '{{alias}}' conflicts with prompt '{{promptName}}'",
+        "aliasLabel": "Alias / Trigger Word",
+        "aliasPlaceholder": "eg: translate, translate English",
         "cancel": "Cancel",
+        "commandPrefixDescription": "Set after saying [prefix][prompt alias] to dynamically trigger the prompt (supports multiple prefixes, separated by \",\")",
+        "commandPrefixPlaceholder": "eg: help me, please",
+        "commandPrefixTitle": "Voice Command Prefix",
         "createFirst": "Click 'New Prompt' above to create your first AI Text Optimization prompt.",
         "createNew": "Create New Prompt",
         "createPrompt": "Create Prompt",
@@ -816,7 +834,10 @@
         "deleteSuccess": "Prompt deleted successfully",
         "editPrompt": "Edit Prompt",
         "newPromptName": "New Prompt",
+        "noAliases": "No aliases added",
+        "noPrefixes": "No prefixes added",
         "noPrompts": "No prompts available",
+        "prefixesSaved": "Command prefixes saved",
         "promptInstructions": "Prompt Instructions",
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}",
         "promptLabel": "Prompt Label",

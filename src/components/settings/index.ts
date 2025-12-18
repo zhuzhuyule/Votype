@@ -4,6 +4,7 @@ export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { AsrModelsSettings } from "./asr-models/AsrModelsSettings";
 export { Dashboard } from "./dashboard/Dashboard";
 export { GeneralSettings } from "./general/GeneralSettings";
+export { ModelsSettings } from "./ModelsSettings";
 export { ModelsConfiguration } from "./post-processing/ModelsConfiguration";
 export { PromptsConfiguration } from "./post-processing/PromptsConfiguration";
 export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";

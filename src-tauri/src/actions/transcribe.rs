@@ -624,13 +624,14 @@ impl ShortcutAction for TranscribeAction {
                         let task = tokio::spawn(async move {
                             let mut final_text = transcription_clone.clone();
                             let mut post_process_prompt = String::new();
+                            let mut error_shown = false;
 
                             if let Some(converted_text) =
                                 maybe_convert_chinese_variant(&settings_clone, &transcription_clone)
                                     .await
                             {
                                 final_text = converted_text;
-                            } else if let Some(processed_text) = {
+                            } else {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
                                     let mut secondary = secondary_result_for_post
@@ -644,16 +645,20 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                maybe_post_process_transcription(
+                                let (processed_text, err) = maybe_post_process_transcription(
                                     &ah_clone,
                                     &settings_clone,
                                     &transcription_clone,
                                     secondary.as_deref(),
                                     true,
                                 )
-                                .await
-                            } {
-                                final_text = processed_text;
+                                .await;
+                                
+                                error_shown = err;
+
+                                if let Some(text) = processed_text {
+                                    final_text = text;
+                                }
 
                                 if let Some(prompt_id) =
                                     &settings_clone.post_process_selected_prompt_id
@@ -697,8 +702,21 @@ impl ShortcutAction for TranscribeAction {
                             let ah_clone_inner = ah_clone.clone();
                             ah_clone
                                 .run_on_main_thread(move || {
-                                    utils::hide_recording_overlay(&ah_clone_inner);
-                                    change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
+                                    // If no error needs to be shown, hide immediately.
+                                    // If an error IS shown, we leave it visible for a moment.
+                                    if !error_shown {
+                                        utils::hide_recording_overlay(&ah_clone_inner);
+                                        change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
+                                    } else {
+                                        // Schedule hide for later
+                                        let ah_delayed = ah_clone_inner.clone();
+                                        std::thread::spawn(move || {
+                                            std::thread::sleep(Duration::from_millis(3000));
+                                            utils::hide_recording_overlay(&ah_delayed);
+                                            change_tray_icon(&ah_delayed, TrayIconState::Idle);
+                                        });
+                                    }
+
                                     if let Err(e) = utils::paste(final_text, ah_clone_inner) {
                                         error!("Failed to paste transcription: {}", e);
                                     }

@@ -210,7 +210,12 @@ const Chip: React.FC<{
   );
 };
 
-export const AsrModelsSettings: React.FC = () => {
+interface AsrModelsSettingsProps {
+  className?: string;
+  hideHeader?: boolean;
+}
+
+export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className, hideHeader = false }) => {
   const { t } = useTranslation();
   const { settings, updateSetting } = useSettings();
 
@@ -585,15 +590,17 @@ export const AsrModelsSettings: React.FC = () => {
   ];
 
   return (
-    <Flex direction="column" className="max-w-4xl w-full mx-auto space-y-8 pb-10">
-      <Box mb="4" px="1">
-        <Heading size="4" weight="bold" highContrast style={{ color: "var(--gray-12)" }}>
-          {t("settings.asrModels.title")}
-        </Heading>
-        <Text size="2" color="gray" mt="1" style={{ display: 'block' }}>
-          {t("settings.asrModels.description")}
-        </Text>
-      </Box>
+    <Flex direction="column" className={`w-full mx-auto space-y-8 pb-10 ${className || "max-w-5xl"}`}>
+      {!hideHeader && (
+        <Box mb="4" px="1">
+          <Heading size="4" weight="bold" highContrast style={{ color: "var(--gray-12)" }}>
+            {t("settings.asrModels.title")}
+          </Heading>
+          <Text size="2" color="gray" mt="1" style={{ display: 'block' }}>
+            {t("settings.asrModels.description")}
+          </Text>
+        </Box>
+      )}
 
       <Box className="space-y-8">
         {/* Quick Settings Group */}

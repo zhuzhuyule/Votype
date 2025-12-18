@@ -73,6 +73,7 @@ export const LLMPromptSchema = z.object({
   name: z.string(),
   prompt: z.string(),
   model_id: z.string().optional(),
+  alias: z.string().optional().nullable(),
 });
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;
@@ -150,6 +151,7 @@ export const SettingsSchema = z.object({
   post_process_models: z.record(z.string()).optional().default({}),
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
+  command_prefixes: z.string().nullable().optional(),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),
   selected_asr_model_id: z.string().nullable().optional(),
