@@ -37,6 +37,7 @@
     "remove": "移除",
     "reset": "重置",
     "save": "保存",
+    "selectAll": "全选",
     "selectOption": "选择选项",
     "skip": "跳过",
     "update": "更新",
@@ -242,6 +243,7 @@
     "onlineAsr": "在线 ASR",
     "onlineAsrActive": "在线 ASR 已启用",
     "onlineAsrModels": "在线 ASR 模型",
+    "realtimeModelLabel": "Realtime Model",
     "realtimeModel": {
       "empty": "没有可用的本地模型。请先下载（并收藏）一个 Sherpa 模型。",
       "enabled": "已启用",
@@ -283,6 +285,14 @@
         "description": "快速且准确",
         "name": "Parakeet V3"
       },
+      "small": {
+        "description": "快速且相当准确。",
+        "name": "Whisper Small"
+      },
+      "turbo": {
+        "description": "准确度和速度均衡。",
+        "name": "Whisper Turbo"
+      },
       "sherpa-zipformer-de-kroko-2025-08-06": {
         "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
       },
@@ -303,14 +313,6 @@
       },
       "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
         "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
-      },
-      "small": {
-        "description": "快速且相当准确。",
-        "name": "Whisper Small"
-      },
-      "turbo": {
-        "description": "准确度和速度均衡。",
-        "name": "Whisper Turbo"
       }
     },
     "recommended": "推荐",
@@ -318,11 +320,11 @@
   },
   "overlay": {
     "error": {
-      "transcriptionFailedSaved": "转录失败（已保存）",
+      "appleIntelligenceFailed": "Apple Intelligence 调用失败",
+      "appleIntelligenceUnavailable": "Apple Intelligence 不可用",
       "llmInitFailed": "LLM 初始化失败，请检查 Key/URL",
       "llmRequestFailed": "LLM 请求失败，请检查网络/API",
-      "appleIntelligenceUnavailable": "Apple Intelligence 不可用",
-      "appleIntelligenceFailed": "Apple Intelligence 调用失败"
+      "transcriptionFailedSaved": "转录失败（已保存）"
     },
     "status": {
       "llm": "后处理中…",
@@ -448,6 +450,22 @@
     },
     "asrModels": {
       "addFromUrl": "添加并下载",
+      "install": {
+        "button": "添加自定义模型",
+        "title": "添加自定义模型",
+        "description": "输入模型归档文件的 URL (tar.gz, tar.bz2 等)。",
+        "placeholder": "https://example.com/model.tar.gz",
+        "tooltip": "从 URL 添加模型",
+        "urlLabel": "URL",
+        "nameLabel": "名称 (可选)",
+        "tagsLabel": "标签",
+        "customTagPlaceholder": "自定义标签...",
+        "addCustomTagButton": "添加",
+        "editTitle": "编辑自定义模型",
+        "editDescription": "修改此模型的名称或标签。",
+        "remove": "移除自定义模型",
+        "removeConfirm": "确定要移除此自定义模型吗？这也将删除所有已下载的文件。"
+      },
       "addSection": {
         "description": "粘贴模型下载链接，应用会根据文件名自动推断模型类型。",
         "title": "安装"
@@ -478,10 +496,6 @@
         "streaming": "流式"
       },
       "idLabel": "id: {{id}}",
-      "install": {
-        "placeholder": "粘贴模型链接…",
-        "tooltip": "从链接安装"
-      },
       "languages": {
         "de": "德语",
         "en": "英文",
@@ -836,12 +850,12 @@
       "prompts": {
         "activeSet": "已设为默认提示词",
         "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
-        "cancel": "取消",
-        "commandPrefixTitle": "语音指令前缀",
-        "commandPrefixPlaceholder": "例如：帮我,请",
-        "commandPrefixDescription": "设置后说出 [前缀][提示词别名] 即可动态触发提示词（支持多前缀，用\",\"分隔）",
         "aliasLabel": "别名 / 触发词",
         "aliasPlaceholder": "例如：翻译，翻译英语",
+        "cancel": "取消",
+        "commandPrefixDescription": "设置后说出 [前缀][提示词别名] 即可动态触发提示词（支持多前缀，用\",\"分隔）",
+        "commandPrefixPlaceholder": "例如：帮我,请",
+        "commandPrefixTitle": "语音指令前缀",
         "createFirst": "点击上方的「创建新提示词」来创建您的第一个后期处理提示词。",
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",
@@ -855,9 +869,9 @@
         "deleteSuccess": "提示词删除成功",
         "editPrompt": "编辑提示词",
         "newPromptName": "新提示词",
-        "noPrompts": "没有可用的提示词",
         "noAliases": "暂无别名",
         "noPrefixes": "暂无指令前缀",
+        "noPrompts": "没有可用的提示词",
         "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
         "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",

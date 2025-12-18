@@ -1,7 +1,11 @@
 import {
+  AlertDialog,
   Badge,
   Box,
+  Button,
   Card,
+  Dialog,
+  DropdownMenu,
   Flex,
   Heading,
   IconButton,
@@ -9,16 +13,20 @@ import {
   Switch,
   Text,
   TextField,
-  Tooltip,
+  Tooltip
 } from "@radix-ui/themes";
 import {
+  IconChevronDown,
   IconDownload,
+  IconPencil,
   IconPlus,
   IconRefresh,
   IconSearch,
   IconStar,
   IconStarFilled,
+  IconThumbUpFilled,
   IconTrash,
+  IconX
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useState } from "react";
@@ -68,6 +76,14 @@ const RECOMMENDED_MODEL_IDS = new Set([
 ]);
 
 const parseLanguageKeys = (model: ModelInfo): LanguageKey[] => {
+  if (model.tags && model.tags.length > 0) {
+    const knownKeys: LanguageKey[] = [
+      "zh", "yue", "en", "ja", "ko", "de", "es", "fr", "ru", "multilingual", "other"
+    ];
+    const explicit = model.tags.filter(t => knownKeys.includes(t as LanguageKey)) as LanguageKey[];
+    if (explicit.length > 0) return explicit;
+  }
+
   const id = (model.id ?? "").toLowerCase();
   const tokenSet = new Set<LanguageKey>();
 
@@ -191,25 +207,6 @@ const sizeBucket = (
   return "large";
 };
 
-const Chip: React.FC<{
-  selected: boolean;
-  onClick: () => void;
-  label: string;
-}> = ({ selected, onClick, label }) => {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-200 border ${selected
-        ? "bg-logo-primary border-logo-primary text-white shadow-sm"
-        : "bg-surface border-mid-gray/20 text-text/80 hover:border-logo-primary/50 hover:bg-mid-gray/5 dark:text-gray-300 dark:bg-gray-800/40 dark:border-gray-700"
-        }`}
-    >
-      {label}
-    </button>
-  );
-};
-
 interface AsrModelsSettingsProps {
   className?: string;
   hideHeader?: boolean;
@@ -223,8 +220,18 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Add Dialog State
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false); // New state to track if we are editing
   const [url, setUrl] = useState("");
+  const [addName, setAddName] = useState("");
+  const [addTags, setAddTags] = useState<Set<string>>(new Set());
+  const [customTagInput, setCustomTagInput] = useState("");
   const [query, setQuery] = useState("");
+
+  // Remove confirmation dialog state
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [modelToRemove, setModelToRemove] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [modeFilter, setModeFilter] = useState<Set<ModeKey>>(
@@ -253,7 +260,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
   const punctuationModelOptions = useMemo(() => {
     return punctuationModels.map((m) => ({
       value: m.id,
-      label: `${getTranslatedModelName(m, t)} · ${m.size_mb}MB`,
+      label: `${getTranslatedModelName(m, t)} · ${m.size_mb} MB`,
       disabled: false,
     }));
   }, [punctuationModels, t]);
@@ -277,6 +284,49 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
     setError(null);
   };
 
+  const openAddDialog = () => {
+    setEditMode(false);
+    setUrl("");
+    setAddName("");
+    setAddTags(new Set());
+    setCustomTagInput("");
+    setError(null);
+    setIsAddDialogOpen(true);
+  };
+
+  const openEditDialog = (model: ModelInfo) => {
+    setEditMode(true);
+    // Use URL if available, or empty (but usually custom models have URL)
+    setUrl(model.url || "");
+    setAddName(model.name || "");
+    setAddTags(new Set(model.tags || []));
+    setCustomTagInput("");
+    setError(null);
+    setIsAddDialogOpen(true);
+  };
+
+  // Open the remove confirmation dialog
+  const openRemoveConfirm = (modelId: string) => {
+    setModelToRemove(modelId);
+    setRemoveConfirmOpen(true);
+  };
+
+  // Perform the actual removal after user confirms
+  const confirmRemoveModel = async () => {
+    if (!modelToRemove) return;
+    setRemoveConfirmOpen(false);
+    setBusy(true);
+    try {
+      await invoke("remove_custom_model", { modelId: modelToRemove, deleteFiles: true });
+      await refreshModels();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+      setModelToRemove(null);
+    }
+  };
+
   const addFromUrl = async () => {
     const value = url.trim();
     if (!value) return;
@@ -286,15 +336,38 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
     try {
       const modelId = await invoke<string>("add_model_from_url", {
         url: value,
+        name: addName.trim() || null,
+        tags: addTags.size > 0 ? Array.from(addTags) : null,
       });
+      setIsAddDialogOpen(false);
       setUrl("");
+      setAddName("");
+      setAddTags(new Set());
       await refreshModels();
-      await invoke("download_model", { modelId });
-      await refreshModels();
+      // Optional: auto download
+      // await invoke("download_model", { modelId });
+      // await refreshModels();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const toggleAddTag = (tag: string) => {
+    const next = new Set(addTags);
+    if (next.has(tag)) next.delete(tag);
+    else next.add(tag);
+    setAddTags(next);
+  };
+
+  const addCustomTag = () => {
+    const val = customTagInput.trim();
+    if (val) {
+      const next = new Set(addTags);
+      next.add(val);
+      setAddTags(next);
+      setCustomTagInput("");
     }
   };
 
@@ -440,7 +513,22 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
           </IconButton>
         </Tooltip>
 
-        {!m.is_downloaded ? (
+        {/* Custom Model Actions: Edit */}
+        {!m.is_default && (
+          <Tooltip content={t("settings.asrModels.install.editTitle") || "Edit Custom Model"}>
+            <IconButton
+              size="2"
+              variant="ghost"
+              onClick={() => openEditDialog(m)}
+              disabled={busy}
+            >
+              <IconPencil className="w-4 h-4" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {/* Download Action (for any model not downloaded) */}
+        {!m.is_downloaded && (
           <Tooltip content={t("settings.asrModels.download")}>
             <IconButton
               size="2"
@@ -451,13 +539,31 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
               <IconDownload className="w-4 h-4" />
             </IconButton>
           </Tooltip>
-        ) : (
+        )}
+
+        {/* Delete downloaded files (for built-in models only) */}
+        {m.is_default && m.is_downloaded && (
           <Tooltip content={t("settings.asrModels.delete")}>
             <IconButton
               size="2"
               color="red"
               variant="soft"
               onClick={() => deleteModelFiles(m.id)}
+              disabled={busy}
+            >
+              <IconTrash className="w-4 h-4" />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {/* Remove custom model (entry + files) */}
+        {!m.is_default && (
+          <Tooltip content={t("settings.asrModels.install.remove") || "Remove custom model"}>
+            <IconButton
+              size="2"
+              color="red"
+              variant="soft"
+              onClick={() => openRemoveConfirm(m.id)}
               disabled={busy}
             >
               <IconTrash className="w-4 h-4" />
@@ -483,7 +589,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
       : languages.filter((l) => l !== "other");
 
     const size = m.size_mb;
-    const sizeText = size != null ? `${size}MB` : null;
+    const sizeText = size != null ? `${size} MB` : null;
     const sizeKind = sizeBucket(size);
     const sizeColor =
       sizeKind === "small"
@@ -497,68 +603,52 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
     // Explicit TypeKey definition to fix scope issue if implied
     const typeKey = getTypeKey(m);
 
+    // Simplify type chip display - remove "sherpa_" prefix for display
+    const getSimpleTypeName = (key: TypeKey): string => {
+      const translation = t(`settings.asrModels.typeChips.${key}`);
+      // Remove "Sherpa " prefix if present since it's redundant
+      return translation.replace(/^Sherpa\s+/i, "");
+    };
+
     return (
-      <Card key={m.id} className="border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-900/40 backdrop-blur-sm">
-        <Flex justify="between" align="start" gap="3">
-          <Box className="min-w-0 flex-1">
-            <Flex align="baseline" gap="2" className="min-w-0">
-              <Heading as="h3" size="3" weight="medium" className="truncate text-gray-900 dark:text-gray-100">
+      <Card key={m.id} className="shadow-sm hover:shadow-md transition-shadow bg-white/60 dark:bg-gray-900/50 py-2">
+        <Flex justify="between" align="center" gap="3">
+          <Box className="min-w-0 flex-1 space-y-1">
+            {/* Line 1: Title + Recommended + ID */}
+            <Flex align="center" gap="2" className="min-w-0">
+              <Heading as="h3" size="3" weight="medium" className="text-gray-900 dark:text-gray-100 truncate flex-shrink-0">
                 {title}
               </Heading>
-              <Text size="1" className="truncate text-gray-500 dark:text-gray-400 font-mono">
-                {t("settings.asrModels.idLabel", { id: m.id })}
+              {isRecommended && (
+                <Tooltip content={t("onboarding.recommended")}>
+                  <IconThumbUpFilled className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                </Tooltip>
+              )}
+              <Text size="1" className="text-gray-400 dark:text-gray-500 font-mono truncate">
+                {m.id}
               </Text>
             </Flex>
 
-            <Flex gap="2" wrap="wrap" mt="2">
-              {isMultilingual ? (
-                <Badge variant="soft" color="gray">
-                  {t("settings.asrModels.groups.multilingual")}
-                </Badge>
-              ) : null}
-              {isRecommended ? (
-                <Badge variant="soft" color="amber">
-                  {t("onboarding.recommended")}
-                </Badge>
-              ) : null}
-              {sizeText ? (
-                <Badge variant="soft" color={sizeColor}>
+            {/* Line 2: Size, Language, Type badges */}
+            <Flex align="center" gap="1" wrap="wrap">
+              {sizeText && (
+                <Badge variant="soft" color={sizeColor} size="1">
                   {sizeText}
                 </Badge>
-              ) : null}
+              )}
               {languageBadges.map((l) => (
-                <Badge key={`${m.id}:lang:${l}`} variant="soft" color="gray">
+                <Badge key={`${m.id}:lang:${l}`} variant="soft" color="gray" size="1">
                   {t(`settings.asrModels.languages.${l}`)}
                 </Badge>
               ))}
-              {languageBadges.length === 0 ? (
-                <Badge variant="soft" color="gray">
-                  {t("settings.asrModels.languages.other")}
-                </Badge>
-              ) : null}
-              <Badge variant="soft" color="gray">
-                {t(`settings.asrModels.typeChips.${typeKey}`)}
+              <Badge variant="soft" color="gray" size="1">
+                {getSimpleTypeName(typeKey)}
               </Badge>
-              {m.is_downloaded ? (
-                <Badge variant="soft" color="green">
-                  {t("settings.asrModels.status.downloaded")}
-                </Badge>
-              ) : (
-                <Badge variant="soft" color="blue">
-                  {t("settings.asrModels.status.notDownloaded")}
-                </Badge>
-              )}
             </Flex>
-
-            <Text
-              size="2"
-              className="whitespace-pre-line break-words line-clamp-2 text-gray-600 dark:text-gray-300"
-              mt="2"
-            >
-              {description}
-            </Text>
           </Box>
-          <Box className="flex-shrink-0 ml-auto">{renderActions(m)}</Box>
+
+          {/* Right section: Actions */}
+          <Box className="flex-shrink-0">{renderActions(m)}</Box>
         </Flex>
       </Card>
     );
@@ -590,7 +680,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
   ];
 
   return (
-    <Flex direction="column" className={`w-full mx-auto space-y-8 pb-10 ${className || "max-w-5xl"}`}>
+    <Flex direction="column" className={`w - full mx - auto space - y - 8 pb - 10 ${className || "max-w-5xl"} `}>
       {!hideHeader && (
         <Box mb="4" px="1">
           <Heading size="4" weight="bold" highContrast style={{ color: "var(--gray-12)" }}>
@@ -669,50 +759,15 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
           title={t("settings.asrModels.library.title")}
           description={t("settings.asrModels.library.description")}
           actions={
-            <Flex gap="2" align="center">
-              <Tooltip content={t("settings.asrModels.reset")}>
-                <IconButton
-                  size="2"
-                  variant="soft"
-                  onClick={resetLibraryFilters}
-                  disabled={busy}
-                >
-                  <IconRefresh className="w-4 h-4" />
-                </IconButton>
-              </Tooltip>
-              <Badge variant="soft" color="gray">
-                {t("settings.asrModels.library.count", {
-                  count: models.length,
-                })}
-              </Badge>
-            </Flex>
+            <Badge variant="soft" color="gray">
+              {t("settings.asrModels.library.count", {
+                count: models.length,
+              })}
+            </Badge>
           }
         >
           <Flex direction="column" gap="4" py="2">
             <Flex gap="2" align="center" wrap="wrap">
-              <Box className="flex-1 min-w-[260px]">
-                <TextField.Root
-                  placeholder={t("settings.asrModels.install.placeholder")}
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addFromUrl();
-                    }
-                  }}
-                />
-              </Box>
-              <Tooltip content={t("settings.asrModels.install.tooltip")}>
-                <IconButton
-                  size="2"
-                  variant="soft"
-                  onClick={addFromUrl}
-                  disabled={busy || !url.trim()}
-                >
-                  <IconPlus className="w-4 h-4" />
-                </IconButton>
-              </Tooltip>
               <Box className="flex-1 min-w-[220px]">
                 <TextField.Root
                   placeholder={t(
@@ -726,101 +781,289 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
                   </TextField.Slot>
                 </TextField.Root>
               </Box>
+
+              <Dialog.Root open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <Dialog.Trigger>
+                  <Button onClick={openAddDialog}>
+                    <IconPlus size={16} />
+                    {t("settings.asrModels.install.button")}
+                  </Button>
+                </Dialog.Trigger>
+                <Dialog.Content style={{ maxWidth: 500 }}>
+                  <Dialog.Title>
+                    {editMode
+                      ? (t("settings.asrModels.install.editTitle") || "Edit Custom Model")
+                      : (t("settings.asrModels.install.title") || "Add Custom Model")}
+                  </Dialog.Title>
+                  <Dialog.Description size="2" mb="4">
+                    {editMode
+                      ? (t("settings.asrModels.install.editDescription") || "Update the name or tags for this model.")
+                      : (t("settings.asrModels.install.description") || "Enter the URL of the model archive (tar.gz, tar.bz2, etc).")}
+                  </Dialog.Description>
+
+                  <Flex direction="column" gap="3">
+                    <Box>
+                      <Text as="div" size="2" mb="1" weight="bold">{t("settings.asrModels.install.urlLabel")}</Text>
+                      <TextField.Root
+                        placeholder={t("settings.asrModels.install.placeholder")}
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        disabled={editMode}
+                      />
+                    </Box>
+
+                    <Box>
+                      <Text as="div" size="2" mb="1" weight="bold">{t("settings.asrModels.install.nameLabel")}</Text>
+                      <TextField.Root
+                        placeholder="My Model"
+                        value={addName}
+                        onChange={(e) => setAddName(e.target.value)}
+                      />
+                    </Box>
+
+                    <Box>
+                      <Text as="div" size="2" mb="1" weight="bold">{t("settings.asrModels.install.tagsLabel")}</Text>
+                      <Flex gap="2" wrap="wrap" mb="2">
+                        {["multilingual", "zh", "en", "ja", "ko"].map(tag => (
+                          <Badge
+                            key={tag}
+                            color={addTags.has(tag) ? "blue" : "gray"}
+                            variant={addTags.has(tag) ? "solid" : "soft"}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => toggleAddTag(tag)}
+                          >
+                            {t(`settings.asrModels.languages.${tag}`)}
+                          </Badge>
+                        ))}
+                      </Flex>
+
+                      <Flex gap="2">
+                        <TextField.Root
+                          className="flex-1"
+                          placeholder={t("settings.asrModels.install.customTagPlaceholder")}
+                          value={customTagInput}
+                          onChange={(e) => setCustomTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCustomTag();
+                            }
+                          }}
+                        />
+                        <Tooltip content={t("settings.asrModels.install.addCustomTagButton")}>
+                          <Button variant="soft" onClick={addCustomTag} disabled={!customTagInput.trim()}>
+                            <IconPlus size={16} />
+                          </Button>
+                        </Tooltip>
+                      </Flex>
+
+                      {addTags.size > 0 && (
+                        <Flex gap="2" wrap="wrap" mt="2">
+                          {Array.from(addTags).map(tag => (
+                            <Badge key={tag} variant="surface" color="blue">
+                              {tag}
+                              <IconX size={12} style={{ cursor: "pointer", marginLeft: 4 }} onClick={() => toggleAddTag(tag)} />
+                            </Badge>
+                          ))}
+                        </Flex>
+                      )}
+                    </Box>
+
+                    {error && (
+                      <Text color="red" size="2">{error}</Text>
+                    )}
+                  </Flex>
+
+                  <Flex gap="3" mt="4" justify="end">
+                    <Dialog.Close>
+                      <Button variant="soft" color="gray">
+                        {t("common.cancel")}
+                      </Button>
+                    </Dialog.Close>
+                    <Button onClick={addFromUrl} disabled={busy || !url.trim()}>
+                      {busy
+                        ? (editMode ? "Updating..." : "Adding...")
+                        : (editMode ? (t("common.save") || "Save") : t("common.add"))}
+                    </Button>
+                  </Flex>
+                </Dialog.Content>
+              </Dialog.Root>
             </Flex>
 
-            {error ? (
+            {/* Error shown outside dialog if needed (but dialog handles it now) - keeping generic error if useful */}
+            {!isAddDialogOpen && error ? (
               <Text size="2" color="red">
                 {error}
               </Text>
             ) : null}
 
-            <Box className="space-y-2">
-              {/* Status chips */}
-              <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
-                  {t("settings.asrModels.filters.status")}
-                </Text>
-                {(
-                  [
-                    ["all", t("settings.asrModels.filters.all")],
-                    ["downloaded", t("settings.asrModels.filters.downloaded")],
-                    ["favorites", t("settings.asrModels.filters.favorites")],
-                    [
-                      "recommended",
-                      t("settings.asrModels.filters.recommended"),
-                    ],
-                  ] as const
-                ).map(([value, label]) => (
-                  <Chip
-                    key={value}
-                    selected={statusFilter === value}
-                    onClick={() => setStatusFilter(value)}
-                    label={label}
-                  />
-                ))}
-              </Flex>
+            {/* Filters - flex layout with reset button */}
+            <Flex gap="2" align="stretch">
+              {/* Status filter - using DropdownMenu for consistent styling */}
+              <Box style={{ flex: 1 }}>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
+                      <span className="truncate">{t(`settings.asrModels.filters.${statusFilter}`)}</span>
+                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    {(["all", "downloaded", "favorites", "recommended"] as const).map((value) => (
+                      <DropdownMenu.Item
+                        key={value}
+                        onSelect={() => setStatusFilter(value)}
+                      >
+                        {statusFilter === value && "✓ "}{t(`settings.asrModels.filters.${value}`)}
+                      </DropdownMenu.Item>
+                    ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </Box>
 
-              {/* Mode chips */}
-              <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
-                  {t("settings.asrModels.filters.mode")}
-                </Text>
-                {(
-                  [
-                    ["streaming", t("settings.asrModels.groups.streaming")],
-                    ["offline", t("settings.asrModels.groups.offline")],
-                    ["punctuation", t("settings.asrModels.groups.punctuation")],
-                  ] as const
-                ).map(([value, label]) => (
-                  <Chip
-                    key={value}
-                    selected={modeFilter.has(value)}
-                    onClick={() =>
-                      setModeFilter((s) => toggleSetValue(s, value))
-                    }
-                    label={label}
-                  />
-                ))}
-              </Flex>
+              {/* Mode filter - multi-select via DropdownMenu */}
+              <Box style={{ flex: 1 }}>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
+                      <span className="truncate">
+                        {modeFilter.size === 0 || modeFilter.size === 3
+                          ? t("settings.asrModels.filters.mode")
+                          : Array.from(modeFilter).map(m => t(`settings.asrModels.groups.${m}`)).join(", ")}
+                      </span>
+                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.CheckboxItem
+                      checked={modeFilter.size === 3}
+                      onCheckedChange={() => {
+                        if (modeFilter.size === 3) {
+                          setModeFilter(new Set());
+                        } else {
+                          setModeFilter(new Set(["streaming", "offline", "punctuation"]));
+                        }
+                      }}
+                    >
+                      {t("common.selectAll")}
+                    </DropdownMenu.CheckboxItem>
+                    <DropdownMenu.Separator />
+                    {(["streaming", "offline", "punctuation"] as const).map((mode) => (
+                      <DropdownMenu.CheckboxItem
+                        key={mode}
+                        checked={modeFilter.has(mode)}
+                        onCheckedChange={() => setModeFilter((s) => toggleSetValue(s, mode))}
+                      >
+                        {t(`settings.asrModels.groups.${mode}`)}
+                      </DropdownMenu.CheckboxItem>
+                    ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </Box>
 
-              {/* Language chips */}
-              <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
-                  {t("settings.asrModels.filters.language")}
-                </Text>
-                {allLanguageKeys
-                  .slice()
-                  .sort((a, b) => orderLanguage(a) - orderLanguage(b))
-                  .map((k) => (
-                    <Chip
-                      key={k}
-                      selected={languageFilter.has(k)}
-                      onClick={() =>
-                        setLanguageFilter((s) => toggleSetValue(s, k))
-                      }
-                      label={t(`settings.asrModels.languages.${k}`)}
-                    />
-                  ))}
-              </Flex>
+              {/* Language filter - multi-select via DropdownMenu */}
+              <Box style={{ flex: 1 }}>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
+                      <span className="truncate">
+                        {languageFilter.size === 0
+                          ? t("settings.asrModels.filters.language")
+                          : languageFilter.size <= 2
+                            ? Array.from(languageFilter).map(l => t(`settings.asrModels.languages.${l}`)).join(", ")
+                            : `${Array.from(languageFilter).slice(0, 2).map(l => t(`settings.asrModels.languages.${l}`)).join(", ")} +${languageFilter.size - 2}`}
+                      </span>
+                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.CheckboxItem
+                      checked={languageFilter.size === allLanguageKeys.length}
+                      onCheckedChange={() => {
+                        if (languageFilter.size === allLanguageKeys.length) {
+                          setLanguageFilter(new Set());
+                        } else {
+                          setLanguageFilter(new Set(allLanguageKeys));
+                        }
+                      }}
+                    >
+                      {t("common.selectAll")}
+                    </DropdownMenu.CheckboxItem>
+                    <DropdownMenu.Separator />
+                    {allLanguageKeys
+                      .slice()
+                      .sort((a, b) => orderLanguage(a) - orderLanguage(b))
+                      .map((k) => (
+                        <DropdownMenu.CheckboxItem
+                          key={k}
+                          checked={languageFilter.has(k)}
+                          onCheckedChange={() => setLanguageFilter((s) => toggleSetValue(s, k))}
+                        >
+                          {t(`settings.asrModels.languages.${k}`)}
+                        </DropdownMenu.CheckboxItem>
+                      ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </Box>
 
-              {/* Type chips */}
-              <Flex gap="2" align="center" wrap="wrap">
-                <Text size="1" className="min-w-[56px] text-gray-500 dark:text-gray-400">
-                  {t("settings.asrModels.filters.type")}
-                </Text>
-                {typeKeys
-                  .slice()
-                  .sort((a, b) => orderType(a) - orderType(b))
-                  .map((k) => (
-                    <Chip
-                      key={k}
-                      selected={typeFilter.has(k)}
-                      onClick={() => setTypeFilter((s) => toggleSetValue(s, k))}
-                      label={t(`settings.asrModels.typeChips.${k}`)}
-                    />
-                  ))}
-              </Flex>
-            </Box>
+              {/* Type filter - multi-select via DropdownMenu */}
+              <Box style={{ flex: 1 }}>
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger>
+                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
+                      <span className="truncate">
+                        {typeFilter.size === 0
+                          ? t("settings.asrModels.filters.type")
+                          : typeFilter.size <= 2
+                            ? Array.from(typeFilter).map(k => t(`settings.asrModels.typeChips.${k}`).replace(/^Sherpa\s+/i, "")).join(", ")
+                            : `${Array.from(typeFilter).slice(0, 2).map(k => t(`settings.asrModels.typeChips.${k}`).replace(/^Sherpa\s+/i, "")).join(", ")} +${typeFilter.size - 2}`}
+                      </span>
+                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
+                    </Button>
+                  </DropdownMenu.Trigger>
+                  <DropdownMenu.Content>
+                    <DropdownMenu.CheckboxItem
+                      checked={typeFilter.size === typeKeys.length}
+                      onCheckedChange={() => {
+                        if (typeFilter.size === typeKeys.length) {
+                          setTypeFilter(new Set());
+                        } else {
+                          setTypeFilter(new Set(typeKeys));
+                        }
+                      }}
+                    >
+                      {t("common.selectAll")}
+                    </DropdownMenu.CheckboxItem>
+                    <DropdownMenu.Separator />
+                    {typeKeys
+                      .slice()
+                      .sort((a, b) => orderType(a) - orderType(b))
+                      .map((k) => (
+                        <DropdownMenu.CheckboxItem
+                          key={k}
+                          checked={typeFilter.has(k)}
+                          onCheckedChange={() => setTypeFilter((s) => toggleSetValue(s, k))}
+                        >
+                          {t(`settings.asrModels.typeChips.${k}`)}
+                        </DropdownMenu.CheckboxItem>
+                      ))}
+                  </DropdownMenu.Content>
+                </DropdownMenu.Root>
+              </Box>
+
+              {/* Reset button */}
+              <Tooltip content={t("settings.asrModels.reset")}>
+                <IconButton
+                  size="2"
+                  variant="soft"
+                  color="gray"
+                  onClick={resetLibraryFilters}
+                  disabled={busy}
+                >
+                  <IconRefresh className="w-4 h-4" />
+                </IconButton>
+              </Tooltip>
+            </Flex>
 
             <Separator size="4" />
 
@@ -858,6 +1101,28 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
           </Flex>
         </SettingsGroup>
       </Box>
+
+      {/* Remove Confirmation Dialog */}
+      <AlertDialog.Root open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+        <AlertDialog.Content maxWidth="450px">
+          <AlertDialog.Title>{t("settings.asrModels.install.remove")}</AlertDialog.Title>
+          <AlertDialog.Description size="2">
+            {t("settings.asrModels.install.removeConfirm")}
+          </AlertDialog.Description>
+          <Flex gap="3" mt="4" justify="end">
+            <AlertDialog.Cancel>
+              <Button variant="soft" color="gray">
+                {t("common.cancel")}
+              </Button>
+            </AlertDialog.Cancel>
+            <AlertDialog.Action>
+              <Button variant="solid" color="red" onClick={confirmRemoveModel}>
+                {t("common.delete")}
+              </Button>
+            </AlertDialog.Action>
+          </Flex>
+        </AlertDialog.Content>
+      </AlertDialog.Root>
     </Flex>
   );
 };

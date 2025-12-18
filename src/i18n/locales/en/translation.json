@@ -37,6 +37,7 @@
     "remove": "Remove",
     "reset": "Reset",
     "save": "Save",
+    "selectAll": "Select All",
     "selectOption": "Select an option",
     "skip": "Skip",
     "update": "Update",
@@ -242,7 +243,7 @@
     "onlineAsr": "Online ASR",
     "onlineAsrActive": "Online ASR active",
     "onlineAsrModels": "Online ASR Models",
-    "realtimeModel": "Realtime Model",
+    "realtimeModelLabel": "Realtime Model",
     "realtimeModel": {
       "empty": "No eligible local models. Download (and favorite) a Sherpa model first.",
       "enabled": "Enabled",
@@ -428,6 +429,22 @@
     },
     "asrModels": {
       "addFromUrl": "Add & Download",
+      "install": {
+        "button": "Add Custom Model",
+        "title": "Add Custom Model",
+        "description": "Enter the URL of the model archive (tar.gz, tar.bz2, etc).",
+        "placeholder": "https://example.com/model.tar.gz",
+        "tooltip": "Add model from URL",
+        "urlLabel": "URL",
+        "nameLabel": "Name (Optional)",
+        "tagsLabel": "Tags",
+        "customTagPlaceholder": "Custom tag...",
+        "addCustomTagButton": "Add",
+        "editTitle": "Edit Custom Model",
+        "editDescription": "Update the name or tags for this model.",
+        "remove": "Remove custom model",
+        "removeConfirm": "Remove this custom model? This will also delete any downloaded files."
+      },
       "addSection": {
         "description": "Paste a model URL. The app will infer the model type from the filename.",
         "title": "Install"
@@ -458,10 +475,6 @@
         "streaming": "Streaming"
       },
       "idLabel": "id: {{id}}",
-      "install": {
-        "placeholder": "Paste model URL…",
-        "tooltip": "Install from URL"
-      },
       "languages": {
         "de": "German",
         "en": "English",

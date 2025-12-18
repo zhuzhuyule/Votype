@@ -389,6 +389,7 @@ pub fn run() {
             commands::models::get_model_info,
             commands::models::download_model,
             commands::models::add_model_from_url,
+            commands::models::remove_custom_model, // Add this
             commands::models::delete_model,
             commands::models::cancel_download,
             commands::models::set_active_model,

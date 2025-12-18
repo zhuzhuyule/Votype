@@ -34,9 +34,11 @@ pub async fn download_model(
 pub async fn add_model_from_url(
     model_manager: State<'_, Arc<ModelManager>>,
     url: String,
+    name: Option<String>,
+    tags: Option<Vec<String>>,
 ) -> Result<String, String> {
     model_manager
-        .add_model_from_url(url)
+        .add_model_from_url(url, name, tags)
         .map_err(|e| e.to_string())
 }
 
@@ -136,6 +138,17 @@ pub async fn cancel_download(
 ) -> Result<(), String> {
     model_manager
         .cancel_download(&model_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn remove_custom_model(
+    model_manager: State<'_, Arc<ModelManager>>,
+    model_id: String,
+    delete_files: bool,
+) -> Result<(), String> {
+    model_manager
+        .remove_custom_model(&model_id, delete_files)
         .map_err(|e| e.to_string())
 }
 

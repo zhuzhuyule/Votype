@@ -67,6 +67,10 @@ pub struct ModelInfo {
     pub sherpa: Option<SherpaOnnxModelSpec>,
     pub accuracy_score: f32, // 0.0 to 1.0, higher is more accurate
     pub speed_score: f32,    // 0.0 to 1.0, higher is faster
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
+    #[serde(default)]
+    pub is_default: bool,    // True if it is a built-in default model
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +86,8 @@ struct UserModelEntry {
     sherpa: Option<SherpaOnnxModelSpec>,
     accuracy_score: f32,
     speed_score: f32,
+    #[serde(default)]
+    tags: Option<Vec<String>>,
 }
 
 impl UserModelEntry {
@@ -101,6 +107,8 @@ impl UserModelEntry {
             sherpa: self.sherpa,
             accuracy_score: self.accuracy_score,
             speed_score: self.speed_score,
+            tags: self.tags,
+            is_default: false,
         }
     }
 }
@@ -247,6 +255,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.60,
                 speed_score: 0.85,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -268,6 +278,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.75,
                 speed_score: 0.60,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -288,6 +300,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.40,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -308,6 +322,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.85,
                 speed_score: 0.30,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -329,6 +345,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.85,
                 speed_score: 0.85,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -349,6 +367,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.85,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -375,6 +395,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.80,
                 speed_score: 0.98,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -399,6 +421,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.82,
                 speed_score: 0.97,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -424,6 +448,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.90,
                 speed_score: 0.70,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -448,6 +474,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.78,
                 speed_score: 0.98,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -472,6 +500,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.78,
                 speed_score: 0.98,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -496,6 +526,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.80,
                 speed_score: 0.95,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -520,6 +552,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.78,
                 speed_score: 0.98,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -546,6 +580,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.70,
                 speed_score: 0.99,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -570,6 +606,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.84,
                 speed_score: 0.92,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -593,6 +631,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.95,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -614,6 +654,8 @@ impl ModelManager {
                 sherpa: None,
                 accuracy_score: 0.88,
                 speed_score: 0.70,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -640,6 +682,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.87,
                 speed_score: 0.75,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -665,6 +709,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.82,
                 speed_score: 0.95,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -689,6 +735,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.78,
                 speed_score: 0.97,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -714,6 +762,8 @@ impl ModelManager {
                 }),
                 accuracy_score: 0.80,
                 speed_score: 0.93,
+                tags: None,
+                is_default: true,
             },
         );
 
@@ -744,7 +794,12 @@ impl ModelManager {
         Ok(manager)
     }
 
-    pub fn add_model_from_url(&self, url: String) -> Result<String> {
+    pub fn add_model_from_url(
+        &self,
+        url: String,
+        name: Option<String>,
+        tags: Option<Vec<String>>,
+    ) -> Result<String> {
         if !url.starts_with("http://") && !url.starts_with("https://") {
             return Err(anyhow::anyhow!("URL must start with http:// or https://"));
         }
@@ -762,17 +817,47 @@ impl ModelManager {
         };
 
         let preferred_id = Self::strip_known_prefixes(&base_name);
-        let final_id = {
-            let models = self.available_models.lock().unwrap();
+
+        // Check if it already exists
+        {
+            let mut models = self.available_models.lock().unwrap();
+            
             if models.contains_key(&preferred_id) {
-                return Ok(preferred_id);
+                // It exists. Check if it's a user model we can update.
+                drop(models); // Release lock before file operations
+                
+                let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
+                if let Some(pos) = entries.iter().position(|e| e.id == preferred_id) {
+                    // Update existing user model
+                    if let Some(n) = name {
+                        entries[pos].name = n;
+                    }
+                    if let Some(t) = tags.clone() {
+                        entries[pos].tags = Some(t);
+                    }
+                    
+                    Self::write_user_catalog(&self.user_catalog_path, &entries)?;
+                    
+                    // Update in-memory
+                    let mut models = self.available_models.lock().unwrap();
+                    if let Some(m) = models.get_mut(&preferred_id) {
+                        m.name = entries[pos].name.clone();
+                        m.tags = entries[pos].tags.clone();
+                    }
+                    return Ok(preferred_id);
+                } else {
+                    // It's a built-in model, just return the ID
+                    return Ok(preferred_id);
+                }
             }
-            Self::unique_model_id(&models, &preferred_id)?
-        };
+        }
+
+        // Doesn't exist, proceed to creation
+        let final_id = preferred_id; // Uniqueness guaranteed by check above
 
         let entry = UserModelEntry {
             id: final_id.clone(),
-            name: preferred_id.replace('-', " "),
+            name: name.unwrap_or_else(|| final_id.replace('-', " ")),
             description: "modelSelector.userAddedModel".to_string(),
             filename,
             url: url.clone(),
@@ -782,6 +867,7 @@ impl ModelManager {
             sherpa: Self::infer_sherpa_spec_from_name(&base_name),
             accuracy_score: 0.8,
             speed_score: 0.8,
+            tags,
         };
 
         let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
@@ -1320,6 +1406,38 @@ impl ModelManager {
         self.update_download_status()?;
 
         info!("Download cancelled for: {}", model_id);
+        Ok(())
+    }
+
+    pub fn remove_custom_model(&self, model_id: &str, delete_files: bool) -> Result<()> {
+        info!("ModelManager: remove_custom_model called for: {}", model_id);
+
+        // 1. Remove from user catalog
+        let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
+        let initial_len = entries.len();
+        entries.retain(|e| e.id != model_id);
+        
+        if entries.len() == initial_len {
+            return Err(anyhow::anyhow!("Custom model not found in catalog: {}", model_id));
+        }
+        
+        Self::write_user_catalog(&self.user_catalog_path, &entries)?;
+
+        // 2. Remove files if requested
+        if delete_files {
+            // We use the existing logic but ignore error if files don't exist
+            let _ = self.delete_model(model_id); 
+        }
+
+        // 3. Remove from in-memory map
+        {
+            let mut models = self.available_models.lock().unwrap();
+            models.remove(model_id);
+        }
+        
+        // 4. Update download status (triggers refresh in frontend usually)
+        self.update_download_status()?;
+
         Ok(())
     }
 }

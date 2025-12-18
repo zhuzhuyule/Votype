@@ -213,6 +213,8 @@ export const ModelInfoSchema = z.object({
     .optional(),
   accuracy_score: z.number(),
   speed_score: z.number(),
+  tags: z.array(z.string()).optional(),
+  is_default: z.boolean().default(false),
 });
 
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
