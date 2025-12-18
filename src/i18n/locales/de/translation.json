@@ -118,7 +118,8 @@
   "modelSelector": {
     "welcome": "Willkommen bei Votype!",
     "downloadPrompt": "Lade ein Modell herunter, um mit der Transkription zu beginnen.",
-      "realtimeModel": "Echtzeitmodell",    "availableModels": "Verfügbare Modelle",
+    "realtimeModel": "Echtzeitmodell",
+    "availableModels": "Verfügbare Modelle",
     "downloadModels": "Modelle herunterladen",
     "chooseModel": "Modell auswählen",
     "active": "Aktiv",
@@ -679,7 +680,7 @@
   "overlay": {
     "status": {
       "recording": "Aufnahme...",
-      "transcribing": "Transkription...",
+      "transcribing": "Transkribieren...",
       "llm": "Nachbearbeitung..."
     }
   },
@@ -700,94 +701,94 @@
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
       "name": "Sherpa Chinese (CTC Small)",
-      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01."
+      "description": "Streaming Chinesische ASR (Zipformer2 CTC); klein und extrem schnell (INT8); aktualisiert 2025-04-01."
     },
     "sherpa-zipformer-zh-int8-2025-06-30": {
       "name": "Sherpa Chinese",
-      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."
+      "description": "Streaming Chinesische ASR; klein und extrem schnell (INT8); high accuracy; aktualisiert 2025-06-30."
     },
     "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
       "name": "Sherpa Chinese XL",
-      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30."
+      "description": "Streaming Chinesische ASR; larger model, fast (INT8); very high accuracy; aktualisiert 2025-06-30."
     },
     "sherpa-zipformer-en-kroko-2025-08-06": {
       "name": "Sherpa English",
-      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06."
+      "description": "Streaming Englische ASR; small and very fast; good accuracy; aktualisiert 2025-08-06."
     },
     "sherpa-zipformer-de-kroko-2025-08-06": {
       "name": "Sherpa German",
-      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06."
+      "description": "Streaming Deutsche ASR; small and very fast; good accuracy; aktualisiert 2025-08-06."
     },
     "sherpa-zipformer-es-kroko-2025-08-06": {
       "name": "Sherpa Spanish",
-      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06."
+      "description": "Streaming Spanische ASR; mittlere Größe und sehr schnell; good accuracy; aktualisiert 2025-08-06."
     },
     "sherpa-zipformer-fr-kroko-2025-08-06": {
       "name": "Sherpa French",
-      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06."
+      "description": "Streaming Französische ASR; small and very fast; good accuracy; aktualisiert 2025-08-06."
     },
     "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
       "name": "Sherpa Russian",
-      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16."
+      "description": "Streaming Russische ASR; winzig und extrem schnell (INT8); good accuracy; aktualisiert 2025-08-16."
     },
     "sherpa-paraformer-zh-en-streaming": {
       "name": "Sherpa Chinese + English (Paraformer)",
-      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
+      "description": "Streaming zh+en Modell. Gut für Echtzeit-Untertitel; schnell; angemessene Genauigkeit."
     },
     "sherpa-paraformer-zh-int8-2025-10-07": {
       "name": "Sherpa Paraformer Chinese (INT8)",
-      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07."
+      "description": "Offline Chinesische ASR; INT8; fast; good accuracy; aktualisiert 2025-10-07."
     },
     "sherpa-paraformer-zh-small-2024-03-09": {
       "name": "Sherpa Paraformer Chinese (Small)",
-      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09."
+      "description": "Offline Chinesische ASR; small and schnell; angemessene Genauigkeit; aktualisiert 2024-03-09."
     },
     "sherpa-paraformer-trilingual-zh-cantonese-en": {
       "name": "Sherpa Paraformer Zh+Yue+En",
-      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy."
+      "description": "Offline dreisprachige ASR (Chinese/Cantonese/English); large; good accuracy."
     },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
       "name": "SenseVoice Multilingual",
-      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+      "description": "Offline-Modell für Chinesisch/Englisch/Japanisch/Koreanisch/Kantonesisch. Int8 quantized; medium speed and memory. Updated 2025-09-09."
     },
     "punct-zh-en-ct-transformer-2024-04-12-int8": {
       "name": "Punctuation (Chinese + English)",
-      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+      "description": "Fügt Satzzeichen und Satzumbrüche hinzu for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
     },
     "punct-zh-en-ct-transformer-2024-04-12": {
       "name": "Punctuation (Chinese + English) Large",
-      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+      "description": "Fügt Satzzeichen und Satzumbrüche hinzu for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
     },
     "small": {
       "name": "Whisper Small",
-      "description": "Fast and fairly accurate."
+      "description": "Schnell und ziemlich genau."
     },
     "medium": {
       "name": "Whisper Medium",
-      "description": "Good accuracy, medium speed"
+      "description": "Gute Genauigkeit, mittlere Geschwindigkeit"
     },
     "turbo": {
       "name": "Whisper Turbo",
-      "description": "Balanced accuracy and speed."
+      "description": "Ausgewogene Genauigkeit und Geschwindigkeit."
     },
     "large": {
       "name": "Whisper Large",
-      "description": "Good accuracy, but slow."
+      "description": "Gute Genauigkeit, aber langsam."
     },
     "parakeet-tdt-0.6b-v2": {
       "name": "Parakeet V2",
-      "description": "English only. The best model for English speakers."
+      "description": "Nur Englisch. Das beste Modell für englischsprachige Benutzer."
     },
     "parakeet-tdt-0.6b-v3": {
       "name": "Parakeet V3",
-      "description": "Fast and accurate"
+      "description": "Schnell und genau"
     }
   },
   "soundPicker": {
     "marimba": "Marimba",
     "pop": "Pop",
-    "custom": "Custom",
-    "preview": "Preview"
+    "custom": "Benutzerdefiniert",
+    "preview": "Vorschau"
   },
   "theme": {
     "title": "Design",

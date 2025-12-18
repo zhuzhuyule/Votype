@@ -5,7 +5,6 @@ import {
   Button,
   Card,
   Dialog,
-  DropdownMenu,
   Flex,
   Heading,
   IconButton,
@@ -16,7 +15,6 @@ import {
   Tooltip
 } from "@radix-ui/themes";
 import {
-  IconChevronDown,
   IconDownload,
   IconPencil,
   IconPlus,
@@ -611,7 +609,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
     };
 
     return (
-      <Card key={m.id} className="shadow-sm hover:shadow-md transition-shadow bg-white/60 dark:bg-gray-900/50 py-2">
+      <Card key={m.id} variant="surface" className="p-3">
         <Flex justify="between" align="center" gap="3">
           <Box className="min-w-0 flex-1 space-y-1">
             {/* Line 1: Title + Recommended + ID */}
@@ -897,172 +895,100 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({ className,
               </Text>
             ) : null}
 
-            {/* Filters - flex layout with reset button */}
-            <Flex gap="2" align="stretch">
-              {/* Status filter - using DropdownMenu for consistent styling */}
-              <Box style={{ flex: 1 }}>
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
-                      <span className="truncate">{t(`settings.asrModels.filters.${statusFilter}`)}</span>
-                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    {(["all", "downloaded", "favorites", "recommended"] as const).map((value) => (
-                      <DropdownMenu.Item
-                        key={value}
-                        onSelect={() => setStatusFilter(value)}
-                      >
-                        {statusFilter === value && "✓ "}{t(`settings.asrModels.filters.${value}`)}
-                      </DropdownMenu.Item>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-              </Box>
+            {/* Filters - Tag based for intuitive filtering */}
+            <Flex direction="column" gap="2">
+              {/* Status filter row */}
+              <Flex gap="2" wrap="wrap" align="center">
+                <Text size="1" className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">
+                  {t("settings.asrModels.filters.status")}
+                </Text>
+                {(["all", "downloaded", "favorites", "recommended"] as const).map((value) => (
+                  <Badge
+                    key={value}
+                    size="2"
+                    variant={statusFilter === value ? "solid" : "outline"}
+                    color={statusFilter === value ? "blue" : "gray"}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setStatusFilter(value)}
+                  >
+                    {t(`settings.asrModels.filters.${value}`)}
+                  </Badge>
+                ))}
+              </Flex>
 
-              {/* Mode filter - multi-select via DropdownMenu */}
-              <Box style={{ flex: 1 }}>
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
-                      <span className="truncate">
-                        {modeFilter.size === 0 || modeFilter.size === 3
-                          ? t("settings.asrModels.filters.mode")
-                          : Array.from(modeFilter).map(m => t(`settings.asrModels.groups.${m}`)).join(", ")}
-                      </span>
-                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    <DropdownMenu.CheckboxItem
-                      checked={modeFilter.size === 3}
-                      onCheckedChange={() => {
-                        if (modeFilter.size === 3) {
-                          setModeFilter(new Set());
-                        } else {
-                          setModeFilter(new Set(["streaming", "offline", "punctuation"]));
-                        }
-                      }}
+              {/* Mode filter row */}
+              <Flex gap="2" wrap="wrap" align="center">
+                <Text size="1" className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">
+                  {t("settings.asrModels.filters.mode")}
+                </Text>
+                {(["streaming", "offline", "punctuation"] as const).map((mode) => (
+                  <Badge
+                    key={mode}
+                    size="2"
+                    variant={modeFilter.has(mode) ? "solid" : "outline"}
+                    color={modeFilter.has(mode) ? "blue" : "gray"}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setModeFilter((s) => toggleSetValue(s, mode))}
+                  >
+                    {t(`settings.asrModels.groups.${mode}`)}
+                  </Badge>
+                ))}
+              </Flex>
+
+              {/* Language filter row */}
+              <Flex gap="2" wrap="wrap" align="center">
+                <Text size="1" className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">
+                  {t("settings.asrModels.filters.language")}
+                </Text>
+                {allLanguageKeys
+                  .slice()
+                  .sort((a, b) => orderLanguage(a) - orderLanguage(b))
+                  .map((k) => (
+                    <Badge
+                      key={k}
+                      size="2"
+                      variant={languageFilter.has(k) ? "solid" : "outline"}
+                      color={languageFilter.has(k) ? "blue" : "gray"}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setLanguageFilter((s) => toggleSetValue(s, k))}
                     >
-                      {t("common.selectAll")}
-                    </DropdownMenu.CheckboxItem>
-                    <DropdownMenu.Separator />
-                    {(["streaming", "offline", "punctuation"] as const).map((mode) => (
-                      <DropdownMenu.CheckboxItem
-                        key={mode}
-                        checked={modeFilter.has(mode)}
-                        onCheckedChange={() => setModeFilter((s) => toggleSetValue(s, mode))}
-                      >
-                        {t(`settings.asrModels.groups.${mode}`)}
-                      </DropdownMenu.CheckboxItem>
-                    ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-              </Box>
+                      {t(`settings.asrModels.languages.${k}`)}
+                    </Badge>
+                  ))}
+              </Flex>
 
-              {/* Language filter - multi-select via DropdownMenu */}
-              <Box style={{ flex: 1 }}>
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
-                      <span className="truncate">
-                        {languageFilter.size === 0
-                          ? t("settings.asrModels.filters.language")
-                          : languageFilter.size <= 2
-                            ? Array.from(languageFilter).map(l => t(`settings.asrModels.languages.${l}`)).join(", ")
-                            : `${Array.from(languageFilter).slice(0, 2).map(l => t(`settings.asrModels.languages.${l}`)).join(", ")} +${languageFilter.size - 2}`}
-                      </span>
-                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    <DropdownMenu.CheckboxItem
-                      checked={languageFilter.size === allLanguageKeys.length}
-                      onCheckedChange={() => {
-                        if (languageFilter.size === allLanguageKeys.length) {
-                          setLanguageFilter(new Set());
-                        } else {
-                          setLanguageFilter(new Set(allLanguageKeys));
-                        }
-                      }}
+              {/* Type filter row */}
+              <Flex gap="2" wrap="wrap" align="center">
+                <Text size="1" className="text-gray-400 dark:text-gray-500 w-10 flex-shrink-0">
+                  {t("settings.asrModels.filters.type")}
+                </Text>
+                {typeKeys
+                  .slice()
+                  .sort((a, b) => orderType(a) - orderType(b))
+                  .map((k) => (
+                    <Badge
+                      key={k}
+                      size="2"
+                      variant={typeFilter.has(k) ? "solid" : "outline"}
+                      color={typeFilter.has(k) ? "blue" : "gray"}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setTypeFilter((s) => toggleSetValue(s, k))}
                     >
-                      {t("common.selectAll")}
-                    </DropdownMenu.CheckboxItem>
-                    <DropdownMenu.Separator />
-                    {allLanguageKeys
-                      .slice()
-                      .sort((a, b) => orderLanguage(a) - orderLanguage(b))
-                      .map((k) => (
-                        <DropdownMenu.CheckboxItem
-                          key={k}
-                          checked={languageFilter.has(k)}
-                          onCheckedChange={() => setLanguageFilter((s) => toggleSetValue(s, k))}
-                        >
-                          {t(`settings.asrModels.languages.${k}`)}
-                        </DropdownMenu.CheckboxItem>
-                      ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-              </Box>
-
-              {/* Type filter - multi-select via DropdownMenu */}
-              <Box style={{ flex: 1 }}>
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Button variant="surface" color="gray" style={{ width: "100%" }} className="justify-between font-normal">
-                      <span className="truncate">
-                        {typeFilter.size === 0
-                          ? t("settings.asrModels.filters.type")
-                          : typeFilter.size <= 2
-                            ? Array.from(typeFilter).map(k => t(`settings.asrModels.typeChips.${k}`).replace(/^Sherpa\s+/i, "")).join(", ")
-                            : `${Array.from(typeFilter).slice(0, 2).map(k => t(`settings.asrModels.typeChips.${k}`).replace(/^Sherpa\s+/i, "")).join(", ")} +${typeFilter.size - 2}`}
-                      </span>
-                      <IconChevronDown className="w-4 h-4 opacity-50 flex-shrink-0" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    <DropdownMenu.CheckboxItem
-                      checked={typeFilter.size === typeKeys.length}
-                      onCheckedChange={() => {
-                        if (typeFilter.size === typeKeys.length) {
-                          setTypeFilter(new Set());
-                        } else {
-                          setTypeFilter(new Set(typeKeys));
-                        }
-                      }}
-                    >
-                      {t("common.selectAll")}
-                    </DropdownMenu.CheckboxItem>
-                    <DropdownMenu.Separator />
-                    {typeKeys
-                      .slice()
-                      .sort((a, b) => orderType(a) - orderType(b))
-                      .map((k) => (
-                        <DropdownMenu.CheckboxItem
-                          key={k}
-                          checked={typeFilter.has(k)}
-                          onCheckedChange={() => setTypeFilter((s) => toggleSetValue(s, k))}
-                        >
-                          {t(`settings.asrModels.typeChips.${k}`)}
-                        </DropdownMenu.CheckboxItem>
-                      ))}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-              </Box>
-
-              {/* Reset button */}
-              <Tooltip content={t("settings.asrModels.reset")}>
-                <IconButton
-                  size="2"
-                  variant="soft"
-                  color="gray"
-                  onClick={resetLibraryFilters}
-                  disabled={busy}
-                >
-                  <IconRefresh className="w-4 h-4" />
-                </IconButton>
-              </Tooltip>
+                      {t(`settings.asrModels.typeChips.${k}`).replace(/^Sherpa\s+/i, "")}
+                    </Badge>
+                  ))}
+                <Tooltip content={t("settings.asrModels.reset")}>
+                  <IconButton
+                    size="1"
+                    variant="ghost"
+                    color="gray"
+                    onClick={resetLibraryFilters}
+                    disabled={busy}
+                  >
+                    <IconRefresh className="w-3 h-3" />
+                  </IconButton>
+                </Tooltip>
+              </Flex>
             </Flex>
 
             <Separator size="4" />

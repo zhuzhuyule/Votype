@@ -679,9 +679,9 @@
   },
   "overlay": {
     "status": {
-      "recording": "録音中…",
-      "transcribing": "文字起こし中…",
-      "llm": "後処理中…"
+      "recording": "録音中...",
+      "transcribing": "文字起こし中...",
+      "llm": "後処理中..."
     }
   },
   "accessibility": {
@@ -701,94 +701,94 @@
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
       "name": "Sherpa Chinese (CTC Small)",
-      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01."
+      "description": "ストリーミング中国語ASR (Zipformer2 CTC); 小型で非常に高速 (INT8); 更新 2025-04-01."
     },
     "sherpa-zipformer-zh-int8-2025-06-30": {
       "name": "Sherpa Chinese",
-      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30."
+      "description": "ストリーミング中国語ASR; 小型で非常に高速 (INT8); high accuracy; 更新 2025-06-30."
     },
     "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
       "name": "Sherpa Chinese XL",
-      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30."
+      "description": "ストリーミング中国語ASR; larger model, fast (INT8); very high accuracy; 更新 2025-06-30."
     },
     "sherpa-zipformer-en-kroko-2025-08-06": {
       "name": "Sherpa English",
-      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06."
+      "description": "ストリーミング英語ASR; small and very fast; good accuracy; 更新 2025-08-06."
     },
     "sherpa-zipformer-de-kroko-2025-08-06": {
       "name": "Sherpa German",
-      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06."
+      "description": "ストリーミングドイツ語ASR; small and very fast; good accuracy; 更新 2025-08-06."
     },
     "sherpa-zipformer-es-kroko-2025-08-06": {
       "name": "Sherpa Spanish",
-      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06."
+      "description": "ストリーミングスペイン語ASR; 中型で非常に高速; good accuracy; 更新 2025-08-06."
     },
     "sherpa-zipformer-fr-kroko-2025-08-06": {
       "name": "Sherpa French",
-      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06."
+      "description": "ストリーミングフランス語ASR; small and very fast; good accuracy; 更新 2025-08-06."
     },
     "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
       "name": "Sherpa Russian",
-      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16."
+      "description": "ストリーミングロシア語ASR; 超小型で非常に高速 (INT8); good accuracy; 更新 2025-08-16."
     },
     "sherpa-paraformer-zh-en-streaming": {
       "name": "Sherpa Chinese + English (Paraformer)",
-      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy."
+      "description": "ストリーミング中英モデル. リアルタイム字幕に最適; 高速、精度はそこそこ."
     },
     "sherpa-paraformer-zh-int8-2025-10-07": {
       "name": "Sherpa Paraformer Chinese (INT8)",
-      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07."
+      "description": "オフライン中国語ASR; INT8; fast; good accuracy; 更新 2025-10-07."
     },
     "sherpa-paraformer-zh-small-2024-03-09": {
       "name": "Sherpa Paraformer Chinese (Small)",
-      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09."
+      "description": "オフライン中国語ASR; small and 高速、精度はそこそこ; 更新 2024-03-09."
     },
     "sherpa-paraformer-trilingual-zh-cantonese-en": {
       "name": "Sherpa Paraformer Zh+Yue+En",
-      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy."
+      "description": "オフライン3か国語ASR (Chinese/Cantonese/English); large; good accuracy."
     },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
       "name": "SenseVoice Multilingual",
-      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+      "description": "オフラインモデル： 中国語/英語/日本語/韓国語/広東語. Int8 quantized; medium speed and memory. Updated 2025-09-09."
     },
     "punct-zh-en-ct-transformer-2024-04-12-int8": {
       "name": "Punctuation (Chinese + English)",
-      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+      "description": "句読点と文の区切りを追加 for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
     },
     "punct-zh-en-ct-transformer-2024-04-12": {
       "name": "Punctuation (Chinese + English) Large",
-      "description": "Adds punctuation and sentence breaks for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+      "description": "句読点と文の区切りを追加 for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
     },
     "small": {
       "name": "Whisper Small",
-      "description": "Fast and fairly accurate."
+      "description": "高速でかなり正確。"
     },
     "medium": {
       "name": "Whisper Medium",
-      "description": "Good accuracy, medium speed"
+      "description": "高精度、中速"
     },
     "turbo": {
       "name": "Whisper Turbo",
-      "description": "Balanced accuracy and speed."
+      "description": "精度と速度のバランスが良い。"
     },
     "large": {
       "name": "Whisper Large",
-      "description": "Good accuracy, but slow."
+      "description": "高精度だが低速。"
     },
     "parakeet-tdt-0.6b-v2": {
       "name": "Parakeet V2",
-      "description": "English only. The best model for English speakers."
+      "description": "英語のみ。英語話者に最適なモデル。"
     },
     "parakeet-tdt-0.6b-v3": {
       "name": "Parakeet V3",
-      "description": "Fast and accurate"
+      "description": "高速かつ正確"
     }
   },
   "soundPicker": {
     "marimba": "Marimba",
     "pop": "Pop",
-    "custom": "Custom",
-    "preview": "Preview"
+    "custom": "カスタム",
+    "preview": "プレビュー"
   },
   "theme": {
     "title": "テーマ",
@@ -806,32 +806,32 @@
       "title": "アクセントカラー",
       "description": "アプリ全体で使用するアクセントカラーを選択",
       "current": "現在: {{color}}",
-      "ruby": "Ruby",
-      "gray": "Gray",
-      "gold": "Gold",
-      "bronze": "Bronze",
-      "brown": "Brown",
-      "indigo": "Indigo",
-      "blue": "Blue",
-      "iris": "Iris",
-      "purple": "Purple",
-      "violet": "Violet",
-      "pink": "Pink",
-      "plum": "Plum",
-      "red": "Red",
-      "tomato": "Tomato",
-      "crimson": "Crimson",
-      "orange": "Orange",
-      "amber": "Amber",
-      "yellow": "Yellow",
-      "lime": "Lime",
-      "green": "Green",
-      "grass": "Grass",
-      "jade": "Jade",
-      "teal": "Teal",
-      "cyan": "Cyan",
-      "mint": "Mint",
-      "sky": "Sky"
+      "ruby": "ルビー",
+      "gray": "グレー",
+      "gold": "ゴールド",
+      "bronze": "ブロンズ",
+      "brown": "ブラウン",
+      "indigo": "インディゴ",
+      "blue": "ブルー",
+      "iris": "アイリス",
+      "purple": "パープル",
+      "violet": "バイオレット",
+      "pink": "ピンク",
+      "plum": "プラム",
+      "red": "レッド",
+      "tomato": "トマト",
+      "crimson": "クリムゾン",
+      "orange": "オレンジ",
+      "amber": "アンバー",
+      "yellow": "イエロー",
+      "lime": "ライム",
+      "green": "グリーン",
+      "grass": "グラス",
+      "jade": "ジェイド",
+      "teal": "ティール",
+      "cyan": "シアン",
+      "mint": "ミント",
+      "sky": "スカイ"
     },
     "panelStyle": {
       "title": "パネルスタイル",
