@@ -45,55 +45,55 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
 
-      checkOnboardingStatus();
+    checkOnboardingStatus();
 
-    }, []);
+  }, []);
 
-  
 
-    // Listen for navigate-to-settings event from Rust
 
-    useEffect(() => {
+  // Listen for navigate-to-settings event from Rust
 
-      let unlisten: (() => void) | undefined;
+  useEffect(() => {
 
-  
+    let unlisten: (() => void) | undefined;
 
-      const setupListener = async () => {
 
-        unlisten = await listen("navigate-to-settings", (event: { payload: string }) => {
 
-          // Navigate to the specified settings section
+    const setupListener = async () => {
 
-          setCurrentSection(event.payload as SidebarSection);
+      unlisten = await listen("navigate-to-settings", (event: { payload: string }) => {
 
-        });
+        // Navigate to the specified settings section
 
-      };
+        setCurrentSection(event.payload as SidebarSection);
 
-  
+      });
 
-      setupListener();
+    };
 
-  
 
-      return () => {
 
-        if (unlisten) {
+    setupListener();
 
-          unlisten();
 
-        }
 
-      };
+    return () => {
 
-    }, []);
+      if (unlisten) {
 
-  
+        unlisten();
 
-    // Handle keyboard shortcuts for settings navigation
+      }
+
+    };
+
+  }, []);
+
+
+
+  // Handle keyboard shortcuts for settings navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check for Cmd/Ctrl + , (Comma) for General settings (common convention)
@@ -117,7 +117,6 @@ function App() {
           "shortcuts",
           "advanced",
           "models",
-          "asrModels",
           "prompts",
           "about",
         ];

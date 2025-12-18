@@ -218,3 +218,37 @@ export const ModelInfoSchema = z.object({
 });
 
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
+
+// =============================================================================
+// Model Download/State Types (shared between hooks and components)
+// =============================================================================
+
+export interface DownloadProgress {
+  model_id: string;
+  downloaded: number;
+  total: number;
+  percentage: number;
+}
+
+export interface DownloadStats {
+  startTime: number;
+  lastUpdate: number;
+  totalDownloaded: number;
+  speed: number;
+}
+
+export interface ModelStateEvent {
+  event_type: string;
+  model_id?: string;
+  model_name?: string;
+  error?: string;
+}
+
+export type ModelStatus =
+  | "ready"
+  | "loading"
+  | "downloading"
+  | "extracting"
+  | "error"
+  | "unloaded"
+  | "none";
