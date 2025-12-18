@@ -19,5 +19,5 @@ export interface HistoryEntry {
 }
 
 export type DashboardSelection =
-  | { type: "preset"; preset: "7d" | "30d" | "all" }
+  | { type: "preset"; preset: "7d" | "30d" | "40d" | "all" }
   | { type: "day"; day: string };

@@ -17,7 +17,7 @@ interface DashboardActivityChartProps {
   selection: DashboardSelection;
   loading?: boolean;
   onSelectDay: (day: string) => void;
-  onSelectPreset: (preset: "7d" | "30d" | "all") => void;
+  onSelectPreset: (preset: "7d" | "30d" | "40d" | "all") => void;
 }
 
 
@@ -42,7 +42,7 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
       actions={
         <SegmentedControl.Root
           value={selection.type === "preset" ? selection.preset : "null"}
-          onValueChange={(val) => onSelectPreset(val as "7d" | "30d" | "all")}
+          onValueChange={(val) => onSelectPreset(val as "7d" | "30d" | "40d" | "all")}
           size="1"
         >
           <SegmentedControl.Item value="7d">
@@ -50,6 +50,9 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
           </SegmentedControl.Item>
           <SegmentedControl.Item value="30d">
             {t("dashboard.range.buttons.last30Days")}
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="40d">
+            {t("dashboard.range.buttons.last40Days")}
           </SegmentedControl.Item>
           <SegmentedControl.Item value="all">
             {t("dashboard.range.buttons.allTime")}

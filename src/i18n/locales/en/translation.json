@@ -52,7 +52,7 @@
     },
     "activity": {
       "entries": "{{count}} entries",
-      "subtitle": "Last 30 days",
+      "subtitle": "Last 40 days",
       "title": "Usage"
     },
     "cards": {
@@ -82,6 +82,7 @@
       "buttons": {
         "allTime": "All time",
         "last30Days": "Last 30 days",
+        "last40Days": "Last 40 days",
         "last7Days": "Last 7 days"
       },
       "lastNDays": "Last {{days}} days",

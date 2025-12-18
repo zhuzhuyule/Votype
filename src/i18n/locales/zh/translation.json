@@ -52,7 +52,7 @@
     },
     "activity": {
       "entries": "共 {{count}} 条记录",
-      "subtitle": "近30天",
+      "subtitle": "近40天",
       "title": "使用记录"
     },
     "cards": {
@@ -82,6 +82,7 @@
       "buttons": {
         "allTime": "所有",
         "last30Days": "近30天",
+        "last40Days": "近40天",
         "last7Days": "近7天"
       },
       "lastNDays": "近{{days}}天",

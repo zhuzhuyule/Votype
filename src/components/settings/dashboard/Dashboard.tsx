@@ -60,9 +60,9 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const last30Days = useMemo(() => {
+  const chartDays = useMemo(() => {
     const days: string[] = [];
-    for (let i = 29; i >= 0; i--) {
+    for (let i = 39; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       days.push(toLocalYmd(d));
@@ -83,14 +83,17 @@ export const Dashboard: React.FC = () => {
 
   const selectedDays = useMemo(() => {
     if (selection.type === "day") return new Set([selection.day]);
-    if (selection.preset === "30d" || selection.preset === "all") {
-      return new Set(last30Days);
+    if (selection.preset === "40d" || selection.preset === "all") {
+      return new Set(chartDays);
     }
-    return new Set(last30Days.slice(-7));
-  }, [last30Days, selection]);
+    if (selection.preset === "30d") {
+      return new Set(chartDays.slice(-30));
+    }
+    return new Set(chartDays.slice(-7));
+  }, [chartDays, selection]);
 
   const bars = useMemo(() => {
-    const days = last30Days.map((day) => ({
+    const days = chartDays.map((day) => ({
       day,
       entries: bucketsByDay.get(day)?.entries ?? 0,
     }));
@@ -101,7 +104,7 @@ export const Dashboard: React.FC = () => {
       selected: selectedDays.has(d.day),
       isToday: d.day === todayYmd,
     }));
-  }, [bucketsByDay, last30Days, selectedDays, todayYmd]);
+  }, [bucketsByDay, chartDays, selectedDays, todayYmd]);
 
   const selectionTitle = useMemo(() => {
     if (selection.type === "day") {
@@ -109,8 +112,9 @@ export const Dashboard: React.FC = () => {
       return selection.day;
     }
     if (selection.preset === "7d") return t("dashboard.range.lastNDays", { days: 7 });
-    if (selection.preset === "30d")
-      return t("dashboard.range.lastNDays", { days: 30 });
+    if (selection.preset === "30d") return t("dashboard.range.lastNDays", { days: 30 });
+    if (selection.preset === "40d")
+      return t("dashboard.range.lastNDays", { days: 40 });
     return t("dashboard.range.allTime");
   }, [selection, t, todayYmd]);
 
@@ -291,6 +295,7 @@ export const Dashboard: React.FC = () => {
 
       <DashboardDetailsList
         entries={detailEntries}
+        totalCount={selectedEntries.length}
         selectionTitle={selectionTitle}
         selectedDayTotals={selectedDayTotals}
         getAudioUrl={getAudioUrl}

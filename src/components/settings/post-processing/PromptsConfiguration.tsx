@@ -344,7 +344,7 @@ const PromptsConfiguration: React.FC = () => {
               grouped
               layout="stacked"
             >
-              <Grid columns="2" gap="4" align="center" width="100%">
+              <Grid columns="2fr 5fr" gap="4" align="center" width="100%">
                 {/* Left: Input */}
                 <Flex gap="2">
                   <TextField.Root
@@ -481,7 +481,7 @@ const PromptsConfiguration: React.FC = () => {
                   <Box>
                     <Text size="2" weight="medium" mb="2" as="div">{t("settings.postProcessing.prompts.aliasLabel") || "Alias / Trigger"}</Text>
 
-                    <Grid columns="2" gap="4" align="center">
+                    <Grid columns="2fr 5fr" gap="4" align="center">
                       {/* Left: Input Field */}
                       <Flex gap="2">
                         <TextField.Root

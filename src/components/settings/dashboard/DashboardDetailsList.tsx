@@ -3,10 +3,11 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { DashboardEntryCard } from "./DashboardEntryCard";
 import type { HistoryEntry } from "./dashboardTypes";
-import { formatEntryTime } from "./dashboardUtils";
+import { formatEntryTime, toLocalYmd } from "./dashboardUtils";
 
 interface DashboardDetailsListProps {
   entries: HistoryEntry[];
+  totalCount: number;
   selectionTitle: string;
   selectedDayTotals: Map<string, number>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
@@ -23,6 +24,7 @@ interface DashboardDetailsListProps {
 
 export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
   entries,
+  totalCount,
   selectionTitle,
   selectedDayTotals,
   getAudioUrl,
@@ -55,12 +57,15 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
   }, [onLoadMore]);
 
   const detailGroups = useMemo(() => {
-    const map = new Map<string, HistoryEntry[]>();
+    const map = new Map<string, { label: string; list: HistoryEntry[] }>();
     for (const entry of entries) {
-      const day = new Date(entry.timestamp * 1000).toLocaleDateString();
-      const group = map.get(day) ?? [];
-      group.push(entry);
-      map.set(day, group);
+      const date = new Date(entry.timestamp * 1000);
+      const id = toLocalYmd(date);
+      const label = date.toLocaleDateString();
+
+      const group = map.get(id) ?? { label, list: [] };
+      group.list.push(entry);
+      map.set(id, group);
     }
     return Array.from(map.entries()).sort(([a], [b]) => b.localeCompare(a));
   }, [entries]);
@@ -71,7 +76,7 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
       actions={
         <Text size="2" color="gray">
           {t("dashboard.details.count", {
-            count: entries.length,
+            count: totalCount,
           })}
         </Text>
       }
@@ -82,16 +87,16 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
             {t("dashboard.details.empty")}
           </Text>
         ) : (
-          detailGroups.map(([day, dayEntries]) => (
-            <Box key={day} className="relative">
+          detailGroups.map(([id, { label, list: dayEntries }]) => (
+            <Box key={id} className="relative">
               <Box className="bg-mid-gray/5 border border-mid-gray/10 rounded-md px-3 py-2">
                 <Flex justify="between" align="center">
                   <Heading size="3" className="text-logo-primary">
-                    {day}
+                    {label}
                   </Heading>
                   <Text size="2" color="gray">
                     {numberFormat.format(
-                      selectedDayTotals.get(day) ?? dayEntries.length,
+                      selectedDayTotals.get(id) ?? dayEntries.length,
                     )}
                   </Text>
                 </Flex>
