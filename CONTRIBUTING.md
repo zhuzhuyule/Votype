@@ -271,9 +271,8 @@ Look for issues labeled `good first issue` or `help wanted` if you're new to the
 
 ## 📞 Getting Help
 
-- **Discord**: Join our [Discord community](https://discord.com/invite/WVBeWsNXK4)
 - **Discussions**: Ask questions in [GitHub Discussions](https://github.com/zhuzhuyule/Votype/discussions)
-- **Email**: Reach out at [contact@votype.computer](mailto:contact@votype.computer)
+- **Email**: Reach out at [votype@ause.cc](mailto:votype@ause.cc)
 
 ## 📜 License
 

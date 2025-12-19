@@ -1,18 +1,16 @@
-import { Flex, Text } from "@radix-ui/themes";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import {
   IconAdjustments,
   IconBrain,
-  IconInfoSquare,
+  IconInfoCircle,
   IconKeyboard,
   IconLayoutDashboard,
   IconSettings,
   IconSparkles,
 } from "@tabler/icons-react";
-import React, { lazy } from "react";
+import React, { lazy, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useSettings } from "../hooks/useSettings";
 import VotypeHand from "./icons/VotypeHand";
-
 // 使用懒加载导入所有设置组件，减少初始 bundle 大小
 const Dashboard = lazy(() =>
   import("./settings/dashboard/Dashboard").then((m) => ({
@@ -83,7 +81,6 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "2",
   },
-
   advanced: {
     labelKey: "sidebar.advanced",
     icon: IconAdjustments,
@@ -114,14 +111,14 @@ export const SECTIONS_CONFIG = {
   },
   about: {
     labelKey: "sidebar.about",
-    icon: IconInfoSquare,
+    icon: IconInfoCircle,
     component: AboutSettings,
     enabled: () => true,
     shortcutKey: "7",
   },
 } as const satisfies Record<string, SectionConfig>;
 
-// Canonical section order - used for navigation direction detection
+// Canonical section order
 export const SECTION_ORDER: SidebarSection[] = [
   "dashboard",
   "general",
@@ -137,10 +134,77 @@ interface SidebarProps {
   onSectionChange: (section: SidebarSection) => void;
 }
 
-type SectionWithLabel = SectionConfig & {
-  id: SidebarSection;
-  label: string;
-  shortcutKey: string;
+const SidebarItem: React.FC<{
+  section: SectionConfig & { id: string; label: string };
+  isActive: boolean;
+  onClick: () => void;
+}> = ({ section, isActive, onClick }) => {
+  const Icon = section.icon;
+
+  const handleClick = useCallback(() => {
+    onClick();
+  }, [onClick]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onClick();
+      }
+    },
+    [onClick],
+  );
+
+  return (
+    <Flex
+      align="center"
+      justify="between"
+      px="3"
+      py="2"
+      role="button"
+      tabIndex={0}
+      aria-selected={isActive}
+      className={`w-full cursor-pointer rounded-xl transition-all duration-200 group ${
+        isActive
+          ? "bg-[var(--accent-a3)] shadow-sm border border-[var(--accent-a4)]"
+          : "hover:bg-[var(--gray-a3)] opacity-70 hover:opacity-100 border border-transparent"
+      }`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+    >
+      <Flex gap="3" align="center">
+        <Box
+          className={`transition-transform duration-200 ${isActive ? "scale-110" : "group-hover:scale-105"}`}
+        >
+          <Icon
+            size={20}
+            stroke={isActive ? 2 : 1.5}
+            color={isActive ? "var(--accent-9)" : "currentColor"}
+          />
+        </Box>
+        <Text
+          size="2"
+          weight={isActive ? "bold" : "medium"}
+          className={
+            isActive ? "text-[var(--accent-11)]" : "text-[var(--gray-11)]"
+          }
+        >
+          {section.label}
+        </Text>
+      </Flex>
+      <Flex
+        align="center"
+        justify="center"
+        className={`w-5 h-5 rounded-md border text-[10px] font-mono transition-colors ${
+          isActive
+            ? "bg-[var(--accent-9)] border-transparent text-white shadow-sm"
+            : "bg-[var(--gray-2)] border-[var(--gray-5)] text-[var(--gray-9)]"
+        }`}
+      >
+        {section.shortcutKey}
+      </Flex>
+    </Flex>
+  );
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -148,63 +212,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSectionChange,
 }) => {
   const { t } = useTranslation();
-  const { settings } = useSettings();
 
-  const availableSections: SectionWithLabel[] = Object.entries(SECTIONS_CONFIG)
-    .filter(([_, config]) => config.enabled())
-    .map(([id, config]) => ({
-      id: id as SidebarSection,
-      ...config,
-      label: t(config.labelKey),
-    }));
+  const sections = Object.entries(SECTIONS_CONFIG).map(([id, config]) => ({
+    id,
+    ...config,
+    label: t(config.labelKey),
+  }));
 
   return (
     <Flex
       direction="column"
-      className="w-40 h-full border-r border-mid-gray/20 items-center px-2"
+      className="w-56 h-full border-r border-[var(--gray-5)] bg-[var(--gray-1)] select-none"
     >
-      <VotypeHand size={24} />
-      <Flex direction="column" className="w-full items-center gap-1 pt-2">
-        {availableSections.map((section) => {
-          const Icon = section.icon;
-          const isActive = activeSection === section.id;
+      {/* Logo Area */}
+      <Flex align="center" justify="center" className="pt-5">
+        <VotypeHand size={30} />
+      </Flex>
 
-          return (
-            <Flex
+      {/* Divider with center dot */}
+      <Flex align="center" justify="center" className="relative mx-8 mb-5 mt-1">
+        <Box className="absolute inset-x-0 h-px bg-[var(--gray-3)]" />
+        <Box className="relative z-10 px-2 bg-[var(--gray-1)]">
+          <Box className="w-1.5 h-1.5 rounded-full bg-[var(--gray-3)]" />
+        </Box>
+      </Flex>
+
+      <Flex
+        direction="column"
+        gap="5"
+        px="3"
+        className="flex-1 overflow-y-auto"
+      >
+        <Flex direction="column" gap="1">
+          {sections.map((section) => (
+            <SidebarItem
               key={section.id}
-              align="center"
-              justify="between"
-              p="2"
-              className={`w-full cursor-pointer rounded-lg transition-colors ${
-                isActive
-                  ? ""
-                  : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              }`}
-              style={
-                isActive
-                  ? {
-                      backgroundColor: "var(--accent-9)",
-                      color: "white",
-                    }
-                  : undefined
-              }
-              onClick={() => onSectionChange(section.id)}
-            >
-              <Flex gap="2" align="center">
-                <Icon width={24} height={24} />
-                <Text size="2" weight="medium">
-                  {section.label}
-                </Text>
-              </Flex>
-              <Text
-                size="1"
-                className={`${isActive ? "opacity-90" : "opacity-50"}`}
-              >
-                {section.shortcutKey}
-              </Text>
-            </Flex>
-          );
-        })}
+              section={section}
+              isActive={activeSection === section.id}
+              onClick={() => onSectionChange(section.id as SidebarSection)}
+            />
+          ))}
+        </Flex>
       </Flex>
     </Flex>
   );

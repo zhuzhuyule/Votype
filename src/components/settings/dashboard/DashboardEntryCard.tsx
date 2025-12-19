@@ -65,34 +65,17 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     const [retranscribing, setRetranscribing] = useState(false);
     const [reprocessing, setReprocessing] = useState(false);
 
-    const onReprocessClick = async (promptId: string) => {
-      console.log(
-        `[DashboardEntryCard] onReprocessClick triggered for prompt: ${promptId}`,
-      );
-      if (reprocessing) return;
+    const hasImprovement = !!entry.post_processed_text?.trim();
+    const hasStreaming = !!entry.streaming_text?.trim();
 
-      // Logic: Pick text from the currently active tab
-      let inputText = entry.transcription_text;
-      if (activeTab === "improved") {
-        inputText = entry.post_processed_text ?? entry.transcription_text;
-      } else if (activeTab === "streaming") {
-        inputText = entry.streaming_text ?? entry.transcription_text;
-      }
-
-      console.log(
-        `[DashboardEntryCard] Processing with input: ${inputText?.substring(0, 50)}...`,
-      );
-
-      setReprocessing(true);
-      try {
-        await onReprocess(entry.id, promptId, inputText ?? undefined);
+    // Auto-reset tab to the first/best one when entry changes or gets processed
+    React.useEffect(() => {
+      if (hasImprovement) {
         setActiveTab("improved");
-      } catch (e) {
-        console.error("[DashboardEntryCard] Reprocess failed", e);
-      } finally {
-        setReprocessing(false);
+      } else {
+        setActiveTab("original");
       }
-    };
+    }, [entry.id, hasImprovement]);
 
     const onRetranscribeClick = async () => {
       console.log(
@@ -126,9 +109,6 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
         setIsLoadingAudio(false);
       }
     }, [audioUrl, isLoadingAudio, entry.file_name, getAudioUrl]);
-
-    const hasImprovement = !!entry.post_processed_text?.trim();
-    const hasStreaming = !!entry.streaming_text?.trim();
 
     // Logic: Find the prompt object used for this entry
     const usedPrompt = useMemo(() => {

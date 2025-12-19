@@ -9,6 +9,7 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 // Local imports for featured icons to ensure they are bundled and work offline
 import {
   IconBell,
@@ -110,19 +111,20 @@ const FEATURED_NAMES = Object.keys(FEATURED_ICONS_MAP);
  * 3. Local Tabler component names (starts with Icon)
  * 4. Fallback IconWand
  */
-export const DynamicIcon = ({
-  name,
-  ...props
-}: {
-  name: string;
-  [key: string]: any;
-}) => {
+export const DynamicIcon = React.forwardRef<
+  HTMLElement,
+  {
+    name: string;
+    [key: string]: any;
+  }
+>(({ name, ...props }, ref) => {
   if (!name) return <IconWand size={props.size || 18} {...props} />;
 
   // 1. Raw SVG String support
   if (name.startsWith("<svg")) {
     return (
       <div
+        ref={ref as React.Ref<HTMLDivElement>}
         style={{
           width: props.size || 18,
           height: props.size || 18,
@@ -140,6 +142,7 @@ export const DynamicIcon = ({
   if (name.startsWith("data:image") || name.startsWith("http")) {
     return (
       <img
+        ref={ref as React.Ref<HTMLImageElement>}
         src={name}
         alt="icon"
         style={{
@@ -162,7 +165,9 @@ export const DynamicIcon = ({
 
   // 4. Iconify string (fallback)
   return <IconifyIcon icon={name} fontSize={props.size || 18} {...props} />;
-};
+});
+
+DynamicIcon.displayName = "DynamicIcon";
 
 interface IconPickerProps {
   value?: string | null;

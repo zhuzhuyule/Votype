@@ -1,291 +1,195 @@
-# Votype
-
-[![Discord](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/invite/WVBeWsNXK4)
-
-**A free, open source, and extensible speech-to-text application that works completely offline.**
-
-Votype is a cross-platform desktop application built with Tauri (Rust + React/TypeScript) that provides simple, privacy-focused speech transcription. Press a shortcut, speak, and have your words appear in any text field—all without sending your voice to the cloud.
-
-## Why Votype?
-
-Votype was created to fill the gap for a truly open source, extensible speech-to-text tool. As stated on [votype.com](https://votype.com):
-
-- **Free**: Accessibility tooling belongs in everyone's hands, not behind a paywall
-- **Open Source**: Together we can build further. Extend Votype for yourself and contribute to something bigger
-- **Private**: Your voice stays on your computer. Get transcriptions without sending audio to the cloud
-- **Simple**: One tool, one job. Transcribe what you say and put it into a text box
-
-Votype isn't trying to be the best speech-to-text app—it's trying to be the most forkable one.
-
-## How It Works
-
-1. **Press** a configurable keyboard shortcut to start/stop recording (or use push-to-talk mode)
-2. **Speak** your words while the shortcut is active
-3. **Release** and Votype processes your speech using Whisper
-4. **Get** your transcribed text pasted directly into whatever app you're using
-
-The process is entirely local:
-
-- Silence is filtered using VAD (Voice Activity Detection) with Silero
-- Transcription uses your choice of models:
-  - **Whisper models** (Small/Medium/Turbo/Large) with GPU acceleration when available
-  - **Parakeet V3** - CPU-optimized model with excellent performance and automatic language detection
-- Works on Windows, macOS, and Linux
-
-## Quick Start
-
-### Installation
-
-1. Download the latest release from the [releases page](https://github.com/zhuzhuyule/Handy/releases) or the [website](https://votype.com)
-2. Install the application following platform-specific instructions
-3. Launch Votype and grant necessary system permissions (microphone, accessibility)
-4. Configure your preferred keyboard shortcuts in Settings
-5. Start transcribing!
-
-### Development Setup
-
-For detailed build instructions including platform-specific requirements, see [BUILD.md](BUILD.md).
-
-## Architecture
-
-Votype is built as a Tauri application combining:
-
-- **Frontend**: React + TypeScript with Tailwind CSS for the settings UI
-- **Backend**: Rust for system integration, audio processing, and ML inference
-- **Core Libraries**:
-  - `whisper-rs`: Local speech recognition with Whisper models
-  - `transcription-rs`: CPU-optimized speech recognition with Parakeet models
-  - `cpal`: Cross-platform audio I/O
-  - `vad-rs`: Voice Activity Detection
-  - `rdev`: Global keyboard shortcuts and system events
-  - `rubato`: Audio resampling
-
-### Debug Mode
-
-Votype includes an advanced debug mode for development and troubleshooting. Access it by pressing:
-
-- **macOS**: `Cmd+Shift+D`
-- **Windows/Linux**: `Ctrl+Shift+D`
-
-## Known Issues & Current Limitations
-
-This project is actively being developed and has some [known issues](https://github.com/zhuzhuyule/Handy/issues). We believe in transparency about the current state:
-
-### Major Issues (Help Wanted)
-
-**Whisper Model Crashes:**
-
-- Whisper models crash on certain system configurations (Windows and Linux)
-- Does not affect all systems - issue is configuration-dependent
-  - If you experience crashes and are a developer, please help to fix and provide debug logs!
-
-**Wayland Support (Linux):**
-
-- Limited or no support for Wayland display server
-- On Wayland the clipboard-based paste options (`Clipboard (CTRL+V)` / `Clipboard (Shift+Insert)`) copy the transcription once, then try to run [`wtype`](https://github.com/atx/wtype) (preferred) or [`dotool`](https://sr.ht/~geb/dotool/) to fire the paste keystroke. Install one of these tools to let Votype drive the compositor-friendly paste shortcut; otherwise it falls back to Enigo-generated key events, which may not work on Wayland.
-
-### Linux Notes
-
-- The recording overlay is disabled by default on Linux (`Overlay Position: None`) because certain compositors treat it as the active window. When the overlay is visible it can steal focus, which prevents Votype from pasting back into the application that triggered transcription. If you enable the overlay anyway, be aware that clipboard-based pasting might fail or end up in the wrong window.
-- If you are having trouble with the app, running with the environment variable `WEBKIT_DISABLE_DMABUF_RENDERER=1` may help
-- You can manage global shortcuts outside of Votype and still control the app via signals. Sending `SIGUSR2` to the Votype process toggles recording on/off, which lets Wayland window managers or other hotkey daemons keep ownership of keybindings. Example (Sway):
-
-  ```ini
-  bindsym $mod+o exec pkill -USR2 -n votype
-  ```
-
-  `pkill` here simply delivers the signal—it does not terminate the process.
-
-### Platform Support
-
-- **macOS (both Intel and Apple Silicon)**
-- **x64 Windows**
-- **x64 Linux**
-
-### System Requirements/Recommendations
-
-The following are recommendations for running Votype on your own machine. If you don't meet the system requirements, the performance of the application may be degraded. We are working on improving the performance across all kinds of computers and hardware.
-
-**For Whisper Models:**
-
-- **macOS**: M series Mac, Intel Mac
-- **Windows**: Intel, AMD, or NVIDIA GPU
-- **Linux**: Intel, AMD, or NVIDIA GPU
-  - Ubuntu 22.04, 24.04
-
-**For Parakeet V3 Model:**
-
-- **CPU-only operation** - runs on a wide variety of hardware
-- **Minimum**: Intel Skylake (6th gen) or equivalent AMD processors
-- **Performance**: ~5x real-time speed on mid-range hardware (tested on i5)
-- **Automatic language detection** - no manual language selection required
-
-## Roadmap & Active Development
-
-We're actively working on several features and improvements. Contributions and feedback are welcome!
-
-### In Progress
-
-**Debug Logging:**
-
-- Adding debug logging to a file to help diagnose issues
-
-**macOS Keyboard Improvements:**
-
-- Support for Globe key as transcription trigger
-- A rewrite of global shortcut handling for MacOS, and potentially other OS's too.
-
-**Opt-in Analytics:**
-
-- Collect anonymous usage data to help improve Votype
-- Privacy-first approach with clear opt-in
-
-**Settings Refactoring:**
-
-- Cleanup and refactor settings system which is becoming bloated and messy
-- Implement better abstractions for settings management
-
-**Tauri Commands Cleanup:**
-
-- Abstract and organize Tauri command patterns
-- Investigate tauri-specta for improved type safety and organization
-
-## Troubleshooting
-
-### Manual Model Installation (For Proxy Users or Network Restrictions)
-
-If you're behind a proxy, firewall, or in a restricted network environment where Votype cannot download models automatically, you can manually download and install them. The URLs are publicly accessible from any browser.
-
-#### Step 1: Find Your App Data Directory
-
-1. Open Votype settings
-2. Navigate to the **About** section
-3. Copy the "App Data Directory" path shown there, or use the shortcuts:
-   - **macOS**: `Cmd+Shift+D` to open debug menu
-   - **Windows/Linux**: `Ctrl+Shift+D` to open debug menu
-
-The typical paths are:
-
-- **macOS**: `~/Library/Application Support/com.votype.app/`
-- **Windows**: `C:\Users\{username}\AppData\Roaming\com.votype.app\`
-- **Linux**: `~/.config/com.votype.app/`
-
-#### Step 2: Create Models Directory
-
-Inside your app data directory, create a `models` folder if it doesn't already exist:
-
-```bash
-# macOS/Linux
-mkdir -p ~/Library/Application\ Support/com.votype.app/models
-
-# Windows (PowerShell)
-New-Item -ItemType Directory -Force -Path "$env:APPDATA\com.votype.app\models"
-```
-
-#### Step 3: Download Model Files
-
-Download the models you want from below
-
-**Whisper Models (single .bin files):**
-
-- Small (487 MB): `https://blob.handy.computer/ggml-small.bin`
-- Medium (492 MB): `https://blob.handy.computer/whisper-medium-q4_1.bin`
-- Turbo (1600 MB): `https://blob.handy.computer/ggml-large-v3-turbo.bin`
-- Large (1100 MB): `https://blob.handy.computer/ggml-large-v3-q5_0.bin`
-
-**Parakeet Models (compressed archives):**
-
-- V2 (473 MB): `https://blob.handy.computer/parakeet-v2-int8.tar.gz`
-- V3 (478 MB): `https://blob.handy.computer/parakeet-v3-int8.tar.gz`
-
-#### Step 4: Install Models
-
-**For Whisper Models (.bin files):**
-
-Simply place the `.bin` file directly into the `models` directory:
-
-```
-{app_data_dir}/models/
-├── ggml-small.bin
-├── whisper-medium-q4_1.bin
-├── ggml-large-v3-turbo.bin
-└── ggml-large-v3-q5_0.bin
-```
-
-**For Parakeet Models (.tar.gz archives):**
-
-1. Extract the `.tar.gz` file
-2. Place the **extracted directory** into the `models` folder
-3. The directory must be named exactly as follows:
-   - **Parakeet V2**: `parakeet-tdt-0.6b-v2-int8`
-   - **Parakeet V3**: `parakeet-tdt-0.6b-v3-int8`
-
-Final structure should look like:
-
-```
-{app_data_dir}/models/
-├── parakeet-tdt-0.6b-v2-int8/     (directory with model files inside)
-│   ├── (model files)
-│   └── (config files)
-└── parakeet-tdt-0.6b-v3-int8/     (directory with model files inside)
-    ├── (model files)
-    └── (config files)
-```
-
-**Important Notes:**
-
-- For Parakeet models, the extracted directory name **must** match exactly as shown above
-- Do not rename the `.bin` files for Whisper models—use the exact filenames from the download URLs
-- After placing the files, restart Votype to detect the new models
-
-#### Step 5: Verify Installation
-
-1. Restart Votype
-2. Open Settings → Models
-3. Your manually installed models should now appear as "Downloaded"
-4. Select the model you want to use and test transcription
-
-### How to Contribute
-
-1. **Check existing issues** at [existing issues](https://github.com/zhuzhuyule/Handy/issues)
-2. **Fork the repository** and create a feature branch
-3. **Test thoroughly** on your target platform
-4. **Submit a pull request** with clear description of changes
-5. **Join the discussion** - reach out at [contact@votype.com](mailto:contact@votype.com)
-
-The goal is to create both a useful tool and a foundation for others to build upon—a well-patterned, simple codebase that serves the community.
-
-## Sponsors
-
-<div align="center">
-  We're grateful for the support of our sponsors who help make Votype possible:
-  <br><br>
-  <a href="https://wordcab.com">
-    <img src="sponsor-images/wordcab.png" alt="Wordcab" width="120" height="120">
-  </a>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/epicenter-so/epicenter">
-    <img src="sponsor-images/epicenter.png" alt="Epicenter" width="120" height="120">
-  </a>
-</div>
-
-## Related Projects
-
-- **[Votype CLI](https://github.com/cjpais/votype-cli)** - The original Python command-line version
-- **[votype.com](https://votype.com)** - Project website with demos and documentation
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **Whisper** by OpenAI for the speech recognition model
-- **whisper.cpp and ggml** for amazing cross-platform whisper inference/acceleration
-- **Silero** for great lightweight VAD
-- **Tauri** team for the excellent Rust-based app framework
-- **Community contributors** helping make Votype better
+<p align="center">
+  <img src="src-tauri/icons/icon-macos.svg" width="120" height="120" alt="Votype Logo">
+</p>
+
+<h1 align="center">Votype</h1>
+
+<p align="center">
+  <strong>A free, open source, and extensible speech-to-text application that works completely offline.</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/zhuzhuyule/Votype/releases"><img src="https://img.shields.io/github/v/release/zhuzhuyule/Votype?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/zhuzhuyule/Votype/blob/main/LICENSE"><img src="https://img.shields.io/github/license/zhuzhuyule/Votype?style=flat-square" alt="License"></a>
+  <a href="https://github.com/zhuzhuyule/Votype/stargazers"><img src="https://img.shields.io/github/stars/zhuzhuyule/Votype?style=flat-square" alt="Stars"></a>
+</p>
+
+<p align="center">
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#%EF%B8%8F-supported-models">Models</a> •
+  <a href="#-ai-post-processing">AI Processing</a> •
+  <a href="#-contributing">Contributing</a>
+</p>
+
+<p align="center">
+  <b>Language / 语言:</b>&nbsp;&nbsp;
+  <strong>English</strong> |
+  <a href="./docs/README_ZH.md">中文</a>
+</p>
 
 ---
 
-_"Your search for the right speech-to-text tool can end here—not because Votype is perfect, but because you can make it perfect for you."_
+## ✨ Features
+
+### 🎤 Local Speech Recognition
+
+- **100% Offline** - Your voice never leaves your device
+- **Multiple Engines** - Whisper, Sherpa-ONNX (Paraformer, SenseVoice, Transducer), Parakeet
+- **Streaming Recognition** - Real-time transcription as you speak
+- **Auto Language Detection** - Works with Chinese, English, Japanese, Korean, and more
+- **Custom Vocabulary** - Add domain-specific terms for better accuracy
+
+### 🌐 Online ASR (Optional)
+
+- **Cloud ASR Integration** - Use cloud providers for enhanced accuracy
+- **Hybrid Mode** - Combine local + cloud for best results
+- **Dual Candidate Mode** - Compare local and online results
+
+### 🤖 AI Post-Processing
+
+- **LLM Enhancement** - Clean, format, and improve transcriptions with AI
+- **Multiple Providers** - OpenAI, Anthropic, OpenRouter, Apple Intelligence, or custom endpoints
+- **Command Aliases** - Trigger specific prompts with voice commands (e.g., "translate to English")
+- **Custom Prompts** - Create your own processing workflows with custom icons
+
+### 🎨 Modern UI/UX
+
+- **Dashboard** - View transcription history with audio playback
+- **Processing Chain Badges** - See which models processed each entry
+- **Icon Picker** - Choose icons for your custom prompts (40+ built-in + Iconify search)
+- **Theme Customization** - Light/Dark mode, accent colors, corner radius
+- **8 Languages** - English, 中文, 日本語, 한국어, Deutsch, Español, Français, Tiếng Việt
+
+### ⚡ Productivity
+
+- **Global Hotkeys** - Trigger transcription from anywhere
+- **Push-to-Talk** or Toggle mode
+- **Smart Paste** - Direct input, Ctrl+V, or clipboard
+- **Recording Overlay** - Visual feedback while recording
+- **Audio Feedback** - Customizable start/stop sounds
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+1. Download from [Releases](https://github.com/zhuzhuyule/Votype/releases)
+2. Install and grant permissions (microphone, accessibility)
+3. Press the hotkey (default: `Option+Space` on macOS, `Ctrl+Space` on Windows/Linux)
+4. Speak and release - your text appears instantly!
+
+### System Requirements
+
+| Platform    | Requirements                   |
+| :---------- | :----------------------------- |
+| **macOS**   | 10.13+, Intel or Apple Silicon |
+| **Windows** | Windows 10+, x64 or ARM64      |
+| **Linux**   | x64, Ubuntu 22.04+ recommended |
+
+---
+
+## 🗣️ Supported Models
+
+### Offline ASR Engines
+
+| Engine                | Languages    | Speed        | Notes                  |
+| :-------------------- | :----------- | :----------- | :--------------------- |
+| **Sherpa Paraformer** | zh, en, yue  | ⚡ Fast      | Streaming support      |
+| **Sherpa SenseVoice** | Multilingual | ⚡ Fast      | Best for Chinese       |
+| **Sherpa Transducer** | Various      | ⚡⚡ Fastest | Zipformer architecture |
+| **Whisper**           | 99 languages | 🔋 Moderate  | GPU acceleration       |
+| **Parakeet**          | en           | 🔋 Moderate  | CPU optimized          |
+
+### Real-time Features
+
+- **VAD (Voice Activity Detection)** - Powered by Silero
+- **Auto Punctuation** - Add punctuation automatically
+- **ITN (Inverse Text Normalization)** - Convert "twenty five" to "25"
+
+---
+
+## 🤖 AI Post-Processing
+
+Transform raw transcriptions into polished text:
+
+### Supported Providers
+
+| Provider           | Notes                        |
+| :----------------- | :--------------------------- |
+| OpenAI             | GPT-4, GPT-3.5, etc.         |
+| Anthropic          | Claude models                |
+| OpenRouter         | Access to 100+ models        |
+| Apple Intelligence | macOS 15+ Apple Silicon only |
+| Custom             | Any OpenAI-compatible API    |
+
+### Command Aliases
+
+Trigger specific prompts by voice:
+
+- Say "translate to English" → Triggers translation prompt
+- Say "summarize this" → Triggers summary prompt
+- Configurable command prefixes (e.g., "please", "帮我")
+
+### Custom Prompts
+
+Create workflows for:
+
+- 📝 Grammar & spelling correction
+- 🌐 Translation
+- 📋 Summarization
+- 🔄 Format conversion
+- Custom icons for each prompt
+
+---
+
+## 🛠 Architecture
+
+Built with modern technologies:
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS v4, Radix UI
+- **Backend**: Tauri v2 (Rust), whisper-rs, sherpa-rs-sys
+- **Audio**: cpal, rubato, vad-rs (Silero)
+- **State**: Zustand, SQLite
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+```bash
+# Clone and setup
+git clone https://github.com/zhuzhuyule/Votype.git
+cd Votype
+bun install
+
+# Development
+bun tauri dev
+
+# Build
+bun tauri build
+```
+
+---
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **OpenAI Whisper** - Speech recognition model
+- **whisper.cpp & ggml** - Cross-platform inference
+- **Sherpa-ONNX** - Streaming ASR framework
+- **Silero** - Voice Activity Detection
+- **Tauri** - Desktop app framework
+
+---
+
+<p align="center">
+  <i>"Your search for the right speech-to-text tool can end here—not because Votype is perfect, but because you can make it perfect for you."</i>
+</p>
