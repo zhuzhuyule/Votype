@@ -70,7 +70,7 @@ pub struct ModelInfo {
     #[serde(default)]
     pub tags: Option<Vec<String>>,
     #[serde(default)]
-    pub is_default: bool,    // True if it is a built-in default model
+    pub is_default: bool, // True if it is a built-in default model
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -821,11 +821,11 @@ impl ModelManager {
         // Check if it already exists
         {
             let mut models = self.available_models.lock().unwrap();
-            
+
             if models.contains_key(&preferred_id) {
                 // It exists. Check if it's a user model we can update.
                 drop(models); // Release lock before file operations
-                
+
                 let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
                 if let Some(pos) = entries.iter().position(|e| e.id == preferred_id) {
                     // Update existing user model
@@ -835,9 +835,9 @@ impl ModelManager {
                     if let Some(t) = tags.clone() {
                         entries[pos].tags = Some(t);
                     }
-                    
+
                     Self::write_user_catalog(&self.user_catalog_path, &entries)?;
-                    
+
                     // Update in-memory
                     let mut models = self.available_models.lock().unwrap();
                     if let Some(m) = models.get_mut(&preferred_id) {
@@ -1416,17 +1416,20 @@ impl ModelManager {
         let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
         let initial_len = entries.len();
         entries.retain(|e| e.id != model_id);
-        
+
         if entries.len() == initial_len {
-            return Err(anyhow::anyhow!("Custom model not found in catalog: {}", model_id));
+            return Err(anyhow::anyhow!(
+                "Custom model not found in catalog: {}",
+                model_id
+            ));
         }
-        
+
         Self::write_user_catalog(&self.user_catalog_path, &entries)?;
 
         // 2. Remove files if requested
         if delete_files {
             // We use the existing logic but ignore error if files don't exist
-            let _ = self.delete_model(model_id); 
+            let _ = self.delete_model(model_id);
         }
 
         // 3. Remove from in-memory map
@@ -1434,7 +1437,7 @@ impl ModelManager {
             let mut models = self.available_models.lock().unwrap();
             models.remove(model_id);
         }
-        
+
         // 4. Update download status (triggers refresh in frontend usually)
         self.update_download_status()?;
 

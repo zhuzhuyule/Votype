@@ -195,8 +195,7 @@ pub async fn retranscribe_history_entry(
                 maybe_post_process_transcription(&app, &settings, &transcription_text, None, false)
                     .await;
 
-            if let Some(processed) = llm_result
-            {
+            if let Some(processed) = llm_result {
                 final_text = Some(processed);
 
                 // Find the prompt text to save

@@ -11,7 +11,12 @@
     "format": "prettier --write . && cd src-tauri && cargo fmt",
     "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
     "format:frontend": "prettier --write .",
-    "format:backend": "cd src-tauri && cargo fmt"
+    "format:backend": "cd src-tauri && cargo fmt",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write",
+    "src-tauri/**/*.rs": "bash -c 'cd src-tauri && cargo fmt'"
   },
   "dependencies": {
     "@radix-ui/themes": "^3.2.1",
@@ -44,6 +49,8 @@
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.6.2",
     "typescript": "~5.6.3",
     "vite": "^6.4.1"

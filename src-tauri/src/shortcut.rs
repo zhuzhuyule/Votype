@@ -462,7 +462,10 @@ pub fn change_post_process_base_url_setting(
     //     ));
     // }
 
-    println!("DEBUG: Updating Base URL for provider '{}' to '{}'", provider_id, base_url);
+    println!(
+        "DEBUG: Updating Base URL for provider '{}' to '{}'",
+        provider_id, base_url
+    );
 
     provider.base_url = base_url;
     settings::write_settings(&app, settings);
@@ -492,7 +495,11 @@ pub fn change_post_process_api_key_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
-    println!("DEBUG: Updating API Key for provider '{}' (length: {})", provider_id, api_key.len());
+    println!(
+        "DEBUG: Updating API Key for provider '{}' (length: {})",
+        provider_id,
+        api_key.len()
+    );
     settings.post_process_api_keys.insert(provider_id, api_key);
     settings::write_settings(&app, settings);
     Ok(())
@@ -948,7 +955,7 @@ pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Re
             settings
                 .post_process_models
                 .insert(model.provider_id.clone(), model.model_id.clone());
-            
+
             // Also switch the active provider to the one owning this model
             settings.post_process_provider_id = model.provider_id.clone();
         }
@@ -975,7 +982,7 @@ async fn fetch_models_manual(
     let endpoint = format!("{}/{}", base_url, models_endpoint);
 
     println!("DEBUG: Real Request URL: {}", endpoint);
-    
+
     // Create HTTP client with headers
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(
@@ -1045,7 +1052,7 @@ async fn fetch_models_manual(
         .text()
         .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
-    
+
     // println!("DEBUG: Response Body: {}", body_text); // Uncomment if needed, but might be large
 
     let parsed: serde_json::Value = serde_json::from_str(&body_text)
@@ -1071,10 +1078,17 @@ async fn fetch_models_manual(
             }
         }
     } else {
-        return Err(format!("Invalid response format: expected JSON array or object with 'data' array. Got: {:?}", parsed));
+        return Err(format!(
+            "Invalid response format: expected JSON array or object with 'data' array. Got: {:?}",
+            parsed
+        ));
     }
 
-    println!("DEBUG: Successfully parsed {} models: {:?}", models.len(), models);
+    println!(
+        "DEBUG: Successfully parsed {} models: {:?}",
+        models.len(),
+        models
+    );
 
     Ok(models)
 }
@@ -1474,11 +1488,13 @@ pub async fn test_post_process_model_inference(
 
     let client = crate::llm_client::create_client(provider, api_key)?;
 
-    let messages = vec![async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
-        .content(input.unwrap_or_else(|| "Please return OK".to_string()))
-        .build()
-        .map_err(|e| format!("Failed to build message: {}", e))?
-        .into()];
+    let messages = vec![
+        async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
+            .content(input.unwrap_or_else(|| "Please return OK".to_string()))
+            .build()
+            .map_err(|e| format!("Failed to build message: {}", e))?
+            .into(),
+    ];
 
     let request = async_openai::types::CreateChatCompletionRequestArgs::default()
         .model(model)

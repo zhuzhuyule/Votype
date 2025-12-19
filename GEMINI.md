@@ -58,4 +58,12 @@ The project uses **Bun** as the preferred package manager.
 - **Audio Pipeline:** The backend manages audio input via `cpal`, detects voice activity with `vad-rs` (Silero), and processes audio with various engines (`whisper-rs`, `transcribe-rs`).
 - **Formatting:** Run `bun run format` before committing to ensure code style consistency.
 
+## Git Commit Rules
+
+- **Language:** Messages must be in **English**.
+- **Content:** Generate messages based on `git status` and diffs.
+- **Style:** Use a **summary-driven approach**. The title should briefly summarize the _overall change_ and _intent_ (e.g., "Implement automatic formatting pre-commit hook").
+  - Avoid granular lists in the title (e.g., "Updated package.json, added .husky, changed tauri.conf...").
+  - Use the description body for detailed lists or granular changes if necessary.
+
 * 所有的回复始终都是用中文

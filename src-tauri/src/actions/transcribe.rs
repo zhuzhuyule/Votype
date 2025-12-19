@@ -653,7 +653,7 @@ impl ShortcutAction for TranscribeAction {
                                     true,
                                 )
                                 .await;
-                                
+
                                 error_shown = err;
 
                                 if let Some(text) = processed_text {
