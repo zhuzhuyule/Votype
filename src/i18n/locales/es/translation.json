@@ -300,6 +300,19 @@
     "postProcessing": {
       "title": "Post Proceso",
       "disabledNotice": "El post procesamiento está actualmente deshabilitado. Habilítalo en la configuración de Depuración para configurarlo.",
+      "fusion": {
+        "enabled": {
+          "description": "Proporcionar dos transcripciones al prompt de post-procesamiento: ${output} (final) y ${streaming_output} (secundaria).",
+          "label": "Usar transcripción en tiempo real (fusión)"
+        },
+        "secondaryModel": {
+          "auto": "Automático",
+          "autoDescription": "Usar modelo local actual",
+          "description": "Solo se usa cuando ASR en línea está habilitado. Este modelo local proporciona subtítulos en tiempo real y la transcripción secundaria.",
+          "placeholder": "Seleccionar modelo...",
+          "title": "Modelo de transcripción en tiempo real (ASR en línea)"
+        }
+      },
       "api": {
         "title": "API (Compatible con OpenAI)",
         "provider": {
@@ -700,64 +713,64 @@
   },
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "name": "Sherpa Chinese (CTC Small)",
-      "description": "ASR chino en streaming (Zipformer2 CTC); pequeño y extremadamente rápido (INT8); actualizado 2025-04-01."
+      "name": "Sherpa Chino (CTC Pequeño)",
+      "description": "ASR chino en streaming (Zipformer2 CTC); pequeño y extremadamente rápido (INT8); actualizado 01-04-2025."
     },
     "sherpa-zipformer-zh-int8-2025-06-30": {
-      "name": "Sherpa Chinese",
-      "description": "ASR chino en streaming; pequeño y extremadamente rápido (INT8); high accuracy; actualizado 2025-06-30."
+      "name": "Sherpa Chino",
+      "description": "ASR chino en streaming; pequeño y extremadamente rápido (INT8); alta precisión; actualizado 30-06-2025."
     },
     "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "name": "Sherpa Chinese XL",
-      "description": "ASR chino en streaming; larger model, fast (INT8); very high accuracy; actualizado 2025-06-30."
+      "name": "Sherpa Chino XL",
+      "description": "ASR chino en streaming; modelo más grande, rápido (INT8); muy alta precisión; actualizado 30-06-2025."
     },
     "sherpa-zipformer-en-kroko-2025-08-06": {
-      "name": "Sherpa English",
-      "description": "ASR inglés en streaming; small and very fast; good accuracy; actualizado 2025-08-06."
+      "name": "Sherpa Inglés",
+      "description": "ASR inglés en streaming; pequeño y muy rápido; buena precisión; actualizado 06-08-2025."
     },
     "sherpa-zipformer-de-kroko-2025-08-06": {
-      "name": "Sherpa German",
-      "description": "ASR alemán en streaming; small and very fast; good accuracy; actualizado 2025-08-06."
+      "name": "Sherpa Alemán",
+      "description": "ASR alemán en streaming; pequeño y muy rápido; buena precisión; actualizado 06-08-2025."
     },
     "sherpa-zipformer-es-kroko-2025-08-06": {
-      "name": "Sherpa Spanish",
-      "description": "ASR español en streaming; tamaño mediano y muy rápido; good accuracy; actualizado 2025-08-06."
+      "name": "Sherpa Español",
+      "description": "ASR español en streaming; tamaño mediano y muy rápido; buena precisión; actualizado 06-08-2025."
     },
     "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "name": "Sherpa French",
-      "description": "ASR francés en streaming; small and very fast; good accuracy; actualizado 2025-08-06."
+      "name": "Sherpa Francés",
+      "description": "ASR francés en streaming; pequeño y muy rápido; buena precisión; actualizado 06-08-2025."
     },
     "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "name": "Sherpa Russian",
-      "description": "ASR ruso en streaming; diminuto y extremadamente rápido (INT8); good accuracy; actualizado 2025-08-16."
+      "name": "Sherpa Ruso",
+      "description": "ASR ruso en streaming; diminuto y extremadamente rápido (INT8); buena precisión; actualizado 16-08-2025."
     },
     "sherpa-paraformer-zh-en-streaming": {
-      "name": "Sherpa Chinese + English (Paraformer)",
+      "name": "Sherpa Chino + Inglés (Paraformer)",
       "description": "Modelo zh+en en streaming. Bueno para subtítulos en tiempo real; rápido; precisión decente."
     },
     "sherpa-paraformer-zh-int8-2025-10-07": {
-      "name": "Sherpa Paraformer Chinese (INT8)",
-      "description": "ASR chino offline; INT8; fast; good accuracy; actualizado 2025-10-07."
+      "name": "Sherpa Paraformer Chino (INT8)",
+      "description": "ASR chino offline; INT8; rápido; buena precisión; actualizado 07-10-2025."
     },
     "sherpa-paraformer-zh-small-2024-03-09": {
-      "name": "Sherpa Paraformer Chinese (Small)",
-      "description": "ASR chino offline; small and rápido; precisión decente; actualizado 2024-03-09."
+      "name": "Sherpa Paraformer Chino (Pequeño)",
+      "description": "ASR chino offline; pequeño y rápido; precisión decente; actualizado 09-03-2024."
     },
     "sherpa-paraformer-trilingual-zh-cantonese-en": {
       "name": "Sherpa Paraformer Zh+Yue+En",
-      "description": "ASR trilingüe offline (Chinese/Cantonese/English); large; good accuracy."
+      "description": "ASR trilingüe offline (Chino/Cantonés/Inglés); grande; buena precisión."
     },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "name": "SenseVoice Multilingual",
-      "description": "Modelo offline para Chino/Inglés/Japonés/Coreano/Cantonés. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+      "name": "SenseVoice Multilingüe",
+      "description": "Modelo offline para Chino/Inglés/Japonés/Coreano/Cantonés. Cuantizado Int8; velocidad y memoria media. Actualizado 09-09-2025."
     },
     "punct-zh-en-ct-transformer-2024-04-12-int8": {
-      "name": "Punctuation (Chinese + English)",
-      "description": "Añade puntuación y saltos de oración for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+      "name": "Puntuación (Chino + Inglés)",
+      "description": "Añade puntuación y saltos de oración para texto mixto zh+en. Int8; rápido y pequeño. Actualizado 12-04-2024."
     },
     "punct-zh-en-ct-transformer-2024-04-12": {
-      "name": "Punctuation (Chinese + English) Large",
-      "description": "Añade puntuación y saltos de oración for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+      "name": "Puntuación (Chino + Inglés) Grande",
+      "description": "Añade puntuación y saltos de oración para texto mixto zh+en. Modelo más grande; más preciso pero más lento. Actualizado 12-04-2024."
     },
     "small": {
       "name": "Whisper Small",

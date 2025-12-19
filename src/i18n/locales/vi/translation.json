@@ -300,6 +300,19 @@
     "postProcessing": {
       "title": "Xử lý sau",
       "disabledNotice": "Xử lý sau hiện đang bị tắt. Bật nó trong cài đặt Gỡ lỗi để cấu hình.",
+      "fusion": {
+        "enabled": {
+          "description": "Cung cấp hai bản ghi cho prompt xử lý sau: ${output} (cuối cùng) và ${streaming_output} (phụ).",
+          "label": "Sử dụng bản ghi thời gian thực (hợp nhất)"
+        },
+        "secondaryModel": {
+          "auto": "Tự động",
+          "autoDescription": "Sử dụng mô hình cục bộ hiện tại",
+          "description": "Chỉ được sử dụng khi ASR Trực tuyến được bật. Mô hình cục bộ này cung cấp phụ đề thời gian thực và bản ghi phụ.",
+          "placeholder": "Chọn mô hình...",
+          "title": "Mô hình chuyển đổi thời gian thực (ASR Trực tuyến)"
+        }
+      },
       "api": {
         "title": "API (Tương thích OpenAI)",
         "provider": {
@@ -701,64 +714,64 @@
   "_comment": "Vietnamese translation for Votype.",
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "name": "Sherpa Chinese (CTC Small)",
-      "description": "ASR tiếng Trung trực tuyến (Zipformer2 CTC); nhỏ và cực nhanh (INT8); cập nhật 2025-04-01."
+      "name": "Sherpa Trung Quốc (CTC Nhỏ)",
+      "description": "ASR tiếng Trung trực tuyến (Zipformer2 CTC); nhỏ và cực nhanh (INT8); cập nhật 01/04/2025."
     },
     "sherpa-zipformer-zh-int8-2025-06-30": {
-      "name": "Sherpa Chinese",
-      "description": "ASR tiếng Trung trực tuyến; nhỏ và cực nhanh (INT8); high accuracy; cập nhật 2025-06-30."
+      "name": "Sherpa Trung Quốc",
+      "description": "ASR tiếng Trung trực tuyến; nhỏ và cực nhanh (INT8); độ chính xác cao; cập nhật 30/06/2025."
     },
     "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "name": "Sherpa Chinese XL",
-      "description": "ASR tiếng Trung trực tuyến; larger model, fast (INT8); very high accuracy; cập nhật 2025-06-30."
+      "name": "Sherpa Trung Quốc XL",
+      "description": "ASR tiếng Trung trực tuyến; mô hình lớn hơn, nhanh (INT8); độ chính xác rất cao; cập nhật 30/06/2025."
     },
     "sherpa-zipformer-en-kroko-2025-08-06": {
-      "name": "Sherpa English",
-      "description": "ASR tiếng Anh trực tuyến; small and very fast; good accuracy; cập nhật 2025-08-06."
+      "name": "Sherpa Tiếng Anh",
+      "description": "ASR tiếng Anh trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
     },
     "sherpa-zipformer-de-kroko-2025-08-06": {
-      "name": "Sherpa German",
-      "description": "ASR tiếng Đức trực tuyến; small and very fast; good accuracy; cập nhật 2025-08-06."
+      "name": "Sherpa Tiếng Đức",
+      "description": "ASR tiếng Đức trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
     },
     "sherpa-zipformer-es-kroko-2025-08-06": {
-      "name": "Sherpa Spanish",
-      "description": "ASR tiếng Tây Ban Nha trực tuyến; kích thước vừa và rất nhanh; good accuracy; cập nhật 2025-08-06."
+      "name": "Sherpa Tiếng Tây Ban Nha",
+      "description": "ASR tiếng Tây Ban Nha trực tuyến; kích thước vừa và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
     },
     "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "name": "Sherpa French",
-      "description": "ASR tiếng Pháp trực tuyến; small and very fast; good accuracy; cập nhật 2025-08-06."
+      "name": "Sherpa Tiếng Pháp",
+      "description": "ASR tiếng Pháp trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
     },
     "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "name": "Sherpa Russian",
-      "description": "ASR tiếng Nga trực tuyến; siêu nhỏ và cực nhanh (INT8); good accuracy; cập nhật 2025-08-16."
+      "name": "Sherpa Tiếng Nga",
+      "description": "ASR tiếng Nga trực tuyến; siêu nhỏ và cực nhanh (INT8); độ chính xác tốt; cập nhật 16/08/2025."
     },
     "sherpa-paraformer-zh-en-streaming": {
-      "name": "Sherpa Chinese + English (Paraformer)",
+      "name": "Sherpa Trung Quốc + Tiếng Anh (Paraformer)",
       "description": "Mô hình zh+en trực tuyến. Tốt cho phụ đề thời gian thực; nhanh; độ chính xác khá."
     },
     "sherpa-paraformer-zh-int8-2025-10-07": {
-      "name": "Sherpa Paraformer Chinese (INT8)",
-      "description": "ASR tiếng Trung ngoại tuyến; INT8; fast; good accuracy; cập nhật 2025-10-07."
+      "name": "Sherpa Paraformer Trung Quốc (INT8)",
+      "description": "ASR tiếng Trung ngoại tuyến; INT8; nhanh; độ chính xác tốt; cập nhật 07/10/2025."
     },
     "sherpa-paraformer-zh-small-2024-03-09": {
-      "name": "Sherpa Paraformer Chinese (Small)",
-      "description": "ASR tiếng Trung ngoại tuyến; small and nhanh; độ chính xác khá; cập nhật 2024-03-09."
+      "name": "Sherpa Paraformer Trung Quốc (Nhỏ)",
+      "description": "ASR tiếng Trung ngoại tuyến; nhỏ và nhanh; độ chính xác khá; cập nhật 09/03/2024."
     },
     "sherpa-paraformer-trilingual-zh-cantonese-en": {
       "name": "Sherpa Paraformer Zh+Yue+En",
-      "description": "ASR ba ngôn ngữ ngoại tuyến (Chinese/Cantonese/English); large; good accuracy."
+      "description": "ASR ba ngôn ngữ ngoại tuyến (Trung/Quảng Đông/Anh); lớn; độ chính xác tốt."
     },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "name": "SenseVoice Multilingual",
-      "description": "Mô hình ngoại tuyến cho Tiếng Trung/Anh/Nhật/Hàn/Quảng Đông. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+      "name": "SenseVoice Đa ngôn ngữ",
+      "description": "Mô hình ngoại tuyến cho Tiếng Trung/Anh/Nhật/Hàn/Quảng Đông. Lượng tử hóa Int8; tốc độ và bộ nhớ trung bình. Cập nhật 09/09/2025."
     },
     "punct-zh-en-ct-transformer-2024-04-12-int8": {
-      "name": "Punctuation (Chinese + English)",
-      "description": "Thêm dấu câu và ngắt câu for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+      "name": "Dấu câu (Trung + Anh)",
+      "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Int8; nhanh và nhỏ. Cập nhật 12/04/2024."
     },
     "punct-zh-en-ct-transformer-2024-04-12": {
-      "name": "Punctuation (Chinese + English) Large",
-      "description": "Thêm dấu câu và ngắt câu for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+      "name": "Dấu câu (Trung + Anh) Lớn",
+      "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Mô hình lớn hơn; chính xác hơn nhưng chậm hơn. Cập nhật 12/04/2024."
     },
     "small": {
       "name": "Whisper Small",

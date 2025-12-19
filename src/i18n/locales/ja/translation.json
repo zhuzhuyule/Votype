@@ -300,6 +300,19 @@
     "postProcessing": {
       "title": "後処理",
       "disabledNotice": "後処理は現在無効です。設定するにはデバッグ設定で有効にしてください。",
+      "fusion": {
+        "enabled": {
+          "description": "後処理プロンプトに2つの文字起こしを提供します: ${output} (最終) および ${streaming_output} (セカンダリ)。",
+          "label": "リアルタイム文字起こしを使用 (フュージョン)"
+        },
+        "secondaryModel": {
+          "auto": "自動",
+          "autoDescription": "現在のローカルモデルを使用",
+          "description": "オンラインASRが有効な場合のみ使用されます。このローカルモデルは、リアルタイム字幕とセカンダリ文字起こしを提供します。",
+          "placeholder": "モデルを選択...",
+          "title": "リアルタイム文字起こしモデル (オンラインASR)"
+        }
+      },
       "api": {
         "title": "API（OpenAI互換）",
         "provider": {
@@ -700,64 +713,64 @@
   },
   "models": {
     "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "name": "Sherpa Chinese (CTC Small)",
+      "name": "Sherpa 中国語 (CTC 小)",
       "description": "ストリーミング中国語ASR (Zipformer2 CTC); 小型で非常に高速 (INT8); 更新 2025-04-01."
     },
     "sherpa-zipformer-zh-int8-2025-06-30": {
-      "name": "Sherpa Chinese",
-      "description": "ストリーミング中国語ASR; 小型で非常に高速 (INT8); high accuracy; 更新 2025-06-30."
+      "name": "Sherpa 中国語",
+      "description": "ストリーミング中国語ASR; 小型で非常に高速 (INT8); 高精度; 更新 2025-06-30."
     },
     "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "name": "Sherpa Chinese XL",
-      "description": "ストリーミング中国語ASR; larger model, fast (INT8); very high accuracy; 更新 2025-06-30."
+      "name": "Sherpa 中国語 XL",
+      "description": "ストリーミング中国語ASR; 大型モデル、高速 (INT8); 非常に高精度; 更新 2025-06-30."
     },
     "sherpa-zipformer-en-kroko-2025-08-06": {
-      "name": "Sherpa English",
-      "description": "ストリーミング英語ASR; small and very fast; good accuracy; 更新 2025-08-06."
+      "name": "Sherpa 英語",
+      "description": "ストリーミング英語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06."
     },
     "sherpa-zipformer-de-kroko-2025-08-06": {
-      "name": "Sherpa German",
-      "description": "ストリーミングドイツ語ASR; small and very fast; good accuracy; 更新 2025-08-06."
+      "name": "Sherpa ドイツ語",
+      "description": "ストリーミングドイツ語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06."
     },
     "sherpa-zipformer-es-kroko-2025-08-06": {
-      "name": "Sherpa Spanish",
-      "description": "ストリーミングスペイン語ASR; 中型で非常に高速; good accuracy; 更新 2025-08-06."
+      "name": "Sherpa スペイン語",
+      "description": "ストリーミングスペイン語ASR; 中型で非常に高速; 精度良好; 更新 2025-08-06."
     },
     "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "name": "Sherpa French",
-      "description": "ストリーミングフランス語ASR; small and very fast; good accuracy; 更新 2025-08-06."
+      "name": "Sherpa フランス語",
+      "description": "ストリーミングフランス語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06."
     },
     "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "name": "Sherpa Russian",
-      "description": "ストリーミングロシア語ASR; 超小型で非常に高速 (INT8); good accuracy; 更新 2025-08-16."
+      "name": "Sherpa ロシア語",
+      "description": "ストリーミングロシア語ASR; 超小型で非常に高速 (INT8); 精度良好; 更新 2025-08-16."
     },
     "sherpa-paraformer-zh-en-streaming": {
-      "name": "Sherpa Chinese + English (Paraformer)",
+      "name": "Sherpa 中国語 + 英語 (Paraformer)",
       "description": "ストリーミング中英モデル. リアルタイム字幕に最適; 高速、精度はそこそこ."
     },
     "sherpa-paraformer-zh-int8-2025-10-07": {
-      "name": "Sherpa Paraformer Chinese (INT8)",
-      "description": "オフライン中国語ASR; INT8; fast; good accuracy; 更新 2025-10-07."
+      "name": "Sherpa Paraformer 中国語 (INT8)",
+      "description": "オフライン中国語ASR; INT8; 高速; 精度良好; 更新 2025-10-07."
     },
     "sherpa-paraformer-zh-small-2024-03-09": {
-      "name": "Sherpa Paraformer Chinese (Small)",
-      "description": "オフライン中国語ASR; small and 高速、精度はそこそこ; 更新 2024-03-09."
+      "name": "Sherpa Paraformer 中国語 (小)",
+      "description": "オフライン中国語ASR; 小型で高速; 精度はそこそこ; 更新 2024-03-09."
     },
     "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "name": "Sherpa Paraformer Zh+Yue+En",
-      "description": "オフライン3か国語ASR (Chinese/Cantonese/English); large; good accuracy."
+      "name": "Sherpa Paraformer 中+粤+英",
+      "description": "オフライン3か国語ASR (中国語/広東語/英語); 大型; 精度良好."
     },
     "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "name": "SenseVoice Multilingual",
-      "description": "オフラインモデル： 中国語/英語/日本語/韓国語/広東語. Int8 quantized; medium speed and memory. Updated 2025-09-09."
+      "name": "SenseVoice 多言語",
+      "description": "オフラインモデル： 中国語/英語/日本語/韓国語/広東語. Int8 量子化; 速度とメモリは中程度. 更新 2025-09-09."
     },
     "punct-zh-en-ct-transformer-2024-04-12-int8": {
-      "name": "Punctuation (Chinese + English)",
-      "description": "句読点と文の区切りを追加 for zh+en mixed text. Int8; fast and small. Updated 2024-04-12."
+      "name": "句読点 (中国語 + 英語)",
+      "description": "句読点と文の区切りを追加 (中英混合テキスト用). Int8; 高速で小型. 更新 2024-04-12."
     },
     "punct-zh-en-ct-transformer-2024-04-12": {
-      "name": "Punctuation (Chinese + English) Large",
-      "description": "句読点と文の区切りを追加 for zh+en mixed text. Larger model; more accurate but slower. Updated 2024-04-12."
+      "name": "句読点 (中国語 + 英語) 大",
+      "description": "句読点と文の区切りを追加 (中英混合テキスト用). 大型モデル; より正確だが低速. 更新 2024-04-12."
     },
     "small": {
       "name": "Whisper Small",
