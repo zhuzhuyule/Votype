@@ -31,9 +31,7 @@ const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
     SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.general.component;
   return (
-    // Key forces complete unmount/remount when section changes,
-    // releasing audio/media resources and clearing component state
-    <Suspense key={section} fallback={<SettingsLoadingFallback />}>
+    <Suspense fallback={<SettingsLoadingFallback />}>
       <ActiveComponent />
     </Suspense>
   );

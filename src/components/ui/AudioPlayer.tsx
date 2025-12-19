@@ -100,18 +100,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, [onError]);
 
-  // Cleanup audio resource on unmount to prevent memory leaks
-  useEffect(() => {
-    const audio = audioRef.current;
-    return () => {
-      if (audio) {
-        audio.pause();
-        audio.src = ""; // Release audio resource
-        audio.load(); // Force browser to release
-      }
-    };
-  }, []);
-
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;

@@ -10,8 +10,8 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { DashboardActivityChart } from "./DashboardActivityChart";
-import { DashboardDetailsList } from "./DashboardDetailsList";
 import { DashboardSummaryCards } from "./DashboardSummaryCards";
+import { VirtualDetailsList } from "./VirtualDetailsList";
 import type { DashboardSelection, HistoryEntry } from "./dashboardTypes";
 import {
   countUnicodeChars,
@@ -63,13 +63,6 @@ export const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
       if (unlisten) unlisten();
-    };
-  }, []);
-
-  // Clear audio cache on unmount to free memory
-  useEffect(() => {
-    return () => {
-      audioUrlCacheRef.current.clear();
     };
   }, []);
 
@@ -311,10 +304,9 @@ export const Dashboard: React.FC = () => {
         formatDurationMs={formatDurationMs}
       />
 
-      <DashboardDetailsList
-        entries={detailEntries}
+      <VirtualDetailsList
+        entries={selectedEntries}
         totalCount={selectedEntries.length}
-        selectionTitle={selectionTitle}
         selectedDayTotals={selectedDayTotals}
         getAudioUrl={getAudioUrl}
         onCopy={onCopy}
@@ -328,12 +320,6 @@ export const Dashboard: React.FC = () => {
             alert(t("dashboard.actions.retranscribeFailed"));
           }
         }}
-        onLoadMore={() =>
-          setDetailCount((c) =>
-            Math.min(c + DETAIL_PAGE_SIZE, selectedEntries.length),
-          )
-        }
-        detailCount={detailCount}
         formatDurationMs={formatDurationMs}
         numberFormat={numberFormat}
         t={t}
