@@ -208,19 +208,6 @@ impl ModelManager {
         }
     }
 
-    fn unique_model_id(models: &HashMap<String, ModelInfo>, preferred: &str) -> Result<String> {
-        if !models.contains_key(preferred) {
-            return Ok(preferred.to_string());
-        }
-        for i in 2..=9999u32 {
-            let candidate = format!("{}-{}", preferred, i);
-            if !models.contains_key(&candidate) {
-                return Ok(candidate);
-            }
-        }
-        Err(anyhow::anyhow!("Unable to allocate a unique model id"))
-    }
-
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create models directory in app data
         let models_dir = app_handle
@@ -820,7 +807,7 @@ impl ModelManager {
 
         // Check if it already exists
         {
-            let mut models = self.available_models.lock().unwrap();
+            let models = self.available_models.lock().unwrap();
 
             if models.contains_key(&preferred_id) {
                 // It exists. Check if it's a user model we can update.

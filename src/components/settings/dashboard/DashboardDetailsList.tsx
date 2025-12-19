@@ -22,6 +22,11 @@ interface DashboardDetailsListProps {
   onToggleSaved: (id: number) => void;
   onDelete: (id: number) => void;
   onRetranscribe: (id: number) => Promise<void>;
+  onReprocess: (
+    id: number,
+    promptId: string,
+    inputText?: string,
+  ) => Promise<void>;
   onLoadMore: () => void;
   detailCount: number;
   formatDurationMs: (durationMs: number) => string;
@@ -266,6 +271,7 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
                     onToggleSaved={onToggleSaved}
                     onDelete={onDelete}
                     onRetranscribe={onRetranscribe}
+                    onReprocess={onReprocess}
                   />
                 </Box>
               );

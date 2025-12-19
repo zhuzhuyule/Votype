@@ -1,105 +1,268 @@
 {
-  "sidebar": {
-    "dashboard": "ダッシュボード",
-    "general": "一般",
-    "shortcuts": "ショートカット",
-    "advanced": "詳細設定",
-    "postProcessing": "後処理",
-    "history": "履歴",
-    "debug": "デバッグ",
-    "about": "概要",
+  "accessibility": {
+    "dismiss": "閉じる",
+    "openSettings": "システム設定を開く",
+    "permissionsDescription": "Handyが文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
+    "permissionsRequired": "アクセシビリティ権限が必要です",
+    "verify": "Verify"
+  },
+  "appLanguage": {
+    "description": "Handyインターフェースの言語を変更",
+    "title": "アプリケーション言語"
+  },
+  "common": {
+    "add": "追加",
+    "addNewOption": "新しいオプションを追加",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "copied": "コピーしました",
+    "copy": "コピー",
+    "create": "作成",
+    "default": "デフォルト",
+    "delete": "削除",
+    "disabled": "無効",
+    "done": "完了",
+    "edit": "編集",
+    "enabled": "有効",
+    "filterOptions": "オプションをフィルタ...",
+    "loading": "読み込み中...",
     "models": "モデル",
-    "asrModels": "ASRモデル",
-    "prompts": "プロンプト"
+    "no": "いいえ",
+    "noMatchingOptions": "一致するオプションなし",
+    "noOptionsFound": "オプションが見つかりません",
+    "notAvailable": "利用不可",
+    "off": "オフ",
+    "on": "オン",
+    "open": "開く",
+    "remove": "削除",
+    "reset": "リセット",
+    "save": "保存",
+    "searchOrPaste": "検索または貼り付け...",
+    "selectOption": "オプションを選択",
+    "skip": "スキップ",
+    "update": "更新",
+    "useInput": "\"{{input}}\"を使用",
+    "yes": "はい"
   },
   "dashboard": {
-    "title": "ダッシュボード",
-    "cards": {
-      "today": "今日",
-      "recent": "直近 {{days}} 日",
-      "allTime": "全期間"
-    },
-    "metrics": {
-      "entries": "文字起こし回数",
-      "duration": "音声時間",
-      "characters": "文字数",
-      "saved": "保存済み",
-      "postProcessed": "後処理済み"
+    "actions": {
+      "openRecordings": "録音"
     },
     "activity": {
-      "title": "利用状況",
+      "entries": "合 {{count}} 件",
       "subtitle": "直近 30 日",
-      "entries": "合 {{count}} 件"
+      "title": "利用状況"
     },
-    "range": {
-      "lastNDays": "直近{{days}}日",
+    "cards": {
       "allTime": "全期間",
-      "today": "今日",
-      "buttons": {
-        "last7Days": "直近7日",
-        "last30Days": "直近30日",
-        "allTime": "全期間"
-      }
-    },
-    "summary": {
-      "recording": {
-        "title": "音声入力の累計",
-        "count": "{{count}} 回の文字起こし"
-      },
-      "transcription": {
-        "title": "生成テキスト",
-        "speed": "平均 {{rate}}/分"
-      },
-      "llm": {
-        "title": "LLM 利用状況",
-        "details": "命中率: {{hitRate}}",
-        "unknownApp": "不明"
-      },
-      "apps": {
-        "title": "最も使用したアプリ Top 3",
-        "top3": "Top 3",
-        "empty": "アプリ情報なし"
-      }
+      "recent": "直近 {{days}} 日",
+      "today": "今日"
     },
     "details": {
-      "title": "履歴",
+      "audioRemoved": "録音は削除されました",
       "count": "{{count}} 件",
+      "empty": "データがありません",
+      "loadMore": "さらに読み込む",
       "meta": {
         "chars": "{{value}} 文字"
       },
-      "audioRemoved": "録音は削除されました",
-      "empty": "データがありません",
-      "loadMore": "さらに読み込む"
+      "title": "履歴"
     },
-    "actions": {
-      "openRecordings": "録音"
+    "metrics": {
+      "characters": "文字数",
+      "duration": "音声時間",
+      "entries": "文字起こし回数",
+      "postProcessed": "後処理済み",
+      "saved": "保存済み"
+    },
+    "range": {
+      "allTime": "全期間",
+      "buttons": {
+        "allTime": "全期間",
+        "last30Days": "直近30日",
+        "last7Days": "直近7日"
+      },
+      "lastNDays": "直近{{days}}日",
+      "today": "今日"
+    },
+    "summary": {
+      "apps": {
+        "empty": "アプリ情報なし",
+        "title": "最も使用したアプリ Top 3",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "details": "命中率: {{hitRate}}",
+        "title": "LLM 利用状況",
+        "unknownApp": "不明"
+      },
+      "recording": {
+        "count": "{{count}} 回の文字起こし",
+        "title": "音声入力の累計"
+      },
+      "transcription": {
+        "speed": "平均 {{rate}}/分",
+        "title": "生成テキスト"
+      }
+    },
+    "title": "ダッシュボード"
+  },
+  "errors": {
+    "loadDirectory": "ディレクトリの読み込みエラー: {{error}}"
+  },
+  "footer": {
+    "checkForUpdates": "アップデートを確認",
+    "checkingUpdates": "アップデートを確認中...",
+    "downloading": "ダウンロード中... {{progress}}%",
+    "downloadingModel": "{{model}}をダウンロード中...",
+    "downloadUpdate": "アップデートをダウンロード",
+    "installing": "インストール中...",
+    "preparing": "準備中...",
+    "restart": "再起動",
+    "updateAvailable": "アップデートあり: {{version}}",
+    "updateAvailableShort": "アップデートあり",
+    "updateCheckingDisabled": "アップデート確認無効",
+    "upToDate": "最新です"
+  },
+  "models": {
+    "large": {
+      "description": "高精度だが低速。",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "高精度、中速",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "英語のみ。英語話者に最適なモデル。",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "高速かつ正確",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "句読点と文の区切りを追加 (中英混合テキスト用). 大型モデル; より正確だが低速. 更新 2024-04-12.",
+      "name": "句読点 (中国語 + 英語) 大"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "句読点と文の区切りを追加 (中英混合テキスト用). Int8; 高速で小型. 更新 2024-04-12.",
+      "name": "句読点 (中国語 + 英語)"
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "description": "オフライン3か国語ASR (中国語/広東語/英語); 大型; 精度良好.",
+      "name": "Sherpa Paraformer 中+粤+英"
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "description": "ストリーミング中英モデル. リアルタイム字幕に最適; 高速、精度はそこそこ.",
+      "name": "Sherpa 中国語 + 英語 (Paraformer)"
+    },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "description": "オフライン中国語ASR; INT8; 高速; 精度良好; 更新 2025-10-07.",
+      "name": "Sherpa Paraformer 中国語 (INT8)"
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "description": "オフライン中国語ASR; 小型で高速; 精度はそこそこ; 更新 2024-03-09.",
+      "name": "Sherpa Paraformer 中国語 (小)"
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "description": "オフラインモデル： 中国語/英語/日本語/韓国語/広東語. Int8 量子化; 速度とメモリは中程度. 更新 2025-09-09.",
+      "name": "SenseVoice 多言語"
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "description": "ストリーミングドイツ語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06.",
+      "name": "Sherpa ドイツ語"
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "description": "ストリーミング英語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06.",
+      "name": "Sherpa 英語"
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "description": "ストリーミングスペイン語ASR; 中型で非常に高速; 精度良好; 更新 2025-08-06.",
+      "name": "Sherpa スペイン語"
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "description": "ストリーミングフランス語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06.",
+      "name": "Sherpa フランス語"
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "description": "ストリーミングロシア語ASR; 超小型で非常に高速 (INT8); 精度良好; 更新 2025-08-16.",
+      "name": "Sherpa ロシア語"
+    },
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "description": "ストリーミング中国語ASR (Zipformer2 CTC); 小型で非常に高速 (INT8); 更新 2025-04-01.",
+      "name": "Sherpa 中国語 (CTC 小)"
+    },
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "description": "ストリーミング中国語ASR; 小型で非常に高速 (INT8); 高精度; 更新 2025-06-30.",
+      "name": "Sherpa 中国語"
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "description": "ストリーミング中国語ASR; 大型モデル、高速 (INT8); 非常に高精度; 更新 2025-06-30.",
+      "name": "Sherpa 中国語 XL"
+    },
+    "small": {
+      "description": "高速でかなり正確。",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "精度と速度のバランスが良い。",
+      "name": "Whisper Turbo"
     }
   },
+  "modelSelector": {
+    "active": "アクティブ",
+    "addModelFromUrl": "URLから追加",
+    "addModelFromUrlPrompt": "モデルのダウンロードURLを貼り付け (例: .tar.bz2):",
+    "availableModels": "利用可能なモデル",
+    "chooseModel": "モデルを選択",
+    "clickToEnableOnlineAsr": "クリックしてオンラインASRを有効にする",
+    "deleteModel": "{{modelName}}を削除",
+    "download": "ダウンロード",
+    "downloading": "ダウンロード中 {{percentage}}%",
+    "downloadingMultiple": "{{count}}個のモデルをダウンロード中...",
+    "downloadModels": "モデルをダウンロード",
+    "downloadPrompt": "文字起こしを開始するには、下からモデルをダウンロードしてください。",
+    "downloadSize": "ダウンロードサイズ",
+    "extracting": "{{modelName}}を展開中...",
+    "extractingGeneric": "展開中...",
+    "extractingMultiple": "{{count}}個のモデルを展開中...",
+    "loading": "{{modelName}}を読み込み中...",
+    "loadingGeneric": "読み込み中...",
+    "local": "ローカル",
+    "modelError": "モデルエラー",
+    "modelReady": "モデル準備完了",
+    "modelUnloaded": "モデルがアンロードされました",
+    "noModelDownloadRequired": "モデルなし - ダウンロードが必要",
+    "noModelsAvailable": "利用可能なモデルがありません",
+    "online": "オンライン",
+    "onlineAsr": "オンラインASR",
+    "onlineAsrActive": "オンラインASR有効",
+    "onlineAsrModels": "オンラインASRモデル",
+    "realtimeModel": "リアルタイムモデル",
+    "searchPlaceholder": "モデルを検索…",
+    "userAddedModel": "ユーザー追加モデル",
+    "welcome": "Handyへようこそ！"
+  },
   "onboarding": {
-    "subtitle": "開始するには、文字起こしモデルを選択してください",
-    "recommended": "おすすめ",
     "download": "ダウンロード",
     "downloading": "ダウンロード中...",
+    "errors": {
+      "downloadModel": "モデルのダウンロードに失敗しました: {{error}}",
+      "loadModels": "利用可能なモデルの読み込みに失敗しました"
+    },
     "modelCard": {
       "accuracy": "精度",
       "speed": "速度"
     },
     "models": {
-      "small": {
-        "description": "高速でそこそこ正確。",
-        "name": "Whisper Small"
+      "large": {
+        "description": "良好な精度、ただし低速。",
+        "name": "Whisper Large"
       },
       "medium": {
         "description": "良好な精度、中程度の速度",
         "name": "Whisper Medium"
-      },
-      "turbo": {
-        "description": "精度と速度のバランスが良い。",
-        "name": "Whisper Turbo"
-      },
-      "large": {
-        "description": "良好な精度、ただし低速。",
-        "name": "Whisper Large"
       },
       "parakeet-tdt-0.6b-v2": {
         "description": "英語のみ。英語話者に最適なモデル。",
@@ -108,142 +271,101 @@
       "parakeet-tdt-0.6b-v3": {
         "description": "高速で正確",
         "name": "Parakeet V3"
+      },
+      "small": {
+        "description": "高速でそこそこ正確。",
+        "name": "Whisper Small"
+      },
+      "turbo": {
+        "description": "精度と速度のバランスが良い。",
+        "name": "Whisper Turbo"
       }
     },
-    "errors": {
-      "loadModels": "利用可能なモデルの読み込みに失敗しました",
-      "downloadModel": "モデルのダウンロードに失敗しました: {{error}}"
+    "recommended": "おすすめ",
+    "subtitle": "開始するには、文字起こしモデルを選択してください"
+  },
+  "overlay": {
+    "status": {
+      "llm": "後処理中...",
+      "recording": "録音中...",
+      "transcribing": "文字起こし中..."
     }
   },
-  "modelSelector": {
-    "welcome": "Handyへようこそ！",
-    "downloadPrompt": "文字起こしを開始するには、下からモデルをダウンロードしてください。",
-    "realtimeModel": "リアルタイムモデル",
-    "availableModels": "利用可能なモデル",
-    "downloadModels": "モデルをダウンロード",
-    "chooseModel": "モデルを選択",
-    "active": "アクティブ",
-    "download": "ダウンロード",
-    "downloadSize": "ダウンロードサイズ",
-    "noModelsAvailable": "利用可能なモデルがありません",
-    "extracting": "{{modelName}}を展開中...",
-    "extractingMultiple": "{{count}}個のモデルを展開中...",
-    "extractingGeneric": "展開中...",
-    "downloading": "ダウンロード中 {{percentage}}%",
-    "downloadingMultiple": "{{count}}個のモデルをダウンロード中...",
-    "modelReady": "モデル準備完了",
-    "loading": "{{modelName}}を読み込み中...",
-    "loadingGeneric": "読み込み中...",
-    "modelError": "モデルエラー",
-    "modelUnloaded": "モデルがアンロードされました",
-    "noModelDownloadRequired": "モデルなし - ダウンロードが必要",
-    "deleteModel": "{{modelName}}を削除",
-    "searchPlaceholder": "モデルを検索…",
-    "local": "ローカル",
-    "online": "オンライン",
-    "onlineAsr": "オンラインASR",
-    "onlineAsrModels": "オンラインASRモデル",
-    "clickToEnableOnlineAsr": "クリックしてオンラインASRを有効にする",
-    "onlineAsrActive": "オンラインASR有効",
-    "addModelFromUrl": "URLから追加",
-    "addModelFromUrlPrompt": "モデルのダウンロードURLを貼り付け (例: .tar.bz2):",
-    "userAddedModel": "ユーザー追加モデル"
-  },
   "settings": {
-    "shortcuts": {
-      "title": "ショートカット"
-    },
-    "general": {
-      "title": "一般",
-      "shortcut": {
-        "title": "Handyショートカット",
-        "description": "音声録音を開始するキーボードショートカットを設定",
-        "loading": "ショートカットを読み込み中...",
-        "none": "ショートカットが設定されていません",
-        "notFound": "ショートカットが見つかりません",
-        "pressKeys": "キーを押してください...",
-        "bindings": {
-          "transcribe": {
-            "name": "文字起こし",
-            "description": "音声をテキストに変換します。"
-          },
-          "cancel": {
-            "name": "キャンセル",
-            "description": "現在の録音をキャンセルします。"
-          },
-          "open_settings": {
-            "name": "設定を開く",
-            "description": "設定ウィンドウを開きます。"
-          },
-          "paste_first_entry": {
-            "name": "最初のエントリを貼り付け",
-            "description": "履歴の最初のエントリをアクティブウィンドウに貼り付けます。"
-          }
-        },
-        "errors": {
-          "restore": "元のショートカットを復元できませんでした",
-          "set": "ショートカットを設定できませんでした: {{error}}",
-          "reset": "ショートカットを元の値にリセットできませんでした"
+    "about": {
+      "acknowledgments": {
+        "title": "謝辞",
+        "whisper": {
+          "description": "OpenAIのWhisper自動音声認識モデルの高性能推論",
+          "details": "Handyは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。",
+          "title": "Whisper.cpp"
         }
       },
-      "language": {
-        "title": "言語",
-        "description": "音声認識の言語を選択してください。自動を選択すると言語を自動的に判定します。特定の言語を選択すると、その言語の精度が向上する場合があります。",
-        "descriptionUnsupported": "Parakeetモデルは言語を自動的に検出します。手動選択は不要です。",
-        "searchPlaceholder": "言語を検索...",
-        "noResults": "言語が見つかりません",
-        "auto": "自動"
+      "appDataDirectory": {
+        "description": "Handyがデータを保存する場所",
+        "title": "アプリデータディレクトリ"
       },
-      "pushToTalk": {
-        "label": "プッシュトゥトーク",
-        "description": "押し続けて録音、離して停止"
-      }
-    },
-    "sound": {
-      "title": "サウンド",
-      "microphone": {
-        "title": "マイク",
-        "description": "使用するマイクデバイスを選択",
-        "placeholder": "マイクを選択...",
-        "loading": "読み込み中..."
+      "sourceCode": {
+        "button": "GitHubで見る",
+        "description": "ソースコードを見て貢献する",
+        "title": "ソースコード"
       },
-      "audioFeedback": {
-        "label": "音声フィードバック",
-        "description": "録音の開始と停止時にサウンドを再生"
+      "supportDevelopment": {
+        "button": "寄付する",
+        "description": "Handyの開発を支援してください",
+        "title": "開発を支援"
       },
-      "outputDevice": {
-        "title": "出力デバイス",
-        "description": "フィードバックサウンド用の音声出力デバイスを選択",
-        "placeholder": "出力デバイスを選択...",
-        "loading": "読み込み中..."
-      },
-      "volume": {
-        "title": "音量",
-        "description": "音声フィードバックの音量を調整"
+      "title": "概要",
+      "version": {
+        "description": "Handyの現在のバージョン",
+        "title": "バージョン"
       }
     },
     "advanced": {
-      "title": "詳細設定",
-      "startHidden": {
-        "label": "非表示で起動",
-        "description": "ウィンドウを開かずにシステムトレイに起動。"
-      },
       "autostart": {
-        "label": "起動時に実行",
-        "description": "コンピューターにログインしたときにHandyを自動的に起動。"
+        "description": "コンピューターにログインしたときにHandyを自動的に起動。",
+        "label": "起動時に実行"
+      },
+      "clipboardHandling": {
+        "description": "クリップボードを変更しないを選択すると、文字起こし後も現在のクリップボード内容が保持されます。クリップボードにコピーを選択すると、貼り付け後も文字起こし結果がクリップボードに残ります。",
+        "options": {
+          "copyToClipboard": "クリップボードにコピー",
+          "dontModify": "クリップボードを変更しない"
+        },
+        "title": "クリップボードの処理"
+      },
+      "customWords": {
+        "add": "追加",
+        "description": "よく誤認識または誤入力される単語を追加します。システムは自動的に類似した発音の単語をリストに合わせて修正します。",
+        "placeholder": "単語を追加",
+        "remove": "{{word}}を削除",
+        "title": "カスタム単語"
+      },
+      "modelUnload": {
+        "description": "指定時間モデルが使用されていない場合、GPU/CPUメモリを自動的に解放",
+        "options": {
+          "hour1": "1時間後",
+          "immediately": "即座に",
+          "min10": "10分後",
+          "min15": "15分後",
+          "min2": "2分後",
+          "min5": "5分後",
+          "never": "しない",
+          "sec5": "5秒後（デバッグ）"
+        },
+        "title": "モデルのアンロード"
       },
       "overlay": {
-        "title": "オーバーレイ位置",
         "description": "録音と文字起こし中に視覚的なフィードバックオーバーレイを表示。Linuxでは「なし」を推奨。",
         "options": {
-          "none": "なし",
           "bottom": "下",
-          "top": "上",
-          "follow": "Follow Cursor"
-        }
+          "follow": "Follow Cursor",
+          "none": "なし",
+          "top": "上"
+        },
+        "title": "オーバーレイ位置"
       },
       "pasteMethod": {
-        "title": "貼り付け方法",
         "description": "テキストの挿入方法を選択。直接：システム入力でタイピングをシミュレート。なし：貼り付けをスキップし、履歴/クリップボードのみ更新。",
         "options": {
           "clipboard": "クリップボード ({{modifier}}+V)",
@@ -251,54 +373,313 @@
           "clipboardShiftInsert": "クリップボード (Shift+Insert)",
           "direct": "直接",
           "none": "なし"
-        }
-      },
-      "clipboardHandling": {
-        "title": "クリップボードの処理",
-        "description": "クリップボードを変更しないを選択すると、文字起こし後も現在のクリップボード内容が保持されます。クリップボードにコピーを選択すると、貼り付け後も文字起こし結果がクリップボードに残ります。",
-        "options": {
-          "dontModify": "クリップボードを変更しない",
-          "copyToClipboard": "クリップボードにコピー"
-        }
-      },
-      "translateToEnglish": {
-        "label": "英語に翻訳",
-        "description": "文字起こし中に他の言語から英語に自動的に翻訳。",
-        "descriptionUnsupported": "翻訳は{{model}}モデルではサポートされていません。"
-      },
-      "modelUnload": {
-        "title": "モデルのアンロード",
-        "description": "指定時間モデルが使用されていない場合、GPU/CPUメモリを自動的に解放",
-        "options": {
-          "never": "しない",
-          "immediately": "即座に",
-          "min2": "2分後",
-          "min5": "5分後",
-          "min10": "10分後",
-          "min15": "15分後",
-          "hour1": "1時間後",
-          "sec5": "5秒後（デバッグ）"
-        }
-      },
-      "customWords": {
-        "title": "カスタム単語",
-        "description": "よく誤認識または誤入力される単語を追加します。システムは自動的に類似した発音の単語をリストに合わせて修正します。",
-        "placeholder": "単語を追加",
-        "add": "追加",
-        "remove": "{{word}}を削除"
+        },
+        "title": "貼り付け方法"
       },
       "punctuation": {
-        "label": "句読点を追加",
         "description": "最終的な文字起こしに句読点を追加します ({{model}})。",
+        "label": "句読点を追加",
         "model": {
-          "title": "句読点モデル",
           "description": "zh+en混合テキスト用の句読点モデルを選択。最終結果にのみ適用されます。",
-          "notDownloaded": "選択したモデルはまだダウンロードされていません。"
+          "notDownloaded": "選択したモデルはまだダウンロードされていません。",
+          "title": "句読点モデル"
         }
+      },
+      "startHidden": {
+        "description": "ウィンドウを開かずにシステムトレイに起動。",
+        "label": "非表示で起動"
+      },
+      "title": "詳細設定",
+      "translateToEnglish": {
+        "description": "文字起こし中に他の言語から英語に自動的に翻訳。",
+        "descriptionUnsupported": "翻訳は{{model}}モデルではサポートされていません。",
+        "label": "英語に翻訳"
       }
     },
+    "asrModels": {
+      "addFromUrl": "追加＆ダウンロード",
+      "addSection": {
+        "description": "モデルURLを貼り付け。アプリはファイル名からモデルタイプを推測します。",
+        "title": "インストール"
+      },
+      "delete": "削除",
+      "description": "ローカルの文字起こしモデルを管理し、クイックセレクターに表示するモデルを制御します。",
+      "download": "ダウンロード",
+      "favorite": "お気に入り",
+      "filters": {
+        "all": "すべて",
+        "downloaded": "ダウンロード済み",
+        "favorites": "お気に入り",
+        "language": "言語",
+        "mode": "モード",
+        "status": "ステータス",
+        "type": "タイプ"
+      },
+      "groupBy": {
+        "language": "言語",
+        "mode": "モード",
+        "type": "タイプ"
+      },
+      "groups": {
+        "multilingual": "多言語",
+        "offline": "オフライン",
+        "punctuation": "句読点",
+        "streaming": "ストリーミング"
+      },
+      "idLabel": "ID: {{id}}",
+      "install": {
+        "placeholder": "モデルURLを貼り付け…",
+        "tooltip": "URLからインストール"
+      },
+      "languages": {
+        "de": "ドイツ語",
+        "en": "英語",
+        "es": "スペイン語",
+        "fr": "フランス語",
+        "ja": "日本語",
+        "ko": "韓国語",
+        "multilingual": "多言語",
+        "other": "その他",
+        "ru": "ロシア語",
+        "yue": "広東語",
+        "zh": "中国語"
+      },
+      "library": {
+        "count": "{{count}} モデル",
+        "description": "クイックセレクターに表示するお気に入りを選択。",
+        "searchPlaceholder": "モデルを検索…",
+        "title": "ライブラリ"
+      },
+      "pipeline": {
+        "description": "文字起こし後に自動的に適用できる全体的な後処理。",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "逆テキスト正規化：基本的なフォーマット（例：数字）。",
+        "punctuation": "自動句読点",
+        "punctuationHint": "選択した句読点モデルを使用して文の区切りを追加します。",
+        "punctuationModel": "句読点モデル",
+        "punctuationModelHint": "使用する句読点モデルを選択。",
+        "title": "パイプライン"
+      },
+      "quickSettings": {
+        "description": "これらは全体に適用されます。下のライブラリで句読点モデルを削除してください。",
+        "title": "クイック設定"
+      },
+      "reset": "リセット",
+      "status": {
+        "downloaded": "ダウンロード済み",
+        "notDownloaded": "未ダウンロード"
+      },
+      "title": "音声モデル",
+      "typeChips": {
+        "other": "その他",
+        "parakeet": "Parakeet",
+        "punctuation": "句読点",
+        "sherpa_fire_red_asr": "Sherpa FireRedASR",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_transducer": "Sherpa Transducer",
+        "whisper": "Whisper"
+      },
+      "types": {
+        "parakeet": "Parakeet",
+        "punctuation": "句読点",
+        "whisper": "Whisper"
+      }
+    },
+    "debug": {
+      "alwaysOnMicrophone": {
+        "description": "より速い応答のためにマイクをアクティブに保つ",
+        "label": "マイク常時オン"
+      },
+      "appendTrailingSpace": {
+        "description": "貼り付けた文字起こしの後にスペースを追加",
+        "label": "末尾にスペースを追加"
+      },
+      "clamshellMicrophone": {
+        "description": "ノートパソコンの蓋を閉じたときに使用するマイク",
+        "title": "クラムシェルマイク"
+      },
+      "historyLimit": {
+        "description": "保持する履歴エントリーの最大数",
+        "entries": "件",
+        "title": "履歴上限"
+      },
+      "logDirectory": {
+        "description": "ログファイルの保存場所",
+        "error": "Error loading log directory: {{error}}",
+        "title": "ログディレクトリ"
+      },
+      "logLevel": {
+        "description": "ログの詳細度を設定",
+        "title": "ログレベル"
+      },
+      "muteWhileRecording": {
+        "description": "録音中にシステムオーディオをミュート",
+        "label": "録音中にミュート"
+      },
+      "paths": {
+        "appData": "アプリデータ:",
+        "description": "Common filesystem paths Votype uses",
+        "models": "モデル:",
+        "settings": "設定:",
+        "title": "Paths"
+      },
+      "postProcessingToggle": {
+        "description": "文字起こし後のAIによるテキスト改善を有効化",
+        "label": "後処理"
+      },
+      "recordingRetention": {
+        "days3": "3日後",
+        "description": "音声録音を保持する期間",
+        "months3": "3ヶ月後",
+        "never": "しない",
+        "placeholder": "保持期間を選択...",
+        "preserveLimit": "{{count}}件の録音を保持",
+        "title": "録音の保持",
+        "weeks2": "2週間後"
+      },
+      "soundTheme": {
+        "description": "録音開始・停止フィードバックのサウンドテーマを選択",
+        "label": "サウンドテーマ"
+      },
+      "title": "デバッグ",
+      "updateChecks": {
+        "description": "Handyの新しいバージョンを自動的にチェック",
+        "label": "アップデートを確認"
+      },
+      "wordCorrectionThreshold": {
+        "description": "カスタム単語修正の感度",
+        "title": "単語修正しきい値"
+      }
+    },
+    "general": {
+      "language": {
+        "auto": "自動",
+        "description": "音声認識の言語を選択してください。自動を選択すると言語を自動的に判定します。特定の言語を選択すると、その言語の精度が向上する場合があります。",
+        "descriptionUnsupported": "Parakeetモデルは言語を自動的に検出します。手動選択は不要です。",
+        "noResults": "言語が見つかりません",
+        "searchPlaceholder": "言語を検索...",
+        "title": "言語"
+      },
+      "pushToTalk": {
+        "description": "押し続けて録音、離して停止",
+        "label": "プッシュトゥトーク"
+      },
+      "shortcut": {
+        "bindings": {
+          "cancel": {
+            "description": "現在の録音をキャンセルします。",
+            "name": "キャンセル"
+          },
+          "open_settings": {
+            "description": "設定ウィンドウを開きます。",
+            "name": "設定を開く"
+          },
+          "paste_first_entry": {
+            "description": "履歴の最初のエントリをアクティブウィンドウに貼り付けます。",
+            "name": "最初のエントリを貼り付け"
+          },
+          "transcribe": {
+            "description": "音声をテキストに変換します。",
+            "name": "文字起こし"
+          }
+        },
+        "description": "音声録音を開始するキーボードショートカットを設定",
+        "errors": {
+          "reset": "ショートカットを元の値にリセットできませんでした",
+          "restore": "元のショートカットを復元できませんでした",
+          "set": "ショートカットを設定できませんでした: {{error}}"
+        },
+        "loading": "ショートカットを読み込み中...",
+        "none": "ショートカットが設定されていません",
+        "notFound": "ショートカットが見つかりません",
+        "pressKeys": "キーを押してください...",
+        "title": "Handyショートカット"
+      },
+      "title": "一般"
+    },
+    "history": {
+      "content": {
+        "improved": "最適化済み",
+        "original": "音声認識結果",
+        "streaming": "リアルタイム認識結果"
+      },
+      "copyToClipboard": "文字起こしをクリップボードにコピー",
+      "delete": "エントリーを削除",
+      "deleteError": "エントリーの削除に失敗しました。もう一度お試しください。",
+      "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう！",
+      "loading": "履歴を読み込み中...",
+      "openFolder": "録音フォルダを開く",
+      "save": "文字起こしを保存",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "earlier": "Earlier",
+        "thisWeek": "This Week",
+        "today": "Today",
+        "yesterday": "Yesterday"
+      },
+      "title": "履歴",
+      "unsave": "保存から削除"
+    },
     "postProcessing": {
-      "title": "後処理",
+      "api": {
+        "apiKey": {
+          "description": "選択したプロバイダーのAPIキー。",
+          "placeholder": "sk-...",
+          "title": "APIキー"
+        },
+        "appleIntelligence": {
+          "description": "完全にデバイス上で動作。APIキーやネットワークアクセスは不要。",
+          "requirements": "macOS Tahoe（26.0）以降を実行するApple Silicon Macが必要です。システム設定でApple Intelligenceを有効にする必要があります。",
+          "title": "Apple Intelligence"
+        },
+        "baseUrl": {
+          "description": "選択したプロバイダーのAPIベースURL。カスタムプロバイダーのみ編集可能。",
+          "placeholder": "https://api.openai.com/v1",
+          "title": "ベースURL"
+        },
+        "manageProviders": "プロバイダー管理",
+        "model": {
+          "descriptionApple": "オプションの数値トークン制限を指定するか、デフォルトのオンデバイスプリセットを使用。",
+          "descriptionCustom": "カスタムエンドポイントが期待するモデル識別子を指定。",
+          "descriptionDefault": "選択したプロバイダーが提供するモデルを選択。",
+          "placeholderApple": "Apple Intelligence",
+          "placeholderNoOptions": "モデル名を入力",
+          "placeholderWithOptions": "モデルを検索または選択",
+          "refreshModels": "モデルを更新",
+          "title": "モデル"
+        },
+        "provider": {
+          "description": "OpenAI互換のプロバイダーを選択。",
+          "title": "プロバイダー"
+        },
+        "providers": {
+          "add": "プロバイダーを追加",
+          "builtInBadge": "組み込み",
+          "deleteConfirm": {
+            "description": "これにより、プロバイダーと関連するすべてのモデルが削除されます。",
+            "title": "プロバイダーを削除しますか？"
+          },
+          "dialog": {
+            "createTitle": "プロバイダーを作成",
+            "editTitle": "プロバイダーを編集"
+          },
+          "empty": {
+            "description": "開始するにはプロバイダーを追加してください。",
+            "title": "プロバイダーなし"
+          },
+          "fields": {
+            "baseUrl": "ベースURL",
+            "modelsEndpoint": "モデルエンドポイント",
+            "modelsEndpointPlaceholder": "/models",
+            "name": "プロバイダー名",
+            "namePlaceholder": "My Provider"
+          },
+          "resetUrl": "URLをリセット",
+          "title": "プロバイダー"
+        },
+        "title": "API（OpenAI互換）"
+      },
       "disabledNotice": "後処理は現在無効です。設定するにはデバッグ設定で有効にしてください。",
       "fusion": {
         "enabled": {
@@ -313,565 +694,186 @@
           "title": "リアルタイム文字起こしモデル (オンラインASR)"
         }
       },
-      "api": {
-        "title": "API（OpenAI互換）",
-        "provider": {
-          "title": "プロバイダー",
-          "description": "OpenAI互換のプロバイダーを選択。"
-        },
-        "appleIntelligence": {
-          "description": "完全にデバイス上で動作。APIキーやネットワークアクセスは不要。",
-          "requirements": "macOS Tahoe（26.0）以降を実行するApple Silicon Macが必要です。システム設定でApple Intelligenceを有効にする必要があります。",
-          "title": "Apple Intelligence"
-        },
-        "baseUrl": {
-          "title": "ベースURL",
-          "description": "選択したプロバイダーのAPIベースURL。カスタムプロバイダーのみ編集可能。",
-          "placeholder": "https://api.openai.com/v1"
-        },
-        "apiKey": {
-          "title": "APIキー",
-          "description": "選択したプロバイダーのAPIキー。",
-          "placeholder": "sk-..."
-        },
-        "model": {
-          "title": "モデル",
-          "descriptionApple": "オプションの数値トークン制限を指定するか、デフォルトのオンデバイスプリセットを使用。",
-          "descriptionCustom": "カスタムエンドポイントが期待するモデル識別子を指定。",
-          "descriptionDefault": "選択したプロバイダーが提供するモデルを選択。",
-          "placeholderWithOptions": "モデルを検索または選択",
-          "placeholderNoOptions": "モデル名を入力",
-          "refreshModels": "モデルを更新",
-          "placeholderApple": "Apple Intelligence"
-        },
-        "manageProviders": "プロバイダー管理",
-        "providers": {
-          "title": "プロバイダー",
-          "add": "プロバイダーを追加",
-          "builtInBadge": "組み込み",
-          "empty": {
-            "title": "プロバイダーなし",
-            "description": "開始するにはプロバイダーを追加してください。"
-          },
-          "deleteConfirm": {
-            "title": "プロバイダーを削除しますか？",
-            "description": "これにより、プロバイダーと関連するすべてのモデルが削除されます。"
-          },
-          "dialog": {
-            "createTitle": "プロバイダーを作成",
-            "editTitle": "プロバイダーを編集"
-          },
-          "fields": {
-            "name": "プロバイダー名",
-            "namePlaceholder": "My Provider",
-            "baseUrl": "ベースURL",
-            "modelsEndpoint": "モデルエンドポイント",
-            "modelsEndpointPlaceholder": "/models"
-          },
-          "resetUrl": "URLをリセット"
-        }
-      },
-      "prompts": {
-        "title": "プロンプト",
-        "selectedPrompt": {
-          "title": "選択したプロンプト",
-          "description": "文字起こしを改善するテンプレートを選択するか、新しく作成します。プロンプトテキスト内で${output}を使用して、キャプチャした文字起こしを参照します。"
-        },
-        "noPrompts": "プロンプトがありません",
-        "selectPrompt": "プロンプトを選択",
-        "createNew": "新しいプロンプトを作成",
-        "promptLabel": "プロンプト名",
-        "promptLabelPlaceholder": "プロンプト名を入力",
-        "promptInstructions": "プロンプトの指示",
-        "promptInstructionsPlaceholder": "文字起こし後に実行する指示を記述します。例：以下のテキストの文法と明瞭さを改善してください: ${output}",
-        "promptTip": "ヒント：<code>${output}</code>を使用して、文字起こしテキストをプロンプトに挿入します。",
-        "updatePrompt": "プロンプトを更新",
-        "deletePrompt": "プロンプトを削除",
-        "createPrompt": "プロンプトを作成",
-        "cancel": "キャンセル",
-        "selectToEdit": "上からプロンプトを選択して、詳細を表示・編集します。",
-        "createFirst": "上の「新しいプロンプトを作成」をクリックして、最初の後処理プロンプトを作成してください。"
-      },
       "models": {
-        "title": "モデル",
-        "description": "後処理に使用するモデルを追加・管理します。",
         "addModel": "モデルを追加",
-        "stats": {
-          "asr": "ASR: {{count}}",
-          "text": "テキスト: {{count}}",
-          "other": "その他: {{count}}"
-        },
+        "description": "後処理に使用するモデルを追加・管理します。",
         "empty": {
-          "title": "モデルが設定されていません",
-          "description": "開始するにはモデルを追加してください。"
+          "description": "開始するにはモデルを追加してください。",
+          "title": "モデルが設定されていません"
         },
         "modelTypes": {
-          "text": {
-            "label": "テキスト",
-            "hint": "テキストの改善とフォーマット"
-          },
           "asr": {
-            "label": "ASR",
-            "hint": "音声認識"
+            "hint": "音声認識",
+            "label": "ASR"
           },
           "other": {
-            "label": "その他",
-            "hint": "カスタム用途"
+            "hint": "カスタム用途",
+            "label": "その他"
+          },
+          "text": {
+            "hint": "テキストの改善とフォーマット",
+            "label": "テキスト"
           }
         },
         "selectModel": {
-          "title": "モデルを選択",
-          "description": "追加するモデルを選択するか、手動で入力してください。",
-          "segmented": {
-            "selectModel": "選択",
-            "customModel": "カスタム"
-          },
+          "customLabelPlaceholder": "ラベルを入力...",
+          "customLabelTitle": "カスタムラベル",
           "customModelPlaceholder": "モデルIDを入力...",
+          "description": "追加するモデルを選択するか、手動で入力してください。",
           "placeholder": "モデルを選択...",
           "placeholderEmpty": "利用可能なモデルがありません",
-          "usageTypeTitle": "使用タイプ",
-          "customLabelTitle": "カスタムラベル",
-          "customLabelPlaceholder": "ラベルを入力..."
-        }
-      }
+          "segmented": {
+            "customModel": "カスタム",
+            "selectModel": "選択"
+          },
+          "title": "モデルを選択",
+          "usageTypeTitle": "使用タイプ"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "その他: {{count}}",
+          "text": "テキスト: {{count}}"
+        },
+        "title": "モデル"
+      },
+      "prompts": {
+        "cancel": "キャンセル",
+        "createFirst": "上の「新しいプロンプトを作成」をクリックして、最初の後処理プロンプトを作成してください。",
+        "createNew": "新しいプロンプトを作成",
+        "createPrompt": "プロンプトを作成",
+        "deletePrompt": "プロンプトを削除",
+        "noPrompts": "プロンプトがありません",
+        "promptInstructions": "プロンプトの指示",
+        "promptInstructionsPlaceholder": "文字起こし後に実行する指示を記述します。例：以下のテキストの文法と明瞭さを改善してください: ${output}",
+        "promptLabel": "プロンプト名",
+        "promptLabelPlaceholder": "プロンプト名を入力",
+        "promptTip": "ヒント：<code>${output}</code>を使用して、文字起こしテキストをプロンプトに挿入します。",
+        "selectedPrompt": {
+          "description": "文字起こしを改善するテンプレートを選択するか、新しく作成します。プロンプトテキスト内で${output}を使用して、キャプチャした文字起こしを参照します。",
+          "title": "選択したプロンプト"
+        },
+        "selectPrompt": "プロンプトを選択",
+        "selectToEdit": "上からプロンプトを選択して、詳細を表示・編集します。",
+        "title": "プロンプト",
+        "updatePrompt": "プロンプトを更新"
+      },
+      "title": "後処理"
     },
-    "history": {
-      "title": "履歴",
-      "openFolder": "録音フォルダを開く",
-      "loading": "履歴を読み込み中...",
-      "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう！",
-      "copyToClipboard": "文字起こしをクリップボードにコピー",
-      "save": "文字起こしを保存",
-      "unsave": "保存から削除",
-      "delete": "エントリーを削除",
-      "deleteError": "エントリーの削除に失敗しました。もう一度お試しください。",
-      "searchPlaceholder": "Search history...",
-      "timeline": {
-        "today": "Today",
-        "yesterday": "Yesterday",
-        "thisWeek": "This Week",
-        "earlier": "Earlier"
-      },
-      "content": {
-        "improved": "Improved",
-        "original": "Original"
-      }
+    "shortcuts": {
+      "title": "ショートカット"
     },
-    "debug": {
-      "title": "デバッグ",
-      "logDirectory": {
-        "title": "ログディレクトリ",
-        "description": "ログファイルの保存場所",
-        "error": "Error loading log directory: {{error}}"
+    "sound": {
+      "audioFeedback": {
+        "description": "録音の開始と停止時にサウンドを再生",
+        "label": "音声フィードバック"
       },
-      "logLevel": {
-        "title": "ログレベル",
-        "description": "ログの詳細度を設定"
+      "microphone": {
+        "description": "使用するマイクデバイスを選択",
+        "loading": "読み込み中...",
+        "placeholder": "マイクを選択...",
+        "title": "マイク"
       },
-      "updateChecks": {
-        "label": "アップデートを確認",
-        "description": "Handyの新しいバージョンを自動的にチェック"
+      "outputDevice": {
+        "description": "フィードバックサウンド用の音声出力デバイスを選択",
+        "loading": "読み込み中...",
+        "placeholder": "出力デバイスを選択...",
+        "title": "出力デバイス"
       },
-      "soundTheme": {
-        "label": "サウンドテーマ",
-        "description": "録音開始・停止フィードバックのサウンドテーマを選択"
-      },
-      "wordCorrectionThreshold": {
-        "title": "単語修正しきい値",
-        "description": "カスタム単語修正の感度"
-      },
-      "historyLimit": {
-        "title": "履歴上限",
-        "description": "保持する履歴エントリーの最大数",
-        "entries": "件"
-      },
-      "recordingRetention": {
-        "title": "録音の保持",
-        "description": "音声録音を保持する期間",
-        "never": "しない",
-        "preserveLimit": "{{count}}件の録音を保持",
-        "days3": "3日後",
-        "weeks2": "2週間後",
-        "months3": "3ヶ月後",
-        "placeholder": "保持期間を選択..."
-      },
-      "alwaysOnMicrophone": {
-        "label": "マイク常時オン",
-        "description": "より速い応答のためにマイクをアクティブに保つ"
-      },
-      "clamshellMicrophone": {
-        "title": "クラムシェルマイク",
-        "description": "ノートパソコンの蓋を閉じたときに使用するマイク"
-      },
-      "postProcessingToggle": {
-        "label": "後処理",
-        "description": "文字起こし後のAIによるテキスト改善を有効化"
-      },
-      "muteWhileRecording": {
-        "label": "録音中にミュート",
-        "description": "録音中にシステムオーディオをミュート"
-      },
-      "appendTrailingSpace": {
-        "label": "末尾にスペースを追加",
-        "description": "貼り付けた文字起こしの後にスペースを追加"
-      },
-      "paths": {
-        "appData": "アプリデータ:",
-        "models": "モデル:",
-        "settings": "設定:",
-        "title": "Paths",
-        "description": "Common filesystem paths Votype uses"
+      "title": "サウンド",
+      "volume": {
+        "description": "音声フィードバックの音量を調整",
+        "title": "音量"
       }
-    },
-    "about": {
-      "title": "概要",
-      "version": {
-        "title": "バージョン",
-        "description": "Handyの現在のバージョン"
-      },
-      "appDataDirectory": {
-        "title": "アプリデータディレクトリ",
-        "description": "Handyがデータを保存する場所"
-      },
-      "sourceCode": {
-        "title": "ソースコード",
-        "description": "ソースコードを見て貢献する",
-        "button": "GitHubで見る"
-      },
-      "supportDevelopment": {
-        "title": "開発を支援",
-        "description": "Handyの開発を支援してください",
-        "button": "寄付する"
-      },
-      "acknowledgments": {
-        "title": "謝辞",
-        "whisper": {
-          "description": "OpenAIのWhisper自動音声認識モデルの高性能推論",
-          "details": "Handyは高速でローカルな音声からテキストへの変換にWhisper.cppを使用しています。Georgi Gerganov氏と貢献者の皆様の素晴らしい仕事に感謝します。",
-          "title": "Whisper.cpp"
-        }
-      }
-    },
-    "asrModels": {
-      "title": "音声モデル",
-      "description": "ローカルの文字起こしモデルを管理し、クイックセレクターに表示するモデルを制御します。",
-      "reset": "リセット",
-      "idLabel": "ID: {{id}}",
-      "addFromUrl": "追加＆ダウンロード",
-      "install": {
-        "placeholder": "モデルURLを貼り付け…",
-        "tooltip": "URLからインストール"
-      },
-      "quickSettings": {
-        "title": "クイック設定",
-        "description": "これらは全体に適用されます。下のライブラリで句読点モデルを削除してください。"
-      },
-      "addSection": {
-        "title": "インストール",
-        "description": "モデルURLを貼り付け。アプリはファイル名からモデルタイプを推測します。"
-      },
-      "pipeline": {
-        "title": "パイプライン",
-        "description": "文字起こし後に自動的に適用できる全体的な後処理。",
-        "punctuation": "自動句読点",
-        "punctuationHint": "選択した句読点モデルを使用して文の区切りを追加します。",
-        "punctuationModel": "句読点モデル",
-        "punctuationModelHint": "使用する句読点モデルを選択。",
-        "itn": "ITN (SenseVoice)",
-        "itnHint": "逆テキスト正規化：基本的なフォーマット（例：数字）。"
-      },
-      "library": {
-        "title": "ライブラリ",
-        "description": "クイックセレクターに表示するお気に入りを選択。",
-        "searchPlaceholder": "モデルを検索…",
-        "count": "{{count}} モデル"
-      },
-      "favorite": "お気に入り",
-      "filters": {
-        "all": "すべて",
-        "downloaded": "ダウンロード済み",
-        "favorites": "お気に入り",
-        "status": "ステータス",
-        "mode": "モード",
-        "language": "言語",
-        "type": "タイプ"
-      },
-      "groupBy": {
-        "mode": "モード",
-        "language": "言語",
-        "type": "タイプ"
-      },
-      "groups": {
-        "streaming": "ストリーミング",
-        "offline": "オフライン",
-        "multilingual": "多言語",
-        "punctuation": "句読点"
-      },
-      "types": {
-        "whisper": "Whisper",
-        "parakeet": "Parakeet",
-        "punctuation": "句読点"
-      },
-      "typeChips": {
-        "whisper": "Whisper",
-        "parakeet": "Parakeet",
-        "sherpa_transducer": "Sherpa Transducer",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "punctuation": "句読点",
-        "other": "その他"
-      },
-      "languages": {
-        "zh": "中国語",
-        "yue": "広東語",
-        "en": "英語",
-        "ja": "日本語",
-        "ko": "韓国語",
-        "de": "ドイツ語",
-        "es": "スペイン語",
-        "fr": "フランス語",
-        "ru": "ロシア語",
-        "multilingual": "多言語",
-        "other": "その他"
-      },
-      "status": {
-        "downloaded": "ダウンロード済み",
-        "notDownloaded": "未ダウンロード"
-      },
-      "download": "ダウンロード",
-      "delete": "削除"
     }
   },
-  "footer": {
-    "downloadingModel": "{{model}}をダウンロード中...",
-    "checkingUpdates": "アップデートを確認中...",
-    "updateAvailable": "アップデートあり: {{version}}",
-    "updateAvailableShort": "アップデートあり",
-    "upToDate": "最新です",
-    "downloadUpdate": "アップデートをダウンロード",
-    "restart": "再起動",
-    "updateCheckingDisabled": "アップデート確認無効",
-    "downloading": "ダウンロード中... {{progress}}%",
-    "installing": "インストール中...",
-    "preparing": "準備中...",
-    "checkForUpdates": "アップデートを確認"
-  },
-  "common": {
-    "loading": "読み込み中...",
-    "save": "保存",
-    "cancel": "キャンセル",
-    "reset": "リセット",
-    "add": "追加",
-    "remove": "削除",
-    "delete": "削除",
-    "edit": "編集",
-    "create": "作成",
-    "update": "更新",
-    "close": "閉じる",
-    "open": "開く",
-    "default": "デフォルト",
-    "enabled": "有効",
-    "disabled": "無効",
-    "on": "オン",
-    "off": "オフ",
-    "yes": "はい",
-    "no": "いいえ",
-    "noOptionsFound": "オプションが見つかりません",
-    "copy": "コピー",
-    "copied": "コピーしました",
-    "skip": "スキップ",
+  "sidebar": {
+    "about": "概要",
+    "advanced": "詳細設定",
+    "asrModels": "ASRモデル",
+    "dashboard": "ダッシュボード",
+    "debug": "デバッグ",
+    "general": "一般",
+    "history": "履歴",
     "models": "モデル",
-    "selectOption": "オプションを選択",
-    "filterOptions": "オプションをフィルタ...",
-    "noMatchingOptions": "一致するオプションなし",
-    "notAvailable": "利用不可",
-    "addNewOption": "新しいオプションを追加",
-    "useInput": "\"{{input}}\"を使用",
-    "done": "完了"
-  },
-  "overlay": {
-    "status": {
-      "recording": "録音中...",
-      "transcribing": "文字起こし中...",
-      "llm": "後処理中..."
-    }
-  },
-  "accessibility": {
-    "permissionsRequired": "アクセシビリティ権限が必要です",
-    "permissionsDescription": "Handyが文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
-    "openSettings": "システム設定を開く",
-    "dismiss": "閉じる",
-    "verify": "Verify"
-  },
-  "errors": {
-    "loadDirectory": "ディレクトリの読み込みエラー: {{error}}"
-  },
-  "appLanguage": {
-    "title": "アプリケーション言語",
-    "description": "Handyインターフェースの言語を変更"
-  },
-  "models": {
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "name": "Sherpa 中国語 (CTC 小)",
-      "description": "ストリーミング中国語ASR (Zipformer2 CTC); 小型で非常に高速 (INT8); 更新 2025-04-01."
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "name": "Sherpa 中国語",
-      "description": "ストリーミング中国語ASR; 小型で非常に高速 (INT8); 高精度; 更新 2025-06-30."
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "name": "Sherpa 中国語 XL",
-      "description": "ストリーミング中国語ASR; 大型モデル、高速 (INT8); 非常に高精度; 更新 2025-06-30."
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "name": "Sherpa 英語",
-      "description": "ストリーミング英語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06."
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "name": "Sherpa ドイツ語",
-      "description": "ストリーミングドイツ語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06."
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "name": "Sherpa スペイン語",
-      "description": "ストリーミングスペイン語ASR; 中型で非常に高速; 精度良好; 更新 2025-08-06."
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "name": "Sherpa フランス語",
-      "description": "ストリーミングフランス語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06."
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "name": "Sherpa ロシア語",
-      "description": "ストリーミングロシア語ASR; 超小型で非常に高速 (INT8); 精度良好; 更新 2025-08-16."
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "name": "Sherpa 中国語 + 英語 (Paraformer)",
-      "description": "ストリーミング中英モデル. リアルタイム字幕に最適; 高速、精度はそこそこ."
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "name": "Sherpa Paraformer 中国語 (INT8)",
-      "description": "オフライン中国語ASR; INT8; 高速; 精度良好; 更新 2025-10-07."
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "name": "Sherpa Paraformer 中国語 (小)",
-      "description": "オフライン中国語ASR; 小型で高速; 精度はそこそこ; 更新 2024-03-09."
-    },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "name": "Sherpa Paraformer 中+粤+英",
-      "description": "オフライン3か国語ASR (中国語/広東語/英語); 大型; 精度良好."
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "name": "SenseVoice 多言語",
-      "description": "オフラインモデル： 中国語/英語/日本語/韓国語/広東語. Int8 量子化; 速度とメモリは中程度. 更新 2025-09-09."
-    },
-    "punct-zh-en-ct-transformer-2024-04-12-int8": {
-      "name": "句読点 (中国語 + 英語)",
-      "description": "句読点と文の区切りを追加 (中英混合テキスト用). Int8; 高速で小型. 更新 2024-04-12."
-    },
-    "punct-zh-en-ct-transformer-2024-04-12": {
-      "name": "句読点 (中国語 + 英語) 大",
-      "description": "句読点と文の区切りを追加 (中英混合テキスト用). 大型モデル; より正確だが低速. 更新 2024-04-12."
-    },
-    "small": {
-      "name": "Whisper Small",
-      "description": "高速でかなり正確。"
-    },
-    "medium": {
-      "name": "Whisper Medium",
-      "description": "高精度、中速"
-    },
-    "turbo": {
-      "name": "Whisper Turbo",
-      "description": "精度と速度のバランスが良い。"
-    },
-    "large": {
-      "name": "Whisper Large",
-      "description": "高精度だが低速。"
-    },
-    "parakeet-tdt-0.6b-v2": {
-      "name": "Parakeet V2",
-      "description": "英語のみ。英語話者に最適なモデル。"
-    },
-    "parakeet-tdt-0.6b-v3": {
-      "name": "Parakeet V3",
-      "description": "高速かつ正確"
-    }
+    "postProcessing": "後処理",
+    "prompts": "プロンプト",
+    "shortcuts": "ショートカット"
   },
   "soundPicker": {
+    "custom": "カスタム",
     "marimba": "Marimba",
     "pop": "Pop",
-    "custom": "カスタム",
     "preview": "プレビュー"
   },
   "theme": {
-    "title": "テーマ",
-    "themeMode": {
-      "title": "テーマモード",
-      "description": "Votypeの外観を選択",
-      "light": "ライト",
-      "lightDesc": "常にライトテーマを使用",
-      "dark": "ダーク",
-      "darkDesc": "常にダークテーマを使用",
-      "system": "システム",
-      "systemDesc": "システムのテーマに合わせる"
-    },
     "accentColor": {
-      "title": "アクセントカラー",
-      "description": "アプリ全体で使用するアクセントカラーを選択",
-      "current": "現在: {{color}}",
-      "ruby": "ルビー",
-      "gray": "グレー",
-      "gold": "ゴールド",
+      "amber": "アンバー",
+      "blue": "ブルー",
       "bronze": "ブロンズ",
       "brown": "ブラウン",
+      "crimson": "クリムゾン",
+      "current": "現在: {{color}}",
+      "cyan": "シアン",
+      "description": "アプリ全体で使用するアクセントカラーを選択",
+      "gold": "ゴールド",
+      "grass": "グラス",
+      "gray": "グレー",
+      "green": "グリーン",
       "indigo": "インディゴ",
-      "blue": "ブルー",
       "iris": "アイリス",
-      "purple": "パープル",
-      "violet": "バイオレット",
+      "jade": "ジェイド",
+      "lime": "ライム",
+      "mint": "ミント",
+      "orange": "オレンジ",
       "pink": "ピンク",
       "plum": "プラム",
+      "purple": "パープル",
       "red": "レッド",
-      "tomato": "トマト",
-      "crimson": "クリムゾン",
-      "orange": "オレンジ",
-      "amber": "アンバー",
-      "yellow": "イエロー",
-      "lime": "ライム",
-      "green": "グリーン",
-      "grass": "グラス",
-      "jade": "ジェイド",
+      "ruby": "ルビー",
+      "sky": "スカイ",
       "teal": "ティール",
-      "cyan": "シアン",
-      "mint": "ミント",
-      "sky": "スカイ"
-    },
-    "panelStyle": {
-      "title": "パネルスタイル",
-      "description": "半透明かソリッドなパネルを選択",
-      "translucent": "半透明",
-      "translucentDesc": "すりガラス効果",
-      "solid": "ソリッド",
-      "solidDesc": "不透明なパネル"
+      "title": "アクセントカラー",
+      "tomato": "トマト",
+      "violet": "バイオレット",
+      "yellow": "イエロー"
     },
     "cornerRadius": {
-      "title": "角の丸み",
+      "capsule": "カプセル",
+      "capsuleDesc": "完全に丸い角",
+      "default": "デフォルト",
+      "defaultDesc": "標準的な丸み",
       "description": "角の丸みを調整",
+      "rounded": "丸い",
+      "roundedDesc": "より丸い角",
       "sharp": "シャープ",
       "sharpDesc": "丸みなし",
       "soft": "ソフト",
       "softDesc": "わずかに丸い角",
-      "default": "デフォルト",
-      "defaultDesc": "標準的な丸み",
-      "rounded": "丸い",
-      "roundedDesc": "より丸い角",
-      "capsule": "カプセル",
-      "capsuleDesc": "完全に丸い角"
+      "title": "角の丸み"
+    },
+    "panelStyle": {
+      "description": "半透明かソリッドなパネルを選択",
+      "solid": "ソリッド",
+      "solidDesc": "不透明なパネル",
+      "title": "パネルスタイル",
+      "translucent": "半透明",
+      "translucentDesc": "すりガラス効果"
     },
     "scaling": {
-      "title": "スケーリング",
+      "current": "現在: {{scale}}",
       "description": "UIスケールを調整",
-      "current": "現在: {{scale}}"
-    }
+      "title": "スケーリング"
+    },
+    "themeMode": {
+      "dark": "ダーク",
+      "darkDesc": "常にダークテーマを使用",
+      "description": "Votypeの外観を選択",
+      "light": "ライト",
+      "lightDesc": "常にライトテーマを使用",
+      "system": "システム",
+      "systemDesc": "システムのテーマに合わせる",
+      "title": "テーマモード"
+    },
+    "title": "テーマ"
   }
 }

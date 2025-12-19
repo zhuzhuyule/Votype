@@ -386,6 +386,22 @@ export const Dashboard: React.FC = () => {
             alert(t("dashboard.actions.retranscribeFailed"));
           }
         }}
+        onReprocess={async (id, promptId, inputText) => {
+          console.log(
+            `[Dashboard] Invoking reprocess_history_entry for ID: ${id}, Prompt: ${promptId}`,
+          );
+          try {
+            await invoke("reprocess_history_entry", {
+              id,
+              promptId,
+              inputText,
+            });
+            console.log("[Dashboard] Reprocess invocation successful");
+          } catch (e) {
+            console.error("[Dashboard] Reprocess invocation failed", e);
+            alert(t("dashboard.actions.reprocessFailed"));
+          }
+        }}
         onLoadMore={handleLoadMore}
         isLoadingMore={isLoadingMore}
         hasMore={hasMore}

@@ -4,6 +4,7 @@ import { Box, Flex, Grid, Text, TextField } from "@radix-ui/themes";
 import { TFunction } from "i18next";
 import React from "react";
 import { Dropdown } from "../../../../ui/Dropdown";
+import { IconPicker } from "../../../../shared/IconPicker";
 import { ResizableEditor } from "./ResizableEditor";
 import { TagInput } from "./TagInput";
 
@@ -20,6 +21,8 @@ interface PromptEditorProps {
   setDraftContent: (value: string) => void;
   draftModelId: string | null;
   setDraftModelId: (value: string | null) => void;
+  draftIcon: string | null;
+  setDraftIcon: (value: string | null) => void;
   currentAliases: string[];
   currentAliasInput: string;
   setCurrentAliasInput: (value: string) => void;
@@ -38,6 +41,8 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
   setDraftContent,
   draftModelId,
   setDraftModelId,
+  draftIcon,
+  setDraftIcon,
   currentAliases,
   currentAliasInput,
   setCurrentAliasInput,
@@ -62,14 +67,18 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
           <Text size="2" weight="medium" mb="1" as="div">
             {t("settings.postProcessing.prompts.promptLabel")}
           </Text>
-          <TextField.Root
-            variant="surface"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            placeholder={t(
-              "settings.postProcessing.prompts.promptLabelPlaceholder",
-            )}
-          />
+          <Flex gap="2">
+            <IconPicker value={draftIcon} onChange={setDraftIcon} />
+            <TextField.Root
+              variant="surface"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder={t(
+                "settings.postProcessing.prompts.promptLabelPlaceholder",
+              )}
+              style={{ flex: 1 }}
+            />
+          </Flex>
         </Box>
 
         <Flex direction="column" className="min-w-0">

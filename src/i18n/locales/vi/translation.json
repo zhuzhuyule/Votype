@@ -1,105 +1,270 @@
 {
-  "sidebar": {
-    "dashboard": "Bảng điều khiển",
-    "general": "Chung",
-    "shortcuts": "Phím tắt",
-    "advanced": "Nâng cao",
-    "postProcessing": "Xử lý sau",
-    "history": "Lịch sử",
-    "debug": "Gỡ lỗi",
-    "about": "Giới thiệu",
+  "_comment": "Vietnamese translation for Votype.",
+  "accessibility": {
+    "dismiss": "Bỏ qua",
+    "openSettings": "Mở Cài đặt Hệ thống",
+    "permissionsDescription": "Votype cần quyền truy cập để gõ văn bản đã chuyển đổi.",
+    "permissionsRequired": "Cần quyền truy cập",
+    "verify": "Verify"
+  },
+  "appLanguage": {
+    "description": "Thay đổi ngôn ngữ giao diện của Votype",
+    "title": "Ngôn ngữ ứng dụng"
+  },
+  "common": {
+    "add": "Thêm",
+    "addNewOption": "Thêm tùy chọn mới",
+    "cancel": "Hủy",
+    "close": "Đóng",
+    "copied": "Đã sao chép",
+    "copy": "Sao chép",
+    "create": "Tạo",
+    "default": "Mặc định",
+    "delete": "Xóa",
+    "disabled": "Đã tắt",
+    "done": "Xong",
+    "edit": "Chỉnh sửa",
+    "enabled": "Đã bật",
+    "filterOptions": "Lọc tùy chọn...",
+    "loading": "Đang tải...",
     "models": "Các Mô hình",
-    "asrModels": "Các Mô hình ASR",
-    "prompts": "Prompts"
+    "no": "Không",
+    "noMatchingOptions": "Không có tùy chọn phù hợp",
+    "noOptionsFound": "Không tìm thấy tùy chọn",
+    "notAvailable": "Không có sẵn",
+    "off": "Tắt",
+    "on": "Bật",
+    "open": "Mở",
+    "remove": "Xóa",
+    "reset": "Đặt lại",
+    "save": "Lưu",
+    "searchOrPaste": "Tìm kiếm hoặc dán...",
+    "selectAll": "Chọn tất cả",
+    "selectOption": "Chọn một tùy chọn",
+    "skip": "Bỏ qua",
+    "update": "Cập nhật",
+    "useInput": "Sử dụng \"{{input}}\"",
+    "yes": "Có"
   },
   "dashboard": {
-    "title": "Bảng điều khiển",
-    "cards": {
-      "today": "Hôm nay",
-      "recent": "{{days}} ngày gần đây",
-      "allTime": "Tất cả"
-    },
-    "metrics": {
-      "entries": "Bản ghi",
-      "duration": "Thời lượng âm thanh",
-      "characters": "Ký tự",
-      "saved": "Đã lưu",
-      "postProcessed": "Đã xử lý sau"
+    "actions": {
+      "openRecordings": "Bản ghi âm"
     },
     "activity": {
-      "title": "Sử dụng",
+      "entries": "Tổng cộng {{count}} mục",
       "subtitle": "30 ngày gần đây",
-      "entries": "Tổng cộng {{count}} mục"
+      "title": "Sử dụng"
     },
-    "range": {
-      "lastNDays": "{{days}} ngày qua",
+    "cards": {
       "allTime": "Tất cả",
-      "today": "Hôm nay",
-      "buttons": {
-        "last7Days": "7 ngày qua",
-        "last30Days": "30 ngày qua",
-        "allTime": "Tất cả"
-      }
-    },
-    "summary": {
-      "recording": {
-        "title": "Tổng nhập giọng nói",
-        "count": "{{count}} lần chuyển đổi"
-      },
-      "transcription": {
-        "title": "Văn bản tạo ra",
-        "speed": "Trung bình {{rate}}/phút"
-      },
-      "llm": {
-        "title": "Mức dùng LLM",
-        "details": "Tỷ lệ trúng: {{hitRate}}",
-        "unknownApp": "Không rõ"
-      },
-      "apps": {
-        "title": "Top 3 ứng dụng dùng nhiều nhất",
-        "top3": "Top 3",
-        "empty": "Không có dữ liệu ứng dụng"
-      }
+      "recent": "{{days}} ngày gần đây",
+      "today": "Hôm nay"
     },
     "details": {
-      "title": "Lịch sử",
+      "audioRemoved": "Bản ghi đã bị xóa",
       "count": "{{count}} mục",
+      "empty": "Không có dữ liệu",
+      "loadMore": "Tải thêm",
       "meta": {
         "chars": "{{value}} ký tự"
       },
-      "audioRemoved": "Bản ghi đã bị xóa",
-      "empty": "Không có dữ liệu",
-      "loadMore": "Tải thêm"
+      "title": "Lịch sử"
     },
-    "actions": {
-      "openRecordings": "Bản ghi âm"
+    "metrics": {
+      "characters": "Ký tự",
+      "duration": "Thời lượng âm thanh",
+      "entries": "Bản ghi",
+      "postProcessed": "Đã xử lý sau",
+      "saved": "Đã lưu"
+    },
+    "range": {
+      "allTime": "Tất cả",
+      "buttons": {
+        "allTime": "Tất cả",
+        "last30Days": "30 ngày qua",
+        "last7Days": "7 ngày qua"
+      },
+      "lastNDays": "{{days}} ngày qua",
+      "today": "Hôm nay"
+    },
+    "summary": {
+      "apps": {
+        "empty": "Không có dữ liệu ứng dụng",
+        "title": "Top 3 ứng dụng dùng nhiều nhất",
+        "top3": "Top 3"
+      },
+      "llm": {
+        "details": "Tỷ lệ trúng: {{hitRate}}",
+        "title": "Mức dùng LLM",
+        "unknownApp": "Không rõ"
+      },
+      "recording": {
+        "count": "{{count}} lần chuyển đổi",
+        "title": "Tổng nhập giọng nói"
+      },
+      "transcription": {
+        "speed": "Trung bình {{rate}}/phút",
+        "title": "Văn bản tạo ra"
+      }
+    },
+    "title": "Bảng điều khiển"
+  },
+  "errors": {
+    "loadDirectory": "Lỗi khi tải thư mục: {{error}}"
+  },
+  "footer": {
+    "checkForUpdates": "Kiểm tra cập nhật",
+    "checkingUpdates": "Đang kiểm tra cập nhật...",
+    "downloading": "Đang tải... {{progress}}%",
+    "downloadingModel": "Đang tải {{model}}...",
+    "downloadUpdate": "Tải cập nhật",
+    "installing": "Đang cài đặt...",
+    "preparing": "Đang chuẩn bị...",
+    "restart": "Khởi động lại",
+    "updateAvailable": "Có bản cập nhật: {{version}}",
+    "updateAvailableShort": "Có bản cập nhật",
+    "updateCheckingDisabled": "Đã tắt kiểm tra cập nhật",
+    "upToDate": "Đã cập nhật"
+  },
+  "models": {
+    "large": {
+      "description": "Độ chính xác tốt, nhưng chậm.",
+      "name": "Whisper Large"
+    },
+    "medium": {
+      "description": "Độ chính xác tốt, tốc độ trung bình",
+      "name": "Whisper Medium"
+    },
+    "parakeet-tdt-0.6b-v2": {
+      "description": "Chỉ tiếng Anh. Mô hình tốt nhất cho người nói tiếng Anh.",
+      "name": "Parakeet V2"
+    },
+    "parakeet-tdt-0.6b-v3": {
+      "description": "Nhanh và chính xác",
+      "name": "Parakeet V3"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12": {
+      "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Mô hình lớn hơn; chính xác hơn nhưng chậm hơn. Cập nhật 12/04/2024.",
+      "name": "Dấu câu (Trung + Anh) Lớn"
+    },
+    "punct-zh-en-ct-transformer-2024-04-12-int8": {
+      "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Int8; nhanh và nhỏ. Cập nhật 12/04/2024.",
+      "name": "Dấu câu (Trung + Anh)"
+    },
+    "sherpa-paraformer-trilingual-zh-cantonese-en": {
+      "description": "ASR ba ngôn ngữ ngoại tuyến (Trung/Quảng Đông/Anh); lớn; độ chính xác tốt.",
+      "name": "Sherpa Paraformer Zh+Yue+En"
+    },
+    "sherpa-paraformer-zh-en-streaming": {
+      "description": "Mô hình zh+en trực tuyến. Tốt cho phụ đề thời gian thực; nhanh; độ chính xác khá.",
+      "name": "Sherpa Trung Quốc + Tiếng Anh (Paraformer)"
+    },
+    "sherpa-paraformer-zh-int8-2025-10-07": {
+      "description": "ASR tiếng Trung ngoại tuyến; INT8; nhanh; độ chính xác tốt; cập nhật 07/10/2025.",
+      "name": "Sherpa Paraformer Trung Quốc (INT8)"
+    },
+    "sherpa-paraformer-zh-small-2024-03-09": {
+      "description": "ASR tiếng Trung ngoại tuyến; nhỏ và nhanh; độ chính xác khá; cập nhật 09/03/2024.",
+      "name": "Sherpa Paraformer Trung Quốc (Nhỏ)"
+    },
+    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
+      "description": "Mô hình ngoại tuyến cho Tiếng Trung/Anh/Nhật/Hàn/Quảng Đông. Lượng tử hóa Int8; tốc độ và bộ nhớ trung bình. Cập nhật 09/09/2025.",
+      "name": "SenseVoice Đa ngôn ngữ"
+    },
+    "sherpa-zipformer-de-kroko-2025-08-06": {
+      "description": "ASR tiếng Đức trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
+      "name": "Sherpa Tiếng Đức"
+    },
+    "sherpa-zipformer-en-kroko-2025-08-06": {
+      "description": "ASR tiếng Anh trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
+      "name": "Sherpa Tiếng Anh"
+    },
+    "sherpa-zipformer-es-kroko-2025-08-06": {
+      "description": "ASR tiếng Tây Ban Nha trực tuyến; kích thước vừa và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
+      "name": "Sherpa Tiếng Tây Ban Nha"
+    },
+    "sherpa-zipformer-fr-kroko-2025-08-06": {
+      "description": "ASR tiếng Pháp trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
+      "name": "Sherpa Tiếng Pháp"
+    },
+    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
+      "description": "ASR tiếng Nga trực tuyến; siêu nhỏ và cực nhanh (INT8); độ chính xác tốt; cập nhật 16/08/2025.",
+      "name": "Sherpa Tiếng Nga"
+    },
+    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
+      "description": "ASR tiếng Trung trực tuyến (Zipformer2 CTC); nhỏ và cực nhanh (INT8); cập nhật 01/04/2025.",
+      "name": "Sherpa Trung Quốc (CTC Nhỏ)"
+    },
+    "sherpa-zipformer-zh-int8-2025-06-30": {
+      "description": "ASR tiếng Trung trực tuyến; nhỏ và cực nhanh (INT8); độ chính xác cao; cập nhật 30/06/2025.",
+      "name": "Sherpa Trung Quốc"
+    },
+    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
+      "description": "ASR tiếng Trung trực tuyến; mô hình lớn hơn, nhanh (INT8); độ chính xác rất cao; cập nhật 30/06/2025.",
+      "name": "Sherpa Trung Quốc XL"
+    },
+    "small": {
+      "description": "Nhanh và khá chính xác.",
+      "name": "Whisper Small"
+    },
+    "turbo": {
+      "description": "Cân bằng độ chính xác và tốc độ.",
+      "name": "Whisper Turbo"
     }
   },
+  "modelSelector": {
+    "active": "Đang hoạt động",
+    "addModelFromUrl": "Thêm từ URL",
+    "addModelFromUrlPrompt": "Dán URL tải xuống mô hình (ví dụ: .tar.bz2):",
+    "availableModels": "Các Mô Hình Có Sẵn",
+    "chooseModel": "Chọn Mô Hình",
+    "clickToEnableOnlineAsr": "Nhấn để bật ASR Trực tuyến",
+    "deleteModel": "Xóa {{modelName}}",
+    "download": "Tải xuống",
+    "downloading": "Đang tải xuống {{percentage}}%",
+    "downloadingMultiple": "Đang tải xuống {{count}} mô hình...",
+    "downloadModels": "Tải Xuống Mô Hình",
+    "downloadPrompt": "Tải xuống mô hình bên dưới để bắt đầu chuyển đổi.",
+    "downloadSize": "Kích thước tải xuống",
+    "extracting": "Đang giải nén {{modelName}}...",
+    "extractingGeneric": "Đang giải nén...",
+    "extractingMultiple": "Đang giải nén {{count}} mô hình...",
+    "loading": "Đang tải {{modelName}}...",
+    "loadingGeneric": "Đang tải...",
+    "local": "Cục bộ",
+    "modelError": "Lỗi Mô Hình",
+    "modelReady": "Mô Hình Sẵn Sàng",
+    "modelUnloaded": "Mô Hình Đã Gỡ",
+    "noModelDownloadRequired": "Chưa Có Mô Hình - Cần Tải Xuống",
+    "noModelsAvailable": "Không có mô hình nào",
+    "online": "Trực tuyến",
+    "onlineAsr": "ASR Trực tuyến",
+    "onlineAsrActive": "ASR Trực tuyến đang hoạt động",
+    "onlineAsrModels": "Các Mô hình ASR Trực tuyến",
+    "realtimeModel": "Mô hình thời gian thực",
+    "searchPlaceholder": "Tìm kiếm mô hình…",
+    "userAddedModel": "Mô hình do người dùng thêm",
+    "welcome": "Chào mừng đến với Votype!"
+  },
   "onboarding": {
-    "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
-    "recommended": "Đề xuất",
     "download": "Tải xuống",
     "downloading": "Đang tải xuống...",
+    "errors": {
+      "downloadModel": "Không thể tải mô hình: {{error}}",
+      "loadModels": "Không thể tải các mô hình có sẵn"
+    },
     "modelCard": {
       "accuracy": "độ chính xác",
       "speed": "tốc độ"
     },
     "models": {
-      "small": {
-        "description": "Nhanh và khá chính xác.",
-        "name": "Whisper Small"
+      "large": {
+        "description": "Độ chính xác tốt, nhưng chậm.",
+        "name": "Whisper Large"
       },
       "medium": {
         "description": "Độ chính xác tốt, tốc độ trung bình",
         "name": "Whisper Medium"
-      },
-      "turbo": {
-        "description": "Cân bằng giữa độ chính xác và tốc độ.",
-        "name": "Whisper Turbo"
-      },
-      "large": {
-        "description": "Độ chính xác tốt, nhưng chậm.",
-        "name": "Whisper Large"
       },
       "parakeet-tdt-0.6b-v2": {
         "description": "Chỉ tiếng Anh. Mô hình tốt nhất cho người nói tiếng Anh.",
@@ -108,197 +273,415 @@
       "parakeet-tdt-0.6b-v3": {
         "description": "Nhanh và chính xác",
         "name": "Parakeet V3"
+      },
+      "small": {
+        "description": "Nhanh và khá chính xác.",
+        "name": "Whisper Small"
+      },
+      "turbo": {
+        "description": "Cân bằng giữa độ chính xác và tốc độ.",
+        "name": "Whisper Turbo"
       }
     },
-    "errors": {
-      "loadModels": "Không thể tải các mô hình có sẵn",
-      "downloadModel": "Không thể tải mô hình: {{error}}"
+    "recommended": "Đề xuất",
+    "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói"
+  },
+  "overlay": {
+    "status": {
+      "llm": "Đang xử lý sau...",
+      "recording": "Đang ghi âm...",
+      "transcribing": "Đang chuyển đổi..."
     }
   },
-  "modelSelector": {
-    "welcome": "Chào mừng đến với Votype!",
-    "downloadPrompt": "Tải xuống mô hình bên dưới để bắt đầu chuyển đổi.",
-    "realtimeModel": "Mô hình thời gian thực",
-    "availableModels": "Các Mô Hình Có Sẵn",
-    "downloadModels": "Tải Xuống Mô Hình",
-    "chooseModel": "Chọn Mô Hình",
-    "active": "Đang hoạt động",
-    "download": "Tải xuống",
-    "downloadSize": "Kích thước tải xuống",
-    "noModelsAvailable": "Không có mô hình nào",
-    "extracting": "Đang giải nén {{modelName}}...",
-    "extractingMultiple": "Đang giải nén {{count}} mô hình...",
-    "extractingGeneric": "Đang giải nén...",
-    "downloading": "Đang tải xuống {{percentage}}%",
-    "downloadingMultiple": "Đang tải xuống {{count}} mô hình...",
-    "modelReady": "Mô Hình Sẵn Sàng",
-    "loading": "Đang tải {{modelName}}...",
-    "loadingGeneric": "Đang tải...",
-    "modelError": "Lỗi Mô Hình",
-    "modelUnloaded": "Mô Hình Đã Gỡ",
-    "noModelDownloadRequired": "Chưa Có Mô Hình - Cần Tải Xuống",
-    "deleteModel": "Xóa {{modelName}}",
-    "searchPlaceholder": "Tìm kiếm mô hình…",
-    "local": "Cục bộ",
-    "online": "Trực tuyến",
-    "onlineAsr": "ASR Trực tuyến",
-    "onlineAsrModels": "Các Mô hình ASR Trực tuyến",
-    "clickToEnableOnlineAsr": "Nhấn để bật ASR Trực tuyến",
-    "onlineAsrActive": "ASR Trực tuyến đang hoạt động",
-    "addModelFromUrl": "Thêm từ URL",
-    "addModelFromUrlPrompt": "Dán URL tải xuống mô hình (ví dụ: .tar.bz2):",
-    "userAddedModel": "Mô hình do người dùng thêm"
-  },
   "settings": {
-    "shortcuts": {
-      "title": "Phím tắt"
+    "about": {
+      "acknowledgments": {
+        "title": "Lời cảm ơn",
+        "whisper": {
+          "description": "Suy luận hiệu suất cao của mô hình nhận dạng giọng nói tự động Whisper của OpenAI",
+          "details": "Votype sử dụng Whisper.cpp để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên.",
+          "title": "Whisper.cpp"
+        }
+      },
+      "appDataDirectory": {
+        "description": "Vị trí Votype lưu trữ dữ liệu",
+        "title": "Thư mục dữ liệu ứng dụng"
+      },
+      "sourceCode": {
+        "button": "Xem trên GitHub",
+        "description": "Xem mã nguồn và đóng góp",
+        "title": "Mã nguồn"
+      },
+      "supportDevelopment": {
+        "button": "Quyên góp",
+        "description": "Giúp chúng tôi tiếp tục xây dựng Votype",
+        "title": "Hỗ trợ phát triển"
+      },
+      "title": "Giới thiệu",
+      "version": {
+        "description": "Phiên bản hiện tại của Votype",
+        "title": "Phiên bản"
+      }
+    },
+    "advanced": {
+      "autostart": {
+        "description": "Tự động khởi động Votype khi bạn đăng nhập vào máy tính.",
+        "label": "Khởi động cùng hệ thống"
+      },
+      "clipboardHandling": {
+        "description": "Không sửa đổi Clipboard giữ nguyên nội dung clipboard hiện tại sau khi chuyển đổi. Sao chép vào Clipboard để lại kết quả chuyển đổi trong clipboard sau khi dán.",
+        "options": {
+          "copyToClipboard": "Sao chép vào Clipboard",
+          "dontModify": "Không sửa đổi Clipboard"
+        },
+        "title": "Xử lý Clipboard"
+      },
+      "customWords": {
+        "add": "Thêm",
+        "description": "Thêm các từ thường bị nghe nhầm hoặc viết sai trong quá trình chuyển đổi. Hệ thống sẽ tự động sửa các từ có âm thanh tương tự để khớp với danh sách của bạn.",
+        "placeholder": "Thêm một từ",
+        "remove": "Xóa {{word}}",
+        "title": "Từ tùy chỉnh"
+      },
+      "modelUnload": {
+        "description": "Tự động giải phóng bộ nhớ GPU/CPU khi mô hình không được sử dụng trong thời gian quy định",
+        "options": {
+          "hour1": "Sau 1 giờ",
+          "immediately": "Ngay lập tức",
+          "min10": "Sau 10 phút",
+          "min15": "Sau 15 phút",
+          "min2": "Sau 2 phút",
+          "min5": "Sau 5 phút",
+          "never": "Không bao giờ",
+          "sec5": "Sau 5 giây (Gỡ lỗi)"
+        },
+        "title": "Giải phóng mô hình"
+      },
+      "overlay": {
+        "description": "Hiển thị lớp phủ phản hồi trực quan trong quá trình ghi âm và chuyển đổi. Trên Linux, 'Không có' được khuyến nghị.",
+        "options": {
+          "bottom": "Dưới",
+          "follow": "Follow Cursor",
+          "none": "Không có",
+          "top": "Trên"
+        },
+        "title": "Vị trí lớp phủ"
+      },
+      "pasteMethod": {
+        "description": "Chọn cách chèn văn bản. Trực tiếp: mô phỏng gõ phím qua đầu vào hệ thống. Không có: bỏ qua dán, chỉ cập nhật lịch sử/clipboard.",
+        "options": {
+          "clipboard": "Clipboard ({{modifier}}+V)",
+          "clipboardCtrlShiftV": "Clipboard (Ctrl+Shift+V)",
+          "clipboardShiftInsert": "Clipboard (Shift+Insert)",
+          "direct": "Trực tiếp",
+          "none": "Không có"
+        },
+        "title": "Phương thức dán"
+      },
+      "punctuation": {
+        "description": "Thêm dấu câu vào bản ghi cuối cùng ({{model}}).",
+        "label": "Tự động thêm dấu câu",
+        "model": {
+          "description": "Chọn mô hình dấu câu cho văn bản hỗn hợp zh+en. Chỉ áp dụng cho kết quả cuối cùng.",
+          "notDownloaded": "Mô hình đã chọn chưa được tải xuống.",
+          "title": "Mô hình dấu câu"
+        }
+      },
+      "startHidden": {
+        "description": "Khởi động vào khay hệ thống mà không mở cửa sổ.",
+        "label": "Khởi động ẩn"
+      },
+      "title": "Nâng cao",
+      "translateToEnglish": {
+        "description": "Tự động dịch giọng nói từ các ngôn ngữ khác sang tiếng Anh trong quá trình chuyển đổi.",
+        "descriptionUnsupported": "Mô hình {{model}} không hỗ trợ dịch thuật.",
+        "label": "Dịch sang tiếng Anh"
+      }
+    },
+    "asrModels": {
+      "addFromUrl": "Thêm & Tải xuống",
+      "addSection": {
+        "description": "Dán URL mô hình. Ứng dụng sẽ suy ra loại mô hình từ tên tệp.",
+        "title": "Cài đặt"
+      },
+      "delete": "Xóa",
+      "description": "Quản lý các mô hình chuyến đổi cục bộ và kiểm soát mô hình nào xuất hiện trong bộ chọn nhanh.",
+      "download": "Tải xuống",
+      "favorite": "Yêu thích",
+      "filters": {
+        "all": "Tất cả",
+        "downloaded": "Đã tải xuống",
+        "favorites": "Yêu thích",
+        "language": "Ngôn ngữ",
+        "mode": "Chế độ",
+        "status": "Trạng thái",
+        "type": "Loại"
+      },
+      "groupBy": {
+        "language": "Ngôn ngữ",
+        "mode": "Chế độ",
+        "type": "Loại"
+      },
+      "groups": {
+        "multilingual": "Đa ngôn ngữ",
+        "offline": "Ngoại tuyến",
+        "punctuation": "Dấu câu",
+        "streaming": "Phát trực tuyến"
+      },
+      "idLabel": "id: {{id}}",
+      "install": {
+        "placeholder": "Dán URL mô hình…",
+        "tooltip": "Cài đặt từ URL"
+      },
+      "languages": {
+        "de": "Tiếng Đức",
+        "en": "Tiếng Anh",
+        "es": "Tiếng Tây Ban Nha",
+        "fr": "Tiếng Pháp",
+        "ja": "Tiếng Nhật",
+        "ko": "Tiếng Hàn",
+        "multilingual": "Đa ngôn ngữ",
+        "other": "Khác",
+        "ru": "Tiếng Nga",
+        "yue": "Tiếng Quảng Đông",
+        "zh": "Tiếng Trung"
+      },
+      "library": {
+        "count": "{{count}} mô hình",
+        "description": "Chọn mục yêu thích để hiển thị trong bộ chọn nhanh.",
+        "searchPlaceholder": "Tìm kiếm mô hình…",
+        "title": "Thư viện"
+      },
+      "pipeline": {
+        "description": "Xử lý sau toàn cục có thể được áp dụng tự động sau khi chuyển đổi.",
+        "itn": "ITN (SenseVoice)",
+        "itnHint": "Chuẩn hóa ngược văn bản: định dạng cơ bản (ví dụ: số).",
+        "punctuation": "Tự động thêm dấu câu",
+        "punctuationHint": "Sử dụng mô hình dấu câu đã chọn để thêm ngắt câu.",
+        "punctuationModel": "Mô hình dấu câu",
+        "punctuationModelHint": "Chọn mô hình dấu câu để sử dụng.",
+        "title": "Đường ống"
+      },
+      "quickSettings": {
+        "description": "Những cài đặt này áp dụng toàn cục. Xóa các mô hình dấu câu trong thư viện bên dưới.",
+        "title": "Cài đặt Nhanh"
+      },
+      "reset": "Đặt lại",
+      "status": {
+        "downloaded": "Đã tải xuống",
+        "notDownloaded": "Chưa tải xuống"
+      },
+      "title": "Mô hình Giọng nói",
+      "typeChips": {
+        "other": "Khác",
+        "parakeet": "Parakeet",
+        "punctuation": "Dấu câu",
+        "sherpa_fire_red_asr": "Sherpa FireRedASR",
+        "sherpa_paraformer": "Sherpa Paraformer",
+        "sherpa_sense_voice": "Sherpa SenseVoice",
+        "sherpa_transducer": "Sherpa Transducer",
+        "whisper": "Whisper"
+      },
+      "types": {
+        "parakeet": "Parakeet",
+        "punctuation": "Dấu câu",
+        "whisper": "Whisper"
+      }
+    },
+    "debug": {
+      "alwaysOnMicrophone": {
+        "description": "Giữ micrô hoạt động để phản hồi nhanh hơn",
+        "label": "Micrô luôn bật"
+      },
+      "appendTrailingSpace": {
+        "description": "Thêm một dấu cách sau bản ghi đã dán",
+        "label": "Thêm dấu cách cuối"
+      },
+      "clamshellMicrophone": {
+        "description": "Micrô sử dụng khi nắp laptop được đóng",
+        "title": "Micrô chế độ gập"
+      },
+      "historyLimit": {
+        "description": "Số lượng mục lịch sử tối đa cần giữ",
+        "entries": "entries",
+        "title": "Giới hạn lịch sử"
+      },
+      "logDirectory": {
+        "description": "Vị trí lưu trữ các tệp nhật ký",
+        "error": "Error loading log directory: {{error}}",
+        "title": "Thư mục nhật ký"
+      },
+      "logLevel": {
+        "description": "Đặt mức độ chi tiết của nhật ký",
+        "title": "Mức nhật ký"
+      },
+      "muteWhileRecording": {
+        "description": "Tắt tiếng âm thanh hệ thống trong khi ghi âm",
+        "label": "Tắt tiếng khi ghi âm"
+      },
+      "paths": {
+        "appData": "Dữ liệu ứng dụng:",
+        "description": "Common filesystem paths Votype uses",
+        "models": "Mô hình:",
+        "settings": "Cài đặt:",
+        "title": "Paths"
+      },
+      "postProcessingToggle": {
+        "description": "Bật tinh chỉnh văn bản bằng AI sau khi chuyển đổi",
+        "label": "Xử lý sau"
+      },
+      "recordingRetention": {
+        "days3": "After 3 Days",
+        "description": "Thời gian giữ các bản ghi âm",
+        "months3": "After 3 Months",
+        "never": "Never",
+        "placeholder": "Select retention period...",
+        "preserveLimit": "Preserve {{count}} Recordings",
+        "title": "Lưu giữ ghi âm",
+        "weeks2": "After 2 Weeks"
+      },
+      "soundTheme": {
+        "description": "Chọn chủ đề âm thanh cho phản hồi bắt đầu và kết thúc ghi âm",
+        "label": "Chủ đề âm thanh"
+      },
+      "title": "Gỡ lỗi",
+      "updateChecks": {
+        "description": "Tự động kiểm tra phiên bản mới của Votype",
+        "label": "Kiểm tra cập nhật"
+      },
+      "wordCorrectionThreshold": {
+        "description": "Độ nhạy cho việc sửa từ tùy chỉnh",
+        "title": "Ngưỡng sửa từ"
+      }
     },
     "general": {
-      "title": "Chung",
+      "language": {
+        "auto": "Tự động",
+        "description": "Chọn ngôn ngữ để nhận dạng giọng nói. Tự động sẽ tự động xác định ngôn ngữ, trong khi chọn một ngôn ngữ cụ thể có thể cải thiện độ chính xác cho ngôn ngữ đó.",
+        "descriptionUnsupported": "Mô hình Parakeet tự động phát hiện ngôn ngữ. Không cần chọn thủ công.",
+        "noResults": "Không tìm thấy ngôn ngữ",
+        "searchPlaceholder": "Tìm kiếm ngôn ngữ...",
+        "title": "Ngôn ngữ"
+      },
+      "pushToTalk": {
+        "description": "Giữ để ghi âm, thả để dừng",
+        "label": "Nhấn để nói"
+      },
       "shortcut": {
-        "title": "Phím tắt Votype",
+        "bindings": {
+          "cancel": {
+            "description": "Hủy bản ghi hiện tại.",
+            "name": "Hủy"
+          },
+          "open_settings": {
+            "description": "Mở cửa sổ cài đặt.",
+            "name": "Mở cài đặt"
+          },
+          "paste_first_entry": {
+            "description": "Dán mục đầu tiên từ lịch sử vào cửa sổ hoạt động.",
+            "name": "Dán mục đầu tiên"
+          },
+          "transcribe": {
+            "description": "Chuyển đổi giọng nói của bạn thành văn bản.",
+            "name": "Chuyển đổi"
+          }
+        },
         "description": "Cấu hình phím tắt để kích hoạt ghi âm chuyển đổi giọng nói thành văn bản",
+        "errors": {
+          "reset": "Không thể đặt lại phím tắt về giá trị gốc",
+          "restore": "Không thể khôi phục phím tắt gốc",
+          "set": "Không thể đặt phím tắt: {{error}}"
+        },
         "loading": "Đang tải phím tắt...",
         "none": "Chưa cấu hình phím tắt",
         "notFound": "Không tìm thấy phím tắt",
         "pressKeys": "Nhấn phím...",
-        "bindings": {
-          "transcribe": {
-            "name": "Chuyển đổi",
-            "description": "Chuyển đổi giọng nói của bạn thành văn bản."
-          },
-          "cancel": {
-            "name": "Hủy",
-            "description": "Hủy bản ghi hiện tại."
-          },
-          "open_settings": {
-            "name": "Mở cài đặt",
-            "description": "Mở cửa sổ cài đặt."
-          },
-          "paste_first_entry": {
-            "name": "Dán mục đầu tiên",
-            "description": "Dán mục đầu tiên từ lịch sử vào cửa sổ hoạt động."
-          }
-        },
-        "errors": {
-          "restore": "Không thể khôi phục phím tắt gốc",
-          "set": "Không thể đặt phím tắt: {{error}}",
-          "reset": "Không thể đặt lại phím tắt về giá trị gốc"
-        }
+        "title": "Phím tắt Votype"
       },
-      "language": {
-        "title": "Ngôn ngữ",
-        "description": "Chọn ngôn ngữ để nhận dạng giọng nói. Tự động sẽ tự động xác định ngôn ngữ, trong khi chọn một ngôn ngữ cụ thể có thể cải thiện độ chính xác cho ngôn ngữ đó.",
-        "descriptionUnsupported": "Mô hình Parakeet tự động phát hiện ngôn ngữ. Không cần chọn thủ công.",
-        "searchPlaceholder": "Tìm kiếm ngôn ngữ...",
-        "noResults": "Không tìm thấy ngôn ngữ",
-        "auto": "Tự động"
-      },
-      "pushToTalk": {
-        "label": "Nhấn để nói",
-        "description": "Giữ để ghi âm, thả để dừng"
-      }
+      "title": "Chung"
     },
-    "sound": {
-      "title": "Âm thanh",
-      "microphone": {
-        "title": "Micrô",
-        "description": "Chọn thiết bị micrô ưa thích của bạn",
-        "placeholder": "Chọn micrô...",
-        "loading": "Đang tải..."
+    "history": {
+      "content": {
+        "improved": "Đã tối ưu",
+        "original": "Kết quả nhận dạng giọng nói",
+        "streaming": "Kết quả nhận dạng thời gian thực"
       },
-      "audioFeedback": {
-        "label": "Phản hồi âm thanh",
-        "description": "Phát âm thanh khi bắt đầu và kết thúc ghi âm"
+      "copyToClipboard": "Sao chép bản ghi vào clipboard",
+      "delete": "Xóa mục",
+      "deleteError": "Không thể xóa mục. Vui lòng thử lại.",
+      "empty": "Chưa có bản ghi nào. Bắt đầu ghi âm để xây dựng lịch sử của bạn!",
+      "loading": "Đang tải lịch sử...",
+      "openFolder": "Mở thư mục ghi âm",
+      "save": "Lưu bản ghi",
+      "searchPlaceholder": "Search history...",
+      "timeline": {
+        "earlier": "Earlier",
+        "thisWeek": "This Week",
+        "today": "Today",
+        "yesterday": "Yesterday"
       },
-      "outputDevice": {
-        "title": "Thiết bị đầu ra",
-        "description": "Chọn thiết bị đầu ra âm thanh ưa thích của bạn cho âm thanh phản hồi",
-        "placeholder": "Chọn thiết bị đầu ra...",
-        "loading": "Đang tải..."
-      },
-      "volume": {
-        "title": "Âm lượng",
-        "description": "Điều chỉnh âm lượng của âm thanh phản hồi"
-      }
-    },
-    "advanced": {
-      "title": "Nâng cao",
-      "startHidden": {
-        "label": "Khởi động ẩn",
-        "description": "Khởi động vào khay hệ thống mà không mở cửa sổ."
-      },
-      "autostart": {
-        "label": "Khởi động cùng hệ thống",
-        "description": "Tự động khởi động Votype khi bạn đăng nhập vào máy tính."
-      },
-      "overlay": {
-        "title": "Vị trí lớp phủ",
-        "description": "Hiển thị lớp phủ phản hồi trực quan trong quá trình ghi âm và chuyển đổi. Trên Linux, 'Không có' được khuyến nghị.",
-        "options": {
-          "none": "Không có",
-          "bottom": "Dưới",
-          "top": "Trên",
-          "follow": "Follow Cursor"
-        }
-      },
-      "pasteMethod": {
-        "title": "Phương thức dán",
-        "description": "Chọn cách chèn văn bản. Trực tiếp: mô phỏng gõ phím qua đầu vào hệ thống. Không có: bỏ qua dán, chỉ cập nhật lịch sử/clipboard.",
-        "options": {
-          "direct": "Trực tiếp",
-          "none": "Không có",
-          "clipboard": "Clipboard ({{modifier}}+V)",
-          "clipboardCtrlShiftV": "Clipboard (Ctrl+Shift+V)",
-          "clipboardShiftInsert": "Clipboard (Shift+Insert)"
-        }
-      },
-      "clipboardHandling": {
-        "title": "Xử lý Clipboard",
-        "description": "Không sửa đổi Clipboard giữ nguyên nội dung clipboard hiện tại sau khi chuyển đổi. Sao chép vào Clipboard để lại kết quả chuyển đổi trong clipboard sau khi dán.",
-        "options": {
-          "dontModify": "Không sửa đổi Clipboard",
-          "copyToClipboard": "Sao chép vào Clipboard"
-        }
-      },
-      "translateToEnglish": {
-        "label": "Dịch sang tiếng Anh",
-        "description": "Tự động dịch giọng nói từ các ngôn ngữ khác sang tiếng Anh trong quá trình chuyển đổi.",
-        "descriptionUnsupported": "Mô hình {{model}} không hỗ trợ dịch thuật."
-      },
-      "modelUnload": {
-        "title": "Giải phóng mô hình",
-        "description": "Tự động giải phóng bộ nhớ GPU/CPU khi mô hình không được sử dụng trong thời gian quy định",
-        "options": {
-          "never": "Không bao giờ",
-          "immediately": "Ngay lập tức",
-          "min2": "Sau 2 phút",
-          "min5": "Sau 5 phút",
-          "min10": "Sau 10 phút",
-          "min15": "Sau 15 phút",
-          "hour1": "Sau 1 giờ",
-          "sec5": "Sau 5 giây (Gỡ lỗi)"
-        }
-      },
-      "customWords": {
-        "title": "Từ tùy chỉnh",
-        "description": "Thêm các từ thường bị nghe nhầm hoặc viết sai trong quá trình chuyển đổi. Hệ thống sẽ tự động sửa các từ có âm thanh tương tự để khớp với danh sách của bạn.",
-        "placeholder": "Thêm một từ",
-        "add": "Thêm",
-        "remove": "Xóa {{word}}"
-      },
-      "punctuation": {
-        "label": "Tự động thêm dấu câu",
-        "description": "Thêm dấu câu vào bản ghi cuối cùng ({{model}}).",
-        "model": {
-          "title": "Mô hình dấu câu",
-          "description": "Chọn mô hình dấu câu cho văn bản hỗn hợp zh+en. Chỉ áp dụng cho kết quả cuối cùng.",
-          "notDownloaded": "Mô hình đã chọn chưa được tải xuống."
-        }
-      }
+      "title": "Lịch sử",
+      "unsave": "Xóa khỏi đã lưu"
     },
     "postProcessing": {
-      "title": "Xử lý sau",
+      "api": {
+        "apiKey": {
+          "description": "Khóa API cho nhà cung cấp đã chọn.",
+          "placeholder": "sk-...",
+          "title": "Khóa API"
+        },
+        "appleIntelligence": {
+          "description": "Chạy hoàn toàn trên thiết bị. Không cần khóa API hoặc truy cập mạng.",
+          "requirements": "Yêu cầu Mac Apple Silicon chạy macOS Tahoe (26.0) trở lên. Apple Intelligence phải được bật trong Cài đặt Hệ thống.",
+          "title": "Apple Intelligence"
+        },
+        "baseUrl": {
+          "description": "URL cơ sở API cho nhà cung cấp đã chọn. Chỉ có thể chỉnh sửa nhà cung cấp tùy chỉnh.",
+          "placeholder": "https://api.openai.com/v1",
+          "title": "URL cơ sở"
+        },
+        "manageProviders": "Quản lý Nhà cung cấp",
+        "model": {
+          "descriptionApple": "Cung cấp giới hạn token tùy chọn hoặc giữ cài đặt mặc định trên thiết bị.",
+          "descriptionCustom": "Cung cấp định danh mô hình được yêu cầu bởi điểm cuối tùy chỉnh của bạn.",
+          "descriptionDefault": "Chọn một mô hình được cung cấp bởi nhà cung cấp đã chọn.",
+          "placeholderApple": "Apple Intelligence",
+          "placeholderNoOptions": "Nhập tên mô hình",
+          "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
+          "refreshModels": "Làm mới mô hình",
+          "title": "Mô hình"
+        },
+        "provider": {
+          "description": "Chọn một nhà cung cấp tương thích OpenAI.",
+          "title": "Nhà cung cấp"
+        },
+        "providers": {
+          "add": "Thêm Nhà cung cấp",
+          "builtInBadge": "Tích hợp sẵn",
+          "deleteConfirm": {
+            "description": "Hành động này sẽ xóa nhà cung cấp và mọi mô hình liên quan.",
+            "title": "Xóa nhà cung cấp?"
+          },
+          "dialog": {
+            "createTitle": "Tạo Nhà cung cấp",
+            "editTitle": "Chỉnh sửa Nhà cung cấp"
+          },
+          "empty": {
+            "description": "Thêm nhà cung cấp để bắt đầu.",
+            "title": "Không có nhà cung cấp"
+          },
+          "fields": {
+            "baseUrl": "URL cơ sở",
+            "modelsEndpoint": "Điểm cuối Mô hình",
+            "modelsEndpointPlaceholder": "/models",
+            "name": "Tên Nhà cung cấp",
+            "namePlaceholder": "Nhà cung cấp của tôi"
+          },
+          "resetUrl": "Đặt lại URL",
+          "title": "Nhà cung cấp"
+        },
+        "title": "API (Tương thích OpenAI)"
+      },
       "disabledNotice": "Xử lý sau hiện đang bị tắt. Bật nó trong cài đặt Gỡ lỗi để cấu hình.",
       "fusion": {
         "enabled": {
@@ -313,566 +696,186 @@
           "title": "Mô hình chuyển đổi thời gian thực (ASR Trực tuyến)"
         }
       },
-      "api": {
-        "title": "API (Tương thích OpenAI)",
-        "provider": {
-          "title": "Nhà cung cấp",
-          "description": "Chọn một nhà cung cấp tương thích OpenAI."
-        },
-        "appleIntelligence": {
-          "description": "Chạy hoàn toàn trên thiết bị. Không cần khóa API hoặc truy cập mạng.",
-          "requirements": "Yêu cầu Mac Apple Silicon chạy macOS Tahoe (26.0) trở lên. Apple Intelligence phải được bật trong Cài đặt Hệ thống.",
-          "title": "Apple Intelligence"
-        },
-        "baseUrl": {
-          "title": "URL cơ sở",
-          "description": "URL cơ sở API cho nhà cung cấp đã chọn. Chỉ có thể chỉnh sửa nhà cung cấp tùy chỉnh.",
-          "placeholder": "https://api.openai.com/v1"
-        },
-        "apiKey": {
-          "title": "Khóa API",
-          "description": "Khóa API cho nhà cung cấp đã chọn.",
-          "placeholder": "sk-..."
-        },
-        "model": {
-          "title": "Mô hình",
-          "descriptionApple": "Cung cấp giới hạn token tùy chọn hoặc giữ cài đặt mặc định trên thiết bị.",
-          "descriptionCustom": "Cung cấp định danh mô hình được yêu cầu bởi điểm cuối tùy chỉnh của bạn.",
-          "descriptionDefault": "Chọn một mô hình được cung cấp bởi nhà cung cấp đã chọn.",
-          "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
-          "placeholderNoOptions": "Nhập tên mô hình",
-          "refreshModels": "Làm mới mô hình",
-          "placeholderApple": "Apple Intelligence"
-        },
-        "manageProviders": "Quản lý Nhà cung cấp",
-        "providers": {
-          "title": "Nhà cung cấp",
-          "add": "Thêm Nhà cung cấp",
-          "builtInBadge": "Tích hợp sẵn",
-          "empty": {
-            "title": "Không có nhà cung cấp",
-            "description": "Thêm nhà cung cấp để bắt đầu."
-          },
-          "deleteConfirm": {
-            "title": "Xóa nhà cung cấp?",
-            "description": "Hành động này sẽ xóa nhà cung cấp và mọi mô hình liên quan."
-          },
-          "dialog": {
-            "createTitle": "Tạo Nhà cung cấp",
-            "editTitle": "Chỉnh sửa Nhà cung cấp"
-          },
-          "fields": {
-            "name": "Tên Nhà cung cấp",
-            "namePlaceholder": "Nhà cung cấp của tôi",
-            "baseUrl": "URL cơ sở",
-            "modelsEndpoint": "Điểm cuối Mô hình",
-            "modelsEndpointPlaceholder": "/models"
-          },
-          "resetUrl": "Đặt lại URL"
-        }
-      },
-      "prompts": {
-        "selectedPrompt": {
-          "title": "Prompt đã chọn",
-          "description": "Chọn một mẫu để tinh chỉnh bản ghi hoặc tạo mới. Sử dụng ${output} trong văn bản prompt để tham chiếu bản ghi đã chụp."
-        },
-        "noPrompts": "Không có prompt nào",
-        "selectPrompt": "Chọn một prompt",
-        "createNew": "Tạo Prompt mới",
-        "promptLabel": "Nhãn Prompt",
-        "promptLabelPlaceholder": "Nhập tên prompt",
-        "promptInstructions": "Hướng dẫn Prompt",
-        "promptInstructionsPlaceholder": "Viết hướng dẫn để chạy sau khi chuyển đổi. Ví dụ: Cải thiện ngữ pháp và độ rõ ràng cho văn bản sau: ${output}",
-        "promptTip": "Mẹo: Sử dụng <code>${output}</code> để chèn văn bản đã chuyển đổi vào prompt của bạn.",
-        "updatePrompt": "Cập nhật Prompt",
-        "deletePrompt": "Xóa Prompt",
-        "createPrompt": "Tạo Prompt",
-        "cancel": "Hủy",
-        "selectToEdit": "Chọn một prompt ở trên để xem và chỉnh sửa chi tiết.",
-        "createFirst": "Nhấn 'Tạo Prompt mới' ở trên để tạo prompt xử lý sau đầu tiên của bạn.",
-        "title": "Prompt"
-      },
       "models": {
-        "title": "Mô hình",
-        "description": "Thêm và quản lý các mô hình được sử dụng để xử lý sau.",
         "addModel": "Thêm Mô hình",
-        "stats": {
-          "asr": "ASR: {{count}}",
-          "text": "Văn bản: {{count}}",
-          "other": "Khác: {{count}}"
-        },
+        "description": "Thêm và quản lý các mô hình được sử dụng để xử lý sau.",
         "empty": {
-          "title": "Chưa cấu hình mô hình",
-          "description": "Thêm mô hình để bắt đầu."
+          "description": "Thêm mô hình để bắt đầu.",
+          "title": "Chưa cấu hình mô hình"
         },
         "modelTypes": {
-          "text": {
-            "label": "Văn bản",
-            "hint": "Tinh chỉnh và định dạng văn bản"
-          },
           "asr": {
-            "label": "ASR",
-            "hint": "Nhận dạng giọng nói"
+            "hint": "Nhận dạng giọng nói",
+            "label": "ASR"
           },
           "other": {
-            "label": "Khác",
-            "hint": "Sử dụng tùy chỉnh"
+            "hint": "Sử dụng tùy chỉnh",
+            "label": "Khác"
+          },
+          "text": {
+            "hint": "Tinh chỉnh và định dạng văn bản",
+            "label": "Văn bản"
           }
         },
         "selectModel": {
-          "title": "Chọn Mô hình",
-          "description": "Chọn một mô hình để thêm hoặc nhập thủ công.",
-          "segmented": {
-            "selectModel": "Chọn",
-            "customModel": "Tùy chỉnh"
-          },
+          "customLabelPlaceholder": "Nhập nhãn...",
+          "customLabelTitle": "Nhãn tùy chỉnh",
           "customModelPlaceholder": "Nhập ID mô hình...",
+          "description": "Chọn một mô hình để thêm hoặc nhập thủ công.",
           "placeholder": "Chọn một mô hình...",
           "placeholderEmpty": "Không có mô hình nào",
-          "usageTypeTitle": "Loại sử dụng",
-          "customLabelTitle": "Nhãn tùy chỉnh",
-          "customLabelPlaceholder": "Nhập nhãn..."
-        }
-      }
+          "segmented": {
+            "customModel": "Tùy chỉnh",
+            "selectModel": "Chọn"
+          },
+          "title": "Chọn Mô hình",
+          "usageTypeTitle": "Loại sử dụng"
+        },
+        "stats": {
+          "asr": "ASR: {{count}}",
+          "other": "Khác: {{count}}",
+          "text": "Văn bản: {{count}}"
+        },
+        "title": "Mô hình"
+      },
+      "prompts": {
+        "cancel": "Hủy",
+        "createFirst": "Nhấn 'Tạo Prompt mới' ở trên để tạo prompt xử lý sau đầu tiên của bạn.",
+        "createNew": "Tạo Prompt mới",
+        "createPrompt": "Tạo Prompt",
+        "deletePrompt": "Xóa Prompt",
+        "noPrompts": "Không có prompt nào",
+        "promptInstructions": "Hướng dẫn Prompt",
+        "promptInstructionsPlaceholder": "Viết hướng dẫn để chạy sau khi chuyển đổi. Ví dụ: Cải thiện ngữ pháp và độ rõ ràng cho văn bản sau: ${output}",
+        "promptLabel": "Nhãn Prompt",
+        "promptLabelPlaceholder": "Nhập tên prompt",
+        "promptTip": "Mẹo: Sử dụng <code>${output}</code> để chèn văn bản đã chuyển đổi vào prompt của bạn.",
+        "selectedPrompt": {
+          "description": "Chọn một mẫu để tinh chỉnh bản ghi hoặc tạo mới. Sử dụng ${output} trong văn bản prompt để tham chiếu bản ghi đã chụp.",
+          "title": "Prompt đã chọn"
+        },
+        "selectPrompt": "Chọn một prompt",
+        "selectToEdit": "Chọn một prompt ở trên để xem và chỉnh sửa chi tiết.",
+        "title": "Prompt",
+        "updatePrompt": "Cập nhật Prompt"
+      },
+      "title": "Xử lý sau"
     },
-    "history": {
-      "title": "Lịch sử",
-      "openFolder": "Mở thư mục ghi âm",
-      "loading": "Đang tải lịch sử...",
-      "empty": "Chưa có bản ghi nào. Bắt đầu ghi âm để xây dựng lịch sử của bạn!",
-      "copyToClipboard": "Sao chép bản ghi vào clipboard",
-      "save": "Lưu bản ghi",
-      "unsave": "Xóa khỏi đã lưu",
-      "delete": "Xóa mục",
-      "deleteError": "Không thể xóa mục. Vui lòng thử lại.",
-      "searchPlaceholder": "Search history...",
-      "timeline": {
-        "today": "Today",
-        "yesterday": "Yesterday",
-        "thisWeek": "This Week",
-        "earlier": "Earlier"
-      },
-      "content": {
-        "improved": "Improved",
-        "original": "Original"
-      }
+    "shortcuts": {
+      "title": "Phím tắt"
     },
-    "debug": {
-      "title": "Gỡ lỗi",
-      "logDirectory": {
-        "title": "Thư mục nhật ký",
-        "description": "Vị trí lưu trữ các tệp nhật ký",
-        "error": "Error loading log directory: {{error}}"
+    "sound": {
+      "audioFeedback": {
+        "description": "Phát âm thanh khi bắt đầu và kết thúc ghi âm",
+        "label": "Phản hồi âm thanh"
       },
-      "logLevel": {
-        "title": "Mức nhật ký",
-        "description": "Đặt mức độ chi tiết của nhật ký"
+      "microphone": {
+        "description": "Chọn thiết bị micrô ưa thích của bạn",
+        "loading": "Đang tải...",
+        "placeholder": "Chọn micrô...",
+        "title": "Micrô"
       },
-      "updateChecks": {
-        "label": "Kiểm tra cập nhật",
-        "description": "Tự động kiểm tra phiên bản mới của Votype"
+      "outputDevice": {
+        "description": "Chọn thiết bị đầu ra âm thanh ưa thích của bạn cho âm thanh phản hồi",
+        "loading": "Đang tải...",
+        "placeholder": "Chọn thiết bị đầu ra...",
+        "title": "Thiết bị đầu ra"
       },
-      "soundTheme": {
-        "label": "Chủ đề âm thanh",
-        "description": "Chọn chủ đề âm thanh cho phản hồi bắt đầu và kết thúc ghi âm"
-      },
-      "wordCorrectionThreshold": {
-        "title": "Ngưỡng sửa từ",
-        "description": "Độ nhạy cho việc sửa từ tùy chỉnh"
-      },
-      "historyLimit": {
-        "title": "Giới hạn lịch sử",
-        "description": "Số lượng mục lịch sử tối đa cần giữ",
-        "entries": "entries"
-      },
-      "recordingRetention": {
-        "title": "Lưu giữ ghi âm",
-        "description": "Thời gian giữ các bản ghi âm",
-        "never": "Never",
-        "preserveLimit": "Preserve {{count}} Recordings",
-        "days3": "After 3 Days",
-        "weeks2": "After 2 Weeks",
-        "months3": "After 3 Months",
-        "placeholder": "Select retention period..."
-      },
-      "alwaysOnMicrophone": {
-        "label": "Micrô luôn bật",
-        "description": "Giữ micrô hoạt động để phản hồi nhanh hơn"
-      },
-      "clamshellMicrophone": {
-        "title": "Micrô chế độ gập",
-        "description": "Micrô sử dụng khi nắp laptop được đóng"
-      },
-      "postProcessingToggle": {
-        "label": "Xử lý sau",
-        "description": "Bật tinh chỉnh văn bản bằng AI sau khi chuyển đổi"
-      },
-      "muteWhileRecording": {
-        "label": "Tắt tiếng khi ghi âm",
-        "description": "Tắt tiếng âm thanh hệ thống trong khi ghi âm"
-      },
-      "appendTrailingSpace": {
-        "label": "Thêm dấu cách cuối",
-        "description": "Thêm một dấu cách sau bản ghi đã dán"
-      },
-      "paths": {
-        "appData": "Dữ liệu ứng dụng:",
-        "models": "Mô hình:",
-        "settings": "Cài đặt:",
-        "title": "Paths",
-        "description": "Common filesystem paths Votype uses"
+      "title": "Âm thanh",
+      "volume": {
+        "description": "Điều chỉnh âm lượng của âm thanh phản hồi",
+        "title": "Âm lượng"
       }
-    },
-    "about": {
-      "title": "Giới thiệu",
-      "version": {
-        "title": "Phiên bản",
-        "description": "Phiên bản hiện tại của Votype"
-      },
-      "appDataDirectory": {
-        "title": "Thư mục dữ liệu ứng dụng",
-        "description": "Vị trí Votype lưu trữ dữ liệu"
-      },
-      "sourceCode": {
-        "title": "Mã nguồn",
-        "description": "Xem mã nguồn và đóng góp",
-        "button": "Xem trên GitHub"
-      },
-      "supportDevelopment": {
-        "title": "Hỗ trợ phát triển",
-        "description": "Giúp chúng tôi tiếp tục xây dựng Votype",
-        "button": "Quyên góp"
-      },
-      "acknowledgments": {
-        "title": "Lời cảm ơn",
-        "whisper": {
-          "description": "Suy luận hiệu suất cao của mô hình nhận dạng giọng nói tự động Whisper của OpenAI",
-          "details": "Votype sử dụng Whisper.cpp để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên.",
-          "title": "Whisper.cpp"
-        }
-      }
-    },
-    "asrModels": {
-      "title": "Mô hình Giọng nói",
-      "description": "Quản lý các mô hình chuyến đổi cục bộ và kiểm soát mô hình nào xuất hiện trong bộ chọn nhanh.",
-      "reset": "Đặt lại",
-      "idLabel": "id: {{id}}",
-      "addFromUrl": "Thêm & Tải xuống",
-      "install": {
-        "placeholder": "Dán URL mô hình…",
-        "tooltip": "Cài đặt từ URL"
-      },
-      "quickSettings": {
-        "title": "Cài đặt Nhanh",
-        "description": "Những cài đặt này áp dụng toàn cục. Xóa các mô hình dấu câu trong thư viện bên dưới."
-      },
-      "addSection": {
-        "title": "Cài đặt",
-        "description": "Dán URL mô hình. Ứng dụng sẽ suy ra loại mô hình từ tên tệp."
-      },
-      "pipeline": {
-        "title": "Đường ống",
-        "description": "Xử lý sau toàn cục có thể được áp dụng tự động sau khi chuyển đổi.",
-        "punctuation": "Tự động thêm dấu câu",
-        "punctuationHint": "Sử dụng mô hình dấu câu đã chọn để thêm ngắt câu.",
-        "punctuationModel": "Mô hình dấu câu",
-        "punctuationModelHint": "Chọn mô hình dấu câu để sử dụng.",
-        "itn": "ITN (SenseVoice)",
-        "itnHint": "Chuẩn hóa ngược văn bản: định dạng cơ bản (ví dụ: số)."
-      },
-      "library": {
-        "title": "Thư viện",
-        "description": "Chọn mục yêu thích để hiển thị trong bộ chọn nhanh.",
-        "searchPlaceholder": "Tìm kiếm mô hình…",
-        "count": "{{count}} mô hình"
-      },
-      "favorite": "Yêu thích",
-      "filters": {
-        "all": "Tất cả",
-        "downloaded": "Đã tải xuống",
-        "favorites": "Yêu thích",
-        "status": "Trạng thái",
-        "mode": "Chế độ",
-        "language": "Ngôn ngữ",
-        "type": "Loại"
-      },
-      "groupBy": {
-        "mode": "Chế độ",
-        "language": "Ngôn ngữ",
-        "type": "Loại"
-      },
-      "groups": {
-        "streaming": "Phát trực tuyến",
-        "offline": "Ngoại tuyến",
-        "multilingual": "Đa ngôn ngữ",
-        "punctuation": "Dấu câu"
-      },
-      "types": {
-        "whisper": "Whisper",
-        "parakeet": "Parakeet",
-        "punctuation": "Dấu câu"
-      },
-      "typeChips": {
-        "whisper": "Whisper",
-        "parakeet": "Parakeet",
-        "sherpa_transducer": "Sherpa Transducer",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "punctuation": "Dấu câu",
-        "other": "Khác"
-      },
-      "languages": {
-        "zh": "Tiếng Trung",
-        "yue": "Tiếng Quảng Đông",
-        "en": "Tiếng Anh",
-        "ja": "Tiếng Nhật",
-        "ko": "Tiếng Hàn",
-        "de": "Tiếng Đức",
-        "es": "Tiếng Tây Ban Nha",
-        "fr": "Tiếng Pháp",
-        "ru": "Tiếng Nga",
-        "multilingual": "Đa ngôn ngữ",
-        "other": "Khác"
-      },
-      "status": {
-        "downloaded": "Đã tải xuống",
-        "notDownloaded": "Chưa tải xuống"
-      },
-      "download": "Tải xuống",
-      "delete": "Xóa"
     }
   },
-  "footer": {
-    "downloadingModel": "Đang tải {{model}}...",
-    "checkingUpdates": "Đang kiểm tra cập nhật...",
-    "updateAvailable": "Có bản cập nhật: {{version}}",
-    "updateAvailableShort": "Có bản cập nhật",
-    "upToDate": "Đã cập nhật",
-    "downloadUpdate": "Tải cập nhật",
-    "restart": "Khởi động lại",
-    "updateCheckingDisabled": "Đã tắt kiểm tra cập nhật",
-    "downloading": "Đang tải... {{progress}}%",
-    "installing": "Đang cài đặt...",
-    "preparing": "Đang chuẩn bị...",
-    "checkForUpdates": "Kiểm tra cập nhật"
-  },
-  "common": {
-    "loading": "Đang tải...",
-    "save": "Lưu",
-    "cancel": "Hủy",
-    "reset": "Đặt lại",
-    "add": "Thêm",
-    "remove": "Xóa",
-    "delete": "Xóa",
-    "edit": "Chỉnh sửa",
-    "create": "Tạo",
-    "update": "Cập nhật",
-    "close": "Đóng",
-    "open": "Mở",
-    "default": "Mặc định",
-    "enabled": "Đã bật",
-    "disabled": "Đã tắt",
-    "on": "Bật",
-    "off": "Tắt",
-    "yes": "Có",
-    "no": "Không",
-    "noOptionsFound": "Không tìm thấy tùy chọn",
-    "copy": "Sao chép",
-    "copied": "Đã sao chép",
-    "skip": "Bỏ qua",
+  "sidebar": {
+    "about": "Giới thiệu",
+    "advanced": "Nâng cao",
+    "asrModels": "Các Mô hình ASR",
+    "dashboard": "Bảng điều khiển",
+    "debug": "Gỡ lỗi",
+    "general": "Chung",
+    "history": "Lịch sử",
     "models": "Các Mô hình",
-    "selectOption": "Chọn một tùy chọn",
-    "filterOptions": "Lọc tùy chọn...",
-    "noMatchingOptions": "Không có tùy chọn phù hợp",
-    "notAvailable": "Không có sẵn",
-    "addNewOption": "Thêm tùy chọn mới",
-    "useInput": "Sử dụng \"{{input}}\"",
-    "done": "Xong"
-  },
-  "overlay": {
-    "status": {
-      "recording": "Đang ghi âm...",
-      "transcribing": "Đang chuyển đổi...",
-      "llm": "Đang xử lý sau..."
-    }
-  },
-  "accessibility": {
-    "permissionsRequired": "Cần quyền truy cập",
-    "permissionsDescription": "Votype cần quyền truy cập để gõ văn bản đã chuyển đổi.",
-    "openSettings": "Mở Cài đặt Hệ thống",
-    "dismiss": "Bỏ qua",
-    "verify": "Verify"
-  },
-  "errors": {
-    "loadDirectory": "Lỗi khi tải thư mục: {{error}}"
-  },
-  "appLanguage": {
-    "title": "Ngôn ngữ ứng dụng",
-    "description": "Thay đổi ngôn ngữ giao diện của Votype"
-  },
-  "_comment": "Vietnamese translation for Votype.",
-  "models": {
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "name": "Sherpa Trung Quốc (CTC Nhỏ)",
-      "description": "ASR tiếng Trung trực tuyến (Zipformer2 CTC); nhỏ và cực nhanh (INT8); cập nhật 01/04/2025."
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "name": "Sherpa Trung Quốc",
-      "description": "ASR tiếng Trung trực tuyến; nhỏ và cực nhanh (INT8); độ chính xác cao; cập nhật 30/06/2025."
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "name": "Sherpa Trung Quốc XL",
-      "description": "ASR tiếng Trung trực tuyến; mô hình lớn hơn, nhanh (INT8); độ chính xác rất cao; cập nhật 30/06/2025."
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "name": "Sherpa Tiếng Anh",
-      "description": "ASR tiếng Anh trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "name": "Sherpa Tiếng Đức",
-      "description": "ASR tiếng Đức trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "name": "Sherpa Tiếng Tây Ban Nha",
-      "description": "ASR tiếng Tây Ban Nha trực tuyến; kích thước vừa và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "name": "Sherpa Tiếng Pháp",
-      "description": "ASR tiếng Pháp trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025."
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "name": "Sherpa Tiếng Nga",
-      "description": "ASR tiếng Nga trực tuyến; siêu nhỏ và cực nhanh (INT8); độ chính xác tốt; cập nhật 16/08/2025."
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "name": "Sherpa Trung Quốc + Tiếng Anh (Paraformer)",
-      "description": "Mô hình zh+en trực tuyến. Tốt cho phụ đề thời gian thực; nhanh; độ chính xác khá."
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "name": "Sherpa Paraformer Trung Quốc (INT8)",
-      "description": "ASR tiếng Trung ngoại tuyến; INT8; nhanh; độ chính xác tốt; cập nhật 07/10/2025."
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "name": "Sherpa Paraformer Trung Quốc (Nhỏ)",
-      "description": "ASR tiếng Trung ngoại tuyến; nhỏ và nhanh; độ chính xác khá; cập nhật 09/03/2024."
-    },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "name": "Sherpa Paraformer Zh+Yue+En",
-      "description": "ASR ba ngôn ngữ ngoại tuyến (Trung/Quảng Đông/Anh); lớn; độ chính xác tốt."
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "name": "SenseVoice Đa ngôn ngữ",
-      "description": "Mô hình ngoại tuyến cho Tiếng Trung/Anh/Nhật/Hàn/Quảng Đông. Lượng tử hóa Int8; tốc độ và bộ nhớ trung bình. Cập nhật 09/09/2025."
-    },
-    "punct-zh-en-ct-transformer-2024-04-12-int8": {
-      "name": "Dấu câu (Trung + Anh)",
-      "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Int8; nhanh và nhỏ. Cập nhật 12/04/2024."
-    },
-    "punct-zh-en-ct-transformer-2024-04-12": {
-      "name": "Dấu câu (Trung + Anh) Lớn",
-      "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Mô hình lớn hơn; chính xác hơn nhưng chậm hơn. Cập nhật 12/04/2024."
-    },
-    "small": {
-      "name": "Whisper Small",
-      "description": "Nhanh và khá chính xác."
-    },
-    "medium": {
-      "name": "Whisper Medium",
-      "description": "Độ chính xác tốt, tốc độ trung bình"
-    },
-    "turbo": {
-      "name": "Whisper Turbo",
-      "description": "Cân bằng độ chính xác và tốc độ."
-    },
-    "large": {
-      "name": "Whisper Large",
-      "description": "Độ chính xác tốt, nhưng chậm."
-    },
-    "parakeet-tdt-0.6b-v2": {
-      "name": "Parakeet V2",
-      "description": "Chỉ tiếng Anh. Mô hình tốt nhất cho người nói tiếng Anh."
-    },
-    "parakeet-tdt-0.6b-v3": {
-      "name": "Parakeet V3",
-      "description": "Nhanh và chính xác"
-    }
+    "postProcessing": "Xử lý sau",
+    "prompts": "Prompts",
+    "shortcuts": "Phím tắt"
   },
   "soundPicker": {
+    "custom": "Tùy chỉnh",
     "marimba": "Marimba",
     "pop": "Pop",
-    "custom": "Tùy chỉnh",
     "preview": "Xem trước"
   },
   "theme": {
-    "title": "Chủ đề",
-    "themeMode": {
-      "title": "Chế độ Chủ đề",
-      "description": "Chọn giao diện Votype",
-      "light": "Sáng",
-      "lightDesc": "Luôn sử dụng chủ đề sáng",
-      "dark": "Tối",
-      "darkDesc": "Luôn sử dụng chủ đề tối",
-      "system": "Hệ thống",
-      "systemDesc": "Khớp với chủ đề hệ thống"
-    },
     "accentColor": {
-      "title": "Màu Nhấn",
-      "description": "Chọn màu nhấn được sử dụng trong toàn bộ ứng dụng",
-      "current": "Hiện tại: {{color}}",
-      "ruby": "Ruby",
-      "gray": "Xám",
-      "gold": "Vàng",
+      "amber": "Hổ phách",
+      "blue": "Xanh dương",
       "bronze": "Đồng",
       "brown": "Nâu",
+      "crimson": "Đỏ thẫm",
+      "current": "Hiện tại: {{color}}",
+      "cyan": "Lục lam",
+      "description": "Chọn màu nhấn được sử dụng trong toàn bộ ứng dụng",
+      "gold": "Vàng",
+      "grass": "Cỏ",
+      "gray": "Xám",
+      "green": "Xanh lá",
       "indigo": "Chàm",
-      "blue": "Xanh dương",
       "iris": "Diên vĩ",
-      "purple": "Tím",
-      "violet": "Tím",
+      "jade": "Ngọc bích",
+      "lime": "Chanh",
+      "mint": "Bạc hà",
+      "orange": "Cam",
       "pink": "Hồng",
       "plum": "Mận",
+      "purple": "Tím",
       "red": "Đỏ",
-      "tomato": "Cà chua",
-      "crimson": "Đỏ thẫm",
-      "orange": "Cam",
-      "amber": "Hổ phách",
-      "yellow": "Vàng",
-      "lime": "Chanh",
-      "green": "Xanh lá",
-      "grass": "Cỏ",
-      "jade": "Ngọc bích",
+      "ruby": "Ruby",
+      "sky": "Bầu trời",
       "teal": "Mòng két",
-      "cyan": "Lục lam",
-      "mint": "Bạc hà",
-      "sky": "Bầu trời"
-    },
-    "panelStyle": {
-      "title": "Kiểu Bảng",
-      "description": "Chọn giữa bảng mờ hoặc bảng đặc",
-      "translucent": "Mờ",
-      "translucentDesc": "Hiệu ứng kính mờ",
-      "solid": "Đặc",
-      "solidDesc": "Bảng đục"
+      "title": "Màu Nhấn",
+      "tomato": "Cà chua",
+      "violet": "Tím",
+      "yellow": "Vàng"
     },
     "cornerRadius": {
-      "title": "Bán kính Góc",
+      "capsule": "Viên nang",
+      "capsuleDesc": "Bo tròn hoàn toàn",
+      "default": "Mặc định",
+      "defaultDesc": "Bo tròn góc tiêu chuẩn",
       "description": "Điều chỉnh độ tròn của các góc",
+      "rounded": "Tròn",
+      "roundedDesc": "Bo tròn góc nhiều hơn",
       "sharp": "Sắc nét",
       "sharpDesc": "Không bo tròn góc",
       "soft": "Mềm mại",
       "softDesc": "Bo tròn góc nhẹ",
-      "default": "Mặc định",
-      "defaultDesc": "Bo tròn góc tiêu chuẩn",
-      "rounded": "Tròn",
-      "roundedDesc": "Bo tròn góc nhiều hơn",
-      "capsule": "Viên nang",
-      "capsuleDesc": "Bo tròn hoàn toàn"
+      "title": "Bán kính Góc"
+    },
+    "panelStyle": {
+      "description": "Chọn giữa bảng mờ hoặc bảng đặc",
+      "solid": "Đặc",
+      "solidDesc": "Bảng đục",
+      "title": "Kiểu Bảng",
+      "translucent": "Mờ",
+      "translucentDesc": "Hiệu ứng kính mờ"
     },
     "scaling": {
-      "title": "Quy mô",
+      "current": "Hiện tại: {{scale}}",
       "description": "Điều chỉnh tỷ lệ giao diện",
-      "current": "Hiện tại: {{scale}}"
-    }
+      "title": "Quy mô"
+    },
+    "themeMode": {
+      "dark": "Tối",
+      "darkDesc": "Luôn sử dụng chủ đề tối",
+      "description": "Chọn giao diện Votype",
+      "light": "Sáng",
+      "lightDesc": "Luôn sử dụng chủ đề sáng",
+      "system": "Hệ thống",
+      "systemDesc": "Khớp với chủ đề hệ thống",
+      "title": "Chế độ Chủ đề"
+    },
+    "title": "Chủ đề"
   }
 }

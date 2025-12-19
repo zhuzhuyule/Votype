@@ -45,6 +45,12 @@ static MIGRATIONS: &[M] = &[
          ALTER TABLE transcription_history ADD COLUMN window_title TEXT;
          ALTER TABLE transcription_history ADD COLUMN deleted BOOLEAN NOT NULL DEFAULT 0;",
     ),
+    M::up("ALTER TABLE transcription_history ADD COLUMN streaming_text TEXT;"),
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN streaming_asr_model TEXT;
+         ALTER TABLE transcription_history ADD COLUMN post_process_model TEXT;",
+    ),
+    M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt_id TEXT;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -55,8 +61,12 @@ pub struct HistoryEntry {
     pub saved: bool,
     pub title: String,
     pub transcription_text: String,
+    pub streaming_text: Option<String>,
+    pub streaming_asr_model: Option<String>,
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
+    pub post_process_prompt_id: Option<String>,
+    pub post_process_model: Option<String>,
     pub duration_ms: Option<i64>,
     pub char_count: Option<i64>,
     pub corrected_char_count: Option<i64>,
@@ -368,8 +378,12 @@ impl HistoryManager {
         &self,
         audio_samples: Vec<f32>,
         transcription_text: String,
+        streaming_text: Option<String>,
+        streaming_asr_model: Option<String>,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        post_process_prompt_id: Option<String>,
+        post_process_model: Option<String>,
         duration_ms: Option<i64>,
         transcription_ms: Option<i64>,
         language: Option<String>,
@@ -397,8 +411,12 @@ impl HistoryManager {
             timestamp,
             title,
             transcription_text,
+            streaming_text,
+            streaming_asr_model,
             post_processed_text,
             post_process_prompt,
+            post_process_prompt_id,
+            post_process_model,
             duration_ms,
             transcription_ms,
             language,
@@ -426,8 +444,12 @@ impl HistoryManager {
         timestamp: i64,
         title: String,
         transcription_text: String,
+        streaming_text: Option<String>,
+        streaming_asr_model: Option<String>,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        post_process_prompt_id: Option<String>,
+        post_process_model: Option<String>,
         duration_ms: Option<i64>,
         transcription_ms: Option<i64>,
         language: Option<String>,
@@ -439,8 +461,8 @@ impl HistoryManager {
     ) -> Result<i64> {
         let conn = self.get_connection()?;
         conn.execute(
-            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
-            params![file_name, timestamp, false, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count],
+            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+            params![file_name, timestamp, false, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count],
         )?;
 
         let id = conn.last_insert_rowid();
@@ -453,13 +475,15 @@ impl HistoryManager {
         id: i64,
         post_processed_text: String,
         post_process_prompt: String,
+        post_process_prompt_id: Option<String>,
+        post_process_model: Option<String>,
     ) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;
 
         conn.execute(
-            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, corrected_char_count = ?3 WHERE id = ?4",
-            params![post_processed_text, post_process_prompt, corrected_char_count, id],
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5 WHERE id = ?6",
+            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, id],
         )?;
 
         debug!("Updated transcription {} with post-processing results", id);
@@ -640,7 +664,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -651,8 +675,12 @@ impl HistoryManager {
                 saved: row.get("saved")?,
                 title: row.get("title")?,
                 transcription_text: row.get("transcription_text")?,
+                streaming_text: row.get("streaming_text")?,
+                streaming_asr_model: row.get("streaming_asr_model")?,
                 post_processed_text: row.get("post_processed_text")?,
                 post_process_prompt: row.get("post_process_prompt")?,
+                post_process_prompt_id: row.get("post_process_prompt_id")?,
+                post_process_model: row.get("post_process_model")?,
                 duration_ms: row.get("duration_ms")?,
                 char_count: row.get("char_count")?,
                 corrected_char_count: row.get("corrected_char_count")?,
@@ -711,7 +739,7 @@ impl HistoryManager {
 
         // Build paginated query
         let query_sql = format!(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             where_clause, limit, offset
         );
 
@@ -726,8 +754,12 @@ impl HistoryManager {
                 saved: row.get("saved")?,
                 title: row.get("title")?,
                 transcription_text: row.get("transcription_text")?,
+                streaming_text: row.get("streaming_text")?,
+                streaming_asr_model: row.get("streaming_asr_model")?,
                 post_processed_text: row.get("post_processed_text")?,
                 post_process_prompt: row.get("post_process_prompt")?,
+                post_process_prompt_id: row.get("post_process_prompt_id")?,
+                post_process_model: row.get("post_process_model")?,
                 duration_ms: row.get("duration_ms")?,
                 char_count: row.get("char_count")?,
                 corrected_char_count: row.get("corrected_char_count")?,
@@ -787,7 +819,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -800,8 +832,12 @@ impl HistoryManager {
                     saved: row.get("saved")?,
                     title: row.get("title")?,
                     transcription_text: row.get("transcription_text")?,
+                    streaming_text: row.get("streaming_text")?,
+                    streaming_asr_model: row.get("streaming_asr_model")?,
                     post_processed_text: row.get("post_processed_text")?,
                     post_process_prompt: row.get("post_process_prompt")?,
+                    post_process_prompt_id: row.get("post_process_prompt_id")?,
+                    post_process_model: row.get("post_process_model")?,
                     duration_ms: row.get("duration_ms")?,
                     char_count: row.get("char_count")?,
                     corrected_char_count: row.get("corrected_char_count")?,

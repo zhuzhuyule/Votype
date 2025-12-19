@@ -39,6 +39,7 @@
     "save": "Save",
     "selectAll": "Select All",
     "selectOption": "Select an option",
+    "searchOrPaste": "Search or paste...",
     "skip": "Skip",
     "update": "Update",
     "useInput": "Use \"{{input}}\"",
@@ -49,6 +50,7 @@
       "openRecordings": "Recordings",
       "retranscribe": "Re-transcribe using audio",
       "retranscribeFailed": "Re-transcription failed",
+      "reprocessFailed": "AI reprocessing failed",
       "retranscribing": "Retranscribing..."
     },
     "activity": {
@@ -675,7 +677,8 @@
     "history": {
       "content": {
         "improved": "Improved",
-        "original": "Original"
+        "original": "Speech Recognition Result",
+        "streaming": "Real-time Recognition Result"
       },
       "copyToClipboard": "Copy transcription to clipboard",
       "delete": "Delete entry",

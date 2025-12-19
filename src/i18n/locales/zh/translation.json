@@ -39,6 +39,7 @@
     "save": "保存",
     "selectAll": "全选",
     "selectOption": "选择选项",
+    "searchOrPaste": "搜索或粘贴...",
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
@@ -49,6 +50,7 @@
       "openRecordings": "录音目录",
       "retranscribe": "使用原音频重新转录",
       "retranscribeFailed": "重新转录失败",
+      "reprocessFailed": "AI 重新处理失败",
       "retranscribing": "重新转录中..."
     },
     "activity": {
@@ -696,7 +698,8 @@
     "history": {
       "content": {
         "improved": "优化后",
-        "original": "原文"
+        "original": "语音识别结果",
+        "streaming": "实时识别结果"
       },
       "copyToClipboard": "复制转录到剪贴板",
       "delete": "删除条目",

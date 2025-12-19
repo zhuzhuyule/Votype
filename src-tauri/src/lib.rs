@@ -426,6 +426,7 @@ pub fn run() {
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,
             commands::history::retranscribe_history_entry,
+            commands::history::reprocess_history_entry,
             commands::log_to_console
         ])
         .run(tauri::generate_context!())

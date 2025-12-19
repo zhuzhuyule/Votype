@@ -13,6 +13,7 @@ import {
   PromptEditor,
 } from "./prompts/components";
 import { usePrompts } from "./prompts/hooks/usePrompts";
+import { DynamicIcon } from "../../shared/IconPicker";
 
 const PromptsConfiguration: React.FC = () => {
   const { t } = useTranslation();
@@ -31,6 +32,8 @@ const PromptsConfiguration: React.FC = () => {
     setDraftContent,
     draftModelId,
     setDraftModelId,
+    draftIcon,
+    setDraftIcon,
     currentAliases,
     currentAliasInput,
     setCurrentAliasInput,
@@ -80,6 +83,7 @@ const PromptsConfiguration: React.FC = () => {
                     className="relative pr-6"
                   >
                     <Flex align="center" gap="2">
+                      <DynamicIcon name={prompt.icon || "IconWand"} size={14} />
                       {prompt.name}
                       {/* Green Check for Active Prompt */}
                       {activePromptId === prompt.id && (
@@ -142,6 +146,8 @@ const PromptsConfiguration: React.FC = () => {
                     setDraftContent={setDraftContent}
                     draftModelId={draftModelId}
                     setDraftModelId={setDraftModelId}
+                    draftIcon={draftIcon}
+                    setDraftIcon={setDraftIcon}
                     currentAliases={currentAliases}
                     currentAliasInput={currentAliasInput}
                     setCurrentAliasInput={setCurrentAliasInput}

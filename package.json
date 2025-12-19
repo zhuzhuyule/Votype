@@ -19,6 +19,7 @@
     "src-tauri/**/*.rs": "bash -c 'cd src-tauri && cargo fmt'"
   },
   "dependencies": {
+    "@iconify/react": "^6.0.2",
     "@radix-ui/themes": "^3.2.1",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/vite": "^4.1.16",

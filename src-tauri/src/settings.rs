@@ -16,15 +16,14 @@ pub struct ShortcutBinding {
     pub current_binding: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMPrompt {
     pub id: String,
     pub name: String,
     pub prompt: String,
-    #[serde(default)]
     pub model_id: Option<String>,
-    #[serde(default)]
     pub alias: Option<String>,
+    pub icon: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -475,6 +474,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
         prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
         model_id: None,
         alias: None,
+        icon: Some("IconWand".to_string()),
     }]
 }
 

@@ -5,8 +5,12 @@ export interface HistoryEntry {
   saved: boolean;
   title: string;
   transcription_text: string;
+  streaming_text?: string | null;
+  streaming_asr_model?: string | null;
   post_processed_text?: string | null;
   post_process_prompt?: string | null;
+  post_process_prompt_id?: string | null;
+  post_process_model?: string | null;
   duration_ms?: number | null;
   char_count?: number | null;
   corrected_char_count?: number | null;

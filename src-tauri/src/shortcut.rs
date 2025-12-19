@@ -559,6 +559,7 @@ pub fn add_post_process_prompt(
     prompt: String,
     model_id: Option<String>,
     alias: Option<String>,
+    icon: Option<String>,
 ) -> Result<LLMPrompt, String> {
     let mut settings = settings::get_settings(&app);
 
@@ -571,6 +572,7 @@ pub fn add_post_process_prompt(
         prompt,
         model_id,
         alias,
+        icon,
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
@@ -587,6 +589,7 @@ pub fn update_post_process_prompt(
     prompt: String,
     model_id: Option<String>,
     alias: Option<String>,
+    icon: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
 
@@ -599,6 +602,7 @@ pub fn update_post_process_prompt(
         existing_prompt.prompt = prompt;
         existing_prompt.model_id = model_id;
         existing_prompt.alias = alias;
+        existing_prompt.icon = icon;
         settings::write_settings(&app, settings);
         Ok(())
     } else {

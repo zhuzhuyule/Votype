@@ -28,6 +28,8 @@ export interface UsePromptsReturn {
   setDraftAlias: (value: string) => void;
   draftModelId: string | null;
   setDraftModelId: (value: string | null) => void;
+  draftIcon: string | null;
+  setDraftIcon: (value: string | null) => void;
   currentAliases: string[];
   currentAliasInput: string;
   setCurrentAliasInput: (value: string) => void;
@@ -74,6 +76,7 @@ export const usePrompts = (): UsePromptsReturn => {
   const [draftContent, setDraftContent] = useState("");
   const [draftAlias, setDraftAlias] = useState("");
   const [draftModelId, setDraftModelId] = useState<string | null>(null);
+  const [draftIcon, setDraftIcon] = useState<string | null>(null);
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
 
@@ -110,7 +113,8 @@ export const usePrompts = (): UsePromptsReturn => {
       draftName !== viewingPrompt.name ||
       draftContent !== viewingPrompt.prompt ||
       draftAlias !== (viewingPrompt.alias || "") ||
-      (draftModelId || null) !== (viewingPrompt.model_id || null)
+      (draftModelId || null) !== (viewingPrompt.model_id || null) ||
+      (draftIcon || null) !== (viewingPrompt.icon || null)
     );
   }, [
     isCreating,
@@ -119,6 +123,7 @@ export const usePrompts = (): UsePromptsReturn => {
     draftContent,
     draftAlias,
     draftModelId,
+    draftIcon,
   ]);
 
   // Text models for dropdown
@@ -163,6 +168,7 @@ export const usePrompts = (): UsePromptsReturn => {
         setDraftContent("");
         setDraftAlias("");
         setDraftModelId(null);
+        setDraftIcon(null);
         setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
@@ -174,6 +180,7 @@ export const usePrompts = (): UsePromptsReturn => {
       setDraftContent(viewingPrompt.prompt);
       setDraftAlias(viewingPrompt.alias || "");
       setDraftModelId(viewingPrompt.model_id || null);
+      setDraftIcon(viewingPrompt.icon || null);
       setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
@@ -289,6 +296,7 @@ export const usePrompts = (): UsePromptsReturn => {
           prompt: draftContent.trim(),
           modelId: draftModelId === "default" ? null : draftModelId,
           alias: draftAlias.trim() || null,
+          icon: draftIcon,
         });
         await refreshSettings();
         setCurrentTab(newPrompt.id);
@@ -303,6 +311,7 @@ export const usePrompts = (): UsePromptsReturn => {
           prompt: draftContent.trim(),
           modelId: draftModelId === "default" ? null : draftModelId,
           alias: draftAlias.trim() || null,
+          icon: draftIcon,
         });
         await refreshSettings();
         toast.success(t("settings.postProcessing.prompts.updateSuccess"));
@@ -316,6 +325,7 @@ export const usePrompts = (): UsePromptsReturn => {
     draftContent,
     draftAlias,
     draftModelId,
+    draftIcon,
     isCreating,
     validateAliases,
     viewingPrompt,
@@ -394,6 +404,8 @@ export const usePrompts = (): UsePromptsReturn => {
     setDraftAlias,
     draftModelId,
     setDraftModelId,
+    draftIcon,
+    setDraftIcon,
     currentAliases,
     currentAliasInput,
     setCurrentAliasInput,

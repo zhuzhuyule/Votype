@@ -2,6 +2,7 @@ use crate::managers::history::{
     HistoryDashboardStats, HistoryEntry, HistoryManager, PaginatedHistoryResult,
 };
 use crate::managers::transcription::TranscriptionManager;
+use log::{debug, info};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
@@ -206,42 +207,123 @@ pub async fn retranscribe_history_entry(
             maybe_convert_chinese_variant, maybe_post_process_transcription,
         };
 
-        // 1. Try Chinese variant conversion
-        let mut final_text = None;
-        let mut post_process_prompt_text = String::new();
-
+        // 1. Try Chinese variant conversion first
         if let Some(converted) = maybe_convert_chinese_variant(&settings, &transcription_text).await
         {
-            final_text = Some(converted);
+            history_manager
+                .update_transcription_post_processing(
+                    id,
+                    converted,
+                    String::new(),
+                    None,
+                    Some("OpenCC".to_string()),
+                )
+                .await
+                .map_err(|e| e.to_string())?;
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            let (llm_result, _) =
+            let (llm_result, used_model, prompt_id, _) =
                 maybe_post_process_transcription(&app, &settings, &transcription_text, None, false)
                     .await;
 
             if let Some(processed) = llm_result {
-                final_text = Some(processed);
+                let mut post_process_prompt_text = String::new();
 
                 // Find the prompt text to save
-                if let Some(prompt_id) = &settings.post_process_selected_prompt_id {
-                    if let Some(prompt) = settings
-                        .post_process_prompts
-                        .iter()
-                        .find(|p| &p.id == prompt_id)
+                if let Some(pid) = &prompt_id {
+                    if let Some(prompt) =
+                        settings.post_process_prompts.iter().find(|p| &p.id == pid)
                     {
                         post_process_prompt_text = prompt.prompt.clone();
                     }
                 }
+
+                history_manager
+                    .update_transcription_post_processing(
+                        id,
+                        processed,
+                        post_process_prompt_text,
+                        prompt_id,
+                        used_model,
+                    )
+                    .await
+                    .map_err(|e| e.to_string())?;
             }
         }
+    }
 
-        if let Some(text) = final_text {
-            history_manager
-                .update_transcription_post_processing(id, text, post_process_prompt_text)
-                .await
-                .map_err(|e| e.to_string())?;
-        }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reprocess_history_entry(
+    app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+    prompt_id: String,
+    input_text: Option<String>,
+) -> Result<(), String> {
+    use crate::actions::post_process::post_process_text_with_prompt;
+    use crate::settings::get_settings;
+
+    debug!(
+        "Command reprocess_history_entry called for ID: {}, Prompt: {}",
+        id, prompt_id
+    );
+
+    let entry = history_manager
+        .get_entry_by_id(id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("History entry not found: {}", id))?;
+
+    let settings = get_settings(&app);
+
+    // Find the specified prompt
+    let prompt = settings
+        .post_process_prompts
+        .iter()
+        .find(|p| p.id == prompt_id)
+        .ok_or_else(|| format!("Prompt not found: {}", prompt_id))?;
+
+    // Use provided input_text or fallback to the original transcription
+    let text_to_process = input_text
+        .filter(|t| !t.trim().is_empty())
+        .unwrap_or_else(|| entry.transcription_text.clone());
+
+    let (llm_result, used_model, used_prompt_id, _) = post_process_text_with_prompt(
+        &app,
+        &settings,
+        &text_to_process,
+        entry.streaming_text.as_deref(),
+        prompt,
+        false,
+    )
+    .await;
+
+    if let Some(text) = llm_result {
+        history_manager
+            .update_transcription_post_processing(
+                id,
+                text,
+                prompt.prompt.clone(),
+                used_prompt_id,
+                used_model,
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+
+        // CRITICAL: Emit event to refresh the UI
+        let _ = app.emit("history-updated", ());
+        info!(
+            "History entry {} successfully reprocessed and UI updated",
+            id
+        );
+    } else {
+        return Err(
+            "Post-processing failed to return a result. Check logs for API errors.".to_string(),
+        );
     }
 
     Ok(())

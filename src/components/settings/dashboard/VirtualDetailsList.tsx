@@ -15,6 +15,11 @@ interface VirtualDetailsListProps {
   onToggleSaved: (id: number) => void;
   onDelete: (id: number) => void;
   onRetranscribe: (id: number) => Promise<void>;
+  onReprocess: (
+    id: number,
+    promptId: string,
+    inputText?: string,
+  ) => Promise<void>;
   onLoadMore: () => void;
   isLoadingMore?: boolean;
   hasMore?: boolean;
@@ -34,6 +39,11 @@ const LazyEntryCard: React.FC<{
   onToggleSaved: (id: number) => void;
   onDelete: (id: number) => void;
   onRetranscribe: (id: number) => Promise<void>;
+  onReprocess: (
+    id: number,
+    promptId: string,
+    inputText?: string,
+  ) => Promise<void>;
 }> = ({
   entry,
   getAudioUrl,
@@ -44,6 +54,7 @@ const LazyEntryCard: React.FC<{
   onToggleSaved,
   onDelete,
   onRetranscribe,
+  onReprocess,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -111,6 +122,7 @@ const LazyEntryCard: React.FC<{
           onToggleSaved={onToggleSaved}
           onDelete={onDelete}
           onRetranscribe={onRetranscribe}
+          onReprocess={onReprocess}
         />
       ) : (
         <EntryCardSkeleton className="h-full" />
@@ -128,6 +140,7 @@ export const VirtualDetailsList: React.FC<VirtualDetailsListProps> = ({
   onToggleSaved,
   onDelete,
   onRetranscribe,
+  onReprocess,
   onLoadMore,
   isLoadingMore = false,
   hasMore = true,
@@ -281,6 +294,7 @@ export const VirtualDetailsList: React.FC<VirtualDetailsListProps> = ({
                         onToggleSaved={onToggleSaved}
                         onDelete={onDelete}
                         onRetranscribe={onRetranscribe}
+                        onReprocess={onReprocess}
                       />
                     );
                   })}

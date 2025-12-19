@@ -528,6 +528,10 @@ impl ShortcutAction for TranscribeAction {
                 }
 
                 let transcription_ms = transcription_time.elapsed().as_millis() as i64;
+                let streaming_text = secondary_result
+                    .clone()
+                    .or_else(|| incremental_result.clone())
+                    .filter(|t| !t.trim().is_empty());
 
                 if let Some(transcription) = primary_text.clone() {
                     debug!(
@@ -575,10 +579,27 @@ impl ShortcutAction for TranscribeAction {
                         settings.selected_model.clone()
                     };
 
+                    let streaming_asr_model = if settings.online_asr_enabled
+                        && settings.post_process_use_secondary_output
+                    {
+                        settings
+                            .post_process_secondary_model_id
+                            .clone()
+                            .or(Some(settings.selected_model.clone()))
+                    } else if !settings.online_asr_enabled {
+                        Some(settings.selected_model.clone())
+                    } else {
+                        None
+                    };
+
                     let history_id = match hm
                         .save_transcription(
                             samples_clone,
                             transcription.clone(),
+                            streaming_text.clone(),
+                            streaming_asr_model,
+                            None,
+                            None,
                             None,
                             None,
                             Some(duration_ms),
@@ -623,15 +644,20 @@ impl ShortcutAction for TranscribeAction {
 
                         let task = tokio::spawn(async move {
                             let mut final_text = transcription_clone.clone();
-                            let mut post_process_prompt = String::new();
+                            let mut post_process_prompt_text = String::new();
+                            let mut post_process_prompt_id = None;
+                            let used_model;
                             let mut error_shown = false;
 
+                            // 1. Try Chinese variant conversion first
                             if let Some(converted_text) =
                                 maybe_convert_chinese_variant(&settings_clone, &transcription_clone)
                                     .await
                             {
                                 final_text = converted_text;
+                                used_model = Some("OpenCC".to_string());
                             } else {
+                                // 2. If not Chinese conversion, try LLM post-processing
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
                                     let mut secondary = secondary_result_for_post
@@ -645,41 +671,46 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                let (processed_text, err) = maybe_post_process_transcription(
-                                    &ah_clone,
-                                    &settings_clone,
-                                    &transcription_clone,
-                                    secondary.as_deref(),
-                                    true,
-                                )
-                                .await;
+                                let (processed_text, model, prompt_id, err) =
+                                    maybe_post_process_transcription(
+                                        &ah_clone,
+                                        &settings_clone,
+                                        &transcription_clone,
+                                        secondary.as_deref(),
+                                        true,
+                                    )
+                                    .await;
 
                                 error_shown = err;
+                                used_model = model;
 
                                 if let Some(text) = processed_text {
                                     final_text = text;
                                 }
 
-                                if let Some(prompt_id) =
-                                    &settings_clone.post_process_selected_prompt_id
-                                {
+                                post_process_prompt_id = prompt_id;
+
+                                // Capture the prompt content for history
+                                if let Some(pid) = &post_process_prompt_id {
                                     if let Some(prompt) = settings_clone
                                         .post_process_prompts
                                         .iter()
-                                        .find(|p| &p.id == prompt_id)
+                                        .find(|p| &p.id == pid)
                                     {
-                                        post_process_prompt = prompt.prompt.clone();
+                                        post_process_prompt_text = prompt.prompt.clone();
                                     }
                                 }
                             }
 
+                            // 3. Save the result to database (Available for both branches)
                             if let Some(history_id) = history_id {
-                                let prompt_to_store = post_process_prompt.clone();
                                 if let Err(e) = hm_clone
                                     .update_transcription_post_processing(
                                         history_id,
                                         final_text.clone(),
-                                        prompt_to_store,
+                                        post_process_prompt_text,
+                                        post_process_prompt_id,
+                                        used_model,
                                     )
                                     .await
                                 {
@@ -703,12 +734,10 @@ impl ShortcutAction for TranscribeAction {
                             ah_clone
                                 .run_on_main_thread(move || {
                                     // If no error needs to be shown, hide immediately.
-                                    // If an error IS shown, we leave it visible for a moment.
                                     if !error_shown {
                                         utils::hide_recording_overlay(&ah_clone_inner);
                                         change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
                                     } else {
-                                        // Schedule hide for later
                                         let ah_delayed = ah_clone_inner.clone();
                                         std::thread::spawn(move || {
                                             std::thread::sleep(Duration::from_millis(3000));
@@ -751,11 +780,29 @@ impl ShortcutAction for TranscribeAction {
                     } else {
                         settings.selected_model.clone()
                     };
+
+                    let streaming_asr_model = if settings.online_asr_enabled
+                        && settings.post_process_use_secondary_output
+                    {
+                        settings
+                            .post_process_secondary_model_id
+                            .clone()
+                            .or(Some(settings.selected_model.clone()))
+                    } else if !settings.online_asr_enabled {
+                        Some(settings.selected_model.clone())
+                    } else {
+                        None
+                    };
+
                     let failure_text = format!("[Transcription failed] {}", err_msg);
                     if let Err(e) = hm
                         .save_transcription(
                             samples.clone(),
                             failure_text,
+                            streaming_text.clone(),
+                            streaming_asr_model,
+                            None,
+                            None,
                             None,
                             None,
                             Some(duration_ms),
