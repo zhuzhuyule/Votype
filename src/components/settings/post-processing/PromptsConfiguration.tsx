@@ -124,9 +124,7 @@ const PromptsConfiguration: React.FC = () => {
                         variant="solid"
                         onClick={handleSave}
                         disabled={
-                          !isDirty ||
-                          !draftName.trim() ||
-                          !draftContent.trim()
+                          !isDirty || !draftName.trim() || !draftContent.trim()
                         }
                       >
                         <IconDeviceFloppy size={18} />

@@ -10,7 +10,7 @@ import {
   IconButton,
   Popover,
   Text,
-  TextField
+  TextField,
 } from "@radix-ui/themes";
 import { IconPencil, IconTrash } from "@tabler/icons-react";
 import { useSettings } from "../../../hooks/useSettings";
@@ -91,7 +91,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
 
     // Try to save API Key if provided
     if (addDraft.apiKey.trim()) {
-      // We need to find the new provider ID. 
+      // We need to find the new provider ID.
       // Since settings update might be async, this is best effort or requires store refresh.
       // For now, we wait a bit or assume we can find it by label/url next time?
       // Actually, let's try to find it in the *updated* list if possible.
@@ -101,7 +101,6 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       // A better way: The store action could return the ID. But we can't change that now easily.
       // Alternative: We loop through providers after a short delay? No.
       // Let's defer API key saving for 'Edit' or try to match by label immediately if the store updates synchronously (unlikely).
-
       // Attempt: Iterate setting's providers after a small delay (hacky) or just skip it?
       // User *specifically* wants to add Token.
       // Let's try to infer the ID from the list.
@@ -119,7 +118,7 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
   };
 
   // Improved handleAdd that tries to save key:
-  // Since we can't easily get the ID, we will just clear the form. 
+  // Since we can't easily get the ID, we will just clear the form.
   // Wait, I can try to find it by label if unique.
   // const newProvider = settings?.post_process_providers.find(p => p.label === addDraft.label && p.base_url === addDraft.baseUrl);
 
@@ -132,7 +131,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
       modelsEndpoint: editDraft.modelsEndpoint,
     });
 
-    if (editDraft.apiKey !== (settings?.post_process_api_keys?.[editingId] || "")) {
+    if (
+      editDraft.apiKey !== (settings?.post_process_api_keys?.[editingId] || "")
+    ) {
       await updatePostProcessApiKey(editingId, editDraft.apiKey);
     }
 
@@ -169,7 +170,6 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
     editDraft.baseUrl.trim() &&
     isValidUrl(editDraft.baseUrl);
 
-
   const handleAddWithKey = async () => {
     await addCustomProvider({
       label: addDraft.label,
@@ -193,12 +193,17 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
   const handleCloseDialog = () => {
     onAddOpenChange(false);
     setEditingId(null);
-  }
+  };
 
   return (
     <>
       {providers.length === 0 ? (
-        <Flex align="center" justify="center" py="8" className="bg-gray-50 rounded-lg border border-dashed border-gray-200">
+        <Flex
+          align="center"
+          justify="center"
+          py="8"
+          className="bg-gray-50 rounded-lg border border-dashed border-gray-200"
+        >
           <Text size="2" color="gray">
             {t("settings.postProcessing.api.providers.empty.description")}
           </Text>
@@ -225,7 +230,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                     </Text>
                     {isBuiltIn && (
                       <Badge size="1" variant="soft" color="gray">
-                        {t("settings.postProcessing.api.providers.builtInBadge")}
+                        {t(
+                          "settings.postProcessing.api.providers.builtInBadge",
+                        )}
                       </Badge>
                     )}
                   </Flex>
@@ -267,7 +274,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       <Popover.Content side="left" align="center">
                         <Flex direction="column" gap="2" width="160px">
                           <Text size="1" weight="medium" color="red">
-                            {t("settings.postProcessing.api.providers.deleteConfirm.title")}
+                            {t(
+                              "settings.postProcessing.api.providers.deleteConfirm.title",
+                            )}
                           </Text>
                           <Flex gap="2" justify="end">
                             <Button
@@ -320,7 +329,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       label: event.target.value,
                     }))
                   }
-                  placeholder={t("settings.postProcessing.api.providers.fields.namePlaceholder")}
+                  placeholder={t(
+                    "settings.postProcessing.api.providers.fields.namePlaceholder",
+                  )}
                 />
               </Flex>
               <Flex direction="column" gap="1">
@@ -393,7 +404,9 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
                       label: event.target.value,
                     }))
                   }
-                  placeholder={t("settings.postProcessing.api.providers.fields.namePlaceholder")}
+                  placeholder={t(
+                    "settings.postProcessing.api.providers.fields.namePlaceholder",
+                  )}
                 />
               </Flex>
               <Flex direction="column" gap="1">
@@ -466,6 +479,5 @@ export const ProviderManager: React.FC<ProviderManagerProps> = ({
     </>
   );
 };
-
 
 export default ProviderManager;

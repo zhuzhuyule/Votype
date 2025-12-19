@@ -24,7 +24,10 @@ export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
 
   return (
-    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8 pb-10">
+    <Flex
+      direction="column"
+      className="max-w-5xl w-full mx-auto space-y-8 pb-10"
+    >
       <SettingsGroup title={t("settings.advanced.groups.behavior")}>
         <StartHidden descriptionMode="inline" grouped={true} />
         <AutostartToggle descriptionMode="inline" grouped={true} />

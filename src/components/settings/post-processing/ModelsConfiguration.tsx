@@ -8,9 +8,17 @@ import {
   RadioCards,
   SegmentedControl,
   Text,
-  TextField
+  TextField,
 } from "@radix-ui/themes";
-import { IconChevronDown, IconChevronRight, IconEye, IconEyeOff, IconPlugConnected, IconPlus, IconSettings } from "@tabler/icons-react";
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconEye,
+  IconEyeOff,
+  IconPlugConnected,
+  IconPlus,
+  IconSettings,
+} from "@tabler/icons-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -25,7 +33,10 @@ import { ModelListPanel } from "./ModelConfigurationPanel";
 import { ProviderManager } from "./ProviderManager";
 
 // --- Helpers & Types for Dialog ---
-const MODEL_TYPE_INFO: Record<ModelType, { labelKey: string; hintKey: string }> = {
+const MODEL_TYPE_INFO: Record<
+  ModelType,
+  { labelKey: string; hintKey: string }
+> = {
   text: {
     labelKey: "settings.postProcessing.models.modelTypes.text.label",
     hintKey: "settings.postProcessing.models.modelTypes.text.hint",
@@ -53,7 +64,10 @@ interface AdvancedSettingsProps {
   onModelsEndpointChange: (value: string) => void;
 }
 
-const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ modelsEndpoint, onModelsEndpointChange }) => {
+const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
+  modelsEndpoint,
+  onModelsEndpointChange,
+}) => {
   const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [localEndpoint, setLocalEndpoint] = useState(modelsEndpoint);
@@ -70,8 +84,14 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ modelsEndpoint, onM
         onClick={() => setIsOpen(!isOpen)}
         className="cursor-pointer select-none text-gray-500 hover:text-gray-700 w-fit mb-2"
       >
-        {isOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-        <Text size="2" weight="medium">{t("settings.postProcessing.api.providers.advancedSettings")}</Text>
+        {isOpen ? (
+          <IconChevronDown size={14} />
+        ) : (
+          <IconChevronRight size={14} />
+        )}
+        <Text size="2" weight="medium">
+          {t("settings.postProcessing.api.providers.advancedSettings")}
+        </Text>
       </Flex>
 
       {isOpen && (
@@ -83,7 +103,9 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ modelsEndpoint, onM
             value={localEndpoint}
             onChange={(e) => setLocalEndpoint(e.target.value)}
             onBlur={(e) => onModelsEndpointChange(e.target.value)}
-            placeholder={t("settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder")}
+            placeholder={t(
+              "settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder",
+            )}
             variant="surface"
           />
         </Flex>
@@ -92,13 +114,15 @@ const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ modelsEndpoint, onM
   );
 };
 
-
 interface ApiSettingsProps {
   onAddModel: () => void;
   isFetchingModels: boolean;
 }
 
-const ApiSettings: React.FC<ApiSettingsProps> = ({ onAddModel, isFetchingModels }) => {
+const ApiSettings: React.FC<ApiSettingsProps> = ({
+  onAddModel,
+  isFetchingModels,
+}) => {
   const { t } = useTranslation();
   const state = usePostProcessProviderState();
   const [showApiKey, setShowApiKey] = useState(false);
@@ -119,7 +143,9 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({ onAddModel, isFetchingModels 
       <Grid columns="2" gap="5">
         <Box className="col-span-2">
           <Flex direction="column" gap="2">
-            <Text size="2" weight="medium" color="gray">{t("settings.postProcessing.api.provider.title")}</Text>
+            <Text size="2" weight="medium" color="gray">
+              {t("settings.postProcessing.api.provider.title")}
+            </Text>
             <ProviderSelect
               options={state.providerOptions}
               value={state.selectedProviderId}
@@ -130,7 +156,9 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({ onAddModel, isFetchingModels 
 
         <Box>
           <Flex direction="column" gap="2">
-            <Text size="2" weight="medium" color="gray">{t("settings.postProcessing.api.baseUrl.title")}</Text>
+            <Text size="2" weight="medium" color="gray">
+              {t("settings.postProcessing.api.baseUrl.title")}
+            </Text>
             <TextField.Root
               value={localBaseUrl}
               onChange={(e) => setLocalBaseUrl(e.target.value)}
@@ -145,7 +173,9 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({ onAddModel, isFetchingModels 
         <Box>
           <Flex direction="column" gap="2">
             <Flex justify="between" align="center">
-              <Text size="2" weight="medium" color="gray">{t("settings.postProcessing.api.apiKey.title")}</Text>
+              <Text size="2" weight="medium" color="gray">
+                {t("settings.postProcessing.api.apiKey.title")}
+              </Text>
               <Button
                 variant="ghost"
                 size="1"
@@ -160,13 +190,20 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({ onAddModel, isFetchingModels 
 
                   const success = await state.testConnection();
                   if (success) {
-                    toast.success(t("settings.postProcessing.api.providers.testSuccess"));
+                    toast.success(
+                      t("settings.postProcessing.api.providers.testSuccess"),
+                    );
                   } else {
-                    toast.error(t("settings.postProcessing.api.providers.testFailed", { error: "" }), {
-                      duration: Infinity,
-                      closeButton: true,
-                      style: { color: "red" },
-                    });
+                    toast.error(
+                      t("settings.postProcessing.api.providers.testFailed", {
+                        error: "",
+                      }),
+                      {
+                        duration: Infinity,
+                        closeButton: true,
+                        style: { color: "red" },
+                      },
+                    );
                   }
                 }}
                 disabled={state.isFetchingModels || !localApiKey}
@@ -224,8 +261,8 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({ onAddModel, isFetchingModels 
             {t("settings.postProcessing.models.addModel")}
           </Button>
         </Box>
-      </Grid >
-    </Box >
+      </Grid>
+    </Box>
   );
 };
 
@@ -248,19 +285,26 @@ export const ModelsConfiguration: React.FC = () => {
   const [isManualModelEntry, setIsManualModelEntry] = useState(false);
 
   const cachedModels = settings?.cached_models ?? [];
-  const configuredIds = useMemo(() => new Set(cachedModels.map((m) => m.model_id)), [cachedModels]);
+  const configuredIds = useMemo(
+    () => new Set(cachedModels.map((m) => m.model_id)),
+    [cachedModels],
+  );
 
   const availableModels = useMemo(() => {
-    return providerState.modelOptions.filter((option) => option.value && !configuredIds.has(option.value));
+    return providerState.modelOptions.filter(
+      (option) => option.value && !configuredIds.has(option.value),
+    );
   }, [providerState.modelOptions, configuredIds]);
 
-  const localizedModelTypeOptions = useMemo(() =>
-    MODEL_TYPE_ORDER.map((modelType) => ({
-      value: modelType,
-      label: t(MODEL_TYPE_INFO[modelType].labelKey),
-      hint: t(MODEL_TYPE_INFO[modelType].hintKey),
-    })),
-    [t]);
+  const localizedModelTypeOptions = useMemo(
+    () =>
+      MODEL_TYPE_ORDER.map((modelType) => ({
+        value: modelType,
+        label: t(MODEL_TYPE_INFO[modelType].labelKey),
+        hint: t(MODEL_TYPE_INFO[modelType].hintKey),
+      })),
+    [t],
+  );
 
   // Dialog Effects
   useEffect(() => {
@@ -278,9 +322,10 @@ export const ModelsConfiguration: React.FC = () => {
       if (!isManualModelEntry) setPendingModelId(null);
       return;
     }
-    setPendingModelId(current => {
+    setPendingModelId((current) => {
       if (isManualModelEntry && current) return current;
-      if (current && availableModels.some(o => o.value === current)) return current;
+      if (current && availableModels.some((o) => o.value === current))
+        return current;
       return availableModels[0].value;
     });
   }, [availableModels, isManualModelEntry]);
@@ -340,16 +385,25 @@ export const ModelsConfiguration: React.FC = () => {
         <SettingsGroup
           title={t("settings.postProcessing.models.modelTypes.asr.label")}
         >
-          <ModelListPanel targetType={['asr', 'other']} />
+          <ModelListPanel targetType={["asr", "other"]} />
         </SettingsGroup>
       </Grid>
 
       {/* Provider Manager Dialog */}
-      <Dialog.Root open={isProviderManagerOpen} onOpenChange={setProviderManagerOpen}>
+      <Dialog.Root
+        open={isProviderManagerOpen}
+        onOpenChange={setProviderManagerOpen}
+      >
         <Dialog.Content maxWidth="900px" style={{ maxHeight: "80vh" }}>
           <Flex justify="between" align="center" mb="4">
-            <Dialog.Title style={{ margin: 0 }}>{t("settings.postProcessing.api.manageProviders")}</Dialog.Title>
-            <Button size="2" variant="solid" onClick={() => setAddProviderDialogOpen(true)}>
+            <Dialog.Title style={{ margin: 0 }}>
+              {t("settings.postProcessing.api.manageProviders")}
+            </Dialog.Title>
+            <Button
+              size="2"
+              variant="solid"
+              onClick={() => setAddProviderDialogOpen(true)}
+            >
               <IconPlus size={16} />
               {t("settings.postProcessing.api.providers.add")}
             </Button>
@@ -368,25 +422,40 @@ export const ModelsConfiguration: React.FC = () => {
       {/* Add Model Dialog */}
       <Dialog.Root open={isModelPickerOpen} onOpenChange={setIsModelPickerOpen}>
         <Dialog.Content maxWidth="450px">
-          <Dialog.Title>{t("settings.postProcessing.models.selectModel.title")}</Dialog.Title>
-          <Dialog.Description>{t("settings.postProcessing.models.selectModel.description")}</Dialog.Description>
+          <Dialog.Title>
+            {t("settings.postProcessing.models.selectModel.title")}
+          </Dialog.Title>
+          <Dialog.Description>
+            {t("settings.postProcessing.models.selectModel.description")}
+          </Dialog.Description>
 
           <Flex direction="column" gap="4" mt="4">
             <SegmentedControl.Root
               defaultValue="select"
               onValueChange={(value) => {
                 setIsManualModelEntry(value === "custom");
-                if (value === "select") setPendingModelId(availableModels[0]?.value || null);
+                if (value === "select")
+                  setPendingModelId(availableModels[0]?.value || null);
                 else setPendingModelId("");
               }}
             >
-              <SegmentedControl.Item value="select">{t("settings.postProcessing.models.selectModel.segmented.selectModel")}</SegmentedControl.Item>
-              <SegmentedControl.Item value="custom">{t("settings.postProcessing.models.selectModel.segmented.customModel")}</SegmentedControl.Item>
+              <SegmentedControl.Item value="select">
+                {t(
+                  "settings.postProcessing.models.selectModel.segmented.selectModel",
+                )}
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="custom">
+                {t(
+                  "settings.postProcessing.models.selectModel.segmented.customModel",
+                )}
+              </SegmentedControl.Item>
             </SegmentedControl.Root>
 
             {isManualModelEntry ? (
               <TextField.Root
-                placeholder={t("settings.postProcessing.models.selectModel.customModelPlaceholder")}
+                placeholder={t(
+                  "settings.postProcessing.models.selectModel.customModelPlaceholder",
+                )}
                 value={pendingModelId || ""}
                 onChange={(e) => setPendingModelId(e.target.value)}
               />
@@ -395,18 +464,39 @@ export const ModelsConfiguration: React.FC = () => {
                 options={availableModels}
                 selectedValue={pendingModelId || undefined}
                 onSelect={setPendingModelId}
-                placeholder={availableModels.length === 0 ? t("settings.postProcessing.models.selectModel.placeholderEmpty") : t("settings.postProcessing.models.selectModel.placeholder")}
+                placeholder={
+                  availableModels.length === 0
+                    ? t(
+                        "settings.postProcessing.models.selectModel.placeholderEmpty",
+                      )
+                    : t(
+                        "settings.postProcessing.models.selectModel.placeholder",
+                      )
+                }
                 className="w-full"
                 enableFilter={true}
               />
             )}
 
             <Box>
-              <Text size="2" weight="medium" mb="2">{t("settings.postProcessing.models.selectModel.usageTypeTitle")}</Text>
-              <RadioCards.Root columns="3" value={pendingModelType} onValueChange={(v) => setPendingModelType(v as ModelType)}>
+              <Text size="2" weight="medium" mb="2">
+                {t("settings.postProcessing.models.selectModel.usageTypeTitle")}
+              </Text>
+              <RadioCards.Root
+                columns="3"
+                value={pendingModelType}
+                onValueChange={(v) => setPendingModelType(v as ModelType)}
+              >
                 {localizedModelTypeOptions.map((o) => (
                   <RadioCards.Item key={o.value} value={o.value}>
-                    <Flex direction="column"><Text size="2" weight="medium">{o.label}</Text><Text size="1" color="gray">{o.hint}</Text></Flex>
+                    <Flex direction="column">
+                      <Text size="2" weight="medium">
+                        {o.label}
+                      </Text>
+                      <Text size="1" color="gray">
+                        {o.hint}
+                      </Text>
+                    </Flex>
                   </RadioCards.Item>
                 ))}
               </RadioCards.Root>
@@ -414,20 +504,42 @@ export const ModelsConfiguration: React.FC = () => {
 
             {pendingModelType === "other" && (
               <Box>
-                <Text size="2" weight="medium" mb="1">{t("settings.postProcessing.models.selectModel.customLabelTitle")}</Text>
-                <TextField.Root placeholder={t("settings.postProcessing.models.selectModel.customLabelPlaceholder")} value={customTypeLabel} onChange={(e) => setCustomTypeLabel(e.target.value)} />
+                <Text size="2" weight="medium" mb="1">
+                  {t(
+                    "settings.postProcessing.models.selectModel.customLabelTitle",
+                  )}
+                </Text>
+                <TextField.Root
+                  placeholder={t(
+                    "settings.postProcessing.models.selectModel.customLabelPlaceholder",
+                  )}
+                  value={customTypeLabel}
+                  onChange={(e) => setCustomTypeLabel(e.target.value)}
+                />
               </Box>
             )}
 
             <Flex justify="end" gap="3" mt="5">
-              <Dialog.Close><Button variant="soft" color="gray">{t("common.cancel")}</Button></Dialog.Close>
-              <Button variant="solid" onClick={handleAddModel} disabled={!pendingModelId || isUpdating("cached_model_add") || (pendingModelType === "other" && !customTypeLabel.trim())}>{t("common.add")}</Button>
+              <Dialog.Close>
+                <Button variant="soft" color="gray">
+                  {t("common.cancel")}
+                </Button>
+              </Dialog.Close>
+              <Button
+                variant="solid"
+                onClick={handleAddModel}
+                disabled={
+                  !pendingModelId ||
+                  isUpdating("cached_model_add") ||
+                  (pendingModelType === "other" && !customTypeLabel.trim())
+                }
+              >
+                {t("common.add")}
+              </Button>
             </Flex>
-
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
-
     </Flex>
   );
 };

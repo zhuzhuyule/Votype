@@ -61,16 +61,18 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
             )}
           </Flex>
           {descriptionMode !== "tooltip" && description && (
-            <Text size="2" color="gray" style={{ lineHeight: "1.4", display: 'block', marginTop: '2px' }}>
+            <Text
+              size="2"
+              color="gray"
+              style={{ lineHeight: "1.4", display: "block", marginTop: "2px" }}
+            >
               {description}
             </Text>
           )}
         </Box>
       </Flex>
 
-      <Box style={{ flexShrink: 0 }}>
-        {children}
-      </Box>
+      <Box style={{ flexShrink: 0 }}>{children}</Box>
     </Flex>
   );
 };

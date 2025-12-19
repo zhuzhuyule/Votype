@@ -56,10 +56,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   };
 
   return (
-    <Flex
-      direction="column"
-      className="h-screen w-screen p-6 gap-4 inset-0"
-    >
+    <Flex direction="column" className="h-screen w-screen p-6 gap-4 inset-0">
       <Flex
         direction="column"
         align="center"
@@ -78,9 +75,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
         className="flex-1 min-h-0"
       >
         {error && (
-          <Box
-            className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4 shrink-0"
-          >
+          <Box className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4 shrink-0">
             <Text color="red" size="2">
               {error}
             </Text>

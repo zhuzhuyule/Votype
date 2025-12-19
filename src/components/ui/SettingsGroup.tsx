@@ -34,7 +34,7 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
             </Heading>
           )}
           {description && (
-            <Text size="2" color="gray" mt="1" style={{ display: 'block' }}>
+            <Text size="2" color="gray" mt="1" style={{ display: "block" }}>
               {description}
             </Text>
           )}
@@ -62,7 +62,7 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
         style={{
           backgroundColor: "var(--color-panel-solid)",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--gray-a3)"
+          border: "1px solid var(--gray-a3)",
         }}
       >
         {header}

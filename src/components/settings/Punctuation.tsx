@@ -47,9 +47,13 @@ export const PunctuationSettings: React.FC<PunctuationSettingsProps> = ({
     }));
   }, [punctuationModels, t]);
 
-  const needsDownload = enabled && selectedModel && !selectedModel.is_downloaded;
-  const isBusy =
-    !!(selectedModel && (isModelDownloading(selectedModel.id) || isModelExtracting(selectedModel.id)));
+  const needsDownload =
+    enabled && selectedModel && !selectedModel.is_downloaded;
+  const isBusy = !!(
+    selectedModel &&
+    (isModelDownloading(selectedModel.id) ||
+      isModelExtracting(selectedModel.id))
+  );
   const busyLabel = selectedModel
     ? isModelExtracting(selectedModel.id)
       ? t("modelSelector.extractingGeneric")
@@ -83,7 +87,9 @@ export const PunctuationSettings: React.FC<PunctuationSettingsProps> = ({
                 options={options}
                 selectedValue={selectedModelId}
                 onSelect={(value) => updateSetting("punctuation_model", value)}
-                disabled={options.length === 0 || isUpdating("punctuation_model")}
+                disabled={
+                  options.length === 0 || isUpdating("punctuation_model")
+                }
               />
               {needsDownload ? (
                 <Flex align="center" justify="between" gap="2">

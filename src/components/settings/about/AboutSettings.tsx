@@ -36,12 +36,17 @@ export const AboutSettings: React.FC = () => {
   };
 
   return (
-    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8 pb-10">
+    <Flex
+      direction="column"
+      className="max-w-5xl w-full mx-auto space-y-8 pb-10"
+    >
       <SettingsGroup title={t("settings.about.title")}>
         <Flex direction="column" align="center" gap="4" py="4">
           <VotypeHand size={48} />
           <div className="text-center">
-            <Text size="5" weight="bold">Votype</Text>
+            <Text size="5" weight="bold">
+              Votype
+            </Text>
             <p className="text-sm text-gray-500 mt-1">
               {t("settings.about.version.title")}: {version}
             </p>
@@ -72,11 +77,7 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
           descriptionMode="inline"
         >
-          <Button
-            variant="solid"
-            size="2"
-            onClick={handleDonateClick}
-          >
+          <Button variant="solid" size="2" onClick={handleDonateClick}>
             {t("settings.about.supportDevelopment.button")}
           </Button>
         </SettingContainer>

@@ -142,7 +142,9 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
                 <Dropdown
                   options={punctuationModelOptions}
                   selectedValue={selectedPunctuationModelId}
-                  onSelect={(value) => updateSetting("punctuation_model", value)}
+                  onSelect={(value) =>
+                    updateSetting("punctuation_model", value)
+                  }
                   disabled={busy || punctuationModelOptions.length === 0}
                   enableFilter={false}
                 />
@@ -184,7 +186,9 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
             <Flex gap="2" align="center" wrap="wrap">
               <Box className="flex-1 min-w-[220px]">
                 <TextField.Root
-                  placeholder={t("settings.asrModels.library.searchPlaceholder")}
+                  placeholder={t(
+                    "settings.asrModels.library.searchPlaceholder",
+                  )}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 >

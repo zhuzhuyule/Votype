@@ -83,34 +83,34 @@ export const CHECK_FOR_UPDATES = "check-for-updates";
 // =============================================================================
 
 export const TauriEvents = {
-    // Overlay
-    SHOW_OVERLAY,
-    HIDE_OVERLAY,
-    OVERLAY_ERROR,
+  // Overlay
+  SHOW_OVERLAY,
+  HIDE_OVERLAY,
+  OVERLAY_ERROR,
 
-    // Audio
-    MIC_LEVEL,
+  // Audio
+  MIC_LEVEL,
 
-    // Transcription
-    SHERPA_ONLINE_PARTIAL,
-    SHERPA_OFFLINE_PARTIAL,
+  // Transcription
+  SHERPA_ONLINE_PARTIAL,
+  SHERPA_OFFLINE_PARTIAL,
 
-    // Model
-    MODEL_STATE_CHANGED,
-    DOWNLOAD_PROGRESS,
-    DOWNLOAD_COMPLETED,
-    EXTRACTION_STARTED,
-    EXTRACTION_COMPLETED,
-    EXTRACTION_FAILED,
+  // Model
+  MODEL_STATE_CHANGED,
+  DOWNLOAD_PROGRESS,
+  DOWNLOAD_COMPLETED,
+  EXTRACTION_STARTED,
+  EXTRACTION_COMPLETED,
+  EXTRACTION_FAILED,
 
-    // Navigation
-    NAVIGATE_TO_SETTINGS,
+  // Navigation
+  NAVIGATE_TO_SETTINGS,
 
-    // History
-    HISTORY_UPDATED,
+  // History
+  HISTORY_UPDATED,
 
-    // Application
-    CHECK_FOR_UPDATES,
+  // Application
+  CHECK_FOR_UPDATES,
 } as const;
 
 export type TauriEventName = (typeof TauriEvents)[keyof typeof TauriEvents];

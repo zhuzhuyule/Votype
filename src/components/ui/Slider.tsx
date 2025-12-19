@@ -55,7 +55,11 @@ export const Slider: React.FC<SliderProps> = ({
           step={step}
           disabled={disabled}
         />
-        {showValue && <Text size="1" className="block w-10 text-right">{formatValue(value)}</Text>}
+        {showValue && (
+          <Text size="1" className="block w-10 text-right">
+            {formatValue(value)}
+          </Text>
+        )}
       </ActionWrapper>
     </SettingContainer>
   );

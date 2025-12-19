@@ -170,11 +170,17 @@ const settingUpdaters: {
   post_process_enabled: (value) =>
     invoke("change_post_process_enabled_setting", { enabled: value }),
   post_process_use_secondary_output: (value) =>
-    invoke("change_post_process_use_secondary_output_setting", { enabled: value }),
+    invoke("change_post_process_use_secondary_output_setting", {
+      enabled: value,
+    }),
   post_process_use_local_candidate_when_online_asr: (value) =>
-    invoke("change_post_process_use_local_candidate_when_online_asr_setting", { enabled: value }),
+    invoke("change_post_process_use_local_candidate_when_online_asr_setting", {
+      enabled: value,
+    }),
   post_process_secondary_model_id: (value) =>
-    invoke("change_post_process_secondary_model_id_setting", { modelId: value }),
+    invoke("change_post_process_secondary_model_id_setting", {
+      modelId: value,
+    }),
   post_process_selected_prompt_id: (value) =>
     invoke("set_post_process_selected_prompt", { id: value }),
   mute_while_recording: (value) =>
@@ -381,15 +387,15 @@ export const useSettingsStore = create<SettingsStore>()(
         set((state) => ({
           settings: state.settings
             ? {
-              ...state.settings,
-              bindings: {
-                ...state.settings.bindings,
-                [id]: {
-                  ...state.settings.bindings[id],
-                  current_binding: binding,
+                ...state.settings,
+                bindings: {
+                  ...state.settings.bindings,
+                  [id]: {
+                    ...state.settings.bindings[id],
+                    current_binding: binding,
+                  },
                 },
-              },
-            }
+              }
             : null,
         }));
 
@@ -402,22 +408,21 @@ export const useSettingsStore = create<SettingsStore>()(
           throw new Error(response?.error || "Failed to change binding");
         }
 
-        const canonicalBinding =
-          response.binding?.current_binding ?? binding;
+        const canonicalBinding = response.binding?.current_binding ?? binding;
 
         // Sync with backend-canonicalized binding (e.g. whitespace/alias normalization)
         set((state) => ({
           settings: state.settings
             ? {
-              ...state.settings,
-              bindings: {
-                ...state.settings.bindings,
-                [id]: {
-                  ...state.settings.bindings[id],
-                  current_binding: canonicalBinding,
+                ...state.settings,
+                bindings: {
+                  ...state.settings.bindings,
+                  [id]: {
+                    ...state.settings.bindings[id],
+                    current_binding: canonicalBinding,
+                  },
                 },
-              },
-            }
+              }
             : null,
         }));
       } catch (error) {
@@ -428,15 +433,15 @@ export const useSettingsStore = create<SettingsStore>()(
           set((state) => ({
             settings: state.settings
               ? {
-                ...state.settings,
-                bindings: {
-                  ...state.settings.bindings,
-                  [id]: {
-                    ...state.settings.bindings[id],
-                    current_binding: originalBinding,
+                  ...state.settings,
+                  bindings: {
+                    ...state.settings.bindings,
+                    [id]: {
+                      ...state.settings.bindings[id],
+                      current_binding: originalBinding,
+                    },
                   },
-                },
-              }
+                }
               : null,
           }));
         }
@@ -558,7 +563,6 @@ export const useSettingsStore = create<SettingsStore>()(
     fetchPostProcessModels: async (providerId) => {
       const updateKey = `post_process_models_fetch:${providerId}`;
       const { setUpdating, setPostProcessModelOptions } = get();
-
 
       setUpdating(updateKey, true);
 

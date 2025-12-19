@@ -44,8 +44,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
         label: device.name,
       }));
 
-        return (
-          <SettingContainer
+      return (
+        <SettingContainer
           title={t("settings.sound.outputDevice.title")}
           description={t("settings.sound.outputDevice.description")}
           descriptionMode={descriptionMode}
@@ -56,7 +56,8 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
             direction="row"
             onReset={handleReset}
             resetProps={{
-              disabled: disabled || isUpdating("selected_output_device") || isLoading,
+              disabled:
+                disabled || isUpdating("selected_output_device") || isLoading,
             }}
           >
             <Dropdown

@@ -159,12 +159,12 @@ export const getKeyName = (
  * Returns basic plus-separated format with correct platform key names
  */
 export const formatKeyCombination = (
-  combination: string = '',
-  osType: OSType = 'macos',
+  combination: string = "",
+  osType: OSType = "macos",
 ): string => {
   // Simply return the combination as-is since getKeyName already provides
   // the correct platform-specific key names
-  return combination.replace(/ ?\+ ?/g, ' + ');
+  return combination.replace(/ ?\+ ?/g, " + ");
 };
 
 /**

@@ -20,7 +20,10 @@ export const countUnicodeChars = (text: string) => Array.from(text).length;
 
 export const formatEntryTime = (timestampSeconds: number) => {
   const date = new Date(timestampSeconds * 1000);
-  const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
   const fullDate = date.toLocaleDateString();
   return { time, fullDate };
 };

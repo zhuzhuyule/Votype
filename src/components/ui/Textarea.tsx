@@ -32,8 +32,9 @@ export const Textarea: React.FC<TextareaProps> = ({
   color,
   ...rest
 }) => {
-  const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
-  
+  const textareaId =
+    id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+
   const getSize = () => {
     switch (variant) {
       case "compact":
@@ -69,7 +70,10 @@ export const Textarea: React.FC<TextareaProps> = ({
         {...rest}
       />
       {showCharCount && maxLength && (
-        <Text className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded" size="1">
+        <Text
+          className="absolute bottom-2 right-2 text-xs text-text/60 bg-background px-1 rounded"
+          size="1"
+        >
           {typeof value === "string" ? value.length : 0}/{maxLength}
         </Text>
       )}

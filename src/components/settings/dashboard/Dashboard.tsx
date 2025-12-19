@@ -1,7 +1,13 @@
 import { Box, Heading } from "@radix-ui/themes";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { DashboardActivityChart } from "./DashboardActivityChart";
 import { DashboardDetailsList } from "./DashboardDetailsList";
@@ -10,7 +16,7 @@ import type { DashboardSelection, HistoryEntry } from "./dashboardTypes";
 import {
   countUnicodeChars,
   formatDurationMs,
-  toLocalYmd
+  toLocalYmd,
 } from "./dashboardUtils";
 
 export const Dashboard: React.FC = () => {
@@ -57,6 +63,13 @@ export const Dashboard: React.FC = () => {
     return () => {
       cancelled = true;
       if (unlisten) unlisten();
+    };
+  }, []);
+
+  // Clear audio cache on unmount to free memory
+  useEffect(() => {
+    return () => {
+      audioUrlCacheRef.current.clear();
     };
   }, []);
 
@@ -111,8 +124,10 @@ export const Dashboard: React.FC = () => {
       if (selection.day === todayYmd) return t("dashboard.range.today");
       return selection.day;
     }
-    if (selection.preset === "7d") return t("dashboard.range.lastNDays", { days: 7 });
-    if (selection.preset === "30d") return t("dashboard.range.lastNDays", { days: 30 });
+    if (selection.preset === "7d")
+      return t("dashboard.range.lastNDays", { days: 7 });
+    if (selection.preset === "30d")
+      return t("dashboard.range.lastNDays", { days: 30 });
     if (selection.preset === "40d")
       return t("dashboard.range.lastNDays", { days: 40 });
     return t("dashboard.range.allTime");
@@ -123,7 +138,8 @@ export const Dashboard: React.FC = () => {
   }, [selectionTitle]);
 
   const selectedEntries = useMemo(() => {
-    if (selection.type === "preset" && selection.preset === "all") return entries;
+    if (selection.type === "preset" && selection.preset === "all")
+      return entries;
     const getDay = (entry: HistoryEntry) =>
       toLocalYmd(new Date(entry.timestamp * 1000));
     if (selection.type === "day") {
@@ -286,7 +302,9 @@ export const Dashboard: React.FC = () => {
         onSelectPreset={(preset) => setSelection({ type: "preset", preset })}
       />
 
-      <Heading size="5" mb="4">{selectionTitle}</Heading>
+      <Heading size="5" mb="4">
+        {selectionTitle}
+      </Heading>
       <DashboardSummaryCards
         summary={summary}
         numberFormat={numberFormat}

@@ -77,112 +77,123 @@ export const ThemeSelector: React.FC = () => {
         </IconButton>
       </Popover.Trigger>
       <Popover.Content size="1" style={{ minWidth: 360, padding: 0 }}>
-        <ScrollArea type="auto" scrollbars="vertical" style={{ maxHeight: "80vh", padding: 16 }}>
+        <ScrollArea
+          type="auto"
+          scrollbars="vertical"
+          style={{ maxHeight: "80vh", padding: 16 }}
+        >
           <Flex direction="column" gap="4" pr="2">
-          {/* Appearance Mode */}
-          <Box>
-            <Text size="1" weight="bold" mb="2" as="div">
-              {t("theme.themeMode.title")}
-            </Text>
-            <SegmentedControl.Root
-              value={appearance}
-              onValueChange={(val) =>
-                setAppearance(val as "light" | "dark" | "inherit")
-              }
-              size="1"
-            >
-              <SegmentedControl.Item value="light">
-                <Flex align="center" gap="2">
-                  <IconSun width={12} height={12} />
-                  {t("theme.themeMode.light")}
-                </Flex>
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="dark">
-                <Flex align="center" gap="2">
-                  <IconMoon width={12} height={12} />
-                  {t("theme.themeMode.dark")}
-                </Flex>
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="inherit">
-                <Flex align="center" gap="2">
-                  <IconDeviceLaptop width={12} height={12} />
-                  {t("theme.themeMode.system")}
-                </Flex>
-              </SegmentedControl.Item>
-            </SegmentedControl.Root>
-          </Box>
-
-          {/* Accent Color */}
-          <Box>
-            <Text size="1" weight="bold" mb="2" as="div">
-              {t("theme.accentColor.title")}
-            </Text>
-            <Grid columns="3" gap="2">
-              {ACCENT_OPTIONS.map((color) => (
-                <Button
-                  key={color}
-                  variant={accentColor === color ? "soft" : "outline"}
-                  color={accentColor === color ? undefined : "gray"}
-                  onClick={() => onAccentColorChange(color as any)}
-                  style={{
-                    cursor: "pointer",
-                    justifyContent: "start",
-                    height: "32px",
-                  }}
-                >
-                  <Flex align="center" gap="2" width="100%">
-                    <Box
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: "4px",
-                        backgroundColor: `var(--${color}-9)`,
-                      }}
-                    />
-                    <Text size="1" weight={accentColor === color ? "bold" : "regular"}>
-                      {t(`theme.accentColor.${color}`)}
-                    </Text>
+            {/* Appearance Mode */}
+            <Box>
+              <Text size="1" weight="bold" mb="2" as="div">
+                {t("theme.themeMode.title")}
+              </Text>
+              <SegmentedControl.Root
+                value={appearance}
+                onValueChange={(val) =>
+                  setAppearance(val as "light" | "dark" | "inherit")
+                }
+                size="1"
+              >
+                <SegmentedControl.Item value="light">
+                  <Flex align="center" gap="2">
+                    <IconSun width={12} height={12} />
+                    {t("theme.themeMode.light")}
                   </Flex>
-                </Button>
-              ))}
-            </Grid>
-          </Box>
-
-          {/* Radius */}
-          <Box>
-            <Text size="1" weight="bold" mb="2" as="div">
-              {t("theme.cornerRadius.title")}
-            </Text>
-            <SegmentedControl.Root
-              value={radius}
-              onValueChange={(val) => onRadiusChange(val as any)}
-              size="1"
-            >
-              {RADIUS_OPTIONS.map((opt) => (
-                <SegmentedControl.Item key={opt.value} value={opt.value} className="b border- ">
-                  {t(opt.labelKey)}
                 </SegmentedControl.Item>
-              ))}
-            </SegmentedControl.Root>
-          </Box>
-
-          {/* Scaling */}
-          <Box>
-            <Text size="1" weight="bold" mb="2" as="div">
-              {t("theme.scaling.title")}
-            </Text>
-            <SegmentedControl.Root
-              value={scaling}
-              onValueChange={(val) => onScalingChange(val as any)}
-              size="1"
-            >
-              {SCALING_OPTIONS.map((scale) => (
-                <SegmentedControl.Item key={scale} value={scale}>
-                  {scale}
+                <SegmentedControl.Item value="dark">
+                  <Flex align="center" gap="2">
+                    <IconMoon width={12} height={12} />
+                    {t("theme.themeMode.dark")}
+                  </Flex>
                 </SegmentedControl.Item>
-              ))}
-            </SegmentedControl.Root>
-          </Box>
+                <SegmentedControl.Item value="inherit">
+                  <Flex align="center" gap="2">
+                    <IconDeviceLaptop width={12} height={12} />
+                    {t("theme.themeMode.system")}
+                  </Flex>
+                </SegmentedControl.Item>
+              </SegmentedControl.Root>
+            </Box>
+
+            {/* Accent Color */}
+            <Box>
+              <Text size="1" weight="bold" mb="2" as="div">
+                {t("theme.accentColor.title")}
+              </Text>
+              <Grid columns="3" gap="2">
+                {ACCENT_OPTIONS.map((color) => (
+                  <Button
+                    key={color}
+                    variant={accentColor === color ? "soft" : "outline"}
+                    color={accentColor === color ? undefined : "gray"}
+                    onClick={() => onAccentColorChange(color as any)}
+                    style={{
+                      cursor: "pointer",
+                      justifyContent: "start",
+                      height: "32px",
+                    }}
+                  >
+                    <Flex align="center" gap="2" width="100%">
+                      <Box
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: "4px",
+                          backgroundColor: `var(--${color}-9)`,
+                        }}
+                      />
+                      <Text
+                        size="1"
+                        weight={accentColor === color ? "bold" : "regular"}
+                      >
+                        {t(`theme.accentColor.${color}`)}
+                      </Text>
+                    </Flex>
+                  </Button>
+                ))}
+              </Grid>
+            </Box>
+
+            {/* Radius */}
+            <Box>
+              <Text size="1" weight="bold" mb="2" as="div">
+                {t("theme.cornerRadius.title")}
+              </Text>
+              <SegmentedControl.Root
+                value={radius}
+                onValueChange={(val) => onRadiusChange(val as any)}
+                size="1"
+              >
+                {RADIUS_OPTIONS.map((opt) => (
+                  <SegmentedControl.Item
+                    key={opt.value}
+                    value={opt.value}
+                    className="b border- "
+                  >
+                    {t(opt.labelKey)}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>
+            </Box>
+
+            {/* Scaling */}
+            <Box>
+              <Text size="1" weight="bold" mb="2" as="div">
+                {t("theme.scaling.title")}
+              </Text>
+              <SegmentedControl.Root
+                value={scaling}
+                onValueChange={(val) => onScalingChange(val as any)}
+                size="1"
+              >
+                {SCALING_OPTIONS.map((scale) => (
+                  <SegmentedControl.Item key={scale} value={scale}>
+                    {scale}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>
+            </Box>
           </Flex>
         </ScrollArea>
       </Popover.Content>

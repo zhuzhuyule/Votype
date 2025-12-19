@@ -36,7 +36,7 @@ export const ActionWrapper: React.FC<ActionWrapperProps> = ({
         sx({
           "& > :first-child": { flex: 1 },
         }),
-        'w-70',
+        "w-70",
         flexProps.className,
       )}
     >

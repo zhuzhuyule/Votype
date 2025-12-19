@@ -1,5 +1,10 @@
 import { Box, Card, Flex, Grid, Heading, Text } from "@radix-ui/themes";
-import { IconApps, IconCpu, IconFileText, IconMicrophone } from "@tabler/icons-react";
+import {
+  IconApps,
+  IconCpu,
+  IconFileText,
+  IconMicrophone,
+} from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
@@ -37,7 +42,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         style={{
           backgroundColor: "var(--color-panel-solid)",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--gray-a3)"
+          border: "1px solid var(--gray-a3)",
         }}
       >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
@@ -61,7 +66,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         style={{
           backgroundColor: "var(--color-panel-solid)",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--gray-a3)"
+          border: "1px solid var(--gray-a3)",
         }}
       >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
@@ -85,7 +90,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         style={{
           backgroundColor: "var(--color-panel-solid)",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--gray-a3)"
+          border: "1px solid var(--gray-a3)",
         }}
       >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">
@@ -111,7 +116,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         style={{
           backgroundColor: "var(--color-panel-solid)",
           boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--gray-a3)"
+          border: "1px solid var(--gray-a3)",
         }}
       >
         <Box className="absolute -right-6  bottom-0 flex items-center pr-4 pointer-events-none">

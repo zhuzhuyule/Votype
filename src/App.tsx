@@ -10,12 +10,19 @@ import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
 
 // 懒加载非关键组件以改善首屏加载性能
-const AccessibilityPermissions = lazy(() => import("./components/AccessibilityPermissions"));
+const AccessibilityPermissions = lazy(
+  () => import("./components/AccessibilityPermissions"),
+);
 const Footer = lazy(() => import("./components/footer"));
 
 // 加载状态组件
 const SettingsLoadingFallback = () => (
-  <Flex direction="column" align="center" justify="center" className="h-full py-20">
+  <Flex
+    direction="column"
+    align="center"
+    justify="center"
+    className="h-full py-20"
+  >
     <Spinner size="3" />
   </Flex>
 );
@@ -24,7 +31,9 @@ const renderSettingsContent = (section: SidebarSection) => {
   const ActiveComponent =
     SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.general.component;
   return (
-    <Suspense fallback={<SettingsLoadingFallback />}>
+    // Key forces complete unmount/remount when section changes,
+    // releasing audio/media resources and clearing component state
+    <Suspense key={section} fallback={<SettingsLoadingFallback />}>
       <ActiveComponent />
     </Suspense>
   );
@@ -46,58 +55,40 @@ function App() {
   }, []);
 
   useEffect(() => {
-
     checkOnboardingStatus();
-
   }, []);
-
-
 
   // Listen for navigate-to-settings event from Rust
 
   useEffect(() => {
-
     let unlisten: (() => void) | undefined;
 
-
-
     const setupListener = async () => {
+      unlisten = await listen(
+        "navigate-to-settings",
+        (event: { payload: string }) => {
+          // Navigate to the specified settings section
 
-      unlisten = await listen("navigate-to-settings", (event: { payload: string }) => {
-
-        // Navigate to the specified settings section
-
-        setCurrentSection(event.payload as SidebarSection);
-
-      });
-
+          setCurrentSection(event.payload as SidebarSection);
+        },
+      );
     };
-
-
 
     setupListener();
 
-
-
     return () => {
-
       if (unlisten) {
-
         unlisten();
-
       }
-
     };
-
   }, []);
-
-
 
   // Handle keyboard shortcuts for settings navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Check for Cmd/Ctrl + , (Comma) for General settings (common convention)
-      const isPreferencesShortcut = (event.ctrlKey || event.metaKey) && event.key === ",";
+      const isPreferencesShortcut =
+        (event.ctrlKey || event.metaKey) && event.key === ",";
 
       if (isPreferencesShortcut) {
         event.preventDefault();
@@ -106,7 +97,8 @@ function App() {
       }
 
       // Check for Cmd/Ctrl + Number (1-9) for settings navigation
-      const isSettingsShortcut = (event.ctrlKey || event.metaKey) && /^[1-9]$/.test(event.key);
+      const isSettingsShortcut =
+        (event.ctrlKey || event.metaKey) && /^[1-9]$/.test(event.key);
 
       if (isSettingsShortcut) {
         event.preventDefault();

@@ -12,7 +12,11 @@ import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
 export type OverlayState = "recording" | "transcribing" | "llm";
-type SherpaPartialEvent = { text: string; punctuated_text?: string; is_final: boolean };
+type SherpaPartialEvent = {
+  text: string;
+  punctuated_text?: string;
+  is_final: boolean;
+};
 type OverlayErrorEvent = { code?: string; message?: string };
 
 const stripTrailingSentencePunctuation = (input: string) => {
@@ -50,7 +54,9 @@ interface RecordingOverlayProps {
   initialState: OverlayState;
 }
 
-const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => {
+const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
+  initialState,
+}) => {
   const { t } = useTranslation();
   // isVisible is implicitly true if we are mounted
   const [state, setState] = useState<OverlayState>(initialState);
@@ -85,35 +91,40 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
     }
   }, [initialState]);
 
-
   useEffect(() => {
     const setupEventListeners = async () => {
-      const unlistenError = await listen<OverlayErrorEvent>("overlay-error", (event) => {
-        const payload = (event.payload ?? {}) as OverlayErrorEvent;
+      const unlistenError = await listen<OverlayErrorEvent>(
+        "overlay-error",
+        (event) => {
+          const payload = (event.payload ?? {}) as OverlayErrorEvent;
 
-        if (payload.code) {
-          // Map backend error codes to translation keys
-          const errorMap: Record<string, string> = {
-            "transcription_failed_saved": "overlay.error.transcriptionFailedSaved",
-            "llm_init_failed": "overlay.error.llmInitFailed",
-            "llm_request_failed": "overlay.error.llmRequestFailed",
-            "apple_intelligence_unavailable": "overlay.error.appleIntelligenceUnavailable",
-            "apple_intelligence_failed": "overlay.error.appleIntelligenceFailed",
-          };
+          if (payload.code) {
+            // Map backend error codes to translation keys
+            const errorMap: Record<string, string> = {
+              transcription_failed_saved:
+                "overlay.error.transcriptionFailedSaved",
+              llm_init_failed: "overlay.error.llmInitFailed",
+              llm_request_failed: "overlay.error.llmRequestFailed",
+              apple_intelligence_unavailable:
+                "overlay.error.appleIntelligenceUnavailable",
+              apple_intelligence_failed:
+                "overlay.error.appleIntelligenceFailed",
+            };
 
-          const key = errorMap[payload.code];
-          if (key) {
-            setErrorText(t(key));
+            const key = errorMap[payload.code];
+            if (key) {
+              setErrorText(t(key));
+              return;
+            }
+          }
+
+          // Fallback to raw message if provided (legacy or custom)
+          if (payload.message) {
+            setErrorText(payload.message);
             return;
           }
-        }
-
-        // Fallback to raw message if provided (legacy or custom)
-        if (payload.message) {
-          setErrorText(payload.message);
-          return;
-        }
-      });
+        },
+      );
 
       // Listen for mic-level updates
       const unlistenLevel = await listen<number[]>("mic-level", (event) => {
@@ -172,7 +183,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
         const overlayState = event.payload as OverlayState;
         setState(overlayState);
         // Reset buffer if restarting recording
-        if (overlayState === 'recording') {
+        if (overlayState === "recording") {
           setRealtimeText("");
           setRealtimeIsFinal(false);
           setErrorText("");
@@ -180,7 +191,6 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
           finalLockedRef.current = false;
         }
       });
-
 
       // Listen for theme changes from localStorage (when main app changes theme)
       const handleStorageChange = (e: StorageEvent) => {
@@ -207,7 +217,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
 
   // Update CSS variable when accent color changes
   useEffect(() => {
-    document.documentElement.style.setProperty("--overlay-accent-color", accentColor);
+    document.documentElement.style.setProperty(
+      "--overlay-accent-color",
+      accentColor,
+    );
   }, [accentColor]);
 
   useEffect(() => {
@@ -238,14 +251,16 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
       ? `${stripTrailingSentencePunctuation(realtimeText)}${animatedEllipsis}`.trim()
       : realtimeText;
 
-  const showRealtimeText = realtimeDisplayText.length > 0 && state === "recording";
+  const showRealtimeText =
+    realtimeDisplayText.length > 0 && state === "recording";
   const showErrorText = Boolean(errorText) && state !== "recording";
 
   return (
     <Box className="overlay-root">
       <Box
-        className={`recording-overlay fade-in ${showRealtimeText ? "has-realtime" : ""
-          }`}
+        className={`recording-overlay fade-in ${
+          showRealtimeText ? "has-realtime" : ""
+        }`}
       >
         <Flex className="overlay-left">{getIcon()}</Flex>
 
@@ -268,7 +283,8 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({ initialState }) => 
                     className="bar"
                     style={{
                       height: `${Math.min(20, 4 + Math.pow(v, 0.7) * 16)}px`,
-                      transition: "height 60ms ease-out, opacity 120ms ease-out",
+                      transition:
+                        "height 60ms ease-out, opacity 120ms ease-out",
                       opacity: Math.max(0.2, v * 1.7),
                     }}
                   />

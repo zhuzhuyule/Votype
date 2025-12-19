@@ -26,8 +26,15 @@ const Footer: React.FC = () => {
   }, []);
 
   return (
-    <Flex direction="column" className="w-full border-t border-mid-gray/20 pt-3">
-      <Flex justify="between" align="center" className="text-xs px-4 pb-3 text-text/60">
+    <Flex
+      direction="column"
+      className="w-full border-t border-mid-gray/20 pt-3"
+    >
+      <Flex
+        justify="between"
+        align="center"
+        className="text-xs px-4 pb-3 text-text/60"
+      >
         <Flex align="center" gap="4">
           <ModelSelector />
         </Flex>

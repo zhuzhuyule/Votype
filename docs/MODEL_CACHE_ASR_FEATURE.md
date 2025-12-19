@@ -15,6 +15,7 @@
 ### 当前PostProcess系统
 
 Votype已有完整的AI后处理系统：
+
 - 支持OpenAI、Anthropic等多种provider
 - 自定义prompt模板
 - 后处理结果存储在历史记录中
@@ -22,6 +23,7 @@ Votype已有完整的AI后处理系统：
 ### 新需求分析
 
 用户希望增强模型选择功能：
+
 1. **模型缓存列表**：从LLM API获取模型，选择后添加到缓存
 2. **模型类型设置**：手动标记模型类型（Text/ASR，默认Text）
 3. **Online ASR开关**：二选一模式，启用远程ASR或本地Whisper
@@ -34,6 +36,7 @@ Votype已有完整的AI后处理系统：
 ### 核心设计理念
 
 **在现有PostProcess系统基础上扩展**：
+
 - 复用现有的`fetchPostProcessModels`获取模型列表
 - 添加模型缓存和类型管理
 - 实现Online ASR与本地转录的二选一逻辑
@@ -172,6 +175,7 @@ interface OnlineAsrToggleProps {
 ### **阶段1: 基础设施搭建 (2-3天)**
 
 #### **1.1 数据结构扩展** ⭐⭐ (1天)
+
 **复杂度**: 低 - 主要是类型定义和数据结构
 **风险**: 低 - 不影响现有功能
 
@@ -182,6 +186,7 @@ interface OnlineAsrToggleProps {
 - [ ] 更新`SettingsSchema`
 
 #### **1.2 存储和API扩展** ⭐⭐ (1天)
+
 **复杂度**: 中等 - 需要扩展settings store
 **风险**: 低 - 扩展现有逻辑
 
@@ -192,6 +197,7 @@ interface OnlineAsrToggleProps {
 ### **阶段2: 核心功能实现 (3-4天)**
 
 #### **2.1 模型缓存管理UI** ⭐⭐⭐ (2天)
+
 **复杂度**: 中等 - 需要新UI组件
 **风险**: 低 - 新增功能
 
@@ -201,6 +207,7 @@ interface OnlineAsrToggleProps {
 - [ ] 集成到PostProcessingSettings
 
 #### **2.2 Online ASR开关** ⭐⭐⭐ (1-2天)
+
 **复杂度**: 中等 - 需要修改转录逻辑
 **风险**: 中等 - 影响转录流程
 
@@ -211,6 +218,7 @@ interface OnlineAsrToggleProps {
 ### **阶段3: 高级功能集成 (2-3天)**
 
 #### **3.1 Prompt模型选择** ⭐⭐ (1天)
+
 **复杂度**: 低 - 扩展现有组件
 **风险**: 低 - UI层面修改
 
@@ -219,6 +227,7 @@ interface OnlineAsrToggleProps {
 - [ ] 实现模型过滤（只显示Text类型）
 
 #### **3.2 集成测试和优化** ⭐⭐ (1-2天)
+
 **复杂度**: 中等 - 测试各种场景
 **风险**: 低 - 测试阶段
 
@@ -234,6 +243,7 @@ interface OnlineAsrToggleProps {
 ### 模型缓存管理
 
 #### 添加模型到缓存
+
 ```typescript
 const handleAddModel = async (modelId: string, modelType: ModelType) => {
   const newCachedModel: CachedModel = {
@@ -245,12 +255,13 @@ const handleAddModel = async (modelId: string, modelType: ModelType) => {
     added_at: new Date().toISOString(),
   };
 
-  await invoke('add_cached_model', { model: newCachedModel });
+  await invoke("add_cached_model", { model: newCachedModel });
   await refreshSettings();
 };
 ```
 
 #### Online ASR转录流程
+
 ```rust
 impl TranscriptionManager {
     pub async fn transcribe(&self, audio_data: &[f32]) -> Result<String> {
@@ -272,9 +283,13 @@ impl TranscriptionManager {
 ### Prompt模型集成
 
 #### 动态模型选择
+
 ```typescript
-const selectedModel = cachedModels.find(m => m.id === selectedPromptModelId);
-const promptWithModel = promptTemplate.replace('${model}', selectedModel?.model_id || 'gpt-3.5-turbo');
+const selectedModel = cachedModels.find((m) => m.id === selectedPromptModelId);
+const promptWithModel = promptTemplate.replace(
+  "${model}",
+  selectedModel?.model_id || "gpt-3.5-turbo",
+);
 ```
 
 ---
@@ -305,12 +320,14 @@ const promptWithModel = promptTemplate.replace('${model}', selectedModel?.model_
 ## 📈 成功指标
 
 ### 功能指标
+
 - [ ] 模型缓存功能正常工作
 - [ ] Online ASR开关正确切换转录模式
 - [ ] Prompt模型选择正常工作
 - [ ] 设置持久化正确保存
 
 ### 用户体验指标
+
 - [ ] 模型添加流程简单直观
 - [ ] ASR模式切换响应迅速
 - [ ] 界面布局合理，无拥挤感
@@ -320,11 +337,13 @@ const promptWithModel = promptTemplate.replace('${model}', selectedModel?.model_
 ## 🔄 后续扩展
 
 ### Phase 2扩展 (中期)
+
 - 支持更多模型类型
 - 模型使用统计和推荐
 - 批量模型管理
 
 ### Phase 3扩展 (长期)
+
 - 模型性能对比
 - 自动模型类型检测
 - 云端模型同步
@@ -341,6 +360,7 @@ const promptWithModel = promptTemplate.replace('${model}', selectedModel?.model_
 4. **向后兼容**: 保持现有功能完全不变
 
 **关键优势**:
+
 - **最小化改动**: 在现有架构基础上扩展
 - **功能完整**: 涵盖模型缓存、类型管理、Online ASR
 - **用户友好**: 直观的UI和清晰的工作流程
@@ -351,4 +371,3 @@ const promptWithModel = promptTemplate.replace('${model}', selectedModel?.model_
 **文档版本**: v1.0
 **最后更新**: 2025-11-10
 **状态**: 实施中
-

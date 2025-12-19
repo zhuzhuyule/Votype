@@ -33,7 +33,6 @@ const OverlayApp: React.FC = () => {
     };
   }, []);
 
-
   return mounted ? (
     <Suspense fallback={<Box className="overlay-root" />}>
       <RecordingOverlay initialState={initialState} />

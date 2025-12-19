@@ -20,7 +20,6 @@ interface DashboardActivityChartProps {
   onSelectPreset: (preset: "7d" | "30d" | "40d" | "all") => void;
 }
 
-
 export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
   bars,
   selection,
@@ -32,17 +31,21 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
 
   return (
     <SettingsGroup
-      title={<Text >
-        {t("dashboard.activity.title")}
-        <Text size="2" color="gray" className="pl-2 opacity-50">
-          {t("dashboard.activity.subtitle")}
+      title={
+        <Text>
+          {t("dashboard.activity.title")}
+          <Text size="2" color="gray" className="pl-2 opacity-50">
+            {t("dashboard.activity.subtitle")}
+          </Text>
         </Text>
-      </Text>}
+      }
       description=""
       actions={
         <SegmentedControl.Root
           value={selection.type === "preset" ? selection.preset : "null"}
-          onValueChange={(val) => onSelectPreset(val as "7d" | "30d" | "40d" | "all")}
+          onValueChange={(val) =>
+            onSelectPreset(val as "7d" | "30d" | "40d" | "all")
+          }
           size="1"
         >
           <SegmentedControl.Item value="7d">
@@ -87,7 +90,9 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
                 opacity: b.entries === 0 ? 0.2 : 0.9,
                 cursor: "pointer",
                 transform: b.isToday ? "translateY(-2px)" : undefined,
-                boxShadow: b.isToday ? "0 6px 16px rgba(0,0,0,0.08)" : undefined,
+                boxShadow: b.isToday
+                  ? "0 6px 16px rgba(0,0,0,0.08)"
+                  : undefined,
                 border: "2px solid transparent",
               }}
               onClick={() => onSelectDay(b.day)}

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Slider, Flex, Text, IconButton, Box } from "@radix-ui/themes";
-import { IconPlayerPlay, IconPlayerPause } from "@tabler/icons-react";
+import { Box, Flex, IconButton, Slider, Text } from "@radix-ui/themes";
+import { IconPlayerPause, IconPlayerPlay } from "@tabler/icons-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 interface AudioPlayerProps {
   src: string;
@@ -100,6 +100,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, [onError]);
 
+  // Cleanup audio resource on unmount to prevent memory leaks
+  useEffect(() => {
+    const audio = audioRef.current;
+    return () => {
+      if (audio) {
+        audio.pause();
+        audio.src = ""; // Release audio resource
+        audio.load(); // Force browser to release
+      }
+    };
+  }, []);
+
   const togglePlay = async () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -163,11 +175,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       </IconButton>
 
       <Flex align="center" gap="2" flexGrow="1">
-        <Text
-          size="1"
-          color="gray"
-          className="tabular-nums"
-        >
+        <Text size="1" color="gray" className="tabular-nums">
           {formatTime(currentTime)}
         </Text>
 
@@ -182,11 +190,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           />
         </Box>
 
-        <Text
-          size="1"
-          color="gray"
-          className="tabular-nums"
-        >
+        <Text size="1" color="gray" className="tabular-nums">
           {formatTime(duration)}
         </Text>
       </Flex>

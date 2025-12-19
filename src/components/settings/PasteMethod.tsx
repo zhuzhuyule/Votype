@@ -19,7 +19,10 @@ const getPasteMethodOptions = (osType: string, t: any) => {
       value: "ctrl_v",
       label: t("settings.advanced.pasteMethod.options.clipboard", { modifier }),
     },
-    { value: "direct", label: t("settings.advanced.pasteMethod.options.direct") },
+    {
+      value: "direct",
+      label: t("settings.advanced.pasteMethod.options.direct"),
+    },
     { value: "none", label: t("settings.advanced.pasteMethod.options.none") },
   ];
 

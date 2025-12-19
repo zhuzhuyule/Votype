@@ -143,7 +143,11 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
             </Box>
           ))
         )}
-        <div detail-sentinel="" ref={detailsSentinelRef} className="h-1 w-full" />
+        <div
+          detail-sentinel=""
+          ref={detailsSentinelRef}
+          className="h-1 w-full"
+        />
       </Box>
 
       {entries.length < detailCount && (

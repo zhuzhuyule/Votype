@@ -453,12 +453,12 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     const base =
       favoriteModels.size === 0
         ? (() => {
-          const downloaded = selectable.filter((m) => m.is_downloaded);
-          return downloaded.length > 0 ? downloaded : selectable;
-        })()
+            const downloaded = selectable.filter((m) => m.is_downloaded);
+            return downloaded.length > 0 ? downloaded : selectable;
+          })()
         : selectable.filter(
-          (m) => favoriteModels.has(m.id) || m.id === currentModelId,
-        );
+            (m) => favoriteModels.has(m.id) || m.id === currentModelId,
+          );
 
     const withCurrent =
       currentModelId && !base.some((m) => m.id === currentModelId)
@@ -476,29 +476,32 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   const realtimeModelsForQuickSelector = useMemo(() => {
     const sherpaDownloaded = models.filter(
       (m) =>
-        m.is_downloaded &&
-        m.engine_type === "SherpaOnnx" &&
-        Boolean(m.sherpa),
+        m.is_downloaded && m.engine_type === "SherpaOnnx" && Boolean(m.sherpa),
     );
 
-    const selectedRealtimeId = settings?.post_process_secondary_model_id ?? null;
+    const selectedRealtimeId =
+      settings?.post_process_secondary_model_id ?? null;
     const ensureSelected =
-      selectedRealtimeId && !sherpaDownloaded.some((m) => m.id === selectedRealtimeId)
+      selectedRealtimeId &&
+      !sherpaDownloaded.some((m) => m.id === selectedRealtimeId)
         ? sherpaDownloaded.filter((m) => m.id === selectedRealtimeId)
         : [];
 
     const list = [...sherpaDownloaded, ...ensureSelected];
     return list
-      .filter(
-        (m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx,
-      )
+      .filter((m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx)
       .sort((a, b) => {
         const fa = favoriteModels.has(a.id);
         const fb = favoriteModels.has(b.id);
         if (fa !== fb) return fa ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [models, favoriteModels, currentModelId, settings?.post_process_secondary_model_id]);
+  }, [
+    models,
+    favoriteModels,
+    currentModelId,
+    settings?.post_process_secondary_model_id,
+  ]);
 
   return (
     <>
@@ -529,11 +532,18 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
             realtimeModels={realtimeModelsForQuickSelector}
-            selectedRealtimeModelId={settings?.post_process_secondary_model_id ?? null}
-            realtimeEnabled={settings?.post_process_use_secondary_output || false}
+            selectedRealtimeModelId={
+              settings?.post_process_secondary_model_id ?? null
+            }
+            realtimeEnabled={
+              settings?.post_process_use_secondary_output || false
+            }
             onRealtimeModelSelect={async (modelId) => {
               await updateSetting("post_process_secondary_model_id", modelId);
-              await updateSetting("post_process_use_secondary_output", Boolean(modelId));
+              await updateSetting(
+                "post_process_use_secondary_output",
+                Boolean(modelId),
+              );
             }}
           />
         )}

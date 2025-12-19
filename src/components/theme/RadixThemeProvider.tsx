@@ -28,7 +28,8 @@ const DEFAULT_THEME: ThemeConfig = {
   scaling: "100%",
 };
 
-const IS_BROWSER = typeof window !== "undefined" && typeof document !== "undefined";
+const IS_BROWSER =
+  typeof window !== "undefined" && typeof document !== "undefined";
 
 const loadStoredTheme = (): ThemeConfig => {
   if (!IS_BROWSER) {
@@ -51,11 +52,17 @@ const loadStoredTheme = (): ThemeConfig => {
 export const RadixThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() => loadStoredTheme());
-  const [systemAppearance, setSystemAppearance] = useState<"light" | "dark">(() => {
-    if (!IS_BROWSER) return "light";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  });
+  const [themeConfig, setThemeConfig] = useState<ThemeConfig>(() =>
+    loadStoredTheme(),
+  );
+  const [systemAppearance, setSystemAppearance] = useState<"light" | "dark">(
+    () => {
+      if (!IS_BROWSER) return "light";
+      return window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    },
+  );
 
   const resolvedAppearance = useMemo(() => {
     if (themeConfig.appearance === "inherit") {
@@ -101,8 +108,7 @@ export const RadixThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
     const root = document.documentElement;
-    const accentColor =
-      ACCENT_COLOR_MAP[themeConfig.accentColor] ?? "#3e63dd";
+    const accentColor = ACCENT_COLOR_MAP[themeConfig.accentColor] ?? "#3e63dd";
     root.style.setProperty("--color-logo-primary", accentColor);
     root.style.setProperty("--color-logo-stroke", accentColor);
   }, [themeConfig.accentColor]);
@@ -168,13 +174,8 @@ const ThemeStateSync: React.FC<ThemeStateSyncProps> = ({
   onThemeChange,
   children,
 }) => {
-  const {
-    accentColor,
-    grayColor,
-    panelBackground,
-    radius,
-    scaling,
-  } = useThemeContext();
+  const { accentColor, grayColor, panelBackground, radius, scaling } =
+    useThemeContext();
 
   useEffect(() => {
     onThemeChange({
@@ -184,14 +185,7 @@ const ThemeStateSync: React.FC<ThemeStateSyncProps> = ({
       radius,
       scaling,
     });
-  }, [
-    accentColor,
-    grayColor,
-    panelBackground,
-    radius,
-    scaling,
-    onThemeChange,
-  ]);
+  }, [accentColor, grayColor, panelBackground, radius, scaling, onThemeChange]);
 
   return <>{children}</>;
 };

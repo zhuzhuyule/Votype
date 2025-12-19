@@ -5,4 +5,3 @@ export { DeletePromptDialog } from "./DeletePromptDialog";
 export { PromptEditor } from "./PromptEditor";
 export { ResizableEditor } from "./ResizableEditor";
 export { TagInput } from "./TagInput";
-

@@ -1,4 +1,11 @@
-import { Box, Flex, Popover, ScrollArea, Text, TextField } from "@radix-ui/themes";
+import {
+  Box,
+  Flex,
+  Popover,
+  ScrollArea,
+  Text,
+  TextField,
+} from "@radix-ui/themes";
 import { IconChevronDown, IconSearch } from "@tabler/icons-react";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -103,12 +110,17 @@ export const SecondaryModelDropdown: React.FC<{
 
       const langs = parseLanguageKeys(id);
       const langCodes =
-        langs.length > 0 ? ` (${langs.map((k) => k.toUpperCase()).join("·")})` : "";
+        langs.length > 0
+          ? ` (${langs.map((k) => k.toUpperCase()).join("·")})`
+          : "";
 
       const parts = [family];
-      if (sizeToken) parts.push(sizeToken.charAt(0).toUpperCase() + sizeToken.slice(1));
+      if (sizeToken)
+        parts.push(sizeToken.charAt(0).toUpperCase() + sizeToken.slice(1));
       if (qualifierToken) {
-        parts.push(qualifierToken.charAt(0).toUpperCase() + qualifierToken.slice(1));
+        parts.push(
+          qualifierToken.charAt(0).toUpperCase() + qualifierToken.slice(1),
+        );
       }
 
       return `${parts.join(" ")}${langCodes}`;
@@ -130,12 +142,16 @@ export const SecondaryModelDropdown: React.FC<{
       {
         value: null,
         title: t("settings.postProcessing.fusion.secondaryModel.auto"),
-        description: t("settings.postProcessing.fusion.secondaryModel.autoDescription"),
+        description: t(
+          "settings.postProcessing.fusion.secondaryModel.autoDescription",
+        ),
       },
     ];
 
     const candidates = models
-      .filter((m) => m.is_downloaded && m.engine_type === "SherpaOnnx" && m.sherpa)
+      .filter(
+        (m) => m.is_downloaded && m.engine_type === "SherpaOnnx" && m.sherpa,
+      )
       .map((m) => {
         const modeTagLabel =
           m.sherpa?.mode === "Streaming"
@@ -176,7 +192,8 @@ export const SecondaryModelDropdown: React.FC<{
     return out;
   }, [models, t]);
 
-  const selected = options.find((o) => o.value === (selectedModelId ?? null)) ?? options[0];
+  const selected =
+    options.find((o) => o.value === (selectedModelId ?? null)) ?? options[0];
 
   const filtered = useMemo(() => {
     const q = filterText.trim().toLowerCase();
@@ -212,7 +229,12 @@ export const SecondaryModelDropdown: React.FC<{
           <IconChevronDown size={16} className="opacity-70" />
         </button>
       </Popover.Trigger>
-      <Popover.Content size="2" style={{ minWidth: 520, padding: 0 }} side="bottom" align="start">
+      <Popover.Content
+        size="2"
+        style={{ minWidth: 520, padding: 0 }}
+        side="bottom"
+        align="start"
+      >
         <Box className="p-3 border-b border-mid-gray/20">
           <TextField.Root
             placeholder={t("common.filterOptions")}
@@ -225,7 +247,11 @@ export const SecondaryModelDropdown: React.FC<{
             </TextField.Slot>
           </TextField.Root>
         </Box>
-        <ScrollArea type="auto" scrollbars="vertical" style={{ maxHeight: 360, padding: 0 }}>
+        <ScrollArea
+          type="auto"
+          scrollbars="vertical"
+          style={{ maxHeight: 360, padding: 0 }}
+        >
           <Box className="py-2">
             {filtered.map((opt) => {
               const isActive = opt.value === (selectedModelId ?? null);
@@ -240,7 +266,9 @@ export const SecondaryModelDropdown: React.FC<{
                   role="button"
                   tabIndex={0}
                   className={`px-4 py-2.5 cursor-pointer hover:bg-mid-gray/5 transition-all border-l-2 ${
-                    isActive ? "bg-logo-primary/5 border-logo-primary" : "border-transparent"
+                    isActive
+                      ? "bg-logo-primary/5 border-logo-primary"
+                      : "border-transparent"
                   }`}
                 >
                   <Flex justify="between" align="start" gap="3">
@@ -271,17 +299,26 @@ export const SecondaryModelDropdown: React.FC<{
                           </Text>
                         ) : null}
                       </Flex>
-                      <Text className="text-xs text-text/50 block leading-tight" size="1">
+                      <Text
+                        className="text-xs text-text/50 block leading-tight"
+                        size="1"
+                      >
                         {opt.description}
                       </Text>
                       {opt.value ? (
-                        <Text className="text-[11px] text-text/35 block mt-1" size="1">
+                        <Text
+                          className="text-[11px] text-text/35 block mt-1"
+                          size="1"
+                        >
                           id: {opt.value}
                         </Text>
                       ) : null}
                     </Box>
                     {isActive ? (
-                      <Text className="text-xs text-logo-primary font-medium shrink-0" size="1">
+                      <Text
+                        className="text-xs text-logo-primary font-medium shrink-0"
+                        size="1"
+                      >
                         ✓
                       </Text>
                     ) : null}

@@ -34,12 +34,12 @@ export const ToggleSwitch: React.FC<ToggleSwitchProps> = ({
       disabled={disabled}
       tooltipPosition={tooltipPosition}
     >
-        <Switch
-          checked={checked}
-          disabled={disabled || isUpdating}
-          onCheckedChange={(checked) => onChange(checked)}
-          className="data-[state=checked]:bg-logo-primary/90"
-        />
+      <Switch
+        checked={checked}
+        disabled={disabled || isUpdating}
+        onCheckedChange={(checked) => onChange(checked)}
+        className="data-[state=checked]:bg-logo-primary/90"
+      />
     </SettingContainer>
   );
 };

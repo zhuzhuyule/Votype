@@ -59,4 +59,3 @@ export const OfflineVadRealtimeWindow: React.FC<OfflineVadRealtimeWindowProps> =
   });
 
 OfflineVadRealtimeWindow.displayName = "OfflineVadRealtimeWindow";
-

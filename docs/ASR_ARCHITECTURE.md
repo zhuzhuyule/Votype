@@ -3,6 +3,7 @@
 本文档详细说明了 Handy 中的 ASR（语音识别）系统架构，特别是从录音到转录的核心数据流和控制逻辑。
 
 Handy 支持三种录音/转录模式：
+
 1. **API ASR** (OpenAI, Gemini 等云端服务)
 2. **Sherpa Online** (本地流式模型)
 3. **Sherpa Offline + VAD** (本地离线模型 + VAD流式)

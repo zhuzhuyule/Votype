@@ -221,23 +221,28 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
 
   // Format the current shortcut keys being recorded
   const formatCurrentKeys = (): string => {
-    if (recordedKeys.length === 0) return t("settings.general.shortcut.pressKeys");
+    if (recordedKeys.length === 0)
+      return t("settings.general.shortcut.pressKeys");
 
     // Use the same formatting as the display to ensure consistency
     return formatKeyCombination(recordedKeys.join(" + "), osType);
   };
 
-
-
   const className = "w-53 py-2! flex align-baseline";
 
   function renderKeys() {
     if (isLoading) {
-      return <Kbd className={className}>{t("settings.general.shortcut.loading")}</Kbd>;
+      return (
+        <Kbd className={className}>
+          {t("settings.general.shortcut.loading")}
+        </Kbd>
+      );
     }
 
     if (!binding) {
-      return <Kbd className={className}>{t("settings.general.shortcut.none")}</Kbd>;
+      return (
+        <Kbd className={className}>{t("settings.general.shortcut.none")}</Kbd>
+      );
     }
 
     const isSame = editingShortcutId === shortcutId;

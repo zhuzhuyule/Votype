@@ -62,19 +62,14 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
     <Button
       onClick={onClick}
       variant="ghost"
-        color={isOnlineModel ? "blue" : "gray"}
+      color={isOnlineModel ? "blue" : "gray"}
       size="1"
       className={`flex items-center gap-2 ${className}`}
       title={displayText}
     >
       <Box className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
       <Text weight="medium">{displayText}</Text>
-      <Badge
-        size="1"
-        variant="soft"
-        radius="full"
-        className={modeLabelColor}
-      >
+      <Badge size="1" variant="soft" radius="full" className={modeLabelColor}>
         {modeLabel ??
           (isOnlineModel
             ? t("modelSelector.online")

@@ -5,8 +5,16 @@ const cache = new Map<string, string>();
 let idCounter = 0;
 
 const unitlessProps = new Set([
-  "zIndex", "opacity", "flex", "flexGrow", "flexShrink", "order", "lineHeight",
-  "fontWeight", "zoom", "scale"
+  "zIndex",
+  "opacity",
+  "flex",
+  "flexGrow",
+  "flexShrink",
+  "order",
+  "lineHeight",
+  "fontWeight",
+  "zoom",
+  "scale",
 ]);
 
 function ensureSheet() {
@@ -69,15 +77,20 @@ export function sx(styleObj: StyleObject): string {
   const baseCss = objectToCss(base) || "";
   try {
     if (baseCss) {
-      sheetLocal.insertRule(`.${className} { ${baseCss} }`, sheetLocal.cssRules.length);
+      sheetLocal.insertRule(
+        `.${className} { ${baseCss} }`,
+        sheetLocal.cssRules.length,
+      );
     } else {
       // 为了保证 class 存在（即便无基础样式），插入空规则
       sheetLocal.insertRule(`.${className} {}`, sheetLocal.cssRules.length);
     }
   } catch (e) {
     // 某些浏览器对 insertRule 的语法更敏感，降级到 appendText
-    const styleEl = (sheetLocal.ownerNode as HTMLStyleElement);
-    styleEl.appendChild(document.createTextNode(`.${className} { ${baseCss} }`));
+    const styleEl = sheetLocal.ownerNode as HTMLStyleElement;
+    styleEl.appendChild(
+      document.createTextNode(`.${className} { ${baseCss} }`),
+    );
   }
 
   // 插入嵌套选择器
@@ -87,9 +100,12 @@ export function sx(styleObj: StyleObject): string {
     const cssText = typeof cssObj === "string" ? cssObj : objectToCss(cssObj);
     const realSel = sel.replace(/&/g, `.${className}`);
     try {
-      sheetLocal.insertRule(`${realSel} { ${cssText} }`, sheetLocal.cssRules.length);
+      sheetLocal.insertRule(
+        `${realSel} { ${cssText} }`,
+        sheetLocal.cssRules.length,
+      );
     } catch (e) {
-      const styleEl = (sheetLocal.ownerNode as HTMLStyleElement);
+      const styleEl = sheetLocal.ownerNode as HTMLStyleElement;
       styleEl.appendChild(document.createTextNode(`${realSel} { ${cssText} }`));
     }
   }
@@ -99,7 +115,9 @@ export function sx(styleObj: StyleObject): string {
 }
 
 // utils/mergeClasses.ts
-export function mergeClasses(...parts: Array<string | undefined | null | false>) {
+export function mergeClasses(
+  ...parts: Array<string | undefined | null | false>
+) {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const part of parts) {

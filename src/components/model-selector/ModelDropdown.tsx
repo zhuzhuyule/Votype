@@ -6,7 +6,7 @@ import {
   IconCloudUpload,
   IconCube,
   IconDeviceDesktop,
-  IconDownload
+  IconDownload,
 } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -110,9 +110,9 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       ? null
       : realtimeModels.find((m) => m.id === selectedRealtimeModelId)
         ? getTranslatedModelName(
-          realtimeModels.find((m) => m.id === selectedRealtimeModelId)!,
-          t,
-        )
+            realtimeModels.find((m) => m.id === selectedRealtimeModelId)!,
+            t,
+          )
         : selectedRealtimeModelId;
 
   React.useEffect(() => {
@@ -245,14 +245,18 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
           let headerClass = "text-text/70 bg-mid-gray/5 dark:bg-gray-900/40";
           if (isStreaming) {
-            headerClass = "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20!";
+            headerClass =
+              "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20!";
           } else if (isMultilingual) {
-            headerClass = "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30";
+            headerClass =
+              "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30";
           } else if (isPunctuation) {
-            headerClass = "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30";
+            headerClass =
+              "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30";
           } else {
             // Default offline
-            headerClass = "text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/50";
+            headerClass =
+              "text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/50";
           }
 
           return (
@@ -304,7 +308,11 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           </Box>
         )}
 
-        <ScrollArea type="hover" scrollbars="vertical" className="max-h-[60vh] group">
+        <ScrollArea
+          type="hover"
+          scrollbars="vertical"
+          className="max-h-[60vh] group"
+        >
           <Box className="pr-0 transition-[padding-right] duration-200 group-has-[div[data-orientation=vertical][data-state=visible]]:pr-3">
             {/* Downloaded Models */}
             {availableModels.length > 0 &&
@@ -315,8 +323,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   languages.length === 0
                     ? t("settings.asrModels.languages.other")
                     : languages
-                      .map((k) => t(`settings.asrModels.languages.${k}`))
-                      .join(" · ");
+                        .map((k) => t(`settings.asrModels.languages.${k}`))
+                        .join(" · ");
                 const featureLabel = getFeatureTags(model).join(" · ");
                 const meta = [languageLabel, featureLabel]
                   .filter(Boolean)
@@ -379,8 +387,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                         }
                         meta={
                           isActive &&
-                            realtimeEnabled &&
-                            selectedRealtimeName ? (
+                          realtimeEnabled &&
+                          selectedRealtimeName ? (
                             <Text size="1" className="text-text/45">
                               {t("modelSelector.realtimeModel.selected", {
                                 modelName: selectedRealtimeName,
@@ -404,7 +412,9 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
                                 const rowEl = (
                                   e.currentTarget as HTMLElement
-                                ).closest("[data-asr-row]") as HTMLElement | null;
+                                ).closest(
+                                  "[data-asr-row]",
+                                ) as HTMLElement | null;
                                 const containerEl = containerRef.current;
                                 if (!rowEl || !containerEl) {
                                   setRealtimePicker({
@@ -462,8 +472,8 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                   languages.length === 0
                     ? t("settings.asrModels.languages.other")
                     : languages
-                      .map((k) => t(`settings.asrModels.languages.${k}`))
-                      .join(" · ");
+                        .map((k) => t(`settings.asrModels.languages.${k}`))
+                        .join(" · ");
                 const featureLabel = getFeatureTags(model).join(" · ");
                 const meta = [languageLabel, featureLabel]
                   .filter(Boolean)
@@ -494,7 +504,9 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       // But it had `IconButton` with `handleDownloadClick`.
                       // So `ModelListItem` onClick should optionally be undefined.
                     }}
-                    className={isDownloading ? "cursor-default" : "cursor-default"} // They weren't clickable as rows?
+                    className={
+                      isDownloading ? "cursor-default" : "cursor-default"
+                    } // They weren't clickable as rows?
                     rightElement={
                       isDownloading && progress ? (
                         <Box className="w-20">
@@ -514,7 +526,10 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                                 id: model.id,
                                 percentage: Math.max(
                                   0,
-                                  Math.min(100, Math.round(progress.percentage)),
+                                  Math.min(
+                                    100,
+                                    Math.round(progress.percentage),
+                                  ),
                                 ),
                               },
                             ]}

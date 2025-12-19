@@ -10,12 +10,7 @@ interface TooltipIconProps {
 }
 
 export const TooltipIcon: React.FC<TooltipIconProps> = React.memo(
-  ({
-    text,
-    description,
-    tooltipPosition = "top",
-    className = "",
-  }) => (
+  ({ text, description, tooltipPosition = "top", className = "" }) => (
     <Tooltip
       content={
         <Text size="2" className="leading-relaxed text-center">

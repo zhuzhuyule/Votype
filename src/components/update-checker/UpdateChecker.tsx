@@ -116,9 +116,9 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
             const progress =
               contentLengthRef.current > 0
                 ? Math.round(
-                  (downloadedBytesRef.current / contentLengthRef.current) *
-                  100,
-                )
+                    (downloadedBytesRef.current / contentLengthRef.current) *
+                      100,
+                  )
                 : 0;
             setDownloadProgress(Math.min(progress, 100));
             break;
@@ -143,8 +143,8 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
     if (isInstalling) {
       return downloadProgress > 0 && downloadProgress < 100
         ? t("footer.downloading", {
-          progress: downloadProgress.toString().padStart(3),
-        })
+            progress: downloadProgress.toString().padStart(3),
+          })
         : downloadProgress === 100
           ? t("footer.installing")
           : t("footer.preparing");
@@ -175,10 +175,11 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
           disabled={isUpdateDisabled}
           variant="ghost"
           size="1"
-          className={`transition-colors disabled:opacity-50 tabular-nums ${updateAvailable
-            ? "text-logo-primary hover:text-logo-primary/80 font-medium"
-            : "text-text/60 hover:text-text/80"
-            }`}
+          className={`transition-colors disabled:opacity-50 tabular-nums ${
+            updateAvailable
+              ? "text-logo-primary hover:text-logo-primary/80 font-medium"
+              : "text-text/60 hover:text-text/80"
+          }`}
         >
           {getUpdateStatusText()}
         </Button>

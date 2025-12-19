@@ -10,7 +10,12 @@ import {
   IconButton,
   Text,
 } from "@radix-ui/themes";
-import { IconCircle, IconCircleCheckFilled, IconPlayerPlay, IconTrash } from "@tabler/icons-react";
+import {
+  IconCircle,
+  IconCircleCheckFilled,
+  IconPlayerPlay,
+  IconTrash,
+} from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useSettings } from "../../../hooks/useSettings";
@@ -28,26 +33,31 @@ const renderModelSection = ({
   refreshSettings,
   allowSelection,
   contentStyle = "",
-  hideIfEmpty = true
+  hideIfEmpty = true,
 }: {
-  type: ModelType,
-  allModels: CachedModel[],
-  providerMap: Record<string, string>,
-  settings: any,
-  isUpdating: (id: string) => boolean,
-  handleRemove: (id: string) => void,
-  t: any,
-  refreshSettings: () => Promise<void>,
-  allowSelection: boolean,
-  headerStyle?: string,
-  contentStyle?: string,
-  hideIfEmpty?: boolean
+  type: ModelType;
+  allModels: CachedModel[];
+  providerMap: Record<string, string>;
+  settings: any;
+  isUpdating: (id: string) => boolean;
+  handleRemove: (id: string) => void;
+  t: any;
+  refreshSettings: () => Promise<void>;
+  allowSelection: boolean;
+  headerStyle?: string;
+  contentStyle?: string;
+  hideIfEmpty?: boolean;
 }) => {
-  const models = allModels.filter(m => m.model_type === type);
+  const models = allModels.filter((m) => m.model_type === type);
 
   if (hideIfEmpty && models.length === 0) {
     return (
-      <Flex align="center" justify="center" p="4" className="bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+      <Flex
+        align="center"
+        justify="center"
+        p="4"
+        className="bg-gray-50/50 rounded-lg border border-dashed border-gray-200"
+      >
         <Text size="1" color="gray" className="opacity-70">
           {t("settings.postProcessing.models.empty.description")}
         </Text>
@@ -57,7 +67,7 @@ const renderModelSection = ({
 
   // Group models by provider
   const groupedModels: Record<string, CachedModel[]> = {};
-  models.forEach(model => {
+  models.forEach((model) => {
     const providerKey = model.provider_id;
     if (!groupedModels[providerKey]) {
       groupedModels[providerKey] = [];
@@ -68,142 +78,207 @@ const renderModelSection = ({
   return (
     <Flex direction="column" className="h-full">
       <Box className={`space-y-4 flex-1 ${contentStyle}`}>
-        {Object.entries(groupedModels).map(([providerId, providerModels], index) => (
-          <Box key={providerId} className={index > 0 ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/10" : ""}>
-            {/* Minimal Provider Header - Uppercase small label */}
-            <Text size="1" weight="bold" className="px-1 mb-2 block uppercase text-xs opacity-60 tracking-wider text-gray-500 dark:text-gray-400">
-              {providerMap[providerId] ?? providerId}
-            </Text>
+        {Object.entries(groupedModels).map(
+          ([providerId, providerModels], index) => (
+            <Box
+              key={providerId}
+              className={
+                index > 0
+                  ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/10"
+                  : ""
+              }
+            >
+              {/* Minimal Provider Header - Uppercase small label */}
+              <Text
+                size="1"
+                weight="bold"
+                className="px-1 mb-2 block uppercase text-xs opacity-60 tracking-wider text-gray-500 dark:text-gray-400"
+              >
+                {providerMap[providerId] ?? providerId}
+              </Text>
 
-            {/* Models list for this provider */}
-            <Box className="">
-              {providerModels.map((model, index) => {
-                const isRemoving = isUpdating(`cached_model_remove:${model.id}`);
-                const isSelected = allowSelection && settings?.selected_prompt_model_id === model.id;
+              {/* Models list for this provider */}
+              <Box className="">
+                {providerModels.map((model, index) => {
+                  const isRemoving = isUpdating(
+                    `cached_model_remove:${model.id}`,
+                  );
+                  const isSelected =
+                    allowSelection &&
+                    settings?.selected_prompt_model_id === model.id;
 
-                return (
-                  <Flex
-                    key={model.id}
-                    align="center"
-                    justify="between"
-                    className={`
+                  return (
+                    <Flex
+                      key={model.id}
+                      align="center"
+                      justify="between"
+                      className={`
                       px-2 py-2 transition-colors cursor-pointer group rounded-md
                       ${isSelected ? "bg-indigo-50/50 dark:bg-indigo-500/20" : "hover:bg-gray-100/50 dark:hover:bg-white/5"}
                     `}
-                    onClick={async () => {
-                      if (allowSelection && !isRemoving) {
-                        try {
-                          await invoke("select_post_process_model", { modelId: model.id });
-                          await refreshSettings();
-                        } catch (e) {
-                          console.error(e);
-                        }
-                      }
-                    }}
-                  >
-                    <Flex align="center" gap="3" className="flex-1 min-w-0">
-
-                      {allowSelection && (
-                        isSelected ? <IconCircleCheckFilled size={20} className="text-logo-primary" /> : <IconCircle size={20} />
-                      )}
-
-                      <Box className="flex-1 min-w-0">
-                        <Text size="2" weight={isSelected ? "medium" : "regular"} className="text-gray-900 dark:text-gray-200 truncate block leading-snug">
-                          {model.name}
-                        </Text>
-                      </Box>
-
-                      {model.custom_label && (
-                        <Badge size="1" variant="soft" color="indigo" className="ml-2">
-                          {model.custom_label}
-                        </Badge>
-                      )}
-                    </Flex>
-                    {/* Actions - Visible on Hover */}
-                    <Flex gap="3" className="opacity-0 group-hover:opacity-100 transition-opacity pl-2">
-                      <IconButton
-                        size="1"
-                        variant="ghost"
-                        color="green"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const toastId = toast.loading(t("settings.postProcessing.api.testing"));
+                      onClick={async () => {
+                        if (allowSelection && !isRemoving) {
                           try {
-                            const result = await invoke<string>("test_post_process_model_inference", {
-                              providerId: model.provider_id,
-                              model: model.model_id,
-                              input: "OK", // Simple input
+                            await invoke("select_post_process_model", {
+                              modelId: model.id,
                             });
-                            toast.dismiss(toastId);
-                            // We might expect 'OK' or similar, but just showing the success toast is enough
-                            toast.success(t("settings.postProcessing.api.testSuccess"), {
-                              duration: 5000,
-                              closeButton: true,
-                            });
-                          } catch (error) {
-                            toast.dismiss(toastId);
-                            let errorMessage = String(error);
-                            // Simple normalization if it's an object/error instance
-                            if (error instanceof Error) errorMessage = error.message;
-
-                            toast.error(t("settings.postProcessing.api.testFailed", { error: errorMessage }), {
-                              duration: Infinity,
-                              closeButton: true,
-                              style: { color: "red" },
-                            });
+                            await refreshSettings();
+                          } catch (e) {
+                            console.error(e);
                           }
-                        }}
-                        title={t("settings.postProcessing.api.testConnection")}
-                      >
-                        <IconPlayerPlay size={14} />
-                      </IconButton>
+                        }
+                      }}
+                    >
+                      <Flex align="center" gap="3" className="flex-1 min-w-0">
+                        {allowSelection &&
+                          (isSelected ? (
+                            <IconCircleCheckFilled
+                              size={20}
+                              className="text-logo-primary"
+                            />
+                          ) : (
+                            <IconCircle size={20} />
+                          ))}
 
-                      <AlertDialog.Root>
-                        <AlertDialog.Trigger>
-                          <IconButton
-                            size="1"
-                            variant="ghost"
-                            color="red"
-                            onClick={(e) => {
-                              // Prevent selection when clicking delete
-                              e.stopPropagation();
-                              // We need to stop propagation on the trigger but AlertDialog handles the rest
-                            }}
-                            disabled={!!isRemoving}
-                            title={t("common.delete")}
+                        <Box className="flex-1 min-w-0">
+                          <Text
+                            size="2"
+                            weight={isSelected ? "medium" : "regular"}
+                            className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
                           >
-                            <IconTrash size={14} />
-                          </IconButton>
-                        </AlertDialog.Trigger>
-                        <AlertDialog.Content maxWidth="450px" onClick={(e) => e.stopPropagation()}>
-                          <AlertDialog.Title>{t("settings.postProcessing.models.deleteConfirm.title")}</AlertDialog.Title>
-                          <AlertDialog.Description size="2">
-                            {t("settings.postProcessing.models.deleteConfirm.description")}
-                          </AlertDialog.Description>
-                          <Flex gap="3" mt="4" justify="end">
-                            <AlertDialog.Cancel>
-                              <Button variant="soft" color="gray">
-                                {t("common.cancel")}
-                              </Button>
-                            </AlertDialog.Cancel>
-                            <AlertDialog.Action>
-                              <Button variant="solid" color="red" onClick={(e) => {
-                                e.stopPropagation(); // Just in case
-                                handleRemove(model.id);
-                              }}>
-                                {t("common.delete")}
-                              </Button>
-                            </AlertDialog.Action>
-                          </Flex>
-                        </AlertDialog.Content>
-                      </AlertDialog.Root>
+                            {model.name}
+                          </Text>
+                        </Box>
+
+                        {model.custom_label && (
+                          <Badge
+                            size="1"
+                            variant="soft"
+                            color="indigo"
+                            className="ml-2"
+                          >
+                            {model.custom_label}
+                          </Badge>
+                        )}
+                      </Flex>
+                      {/* Actions - Visible on Hover */}
+                      <Flex
+                        gap="3"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity pl-2"
+                      >
+                        <IconButton
+                          size="1"
+                          variant="ghost"
+                          color="green"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            const toastId = toast.loading(
+                              t("settings.postProcessing.api.testing"),
+                            );
+                            try {
+                              const result = await invoke<string>(
+                                "test_post_process_model_inference",
+                                {
+                                  providerId: model.provider_id,
+                                  model: model.model_id,
+                                  input: "OK", // Simple input
+                                },
+                              );
+                              toast.dismiss(toastId);
+                              // We might expect 'OK' or similar, but just showing the success toast is enough
+                              toast.success(
+                                t("settings.postProcessing.api.testSuccess"),
+                                {
+                                  duration: 5000,
+                                  closeButton: true,
+                                },
+                              );
+                            } catch (error) {
+                              toast.dismiss(toastId);
+                              let errorMessage = String(error);
+                              // Simple normalization if it's an object/error instance
+                              if (error instanceof Error)
+                                errorMessage = error.message;
+
+                              toast.error(
+                                t("settings.postProcessing.api.testFailed", {
+                                  error: errorMessage,
+                                }),
+                                {
+                                  duration: Infinity,
+                                  closeButton: true,
+                                  style: { color: "red" },
+                                },
+                              );
+                            }
+                          }}
+                          title={t(
+                            "settings.postProcessing.api.testConnection",
+                          )}
+                        >
+                          <IconPlayerPlay size={14} />
+                        </IconButton>
+
+                        <AlertDialog.Root>
+                          <AlertDialog.Trigger>
+                            <IconButton
+                              size="1"
+                              variant="ghost"
+                              color="red"
+                              onClick={(e) => {
+                                // Prevent selection when clicking delete
+                                e.stopPropagation();
+                                // We need to stop propagation on the trigger but AlertDialog handles the rest
+                              }}
+                              disabled={!!isRemoving}
+                              title={t("common.delete")}
+                            >
+                              <IconTrash size={14} />
+                            </IconButton>
+                          </AlertDialog.Trigger>
+                          <AlertDialog.Content
+                            maxWidth="450px"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <AlertDialog.Title>
+                              {t(
+                                "settings.postProcessing.models.deleteConfirm.title",
+                              )}
+                            </AlertDialog.Title>
+                            <AlertDialog.Description size="2">
+                              {t(
+                                "settings.postProcessing.models.deleteConfirm.description",
+                              )}
+                            </AlertDialog.Description>
+                            <Flex gap="3" mt="4" justify="end">
+                              <AlertDialog.Cancel>
+                                <Button variant="soft" color="gray">
+                                  {t("common.cancel")}
+                                </Button>
+                              </AlertDialog.Cancel>
+                              <AlertDialog.Action>
+                                <Button
+                                  variant="solid"
+                                  color="red"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Just in case
+                                    handleRemove(model.id);
+                                  }}
+                                >
+                                  {t("common.delete")}
+                                </Button>
+                              </AlertDialog.Action>
+                            </Flex>
+                          </AlertDialog.Content>
+                        </AlertDialog.Root>
+                      </Flex>
                     </Flex>
-                  </Flex>
-                );
-              })}
+                  );
+                })}
+              </Box>
             </Box>
-          </Box>
-        ))}
+          ),
+        )}
       </Box>
     </Flex>
   );
@@ -214,14 +289,10 @@ export interface ModelListPanelProps {
 }
 
 export const ModelListPanel: React.FC<ModelListPanelProps> = ({
-  targetType
+  targetType,
 }) => {
-  const {
-    settings,
-    removeCachedModel,
-    isUpdating,
-    refreshSettings,
-  } = useSettings();
+  const { settings, removeCachedModel, isUpdating, refreshSettings } =
+    useSettings();
 
   const { t } = useTranslation();
   const cachedModels = settings?.cached_models ?? [];
@@ -246,7 +317,7 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
 
   return (
     <Box>
-      {typesToRender.map(type => (
+      {typesToRender.map((type) => (
         <Box key={type} className="mb-4 last:mb-0">
           {renderModelSection({
             type,
@@ -257,8 +328,8 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
             handleRemove: handleRemoveModel,
             t,
             refreshSettings,
-            allowSelection: type === 'text',
-            hideIfEmpty: false // We handle empty state inside
+            allowSelection: type === "text",
+            hideIfEmpty: false, // We handle empty state inside
           })}
         </Box>
       ))}

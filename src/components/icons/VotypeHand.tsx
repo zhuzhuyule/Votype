@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface VotypeHandProps {
   className?: string;
@@ -7,11 +7,11 @@ interface VotypeHandProps {
 
 export const VotypeHand: React.FC<VotypeHandProps> = ({
   className = "",
-  size = 48
+  size = 48,
 }) => {
   const scale = size / 48;
   return (
-    <div className={className} style={{ transform: `scale(${scale})` }} >
+    <div className={className} style={{ transform: `scale(${scale})` }}>
       <style>{`
         /* Common layout for both layers */
         .logo-layer {
@@ -222,11 +222,13 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
       `}</style>
       <div>
         <div className="container">
-          <div className="logo-wrapper" style={{ position: 'relative' }}>
+          <div className="logo-wrapper" style={{ position: "relative" }}>
             <div className="logo-layer layer-base">
-              <span className="char" style={{ animationDelay: '0ms' }}>V</span>
+              <span className="char" style={{ animationDelay: "0ms" }}>
+                V
+              </span>
 
-              <div className="icon-o" style={{ animationDelay: '100ms' }}>
+              <div className="icon-o" style={{ animationDelay: "100ms" }}>
                 <div className="orbit-ring"></div>
                 <div className="satellite-wrapper">
                   <div className="satellite-dot"></div>
@@ -238,16 +240,26 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
                 </div>
               </div>
 
-              <span className="char" style={{ animationDelay: '200ms' }}>T</span>
-              <span className="char" style={{ animationDelay: '300ms' }}>Y</span>
-              <span className="char" style={{ animationDelay: '400ms' }}>P</span>
-              <span className="char" style={{ animationDelay: '500ms' }}>E</span>
+              <span className="char" style={{ animationDelay: "200ms" }}>
+                T
+              </span>
+              <span className="char" style={{ animationDelay: "300ms" }}>
+                Y
+              </span>
+              <span className="char" style={{ animationDelay: "400ms" }}>
+                P
+              </span>
+              <span className="char" style={{ animationDelay: "500ms" }}>
+                E
+              </span>
             </div>
 
             <div className="logo-layer layer-shine" aria-hidden="true">
-              <span className="char" style={{ animationDelay: '0ms' }}>V</span>
+              <span className="char" style={{ animationDelay: "0ms" }}>
+                V
+              </span>
 
-              <div className="icon-o" style={{ animationDelay: '100ms' }}>
+              <div className="icon-o" style={{ animationDelay: "100ms" }}>
                 <div className="orbit-ring"></div>
                 <div className="satellite-wrapper">
                   <div className="satellite-dot"></div>
@@ -259,13 +271,20 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
                 </div>
               </div>
 
-              <span className="char" style={{ animationDelay: '200ms' }}>T</span>
-              <span className="char" style={{ animationDelay: '300ms' }}>Y</span>
-              <span className="char" style={{ animationDelay: '400ms' }}>P</span>
-              <span className="char" style={{ animationDelay: '500ms' }}>E</span>
+              <span className="char" style={{ animationDelay: "200ms" }}>
+                T
+              </span>
+              <span className="char" style={{ animationDelay: "300ms" }}>
+                Y
+              </span>
+              <span className="char" style={{ animationDelay: "400ms" }}>
+                P
+              </span>
+              <span className="char" style={{ animationDelay: "500ms" }}>
+                E
+              </span>
             </div>
           </div>
-
         </div>
       </div>
     </div>

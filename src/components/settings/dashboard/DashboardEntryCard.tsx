@@ -32,7 +32,9 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     const { t } = useTranslation();
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [audioMissing, setAudioMissing] = useState(false);
-    const [activeTab, setActiveTab] = useState<"improved" | "original">("improved");
+    const [activeTab, setActiveTab] = useState<"improved" | "original">(
+      "improved",
+    );
     const [shouldLoadAudio, setShouldLoadAudio] = useState(false);
     const [retranscribing, setRetranscribing] = useState(false);
     const cardRef = useRef<HTMLDivElement | null>(null);
@@ -123,7 +125,9 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   onClick={onRetranscribeClick}
                   className="text-text/60 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
                 >
-                  <IconReload className={`w-4 h-4 ${retranscribing ? "animate-spin" : ""}`} />
+                  <IconReload
+                    className={`w-4 h-4 ${retranscribing ? "animate-spin" : ""}`}
+                  />
                 </IconButton>
               </Tooltip>
 
@@ -134,7 +138,8 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   onClick={() => {
                     const text =
                       hasImprovement && activeTab === "improved"
-                        ? entry.post_processed_text ?? entry.transcription_text
+                        ? (entry.post_processed_text ??
+                          entry.transcription_text)
                         : entry.transcription_text;
                     onCopy(text ?? "");
                   }}
@@ -155,12 +160,16 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   variant="ghost"
                   size="2"
                   onClick={() => onToggleSaved(entry.id)}
-                  className={`transition-colors ${entry.saved
-                    ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
-                    : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
-                    }`}
+                  className={`transition-colors ${
+                    entry.saved
+                      ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
+                      : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
+                  }`}
                 >
-                  <IconStar className="w-4 h-4" fill={entry.saved ? "currentColor" : "none"} />
+                  <IconStar
+                    className="w-4 h-4"
+                    fill={entry.saved ? "currentColor" : "none"}
+                  />
                 </IconButton>
               </Tooltip>
 
@@ -179,7 +188,10 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
           </Flex>
 
           {hasImprovement ? (
-            <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+            <Tabs.Root
+              value={activeTab}
+              onValueChange={(v) => setActiveTab(v as any)}
+            >
               <Tabs.List size="1" className="mb-3">
                 <Tabs.Trigger value="improved">
                   {t("settings.history.content.improved")}
@@ -236,8 +248,10 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     return (
       prevProps.entry.id === nextProps.entry.id &&
       prevProps.entry.saved === nextProps.entry.saved &&
-      prevProps.entry.transcription_text === nextProps.entry.transcription_text &&
-      prevProps.entry.post_processed_text === nextProps.entry.post_processed_text
+      prevProps.entry.transcription_text ===
+        nextProps.entry.transcription_text &&
+      prevProps.entry.post_processed_text ===
+        nextProps.entry.post_processed_text
     );
   },
 );

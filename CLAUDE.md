@@ -9,22 +9,27 @@ The Votype application is a cross-platform desktop application built with the Ta
 ## Architecture
 
 The application adopts a hybrid architecture:
+
 - **Frontend (`src/`)**: Web-based UI using React, TypeScript, and Vite
 - **Backend (`src-tauri/`)**: Rust application handling system-level operations and native APIs
 
 ### Frontend-Backend Communication
+
 - Frontend calls backend using Tauri's `invoke` mechanism: `import { invoke } from '@tauri-apps/api/core'`
 - Backend commands are defined with `#[tauri::command]` attribute and registered in `src-tauri/src/lib.rs`
 - Backend emits events to frontend using `app.emit("event-name", payload)`
 
 ### Key Technologies
+
 **Frontend:**
+
 - React 18, TypeScript, Vite 6
 - Radix UI for accessible components, styled with Tailwind CSS 4
 - Zustand for state management
 - Sonner for notifications, Zod for validation
 
 **Backend:**
+
 - Rust with Tauri 2.x framework
 - Tauri plugins for native functionality (autostart, clipboard, filesystem, global shortcuts, etc.)
 - Audio processing: `cpal`, `vad-rs`, `rubato`

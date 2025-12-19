@@ -72,7 +72,9 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
   const currentValue = getSetting("model_unload_timeout") ?? "never";
 
   const options = useMemo(() => {
-    return settings?.debug_mode === true ? getDebugTimeoutOptions(t) : getTimeoutOptions(t);
+    return settings?.debug_mode === true
+      ? getDebugTimeoutOptions(t)
+      : getTimeoutOptions(t);
   }, [settings, t]);
 
   return (
