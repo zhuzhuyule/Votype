@@ -31,10 +31,6 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
         .layer-base .bar {
           background-color: currentColor;
         }
-        .layer-base .satellite-dot {
-          background-color: currentColor;
-          box-shadow: 0 0 10px currentColor;
-        }
 
         /* Layer 2: The Shine Content - Pure white with mask */
         .layer-shine {
@@ -81,10 +77,6 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
         .layer-shine .bar {
           background-color: white;
         }
-        .layer-shine .satellite-dot {
-          background-color: white;
-          box-shadow: 0 0 15px white;
-        }
 
         /* --- Animation Primitives --- */
 
@@ -112,7 +104,6 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
           animation: votype-reveal 0.6s ease-out forwards;
         }
 
-        /* 1. Satellite Orbit Ring */
         .orbit-ring {
           position: absolute;
           inset: 0;
@@ -121,25 +112,6 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
           box-sizing: border-box;
         }
 
-        /* 2. Rotating Satellite Dot Wrapper */
-        .satellite-wrapper {
-          position: absolute;
-          inset: 0;
-          animation: votype-spin 3s linear infinite;
-        }
-
-        .satellite-dot {
-          position: absolute;
-          top: 0;
-          left: 50%;
-          transform: translate(-50%, 0);
-          margin-top: -0.375rem;
-          width: 0.75rem;
-          height: 0.75rem;
-          border-radius: 50%;
-        }
-
-        /* 3. Inner Voice Bars */
         .voice-bars {
           display: flex;
           align-items: center;
@@ -230,9 +202,6 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
 
               <div className="icon-o" style={{ animationDelay: "100ms" }}>
                 <div className="orbit-ring"></div>
-                <div className="satellite-wrapper">
-                  <div className="satellite-dot"></div>
-                </div>
                 <div className="voice-bars">
                   <div className="bar"></div>
                   <div className="bar"></div>
@@ -261,9 +230,6 @@ export const VotypeHand: React.FC<VotypeHandProps> = ({
 
               <div className="icon-o" style={{ animationDelay: "100ms" }}>
                 <div className="orbit-ring"></div>
-                <div className="satellite-wrapper">
-                  <div className="satellite-dot"></div>
-                </div>
                 <div className="voice-bars">
                   <div className="bar"></div>
                   <div className="bar"></div>

@@ -21,40 +21,117 @@ import {
 
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
-  const DETAIL_PAGE_SIZE = 10;
-  const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const PAGE_SIZE = 10;
+
+  // All entries for charts/summary (loaded once)
+  const [allEntries, setAllEntries] = useState<HistoryEntry[]>([]);
+  // Paginated entries for detail list only
+  const [detailEntries, setDetailEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selection, setSelection] = useState<DashboardSelection>(() => ({
     type: "day",
     day: toLocalYmd(new Date()),
   }));
-  const [detailCount, setDetailCount] = useState(DETAIL_PAGE_SIZE);
-  const detailsSentinelRef = useRef<HTMLDivElement | null>(null);
   const audioUrlCacheRef = useRef<Map<string, string | null>>(new Map());
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(), []);
   const todayYmd = useMemo(() => toLocalYmd(new Date()), []);
 
+  // Pagination state for detail list
+  const [detailTotalCount, setDetailTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Calculate timestamp range based on selection
+  const getTimestampRange = useCallback((sel: DashboardSelection) => {
+    const now = new Date();
+    let startTs: number | undefined;
+    let endTs: number | undefined;
+
+    if (sel.type === "day") {
+      const dayDate = new Date(sel.day + "T00:00:00");
+      startTs = Math.floor(dayDate.getTime() / 1000);
+      const nextDay = new Date(dayDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      endTs = Math.floor(nextDay.getTime() / 1000) - 1;
+    } else if (sel.preset !== "all") {
+      const days = sel.preset === "7d" ? 7 : sel.preset === "30d" ? 30 : 40;
+      const startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+      startTs = Math.floor(startDate.getTime() / 1000);
+    }
+
+    return { startTs, endTs };
+  }, []);
+
+  // Load paginated detail entries
+  const loadDetailPage = useCallback(
+    async (offset: number, sel: DashboardSelection, reset = false) => {
+      // Only show loading indicator for non-reset (load more) requests
+      if (!reset) setIsLoadingMore(true);
+      try {
+        const { startTs, endTs } = getTimestampRange(sel);
+        const result = await invoke<{
+          entries: HistoryEntry[];
+          total_count: number;
+          offset: number;
+          limit: number;
+        }>("get_history_entries_paginated", {
+          offset,
+          limit: PAGE_SIZE,
+          startTimestamp: startTs ?? null,
+          endTimestamp: endTs ?? null,
+        });
+
+        setDetailTotalCount(result.total_count);
+        setHasMore(result.offset + result.entries.length < result.total_count);
+
+        if (reset) {
+          setDetailEntries(result.entries);
+        } else {
+          setDetailEntries((prev) => {
+            const existingIds = new Set(prev.map((e) => e.id));
+            const newEntries = result.entries.filter(
+              (e) => !existingIds.has(e.id),
+            );
+            return [...prev, ...newEntries];
+          });
+        }
+      } catch (e) {
+        console.error("Failed to load detail entries:", e);
+      } finally {
+        setIsLoadingMore(false);
+      }
+    },
+    [getTimestampRange],
+  );
+
+  // Load all entries for charts (once on mount and on history-updated)
   useEffect(() => {
     let cancelled = false;
-    const load = async (setBusy = true) => {
+    const loadAllEntries = async () => {
       try {
-        if (setBusy) setLoading(true);
+        setLoading(true);
         const res = await invoke<HistoryEntry[]>("get_history_entries");
-        if (!cancelled) setEntries(res);
+        if (!cancelled) setAllEntries(res);
       } catch (e) {
-        console.error("Failed to load history entries for dashboard:", e);
+        console.error("Failed to load all history entries:", e);
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
 
-    let unlisten: (() => void) | null = null;
+    loadAllEntries();
 
-    load();
+    let unlisten: (() => void) | null = null;
     (async () => {
       try {
-        unlisten = await listen("history-updated", () => load(false));
+        unlisten = await listen("history-updated", () => {
+          loadAllEntries();
+          // Also reload first page of details
+          loadDetailPage(0, selection, true);
+        });
       } catch (e) {
         console.error("Failed to listen for history-updated:", e);
       }
@@ -65,6 +142,19 @@ export const Dashboard: React.FC = () => {
       if (unlisten) unlisten();
     };
   }, []);
+
+  // Load first page of details when selection changes
+  useEffect(() => {
+    setDetailEntries([]);
+    setHasMore(true);
+    loadDetailPage(0, selection, true);
+  }, [selection, loadDetailPage]);
+
+  // Load more callback for VirtualDetailsList
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || loading) return;
+    loadDetailPage(detailEntries.length, selection, false);
+  }, [detailEntries.length, hasMore, loading, loadDetailPage, selection]);
 
   const chartDays = useMemo(() => {
     const days: string[] = [];
@@ -78,14 +168,14 @@ export const Dashboard: React.FC = () => {
 
   const bucketsByDay = useMemo(() => {
     const map = new Map<string, { entries: number }>();
-    for (const entry of entries) {
+    for (const entry of allEntries) {
       const day = toLocalYmd(new Date(entry.timestamp * 1000));
       const bucket = map.get(day) ?? { entries: 0 };
       bucket.entries += 1;
       map.set(day, bucket);
     }
     return map;
-  }, [entries]);
+  }, [allEntries]);
 
   const selectedDays = useMemo(() => {
     if (selection.type === "day") return new Set([selection.day]);
@@ -126,20 +216,20 @@ export const Dashboard: React.FC = () => {
     return t("dashboard.range.allTime");
   }, [selection, t, todayYmd]);
 
-  useEffect(() => {
-    setDetailCount(DETAIL_PAGE_SIZE);
-  }, [selectionTitle]);
+  // Selection title is derived from selection, no need for separate effect
 
   const selectedEntries = useMemo(() => {
     if (selection.type === "preset" && selection.preset === "all")
-      return entries;
+      return allEntries;
     const getDay = (entry: HistoryEntry) =>
       toLocalYmd(new Date(entry.timestamp * 1000));
     if (selection.type === "day") {
-      return entries.filter((e) => getDay(e) === selection.day);
+      return allEntries.filter(
+        (e: HistoryEntry) => getDay(e) === selection.day,
+      );
     }
-    return entries.filter((e) => selectedDays.has(getDay(e)));
-  }, [entries, selectedDays, selection]);
+    return allEntries.filter((e: HistoryEntry) => selectedDays.has(getDay(e)));
+  }, [allEntries, selectedDays, selection]);
 
   const selectedDayTotals = useMemo(() => {
     const map = new Map<string, number>();
@@ -149,25 +239,6 @@ export const Dashboard: React.FC = () => {
     }
     return map;
   }, [selectedEntries]);
-
-  useEffect(() => {
-    if (!detailsSentinelRef.current) return;
-
-    const sentinel = detailsSentinelRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries[0]?.isIntersecting) return;
-        setDetailCount((current) => {
-          if (current >= selectedEntries.length) return current;
-          return Math.min(current + DETAIL_PAGE_SIZE, selectedEntries.length);
-        });
-      },
-      { root: null, rootMargin: "200px", threshold: 0.01 },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [selectedEntries.length]);
 
   const summary = useMemo(() => {
     let entryCount = 0;
@@ -269,11 +340,6 @@ export const Dashboard: React.FC = () => {
     [t],
   );
 
-  const detailEntries = useMemo(
-    () => selectedEntries.slice(0, detailCount),
-    [detailCount, selectedEntries],
-  );
-
   const detailGroups = useMemo(() => {
     const map = new Map<string, HistoryEntry[]>();
     for (const entry of detailEntries) {
@@ -286,7 +352,7 @@ export const Dashboard: React.FC = () => {
   }, [detailEntries]);
 
   return (
-    <Box className="w-full max-w-5xl mx-auto space-y-8 pb-10">
+    <Box className="w-full max-w-5xl mx-auto space-y-8">
       <DashboardActivityChart
         bars={bars}
         selection={selection}
@@ -305,8 +371,8 @@ export const Dashboard: React.FC = () => {
       />
 
       <VirtualDetailsList
-        entries={selectedEntries}
-        totalCount={selectedEntries.length}
+        entries={detailEntries}
+        totalCount={detailTotalCount}
         selectedDayTotals={selectedDayTotals}
         getAudioUrl={getAudioUrl}
         onCopy={onCopy}
@@ -320,6 +386,9 @@ export const Dashboard: React.FC = () => {
             alert(t("dashboard.actions.retranscribeFailed"));
           }
         }}
+        onLoadMore={handleLoadMore}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
         formatDurationMs={formatDurationMs}
         numberFormat={numberFormat}
         t={t}

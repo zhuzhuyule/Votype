@@ -56,6 +56,10 @@
       "subtitle": "近40天",
       "title": "使用记录"
     },
+    "dateLabels": {
+      "today": "今天",
+      "yesterday": "昨天"
+    },
     "cards": {
       "allTime": "全部",
       "recent": "最近 {{days}} 天",
@@ -64,6 +68,7 @@
     "details": {
       "audioRemoved": "录音已移除",
       "count": "共 {{count}} 条",
+      "recordCount": "{{count}} 条记录",
       "empty": "暂无数据",
       "loadMore": "加载更多",
       "meta": {
@@ -544,6 +549,11 @@
         "sherpa_sense_voice": "Sherpa SenseVoice",
         "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
+      },
+      "modeChips": {
+        "streaming": "流式",
+        "offline": "离线",
+        "punctuation": "标点"
       },
       "types": {
         "parakeet": "Parakeet",

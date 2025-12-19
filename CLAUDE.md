@@ -74,3 +74,9 @@ The application adopts a hybrid architecture:
 - Built on Radix UI primitives with Tailwind CSS styling
 - Zustand stores for global state management
 - Focus on accessibility and reusability
+
+## UI Component Rules
+
+- **Do NOT use Radix Card:** Do not import `Card` from `@radix-ui/themes`. The project has a custom `Card` component at `src/components/ui/Card.tsx` that must be used instead. ESLint is configured to forbid importing Radix Card.
+- **Custom Card:** Use `import { Card } from "@/components/ui/Card"` or relative path imports.
+- **SettingsGroup:** Used for settings page group containers, includes border and shadow effects.

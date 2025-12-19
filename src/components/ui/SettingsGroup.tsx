@@ -1,5 +1,6 @@
-import { Box, Card, Flex, Heading, Text } from "@radix-ui/themes";
+import { Box, Flex, Heading, Text } from "@radix-ui/themes";
 import React from "react";
+import { Card, CardProps } from "./Card";
 
 interface SettingsGroupProps {
   title?: React.ReactNode;
@@ -7,6 +8,8 @@ interface SettingsGroupProps {
   description?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
+  cardProps?: CardProps;
+  contentClassName?: string;
   framed?: boolean;
 }
 
@@ -16,6 +19,8 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   description,
   children,
   actions,
+  cardProps,
+  contentClassName,
   framed = true,
 }) => {
   const header = (
@@ -45,26 +50,16 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   );
 
   const content = (
-    <Flex direction="column" gap="1">
+    <Flex direction="column" gap="1" className={contentClassName}>
       {React.Children.map(children, (child, index) => (
-        <React.Fragment key={index}>
-          {/* Custom separator line if needed, currently just spacing */}
-          {child}
-        </React.Fragment>
+        <React.Fragment key={index}>{child}</React.Fragment>
       ))}
     </Flex>
   );
 
   if (framed) {
     return (
-      <Card
-        size="3"
-        style={{
-          backgroundColor: "var(--color-panel-solid)",
-          boxShadow: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-          border: "1px solid var(--gray-a3)",
-        }}
-      >
+      <Card {...cardProps}>
         {header}
         {content}
       </Card>

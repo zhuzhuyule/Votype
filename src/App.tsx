@@ -1,11 +1,16 @@
 import { Flex, ScrollArea, Spinner } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Toaster } from "sonner";
 import "./App.css";
 import Onboarding from "./components/onboarding";
-import { SECTIONS_CONFIG, Sidebar, SidebarSection } from "./components/Sidebar";
+import {
+  SECTION_ORDER,
+  SECTIONS_CONFIG,
+  Sidebar,
+  SidebarSection,
+} from "./components/Sidebar";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
 
@@ -27,12 +32,25 @@ const SettingsLoadingFallback = () => (
   </Flex>
 );
 
-const renderSettingsContent = (section: SidebarSection) => {
+// Direction: 'down' = navigating to higher index, 'up' = navigating to lower index
+type NavDirection = "down" | "up" | null;
+
+const renderSettingsContent = (
+  section: SidebarSection,
+  direction: NavDirection = "down",
+) => {
   const ActiveComponent =
     SECTIONS_CONFIG[section]?.component || SECTIONS_CONFIG.general.component;
+
+  // Choose animation based on navigation direction
+  const animationClass =
+    direction === "down" ? "animate-fade-in-up" : "animate-fade-in-down";
+
   return (
     <Suspense fallback={<SettingsLoadingFallback />}>
-      <ActiveComponent />
+      <div key={section} className={`w-full ${animationClass}`}>
+        <ActiveComponent />
+      </div>
     </Suspense>
   );
 };
@@ -41,6 +59,8 @@ function App() {
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const [currentSection, setCurrentSection] =
     useState<SidebarSection>("dashboard");
+  const [navDirection, setNavDirection] = useState<NavDirection>(null);
+  const prevSectionRef = useRef<SidebarSection>("dashboard");
   const { settings, updateSetting } = useSettings();
 
   // 延迟加载非关键组件
@@ -55,6 +75,20 @@ function App() {
   useEffect(() => {
     checkOnboardingStatus();
   }, []);
+
+  // Track navigation direction when section changes
+  useEffect(() => {
+    const prevIndex = SECTION_ORDER.indexOf(prevSectionRef.current);
+    const currIndex = SECTION_ORDER.indexOf(currentSection);
+
+    if (currIndex > prevIndex) {
+      setNavDirection("down");
+    } else if (currIndex < prevIndex) {
+      setNavDirection("up");
+    }
+
+    prevSectionRef.current = currentSection;
+  }, [currentSection]);
 
   // Listen for navigate-to-settings event from Rust
 
@@ -179,14 +213,14 @@ function App() {
                   py="6"
                   px="4"
                   gap="6"
-                  className="min-w-[600px] max-w-[1200px] mx-auto w-full"
+                  className="min-w-[600px] max-w-[1200px] mx-auto w-full pb-3"
                 >
                   {showNonCritical && (
                     <Suspense fallback={null}>
                       <AccessibilityPermissions />
                     </Suspense>
                   )}
-                  {renderSettingsContent(currentSection)}
+                  {renderSettingsContent(currentSection, navDirection)}
                 </Flex>
               </ScrollArea>
             </Flex>

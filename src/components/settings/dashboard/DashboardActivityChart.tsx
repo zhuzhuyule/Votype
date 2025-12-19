@@ -39,6 +39,7 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
           </Text>
         </Text>
       }
+      cardProps={{ shadow: "sm" }}
       description=""
       actions={
         <SegmentedControl.Root

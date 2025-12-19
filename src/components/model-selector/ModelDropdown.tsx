@@ -11,49 +11,12 @@ import {
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
-import { formatModelSize } from "../../lib/utils/format";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
+import { RECOMMENDED_MODEL_IDS } from "../settings/asr-models/constants";
 import { ProgressBar } from "../shared";
+import { ModelTags } from "../ui/ModelTags";
 import { ModelGroupHeader } from "./ModelGroupHeader";
 import { ModelListItem } from "./ModelListItem";
-
-const RECOMMENDED_MODEL_IDS = new Set([
-  "sherpa-zipformer-small-ctc-zh-int8-2025-04-01",
-  "sherpa-paraformer-zh-en-streaming",
-  "sherpa-paraformer-trilingual-zh-cantonese-en",
-  "punct-zh-en-ct-transformer-2024-04-12-int8",
-  "sherpa-paraformer-zh-small-2024-03-09",
-]);
-
-type LanguageKey =
-  | "zh"
-  | "yue"
-  | "en"
-  | "ja"
-  | "ko"
-  | "de"
-  | "es"
-  | "fr"
-  | "ru";
-
-const parseLanguageKeys = (modelId: string): LanguageKey[] => {
-  const id = modelId.toLowerCase();
-  const tokenSet = new Set<LanguageKey>();
-
-  const re = /(^|[-_])(zh|yue|ct|cantonese|en|ja|ko|de|es|fr|ru)(?=([-_]|$))/g;
-  for (const match of id.matchAll(re)) {
-    const tok = match[2];
-    if (tok === "ct" || tok === "cantonese") tokenSet.add("yue");
-    else tokenSet.add(tok as LanguageKey);
-  }
-
-  if (id === "sherpa-paraformer-zh-small-2024-03-09") {
-    tokenSet.add("zh");
-    tokenSet.add("en");
-  }
-
-  return Array.from(tokenSet);
-};
 
 interface DownloadProgress {
   model_id: string;
@@ -133,28 +96,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     return () => document.removeEventListener("mousedown", onMouseDown, true);
   }, [realtimePicker]);
 
-  const getFeatureTags = (m: ModelInfo): string[] => {
-    const tags: string[] = [];
-    const id = m.id.toLowerCase();
-
-    // Add Architecture tag
-    if (m.engine_type === "Whisper") {
-      tags.push("Whisper");
-    } else if (m.engine_type === "Parakeet") {
-      tags.push("Parakeet");
-    } else if (m.engine_type === "SherpaOnnx") {
-      if (m.sherpa?.family) {
-        tags.push(m.sherpa.family);
-      }
-    }
-
-    if (id.includes("int8")) tags.push("INT8");
-    if (id.includes("trilingual")) tags.push("Trilingual");
-    if (id.includes("bilingual")) tags.push("Bilingual");
-
-    return tags;
-  };
-
   const getCategory = React.useCallback(
     (model: ModelInfo) => {
       if (model.engine_type === "SherpaOnnxPunctuation")
@@ -188,7 +129,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       if (orderA !== orderB) return orderA - orderB;
       if (a.id === currentModelId) return -1;
       if (b.id === currentModelId) return 1;
-      return a.name.localeCompare(b.name);
+      return a.size_mb - b.size_mb;
     });
 
   const downloadableModels = models
@@ -230,6 +171,13 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
       arr.push(model);
       groups.set(key, arr);
     }
+
+    // Sort items within each group by size
+    for (const [key, items] of groups.entries()) {
+      items.sort((a, b) => a.size_mb - b.size_mb);
+      groups.set(key, items);
+    }
+
     const ordered = Array.from(groups.entries()).sort(
       ([a], [b]) => orderCategory(a) - orderCategory(b),
     );
@@ -318,23 +266,22 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
             {availableModels.length > 0 &&
               renderGroupedModels(availableModels, (model) => {
                 const isActive = !onlineEnabled && currentModelId === model.id;
-                const languages = parseLanguageKeys(model.id);
-                const languageLabel =
-                  languages.length === 0
-                    ? t("settings.asrModels.languages.other")
-                    : languages
-                        .map((k) => t(`settings.asrModels.languages.${k}`))
-                        .join(" · ");
-                const featureLabel = getFeatureTags(model).join(" · ");
-                const meta = [languageLabel, featureLabel]
-                  .filter(Boolean)
-                  .join(" · ");
                 return (
                   <ModelListItem
                     key={model.id}
                     name={getTranslatedModelName(model, t)}
-                    meta={meta}
-                    size={formatModelSize(model.size_mb)}
+                    meta={
+                      <Flex gap="1" wrap="wrap" align="center">
+                        <ModelTags
+                          model={model}
+                          t={t}
+                          showSize
+                          showMode={false}
+                          showLanguages
+                          showType={false}
+                        />
+                      </Flex>
+                    }
                     isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
                     isActive={isActive}
                     onClick={() => handleModelClick(model.id)}
@@ -467,46 +414,27 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
               renderGroupedModels(downloadableModels, (model) => {
                 const isDownloading = downloadProgress.has(model.id);
                 const progress = downloadProgress.get(model.id);
-                const languages = parseLanguageKeys(model.id);
-                const languageLabel =
-                  languages.length === 0
-                    ? t("settings.asrModels.languages.other")
-                    : languages
-                        .map((k) => t(`settings.asrModels.languages.${k}`))
-                        .join(" · ");
-                const featureLabel = getFeatureTags(model).join(" · ");
-                const meta = [languageLabel, featureLabel]
-                  .filter(Boolean)
-                  .join(" · ");
 
                 return (
                   <ModelListItem
                     key={model.id}
                     name={getTranslatedModelName(model, t)}
-                    meta={meta}
-                    size={formatModelSize(model.size_mb)}
+                    meta={
+                      <Flex gap="1" wrap="wrap" align="center">
+                        <ModelTags
+                          model={model}
+                          t={t}
+                          showSize
+                          showMode={false}
+                          showLanguages
+                          showType={false}
+                        />
+                      </Flex>
+                    }
                     isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
-                    onClick={(e) => {
-                      // Prevent click if downloading? Original logic checked this:
-                      // if (downloadProgress.has(modelId)) return;
-                      // But here we rely on the component. I should maybe disable pointer events or check inside handler.
-                      // The original `handleDownloadClick` checked progress.
-                      // The Row `onClick` handled selection, `IconButton` handled download.
-                      // Actually, for Downloadable models, the row click usually triggers selection (which triggers download? No).
-                      // Wait, `downloadableModels` are not selected. Clicking them usually does nothing or ...?
-                      // Original code: `className="... hover:bg-mid-gray/5 ... cursor-pointer"`
-                      // But `onClick` wasn't mapped?
-                      // Original code for downloadable models:
-                      // `className="... hover:bg-mid-gray/5 ..."` but NO onClick handler on the Box except bubbling?
-                      // Wait! The original code (lines 553-639) definitely had `Box` representing the row.
-                      // BUT it had NO `onClick` prop!
-                      // So user couldn't click the row to do anything?
-                      // But it had `IconButton` with `handleDownloadClick`.
-                      // So `ModelListItem` onClick should optionally be undefined.
-                    }}
                     className={
                       isDownloading ? "cursor-default" : "cursor-default"
-                    } // They weren't clickable as rows?
+                    }
                     rightElement={
                       isDownloading && progress ? (
                         <Box className="w-20">
@@ -635,8 +563,18 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                       <ModelListItem
                         key={m.id}
                         name={getTranslatedModelName(m, t)}
-                        size={formatModelSize(m.size_mb)}
-                        meta={getFeatureTags(m).join(" · ")}
+                        meta={
+                          <Flex gap="1" wrap="wrap" align="center">
+                            <ModelTags
+                              model={m}
+                              t={t}
+                              showSize
+                              showMode={false}
+                              showLanguages
+                              showType={false}
+                            />
+                          </Flex>
+                        }
                         isActive={isActive}
                         isRecommended={isRecommended}
                         onClick={() => {

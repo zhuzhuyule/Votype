@@ -5,12 +5,14 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 interface AudioPlayerProps {
   src: string;
   className?: string;
+  autoPlay?: boolean;
   onError?: () => void;
 }
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   src,
   className = "",
+  autoPlay = false,
   onError,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -71,6 +73,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     const handleLoadedMetadata = () => {
       setDuration(audio.duration || 0);
       setCurrentTime(0);
+      // Auto-play if requested
+      if (autoPlay) {
+        audio.play().catch(console.error);
+      }
     };
 
     const handleEnded = () => {

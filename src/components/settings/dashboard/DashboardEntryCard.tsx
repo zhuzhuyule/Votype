@@ -1,8 +1,15 @@
 import { Box, Flex, IconButton, Tabs, Text, Tooltip } from "@radix-ui/themes";
-import { IconCopy, IconReload, IconStar, IconTrash } from "@tabler/icons-react";
-import React, { useEffect, useRef, useState } from "react";
+import {
+  IconCopy,
+  IconPlayerPlay,
+  IconReload,
+  IconStar,
+  IconTrash,
+} from "@tabler/icons-react";
+import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AudioPlayer } from "../../ui/AudioPlayer";
+import { Card } from "../../ui/Card";
 import type { HistoryEntry } from "./dashboardTypes";
 
 interface DashboardEntryCardProps {
@@ -32,12 +39,12 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     const { t } = useTranslation();
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [audioMissing, setAudioMissing] = useState(false);
+    const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+    const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
     const [activeTab, setActiveTab] = useState<"improved" | "original">(
       "improved",
     );
-    const [shouldLoadAudio, setShouldLoadAudio] = useState(false);
     const [retranscribing, setRetranscribing] = useState(false);
-    const cardRef = useRef<HTMLDivElement | null>(null);
 
     const onRetranscribeClick = async () => {
       if (retranscribing) return;
@@ -51,47 +58,40 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
       }
     };
 
-    useEffect(() => {
-      if (!cardRef.current) return;
-
-      const observer = new IntersectionObserver(
-        (entries) => {
-          if (!entries[0]?.isIntersecting) return;
-          setShouldLoadAudio(true);
-          observer.disconnect();
-        },
-        { root: null, rootMargin: "200px", threshold: 0.01 },
-      );
-
-      observer.observe(cardRef.current);
-      return () => {
-        observer.disconnect();
-      };
-    }, []);
-
-    useEffect(() => {
-      let cancelled = false;
-      const loadAudio = async () => {
-        if (!shouldLoadAudio) return;
-        setAudioMissing(false);
+    // Load audio only when requested (on play click)
+    const loadAudio = useCallback(async () => {
+      if (audioUrl || isLoadingAudio) return; // Already loaded or loading
+      setIsLoadingAudio(true);
+      setAudioMissing(false);
+      try {
         const url = await getAudioUrl(entry.file_name);
-        if (cancelled) return;
-        setAudioUrl(url);
-        setAudioMissing(!url);
-      };
-      loadAudio();
-      return () => {
-        cancelled = true;
-      };
-    }, [entry.file_name, getAudioUrl, shouldLoadAudio]);
+        if (url) {
+          setAudioUrl(url);
+          setShouldAutoPlay(true); // Auto-play after loading
+        } else {
+          setAudioMissing(true);
+        }
+      } finally {
+        setIsLoadingAudio(false);
+      }
+    }, [audioUrl, isLoadingAudio, entry.file_name, getAudioUrl]);
 
     const hasImprovement = !!entry.post_processed_text?.trim();
 
+    // Format duration from entry.duration_ms
+    const formatDuration = (ms: number) => {
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    };
+
+    const durationText = entry.duration_ms
+      ? formatDuration(entry.duration_ms)
+      : null;
+
     return (
-      <Box
-        ref={cardRef}
-        className="bg-background/40 backdrop-blur-md border border-white/10 rounded-xl shadow-sm overflow-hidden"
-      >
+      <Card className="px-1 py-0.5 border-mid-gray/20 border-1" shadow="none">
         <Flex direction="column" className="p-4">
           <Flex justify="between" align="center" className="pb-3">
             <Flex gap="2" align="center" className="flex-wrap">
@@ -221,10 +221,12 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
             </Box>
           )}
 
-          {audioUrl && (
+          {/* Audio section */}
+          {audioUrl ? (
             <Box className="pt-3 border-t border-white/5">
               <AudioPlayer
                 src={audioUrl}
+                autoPlay={shouldAutoPlay}
                 className="w-full"
                 onError={() => {
                   setAudioUrl(null);
@@ -232,16 +234,35 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                 }}
               />
             </Box>
-          )}
-          {!audioUrl && audioMissing && (
+          ) : audioMissing ? (
             <Box className="pt-3 border-t border-white/5">
               <Text size="2" color="gray">
                 {t("dashboard.details.audioRemoved")}
               </Text>
             </Box>
-          )}
+          ) : durationText ? (
+            <Box className="pt-3 border-t border-white/5">
+              <Flex align="center" gap="3">
+                <IconButton
+                  variant="ghost"
+                  size="2"
+                  onClick={loadAudio}
+                  disabled={isLoadingAudio}
+                  className="text-text/60 hover:text-logo-primary hover:bg-logo-primary/10 transition-colors"
+                >
+                  <IconPlayerPlay
+                    className={`w-4 h-4 ${isLoadingAudio ? "animate-pulse" : ""}`}
+                  />
+                </IconButton>
+                <Box className="flex-1 h-2 bg-mid-gray/15 rounded" />
+                <Text size="1" color="gray">
+                  {durationText}
+                </Text>
+              </Flex>
+            </Box>
+          ) : null}
         </Flex>
-      </Box>
+      </Card>
     );
   },
   (prevProps, nextProps) => {

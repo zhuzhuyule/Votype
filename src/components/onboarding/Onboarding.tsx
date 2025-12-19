@@ -1,9 +1,10 @@
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, ScrollArea, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { VotypeHand } from "../icons/VotypeHand";
+import { RECOMMENDED_MODEL_IDS } from "../settings/asr-models/constants";
 import ModelCard from "./ModelCard";
 
 interface OnboardingProps {
@@ -23,8 +24,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   const loadModels = async () => {
     try {
       const models: ModelInfo[] = await invoke("get_available_models");
-      // Only show downloadable models for onboarding
-      setAvailableModels(models.filter((m) => !m.is_downloaded));
+      setAvailableModels(models);
     } catch (err) {
       console.error("Failed to load models:", err);
       setError(t("onboarding.errors.loadModels"));
@@ -34,8 +34,6 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
   const handleDownloadModel = async (modelId: string) => {
     setDownloading(true);
     setError(null);
-
-    // Immediately transition to main app - download will continue in footer
     onModelSelected();
 
     try {
@@ -51,12 +49,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
     }
   };
 
-  const getRecommendedBadge = (modelId: string): boolean => {
-    return modelId === "parakeet-tdt-0.6b-v3";
-  };
+  // Filter out punctuation models and separate into recommended/others
+  const { recommendedModels, otherModels } = useMemo(() => {
+    // Exclude punctuation models - they are plugins, not ASR models
+    const asrModels = availableModels.filter(
+      (m) => m.engine_type !== "SherpaOnnxPunctuation",
+    );
+
+    const recommended = asrModels
+      .filter((m) => RECOMMENDED_MODEL_IDS.has(m.id))
+      .sort((a, b) => a.size_mb - b.size_mb);
+
+    const others = asrModels
+      .filter((m) => !RECOMMENDED_MODEL_IDS.has(m.id))
+      .sort((a, b) => a.size_mb - b.size_mb);
+
+    return { recommendedModels: recommended, otherModels: others };
+  }, [availableModels]);
 
   return (
-    <Flex direction="column" className="h-screen w-screen p-6 gap-4 inset-0">
+    <Flex
+      direction="column"
+      className="h-screen w-screen p-6 gap-4 inset-0 max-w-650"
+    >
       <Flex
         direction="column"
         align="center"
@@ -65,14 +80,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
       >
         <VotypeHand />
       </Flex>
-
       <Flex
         direction="column"
-        maxWidth="600px"
+        maxWidth="650px"
         width="100%"
         mx="auto"
         align="center"
-        className="flex-1 min-h-0"
       >
         {error && (
           <Box className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-4 shrink-0">
@@ -83,12 +96,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
         )}
 
         <Flex direction="column" gap="4" className="w-full">
-          <Flex justify="between" className="w-full">
-            <Text
-              className="text-text/70 max-w-md font-medium mx-auto"
-              size="3"
-              align="center"
-            >
+          <Flex justify="between" align="center" className="w-full shrink-0">
+            <Text className="text-text/70 font-medium" size="3">
               {t("onboarding.subtitle")}
             </Text>
             <Button
@@ -99,31 +108,34 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
               {t("common.skip")}
             </Button>
           </Flex>
-          {availableModels
-            .filter((model) => getRecommendedBadge(model.id))
-            .map((model) => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                variant="featured"
-                disabled={downloading}
-                onSelect={handleDownloadModel}
-              />
-            ))}
-
-          {availableModels
-            .filter((model) => !getRecommendedBadge(model.id))
-            .sort((a, b) => a.size_mb - b.size_mb)
-            .map((model) => (
-              <ModelCard
-                key={model.id}
-                model={model}
-                disabled={downloading}
-                onSelect={handleDownloadModel}
-              />
-            ))}
         </Flex>
       </Flex>
+      <ScrollArea type="hover" scrollbars="vertical" className="flex-1">
+        <Flex
+          direction="column"
+          gap="3"
+          className="overflow-hidden max-w-[650px] mx-auto"
+        >
+          {recommendedModels.map((model) => (
+            <ModelCard
+              key={model.id}
+              model={model}
+              variant="featured"
+              disabled={downloading}
+              onSelect={handleDownloadModel}
+            />
+          ))}
+
+          {otherModels.map((model) => (
+            <ModelCard
+              key={model.id}
+              model={model}
+              disabled={downloading}
+              onSelect={handleDownloadModel}
+            />
+          ))}
+        </Flex>
+      </ScrollArea>
     </Flex>
   );
 };

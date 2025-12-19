@@ -1,4 +1,6 @@
-use crate::managers::history::{HistoryDashboardStats, HistoryEntry, HistoryManager};
+use crate::managers::history::{
+    HistoryDashboardStats, HistoryEntry, HistoryManager, PaginatedHistoryResult,
+};
 use crate::managers::transcription::TranscriptionManager;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
@@ -12,6 +14,29 @@ pub async fn get_history_entries(
         .get_history_entries()
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Get paginated history entries with optional timestamp filtering
+#[tauri::command]
+pub async fn get_history_entries_paginated(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    offset: usize,
+    limit: usize,
+    start_timestamp: Option<i64>,
+    end_timestamp: Option<i64>,
+) -> Result<PaginatedHistoryResult, String> {
+    let (entries, total_count) = history_manager
+        .get_history_entries_paginated(offset, limit, start_timestamp, end_timestamp)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(PaginatedHistoryResult {
+        entries,
+        total_count,
+        offset,
+        limit,
+    })
 }
 
 #[tauri::command]

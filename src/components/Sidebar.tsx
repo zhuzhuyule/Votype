@@ -89,37 +89,48 @@ export const SECTIONS_CONFIG = {
     icon: IconAdjustments,
     component: AdvancedSettings,
     enabled: () => true,
-    shortcutKey: "4",
+    shortcutKey: "3",
   },
   models: {
     labelKey: "sidebar.models",
     icon: IconBrain,
     component: ModelsConfiguration,
     enabled: () => true,
-    shortcutKey: "5",
+    shortcutKey: "4",
   },
   prompts: {
     labelKey: "sidebar.prompts",
     icon: IconSparkles,
     component: PromptsConfiguration,
     enabled: () => true,
-    shortcutKey: "7",
+    shortcutKey: "5",
   },
   shortcuts: {
     labelKey: "sidebar.shortcuts",
     icon: IconKeyboard,
     component: ShortcutsSettings,
     enabled: () => true,
-    shortcutKey: "3",
+    shortcutKey: "6",
   },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoSquare,
     component: AboutSettings,
     enabled: () => true,
-    shortcutKey: "8",
+    shortcutKey: "7",
   },
 } as const satisfies Record<string, SectionConfig>;
+
+// Canonical section order - used for navigation direction detection
+export const SECTION_ORDER: SidebarSection[] = [
+  "dashboard",
+  "general",
+  "advanced",
+  "models",
+  "prompts",
+  "shortcuts",
+  "about",
+];
 
 interface SidebarProps {
   activeSection: SidebarSection;

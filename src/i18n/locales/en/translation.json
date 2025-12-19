@@ -56,6 +56,10 @@
       "subtitle": "Last 40 days",
       "title": "Usage"
     },
+    "dateLabels": {
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
     "cards": {
       "allTime": "All time",
       "recent": "Last {{days}} days",
@@ -64,6 +68,7 @@
     "details": {
       "audioRemoved": "Recording removed",
       "count": "{{count}} entries",
+      "recordCount": "{{count}} records",
       "empty": "No data",
       "loadMore": "Load more",
       "meta": {
@@ -523,6 +528,11 @@
         "sherpa_sense_voice": "Sherpa SenseVoice",
         "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
+      },
+      "modeChips": {
+        "streaming": "Streaming",
+        "offline": "Offline",
+        "punctuation": "Punctuation"
       },
       "types": {
         "parakeet": "Parakeet",

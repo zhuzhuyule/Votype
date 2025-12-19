@@ -58,6 +58,12 @@ The project uses **Bun** as the preferred package manager.
 - **Audio Pipeline:** The backend manages audio input via `cpal`, detects voice activity with `vad-rs` (Silero), and processes audio with various engines (`whisper-rs`, `transcribe-rs`).
 - **Formatting:** Run `bun run format` before committing to ensure code style consistency.
 
+## UI Component Rules
+
+- **Do NOT use Radix Card:** Do not import `Card` from `@radix-ui/themes`. The project has a custom `Card` component at `src/components/ui/Card.tsx` that must be used instead. ESLint is configured to forbid importing Radix Card.
+- **Custom Card:** Use `import { Card } from "@/components/ui/Card"` or relative path imports.
+- **SettingsGroup:** Used for settings page group containers, includes border and shadow effects.
+
 ## Git Commit Rules
 
 - **Language:** Messages must be in **English**.

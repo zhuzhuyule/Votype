@@ -49,6 +49,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
     modeFilter,
     languageFilter,
     typeFilter,
+    autoDownloadingPunctuation,
 
     // Dialog State
     isAddDialogOpen,
@@ -88,7 +89,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
   return (
     <Flex
       direction="column"
-      className={`w-full mx-auto space-y-8 pb-10 ${className || "max-w-5xl"}`}
+      className={`w-full mx-auto space-y-8 ${className || "max-w-5xl"}`}
     >
       {!hideHeader && (
         <Box mb="4" px="1">
@@ -107,6 +108,18 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
       )}
 
       <Box className="space-y-8">
+        {/* Auto-downloading punctuation model notice */}
+        {autoDownloadingPunctuation && (
+          <Box className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+            <Text size="2" color="blue">
+              {t(
+                "settings.asrModels.autoDownloadingPunctuation",
+                "正在自动下载标点模型...",
+              )}
+            </Text>
+          </Box>
+        )}
+
         {/* Quick Settings Group */}
         <SettingsGroup title={t("settings.asrModels.quickSettings.title")}>
           <Flex direction="column" gap="4" py="2">

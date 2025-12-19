@@ -101,6 +101,15 @@ pub struct HistoryDashboardStats {
     pub recent_days: u32,
 }
 
+/// Result structure for paginated history queries
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PaginatedHistoryResult {
+    pub entries: Vec<HistoryEntry>,
+    pub total_count: usize,
+    pub offset: usize,
+    pub limit: usize,
+}
+
 pub struct HistoryManager {
     app_handle: AppHandle,
     recordings_dir: PathBuf,
@@ -662,6 +671,86 @@ impl HistoryManager {
         }
 
         Ok(entries)
+    }
+
+    /// Get paginated history entries with total count
+    /// Returns (entries, total_count)
+    pub async fn get_history_entries_paginated(
+        &self,
+        offset: usize,
+        limit: usize,
+        start_timestamp: Option<i64>,
+        end_timestamp: Option<i64>,
+    ) -> Result<(Vec<HistoryEntry>, usize)> {
+        let conn = self.get_connection()?;
+
+        // Build WHERE clause based on optional timestamp filters
+        let (where_clause, params_vec): (String, Vec<Box<dyn rusqlite::ToSql>>) =
+            match (start_timestamp, end_timestamp) {
+                (Some(start), Some(end)) => (
+                    "WHERE timestamp >= ?1 AND timestamp <= ?2".to_string(),
+                    vec![Box::new(start), Box::new(end)],
+                ),
+                (Some(start), None) => ("WHERE timestamp >= ?1".to_string(), vec![Box::new(start)]),
+                (None, Some(end)) => ("WHERE timestamp <= ?1".to_string(), vec![Box::new(end)]),
+                (None, None) => (String::new(), vec![]),
+            };
+
+        // Get total count
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM transcription_history {}",
+            where_clause
+        );
+        let total_count: usize = if params_vec.is_empty() {
+            conn.query_row(&count_sql, [], |row| row.get(0))?
+        } else {
+            let params_refs: Vec<&dyn rusqlite::ToSql> =
+                params_vec.iter().map(|p| p.as_ref()).collect();
+            conn.query_row(&count_sql, params_refs.as_slice(), |row| row.get(0))?
+        };
+
+        // Build paginated query
+        let query_sql = format!(
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            where_clause, limit, offset
+        );
+
+        let mut stmt = conn.prepare(&query_sql)?;
+
+        // Helper to extract entry from row
+        let map_row = |row: &rusqlite::Row| -> rusqlite::Result<HistoryEntry> {
+            Ok(HistoryEntry {
+                id: row.get("id")?,
+                file_name: row.get("file_name")?,
+                timestamp: row.get("timestamp")?,
+                saved: row.get("saved")?,
+                title: row.get("title")?,
+                transcription_text: row.get("transcription_text")?,
+                post_processed_text: row.get("post_processed_text")?,
+                post_process_prompt: row.get("post_process_prompt")?,
+                duration_ms: row.get("duration_ms")?,
+                char_count: row.get("char_count")?,
+                corrected_char_count: row.get("corrected_char_count")?,
+                transcription_ms: row.get("transcription_ms")?,
+                language: row.get("language")?,
+                asr_model: row.get("asr_model")?,
+                app_name: row.get("app_name")?,
+                window_title: row.get("window_title")?,
+                deleted: row.get("deleted")?,
+            })
+        };
+
+        let entries: Vec<HistoryEntry> = if params_vec.is_empty() {
+            stmt.query_map([], map_row)?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        } else {
+            let params_refs: Vec<&dyn rusqlite::ToSql> =
+                params_vec.iter().map(|p| p.as_ref()).collect();
+            stmt.query_map(params_refs.as_slice(), map_row)?
+                .collect::<rusqlite::Result<Vec<_>>>()?
+        };
+
+        Ok((entries, total_count))
     }
 
     pub async fn toggle_saved_status(&self, id: i64) -> Result<()> {

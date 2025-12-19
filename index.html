@@ -93,10 +93,6 @@
         .layer-base .bar {
           background-color: var(--bar-color);
         }
-        .layer-base .satellite-dot {
-          background-color: var(--dot-color);
-          box-shadow: 0 0 10px var(--dot-shadow);
-        }
 
         /*
            Layer 2: The Shine Content
@@ -153,10 +149,6 @@
         .layer-shine .bar {
           background-color: var(--shine-color);
         }
-        .layer-shine .satellite-dot {
-          background-color: var(--shine-color);
-          box-shadow: 0 0 15px white;
-        }
 
         /* --- Animation Primitives --- */
 
@@ -182,31 +174,13 @@
           animation: votype-reveal 0.6s ease-out forwards;
         }
 
-        /* 1. Satellite Orbit Ring */
+        /* 1. Orbit Ring */
         .orbit-ring {
           position: absolute;
           inset: 0;
           border: 3px solid;
           border-radius: 50%;
           box-sizing: border-box;
-        }
-
-        /* 2. Rotating Satellite Dot Wrapper */
-        .satellite-wrapper {
-          position: absolute;
-          inset: 0;
-          animation: votype-spin 3s linear infinite;
-        }
-
-        .satellite-dot {
-          position: absolute;
-          top: 0;
-          left: 50%;
-          transform: translate(-50%, 0);
-          margin-top: -0.375rem;
-          width: 0.75rem;
-          height: 0.75rem;
-          border-radius: 50%;
         }
 
         /* 3. Inner Voice Bars */
@@ -345,9 +319,6 @@
               <!-- O (Icon): 200ms -->
               <div class="icon-o" style="animation-delay: 100ms">
                 <div class="orbit-ring"></div>
-                <div class="satellite-wrapper">
-                  <div class="satellite-dot"></div>
-                </div>
                 <div class="voice-bars">
                   <div class="bar"></div>
                   <div class="bar"></div>
@@ -372,9 +343,6 @@
 
               <div class="icon-o" style="animation-delay: 300ms">
                 <div class="orbit-ring"></div>
-                <div class="satellite-wrapper">
-                  <div class="satellite-dot"></div>
-                </div>
                 <div class="voice-bars">
                   <div class="bar"></div>
                   <div class="bar"></div>

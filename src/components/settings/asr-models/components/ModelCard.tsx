@@ -3,7 +3,6 @@
 import {
   Badge,
   Box,
-  Card,
   Flex,
   Heading,
   IconButton,
@@ -22,6 +21,7 @@ import { TFunction } from "i18next";
 import React from "react";
 import type { ModelInfo } from "../../../../lib/types";
 import { getTranslatedModelName } from "../../../../lib/utils/modelTranslation";
+import { Card } from "../../../ui/Card";
 import { RECOMMENDED_MODEL_IDS } from "../constants";
 import type { TypeKey } from "../types";
 import {
@@ -87,7 +87,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
   const canFavorite = model.engine_type !== "SherpaOnnxPunctuation";
 
   return (
-    <Card key={model.id} variant="surface" className="p-3">
+    <Card key={model.id} className="p-3">
       <Flex justify="between" align="center" gap="3">
         <Box className="min-w-0 flex-1 space-y-1">
           {/* Line 1: Title + Recommended + ID */}

@@ -21,3 +21,10 @@ export interface HistoryEntry {
 export type DashboardSelection =
   | { type: "preset"; preset: "7d" | "30d" | "40d" | "all" }
   | { type: "day"; day: string };
+
+export interface PaginatedHistoryResult {
+  entries: HistoryEntry[];
+  total_count: number;
+  offset: number;
+  limit: number;
+}

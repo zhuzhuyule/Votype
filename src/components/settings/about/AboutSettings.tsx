@@ -36,10 +36,7 @@ export const AboutSettings: React.FC = () => {
   };
 
   return (
-    <Flex
-      direction="column"
-      className="max-w-5xl w-full mx-auto space-y-8 pb-10"
-    >
+    <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
       <SettingsGroup title={t("settings.about.title")}>
         <Flex direction="column" align="center" gap="4" py="4">
           <VotypeHand size={48} />

@@ -418,6 +418,7 @@ pub fn run() {
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
             commands::history::get_history_entries,
+            commands::history::get_history_entries_paginated,
             commands::history::get_history_dashboard_stats,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,

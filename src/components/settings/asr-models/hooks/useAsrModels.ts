@@ -35,6 +35,7 @@ export interface UseAsrModelsReturn {
   modeFilter: Set<ModeKey>;
   languageFilter: Set<LanguageKey>;
   typeFilter: Set<TypeKey>;
+  autoDownloadingPunctuation: boolean;
 
   // Dialog State
   isAddDialogOpen: boolean;
@@ -128,6 +129,49 @@ export const useAsrModels = (): UseAsrModelsReturn => {
       disabled: false,
     }));
   }, [punctuationModels, t]);
+
+  // Auto-download punctuation model state
+  const [autoDownloadingPunctuation, setAutoDownloadingPunctuation] =
+    useState(false);
+
+  // Check if any punctuation model is downloaded
+  const hasPunctuationModelDownloaded = useMemo(() => {
+    return punctuationModels.some((m) => m.is_downloaded);
+  }, [punctuationModels]);
+
+  // Auto-download smallest punctuation model if none is downloaded
+  useEffect(() => {
+    const autoDownload = async () => {
+      // Only trigger if we have models loaded and none is downloaded
+      if (
+        punctuationModels.length > 0 &&
+        !hasPunctuationModelDownloaded &&
+        !autoDownloadingPunctuation &&
+        !busy
+      ) {
+        // Find smallest punctuation model (already sorted by size)
+        const smallest = punctuationModels[0];
+        if (smallest) {
+          setAutoDownloadingPunctuation(true);
+          try {
+            await invoke("download_model", { modelId: smallest.id });
+            await refreshModels();
+          } catch (err) {
+            console.error("Auto-download punctuation model failed:", err);
+          } finally {
+            setAutoDownloadingPunctuation(false);
+          }
+        }
+      }
+    };
+    autoDownload();
+  }, [
+    punctuationModels,
+    hasPunctuationModelDownloaded,
+    autoDownloadingPunctuation,
+    busy,
+    refreshModels,
+  ]);
 
   // Filtered models
   const filteredModels = useMemo(() => {
@@ -382,6 +426,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     modeFilter,
     languageFilter,
     typeFilter,
+    autoDownloadingPunctuation,
 
     // Dialog State
     isAddDialogOpen,
