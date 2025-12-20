@@ -80,3 +80,10 @@ The application adopts a hybrid architecture:
 - **Do NOT use Radix Card:** Do not import `Card` from `@radix-ui/themes`. The project has a custom `Card` component at `src/components/ui/Card.tsx` that must be used instead. ESLint is configured to forbid importing Radix Card.
 - **Custom Card:** Use `import { Card } from "@/components/ui/Card"` or relative path imports.
 - **SettingsGroup:** Used for settings page group containers, includes border and shadow effects.
+
+## Git Commit Rules
+
+- **Language:** English.
+- **Format:** Standard best practices.
+- **Summary:** Use a single, concise sentence in the imperative mood to describe the update. Do not use trailing punctuation.
+- **Description:** Add a detailed description only if necessary to explain complex changes.

@@ -20,6 +20,8 @@ export interface HistoryEntry {
   app_name?: string | null;
   window_title?: string | null;
   deleted: boolean;
+  /** Whether the audio file has been deleted (for space cleanup) */
+  audio_deleted: boolean;
 }
 
 export type DashboardSelection =

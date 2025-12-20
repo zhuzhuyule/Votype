@@ -168,7 +168,7 @@ We use GitHub Discussions for feature requests rather than issues. This keeps is
    git commit -m "fix: describe the bug fix"
    ```
 
-   Use conventional commit messages:
+   Use conventional commit messages with a single, concise summary line in English. Do not use trailing punctuation.
    - `feat:` for new features
    - `fix:` for bug fixes
    - `docs:` for documentation changes

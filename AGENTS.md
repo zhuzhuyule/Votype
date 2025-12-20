@@ -66,10 +66,9 @@ The project uses **Bun** as the preferred package manager.
 
 ## Git Commit Rules
 
-- **Language:** Messages must be in **English**.
-- **Content:** Generate messages based on `git status` and diffs.
-- **Style:** Use a **summary-driven approach**. The title should briefly summarize the _overall change_ and _intent_ (e.g., "Implement automatic formatting pre-commit hook").
-  - Avoid granular lists in the title (e.g., "Updated package.json, added .husky, changed tauri.conf...").
-  - Use the description body for detailed lists or granular changes if necessary.
+- **Language:** English.
+- **Format:** Standard best practices.
+- **Summary:** Use a single, concise sentence in the imperative mood to describe the update. Do not use trailing punctuation.
+- **Description:** Add a detailed description only if necessary to explain complex changes.
 
 * 所有的回复始终都是用中文
