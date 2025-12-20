@@ -48,6 +48,7 @@ export const DashboardDetailsList: React.FC<DashboardDetailsListProps> = ({
   onToggleSaved,
   onDelete,
   onRetranscribe,
+  onReprocess,
   onLoadMore,
   detailCount,
   formatDurationMs,

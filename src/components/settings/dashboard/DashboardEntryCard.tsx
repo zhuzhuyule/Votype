@@ -92,6 +92,21 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
       }
     };
 
+    const onReprocessClick = async (promptId: string) => {
+      console.log(
+        `[DashboardEntryCard] onReprocessClick triggered for entry: ${entry.id}, prompt: ${promptId}`,
+      );
+      if (reprocessing) return;
+      setReprocessing(true);
+      try {
+        await onReprocess(entry.id, promptId);
+      } catch (e) {
+        console.error("[DashboardEntryCard] Reprocess failed", e);
+      } finally {
+        setReprocessing(false);
+      }
+    };
+
     // Load audio only when requested (on play click)
     const loadAudio = useCallback(async () => {
       if (audioUrl || isLoadingAudio) return; // Already loaded or loading

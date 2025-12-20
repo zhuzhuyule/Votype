@@ -130,6 +130,22 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     }));
   }, [punctuationModels, t]);
 
+  // Actions
+  const refreshModels = useCallback(async () => {
+    const list = await invoke<ModelInfo[]>("get_available_models");
+    setModels(list);
+  }, []);
+
+  const resetFilters = useCallback(() => {
+    setUrl("");
+    setQuery("");
+    setStatusFilter("all");
+    setModeFilter(new Set(["streaming", "offline", "punctuation"]));
+    setLanguageFilter(new Set());
+    setTypeFilter(new Set());
+    setError(null);
+  }, []);
+
   // Auto-download punctuation model state
   const [autoDownloadingPunctuation, setAutoDownloadingPunctuation] =
     useState(false);
@@ -255,22 +271,6 @@ export const useAsrModels = (): UseAsrModelsReturn => {
       ([a], [b]) => orderMode(a) - orderMode(b),
     );
   }, [filteredModels, t]);
-
-  // Actions
-  const refreshModels = useCallback(async () => {
-    const list = await invoke<ModelInfo[]>("get_available_models");
-    setModels(list);
-  }, []);
-
-  const resetFilters = useCallback(() => {
-    setUrl("");
-    setQuery("");
-    setStatusFilter("all");
-    setModeFilter(new Set(["streaming", "offline", "punctuation"]));
-    setLanguageFilter(new Set());
-    setTypeFilter(new Set());
-    setError(null);
-  }, []);
 
   const openAddDialog = useCallback(() => {
     setEditMode(false);
