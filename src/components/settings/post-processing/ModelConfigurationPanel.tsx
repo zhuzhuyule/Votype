@@ -178,25 +178,38 @@ const renderModelSection = ({
                               ),
                             );
                             try {
-                              const result = await invoke<string>(
-                                "test_post_process_model_inference",
-                                {
-                                  providerId: model.provider_id,
-                                  model: model.model_id,
-                                  input: "OK", // Simple input
-                                },
-                              );
+                              // Choose the appropriate test command based on model type
+                              const isAsrModel = model.model_type === "asr";
+                              const result = isAsrModel
+                                ? await invoke<string>(
+                                    "test_asr_model_inference",
+                                    {
+                                      providerId: model.provider_id,
+                                      model: model.model_id,
+                                    },
+                                  )
+                                : await invoke<string>(
+                                    "test_post_process_model_inference",
+                                    {
+                                      providerId: model.provider_id,
+                                      model: model.model_id,
+                                      input: "OK", // Simple input for text models
+                                    },
+                                  );
                               toast.dismiss(toastId);
-                              // We might expect 'OK' or similar, but just showing the success toast is enough
-                              toast.success(
-                                t(
-                                  "settings.postProcessing.api.providers.testSuccess",
-                                ),
-                                {
-                                  duration: 5000,
-                                  closeButton: true,
-                                },
-                              );
+                              // Show success with result for ASR (transcription), simple success for text
+                              const successMessage =
+                                isAsrModel && result
+                                  ? t(
+                                      "settings.postProcessing.api.providers.testSuccess",
+                                    ) + `: "${result}"`
+                                  : t(
+                                      "settings.postProcessing.api.providers.testSuccess",
+                                    );
+                              toast.success(successMessage, {
+                                duration: 5000,
+                                closeButton: true,
+                              });
                             } catch (error) {
                               toast.dismiss(toastId);
                               let errorMessage = String(error);

@@ -1521,3 +1521,67 @@ pub async fn test_post_process_model_inference(
 
     Ok(content)
 }
+
+/// Test ASR model inference by sending a generated test audio
+#[tauri::command]
+pub async fn test_asr_model_inference(
+    app: AppHandle,
+    provider_id: String,
+    model: String,
+) -> Result<String, String> {
+    use std::time::Duration;
+
+    let settings = settings::get_settings(&app);
+
+    let provider = settings
+        .post_process_providers
+        .iter()
+        .find(|p| p.id == provider_id)
+        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?
+        .clone();
+
+    let api_key = settings.post_process_api_keys.get(&provider_id).cloned();
+
+    println!(
+        "DEBUG: Testing ASR inference for provider='{}', model='{}'",
+        provider_id, model
+    );
+
+    // Generate a 1-second test audio (440Hz sine wave - sounds like a "ding")
+    let sample_rate = 16000u32;
+    let duration_secs = 1.0f32;
+    let frequency = 440.0f32; // A4 note
+    let num_samples = (sample_rate as f32 * duration_secs) as usize;
+
+    let test_audio: Vec<f32> = (0..num_samples)
+        .map(|i| {
+            let t = i as f32 / sample_rate as f32;
+            // Sine wave with fade in/out to avoid clicks
+            let fade_samples = (sample_rate as f32 * 0.05) as usize; // 50ms fade
+            let envelope = if i < fade_samples {
+                i as f32 / fade_samples as f32
+            } else if i > num_samples - fade_samples {
+                (num_samples - i) as f32 / fade_samples as f32
+            } else {
+                1.0
+            };
+            (2.0 * std::f32::consts::PI * frequency * t).sin() * 0.5 * envelope
+        })
+        .collect();
+
+    // Use OnlineAsrClient with 30 second timeout
+    let asr_client = crate::online_asr::OnlineAsrClient {
+        sample_rate,
+        timeout: Duration::from_secs(30),
+    };
+
+    // Run the transcribe in a blocking task since it uses sync HTTP client
+    let result = tokio::task::spawn_blocking(move || {
+        asr_client.transcribe(&provider, api_key, &model, &test_audio)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("ASR test failed: {}", e))?;
+
+    Ok(result)
+}

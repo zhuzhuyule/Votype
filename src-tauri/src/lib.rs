@@ -371,6 +371,7 @@ pub fn run() {
             shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,
             shortcut::test_post_process_model_inference,
+            shortcut::test_asr_model_inference,
             trigger_update_check,
             commands::cancel_operation,
             commands::get_app_dir_path,
