@@ -75,10 +75,45 @@
 
 ### 安装
 
+#### macOS
+
+1. **下载**：从 [Releases](https://github.com/zhuzhuyule/Votype/releases) 下载
+2. **安装**：将 `Votype.app` 拖到应用程序文件夹
+3. **首次启动**（重要！）：
+
+   ```bash
+   # 安装后运行此命令重新签名
+   codesign --force --deep --sign - /Applications/Votype.app
+
+   # 然后正常打开
+   open /Applications/Votype.app
+   ```
+
+   > ⚠️ **为什么需要重新签名？** Votype 使用第三方动态库（Sherpa-ONNX），这些库有自己的代码签名。重新签名可以解决签名冲突，让 macOS 正常加载这些库。
+
+4. **授予权限**（必需）：
+
+   **麦克风权限**
+   - 用途：录制你的语音进行转录
+   - 时机：首次使用时提示
+   - 设置：系统设置 → 隐私与安全性 → 麦克风 → 启用 Votype
+
+   **辅助功能权限**（必需）
+   - 用途：应用初始化和文本粘贴功能所需
+   - 时机：首次启动时提示
+   - 设置：系统设置 → 隐私与安全性 → 辅助功能 → 启用 Votype
+   - 注意：没有此权限应用无法启动
+
+5. **开始使用**：
+   - 按下快捷键（默认：`Option+Space`）
+   - 说话并松开
+   - 文字即刻出现！
+
+#### Windows / Linux
+
 1. 从 [Releases](https://github.com/zhuzhuyule/Votype/releases) 下载
-2. 安装并授予权限（麦克风、辅助功能）
-3. 按下快捷键（默认：macOS `Option+Space`，Windows/Linux `Ctrl+Space`）
-4. 说话并松开 - 文字即刻出现！
+2. 安装并授予麦克风权限
+3. 按下快捷键（默认：`Ctrl+Space`）
 
 ### 系统要求
 

@@ -75,10 +75,46 @@
 
 ### Installation
 
+#### macOS
+
+1. **Download** from [Releases](https://github.com/zhuzhuyule/Votype/releases)
+2. **Install**: Drag `Votype.app` to Applications folder
+3. **First Launch** (Important!):
+
+   ```bash
+   # Run this command to re-sign after installation
+   codesign --force --deep --sign - /Applications/Votype.app
+
+   # Then open normally
+   open /Applications/Votype.app
+   ```
+
+   > ⚠️ **Why re-signing is needed?**  
+   > Votype uses third-party dynamic libraries (Sherpa-ONNX) with their own code signatures. Re-signing resolves signature conflicts and allows macOS to load these libraries properly.
+
+4. **Grant Permissions** (Required):
+
+   **Microphone Access**
+   - Why: To record your voice for transcription
+   - When: Prompted on first use
+   - Settings: System Settings → Privacy & Security → Microphone → Enable Votype
+
+   **Accessibility Access** (Required)
+   - Why: Required for app initialization and text pasting functionality
+   - When: Prompted on first launch
+   - Settings: System Settings → Privacy & Security → Accessibility → Enable Votype
+   - Note: App cannot start without this permission
+
+5. **Start Using**:
+   - Press hotkey (default: `Option+Space`)
+   - Speak and release
+   - Your text appears instantly!
+
+#### Windows / Linux
+
 1. Download from [Releases](https://github.com/zhuzhuyule/Votype/releases)
-2. Install and grant permissions (microphone, accessibility)
-3. Press the hotkey (default: `Option+Space` on macOS, `Ctrl+Space` on Windows/Linux)
-4. Speak and release - your text appears instantly!
+2. Install and grant microphone permission
+3. Press hotkey (default: `Ctrl+Space`)
 
 ### System Requirements
 
