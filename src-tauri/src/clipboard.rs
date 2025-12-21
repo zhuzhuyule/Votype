@@ -146,29 +146,25 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
 
     info!("Using paste method: {:?}", paste_method);
 
-    // Get the managed Enigo instance
+    // Get the managed Enigo instance (lazy initialization)
     let enigo_state = app_handle
         .try_state::<EnigoState>()
         .ok_or("Enigo state not initialized")?;
-    let mut enigo = enigo_state
-        .0
-        .lock()
-        .map_err(|e| format!("Failed to lock Enigo: {}", e))?;
+    let mut enigo_opt = enigo_state.get_or_init()?;
+    let enigo = enigo_opt
+        .as_mut()
+        .ok_or("Failed to initialize input system")?;
 
     // Perform the paste operation
     match paste_method {
         PasteMethod::None => {
             info!("PasteMethod::None selected - skipping paste action");
         }
-        PasteMethod::Direct => input::paste_text_direct(&mut enigo, &text)?,
-        PasteMethod::CtrlV => paste_via_clipboard(&mut enigo, &text, &app_handle, &paste_method)?,
-        PasteMethod::CtrlShiftV => {
-            paste_via_clipboard(&mut enigo, &text, &app_handle, &paste_method)?
-        }
+        PasteMethod::Direct => input::paste_text_direct(enigo, &text)?,
+        PasteMethod::CtrlV => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
+        PasteMethod::CtrlShiftV => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
         #[cfg(not(target_os = "macos"))]
-        PasteMethod::ShiftInsert => {
-            paste_via_clipboard(&mut enigo, &text, &app_handle, &paste_method)?
-        }
+        PasteMethod::ShiftInsert => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
     }
 
     // After pasting, optionally copy to clipboard based on settings

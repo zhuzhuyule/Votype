@@ -4,22 +4,49 @@ use tauri::{AppHandle, Manager};
 
 /// Wrapper for Enigo to store in Tauri's managed state.
 /// Enigo is wrapped in a Mutex since it requires mutable access.
-pub struct EnigoState(pub Mutex<Enigo>);
+/// Uses Option to support lazy initialization - Enigo is only created when first needed.
+pub struct EnigoState(pub Mutex<Option<Enigo>>);
 
 impl EnigoState {
-    pub fn new() -> Result<Self, String> {
-        let enigo = Enigo::new(&Settings::default())
-            .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
-        Ok(Self(Mutex::new(enigo)))
+    /// Create a new EnigoState without initializing Enigo.
+    /// Enigo will be initialized on first use via get_or_init().
+    pub fn new() -> Self {
+        Self(Mutex::new(None))
+    }
+
+    /// Get a mutable reference to Enigo, initializing it if needed.
+    /// Returns an error if initialization fails (e.g., no Accessibility permission).
+    pub fn get_or_init(&self) -> Result<std::sync::MutexGuard<Option<Enigo>>, String> {
+        let mut enigo_opt = self
+            .0
+            .lock()
+            .map_err(|e| format!("Failed to lock Enigo state: {}", e))?;
+
+        if enigo_opt.is_none() {
+            // First use - initialize Enigo
+            let enigo = Enigo::new(&Settings::default()).map_err(|e| {
+                format!(
+                    "Failed to initialize input system. \
+                    Please grant Accessibility permission in System Settings → \
+                    Privacy & Security → Accessibility. Error: {}",
+                    e
+                )
+            })?;
+            *enigo_opt = Some(enigo);
+        }
+
+        Ok(enigo_opt)
     }
 }
 
 /// Get the current mouse cursor position using the managed Enigo instance.
 /// Returns None if the state is not available or if getting the location fails.
+/// Enigo will be initialized on first call if not already initialized.
 pub fn get_cursor_position(app_handle: &AppHandle) -> Option<(i32, i32)> {
     let enigo_state = app_handle.try_state::<EnigoState>()?;
-    let enigo = enigo_state.0.lock().ok()?;
-    enigo.location().ok()
+    // If Enigo initialization fails, return None (overlay will use default position)
+    let mut enigo_opt = enigo_state.get_or_init().ok()?;
+    enigo_opt.as_mut()?.location().ok()
 }
 
 /// Sends a Ctrl+V or Cmd+V paste command using platform-specific virtual key codes.

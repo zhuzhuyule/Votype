@@ -34,7 +34,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         "cursor-pointer group",
         isFeatured
           ? "border border-logo-primary/30 bg-logo-primary/5 hover:border-logo-primary/50 hover:bg-logo-primary/8"
-          : "border border-mid-gray/15 hover:border-logo-primary/30 hover:bg-logo-primary/5",
+          : "border border-gray-200 bg-[var(--color-background)] hover:border-logo-primary/30 hover:bg-logo-primary/5",
         disabled ? "opacity-50 pointer-events-none" : "",
       ].join(" ")}
       onClick={() => !disabled && onSelect(model.id)}

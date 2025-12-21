@@ -40,6 +40,20 @@
 - **Auto Language Detection** - Works with Chinese, English, Japanese, Korean, and more
 - **Custom Vocabulary** - Add domain-specific terms for better accuracy
 
+### 🔄 Five Transcription Modes
+
+Votype supports multiple transcription modes for different needs:
+
+| Mode                      | Description                                 | Best For                             |
+| ------------------------- | ------------------------------------------- | ------------------------------------ |
+| **🟢 Realtime**           | Sherpa streaming, text appears as you speak | Instant feedback during conversation |
+| **🔵 Simulated Realtime** | Full transcription displayed in batches     | Accuracy with realtime experience    |
+| **🔵 Full Transcription** | Whisper models, transcribe after recording  | High accuracy for formal use         |
+| **🌐 Online API**         | Cloud ASR, returns after recording ends     | Maximum accuracy                     |
+| **🟣 Hybrid Mode**        | Realtime preview + Online API final result  | Balance of experience and accuracy   |
+
+> 💡 **Tip**: We recommend **Hybrid Mode** - see preview while speaking, get the most accurate final result.
+
 ### 🌐 Online ASR (Optional)
 
 - **Cloud ASR Integration** - Use cloud providers for enhanced accuracy
@@ -99,11 +113,11 @@
    - When: Prompted on first use
    - Settings: System Settings → Privacy & Security → Microphone → Enable Votype
 
-   **Accessibility Access** (Required)
-   - Why: Required for app initialization and text pasting functionality
-   - When: Prompted on first launch
+   **Accessibility Access** (Optional, but recommended)
+   - Why: Required for text pasting and cursor positioning features
+   - When: Prompted when you first use paste functionality
    - Settings: System Settings → Privacy & Security → Accessibility → Enable Votype
-   - Note: App cannot start without this permission
+   - Note: App can start without this permission, but paste features will be unavailable
 
 5. **Start Using**:
    - Press hotkey (default: `Option+Space`)

@@ -13,6 +13,7 @@
   "common": {
     "add": "Add",
     "addNewOption": "Add new option",
+    "authorize": "Authorize",
     "cancel": "Cancel",
     "close": "Close",
     "copied": "Copied",
@@ -25,8 +26,10 @@
     "edit": "Edit",
     "enabled": "Enabled",
     "filterOptions": "Filter options...",
+    "granted": "Granted",
     "loading": "Loading...",
     "models": "Models",
+    "next": "Next",
     "no": "No",
     "noMatchingOptions": "No matching options",
     "noOptionsFound": "No options found",
@@ -34,12 +37,15 @@
     "off": "Off",
     "on": "On",
     "open": "Open",
+    "optional": "Optional",
     "remove": "Remove",
+    "requesting": "Requesting...",
+    "required": "Required",
     "reset": "Reset",
     "save": "Save",
+    "searchOrPaste": "Search or paste...",
     "selectAll": "Select All",
     "selectOption": "Select an option",
-    "searchOrPaste": "Search or paste...",
     "skip": "Skip",
     "update": "Update",
     "useInput": "Use \"{{input}}\"",
@@ -48,9 +54,9 @@
   "dashboard": {
     "actions": {
       "openRecordings": "Recordings",
+      "reprocessFailed": "AI reprocessing failed",
       "retranscribe": "Re-transcribe using audio",
       "retranscribeFailed": "Re-transcription failed",
-      "reprocessFailed": "AI reprocessing failed",
       "retranscribing": "Retranscribing..."
     },
     "activity": {
@@ -58,24 +64,24 @@
       "subtitle": "Last 40 days",
       "title": "Usage"
     },
-    "dateLabels": {
-      "today": "Today",
-      "yesterday": "Yesterday"
-    },
     "cards": {
       "allTime": "All time",
       "recent": "Last {{days}} days",
       "today": "Today"
     },
+    "dateLabels": {
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
     "details": {
       "audioRemoved": "Recording removed",
       "count": "{{count}} entries",
-      "recordCount": "{{count}} records",
       "empty": "No data",
       "loadMore": "Load more",
       "meta": {
         "chars": "{{value}} chars"
       },
+      "recordCount": "{{count}} records",
       "title": "History"
     },
     "metrics": {
@@ -250,7 +256,6 @@
     "onlineAsr": "Online ASR",
     "onlineAsrActive": "Online ASR active",
     "onlineAsrModels": "Online ASR Models",
-    "realtimeModelLabel": "Realtime Model",
     "realtimeModel": {
       "empty": "No eligible local models. Download (and favorite) a Sherpa model first.",
       "enabled": "Enabled",
@@ -260,22 +265,64 @@
       "selected": "Realtime: {{modelName}}",
       "title": "Realtime transcription model"
     },
+    "realtimeModelLabel": "Realtime Model",
     "searchPlaceholder": "Search models…",
     "userAddedModel": "User-added model",
-    "welcome": "Welcome to Votype!"
+    "welcome": "Welcome to Votype"
   },
   "onboarding": {
+    "accessibility": {
+      "description": "This permission enables automatic text pasting",
+      "feature1": "Auto-paste transcription to current app",
+      "feature2": "Get cursor position for overlay placement",
+      "feature3": "Simulate keyboard shortcuts for pasting",
+      "grant": "Grant Permission",
+      "granted": "Accessibility permission granted ✓",
+      "noteImpact": "Without permission, results are copied to clipboard only.",
+      "reason1": "Automatically paste transcribed text into active apps",
+      "reason2": "Get cursor position for overlay positioning",
+      "reason3": "Provide a smoother experience",
+      "simpleDesc": "Auto-paste transcription results, no need for Cmd+V",
+      "skip": "Skip This Step",
+      "step1": "Open System Settings → Privacy & Security → Accessibility",
+      "step2": "Remove the app if already listed",
+      "step3": "Click + to add and enable the permission",
+      "stepsTitle": "Having trouble?",
+      "title": "Accessibility Permission",
+      "whyTitle": "Why is this needed?",
+      "without1": "The app still works normally",
+      "without2": "Transcribed text is copied to clipboard",
+      "without3": "You'll need to paste manually (Cmd+V)",
+      "withoutTitle": "Without this permission:"
+    },
     "download": "Download",
     "downloading": "Downloading...",
     "errors": {
       "downloadModel": "Failed to download model: {{error}}",
       "loadModels": "Failed to load available models"
     },
+    "microphone": {
+      "denied": "Microphone permission is required to record voice. Please grant permission in System Settings.",
+      "description": "Votype needs access to your microphone to record voice",
+      "devModeHint": "Dev mode: permission check unavailable",
+      "error": "Failed to request permission. Please try again or grant manually in System Settings.",
+      "grant": "Grant Microphone Access",
+      "granted": "Microphone access granted ✓",
+      "grantFirst": "Please grant microphone permission to continue",
+      "reason1": "Record your voice for transcription",
+      "reason2": "All processing happens locally",
+      "reason3": "Your voice data never leaves your device",
+      "shortDesc": "For recording voice to transcribe",
+      "skipDev": "Skip (Dev Mode)",
+      "title": "Microphone",
+      "whyTitle": "Why is this needed?"
+    },
     "modelCard": {
       "accuracy": "accuracy",
       "speed": "speed"
     },
     "models": {
+      "description": "Select a model to get started. Recommended models work well for most use cases.",
       "large": {
         "description": "Good accuracy, but slow.",
         "name": "Whisper Large"
@@ -292,17 +339,30 @@
         "description": "Fast and accurate",
         "name": "Parakeet V3"
       },
+      "showMore": "More Models",
       "small": {
         "description": "Fast and fairly accurate.",
         "name": "Whisper Small"
       },
+      "title": "Choose a Model",
       "turbo": {
         "description": "Balanced accuracy and speed.",
         "name": "Whisper Turbo"
       }
     },
     "recommended": "Recommended",
-    "subtitle": "To get started, choose a transcription model"
+    "subtitle": "To get started, choose a transcription model",
+    "welcome": {
+      "continue": "Continue",
+      "description": "A voice input method that supports local, online, or hybrid modes.",
+      "feature1": "Speech-to-text, completely offline",
+      "feature2": "Privacy first, data never leaves your device",
+      "feature3": "Hotkey trigger, press and speak",
+      "permissionsTitle": "Permissions Setup",
+      "skipDev": "Skip (Dev Mode)",
+      "start": "Get Started",
+      "title": "Welcome"
+    }
   },
   "overlay": {
     "error": {
@@ -436,22 +496,6 @@
     },
     "asrModels": {
       "addFromUrl": "Add & Download",
-      "install": {
-        "button": "Add Custom Model",
-        "title": "Add Custom Model",
-        "description": "Enter the URL of the model archive (tar.gz, tar.bz2, etc).",
-        "placeholder": "https://example.com/model.tar.gz",
-        "tooltip": "Add model from URL",
-        "urlLabel": "URL",
-        "nameLabel": "Name (Optional)",
-        "tagsLabel": "Tags",
-        "customTagPlaceholder": "Custom tag...",
-        "addCustomTagButton": "Add",
-        "editTitle": "Edit Custom Model",
-        "editDescription": "Update the name or tags for this model.",
-        "remove": "Remove custom model",
-        "removeConfirm": "Remove this custom model? This will also delete any downloaded files."
-      },
       "addSection": {
         "description": "Paste a model URL. The app will infer the model type from the filename.",
         "title": "Install"
@@ -477,11 +521,27 @@
       },
       "groups": {
         "multilingual": "Multilingual",
-        "offline": "Offline",
+        "offline": "Full",
         "punctuation": "Punctuation",
-        "streaming": "Streaming"
+        "streaming": "Realtime"
       },
       "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "Add",
+        "button": "Add Custom Model",
+        "customTagPlaceholder": "Custom tag...",
+        "description": "Enter the URL of the model archive (tar.gz, tar.bz2, etc).",
+        "editDescription": "Update the name or tags for this model.",
+        "editTitle": "Edit Custom Model",
+        "nameLabel": "Name (Optional)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "Remove custom model",
+        "removeConfirm": "Remove this custom model? This will also delete any downloaded files.",
+        "tagsLabel": "Tags",
+        "title": "Add Custom Model",
+        "tooltip": "Add model from URL",
+        "urlLabel": "URL"
+      },
       "languages": {
         "de": "German",
         "en": "English",
@@ -500,6 +560,11 @@
         "description": "Pick favorites to show in the quick selector.",
         "searchPlaceholder": "Search models…",
         "title": "Library"
+      },
+      "modeChips": {
+        "offline": "Full",
+        "punctuation": "Punctuation",
+        "streaming": "Realtime"
       },
       "pipeline": {
         "description": "Global post-processing that can be applied automatically after transcription.",
@@ -530,11 +595,6 @@
         "sherpa_sense_voice": "Sherpa SenseVoice",
         "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
-      },
-      "modeChips": {
-        "streaming": "Streaming",
-        "offline": "Offline",
-        "punctuation": "Punctuation"
       },
       "types": {
         "parakeet": "Parakeet",
@@ -791,10 +851,6 @@
       },
       "models": {
         "addModel": "Add Model",
-        "tabs": {
-          "remote": "Online Models",
-          "local": "Local Models"
-        },
         "deleteConfirm": {
           "description": "Are you sure you want to delete this model? This action cannot be undone.",
           "title": "Delete Model?"
@@ -836,6 +892,10 @@
           "asr": "ASR: {{count}}",
           "other": "Other: {{count}}",
           "text": "Text: {{count}}"
+        },
+        "tabs": {
+          "local": "Local Models",
+          "remote": "Online Models"
         },
         "title": "Models"
       },

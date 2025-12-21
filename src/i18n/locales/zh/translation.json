@@ -13,6 +13,7 @@
   "common": {
     "add": "添加",
     "addNewOption": "添加新选项",
+    "authorize": "授权",
     "cancel": "取消",
     "close": "关闭",
     "copied": "已复制",
@@ -25,8 +26,10 @@
     "edit": "编辑",
     "enabled": "已启用",
     "filterOptions": "筛选选项...",
+    "granted": "已授权",
     "loading": "加载中...",
     "models": "模型",
+    "next": "下一步",
     "no": "否",
     "noMatchingOptions": "无匹配选项",
     "noOptionsFound": "未找到选项",
@@ -34,12 +37,15 @@
     "off": "关",
     "on": "开",
     "open": "打开",
+    "optional": "可选",
     "remove": "移除",
+    "requesting": "请求中...",
+    "required": "必需",
     "reset": "重置",
     "save": "保存",
+    "searchOrPaste": "搜索或粘贴...",
     "selectAll": "全选",
     "selectOption": "选择选项",
-    "searchOrPaste": "搜索或粘贴...",
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
@@ -48,9 +54,9 @@
   "dashboard": {
     "actions": {
       "openRecordings": "录音目录",
+      "reprocessFailed": "AI 重新处理失败",
       "retranscribe": "使用原音频重新转录",
       "retranscribeFailed": "重新转录失败",
-      "reprocessFailed": "AI 重新处理失败",
       "retranscribing": "重新转录中..."
     },
     "activity": {
@@ -58,24 +64,24 @@
       "subtitle": "近40天",
       "title": "使用记录"
     },
-    "dateLabels": {
-      "today": "今天",
-      "yesterday": "昨天"
-    },
     "cards": {
       "allTime": "全部",
       "recent": "最近 {{days}} 天",
       "today": "今日"
     },
+    "dateLabels": {
+      "today": "今天",
+      "yesterday": "昨天"
+    },
     "details": {
       "audioRemoved": "录音已移除",
       "count": "共 {{count}} 条",
-      "recordCount": "{{count}} 条记录",
       "empty": "暂无数据",
       "loadMore": "加载更多",
       "meta": {
         "chars": "{{value}} 字"
       },
+      "recordCount": "{{count}} 条记录",
       "title": "历史记录"
     },
     "metrics": {
@@ -250,7 +256,6 @@
     "onlineAsr": "在线 ASR",
     "onlineAsrActive": "在线 ASR 已启用",
     "onlineAsrModels": "在线 ASR 模型",
-    "realtimeModelLabel": "Realtime Model",
     "realtimeModel": {
       "empty": "没有可用的本地模型。请先下载（并收藏）一个 Sherpa 模型。",
       "enabled": "已启用",
@@ -260,22 +265,64 @@
       "selected": "实时：{{modelName}}",
       "title": "实时转录模型"
     },
+    "realtimeModelLabel": "Realtime Model",
     "searchPlaceholder": "搜索模型…",
     "userAddedModel": "用户添加的模型",
-    "welcome": "欢迎使用 Votype！"
+    "welcome": "欢迎使用 Votype"
   },
   "onboarding": {
+    "accessibility": {
+      "description": "此权限用于自动粘贴转录文本",
+      "feature1": "自动粘贴转录结果到当前应用",
+      "feature2": "获取光标位置以定位录音浮窗",
+      "feature3": "模拟键盘快捷键进行粘贴操作",
+      "grant": "授予权限",
+      "granted": "辅助功能权限已授予 ✓",
+      "noteImpact": "未授权时，转录结果仅复制到剪贴板，需手动粘贴。",
+      "reason1": "自动将转录文本粘贴到活动应用",
+      "reason2": "获取鼠标位置以定位录音浮窗",
+      "reason3": "提供更流畅的使用体验",
+      "simpleDesc": "自动粘贴转录结果，无需手动 Cmd+V",
+      "skip": "跳过此步",
+      "step1": "打开系统设置 → 隐私与安全 → 辅助功能",
+      "step2": "若已存在本应用，先删除",
+      "step3": "点击 + 添加并开启权限",
+      "stepsTitle": "授权遇到问题？",
+      "title": "辅助功能权限",
+      "whyTitle": "为什么需要？",
+      "without1": "应用仍可正常使用",
+      "without2": "转录文本会复制到剪贴板",
+      "without3": "需要手动粘贴 (Cmd+V)",
+      "withoutTitle": "没有此权限："
+    },
     "download": "下载",
     "downloading": "下载中...",
     "errors": {
       "downloadModel": "模型下载失败: {{error}}",
       "loadModels": "无法加载可用模型"
     },
+    "microphone": {
+      "denied": "需要麦克风权限才能录制语音。请在系统设置中授予权限。",
+      "description": "Votype 需要访问您的麦克风来录制语音",
+      "devModeHint": "开发模式：权限检测不可用",
+      "error": "请求权限失败，请重试或在系统设置中手动授予。",
+      "grant": "授予麦克风权限",
+      "granted": "麦克风权限已授予 ✓",
+      "grantFirst": "请先授予麦克风权限后继续",
+      "reason1": "录制您的语音进行转录",
+      "reason2": "所有处理完全在本地进行",
+      "reason3": "您的语音数据不会离开设备",
+      "shortDesc": "用于录制语音进行转录",
+      "skipDev": "跳过（开发模式）",
+      "title": "麦克风权限",
+      "whyTitle": "为什么需要？"
+    },
     "modelCard": {
       "accuracy": "准确度",
       "speed": "速度"
     },
     "models": {
+      "description": "选择一个模型开始使用，推荐的模型适合大多数场景",
       "large": {
         "description": "准确度高，但速度较慢。",
         "name": "Whisper Large"
@@ -291,14 +338,6 @@
       "parakeet-tdt-0.6b-v3": {
         "description": "快速且准确",
         "name": "Parakeet V3"
-      },
-      "small": {
-        "description": "快速且相当准确。",
-        "name": "Whisper Small"
-      },
-      "turbo": {
-        "description": "准确度和速度均衡。",
-        "name": "Whisper Turbo"
       },
       "sherpa-zipformer-de-kroko-2025-08-06": {
         "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
@@ -320,10 +359,31 @@
       },
       "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
         "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
+      },
+      "showMore": "更多模型",
+      "small": {
+        "description": "快速且相当准确。",
+        "name": "Whisper Small"
+      },
+      "title": "选择识别模型",
+      "turbo": {
+        "description": "准确度和速度均衡。",
+        "name": "Whisper Turbo"
       }
     },
     "recommended": "推荐",
-    "subtitle": "请选择一个转录模型以开始使用"
+    "subtitle": "请选择一个转录模型以开始使用",
+    "welcome": {
+      "continue": "继续",
+      "description": "一个支持本地、线上或组合使用的语音输入法。",
+      "feature1": "语音转文字，完全离线",
+      "feature2": "隐私优先，数据不离开设备",
+      "feature3": "快捷键触发，即按即说",
+      "permissionsTitle": "权限设置",
+      "skipDev": "跳过（开发模式）",
+      "start": "开始设置",
+      "title": "欢迎使用"
+    }
   },
   "overlay": {
     "error": {
@@ -457,22 +517,6 @@
     },
     "asrModels": {
       "addFromUrl": "添加并下载",
-      "install": {
-        "button": "添加自定义模型",
-        "title": "添加自定义模型",
-        "description": "输入模型归档文件的 URL (tar.gz, tar.bz2 等)。",
-        "placeholder": "https://example.com/model.tar.gz",
-        "tooltip": "从 URL 添加模型",
-        "urlLabel": "URL",
-        "nameLabel": "名称 (可选)",
-        "tagsLabel": "标签",
-        "customTagPlaceholder": "自定义标签...",
-        "addCustomTagButton": "添加",
-        "editTitle": "编辑自定义模型",
-        "editDescription": "修改此模型的名称或标签。",
-        "remove": "移除自定义模型",
-        "removeConfirm": "确定要移除此自定义模型吗？这也将删除所有已下载的文件。"
-      },
       "addSection": {
         "description": "粘贴模型下载链接，应用会根据文件名自动推断模型类型。",
         "title": "安装"
@@ -498,11 +542,27 @@
       },
       "groups": {
         "multilingual": "多语言",
-        "offline": "离线",
+        "offline": "完整转录",
         "punctuation": "标点",
-        "streaming": "流式"
+        "streaming": "实时转录"
       },
       "idLabel": "id: {{id}}",
+      "install": {
+        "addCustomTagButton": "添加",
+        "button": "添加自定义模型",
+        "customTagPlaceholder": "自定义标签...",
+        "description": "输入模型归档文件的 URL (tar.gz, tar.bz2 等)。",
+        "editDescription": "修改此模型的名称或标签。",
+        "editTitle": "编辑自定义模型",
+        "nameLabel": "名称 (可选)",
+        "placeholder": "https://example.com/model.tar.gz",
+        "remove": "移除自定义模型",
+        "removeConfirm": "确定要移除此自定义模型吗？这也将删除所有已下载的文件。",
+        "tagsLabel": "标签",
+        "title": "添加自定义模型",
+        "tooltip": "从 URL 添加模型",
+        "urlLabel": "URL"
+      },
       "languages": {
         "de": "德语",
         "en": "英文",
@@ -521,6 +581,11 @@
         "description": "收藏的模型会出现在左下角快捷列表中。",
         "searchPlaceholder": "搜索模型…",
         "title": "模型库"
+      },
+      "modeChips": {
+        "offline": "完整转录",
+        "punctuation": "标点",
+        "streaming": "实时转录"
       },
       "pipeline": {
         "description": "可在转录后自动应用的全局后处理能力。",
@@ -551,11 +616,6 @@
         "sherpa_sense_voice": "Sherpa SenseVoice",
         "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
-      },
-      "modeChips": {
-        "streaming": "流式",
-        "offline": "离线",
-        "punctuation": "标点"
       },
       "types": {
         "parakeet": "Parakeet",
@@ -812,10 +872,6 @@
       },
       "models": {
         "addModel": "添加模型",
-        "tabs": {
-          "remote": "在线模型",
-          "local": "本地模型"
-        },
         "deleteConfirm": {
           "description": "你确定要删除此模型吗？此操作无法撤销。",
           "title": "删除模型？"
@@ -857,6 +913,10 @@
           "asr": "ASR: {{count}}",
           "other": "其他: {{count}}",
           "text": "文本: {{count}}"
+        },
+        "tabs": {
+          "local": "本地模型",
+          "remote": "在线模型"
         },
         "title": "模型"
       },

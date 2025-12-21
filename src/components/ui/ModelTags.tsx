@@ -51,10 +51,10 @@ export const ModelTags: React.FC<ModelTagsProps> = ({
   const modeKey = getModeKey(model);
   const modeColor =
     modeKey === "streaming"
-      ? "blue"
+      ? "green" // 实时转录 - 绿色
       : modeKey === "punctuation"
-        ? "purple"
-        : "gray";
+        ? "purple" // 标点模型 - 紫色
+        : "blue"; // 完整转录 - 蓝色
 
   // Type badge
   const typeKey = getTypeKey(model);
