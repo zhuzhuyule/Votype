@@ -173,7 +173,9 @@ const renderModelSection = ({
                           onClick={async (e) => {
                             e.stopPropagation();
                             const toastId = toast.loading(
-                              t("settings.postProcessing.api.testing"),
+                              t(
+                                "settings.postProcessing.api.providers.api.testing",
+                              ),
                             );
                             try {
                               const result = await invoke<string>(
@@ -187,7 +189,9 @@ const renderModelSection = ({
                               toast.dismiss(toastId);
                               // We might expect 'OK' or similar, but just showing the success toast is enough
                               toast.success(
-                                t("settings.postProcessing.api.testSuccess"),
+                                t(
+                                  "settings.postProcessing.api.providers.testSuccess",
+                                ),
                                 {
                                   duration: 5000,
                                   closeButton: true,
@@ -201,9 +205,12 @@ const renderModelSection = ({
                                 errorMessage = error.message;
 
                               toast.error(
-                                t("settings.postProcessing.api.testFailed", {
-                                  error: errorMessage,
-                                }),
+                                t(
+                                  "settings.postProcessing.api.providers.testFailed",
+                                  {
+                                    error: errorMessage,
+                                  },
+                                ),
                                 {
                                   duration: Infinity,
                                   closeButton: true,
@@ -213,7 +220,7 @@ const renderModelSection = ({
                             }
                           }}
                           title={t(
-                            "settings.postProcessing.api.testConnection",
+                            "settings.postProcessing.api.providers.testConnection",
                           )}
                         >
                           <IconPlayerPlay size={14} />

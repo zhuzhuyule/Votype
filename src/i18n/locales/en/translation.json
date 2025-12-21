@@ -433,11 +433,11 @@
         "title": "Custom Words"
       },
       "groups": {
-        "behavior": "Behavior",
-        "data": "Data & Storage",
-        "input": "Input & Clipboard",
-        "system": "System & Debug",
-        "transcription": "Transcription & Models"
+        "startup": "Startup & Behavior",
+        "inputOutput": "Input & Output",
+        "transcriptionOptimization": "Transcription Optimization",
+        "dataManagement": "Data Management",
+        "debug": "Debug Options"
       },
       "modelUnload": {
         "description": "Automatically free GPU/CPU memory when the model hasn't been used for the specified time",
@@ -686,8 +686,8 @@
     },
     "general": {
       "groups": {
-        "input": "Input Mode",
-        "language": "Language"
+        "recording": "Recording",
+        "transcription": "Transcription Language"
       },
       "language": {
         "auto": "Auto",
@@ -1058,6 +1058,10 @@
       "system": "System",
       "systemDesc": "Match your system theme",
       "title": "Theme Mode"
+    },
+    "compactMode": {
+      "title": "Compact Mode",
+      "description": "Show descriptions as tooltips"
     },
     "title": "Theme"
   }

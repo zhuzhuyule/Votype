@@ -11,6 +11,7 @@ import {
   Sidebar,
   SidebarSection,
 } from "./components/Sidebar";
+import { CompactModeProvider } from "./components/theme/CompactModeProvider";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
 
@@ -192,48 +193,54 @@ function App() {
   };
 
   return (
-    <RadixThemeProvider>
-      {showOnboarding ? (
-        <Onboarding onModelSelected={handleModelSelected} />
-      ) : (
-        <Flex className="h-screen flex flex-col">
-          <Toaster />
-          {/* Main content area that takes remaining space */}
-          <Flex className="flex-1 flex overflow-hidden">
-            <Sidebar
-              activeSection={currentSection}
-              onSectionChange={setCurrentSection}
-            />
-            {/* Scrollable content area with ScrollArea */}
-            <Flex flexGrow="1" direction="column" overflow="hidden">
-              <ScrollArea scrollbars="vertical" type="hover" className="flex-1">
-                <Flex
-                  direction="column"
-                  align="center"
-                  py="6"
-                  px="4"
-                  gap="6"
-                  className="min-w-[600px] max-w-[1200px] mx-auto w-full pb-3"
+    <CompactModeProvider>
+      <RadixThemeProvider>
+        {showOnboarding ? (
+          <Onboarding onModelSelected={handleModelSelected} />
+        ) : (
+          <Flex className="h-screen flex flex-col">
+            <Toaster />
+            {/* Main content area that takes remaining space */}
+            <Flex className="flex-1 flex overflow-hidden">
+              <Sidebar
+                activeSection={currentSection}
+                onSectionChange={setCurrentSection}
+              />
+              {/* Scrollable content area with ScrollArea */}
+              <Flex flexGrow="1" direction="column" overflow="hidden">
+                <ScrollArea
+                  scrollbars="vertical"
+                  type="hover"
+                  className="flex-1"
                 >
-                  {showNonCritical && (
-                    <Suspense fallback={null}>
-                      <AccessibilityPermissions />
-                    </Suspense>
-                  )}
-                  {renderSettingsContent(currentSection, navDirection)}
-                </Flex>
-              </ScrollArea>
+                  <Flex
+                    direction="column"
+                    align="center"
+                    py="6"
+                    px="4"
+                    gap="6"
+                    className="min-w-[600px] max-w-[1200px] mx-auto w-full pb-3"
+                  >
+                    {showNonCritical && (
+                      <Suspense fallback={null}>
+                        <AccessibilityPermissions />
+                      </Suspense>
+                    )}
+                    {renderSettingsContent(currentSection, navDirection)}
+                  </Flex>
+                </ScrollArea>
+              </Flex>
             </Flex>
+            {/* Fixed footer at bottom */}
+            {showNonCritical && (
+              <Suspense fallback={null}>
+                <Footer />
+              </Suspense>
+            )}
           </Flex>
-          {/* Fixed footer at bottom */}
-          {showNonCritical && (
-            <Suspense fallback={null}>
-              <Footer />
-            </Suspense>
-          )}
-        </Flex>
-      )}
-    </RadixThemeProvider>
+        )}
+      </RadixThemeProvider>
+    </CompactModeProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import { Box, Flex, Heading, Text } from "@radix-ui/themes";
 import React from "react";
+import { useCompactModeSafe } from "../theme/CompactModeProvider";
 import { TooltipIcon } from "./TooltipIcon";
 
 export interface SettingContainerProps {
@@ -26,6 +27,10 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
   icon: Icon,
 }) => {
   const isHorizontal = layout === "horizontal";
+  const compactMode = useCompactModeSafe();
+
+  // When compact mode is enabled, force tooltip mode
+  const effectiveDescriptionMode = compactMode ? "tooltip" : descriptionMode;
 
   return (
     <Flex
@@ -52,7 +57,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
             <Heading size="2" weight="medium" style={{ lineHeight: "1.5" }}>
               {title}
             </Heading>
-            {descriptionMode === "tooltip" && description && (
+            {effectiveDescriptionMode === "tooltip" && description && (
               <TooltipIcon
                 text={title}
                 description={description}
@@ -60,7 +65,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
               />
             )}
           </Flex>
-          {descriptionMode !== "tooltip" && description && (
+          {effectiveDescriptionMode !== "tooltip" && description && (
             <Text
               size="2"
               color="gray"

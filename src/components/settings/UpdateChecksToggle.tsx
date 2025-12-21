@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
-import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
 
 interface UpdateChecksToggleProps {
@@ -34,13 +33,11 @@ export const UpdateChecksToggle: React.FC<UpdateChecksToggleProps> = React.memo(
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <ActionWrapper>
-          <Switch
-            checked={enabled}
-            onCheckedChange={handleToggle}
-            disabled={isUpdating("update_checks_enabled")}
-          />
-        </ActionWrapper>
+        <Switch
+          checked={enabled}
+          onCheckedChange={handleToggle}
+          disabled={isUpdating("update_checks_enabled")}
+        />
       </SettingContainer>
     );
   },

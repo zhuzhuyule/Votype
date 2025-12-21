@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
-import { AppLanguageSelector } from "../AppLanguageSelector";
 import { AudioFeedback } from "../AudioFeedback";
 import { LanguageSelector } from "../LanguageSelector";
 import { MicrophoneSelector } from "../MicrophoneSelector";
@@ -19,16 +18,18 @@ export const GeneralSettings: React.FC = () => {
   const { audioFeedbackEnabled } = useSettings();
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
-      <SettingsGroup title={t("settings.general.groups.language")}>
-        <AppLanguageSelector descriptionMode="inline" grouped={true} />
-        <LanguageSelector descriptionMode="inline" grouped={true} />
-      </SettingsGroup>
-
-      <SettingsGroup title={t("settings.general.groups.input")}>
+      {/* Recording Settings */}
+      <SettingsGroup title={t("settings.general.groups.recording")}>
         <PushToTalk descriptionMode="inline" grouped={true} />
         <AlwaysOnMicrophone descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
+      {/* Transcription Language */}
+      <SettingsGroup title={t("settings.general.groups.transcription")}>
+        <LanguageSelector descriptionMode="inline" grouped={true} />
+      </SettingsGroup>
+
+      {/* Sound Settings */}
       <SettingsGroup title={t("settings.sound.title")}>
         <MicrophoneSelector descriptionMode="inline" grouped={true} />
         <AudioFeedback descriptionMode="inline" grouped={true} />

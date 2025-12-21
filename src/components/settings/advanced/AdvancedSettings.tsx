@@ -25,27 +25,32 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
-      <SettingsGroup title={t("settings.advanced.groups.behavior")}>
+      {/* Startup Behavior */}
+      <SettingsGroup title={t("settings.advanced.groups.startup")}>
         <StartHidden descriptionMode="inline" grouped={true} />
         <AutostartToggle descriptionMode="inline" grouped={true} />
         <ShowOverlay descriptionMode="inline" grouped={true} />
         <UpdateChecksToggle descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.advanced.groups.input")}>
+      {/* Input/Output */}
+      <SettingsGroup title={t("settings.advanced.groups.inputOutput")}>
         <PasteMethodSetting descriptionMode="inline" grouped={true} />
         <ClipboardHandlingSetting descriptionMode="inline" grouped={true} />
         <AppendTrailingSpace descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.advanced.groups.transcription")}>
+      {/* Transcription Optimization */}
+      <SettingsGroup
+        title={t("settings.advanced.groups.transcriptionOptimization")}
+      >
         <TranslateToEnglish descriptionMode="inline" grouped={true} />
         <ModelUnloadTimeoutSetting descriptionMode="inline" grouped={true} />
         <CustomWords descriptionMode="inline" grouped />
-        <WordCorrectionThreshold descriptionMode="inline" grouped={true} />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.advanced.groups.data")}>
+      {/* Data Management */}
+      <SettingsGroup title={t("settings.advanced.groups.dataManagement")}>
         <HistoryLimit descriptionMode="inline" grouped={true} />
         <RecordingRetentionPeriodSelector
           descriptionMode="inline"
@@ -53,9 +58,11 @@ export const AdvancedSettings: React.FC = () => {
         />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.advanced.groups.system")}>
+      {/* Debug Options */}
+      <SettingsGroup title={t("settings.advanced.groups.debug")}>
         <LogDirectory descriptionMode="inline" grouped={true} />
         <LogLevelSelector descriptionMode="inline" grouped={true} />
+        <WordCorrectionThreshold descriptionMode="inline" grouped={true} />
         <OfflineVadRealtimeInterval descriptionMode="inline" grouped={true} />
         <OfflineVadRealtimeWindow descriptionMode="inline" grouped={true} />
       </SettingsGroup>

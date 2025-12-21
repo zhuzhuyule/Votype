@@ -454,11 +454,11 @@
         "title": "自定义词汇"
       },
       "groups": {
-        "behavior": "行为",
-        "data": "数据与存储",
-        "input": "输入与剪贴板",
-        "system": "系统与调试",
-        "transcription": "转录与模型"
+        "startup": "启动与行为",
+        "inputOutput": "输入与输出",
+        "transcriptionOptimization": "转录优化",
+        "dataManagement": "数据管理",
+        "debug": "调试选项"
       },
       "modelUnload": {
         "description": "当模型在指定时间内未使用时自动释放 GPU/CPU 内存",
@@ -707,8 +707,8 @@
     },
     "general": {
       "groups": {
-        "input": "输入模式",
-        "language": "语言"
+        "recording": "录音设置",
+        "transcription": "转录语言"
       },
       "language": {
         "auto": "自动",
@@ -1079,6 +1079,10 @@
       "system": "跟随系统",
       "systemDesc": "与系统主题保持一致",
       "title": "主题模式"
+    },
+    "compactMode": {
+      "title": "简洁模式",
+      "description": "将描述显示为问号提示"
     },
     "title": "主题"
   }

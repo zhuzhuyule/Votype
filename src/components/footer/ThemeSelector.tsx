@@ -1,4 +1,3 @@
-import { IconDeviceLaptop, IconMoon, IconSun } from "@tabler/icons-react";
 import {
   Box,
   Button,
@@ -8,12 +7,20 @@ import {
   Popover,
   ScrollArea,
   SegmentedControl,
+  Select,
+  Switch,
   Text,
   useThemeContext,
 } from "@radix-ui/themes";
+import { IconDeviceLaptop, IconMoon, IconSun } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { SUPPORTED_LANGUAGES, type SupportedLanguageCode } from "../../i18n";
+import { useCompactMode } from "../theme/CompactModeProvider";
 import { useTheme } from "../theme/RadixThemeProvider";
+
+const STORAGE_KEY = "votype-app-language";
 
 const ACCENT_OPTIONS = [
   "gray",
@@ -47,8 +54,9 @@ const RADIUS_OPTIONS = [
 const SCALING_OPTIONS = ["90%", "95%", "100%", "105%", "110%"] as const;
 
 export const ThemeSelector: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { theme: appearance, setTheme: setAppearance } = useTheme();
+  const { compactMode, toggleCompactMode } = useCompactMode();
   const {
     accentColor,
     radius,
@@ -57,6 +65,14 @@ export const ThemeSelector: React.FC = () => {
     onRadiusChange,
     onScalingChange,
   } = useThemeContext();
+
+  const currentLanguage = i18n.language as SupportedLanguageCode;
+
+  const handleLanguageChange = (langCode: string) => {
+    i18n.changeLanguage(langCode);
+    localStorage.setItem(STORAGE_KEY, langCode);
+    void invoke("change_app_language_setting", { language: langCode });
+  };
 
   const getIcon = () => {
     switch (appearance) {
@@ -83,6 +99,36 @@ export const ThemeSelector: React.FC = () => {
           style={{ maxHeight: "80vh", padding: 16 }}
         >
           <Flex direction="column" gap="4" pr="2">
+            {/* Compact Mode - no description, just toggle */}
+            <Flex gap="4" justify="start" align="center">
+              <Text size="1" weight="bold">
+                {t("theme.compactMode.title")}
+              </Text>
+              <Switch
+                checked={compactMode}
+                onCheckedChange={() => toggleCompactMode()}
+                size="1"
+              />
+            </Flex>
+            {/* Language Selector */}
+            <Flex gap="4" justify="between" align="center">
+              <Text size="1" weight="bold">
+                {t("appLanguage.title")}
+              </Text>
+              <Select.Root
+                value={currentLanguage}
+                onValueChange={handleLanguageChange}
+              >
+                <Select.Trigger style={{ flex: 1 }} />
+                <Select.Content>
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <Select.Item key={lang.code} value={lang.code}>
+                      {lang.nativeName} ({lang.name})
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
+            </Flex>
             {/* Appearance Mode */}
             <Box>
               <Text size="1" weight="bold" mb="2" as="div">
