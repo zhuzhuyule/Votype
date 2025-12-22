@@ -642,6 +642,7 @@ impl ShortcutAction for TranscribeAction {
                         let secondary_result_for_post = secondary_result.clone();
                         let incremental_result_for_post = incremental_result.clone();
 
+                        let active_window_snapshot_for_review = active_window_snapshot.clone();
                         let task = tokio::spawn(async move {
                             let mut final_text = transcription_clone.clone();
                             let mut post_process_prompt_text = String::new();
@@ -671,7 +672,7 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                let (processed_text, model, prompt_id, err) =
+                                let (processed_text, model, prompt_id, err, confidence) =
                                     maybe_post_process_transcription(
                                         &ah_clone,
                                         &settings_clone,
@@ -698,6 +699,48 @@ impl ShortcutAction for TranscribeAction {
                                         .find(|p| &p.id == pid)
                                     {
                                         post_process_prompt_text = prompt.prompt.clone();
+                                    }
+                                }
+
+                                // Check confidence and emit review event if below threshold
+                                if let Some(score) = confidence {
+                                    if score < settings_clone.confidence_threshold {
+                                        log::info!(
+                                            "Low confidence score ({}/100), requesting user review",
+                                            score
+                                        );
+                                        crate::review_window::set_last_active_window(
+                                            active_window_snapshot_for_review.clone(),
+                                        );
+                                        // Persist LLM output so history always captures it
+                                        if let Some(history_id) = history_id {
+                                            if let Err(e) = hm_clone
+                                                .update_transcription_post_processing(
+                                                    history_id,
+                                                    final_text.clone(),
+                                                    post_process_prompt_text.clone(),
+                                                    post_process_prompt_id.clone(),
+                                                    used_model.clone(),
+                                                )
+                                                .await
+                                            {
+                                                error!(
+                                                    "Failed to update transcription with post-processing before review: {}",
+                                                    e
+                                                );
+                                            }
+                                        }
+                                        // Show the review window with the transcription
+                                        crate::review_window::show_review_window(
+                                            &ah_clone,
+                                            final_text.clone(),
+                                            score,
+                                            history_id,
+                                        );
+                                        // Hide the overlay since review window is now shown
+                                        utils::hide_recording_overlay(&ah_clone);
+                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                        return;
                                     }
                                 }
                             }

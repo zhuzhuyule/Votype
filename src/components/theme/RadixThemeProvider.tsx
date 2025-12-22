@@ -83,8 +83,23 @@ export const RadixThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
     updateSystemTheme();
     query.addEventListener("change", updateSystemTheme);
+
+    // Listen for theme changes from other windows (e.g. main window changing settings)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEY && e.newValue) {
+        try {
+          const newConfig = JSON.parse(e.newValue);
+          setThemeConfig((prev) => ({ ...prev, ...newConfig }));
+        } catch (err) {
+          console.error("Failed to parse synced theme config:", err);
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+
     return () => {
       query.removeEventListener("change", updateSystemTheme);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 

@@ -175,6 +175,8 @@ export const SettingsSchema = z.object({
   favorite_transcription_models: z.array(z.string()).optional().default([]),
   offline_vad_force_interval_ms: z.number().optional().default(2000),
   offline_vad_force_window_seconds: z.number().optional().default(30),
+  confidence_check_enabled: z.boolean().optional().default(false),
+  confidence_threshold: z.number().min(0).max(100).optional().default(70),
 });
 
 export const BindingResponseSchema = z.object({

@@ -12,6 +12,7 @@ mod llm_client;
 mod managers;
 mod online_asr;
 mod overlay;
+mod review_window;
 mod settings;
 mod sherpa;
 mod shortcut;
@@ -199,6 +200,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
+
+    // Create the review window (hidden by default)
+    review_window::create_review_window(app_handle);
 }
 
 #[tauri::command]
@@ -370,6 +374,11 @@ pub fn run() {
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,
+            shortcut::change_confidence_check_setting,
+            shortcut::change_confidence_threshold_setting,
+            shortcut::confirm_reviewed_transcription,
+            shortcut::cancel_transcription_review,
+            review_window::review_window_ready,
             shortcut::test_post_process_model_inference,
             shortcut::test_asr_model_inference,
             trigger_update_check,

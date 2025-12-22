@@ -5,8 +5,8 @@ use crate::settings::{
     AppSettings, LLMPrompt, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
-    CreateChatCompletionRequestArgs,
+    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{error, info};
@@ -28,6 +28,45 @@ fn clean_response_content(content: &str) -> String {
     }
 
     text.trim().to_string()
+}
+
+/// System prompt for confidence checking
+const CONFIDENCE_SYSTEM_PROMPT: &str = r#"你是一个语音识别质量检测助手。在处理完用户的文本后，请评估该语音识别结果的准确性。
+
+请检查以下问题：
+- 含糊不清或无意义的词语
+- 语句不通顺或语法错误
+- 奇怪的符号或疑似乱码
+- 明显的误识别（同音字错误等）
+- 语句片段化或不完整
+
+输出格式要求：
+1. 首先输出处理后的文本（按用户要求处理）
+2. 然后在最后一行单独输出置信度标记：---CONFIDENCE:XX---
+   其中 XX 是 0-100 的整数，表示你对识别结果准确性的评估
+   - 90-100：非常准确，语句通顺
+   - 70-89：基本准确，可能有小问题
+   - 50-69：存在明显问题，建议用户确认
+   - 0-49：可能严重错误，需要用户审阅"#;
+
+/// Parse LLM response to extract text and confidence score
+fn parse_response_with_confidence(content: &str) -> (String, Option<u8>) {
+    let cleaned = clean_response_content(content);
+
+    // Look for confidence marker at the end
+    if let Some(pos) = cleaned.rfind("---CONFIDENCE:") {
+        let text_part = cleaned[..pos].trim();
+        let marker_part = &cleaned[pos + 14..]; // Skip "---CONFIDENCE:"
+
+        if let Some(end_pos) = marker_part.find("---") {
+            if let Ok(score) = marker_part[..end_pos].trim().parse::<u8>() {
+                return (text_part.to_string(), Some(score.min(100)));
+            }
+        }
+    }
+
+    // No confidence marker found, return cleaned text with no score
+    (cleaned, None)
 }
 
 fn resolve_effective_model(
@@ -59,7 +98,8 @@ async fn execute_llm_request(
     provider: &PostProcessProvider,
     model: &str,
     processed_prompt: &str,
-) -> (Option<String>, bool) {
+    enable_confidence_check: bool,
+) -> (Option<String>, bool, Option<u8>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -68,24 +108,24 @@ async fn execute_llm_request(
                     "overlay-error",
                     serde_json::json!({ "code": "apple_intelligence_unavailable" }),
                 );
-                return (None, true);
+                return (None, true, None);
             }
 
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
             return match apple_intelligence::process_text(processed_prompt, token_limit) {
-                Ok(result) => (Some(result), false),
+                Ok(result) => (Some(result), false, None), // Apple Intelligence doesn't support confidence check
                 Err(err) => {
                     error!("Apple Intelligence failed: {}", err);
                     let _ = app_handle.emit(
                         "overlay-error",
                         serde_json::json!({ "code": "apple_intelligence_failed" }),
                     );
-                    (None, true)
+                    (None, true, None)
                 }
             };
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        return (None, false);
+        return (None, false, None);
     }
 
     let api_key = settings
@@ -102,46 +142,69 @@ async fn execute_llm_request(
                 "overlay-error",
                 serde_json::json!({ "code": "llm_init_failed" }),
             );
-            return (None, true);
+            return (None, true, None);
         }
     };
 
-    let msg = ChatCompletionRequestUserMessageArgs::default()
+    // Build messages list
+    let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
+
+    // Add system prompt for confidence checking if enabled
+    if enable_confidence_check {
+        if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+            .content(CONFIDENCE_SYSTEM_PROMPT)
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::System(sys_msg));
+        }
+    }
+
+    // Add user message
+    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
         .content(processed_prompt.to_string())
         .build()
-        .ok()
-        .map(ChatCompletionRequestMessage::User);
+    {
+        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
 
-    if let Some(msg) = msg {
-        let req = CreateChatCompletionRequestArgs::default()
-            .model(model.to_string())
-            .messages(vec![msg])
-            .build()
-            .ok();
+    if messages.is_empty() || (enable_confidence_check && messages.len() < 2) {
+        return (None, false, None);
+    }
 
-        if let Some(req) = req {
-            match client.chat().create(req).await {
-                Ok(resp) => {
-                    let content = resp
-                        .choices
-                        .first()
-                        .and_then(|c| c.message.content.clone())
-                        .unwrap_or_default();
-                    return (Some(clean_response_content(&content)), false);
+    let req = CreateChatCompletionRequestArgs::default()
+        .model(model.to_string())
+        .messages(messages)
+        .build()
+        .ok();
+
+    if let Some(req) = req {
+        match client.chat().create(req).await {
+            Ok(resp) => {
+                let content = resp
+                    .choices
+                    .first()
+                    .and_then(|c| c.message.content.clone())
+                    .unwrap_or_default();
+
+                if enable_confidence_check {
+                    let (text, confidence) = parse_response_with_confidence(&content);
+                    return (Some(text), false, confidence);
+                } else {
+                    return (Some(clean_response_content(&content)), false, None);
                 }
-                Err(err) => {
-                    error!("LLM request failed: {:?}", err);
-                    let _ = app_handle.emit(
-                        "overlay-error",
-                        serde_json::json!({ "code": "llm_request_failed" }),
-                    );
-                    return (None, true);
-                }
+            }
+            Err(err) => {
+                error!("LLM request failed: {:?}", err);
+                let _ = app_handle.emit(
+                    "overlay-error",
+                    serde_json::json!({ "code": "llm_request_failed" }),
+                );
+                return (None, true, None);
             }
         }
     }
 
-    (None, false)
+    (None, false, None)
 }
 
 pub(crate) async fn maybe_post_process_transcription(
@@ -150,14 +213,20 @@ pub(crate) async fn maybe_post_process_transcription(
     transcription: &str,
     streaming_transcription: Option<&str>,
     show_overlay: bool,
-) -> (Option<String>, Option<String>, Option<String>, bool) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<u8>,
+) {
     if !settings.post_process_enabled {
-        return (None, None, None, false);
+        return (None, None, None, false, None);
     }
 
     let provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false),
+        None => return (None, None, None, false, None),
     };
 
     // Determine the prompt to use and the effective input content
@@ -323,7 +392,7 @@ pub(crate) async fn maybe_post_process_transcription(
         } else {
             let selected_prompt_id = match &settings.post_process_selected_prompt_id {
                 Some(id) => id,
-                None => return (None, None, None, false),
+                None => return (None, None, None, false, None),
             };
 
             let p = match settings
@@ -332,7 +401,7 @@ pub(crate) async fn maybe_post_process_transcription(
                 .find(|p| p.id == *selected_prompt_id)
             {
                 Some(p) => p,
-                None => return (None, None, None, false),
+                None => return (None, None, None, false, None),
             };
 
             (p, transcription.to_string())
@@ -341,7 +410,7 @@ pub(crate) async fn maybe_post_process_transcription(
 
     let model = match resolve_effective_model(settings, provider, prompt) {
         Some(m) => m,
-        None => return (None, None, Some(prompt.id.clone()), false),
+        None => return (None, None, Some(prompt.id.clone()), false, None),
     };
 
     if show_overlay {
@@ -353,9 +422,25 @@ pub(crate) async fn maybe_post_process_transcription(
         .replace("${output}", &transcription_content)
         .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
 
-    let (result, err) =
-        execute_llm_request(app_handle, settings, provider, &model, &processed_prompt).await;
-    (result, Some(model), Some(prompt.id.clone()), err)
+    // Check if confidence checking is enabled in settings
+    let enable_confidence_check = settings.confidence_check_enabled;
+
+    let (result, err, confidence) = execute_llm_request(
+        app_handle,
+        settings,
+        provider,
+        &model,
+        &processed_prompt,
+        enable_confidence_check,
+    )
+    .await;
+    (
+        result,
+        Some(model),
+        Some(prompt.id.clone()),
+        err,
+        confidence,
+    )
 }
 
 pub(crate) async fn post_process_text_with_prompt(
@@ -365,15 +450,21 @@ pub(crate) async fn post_process_text_with_prompt(
     streaming_transcription: Option<&str>,
     prompt: &LLMPrompt,
     show_overlay: bool,
-) -> (Option<String>, Option<String>, Option<String>, bool) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<u8>,
+) {
     let provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false),
+        None => return (None, None, None, false, None),
     };
 
     let model = match resolve_effective_model(settings, provider, prompt) {
         Some(m) => m,
-        None => return (None, None, Some(prompt.id.clone()), false),
+        None => return (None, None, Some(prompt.id.clone()), false, None),
     };
 
     if show_overlay {
@@ -385,8 +476,16 @@ pub(crate) async fn post_process_text_with_prompt(
         .replace("${output}", transcription)
         .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
 
-    let (result, err) =
-        execute_llm_request(app_handle, settings, provider, &model, &processed_prompt).await;
+    // For manual prompt processing, don't enable confidence checking
+    let (result, err, confidence) = execute_llm_request(
+        app_handle,
+        settings,
+        provider,
+        &model,
+        &processed_prompt,
+        false,
+    )
+    .await;
 
     if let Some(res) = &result {
         info!(
@@ -396,7 +495,13 @@ pub(crate) async fn post_process_text_with_prompt(
         );
     }
 
-    (result, Some(model), Some(prompt.id.clone()), err)
+    (
+        result,
+        Some(model),
+        Some(prompt.id.clone()),
+        err,
+        confidence,
+    )
 }
 
 pub(crate) async fn maybe_convert_chinese_variant(

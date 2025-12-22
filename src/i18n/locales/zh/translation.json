@@ -124,6 +124,17 @@
     },
     "title": "概览"
   },
+  "transcription": {
+    "review": {
+      "title": "审阅转录",
+      "confidence": "置信度",
+      "description": "转录可能包含错误，请审阅并在需要时编辑。",
+      "placeholder": "在此编辑转录内容...",
+      "hint": "⌘/Ctrl + Enter 确认, Escape 取消",
+      "confirm": "确认并插入",
+      "insert": "插入"
+    }
+  },
   "errors": {
     "loadDirectory": "加载目录时出错: {{error}}"
   },
@@ -396,7 +407,8 @@
     "status": {
       "llm": "后处理中…",
       "recording": "录音中…",
-      "transcribing": "转录中…"
+      "transcribing": "转录中…",
+      "review": "审阅中…"
     }
   },
   "settings": {
@@ -962,6 +974,12 @@
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
         "updateSuccess": "提示词更新成功"
+      },
+      "confidenceCheck": {
+        "title": "置信度检测",
+        "description": "当 LLM 报告低置信度时，提示用户审阅转录结果",
+        "threshold": "置信度阈值",
+        "thresholdHint": "低于此分数的转录将提示用户审阅"
       },
       "title": "后期处理"
     },

@@ -5,15 +5,16 @@ import { Box, Button, Flex, Heading, Tabs } from "@radix-ui/themes";
 import { IconCheck, IconDeviceFloppy, IconPlus } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { DynamicIcon } from "../../shared/IconPicker";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
+import { ConfidenceCheckSettings } from "./ConfidenceCheckSettings";
 import {
   CommandPrefixes,
   DeletePromptDialog,
   PromptEditor,
 } from "./prompts/components";
 import { usePrompts } from "./prompts/hooks/usePrompts";
-import { DynamicIcon } from "../../shared/IconPicker";
 
 const PromptsConfiguration: React.FC = () => {
   const { t } = useTranslation();
@@ -60,6 +61,15 @@ const PromptsConfiguration: React.FC = () => {
 
         {enabled && (
           <Box pb="2">
+            {/* Confidence Check Settings */}
+            <Box
+              pb="4"
+              mb="4"
+              style={{ borderBottom: "1px solid var(--gray-5)" }}
+            >
+              <ConfidenceCheckSettings />
+            </Box>
+
             {/* Command Prefixes Configuration */}
             <CommandPrefixes
               t={t}

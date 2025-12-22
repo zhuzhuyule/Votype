@@ -1271,6 +1271,125 @@ pub fn change_favorite_transcription_models_setting(
     Ok(())
 }
 
+#[tauri::command]
+pub fn change_confidence_check_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.confidence_check_enabled = enabled;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "confidence_check_enabled",
+            "value": enabled
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_confidence_threshold_setting(app: AppHandle, threshold: u8) -> Result<(), String> {
+    if threshold > 100 {
+        return Err("Threshold must be between 0 and 100".to_string());
+    }
+
+    let mut settings = settings::get_settings(&app);
+    settings.confidence_threshold = threshold;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "confidence_threshold",
+            "value": threshold
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn confirm_reviewed_transcription(
+    app: AppHandle,
+    text: String,
+    history_id: Option<i64>,
+) -> Result<(), String> {
+    use crate::tray::{change_tray_icon, TrayIconState};
+    use std::time::Duration;
+
+    log::info!(
+        "confirm_reviewed_transcription called with history_id: {:?}, text length: {}",
+        history_id,
+        text.len()
+    );
+
+    // Hide review window and reset tray icon
+    crate::review_window::hide_review_window(&app);
+    change_tray_icon(&app, TrayIconState::Idle);
+
+    // Update history if we have an ID
+    let resolved_history_id = history_id.or_else(crate::review_window::get_last_review_history_id);
+    if let Some(id) = resolved_history_id {
+        let hm = app
+            .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
+            .ok_or("History manager not available")?;
+
+        // Run the update in a background task
+        let hm_clone = (*hm).clone();
+        let text_clone = text.clone();
+        tauri::async_runtime::spawn(async move {
+            log::info!("Updating history entry {} with reviewed text", id);
+            // Use the precision update method to preserve metadata
+            if let Err(e) = hm_clone.update_reviewed_text(id, text_clone).await {
+                log::error!("Failed to update history with reviewed text: {}", e);
+            }
+        });
+    } else {
+        log::warn!("confirm_reviewed_transcription called without history_id");
+    }
+
+    if let Some(info) = crate::review_window::get_last_active_window() {
+        if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
+            log::warn!("Failed to focus previous app: {}", e);
+        } else {
+            std::thread::sleep(Duration::from_millis(120));
+        }
+    }
+
+    // Paste the text
+    if let Err(e) = crate::utils::paste(text, app) {
+        return Err(format!("Failed to paste text: {}", e));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn cancel_transcription_review(
+    app: AppHandle,
+    text: Option<String>,
+    history_id: Option<i64>,
+) -> Result<(), String> {
+    use crate::tray::{change_tray_icon, TrayIconState};
+
+    log::info!(
+        "cancel_transcription_review called with history_id: {:?}",
+        history_id
+    );
+
+    // Hide review window and reset tray icon
+    crate::review_window::hide_review_window(&app);
+    change_tray_icon(&app, TrayIconState::Idle);
+
+    if history_id.is_some() || text.is_some() {
+        log::info!("Review cancelled; history already contains LLM output");
+    }
+
+    log::info!("Transcription review cancelled by user completed");
+    Ok(())
+}
+
 /// Determine whether a shortcut string contains at least one non-modifier key.
 /// We allow single non-modifier keys (e.g. "f5" or "space") but disallow
 /// modifier-only combos (e.g. "ctrl" or "ctrl+shift").

@@ -7371,6 +7371,7 @@ dependencies = [
  "transcribe-rs",
  "vad-rs",
  "windows 0.61.3",
+ "x11rb",
 ]
 
 [[package]]

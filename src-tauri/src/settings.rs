@@ -280,6 +280,12 @@ pub struct AppSettings {
     pub offline_vad_force_interval_ms: u64,
     #[serde(default = "default_offline_vad_force_window_seconds")]
     pub offline_vad_force_window_seconds: u64,
+    /// Enable LLM-based confidence checking for transcriptions
+    #[serde(default = "default_confidence_check_enabled")]
+    pub confidence_check_enabled: bool,
+    /// Confidence threshold (0-100). Below this threshold, user review is required.
+    #[serde(default = "default_confidence_threshold")]
+    pub confidence_threshold: u8,
 }
 
 fn default_model() -> String {
@@ -467,6 +473,14 @@ fn default_offline_vad_force_window_seconds() -> u64 {
     30
 }
 
+fn default_confidence_check_enabled() -> bool {
+    false
+}
+
+fn default_confidence_threshold() -> u8 {
+    70
+}
+
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![LLMPrompt {
         id: "default_improve_transcriptions".to_string(),
@@ -631,6 +645,8 @@ pub fn get_default_settings() -> AppSettings {
         favorite_transcription_models: default_favorite_transcription_models(),
         offline_vad_force_interval_ms: default_offline_vad_force_interval_ms(),
         offline_vad_force_window_seconds: default_offline_vad_force_window_seconds(),
+        confidence_check_enabled: default_confidence_check_enabled(),
+        confidence_threshold: default_confidence_threshold(),
     }
 }
 

@@ -609,6 +609,51 @@ impl HistoryManager {
         Ok(())
     }
 
+    pub async fn update_reviewed_text(&self, id: i64, post_processed_text: String) -> Result<()> {
+        let conn = self.get_connection()?;
+        let corrected_char_count = post_processed_text.chars().count() as i64;
+
+        // Get the old corrected_char_count to calculate delta for global stats
+        let old_corrected_char_count: i64 = conn
+            .query_row(
+                "SELECT COALESCE(corrected_char_count, 0) FROM transcription_history WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        // Only update text and char count, leave prompt/model session info untouched
+        conn.execute(
+            "UPDATE transcription_history SET 
+                post_processed_text = ?1, 
+                corrected_char_count = ?2 
+             WHERE id = ?3",
+            params![post_processed_text, corrected_char_count, id],
+        )?;
+
+        let corrected_char_delta = corrected_char_count - old_corrected_char_count;
+
+        // Update global_stats: duration/entries remain unchanged
+        self.update_global_stats(
+            &conn,
+            0,
+            0,
+            0,
+            corrected_char_delta,
+            0, // entry was already marked as post-processed
+            None,
+        )?;
+
+        debug!("Updated reviewed text for transcription {}", id);
+
+        // Emit history updated event
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
+        Ok(())
+    }
+
     pub async fn update_transcription_post_processing(
         &self,
         id: i64,
