@@ -10,6 +10,8 @@ use async_openai::types::{
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{error, info};
+use serde::Deserialize;
+
 use tauri::{AppHandle, Emitter};
 
 fn clean_response_content(content: &str) -> String {
@@ -31,42 +33,125 @@ fn clean_response_content(content: &str) -> String {
 }
 
 /// System prompt for confidence checking
-const CONFIDENCE_SYSTEM_PROMPT: &str = r#"你是一个语音识别质量检测助手。在处理完用户的文本后，请评估该语音识别结果的准确性。
+const CONFIDENCE_SYSTEM_PROMPT: &str = r#"你是一个语音识别质量检测助手。只评估「处理后的文本」本身的质量，不需要解释中间过程。
 
-请检查以下问题：
+请检查以下问题（仅用于整体评分，不需要逐字标注）：
 - 含糊不清或无意义的词语
 - 语句不通顺或语法错误
 - 奇怪的符号或疑似乱码
-- 明显的误识别（同音字错误等）
+- 明显的误识别（同音字/近音词错误等）
 - 语句片段化或不完整
+- 英文识别错误或拼写异常
 
-输出格式要求：
-1. 首先输出处理后的文本（按用户要求处理）
-2. 然后在最后一行单独输出置信度标记：---CONFIDENCE:XX---
-   其中 XX 是 0-100 的整数，表示你对识别结果准确性的评估
-   - 90-100：非常准确，语句通顺
-   - 70-89：基本准确，可能有小问题
-   - 50-69：存在明显问题，建议用户确认
-   - 0-49：可能严重错误，需要用户审阅"#;
+评分说明：
+- 置信度是最终文本整体准确率的估计（0-100）
+- 只有当最终文本仍存在问题时才填写 reason，必须指明「最终文本里具体有问题的片段或位置」，并说明“为什么有问题”
+  - 每一条 reason 都应包含：问题片段 + 问题原因（例如语义不通顺、指代不清、歧义、用词不当、语法错误等）
+  - 如果有多处问题，reason 用数组按顺序列出
+  - 如果最终文本已通顺准确，则 reason 置空
 
-/// Parse LLM response to extract text and confidence score
-fn parse_response_with_confidence(content: &str) -> (String, Option<u8>) {
+
+标点与格式要求：
+- 必须保留输出文本中的标点符号，不要遗漏或丢失
+- 如果你修正了标点或语气不通顺，必须在输出文本中体现
+
+输出格式要求（仅输出 JSON，不要输出其他文本）：
+{
+  "text": "处理后的文本",
+  "confidence": 0-100 的整数,
+  "reason": ["`问题片段1` 问题原因", "`问题片段2` 问题原因"]
+}
+
+只输出 JSON，不要 Markdown"#;
+
+#[derive(Debug, Deserialize)]
+struct LlmReviewResponse {
+    pub text: Option<String>,
+    pub confidence: Option<u8>,
+    pub reason: Option<serde_json::Value>,
+}
+
+fn extract_json_block(content: &str) -> Option<String> {
+    if let Some(start) = content.find("```json") {
+        let rest = &content[start + 7..];
+        if let Some(end) = rest.find("```") {
+            return Some(rest[..end].trim().to_string());
+        }
+    }
+    if let Some(start) = content.find("```") {
+        let rest = &content[start + 3..];
+        if let Some(end) = rest.find("```") {
+            return Some(rest[..end].trim().to_string());
+        }
+    }
+    let start = content.find('{')?;
+    let end = content.rfind('}')?;
+    if end > start {
+        return Some(content[start..=end].trim().to_string());
+    }
+    None
+}
+
+fn normalize_reason(reason_value: serde_json::Value) -> Option<Vec<String>> {
+    let mut items: Vec<String> = Vec::new();
+    match reason_value {
+        serde_json::Value::String(value) => {
+            let trimmed = value.trim();
+            if !trimmed.is_empty() {
+                items.push(trimmed.to_string());
+            }
+        }
+        serde_json::Value::Array(values) => {
+            for item in values {
+                if let serde_json::Value::String(value) = item {
+                    let trimmed = value.trim();
+                    if !trimmed.is_empty() {
+                        items.push(trimmed.to_string());
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    if items.is_empty() {
+        None
+    } else {
+        Some(items)
+    }
+}
+
+/// Parse LLM response to extract text, confidence score, and reason
+fn parse_response_with_confidence(content: &str) -> (String, Option<u8>, Option<Vec<String>>) {
     let cleaned = clean_response_content(content);
 
-    // Look for confidence marker at the end
+    if let Some(json) = extract_json_block(&cleaned) {
+        if let Ok(parsed) = serde_json::from_str::<LlmReviewResponse>(&json) {
+            if let Some(text) = parsed.text {
+                let mut confidence = parsed.confidence.map(|v| v.min(100));
+                let reason = parsed.reason.and_then(normalize_reason);
+                if reason.is_none() {
+                    confidence = Some(100);
+                }
+                return (text, confidence, reason);
+            }
+        }
+    }
+
+    // Back-compat: Look for confidence marker at the end
     if let Some(pos) = cleaned.rfind("---CONFIDENCE:") {
         let text_part = cleaned[..pos].trim();
         let marker_part = &cleaned[pos + 14..]; // Skip "---CONFIDENCE:"
 
         if let Some(end_pos) = marker_part.find("---") {
             if let Ok(score) = marker_part[..end_pos].trim().parse::<u8>() {
-                return (text_part.to_string(), Some(score.min(100)));
+                return (text_part.to_string(), Some(score.min(100)), None);
             }
         }
     }
 
     // No confidence marker found, return cleaned text with no score
-    (cleaned, None)
+    (cleaned, None, None)
 }
 
 fn resolve_effective_model(
@@ -99,7 +184,7 @@ async fn execute_llm_request(
     model: &str,
     processed_prompt: &str,
     enable_confidence_check: bool,
-) -> (Option<String>, bool, Option<u8>) {
+) -> (Option<String>, bool, Option<u8>, Option<Vec<String>>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -108,24 +193,24 @@ async fn execute_llm_request(
                     "overlay-error",
                     serde_json::json!({ "code": "apple_intelligence_unavailable" }),
                 );
-                return (None, true, None);
+                return (None, true, None, None);
             }
 
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
             return match apple_intelligence::process_text(processed_prompt, token_limit) {
-                Ok(result) => (Some(result), false, None), // Apple Intelligence doesn't support confidence check
+                Ok(result) => (Some(result), false, None, None), // Apple Intelligence doesn't support confidence check
                 Err(err) => {
                     error!("Apple Intelligence failed: {}", err);
                     let _ = app_handle.emit(
                         "overlay-error",
                         serde_json::json!({ "code": "apple_intelligence_failed" }),
                     );
-                    (None, true, None)
+                    (None, true, None, None)
                 }
             };
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        return (None, false, None);
+        return (None, false, None, None);
     }
 
     let api_key = settings
@@ -142,7 +227,7 @@ async fn execute_llm_request(
                 "overlay-error",
                 serde_json::json!({ "code": "llm_init_failed" }),
             );
-            return (None, true, None);
+            return (None, true, None, None);
         }
     };
 
@@ -168,7 +253,7 @@ async fn execute_llm_request(
     }
 
     if messages.is_empty() || (enable_confidence_check && messages.len() < 2) {
-        return (None, false, None);
+        return (None, false, None, None);
     }
 
     let req = CreateChatCompletionRequestArgs::default()
@@ -187,10 +272,10 @@ async fn execute_llm_request(
                     .unwrap_or_default();
 
                 if enable_confidence_check {
-                    let (text, confidence) = parse_response_with_confidence(&content);
-                    return (Some(text), false, confidence);
+                    let (text, confidence, reason) = parse_response_with_confidence(&content);
+                    return (Some(text), false, confidence, reason);
                 } else {
-                    return (Some(clean_response_content(&content)), false, None);
+                    return (Some(clean_response_content(&content)), false, None, None);
                 }
             }
             Err(err) => {
@@ -199,12 +284,12 @@ async fn execute_llm_request(
                     "overlay-error",
                     serde_json::json!({ "code": "llm_request_failed" }),
                 );
-                return (None, true, None);
+                return (None, true, None, None);
             }
         }
     }
 
-    (None, false, None)
+    (None, false, None, None)
 }
 
 pub(crate) async fn maybe_post_process_transcription(
@@ -219,14 +304,15 @@ pub(crate) async fn maybe_post_process_transcription(
     Option<String>,
     bool,
     Option<u8>,
+    Option<Vec<String>>,
 ) {
     if !settings.post_process_enabled {
-        return (None, None, None, false, None);
+        return (None, None, None, false, None, None);
     }
 
     let provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None),
+        None => return (None, None, None, false, None, None),
     };
 
     // Determine the prompt to use and the effective input content
@@ -392,7 +478,7 @@ pub(crate) async fn maybe_post_process_transcription(
         } else {
             let selected_prompt_id = match &settings.post_process_selected_prompt_id {
                 Some(id) => id,
-                None => return (None, None, None, false, None),
+                None => return (None, None, None, false, None, None),
             };
 
             let p = match settings
@@ -401,7 +487,7 @@ pub(crate) async fn maybe_post_process_transcription(
                 .find(|p| p.id == *selected_prompt_id)
             {
                 Some(p) => p,
-                None => return (None, None, None, false, None),
+                None => return (None, None, None, false, None, None),
             };
 
             (p, transcription.to_string())
@@ -410,7 +496,7 @@ pub(crate) async fn maybe_post_process_transcription(
 
     let model = match resolve_effective_model(settings, provider, prompt) {
         Some(m) => m,
-        None => return (None, None, Some(prompt.id.clone()), false, None),
+        None => return (None, None, Some(prompt.id.clone()), false, None, None),
     };
 
     if show_overlay {
@@ -425,7 +511,7 @@ pub(crate) async fn maybe_post_process_transcription(
     // Check if confidence checking is enabled in settings
     let enable_confidence_check = settings.confidence_check_enabled;
 
-    let (result, err, confidence) = execute_llm_request(
+    let (result, err, confidence, reason) = execute_llm_request(
         app_handle,
         settings,
         provider,
@@ -440,6 +526,7 @@ pub(crate) async fn maybe_post_process_transcription(
         Some(prompt.id.clone()),
         err,
         confidence,
+        reason,
     )
 }
 
@@ -456,15 +543,16 @@ pub(crate) async fn post_process_text_with_prompt(
     Option<String>,
     bool,
     Option<u8>,
+    Option<Vec<String>>,
 ) {
     let provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None),
+        None => return (None, None, None, false, None, None),
     };
 
     let model = match resolve_effective_model(settings, provider, prompt) {
         Some(m) => m,
-        None => return (None, None, Some(prompt.id.clone()), false, None),
+        None => return (None, None, Some(prompt.id.clone()), false, None, None),
     };
 
     if show_overlay {
@@ -477,7 +565,7 @@ pub(crate) async fn post_process_text_with_prompt(
         .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
 
     // For manual prompt processing, don't enable confidence checking
-    let (result, err, confidence) = execute_llm_request(
+    let (result, err, confidence, reason) = execute_llm_request(
         app_handle,
         settings,
         provider,
@@ -501,6 +589,7 @@ pub(crate) async fn post_process_text_with_prompt(
         Some(prompt.id.clone()),
         err,
         confidence,
+        reason,
     )
 }
 

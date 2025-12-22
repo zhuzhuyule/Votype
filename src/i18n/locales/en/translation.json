@@ -942,6 +942,29 @@
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully"
       },
+      "confidenceCheck": {
+        "title": "Confidence Check",
+        "description": "Trigger review when AI reports low confidence in transcription",
+        "threshold": "Confidence Threshold",
+        "thresholdHint": "Scores below this value will trigger a review",
+        "insertStabilityHint": "If insertion is unstable, you can disable this feature temporarily."
+      },
+      "appRules": {
+        "title": "Application Rules",
+        "description": "Set different behaviors for specific apps (e.g. Always Review for CLI, Direct Insert for Chats)",
+        "addPlaceholder": "Enter app name...",
+        "capture": "Detect",
+        "empty": "No application rules configured",
+        "suggestions": "Recently Used Applications",
+        "manualAdd": "Add Manually",
+        "addRuleHead": "Add New Rule",
+        "fromHistory": "From History",
+        "policy": {
+          "auto": "Auto (Based on confidence)",
+          "always": "Always Review",
+          "never": "Direct Insert (Skip review)"
+        }
+      },
       "title": "Post Process"
     },
     "shortcuts": {

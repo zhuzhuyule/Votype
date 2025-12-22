@@ -13,6 +13,48 @@ interface ReviewData {
   text: string;
   confidence: number;
   history_id: number | null;
+  reason?: string[] | null;
+}
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("ReviewWindow crashed:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Box
+          style={{
+            padding: 20,
+            color: "red",
+            background: "rgba(255,255,255,0.9)",
+            borderRadius: 8,
+            maxWidth: 400,
+            margin: "20px auto",
+          }}
+        >
+          <h3>Something went wrong.</h3>
+          <pre style={{ fontSize: 11, overflow: "auto" }}>
+            {this.state.error?.toString()}
+          </pre>
+        </Box>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 const ReviewApp: React.FC = () => {
@@ -58,14 +100,16 @@ const ReviewApp: React.FC = () => {
           background: "transparent",
         }}
       >
-        {reviewData ? (
-          <ReviewWindow
-            initialData={reviewData}
-            onClose={() => setReviewData(null)}
-          />
-        ) : (
-          <Box className="review-root" />
-        )}
+        <ErrorBoundary>
+          {reviewData ? (
+            <ReviewWindow
+              initialData={reviewData}
+              onClose={() => setReviewData(null)}
+            />
+          ) : (
+            <Box className="review-root" />
+          )}
+        </ErrorBoundary>
       </Box>
     </RadixThemeProvider>
   );

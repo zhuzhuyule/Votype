@@ -672,7 +672,7 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                let (processed_text, model, prompt_id, err, confidence) =
+                                let (processed_text, model, prompt_id, err, confidence, reason) =
                                     maybe_post_process_transcription(
                                         &ah_clone,
                                         &settings_clone,
@@ -702,9 +702,13 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
 
-                                // Check confidence and emit review event if below threshold
+                                // Check confidence and emit review event only when the final text is not acceptable.
                                 if let Some(score) = confidence {
-                                    if score < settings_clone.confidence_threshold {
+                                    let has_reason = reason
+                                        .as_ref()
+                                        .map(|r| !r.trim().is_empty())
+                                        .unwrap_or(false);
+                                    if score < settings_clone.confidence_threshold && has_reason {
                                         log::info!(
                                             "Low confidence score ({}/100), requesting user review",
                                             score
@@ -736,6 +740,7 @@ impl ShortcutAction for TranscribeAction {
                                             final_text.clone(),
                                             score,
                                             history_id,
+                                            reason.clone(),
                                         );
                                         // Hide the overlay since review window is now shown
                                         utils::hide_recording_overlay(&ah_clone);

@@ -18,6 +18,7 @@ struct ReviewWindowPayload {
     text: String,
     confidence: u8,
     history_id: Option<i64>,
+    reason: Option<Vec<String>>,
 }
 
 static REVIEW_WINDOW_READY: AtomicBool = AtomicBool::new(false);
@@ -74,7 +75,13 @@ pub fn create_review_window(app_handle: &AppHandle) {
             debug!("Review window created successfully (hidden)");
 
             // Debug: show review window immediately on startup
-            show_review_window(app_handle, "Review window debug".to_string(), 100, None);
+            // show_review_window(
+            //     app_handle,
+            //     "Review window debug".to_string(),
+            //     100,
+            //     None,
+            //     None,
+            // );
         }
         Err(e) => {
             error!("Failed to create review window: {}", e);
@@ -88,17 +95,27 @@ pub fn show_review_window(
     text: String,
     confidence: u8,
     history_id: Option<i64>,
+    reason: Option<Vec<String>>,
 ) {
     debug!(
         "show_review_window called with confidence: {}, text length: {}",
         confidence,
         text.len()
     );
+    let preview: String = text.chars().take(80).collect();
+    log::info!(
+        "review_window payload: history_id={:?}, confidence={}, reason_count={}, preview=\"{}\"",
+        history_id,
+        confidence,
+        reason.as_ref().map(|r| r.len()).unwrap_or(0),
+        preview
+    );
 
     let payload = ReviewWindowPayload {
         text,
         confidence,
         history_id,
+        reason,
     };
 
     {
@@ -140,6 +157,7 @@ pub fn hide_review_window(app_handle: &AppHandle) {
 #[tauri::command]
 pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
     REVIEW_WINDOW_READY.store(true, Ordering::SeqCst);
+    log::info!("review_window_ready received");
 
     let payload = {
         let pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
@@ -147,6 +165,12 @@ pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
     };
 
     if let Some(payload) = payload {
+        log::info!(
+            "review_window_ready replaying payload: history_id={:?}, confidence={}, reason_count={}",
+            payload.history_id,
+            payload.confidence,
+            payload.reason.as_ref().map(|r| r.len()).unwrap_or(0)
+        );
         if emit_review_payload(&app, payload) {
             let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
             *pending = None;

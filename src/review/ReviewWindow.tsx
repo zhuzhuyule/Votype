@@ -3,7 +3,10 @@
 
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import Placeholder from "@tiptap/extension-placeholder";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CancelIcon } from "../components/icons";
 import "./ReviewWindow.css";
@@ -12,6 +15,7 @@ interface ReviewData {
   text: string;
   confidence: number;
   history_id: number | null;
+  reason?: string[] | null;
 }
 
 interface ReviewWindowProps {
@@ -24,30 +28,58 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const [text, setText] = useState(initialData.text);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const isMac =
+    typeof navigator !== "undefined" &&
+    navigator.platform.toLowerCase().includes("mac");
+  const insertShortcut = isMac ? "⌘⏎" : "Ctrl⏎";
 
-  // Focus textarea on mount
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit,
+        Placeholder.configure({
+          placeholder: t(
+            "transcription.review.placeholder",
+            "Edit transcription...",
+          ),
+        }),
+      ],
+      content: initialData.text,
+      editorProps: {
+        attributes: {
+          class: "review-editor",
+        },
+      },
+    },
+    [t],
+  );
+
   useEffect(() => {
+    if (!editor) return;
+    editor.commands.setContent(initialData.text, false);
+  }, [editor, initialData.text]);
+
+  useEffect(() => {
+    if (!editor) return;
     setTimeout(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.select();
+      editor.commands.focus("end");
     }, 50);
-  }, []);
+  }, [editor]);
 
-  // Update text when initial data changes
-  useEffect(() => {
-    setText(initialData.text);
-  }, [initialData.text]);
+  const getEditorText = useCallback(() => {
+    if (!editor) return "";
+    return editor.getText({ blockSeparator: "\n" });
+  }, [editor]);
 
   const handleInsert = useCallback(async () => {
-    if (isSubmitting || !text.trim()) return;
+    const currentText = getEditorText();
+    if (isSubmitting || !currentText.trim()) return;
 
     setIsSubmitting(true);
     try {
       await invoke("confirm_reviewed_transcription", {
-        text: text.trim(),
+        text: currentText.trim(),
         history_id: initialData.history_id,
       });
       onClose();
@@ -56,23 +88,32 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [text, initialData.history_id, onClose, isSubmitting]);
+  }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
 
-  const handleCancel = useCallback(async () => {
+  const reasonItems = (initialData.reason ?? [])
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const reasonList =
+    reasonItems.length > 0 ? reasonItems : ["需要关注：请检查语句通顺性。"];
+
+  const handleCancel = useCallback(() => {
     if (isSubmitting) return;
 
-    try {
-      const trimmed = text.trim();
-      await invoke("cancel_transcription_review", {
-        text: trimmed.length > 0 ? trimmed : null,
-        history_id: initialData.history_id,
-      });
-      onClose();
-    } catch (e) {
-      console.error("Failed to cancel review:", e);
-      onClose();
-    }
-  }, [onClose, isSubmitting, initialData.history_id, text]);
+    const trimmed = getEditorText().trim();
+    const historyId = initialData.history_id;
+    onClose();
+
+    void (async () => {
+      try {
+        await invoke("cancel_transcription_review", {
+          text: trimmed.length > 0 ? trimmed : null,
+          history_id: historyId,
+        });
+      } catch (e) {
+        console.error("Failed to cancel review:", e);
+      }
+    })();
+  }, [onClose, isSubmitting, initialData.history_id, getEditorText]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback(
@@ -142,26 +183,25 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               </Text>
             </Flex>
             <div
-              className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
-              onClick={handleCancel}
+              className="review-tooltip review-tooltip-bottom"
+              data-tooltip="按 ESC 也可关闭"
             >
-              <CancelIcon />
+              <div
+                className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
+                onClick={handleCancel}
+              >
+                <CancelIcon />
+              </div>
             </div>
           </Flex>
         </div>
 
         {/* Editable textarea */}
         <div className="flex-1 p-3 flex flex-col min-h-0">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
+          <EditorContent
+            editor={editor}
             onKeyDown={handleKeyDown}
-            className="flex-1 w-full border-none bg-transparent text-[var(--gray-12)] text-[14px] leading-[1.6] resize-none outline-none font-inherit p-0"
-            placeholder={t(
-              "transcription.review.placeholder",
-              "Edit transcription...",
-            )}
+            className="flex-1 min-h-0"
           />
         </div>
 
@@ -172,25 +212,31 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           className="px-3.5 py-2.5 border-t border-[var(--gray-4)] bg-[var(--gray-1)]"
         >
           <div className="flex flex-col gap-0.5">
-            <Text size="1" className="text-[var(--gray-9)] text-[11px]">
-              {t("transcription.review.hint", "Tab to insert, Esc to cancel")}
-            </Text>
-            <Text size="1" className="text-[var(--gray-9)] text-[11px]">
-              {t(
-                "transcription.review.insertStabilityHint",
-                "If insertion is unstable, disable this feature temporarily.",
-              )}
-            </Text>
+            <ol className="review-reason-list">
+              {reasonList.map((item, index) => (
+                <li key={`${index}-${item}`}>{item}</li>
+              ))}
+            </ol>
           </div>
-          <Button
-            variant="classic"
-            size="2"
-            onClick={handleInsert}
-            disabled={isSubmitting || !text.trim()}
-            data-tauri-drag-region="false"
-          >
-            {t("transcription.review.insert", "Insert")}
-          </Button>
+          <Flex align="center" gap="2">
+            <div
+              className="review-tooltip review-tooltip-top"
+              data-tooltip={t(
+                "transcription.review.insertStabilityHint",
+                `快捷键：${insertShortcut}\n如果插入不稳定，可暂时关闭该功能。`,
+              )}
+            >
+              <Button
+                variant="classic"
+                size="2"
+                onClick={handleInsert}
+                disabled={isSubmitting || !getEditorText().trim()}
+                data-tauri-drag-region="false"
+              >
+                {t("transcription.review.insert", "Insert")}
+              </Button>
+            </div>
+          </Flex>
         </Flex>
       </div>
     </div>

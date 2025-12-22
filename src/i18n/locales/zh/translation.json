@@ -979,8 +979,26 @@
         "title": "置信度检测",
         "description": "当 LLM 报告低置信度时，提示用户审阅转录结果",
         "threshold": "置信度阈值",
-        "thresholdHint": "低于此分数的转录将提示用户审阅"
+        "thresholdHint": "低于此分数的转录将提示用户审阅",
+        "insertStabilityHint": "如果上屏不稳定，可以临时关闭此功能。"
       },
+      "appRules": {
+        "title": "应用适配规则",
+        "description": "针对特定应用设置不同的行为（例如：命令行应用始终审阅，聊天工具直接上屏）",
+        "addPlaceholder": "输入应用名称...",
+        "capture": "检测",
+        "empty": "暂无应用规则",
+        "suggestions": "最近使用的应用",
+        "manualAdd": "手动输入",
+        "addRuleHead": "添加新规则",
+        "fromHistory": "从历史中选择",
+        "policy": {
+          "auto": "自动（基于置信度）",
+          "always": "始终审阅",
+          "never": "直接上屏（跳过审阅）"
+        }
+      },
+
       "title": "后期处理"
     },
     "shortcuts": {

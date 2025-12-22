@@ -1293,7 +1293,6 @@ pub fn change_confidence_threshold_setting(app: AppHandle, threshold: u8) -> Res
     if threshold > 100 {
         return Err("Threshold must be between 0 and 100".to_string());
     }
-
     let mut settings = settings::get_settings(&app);
     settings.confidence_threshold = threshold;
     settings::write_settings(&app, settings);
@@ -1327,14 +1326,12 @@ pub fn confirm_reviewed_transcription(
     // Hide review window and reset tray icon
     crate::review_window::hide_review_window(&app);
     change_tray_icon(&app, TrayIconState::Idle);
-
     // Update history if we have an ID
     let resolved_history_id = history_id.or_else(crate::review_window::get_last_review_history_id);
     if let Some(id) = resolved_history_id {
         let hm = app
             .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
             .ok_or("History manager not available")?;
-
         // Run the update in a background task
         let hm_clone = (*hm).clone();
         let text_clone = text.clone();
@@ -1348,7 +1345,6 @@ pub fn confirm_reviewed_transcription(
     } else {
         log::warn!("confirm_reviewed_transcription called without history_id");
     }
-
     if let Some(info) = crate::review_window::get_last_active_window() {
         if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
             log::warn!("Failed to focus previous app: {}", e);
@@ -1361,7 +1357,6 @@ pub fn confirm_reviewed_transcription(
     if let Err(e) = crate::utils::paste(text, app) {
         return Err(format!("Failed to paste text: {}", e));
     }
-
     Ok(())
 }
 
@@ -1372,24 +1367,30 @@ pub fn cancel_transcription_review(
     history_id: Option<i64>,
 ) -> Result<(), String> {
     use crate::tray::{change_tray_icon, TrayIconState};
+    use std::time::Duration;
 
     log::info!(
         "cancel_transcription_review called with history_id: {:?}",
         history_id
     );
-
     // Hide review window and reset tray icon
     crate::review_window::hide_review_window(&app);
     change_tray_icon(&app, TrayIconState::Idle);
 
+    if let Some(info) = crate::review_window::get_last_active_window() {
+        if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
+            log::warn!("Failed to focus previous app on cancel: {}", e);
+        } else {
+            std::thread::sleep(Duration::from_millis(120));
+        }
+    }
+
     if history_id.is_some() || text.is_some() {
         log::info!("Review cancelled; history already contains LLM output");
     }
-
     log::info!("Transcription review cancelled by user completed");
     Ok(())
 }
-
 /// Determine whether a shortcut string contains at least one non-modifier key.
 /// We allow single non-modifier keys (e.g. "f5" or "space") but disallow
 /// modifier-only combos (e.g. "ctrl" or "ctrl+shift").
