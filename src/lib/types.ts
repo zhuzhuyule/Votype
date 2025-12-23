@@ -87,6 +87,8 @@ export const LLMPromptSchema = z.object({
   model_id: z.string().optional(),
   alias: z.string().optional().nullable(),
   icon: z.string().optional().nullable(),
+  compliance_check_enabled: z.boolean().default(false),
+  compliance_threshold: z.number().optional().default(20),
 });
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;

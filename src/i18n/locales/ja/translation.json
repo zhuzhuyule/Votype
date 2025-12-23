@@ -753,12 +753,13 @@
         "createNew": "新しいプロンプトを作成",
         "createPrompt": "プロンプトを作成",
         "deletePrompt": "プロンプトを削除",
+        "enableReview": "レビューを有効にする",
         "noPrompts": "プロンプトがありません",
         "promptInstructions": "プロンプトの指示",
         "promptInstructionsPlaceholder": "文字起こし後に実行する指示を記述します。例：${context} に基づいて、テキスト内の専門用語を修正する：${output}",
         "promptLabel": "プロンプト名",
         "promptLabelPlaceholder": "プロンプト名を入力",
-        "promptTip": "ヒント：以下の変数を使用できます（クリックしてコピー）：<br/><code>${output}</code>：最終的な文字起こし結果。<br/><code>${streaming_output}</code>：リアルタイム文字起こし中の途中経過テキスト。<br/><code>${hot_words}</code>：詳細設定で定義したカスタム語彙/ホットワード。<br/><code>${prompt}</code>：現在使用しているプロンプト案の表示名。<br/><code>${context}</code>：操作対象のウィンドウからの歴史的なチャット情報。",
+        "promptTip": "ヒント：以下の変数を使用できます（クリックしてコピー）：<br/><code>${output}</code>：最終的な文字起こし結果。<br/><code>${streaming_output}</code>：リアルタイム文字起こし中の途中経過テキスト。<br/><code>${hot_words}</code>：詳細設定で定義したカスタム語彙/ホットワード。<br/><code>${prompt}</code>：現在使用しているプロンプト案の表示名。<br/><code>${context}</code>：操作対象のウィンドウからの歴史的なチャット情報。<br/><b>注意: プロンプトで `text` と `confidence` を含む JSON 構造を出力するように指示すると、自動的にレビューウィンドウが起動します。</b>",
         "selectedPrompt": {
           "description": "文字起こしを改善するテンプレートを選択するか、新しく作成します。<code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code> などの占位符を使用できます。",
           "title": "選択したプロンプト"

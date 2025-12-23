@@ -755,12 +755,13 @@
         "createNew": "Créer un nouveau prompt",
         "createPrompt": "Créer le prompt",
         "deletePrompt": "Supprimer le prompt",
+        "enableReview": "Activer la révision",
         "noPrompts": "Aucun prompt disponible",
         "promptInstructions": "Instructions du prompt",
         "promptInstructionsPlaceholder": "Écrivez les instructions à exécuter après la transcription. Exemple : En fonction de ${context}, corrigez les termes techniques dans le texte suivant : ${output}",
         "promptLabel": "Libellé du prompt",
         "promptLabelPlaceholder": "Entrez le nom du prompt",
-        "promptTip": "Astuce : Les variables suivantes sont disponibles (cliquez pour copier) :<br/><code>${output}</code> : Le résultat final du texte transcrit.<br/><code>${streaming_output}</code> : Texte intermédiaire pendant la transcription en temps réel.<br/><code>${hot_words}</code> : Mots-clés personnalisés définis dans les paramètres.<br/><code>${prompt}</code> : Nom du schéma de prompt actuellement actif.<br/><code>${context}</code> : Informations d'historique de chat de la fenêtre active.",
+        "promptTip": "Astuce : Les variables suivantes sont disponibles (cliquez pour copier) :<br/><code>${output}</code> : Le résultat final du texte transcrit.<br/><code>${streaming_output}</code> : Texte intermédiaire pendant la transcription en temps réel.<br/><code>${hot_words}</code> : Mots-clés personnalisés définis dans les paramètres.<br/><code>${prompt}</code> : Nom du schéma de prompt actuellement actif.<br/><code>${context}</code> : Informations d'historique de chat de la fenêtre active.<br/><b>Remarque : Si votre prompt demande à l'IA de sortir une structure JSON avec les champs `text` et `confidence`, la fenêtre de révision s'activera automatiquement.</b>",
         "selectedPrompt": {
           "description": "Sélectionnez un modèle pour affiner les transcriptions ou créez-en un nouveau. Vous pouvez utiliser des variables comme <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, etc.",
           "title": "Prompt sélectionné"

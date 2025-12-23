@@ -3,7 +3,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsGroup } from "../ui/SettingsGroup";
 import { AppProfilesManager } from "./post-processing/AppReviewPolicies";
-import { ConfidenceCheckSettings } from "./post-processing/ConfidenceCheckSettings";
 
 export const AppProfilesSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -11,16 +10,6 @@ export const AppProfilesSettings: React.FC = () => {
   return (
     <Box className="w-full max-w-5xl mx-auto">
       <Flex direction="column" gap="5">
-        <SettingsGroup
-          title={t(
-            "settings.postProcessing.confidenceCheck.title",
-            "Auto-Review Threshold",
-          )}
-          description={t("settings.postProcessing.confidenceCheck.description")}
-        >
-          <ConfidenceCheckSettings />
-        </SettingsGroup>
-
         <SettingsGroup
           title={t(
             "settings.postProcessing.appRules.title",

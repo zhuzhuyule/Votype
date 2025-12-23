@@ -30,6 +30,10 @@ export interface UsePromptsReturn {
   setDraftModelId: (value: string | null) => void;
   draftIcon: string | null;
   setDraftIcon: (value: string | null) => void;
+  draftComplianceCheck: boolean;
+  setDraftComplianceCheck: (value: boolean) => void;
+  draftComplianceThreshold: number;
+  setDraftComplianceThreshold: (value: number) => void;
   currentAliases: string[];
   currentAliasInput: string;
   setCurrentAliasInput: (value: string) => void;
@@ -77,6 +81,8 @@ export const usePrompts = (): UsePromptsReturn => {
   const [draftAlias, setDraftAlias] = useState("");
   const [draftModelId, setDraftModelId] = useState<string | null>(null);
   const [draftIcon, setDraftIcon] = useState<string | null>(null);
+  const [draftComplianceCheck, setDraftComplianceCheck] = useState(false);
+  const [draftComplianceThreshold, setDraftComplianceThreshold] = useState(70);
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
 
@@ -114,7 +120,10 @@ export const usePrompts = (): UsePromptsReturn => {
       draftContent !== viewingPrompt.prompt ||
       draftAlias !== (viewingPrompt.alias || "") ||
       (draftModelId || null) !== (viewingPrompt.model_id || null) ||
-      (draftIcon || null) !== (viewingPrompt.icon || null)
+      (draftIcon || null) !== (viewingPrompt.icon || null) ||
+      draftComplianceCheck !==
+        (viewingPrompt.compliance_check_enabled || false) ||
+      draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70)
     );
   }, [
     isCreating,
@@ -124,6 +133,9 @@ export const usePrompts = (): UsePromptsReturn => {
     draftAlias,
     draftModelId,
     draftIcon,
+    draftIcon,
+    draftComplianceCheck,
+    draftComplianceThreshold,
   ]);
 
   // Text models for dropdown
@@ -169,6 +181,8 @@ export const usePrompts = (): UsePromptsReturn => {
         setDraftAlias("");
         setDraftModelId(null);
         setDraftIcon(null);
+        setDraftComplianceCheck(false);
+        setDraftComplianceThreshold(20);
         setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
@@ -181,6 +195,8 @@ export const usePrompts = (): UsePromptsReturn => {
       setDraftAlias(viewingPrompt.alias || "");
       setDraftModelId(viewingPrompt.model_id || null);
       setDraftIcon(viewingPrompt.icon || null);
+      setDraftComplianceCheck(viewingPrompt.compliance_check_enabled || false);
+      setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
       setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
@@ -297,6 +313,8 @@ export const usePrompts = (): UsePromptsReturn => {
           modelId: draftModelId === "default" ? null : draftModelId,
           alias: draftAlias.trim() || null,
           icon: draftIcon,
+          complianceCheckEnabled: draftComplianceCheck,
+          complianceThreshold: Math.round(draftComplianceThreshold),
         });
         await refreshSettings();
         setCurrentTab(newPrompt.id);
@@ -305,6 +323,12 @@ export const usePrompts = (): UsePromptsReturn => {
         }
         toast.success(t("settings.postProcessing.prompts.createSuccess"));
       } else if (viewingPrompt) {
+        console.log("Saving prompt:", {
+          id: viewingPrompt.id,
+          name: draftName.trim(),
+          complianceCheckEnabled: draftComplianceCheck,
+          complianceThreshold: draftComplianceThreshold,
+        });
         await invoke("update_post_process_prompt", {
           id: viewingPrompt.id,
           name: draftName.trim(),
@@ -312,6 +336,8 @@ export const usePrompts = (): UsePromptsReturn => {
           modelId: draftModelId === "default" ? null : draftModelId,
           alias: draftAlias.trim() || null,
           icon: draftIcon,
+          complianceCheckEnabled: draftComplianceCheck,
+          complianceThreshold: Math.round(draftComplianceThreshold),
         });
         await refreshSettings();
         toast.success(t("settings.postProcessing.prompts.updateSuccess"));
@@ -326,6 +352,8 @@ export const usePrompts = (): UsePromptsReturn => {
     draftAlias,
     draftModelId,
     draftIcon,
+    draftComplianceCheck,
+    draftComplianceThreshold,
     isCreating,
     validateAliases,
     viewingPrompt,
@@ -406,6 +434,10 @@ export const usePrompts = (): UsePromptsReturn => {
     setDraftModelId,
     draftIcon,
     setDraftIcon,
+    draftComplianceCheck,
+    setDraftComplianceCheck,
+    draftComplianceThreshold,
+    setDraftComplianceThreshold,
     currentAliases,
     currentAliasInput,
     setCurrentAliasInput,

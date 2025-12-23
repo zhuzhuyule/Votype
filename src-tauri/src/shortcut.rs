@@ -581,6 +581,8 @@ pub fn add_post_process_prompt(
     model_id: Option<String>,
     alias: Option<String>,
     icon: Option<String>,
+    compliance_check_enabled: bool,
+    compliance_threshold: Option<u8>,
 ) -> Result<LLMPrompt, String> {
     let mut settings = settings::get_settings(&app);
 
@@ -594,6 +596,8 @@ pub fn add_post_process_prompt(
         model_id,
         alias,
         icon,
+        compliance_check_enabled,
+        compliance_threshold: Some(compliance_threshold.unwrap_or(20)),
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
@@ -611,7 +615,14 @@ pub fn update_post_process_prompt(
     model_id: Option<String>,
     alias: Option<String>,
     icon: Option<String>,
+    compliance_check_enabled: bool,
+    compliance_threshold: Option<u8>,
 ) -> Result<(), String> {
+    println!(
+        "DEBUG: update_post_process_prompt called. ID: {}, Enabled: {}, Threshold: {:?}",
+        id, compliance_check_enabled, compliance_threshold
+    );
+
     let mut settings = settings::get_settings(&app);
 
     if let Some(existing_prompt) = settings
@@ -624,6 +635,8 @@ pub fn update_post_process_prompt(
         existing_prompt.model_id = model_id;
         existing_prompt.alias = alias;
         existing_prompt.icon = icon;
+        existing_prompt.compliance_check_enabled = compliance_check_enabled;
+        existing_prompt.compliance_threshold = Some(compliance_threshold.unwrap_or(20));
         settings::write_settings(&app, settings);
         Ok(())
     } else {

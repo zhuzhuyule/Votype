@@ -8,6 +8,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Mutex,
 };
+use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 const REVIEW_WINDOW_WIDTH: f64 = 520.0;
@@ -27,6 +28,7 @@ struct ReviewWindowPayload {
 }
 
 static REVIEW_WINDOW_READY: AtomicBool = AtomicBool::new(false);
+static MAIN_WINDOW_WAS_HIDDEN: AtomicBool = AtomicBool::new(false);
 static PENDING_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
@@ -113,6 +115,33 @@ fn find_monitor_for_cursor(
     monitors.first().cloned()
 }
 
+fn record_main_window_state(app_handle: &AppHandle) -> bool {
+    let Some(main_window) = app_handle.get_webview_window("main") else {
+        MAIN_WINDOW_WAS_HIDDEN.store(false, Ordering::SeqCst);
+        return false;
+    };
+
+    let was_visible = main_window.is_visible().unwrap_or(false);
+    let should_suppress = !was_visible;
+    MAIN_WINDOW_WAS_HIDDEN.store(should_suppress, Ordering::SeqCst);
+    should_suppress
+}
+
+fn schedule_hide_main_window(app_handle: AppHandle) {
+    std::thread::spawn(move || {
+        for delay in [0_u64, 120, 350] {
+            if delay > 0 {
+                std::thread::sleep(Duration::from_millis(delay));
+            }
+            if let Some(main_window) = app_handle.get_webview_window("main") {
+                if main_window.is_visible().unwrap_or(false) {
+                    let _ = main_window.hide();
+                }
+            }
+        }
+    });
+}
+
 fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
     let cursor = fetch_cursor_position().ok();
     let monitors = window.available_monitors().ok().unwrap_or_default();
@@ -189,6 +218,7 @@ pub fn show_review_window(
     history_id: Option<i64>,
     reason: Option<String>,
 ) {
+    let should_hide_main = record_main_window_state(app_handle);
     debug!(
         "show_review_window called with change_percent: {}, text length: {}",
         change_percent,
@@ -235,6 +265,9 @@ pub fn show_review_window(
         debug!("review_window.show() result: {:?}", show_result);
         let focus_result = review_window.set_focus();
         debug!("review_window.set_focus() result: {:?}", focus_result);
+        if should_hide_main {
+            schedule_hide_main_window(app_handle.clone());
+        }
 
         if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
             if emit_review_payload(app_handle, payload) {
@@ -250,6 +283,9 @@ pub fn hide_review_window(app_handle: &AppHandle) {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         let _ = review_window.emit("review-window-hide", ());
         let _ = review_window.hide();
+    }
+    if MAIN_WINDOW_WAS_HIDDEN.swap(false, Ordering::SeqCst) {
+        schedule_hide_main_window(app_handle.clone());
     }
 }
 

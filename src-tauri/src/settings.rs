@@ -24,6 +24,10 @@ pub struct LLMPrompt {
     pub model_id: Option<String>,
     pub alias: Option<String>,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub compliance_check_enabled: bool,
+    #[serde(default)]
+    pub compliance_threshold: Option<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -521,14 +525,28 @@ fn default_post_process_context_limit() -> u8 {
 }
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
-    vec![LLMPrompt {
-        id: "default_improve_transcriptions".to_string(),
-        name: "Improve Transcriptions".to_string(),
-        prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和这些词相近，请优先修正为这些词）：\n${hot_words}\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
-        model_id: None,
-        alias: None,
-        icon: Some("IconWand".to_string()),
-    }]
+    vec![
+        LLMPrompt {
+            id: "default_improve_transcriptions".to_string(),
+            name: "Improve Transcriptions".to_string(),
+            prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和这些词相近，请优先修正为这些词）：\n${hot_words}\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
+            model_id: None,
+            alias: None,
+            icon: Some("IconWand".to_string()),
+            compliance_check_enabled: false,
+            compliance_threshold: Some(20),
+        },
+        LLMPrompt {
+            id: "system_default_correction".to_string(),
+            name: "Official Correction & Review".to_string(),
+            prompt: "You are a professional editor. Review the transcript and output a JSON result.\n你是一位专业编辑。请审阅转录文本并输出 JSON 结果。\n\nRules (规则):\n1. Fix errors based on context (${context}) and hot words (${hot_words}).\n2. If the result is natural and accurate, confidence is 100 and reason is empty.\n3. If there are uncertainties, provide a score (0-100) and a brief reason.\n\nOutput Format (输出格式):\n{\n  \"text\": \"${output}\",\n  \"confidence\": 0-100,\n  \"reason\": \"\"\n}\n\nTranscript:\n${output}".to_string(),
+            model_id: None,
+            alias: Some("纠错,矫正".to_string()),
+            icon: Some("IconShieldCheck".to_string()),
+            compliance_check_enabled: true,
+            compliance_threshold: Some(20),
+        }
+    ]
 }
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {

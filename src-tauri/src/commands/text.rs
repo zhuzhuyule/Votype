@@ -66,7 +66,6 @@ Votype 环境变量支持：
         &processed_prompt,
         vec![format!("system: {}", system_prompt)], // simplified historical role injection if needed, or just system prompt
         None,
-        false, // disable confidence check for this internal optimization
     )
     .await;
 

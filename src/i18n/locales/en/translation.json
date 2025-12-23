@@ -895,12 +895,10 @@
         }
       },
       "confidenceCheck": {
-        "description": "Automatically trigger review if the text change percentage (after LLM processing) exceeds this threshold.",
-        "enabled": "Enable auto review",
-        "insertStabilityHint": "If insertion is unstable, you can disable this feature temporarily.",
-        "threshold": "Change Threshold",
-        "thresholdHint": "Scores above this value will trigger a review",
-        "title": "Auto-Review Threshold"
+        "description": "Adjust the sensitivity for prompts that have review enabled. Higher values mean the review window appears less often.",
+        "threshold": "Sensitivity Threshold",
+        "thresholdHint": "Scores above this value will trigger the review window.",
+        "title": "Auto-Review Sensitivity"
       },
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {
@@ -986,6 +984,7 @@
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
         "deleteSuccess": "Prompt deleted successfully",
+        "enableReview": "Enable Review Trigger",
         "editPrompt": "Edit Prompt",
         "newPromptName": "New Prompt",
         "noAliases": "No aliases added",
@@ -996,7 +995,7 @@
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tips: The following variables are available (click to copy):<br/><code>${output}</code>: The final transcribed text result.<br/><code>${streaming_output}</code>: Intermediate real-time transcription text.<br/><code>${hot_words}</code>: Custom words/terminology from your settings.<br/><code>${prompt}</code>: Display name of the currently active prompt scheme.<br/><code>${context}</code>: Historical chat information from the active window.",
+        "promptTip": "Tips: The following variables are available (click to copy):<br/><code>${output}</code>: The final transcribed text result.<br/><code>${streaming_output}</code>: Intermediate real-time transcription text.<br/><code>${hot_words}</code>: Custom words/terminology from your settings.<br/><code>${prompt}</code>: Display name of the currently active prompt scheme.<br/><code>${context}</code>: Historical chat information from the active window.<br/><b>Note: If your prompt instructs the AI to output a JSON structure with text and confidence fields, the review window will trigger automatically.</b>",
         "selectedPrompt": {
           "description": "Select a template for refining transcriptions or create a new one. You can use variables like <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, <code>${prompt}</code>, or <code>${context}</code>.",
           "title": "Selected Prompt"

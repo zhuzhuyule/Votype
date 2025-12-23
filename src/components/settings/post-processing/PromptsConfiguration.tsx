@@ -51,6 +51,10 @@ const PromptsConfiguration: React.FC = () => {
     handleSetAsActive,
     handleAddPrefix,
     handleRemovePrefix,
+    draftComplianceCheck,
+    setDraftComplianceCheck,
+    draftComplianceThreshold,
+    setDraftComplianceThreshold,
   } = usePrompts();
 
   return (
@@ -167,6 +171,10 @@ const PromptsConfiguration: React.FC = () => {
                       onAddAlias={handleAddAlias}
                       onRemoveAlias={handleRemoveAlias}
                       textModels={textModels}
+                      draftComplianceCheck={draftComplianceCheck}
+                      setDraftComplianceCheck={setDraftComplianceCheck}
+                      draftComplianceThreshold={draftComplianceThreshold}
+                      setDraftComplianceThreshold={setDraftComplianceThreshold}
                     />
                   </Flex>
                 </Box>

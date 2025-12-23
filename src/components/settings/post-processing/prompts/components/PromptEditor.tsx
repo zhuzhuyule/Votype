@@ -1,10 +1,18 @@
 // PromptEditor - Form for editing a single prompt
 
-import { Box, Flex, Grid, Text, TextField } from "@radix-ui/themes";
+import {
+  Box,
+  Flex,
+  Grid,
+  Slider as RadixSlider,
+  Switch,
+  Text,
+  TextField,
+} from "@radix-ui/themes";
 import { TFunction } from "i18next";
 import React from "react";
-import { Dropdown } from "../../../../ui/Dropdown";
 import { IconPicker } from "../../../../shared/IconPicker";
+import { Dropdown } from "../../../../ui/Dropdown";
 import { ResizableEditor } from "./ResizableEditor";
 import { TagInput } from "./TagInput";
 
@@ -31,6 +39,10 @@ interface PromptEditorProps {
   onAddAlias: () => void;
   onRemoveAlias: (alias: string) => void;
   textModels: TextModelOption[];
+  draftComplianceCheck: boolean;
+  setDraftComplianceCheck: (value: boolean) => void;
+  draftComplianceThreshold: number;
+  setDraftComplianceThreshold: (value: number) => void;
 }
 
 export const PromptEditor: React.FC<PromptEditorProps> = ({
@@ -51,6 +63,10 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
   onAddAlias,
   onRemoveAlias,
   textModels,
+  draftComplianceCheck,
+  setDraftComplianceCheck,
+  draftComplianceThreshold,
+  setDraftComplianceThreshold,
 }) => {
   const handleAliasKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -127,6 +143,47 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
           </Text>
         )}
       </Box>
+
+      <Flex align="center" gap="4" my="2">
+        <Flex align="center" gap="2">
+          <Switch
+            checked={draftComplianceCheck}
+            onCheckedChange={setDraftComplianceCheck}
+            size="1"
+            style={{ cursor: "pointer" }}
+          />
+          <Text size="2">
+            {t("settings.postProcessing.prompts.enableReview")}
+          </Text>
+        </Flex>
+
+        {draftComplianceCheck && (
+          <Flex align="center" gap="3" style={{ flex: 1, maxWidth: "240px" }}>
+            <Text size="2" color="gray">
+              {t(
+                "settings.postProcessing.confidenceCheck.threshold",
+                "Change Threshold",
+              )}
+            </Text>
+            <Box style={{ flex: 1 }}>
+              <RadixSlider
+                value={[draftComplianceThreshold]}
+                onValueChange={(vals: number[]) =>
+                  setDraftComplianceThreshold(vals[0])
+                }
+                min={5}
+                max={100}
+                step={5}
+                size="1"
+                style={{ cursor: "pointer" }}
+              />
+            </Box>
+            <Text size="2" style={{ width: "36px", textAlign: "right" }}>
+              {Math.round(draftComplianceThreshold)}%
+            </Text>
+          </Flex>
+        )}
+      </Flex>
 
       {/* Main Editor */}
       <ResizableEditor

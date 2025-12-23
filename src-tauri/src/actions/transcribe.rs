@@ -859,20 +859,26 @@ impl ShortcutAction for TranscribeAction {
                                 let override_prompt_id =
                                     app_profile.and_then(|p| p.prompt_id.clone());
 
-                                let (processed_text, model, prompt_id, err, _confidence, reason) =
-                                    maybe_post_process_transcription(
-                                        &ah_clone,
-                                        &settings_clone,
-                                        &transcription_clone,
-                                        secondary.as_deref(),
-                                        true,
-                                        override_prompt_id,
-                                        active_window_snapshot_for_review
-                                            .as_ref()
-                                            .map(|info| info.app_name.clone()),
-                                        history_id,
-                                    )
-                                    .await;
+                                let (
+                                    processed_text,
+                                    model,
+                                    prompt_id,
+                                    err,
+                                    confidence_score,
+                                    reason,
+                                ) = maybe_post_process_transcription(
+                                    &ah_clone,
+                                    &settings_clone,
+                                    &transcription_clone,
+                                    secondary.as_deref(),
+                                    true,
+                                    override_prompt_id,
+                                    active_window_snapshot_for_review
+                                        .as_ref()
+                                        .map(|info| info.app_name.clone()),
+                                    history_id,
+                                )
+                                .await;
 
                                 error_shown = err;
                                 used_model = model;
@@ -903,7 +909,39 @@ impl ShortcutAction for TranscribeAction {
                                     crate::settings::AppReviewPolicy::Always => true,
                                     crate::settings::AppReviewPolicy::Never => false,
                                     crate::settings::AppReviewPolicy::Auto => {
-                                        change_percent >= settings_clone.confidence_threshold as u8
+                                        // Gate Auto policy with PROMPT-level setting
+                                        // Find the prompt object used
+                                        let (prompt_compliance_enabled, prompt_threshold) =
+                                            if let Some(pid) = &post_process_prompt_id {
+                                                settings_clone
+                                                    .post_process_prompts
+                                                    .iter()
+                                                    .find(|p| &p.id == pid)
+                                                    .map(|p| {
+                                                        (
+                                                            p.compliance_check_enabled,
+                                                            p.compliance_threshold.unwrap_or(70),
+                                                        )
+                                                    })
+                                                    .unwrap_or((false, 70))
+                                            } else {
+                                                (false, 70)
+                                            };
+
+                                        if !prompt_compliance_enabled {
+                                            false
+                                        } else {
+                                            // Unified Risk Logic:
+                                            // 1. If LLM provides confidence (0-100, where 100 is best), Risk = 100 - confidence.
+                                            // 2. Otherwise, Risk = Change Percent (0-100, where 0 is no change).
+                                            // Trigger review if Risk >= Threshold.
+                                            let risk = if let Some(conf) = confidence_score {
+                                                100u8.saturating_sub(conf)
+                                            } else {
+                                                change_percent
+                                            };
+                                            risk >= prompt_threshold
+                                        }
                                     }
                                 };
 

@@ -755,12 +755,13 @@
         "createNew": "Tạo Prompt mới",
         "createPrompt": "Tạo Prompt",
         "deletePrompt": "Xóa Prompt",
+        "enableReview": "Bật kích hoạt đánh giá",
         "noPrompts": "Không có prompt nào",
         "promptInstructions": "Hướng dẫn Prompt",
         "promptInstructionsPlaceholder": "Viết hướng dẫn để chạy sau khi chuyển đổi. Ví dụ: Dựa trên ${context}, hãy sửa các thuật ngữ kỹ thuật trong văn bản sau: ${output}",
         "promptLabel": "Nhãn Prompt",
         "promptLabelPlaceholder": "Nhập tên prompt",
-        "promptTip": "Mẹo: Có sẵn các biến sau (nhấp để sao chép):<br/><code>${output}</code>: Kết quả văn bản chuyển đổi cuối cùng.<br/><code>${streaming_output}</code>: Văn bản trung gian trong quá trình chuyển đổi thời gian thực.<br/><code>${hot_words}</code>: Các từ khóa tùy chỉnh được định nghĩa trong cài đặt.<br/><code>${prompt}</code>: Tên hiển thị của cấu hình prompt đang hoạt động.<br/><code>${context}</code>: Thông tin lịch sử trò chuyện từ cửa sổ đang hoạt động.",
+        "promptTip": "Mẹo: Có sẵn các biến sau (nhấp để sao chép):<br/><code>${output}</code>: Kết quả văn bản chuyển đổi cuối cùng.<br/><code>${streaming_output}</code>: Văn bản trung gian trong quá trình chuyển đổi thời gian thực.<br/><code>${hot_words}</code>: Các từ khóa tùy chỉnh được định nghĩa trong cài đặt.<br/><code>${prompt}</code>: Tên hiển thị của cấu hình prompt đang hoạt động.<br/><code>${context}</code>: Thông tin lịch sử trò chuyện từ cửa sổ đang hoạt động.<br/><b>Lưu ý: Nếu prompt của bạn hướng dẫn AI xuất ra cấu trúc JSON với các trường `text` và `confidence`, cửa sổ xem xét sẽ tự động được kích hoạt.</b>",
         "selectedPrompt": {
           "description": "Chọn một mẫu để tinh chỉnh bản ghi hoặc tạo mới. Bạn có thể sử dụng các biến như <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, v.v.",
           "title": "Prompt đã chọn"

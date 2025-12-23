@@ -5,8 +5,8 @@ use crate::settings::{
     AppSettings, LLMPrompt, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
+    CreateChatCompletionRequestArgs,
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{error, info};
@@ -34,40 +34,6 @@ fn clean_response_content(content: &str) -> String {
 
     text.trim().to_string()
 }
-
-/// System prompt for confidence checking
-const CONFIDENCE_SYSTEM_PROMPT: &str = r#"你是一个语音识别质量检测助手。只评估「处理后的文本」本身的质量，不需要解释中间过程。
-
-请检查以下问题（仅用于整体评分，不需要逐字标注）：
-- 含糊不清或无意义的词语
-- 语句不通顺或语法错误
-- 奇怪的符号或疑似乱码
-- 明显的误识别（同音字/近音词错误等）
-- 语句片段化或不完整
-- 英文识别错误或拼写异常
-
-评分说明：
-- 置信度是最终文本整体准确率的估计（0-100）
-- 只对“最终文本本身”做点评：如果通顺准确，reason 置空；只有当最终文本仍不通顺/有明显困惑点时才填写
-- reason 仅描述最终文本的问题（例如语义不通顺、指代不清、语句残缺等），不要解释修改过程或为何改动
-
-禁止事项：
-- 不要解释“你是如何修改的”或“为何把某词改成某词”的过程
-- 只关注最终文本是否自然、语义是否准确/是否与原意偏离过大
-
-
-标点与格式要求：
-- 必须保留输出文本中的标点符号，不要遗漏或丢失
-- 如果你修正了标点或语气不通顺，必须在输出文本中体现
-
-输出格式要求（仅输出 JSON，不要输出其他文本）：
-{
-  "text": "处理后的文本",
-  "confidence": 0-100 的整数,
-  "reason": "一句话点评（可为空，只有最终文本有问题时填写）"
-}
-
-只输出 JSON，不要 Markdown"#;
 
 #[derive(Debug, Deserialize)]
 struct LlmReviewResponse {
@@ -190,7 +156,6 @@ pub async fn execute_llm_request(
     processed_prompt: &str,
     history: Vec<String>,
     app_name: Option<String>,
-    enable_confidence_check: bool,
 ) -> (Option<String>, bool, Option<u8>, Option<String>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -260,16 +225,6 @@ pub async fn execute_llm_request(
     // Build messages list
     let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
 
-    // Add system prompt for confidence checking if enabled
-    if enable_confidence_check {
-        if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-            .content(CONFIDENCE_SYSTEM_PROMPT)
-            .build()
-        {
-            messages.push(ChatCompletionRequestMessage::System(sys_msg));
-        }
-    }
-
     // 2. Add history as a single User message context block
     if !history.is_empty() {
         let history_block = format!(
@@ -294,7 +249,7 @@ pub async fn execute_llm_request(
         messages.push(ChatCompletionRequestMessage::User(user_msg));
     }
 
-    if messages.is_empty() || (enable_confidence_check && messages.len() < 2) {
+    if messages.is_empty() {
         return (None, false, None, None);
     }
 
@@ -313,12 +268,8 @@ pub async fn execute_llm_request(
                     .and_then(|c| c.message.content.clone())
                     .unwrap_or_default();
 
-                if enable_confidence_check {
-                    let (text, confidence, reason) = parse_response_with_confidence(&content);
-                    return (Some(text), false, confidence, reason);
-                } else {
-                    return (Some(clean_response_content(&content)), false, None, None);
-                }
+                let (text, confidence, reason) = parse_response_with_confidence(&content);
+                return (Some(text), false, confidence, reason);
             }
             Err(err) => {
                 error!("LLM request failed: {:?}", err);
@@ -616,7 +567,7 @@ pub(crate) async fn maybe_post_process_transcription(
     }
 
     // Check if confidence checking is enabled in settings
-    let enable_confidence_check = settings.confidence_check_enabled;
+    let _enable_confidence_check = settings.confidence_check_enabled;
 
     let (result, err, confidence, reason) = execute_llm_request(
         app_handle,
@@ -626,7 +577,6 @@ pub(crate) async fn maybe_post_process_transcription(
         &processed_prompt,
         history_entries,
         app_name,
-        enable_confidence_check,
     )
     .await;
     (
@@ -702,7 +652,6 @@ pub(crate) async fn post_process_text_with_prompt(
         &processed_prompt,
         Vec::new(), // No history for manual prompts
         None,
-        false,
     )
     .await;
 
