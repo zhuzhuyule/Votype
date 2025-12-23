@@ -43,7 +43,18 @@
     "skip": "Omitir",
     "update": "Actualizar",
     "useInput": "Usar \"{{input}}\"",
-    "yes": "Sí"
+    "yes": "Sí",
+    "aiOptimize": "Optimización IA",
+    "aiOptimizationSuccess": "Optimización IA exitosa",
+    "bold": "Negrita",
+    "italic": "Cursiva",
+    "h1": "Título 1",
+    "list": "Lista",
+    "quote": "Cita",
+    "code": "Código",
+    "link": "Enlace",
+    "fullscreen": "Pantalla completa",
+    "exitFullscreen": "Restaurar"
   },
   "dashboard": {
     "actions": {
@@ -745,12 +756,12 @@
         "deletePrompt": "Eliminar Prompt",
         "noPrompts": "No hay prompts disponibles",
         "promptInstructions": "Instrucciones del Prompt",
-        "promptInstructionsPlaceholder": "Escribe las instrucciones para ejecutar después de la transcripción. Ejemplo: Mejora la gramática y claridad del siguiente texto: ${output}",
+        "promptInstructionsPlaceholder": "Escribe las instrucciones para ejecutar después de la transcripción. Ejemplo: Basado en ${context}, corrige los términos técnicos en el siguiente texto: ${output}",
         "promptLabel": "Etiqueta del Prompt",
         "promptLabelPlaceholder": "Ingresa el nombre del prompt",
-        "promptTip": "Consejo: Usa <code>${output}</code> para insertar el texto transcrito en tu prompt.",
+        "promptTip": "Consejo: Las siguientes variables están disponibles (haz clic para copiar):<br/><code>${output}</code>: El resultado final del texto transcrito.<br/><code>${streaming_output}</code>: Texto intermedio durante la transcripción en tiempo real.<br/><code>${hot_words}</code>: Palabras clave definidas en la configuración avanzada.<br/><code>${prompt}</code>: Nombre visible del esquema de prompt activo.<br/><code>${context}</code>: Información histórica del chat desde la ventana activa.",
         "selectedPrompt": {
-          "description": "Selecciona una plantilla para refinar las transcripciones o crea una nueva. Usa ${output} dentro del texto del prompt para hacer referencia a la transcripción capturada.",
+          "description": "Selecciona una plantilla para refinar las transcripciones o crea una nueva. Puedes usar variables como <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, etc.",
           "title": "Prompt Seleccionado"
         },
         "selectPrompt": "Seleccionar un prompt",

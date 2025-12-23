@@ -442,6 +442,25 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
 }
 
 #[tauri::command]
+pub fn change_post_process_context_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_context_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_post_process_context_limit_setting(app: AppHandle, value: u8) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_context_limit = value;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
 pub fn change_post_process_base_url_setting(
     app: AppHandle,
     provider_id: String,
@@ -1311,29 +1330,6 @@ pub fn change_confidence_threshold_setting(app: AppHandle, threshold: u8) -> Res
 }
 
 #[tauri::command]
-pub fn add_app_review_policy(
-    app: AppHandle,
-    app_id: String,
-    policy: settings::AppReviewPolicy,
-) -> Result<(), String> {
-    log::info!("Adding review policy for app {}: {:?}", app_id, policy);
-    let mut settings = settings::get_settings(&app);
-    settings.app_review_policies.insert(app_id.clone(), policy);
-    settings::write_settings(&app, settings);
-
-    let _ = app.emit(
-        "settings-changed",
-        serde_json::json!({
-            "setting": "app_review_policies",
-            "app_id": app_id,
-            "policy": policy
-        }),
-    );
-
-    Ok(())
-}
-
-#[tauri::command]
 pub fn upsert_app_profile(app: AppHandle, profile: settings::AppProfile) -> Result<(), String> {
     log::info!("Upserting app profile: {:?}", profile);
     let mut settings = settings::get_settings(&app);
@@ -1415,32 +1411,6 @@ pub fn set_app_to_profile(app: AppHandle, mapping: HashMap<String, String>) -> R
         serde_json::json!({ "setting": "app_to_profile" }),
     );
     Ok(())
-}
-
-#[tauri::command]
-pub fn remove_app_review_policy(app: AppHandle, app_id: String) -> Result<(), String> {
-    log::info!("Removing review policy for app {}", app_id);
-    let mut settings = settings::get_settings(&app);
-    settings.app_review_policies.remove(&app_id);
-    settings::write_settings(&app, settings);
-
-    let _ = app.emit(
-        "settings-changed",
-        serde_json::json!({
-            "setting": "app_review_policies_removed",
-            "app_id": app_id
-        }),
-    );
-
-    Ok(())
-}
-
-#[tauri::command]
-pub fn get_app_review_policies(
-    app: AppHandle,
-) -> Result<HashMap<String, settings::AppReviewPolicy>, String> {
-    let settings = settings::get_settings(&app);
-    Ok(settings.app_review_policies)
 }
 
 #[tauri::command]

@@ -1,4 +1,5 @@
-import { Button, Flex, Text, TextField } from "@radix-ui/themes";
+import { Badge, Button, Flex, TextField } from "@radix-ui/themes";
+import { IconX } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
@@ -77,32 +78,25 @@ export const CustomWords: React.FC<CustomWordsProps> = React.memo(
         {customWords.length > 0 && (
           <Flex
             wrap="wrap"
-            gap="1"
+            gap="2"
             className={`px-4 p-2 ${grouped ? "" : "rounded-lg border border-mid-gray/20"}`}
           >
             {customWords.map((word) => (
-              <Button
+              <Badge
                 key={word}
-                onClick={() => handleRemoveWord(word)}
-                disabled={isUpdating("custom_words")}
-                className="inline-flex items-center gap-1 cursor-pointer"
-                aria-label={`${t("settings.advanced.customWords.remove")} ${word}`}
+                className={
+                  isUpdating("custom_words")
+                    ? "opacity-50 pointer-events-none"
+                    : ""
+                }
               >
-                <Text>{word}</Text>
-                <svg
-                  className="w-3 h-3"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </Button>
+                {word}
+                <IconX
+                  className="text-gray-400 hover:text-gray-600 cursor-pointer"
+                  onClick={() => handleRemoveWord(word)}
+                  size={14}
+                />
+              </Badge>
             ))}
           </Flex>
         )}

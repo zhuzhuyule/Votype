@@ -16,7 +16,7 @@ impl EnigoState {
 
     /// Get a mutable reference to Enigo, initializing it if needed.
     /// Returns an error if initialization fails (e.g., no Accessibility permission).
-    pub fn get_or_init(&self) -> Result<std::sync::MutexGuard<Option<Enigo>>, String> {
+    pub fn get_or_init(&self) -> Result<std::sync::MutexGuard<'_, Option<Enigo>>, String> {
         let mut enigo_opt = self
             .0
             .lock()

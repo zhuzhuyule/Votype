@@ -12,7 +12,10 @@ use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{error, info};
 use serde::Deserialize;
 
-use tauri::{AppHandle, Emitter};
+use std::sync::Arc;
+
+use crate::managers::history::HistoryManager;
+use tauri::{AppHandle, Emitter, Manager};
 
 fn clean_response_content(content: &str) -> String {
     let mut text = content
@@ -179,12 +182,14 @@ fn resolve_effective_model(
         .filter(|m| !m.trim().is_empty())
 }
 
-async fn execute_llm_request(
+pub async fn execute_llm_request(
     app_handle: &AppHandle,
     settings: &AppSettings,
     provider: &PostProcessProvider,
     model: &str,
     processed_prompt: &str,
+    history: Vec<String>,
+    app_name: Option<String>,
     enable_confidence_check: bool,
 ) -> (Option<String>, bool, Option<u8>, Option<String>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
@@ -198,8 +203,27 @@ async fn execute_llm_request(
                 return (None, true, None, None);
             }
 
+            let mut final_prompt = processed_prompt.to_string();
+            if !history.is_empty() {
+                let context_block = format!(
+                    "\n\nRecent context for application \"{}\":\n{}\n\n",
+                    app_name.clone().unwrap_or_default(),
+                    history
+                        .iter()
+                        .map(|s| format!("- {}", s))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                );
+                final_prompt = format!("{}{}", context_block, final_prompt);
+            }
+
+            info!(
+                "Apple Intelligence Request | Model: {} | Prompt: {}",
+                model, final_prompt
+            );
+
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
-            return match apple_intelligence::process_text(processed_prompt, token_limit) {
+            return match apple_intelligence::process_text(&final_prompt, token_limit) {
                 Ok(result) => (Some(result), false, None, None), // Apple Intelligence doesn't support confidence check
                 Err(err) => {
                     error!("Apple Intelligence failed: {}", err);
@@ -246,7 +270,23 @@ async fn execute_llm_request(
         }
     }
 
-    // Add user message
+    // 2. Add history as a single User message context block
+    if !history.is_empty() {
+        let history_block = format!(
+            "以下是对话的历史识别结果（来自应用 \"{}\"），仅用于提供上下文，请勿修改：\n\n{}",
+            app_name.clone().unwrap_or_default(),
+            history.join("\n")
+        );
+
+        if let Ok(ctx_msg) = async_openai::types::ChatCompletionRequestUserMessageArgs::default()
+            .content(history_block)
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::User(ctx_msg));
+        }
+    }
+
+    // 3. Add current prompt as the final User message
     if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
         .content(processed_prompt.to_string())
         .build()
@@ -301,6 +341,8 @@ pub(crate) async fn maybe_post_process_transcription(
     streaming_transcription: Option<&str>,
     show_overlay: bool,
     override_prompt_id: Option<String>,
+    app_name: Option<String>,
+    exclude_history_id: Option<i64>,
 ) -> (
     Option<String>,
     Option<String>,
@@ -508,10 +550,70 @@ pub(crate) async fn maybe_post_process_transcription(
         show_llm_processing_overlay(app_handle);
     }
 
-    let processed_prompt = prompt
+    let mut processed_prompt = prompt
         .prompt
         .replace("${output}", &transcription_content)
+        .replace("${prompt}", &prompt.name)
         .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
+
+    // Inject hot words
+    if !settings.custom_words.is_empty() {
+        let hot_words_list = settings
+            .custom_words
+            .iter()
+            .map(|w| format!("- {}", w))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if processed_prompt.contains("${hot_words}") {
+            processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
+        } else {
+            // Automatically append if not present in template
+            processed_prompt = format!(
+                "{}\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和这些词相近，请优先修正为这些词，直接在输出文本中体现，不要解释）：\n{}",
+                processed_prompt, hot_words_list
+            );
+        }
+    }
+
+    let mut history_entries = Vec::new();
+    if settings.post_process_context_enabled {
+        if let Some(app) = &app_name {
+            if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+                match hm.get_recent_history_texts_for_app(
+                    &app,
+                    settings.post_process_context_limit as usize,
+                    exclude_history_id,
+                ) {
+                    Ok(history) => {
+                        history_entries = history;
+                    }
+                    Err(e) => {
+                        error!("Failed to fetch history for context: {}", e);
+                    }
+                }
+            }
+        } else {
+        }
+    } else {
+    }
+
+    if !history_entries.is_empty() {
+        if processed_prompt.contains("${context}") {
+            let context_block = format!(
+                "\n\nRecent context for application \"{}\":\n{}\n\n",
+                app_name.clone().unwrap_or_default(),
+                history_entries
+                    .iter()
+                    .map(|s| format!("- {}", s))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+            processed_prompt = processed_prompt.replace("${context}", &context_block);
+            // Clear history entries so they don't get injected twice (once in prompt, once in messages)
+            history_entries.clear();
+        }
+    }
 
     // Check if confidence checking is enabled in settings
     let enable_confidence_check = settings.confidence_check_enabled;
@@ -522,6 +624,8 @@ pub(crate) async fn maybe_post_process_transcription(
         provider,
         &model,
         &processed_prompt,
+        history_entries,
+        app_name,
         enable_confidence_check,
     )
     .await;
@@ -564,10 +668,30 @@ pub(crate) async fn post_process_text_with_prompt(
         show_llm_processing_overlay(app_handle);
     }
 
-    let processed_prompt = prompt
+    let mut processed_prompt = prompt
         .prompt
         .replace("${output}", transcription)
+        .replace("${prompt}", &prompt.name)
         .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
+
+    // Inject hot words for manual prompt too
+    if !settings.custom_words.is_empty() {
+        let hot_words_list = settings
+            .custom_words
+            .iter()
+            .map(|w| format!("- {}", w))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        if processed_prompt.contains("${hot_words}") {
+            processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
+        } else {
+            processed_prompt = format!(
+                "{}\n\n用户自定义参考词汇：\n{}",
+                processed_prompt, hot_words_list
+            );
+        }
+    }
 
     // For manual prompt processing, don't enable confidence checking
     let (result, err, confidence, reason) = execute_llm_request(
@@ -576,6 +700,8 @@ pub(crate) async fn post_process_text_with_prompt(
         provider,
         &model,
         &processed_prompt,
+        Vec::new(), // No history for manual prompts
+        None,
         false,
     )
     .await;

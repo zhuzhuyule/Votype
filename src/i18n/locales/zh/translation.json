@@ -50,7 +50,18 @@
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
-    "yes": "是"
+    "yes": "是",
+    "aiOptimize": "AI 自动优润",
+    "aiOptimizationSuccess": "AI 优化成功",
+    "bold": "加粗",
+    "italic": "斜体",
+    "h1": "一级标题",
+    "list": "无序列表",
+    "quote": "引用",
+    "code": "行内代码",
+    "link": "插入链接",
+    "fullscreen": "全屏模式",
+    "exitFullscreen": "还原窗口"
   },
   "dashboard": {
     "actions": {
@@ -897,7 +908,14 @@
           "navKeys": "⌘ + 1-8",
           "title": "快捷键与用法"
         },
-        "title": "应用特定规则"
+        "title": "应用特定规则",
+        "context": {
+          "title": "上下文感知后处理",
+          "enabled": "上下文参考",
+          "description": "通过向大模型发送当前应用的近期转录历史来提高识别准确度。",
+          "limit": "历史深度",
+          "limitDesc": "{{count}} 条消息 (范围: 1-30)"
+        }
       },
       "confidenceCheck": {
         "description": "当 AI 优化后的文本变化百分比超过此阈值时，自动触发审阅窗口。",
@@ -998,12 +1016,12 @@
         "noPrompts": "没有可用的提示词",
         "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
-        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
+        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：请根据 ${context} 背景，修正以下文本中的专业术语：${output}",
         "promptLabel": "提示词名称",
         "promptLabelPlaceholder": "输入提示词名称",
-        "promptTip": "提示：<br/>使用 <code>${output}</code> 引用转录文本。<br/>使用 <code>${streaming_output}</code> 引用实时转录文本（仅作参考，可能为空）。",
+        "promptTip": "提示：可用变量如下（请点击变量名复制）：<br/><code>${output}</code>：识别出的最终文本结果。<br/><code>${streaming_output}</code>：实时转录过程中的中间文本串。<br/><code>${hot_words}</code>：您在“高级设置”中定义的个人词库/热词。<br/><code>${prompt}</code>：当前正在使用的提示词方案的显示名称。<br/><code>${context}</code>：当前活动窗口的历史聊天记录信息。",
         "selectedPrompt": {
-          "description": "选择用于优化转录的模板或创建新模板。在提示词文本中使用 ${output} 来引用捕获的转录。",
+          "description": "选择用于优化转录的模板或创建新模板。可使用 <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code> 等占位符。",
           "title": "已选提示词"
         },
         "selectPrompt": "选择提示词",

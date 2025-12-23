@@ -230,6 +230,8 @@ pub async fn retranscribe_history_entry(
                 None,
                 false,
                 None,
+                entry.app_name,
+                Some(id),
             )
             .await;
 

@@ -313,6 +313,10 @@ pub struct AppSettings {
     pub app_profiles: Vec<AppProfile>,
     #[serde(default)]
     pub app_to_profile: HashMap<String, String>,
+    #[serde(default = "default_post_process_context_enabled")]
+    pub post_process_context_enabled: bool,
+    #[serde(default = "default_post_process_context_limit")]
+    pub post_process_context_limit: u8,
 }
 
 fn default_model() -> String {
@@ -508,11 +512,19 @@ fn default_confidence_threshold() -> u8 {
     20
 }
 
+fn default_post_process_context_enabled() -> bool {
+    false
+}
+
+fn default_post_process_context_limit() -> u8 {
+    3
+}
+
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![LLMPrompt {
         id: "default_improve_transcriptions".to_string(),
         name: "Improve Transcriptions".to_string(),
-        prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
+        prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和这些词相近，请优先修正为这些词）：\n${hot_words}\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
         model_id: None,
         alias: None,
         icon: Some("IconWand".to_string()),
@@ -677,6 +689,8 @@ pub fn get_default_settings() -> AppSettings {
         app_review_policies: HashMap::new(),
         app_profiles: Vec::new(),
         app_to_profile: HashMap::new(),
+        post_process_context_enabled: default_post_process_context_enabled(),
+        post_process_context_limit: default_post_process_context_limit(),
     }
 }
 

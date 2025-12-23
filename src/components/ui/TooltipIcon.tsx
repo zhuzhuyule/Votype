@@ -1,6 +1,6 @@
-import React from "react";
 import { IconButton, Text, Tooltip } from "@radix-ui/themes";
 import { IconHelpCircle } from "@tabler/icons-react";
+import React from "react";
 
 interface TooltipIconProps {
   text: string;

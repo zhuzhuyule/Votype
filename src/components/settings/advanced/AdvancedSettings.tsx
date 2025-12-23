@@ -19,6 +19,7 @@ import { LogLevelSelector } from "../debug/LogLevelSelector";
 import { OfflineVadRealtimeInterval } from "../debug/OfflineVadRealtimeInterval";
 import { OfflineVadRealtimeWindow } from "../debug/OfflineVadRealtimeWindow";
 import { WordCorrectionThreshold } from "../debug/WordCorrectionThreshold";
+import { AppProfilesContextSettings } from "../post-processing/AppProfilesContextSettings";
 
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -45,6 +46,7 @@ export const AdvancedSettings: React.FC = () => {
         title={t("settings.advanced.groups.transcriptionOptimization")}
       >
         <TranslateToEnglish descriptionMode="inline" grouped={true} />
+        <AppProfilesContextSettings descriptionMode="inline" grouped={true} />
         <ModelUnloadTimeoutSetting descriptionMode="inline" grouped={true} />
         <CustomWords descriptionMode="inline" grouped />
       </SettingsGroup>

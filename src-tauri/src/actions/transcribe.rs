@@ -867,6 +867,10 @@ impl ShortcutAction for TranscribeAction {
                                         secondary.as_deref(),
                                         true,
                                         override_prompt_id,
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.app_name.clone()),
+                                        history_id,
                                     )
                                     .await;
 

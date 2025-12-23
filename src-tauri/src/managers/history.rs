@@ -78,6 +78,8 @@ static MIGRATIONS: &[M] = &[
     ),
     // Migration 10: Add audio_deleted column to mark entries whose audio files have been cleaned up
     M::up("ALTER TABLE transcription_history ADD COLUMN audio_deleted BOOLEAN NOT NULL DEFAULT 0;"),
+    // Migration 11: Revert global_stats and audio_deleted column
+    M::up("DROP TABLE IF EXISTS global_stats;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -103,8 +105,6 @@ pub struct HistoryEntry {
     pub app_name: Option<String>,
     pub window_title: Option<String>,
     pub deleted: bool,
-    /// Whether the audio file has been deleted (for space cleanup)
-    pub audio_deleted: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -307,66 +307,31 @@ impl HistoryManager {
         Ok(totals)
     }
 
-    /// Query all-time totals from the global_stats table.
-    /// This returns cumulative statistics that persist even after history entries are deleted.
+    /// Query all-time totals from the transcription_history table.
     fn query_all_time_totals(&self, conn: &Connection) -> Result<HistoryTotals> {
-        // First try to get from global_stats table
-        let result = conn.query_row(
-            "SELECT total_entries, total_duration_ms, total_char_count, total_corrected_char_count, total_post_processed_entries FROM global_stats WHERE id = 1",
-            [],
-            |row| {
-                Ok(HistoryTotals {
-                    entries: row.get("total_entries")?,
-                    saved_entries: 0, // Saved entries count comes from current records
-                    post_processed_entries: row.get("total_post_processed_entries")?,
-                    duration_ms: row.get("total_duration_ms")?,
-                    char_count: row.get("total_char_count")?,
-                    corrected_char_count: row.get("total_corrected_char_count")?,
-                })
-            },
-        );
+        let mut stmt = conn.prepare(
+            "SELECT
+                COUNT(*) AS entries,
+                COALESCE(SUM(CASE WHEN saved = 1 THEN 1 ELSE 0 END), 0) AS saved_entries,
+                COALESCE(SUM(CASE WHEN post_processed_text IS NOT NULL AND post_processed_text != '' THEN 1 ELSE 0 END), 0) AS post_processed_entries,
+                COALESCE(SUM(duration_ms), 0) AS duration_ms,
+                COALESCE(SUM(char_count), 0) AS char_count,
+                COALESCE(SUM(corrected_char_count), 0) AS corrected_char_count
+             FROM transcription_history",
+        )?;
 
-        match result {
-            Ok(mut totals) => {
-                // Get the current saved_entries count from transcription_history
-                // (since this is a current state, not cumulative)
-                let saved_count: i64 = conn
-                    .query_row(
-                        "SELECT COUNT(*) FROM transcription_history WHERE saved = 1",
-                        [],
-                        |row| row.get(0),
-                    )
-                    .unwrap_or(0);
-                totals.saved_entries = saved_count;
-                Ok(totals)
-            }
-            Err(_) => {
-                // Fallback: calculate from transcription_history (for migration compatibility)
-                let mut stmt = conn.prepare(
-                    "SELECT
-                        COUNT(*) AS entries,
-                        COALESCE(SUM(CASE WHEN saved = 1 THEN 1 ELSE 0 END), 0) AS saved_entries,
-                        COALESCE(SUM(CASE WHEN post_processed_text IS NOT NULL AND post_processed_text != '' THEN 1 ELSE 0 END), 0) AS post_processed_entries,
-                        COALESCE(SUM(duration_ms), 0) AS duration_ms,
-                        COALESCE(SUM(char_count), 0) AS char_count,
-                        COALESCE(SUM(corrected_char_count), 0) AS corrected_char_count
-                     FROM transcription_history",
-                )?;
+        let totals = stmt.query_row([], |row| {
+            Ok(HistoryTotals {
+                entries: row.get("entries")?,
+                saved_entries: row.get("saved_entries")?,
+                post_processed_entries: row.get("post_processed_entries")?,
+                duration_ms: row.get("duration_ms")?,
+                char_count: row.get("char_count")?,
+                corrected_char_count: row.get("corrected_char_count")?,
+            })
+        })?;
 
-                let totals = stmt.query_row([], |row| {
-                    Ok(HistoryTotals {
-                        entries: row.get("entries")?,
-                        saved_entries: row.get("saved_entries")?,
-                        post_processed_entries: row.get("post_processed_entries")?,
-                        duration_ms: row.get("duration_ms")?,
-                        char_count: row.get("char_count")?,
-                        corrected_char_count: row.get("corrected_char_count")?,
-                    })
-                })?;
-
-                Ok(totals)
-            }
-        }
+        Ok(totals)
     }
 
     fn query_day_buckets_since(
@@ -533,80 +498,7 @@ impl HistoryManager {
         let id = conn.last_insert_rowid();
         debug!("Saved transcription to database with id: {}", id);
 
-        // Update global_stats with the new entry
-        let has_post_processed =
-            post_processed_text.is_some() && !post_processed_text.as_ref().unwrap().is_empty();
-        self.update_global_stats(
-            &conn,
-            1, // entries delta
-            duration_ms.unwrap_or(0),
-            char_count.unwrap_or(0),
-            corrected_char_count.unwrap_or(0),
-            if has_post_processed { 1 } else { 0 },
-            Some(timestamp),
-        )?;
-
         Ok(id)
-    }
-
-    /// Update global_stats with delta values
-    fn update_global_stats(
-        &self,
-        conn: &Connection,
-        entries_delta: i64,
-        duration_ms_delta: i64,
-        char_count_delta: i64,
-        corrected_char_count_delta: i64,
-        post_processed_delta: i64,
-        first_timestamp: Option<i64>,
-    ) -> Result<()> {
-        let now = Utc::now().timestamp();
-
-        // Check if global_stats row exists
-        let exists: bool = conn
-            .query_row("SELECT 1 FROM global_stats WHERE id = 1", [], |_| Ok(true))
-            .unwrap_or(false);
-
-        if exists {
-            // Update existing stats
-            conn.execute(
-                "UPDATE global_stats SET 
-                    total_entries = total_entries + ?1,
-                    total_duration_ms = total_duration_ms + ?2,
-                    total_char_count = total_char_count + ?3,
-                    total_corrected_char_count = total_corrected_char_count + ?4,
-                    total_post_processed_entries = total_post_processed_entries + ?5,
-                    first_entry_timestamp = COALESCE(first_entry_timestamp, ?6),
-                    last_updated = ?7
-                 WHERE id = 1",
-                params![
-                    entries_delta,
-                    duration_ms_delta,
-                    char_count_delta,
-                    corrected_char_count_delta,
-                    post_processed_delta,
-                    first_timestamp,
-                    now
-                ],
-            )?;
-        } else {
-            // Insert new stats row
-            conn.execute(
-                "INSERT INTO global_stats (id, total_entries, total_duration_ms, total_char_count, total_corrected_char_count, total_post_processed_entries, first_entry_timestamp, last_updated)
-                 VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![
-                    entries_delta,
-                    duration_ms_delta,
-                    char_count_delta,
-                    corrected_char_count_delta,
-                    post_processed_delta,
-                    first_timestamp,
-                    now
-                ],
-            )?;
-        }
-
-        Ok(())
     }
 
     pub async fn update_reviewed_text(&self, id: i64, post_processed_text: String) -> Result<()> {
@@ -631,18 +523,7 @@ impl HistoryManager {
             params![post_processed_text, corrected_char_count, id],
         )?;
 
-        let corrected_char_delta = corrected_char_count - old_corrected_char_count;
-
-        // Update global_stats: duration/entries remain unchanged
-        self.update_global_stats(
-            &conn,
-            0,
-            0,
-            0,
-            corrected_char_delta,
-            0, // entry was already marked as post-processed
-            None,
-        )?;
+        let _ = corrected_char_count - old_corrected_char_count;
 
         debug!("Updated reviewed text for transcription {}", id);
 
@@ -688,20 +569,8 @@ impl HistoryManager {
             params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, id],
         )?;
 
-        // Update global_stats: increment post_processed_entries if this is a new post-processing
-        // and update corrected_char_count delta
-        let post_processed_delta = if had_post_processing { 0 } else { 1 };
-        let corrected_char_delta = corrected_char_count - old_corrected_char_count;
-
-        self.update_global_stats(
-            &conn,
-            0, // entries delta (entry already counted)
-            0, // duration delta (no change)
-            0, // char_count delta (no change)
-            corrected_char_delta,
-            post_processed_delta,
-            None,
-        )?;
+        let _ = if had_post_processing { 0 } else { 1 };
+        let _ = corrected_char_count - old_corrected_char_count;
 
         debug!("Updated transcription {} with post-processing results", id);
 
@@ -762,8 +631,7 @@ impl HistoryManager {
     ///
     /// Strategy:
     /// - Audio files: Cleaned up based on user's recording_retention_period setting
-    /// - Database records: Permanently retained (for historical statistics and review)
-    /// - Global stats: Never modified by cleanup (cumulative totals)
+    /// - Database records: Permanently retained
     pub fn cleanup_old_entries(&self) -> Result<()> {
         // Clean up audio files based on user's retention period setting
         // Database records are kept permanently for historical data
@@ -771,7 +639,7 @@ impl HistoryManager {
     }
 
     /// Clean up audio files based on user's recording retention period setting.
-    /// This only deletes the WAV files and marks entries as audio_deleted = 1.
+    /// This only deletes the WAV files.
     /// Database records are preserved permanently for historical statistics.
     fn cleanup_audio_files(&self) -> Result<()> {
         let retention_period = crate::settings::get_recording_retention_period(&self.app_handle);
@@ -793,17 +661,17 @@ impl HistoryManager {
         }
     }
 
-    /// Delete only the audio files and mark entries as audio_deleted.
+    /// Delete only the audio files.
     /// The database records are preserved for historical statistics.
     fn delete_audio_files_only(&self, entries: &[(i64, String)]) -> Result<usize> {
         if entries.is_empty() {
             return Ok(0);
         }
 
-        let conn = self.get_connection()?;
+        // Reverted: no longer needs DB connection here
         let mut deleted_count = 0;
 
-        for (id, file_name) in entries {
+        for (_id, file_name) in entries {
             // Delete WAV file
             let file_path = self.recordings_dir.join(file_name);
             if file_path.exists() {
@@ -815,11 +683,7 @@ impl HistoryManager {
                 }
             }
 
-            // Mark entry as audio_deleted
-            conn.execute(
-                "UPDATE transcription_history SET audio_deleted = 1 WHERE id = ?1",
-                params![id],
-            )?;
+            // We no longer mark entry as audio_deleted in the DB as we've reverted the column
         }
 
         Ok(deleted_count)
@@ -829,9 +693,9 @@ impl HistoryManager {
     fn cleanup_audio_by_count(&self, limit: usize) -> Result<()> {
         let conn = self.get_connection()?;
 
-        // Get all entries that are not saved and audio not yet deleted, ordered by timestamp desc
+        // Reverted: no longer uses audio_deleted column
         let mut stmt = conn.prepare(
-            "SELECT id, file_name FROM transcription_history WHERE saved = 0 AND audio_deleted = 0 ORDER BY timestamp DESC"
+            "SELECT id, file_name FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -871,9 +735,9 @@ impl HistoryManager {
             _ => unreachable!("Should not reach here"),
         };
 
-        // Get all unsaved entries older than the cutoff timestamp where audio is not yet deleted
+        // Get all unsaved entries older than the cutoff timestamp
         let mut stmt = conn.prepare(
-            "SELECT id, file_name FROM transcription_history WHERE saved = 0 AND audio_deleted = 0 AND timestamp < ?1",
+            "SELECT id, file_name FROM transcription_history WHERE saved = 0 AND timestamp < ?1",
         )?;
 
         let rows = stmt.query_map(params![cutoff_timestamp], |row| {
@@ -900,7 +764,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted, audio_deleted FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -926,7 +790,6 @@ impl HistoryManager {
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
                 deleted: row.get("deleted")?,
-                audio_deleted: row.get("audio_deleted")?,
             })
         })?;
 
@@ -976,7 +839,7 @@ impl HistoryManager {
 
         // Build paginated query
         let query_sql = format!(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted, audio_deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             where_clause, limit, offset
         );
 
@@ -1006,7 +869,6 @@ impl HistoryManager {
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
                 deleted: row.get("deleted")?,
-                audio_deleted: row.get("audio_deleted")?,
             })
         };
 
@@ -1057,7 +919,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted, audio_deleted
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -1085,7 +947,6 @@ impl HistoryManager {
                     app_name: row.get("app_name")?,
                     window_title: row.get("window_title")?,
                     deleted: row.get("deleted")?,
-                    audio_deleted: row.get("audio_deleted")?,
                 })
             })
             .optional()?;
@@ -1122,6 +983,55 @@ impl HistoryManager {
         }
 
         Ok(())
+    }
+
+    pub fn get_recent_history_texts_for_app(
+        &self,
+        app_name: &str,
+        limit: usize,
+        exclude_id: Option<i64>,
+    ) -> Result<Vec<String>> {
+        let conn = self.get_connection()?;
+
+        let mut query = "SELECT id, COALESCE(post_processed_text, transcription_text) as text 
+             FROM transcription_history 
+             WHERE app_name = ?1 AND (post_processed_text IS NOT NULL OR transcription_text IS NOT NULL)".to_string();
+
+        if exclude_id.is_some() {
+            query.push_str(" AND id != ?3");
+        }
+
+        query.push_str(" ORDER BY timestamp DESC LIMIT ?2");
+
+        let mut stmt = conn.prepare(&query)?;
+
+        let mut results = Vec::new();
+        if let Some(id) = exclude_id {
+            let rows =
+                stmt.query_map(params![app_name, limit, id], |row| row.get::<_, String>(1))?;
+            for row in rows {
+                if let Ok(text) = row {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        results.push(trimmed.to_string());
+                    }
+                }
+            }
+        } else {
+            let rows = stmt.query_map(params![app_name, limit], |row| row.get::<_, String>(1))?;
+            for row in rows {
+                if let Ok(text) = row {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        results.push(trimmed.to_string());
+                    }
+                }
+            }
+        }
+
+        // Reverse so it's in chronological order (oldest to newest)
+        results.reverse();
+        Ok(results)
     }
 
     fn format_timestamp_title(&self, timestamp: i64) -> String {

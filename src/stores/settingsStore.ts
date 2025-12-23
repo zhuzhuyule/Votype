@@ -170,6 +170,10 @@ const settingUpdaters: {
   history_limit: (value) => invoke("update_history_limit", { limit: value }),
   post_process_enabled: (value) =>
     invoke("change_post_process_enabled_setting", { enabled: value }),
+  post_process_context_enabled: (value) =>
+    invoke("change_post_process_context_enabled_setting", { enabled: value }),
+  post_process_context_limit: (value) =>
+    invoke("change_post_process_context_limit_setting", { value }),
   post_process_use_secondary_output: (value) =>
     invoke("change_post_process_use_secondary_output_setting", {
       enabled: value,

@@ -50,7 +50,18 @@
     "skip": "Skip",
     "update": "Update",
     "useInput": "Use \"{{input}}\"",
-    "yes": "Yes"
+    "yes": "Yes",
+    "aiOptimize": "AI Optimize",
+    "aiOptimizationSuccess": "AI Optimization successful",
+    "bold": "Bold",
+    "italic": "Italic",
+    "h1": "H1",
+    "list": "List",
+    "quote": "Quote",
+    "code": "Inline Code",
+    "link": "Link",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Restore"
   },
   "dashboard": {
     "actions": {
@@ -874,7 +885,14 @@
           "navKeys": "⌘ + 1-8",
           "title": "Shortcuts & Usage"
         },
-        "title": "Application Rules"
+        "title": "Application Rules",
+        "context": {
+          "title": "Context-Aware Processing",
+          "description": "Allow LLMs to reference the recent history of the current application to improve transcription and correction accuracy.",
+          "enabled": "Enable Context Reference",
+          "limit": "Context History Depth",
+          "limitDesc": "The model will reference the last {{count}} entries from this app as context."
+        }
       },
       "confidenceCheck": {
         "description": "Automatically trigger review if the text change percentage (after LLM processing) exceeds this threshold.",
@@ -975,12 +993,12 @@
         "noPrompts": "No prompts available",
         "prefixesSaved": "Command prefixes saved",
         "promptInstructions": "Prompt Instructions",
-        "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Improve grammar and clarity for the following text: ${output}",
+        "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tips:<br/>Use <code>${output}</code> for transcription.<br/>When realtime is active, <code>${streaming_output}</code> is available (reference only, may be empty).",
+        "promptTip": "Tips: The following variables are available (click to copy):<br/><code>${output}</code>: The final transcribed text result.<br/><code>${streaming_output}</code>: Intermediate real-time transcription text.<br/><code>${hot_words}</code>: Custom words/terminology from your settings.<br/><code>${prompt}</code>: Display name of the currently active prompt scheme.<br/><code>${context}</code>: Historical chat information from the active window.",
         "selectedPrompt": {
-          "description": "Select a template for refining transcriptions or create a new one. Use ${output} inside the prompt text to reference the captured transcript.",
+          "description": "Select a template for refining transcriptions or create a new one. You can use variables like <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, <code>${prompt}</code>, or <code>${context}</code>.",
           "title": "Selected Prompt"
         },
         "selectPrompt": "Select a prompt",

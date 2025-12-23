@@ -371,6 +371,8 @@ pub fn run() {
             shortcut::change_append_trailing_space_setting,
             shortcut::change_offline_vad_force_interval_ms_setting,
             shortcut::change_offline_vad_force_window_seconds_setting,
+            shortcut::change_post_process_context_enabled_setting,
+            shortcut::change_post_process_context_limit_setting,
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,
@@ -442,6 +444,7 @@ pub fn run() {
             commands::history::update_recording_retention_period,
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
+            commands::text::optimize_text_with_llm,
             commands::log_to_console
         ])
         .run(tauri::generate_context!())
