@@ -27,6 +27,7 @@
     "enabled": "Enabled",
     "filterOptions": "Filter options...",
     "granted": "Granted",
+    "id": "ID",
     "loading": "Loading...",
     "models": "Models",
     "next": "Next",
@@ -433,11 +434,11 @@
         "title": "Custom Words"
       },
       "groups": {
-        "startup": "Startup & Behavior",
-        "inputOutput": "Input & Output",
-        "transcriptionOptimization": "Transcription Optimization",
         "dataManagement": "Data Management",
-        "debug": "Debug Options"
+        "debug": "Debug Options",
+        "inputOutput": "Input & Output",
+        "startup": "Startup & Behavior",
+        "transcriptionOptimization": "Transcription Optimization"
       },
       "modelUnload": {
         "description": "Automatically free GPU/CPU memory when the model hasn't been used for the specified time",
@@ -835,6 +836,54 @@
         },
         "title": "API (OpenAI Compatible)"
       },
+      "appRules": {
+        "activeProfiles": "{{count}} active rules",
+        "addApp": "Add...",
+        "addRuleHead": "Add Rule Manually",
+        "assignedApps": "Apps",
+        "assignedAppsDescription": "The applications listed below will use this profile settings.",
+        "capture": "Capture",
+        "createPromptHint": "Add an application rule to get started",
+        "description": "Set specific review behavior or custom prompts for different applications.",
+        "newProfileName": "New profile name...",
+        "noAppsAssigned": "No apps mapped to this profile yet.",
+        "noProfiles": "No rules yet",
+        "noProfilesShort": "Click to configure",
+        "policy": {
+          "always": "Always Review",
+          "auto": "Auto",
+          "label": "Review Policy",
+          "never": "Direct Insert"
+        },
+        "policyDesc": {
+          "always": "Always show review window for apps in this profile.",
+          "auto": "Triggers review if text changes significantly (based on threshold).",
+          "never": "Never show review window for apps in this profile."
+        },
+        "policyHeader": "Review Trigger Policy",
+        "profilesDescription": "Create profiles to apply specific processing logic or prompts to different groups of apps.",
+        "profilesTitle": "Application Profiles",
+        "promptDescription": "Select a custom prompt to use for transcriptions in this profile.",
+        "promptHeader": "Override LLM Prompt",
+        "selectPrompt": "Select a profile from the sidebar to edit",
+        "shortcuts": {
+          "description": "You can use keyboard shortcuts to trigger specific profiles or manage rules.",
+          "dialog": "Confirm or close dialogs",
+          "dialogKeys": "Enter / Esc",
+          "nav": "Navigate between settings tabs",
+          "navKeys": "⌘ + 1-8",
+          "title": "Shortcuts & Usage"
+        },
+        "title": "Application Rules"
+      },
+      "confidenceCheck": {
+        "description": "Automatically trigger review if the text change percentage (after LLM processing) exceeds this threshold.",
+        "enabled": "Enable auto review",
+        "insertStabilityHint": "If insertion is unstable, you can disable this feature temporarily.",
+        "threshold": "Change Threshold",
+        "thresholdHint": "Scores above this value will trigger a review",
+        "title": "Auto-Review Threshold"
+      },
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {
         "enabled": {
@@ -942,29 +991,6 @@
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully"
       },
-      "confidenceCheck": {
-        "title": "Confidence Check",
-        "description": "Trigger review when AI reports low confidence in transcription",
-        "threshold": "Confidence Threshold",
-        "thresholdHint": "Scores below this value will trigger a review",
-        "insertStabilityHint": "If insertion is unstable, you can disable this feature temporarily."
-      },
-      "appRules": {
-        "title": "Application Rules",
-        "description": "Set different behaviors for specific apps (e.g. Always Review for CLI, Direct Insert for Chats)",
-        "addPlaceholder": "Enter app name...",
-        "capture": "Detect",
-        "empty": "No application rules configured",
-        "suggestions": "Recently Used Applications",
-        "manualAdd": "Add Manually",
-        "addRuleHead": "Add New Rule",
-        "fromHistory": "From History",
-        "policy": {
-          "auto": "Auto (Based on confidence)",
-          "always": "Always Review",
-          "never": "Direct Insert (Skip review)"
-        }
-      },
       "title": "Post Process"
     },
     "shortcuts": {
@@ -997,13 +1023,10 @@
   "sidebar": {
     "about": "About",
     "advanced": "Advanced",
-    "asrModels": "ASR Models",
+    "appProfiles": "App Profiles",
     "dashboard": "Dashboard",
-    "debug": "Debug",
     "general": "General",
-    "history": "History",
-    "models": "Models",
-    "postProcessing": "Post Process",
+    "models": "AI Models",
     "prompts": "Prompts",
     "shortcuts": "Shortcuts"
   },
@@ -1045,6 +1068,10 @@
       "violet": "Violet",
       "yellow": "Yellow"
     },
+    "compactMode": {
+      "description": "Show descriptions as tooltips",
+      "title": "Compact Mode"
+    },
     "cornerRadius": {
       "capsule": "Capsule",
       "capsuleDesc": "Fully rounded corners",
@@ -1082,10 +1109,21 @@
       "systemDesc": "Match your system theme",
       "title": "Theme Mode"
     },
-    "compactMode": {
-      "title": "Compact Mode",
-      "description": "Show descriptions as tooltips"
-    },
     "title": "Theme"
+  },
+  "transcription": {
+    "review": {
+      "change": "Change",
+      "confidence": "Confidence",
+      "confirm": "Confirm & Insert",
+      "description": "The transcription may contain errors. Please review and edit if needed.",
+      "final": "Final output",
+      "highlightHint": "Highlighted words indicate LLM edits.",
+      "hint": "⌘/Ctrl + Enter to confirm, Escape to cancel",
+      "insert": "Insert",
+      "placeholder": "Edit transcription...",
+      "source": "Live transcript",
+      "title": "Review Transcription"
+    }
   }
 }

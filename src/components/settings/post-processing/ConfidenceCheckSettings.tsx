@@ -1,6 +1,7 @@
 // ConfidenceCheckSettings - Settings for LLM-based confidence checking
 // Controls whether low-confidence transcriptions trigger a review dialog
 
+import { Box } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -41,41 +42,47 @@ export const ConfidenceCheckSettings: React.FC = () => {
         onChange={handleToggle}
         label={t(
           "settings.postProcessing.confidenceCheck.title",
-          "Confidence Check",
+          "Auto-Review Threshold",
         )}
         description={t(
           "settings.postProcessing.confidenceCheck.description",
-          "Review transcriptions when LLM reports low confidence",
+          "Trigger review when text changes significantly after LLM processing",
         )}
+        descriptionMode="inline"
         grouped={true}
       />
-      <div className="mt-2 text-xs text-gray-500">
-        {t(
-          "settings.postProcessing.confidenceCheck.insertStabilityHint",
-          "If insertion is unstable, you can disable this feature temporarily.",
-        )}
-      </div>
+      {!enabled && (
+        <div className="mt-1 px-1 text-[11px] text-[var(--gray-9)] italic opacity-80">
+          {t(
+            "settings.postProcessing.confidenceCheck.insertStabilityHint",
+            "If insertion is unstable, you can disable this feature temporarily.",
+          )}
+        </div>
+      )}
 
       {/* Threshold Slider - only shown when enabled */}
       {enabled && (
-        <Slider
-          value={threshold}
-          onChange={handleThresholdChange}
-          min={50}
-          max={100}
-          step={5}
-          label={t(
-            "settings.postProcessing.confidenceCheck.threshold",
-            "Confidence Threshold",
-          )}
-          description={t(
-            "settings.postProcessing.confidenceCheck.thresholdHint",
-            "Scores below this value will prompt for review",
-          )}
-          grouped={true}
-          showValue={true}
-          formatValue={(v) => `${Math.round(v)}%`}
-        />
+        <Box mt="2">
+          <Slider
+            value={threshold}
+            onChange={handleThresholdChange}
+            min={5}
+            max={100}
+            step={5}
+            label={t(
+              "settings.postProcessing.confidenceCheck.threshold",
+              "Change Threshold",
+            )}
+            description={t(
+              "settings.postProcessing.confidenceCheck.thresholdHint",
+              "Scores above this value will prompt for review",
+            )}
+            descriptionMode="inline"
+            grouped={true}
+            showValue={true}
+            formatValue={(v) => `${Math.round(v)}%`}
+          />
+        </Box>
       )}
     </>
   );

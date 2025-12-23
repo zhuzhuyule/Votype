@@ -8,7 +8,6 @@ import { useTranslation } from "react-i18next";
 import { DynamicIcon } from "../../shared/IconPicker";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
-import { ConfidenceCheckSettings } from "./ConfidenceCheckSettings";
 import {
   CommandPrefixes,
   DeletePromptDialog,
@@ -55,125 +54,128 @@ const PromptsConfiguration: React.FC = () => {
   } = usePrompts();
 
   return (
-    <Flex direction="column" gap="5" className="max-w-5xl w-full mx-auto">
-      <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
-        <PostProcessingToggle grouped={true} />
+    <Box className="w-full max-w-5xl mx-auto">
+      <Flex direction="column" gap="5">
+        <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
+          <PostProcessingToggle grouped={true} />
 
-        {enabled && (
-          <Box pb="2">
-            {/* Confidence Check Settings */}
-            <Box
-              pb="4"
-              mb="4"
-              style={{ borderBottom: "1px solid var(--gray-5)" }}
-            >
-              <ConfidenceCheckSettings />
-            </Box>
-
-            {/* Command Prefixes Configuration */}
-            <CommandPrefixes
-              t={t}
-              prefixes={currentPrefixes}
-              currentPrefixInput={currentPrefixInput}
-              setCurrentPrefixInput={setCurrentPrefixInput}
-              onAddPrefix={handleAddPrefix}
-              onRemovePrefix={handleRemovePrefix}
-            />
-
-            <Tabs.Root
-              value={currentTab}
-              onValueChange={setCurrentTab}
-              className="pt-4"
-            >
-              <Tabs.List>
-                {prompts.map((prompt) => (
-                  <Tabs.Trigger
-                    key={prompt.id}
-                    value={prompt.id}
-                    className="relative pr-6"
-                  >
-                    <Flex align="center" gap="2">
-                      <DynamicIcon name={prompt.icon || "IconWand"} size={14} />
-                      {prompt.name}
-                      {/* Green Check for Active Prompt */}
-                      {activePromptId === prompt.id && (
-                        <Box className="text-green-500 flex items-center justify-center">
-                          <IconCheck size={14} stroke={3} />
-                        </Box>
-                      )}
-                    </Flex>
-                  </Tabs.Trigger>
-                ))}
-                {/* New Prompt Trigger */}
-                <Tabs.Trigger value="NEW" style={{ padding: "0 12px" }}>
-                  <IconPlus size={16} />
-                </Tabs.Trigger>
-              </Tabs.List>
-
-              <Box pt="4">
-                <Flex direction="column" gap="4">
-                  {/* Toolbar / Header */}
-                  <Flex justify="between" align="center">
-                    <Heading size="3">
-                      {isCreating
-                        ? t("settings.postProcessing.prompts.createPrompt")
-                        : t("settings.postProcessing.prompts.editPrompt")}
-                    </Heading>
-                    <Flex gap="3">
-                      {!isCreating &&
-                        viewingPrompt &&
-                        activePromptId !== viewingPrompt.id && (
-                          <Button variant="outline" onClick={handleSetAsActive}>
-                            {t("settings.postProcessing.prompts.setAsActive")}
-                          </Button>
-                        )}
-                      {!isCreating && (
-                        <DeletePromptDialog
-                          t={t}
-                          onDelete={handleDelete}
-                          disabled={prompts.length <= 1 && !isCreating}
-                        />
-                      )}
-                      <Button
-                        variant="solid"
-                        onClick={handleSave}
-                        disabled={
-                          !isDirty || !draftName.trim() || !draftContent.trim()
-                        }
-                      >
-                        <IconDeviceFloppy size={18} />
-                        {t("common.save")}
-                      </Button>
-                    </Flex>
-                  </Flex>
-
-                  {/* Prompt Editor Form */}
-                  <PromptEditor
-                    t={t}
-                    draftName={draftName}
-                    setDraftName={setDraftName}
-                    draftContent={draftContent}
-                    setDraftContent={setDraftContent}
-                    draftModelId={draftModelId}
-                    setDraftModelId={setDraftModelId}
-                    draftIcon={draftIcon}
-                    setDraftIcon={setDraftIcon}
-                    currentAliases={currentAliases}
-                    currentAliasInput={currentAliasInput}
-                    setCurrentAliasInput={setCurrentAliasInput}
-                    aliasError={aliasError}
-                    setAliasError={setAliasError}
-                    onAddAlias={handleAddAlias}
-                    onRemoveAlias={handleRemoveAlias}
-                    textModels={textModels}
-                  />
-                </Flex>
+          {enabled && (
+            <Box pb="2">
+              {/* Command Prefixes Configuration */}
+              <Box
+                pb="4"
+                mb="4"
+                style={{ borderBottom: "1px solid var(--gray-5)" }}
+              >
+                <CommandPrefixes
+                  t={t}
+                  prefixes={currentPrefixes}
+                  currentPrefixInput={currentPrefixInput}
+                  setCurrentPrefixInput={setCurrentPrefixInput}
+                  onAddPrefix={handleAddPrefix}
+                  onRemovePrefix={handleRemovePrefix}
+                />
               </Box>
-            </Tabs.Root>
-          </Box>
-        )}
-      </SettingsGroup>
-    </Flex>
+
+              <Tabs.Root value={currentTab} onValueChange={setCurrentTab}>
+                <Tabs.List>
+                  {prompts.map((prompt) => (
+                    <Tabs.Trigger
+                      key={prompt.id}
+                      value={prompt.id}
+                      className="relative pr-6"
+                    >
+                      <Flex align="center" gap="2">
+                        <DynamicIcon
+                          name={prompt.icon || "IconWand"}
+                          size={14}
+                        />
+                        {prompt.name}
+                        {/* Green Check for Active Prompt */}
+                        {activePromptId === prompt.id && (
+                          <Box className="text-green-500 flex items-center justify-center">
+                            <IconCheck size={14} stroke={3} />
+                          </Box>
+                        )}
+                      </Flex>
+                    </Tabs.Trigger>
+                  ))}
+                  {/* New Prompt Trigger */}
+                  <Tabs.Trigger value="NEW" style={{ padding: "0 12px" }}>
+                    <IconPlus size={16} />
+                  </Tabs.Trigger>
+                </Tabs.List>
+
+                <Box pt="4">
+                  <Flex direction="column" gap="4">
+                    {/* Toolbar / Header */}
+                    <Flex justify="between" align="center">
+                      <Heading size="3">
+                        {isCreating
+                          ? t("settings.postProcessing.prompts.createPrompt")
+                          : t("settings.postProcessing.prompts.editPrompt")}
+                      </Heading>
+                      <Flex gap="3">
+                        {!isCreating &&
+                          viewingPrompt &&
+                          activePromptId !== viewingPrompt.id && (
+                            <Button
+                              variant="outline"
+                              onClick={handleSetAsActive}
+                            >
+                              {t("settings.postProcessing.prompts.setAsActive")}
+                            </Button>
+                          )}
+                        {!isCreating && (
+                          <DeletePromptDialog
+                            t={t}
+                            onDelete={handleDelete}
+                            disabled={prompts.length <= 1 && !isCreating}
+                          />
+                        )}
+                        <Button
+                          variant="solid"
+                          onClick={handleSave}
+                          disabled={
+                            !isDirty ||
+                            !draftName.trim() ||
+                            !draftContent.trim()
+                          }
+                        >
+                          <IconDeviceFloppy size={18} />
+                          {t("common.save")}
+                        </Button>
+                      </Flex>
+                    </Flex>
+
+                    {/* Prompt Editor Form */}
+                    <PromptEditor
+                      t={t}
+                      draftName={draftName}
+                      setDraftName={setDraftName}
+                      draftContent={draftContent}
+                      setDraftContent={setDraftContent}
+                      draftModelId={draftModelId}
+                      setDraftModelId={setDraftModelId}
+                      draftIcon={draftIcon}
+                      setDraftIcon={setDraftIcon}
+                      currentAliases={currentAliases}
+                      currentAliasInput={currentAliasInput}
+                      setCurrentAliasInput={setCurrentAliasInput}
+                      aliasError={aliasError}
+                      setAliasError={setAliasError}
+                      onAddAlias={handleAddAlias}
+                      onRemoveAlias={handleRemoveAlias}
+                      textModels={textModels}
+                    />
+                  </Flex>
+                </Box>
+              </Tabs.Root>
+            </Box>
+          )}
+        </SettingsGroup>
+      </Flex>
+    </Box>
   );
 };
 

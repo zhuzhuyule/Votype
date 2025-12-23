@@ -47,6 +47,11 @@ const AboutSettings = lazy(() =>
     default: m.AboutSettings,
   })),
 );
+const AppProfilesSettings = lazy(() =>
+  import("./settings/AppProfilesSettings").then((m) => ({
+    default: m.AppProfilesSettings,
+  })),
+);
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
@@ -109,12 +114,19 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "6",
   },
+  appProfiles: {
+    labelKey: "sidebar.appProfiles",
+    icon: IconSettings,
+    component: AppProfilesSettings,
+    enabled: () => true,
+    shortcutKey: "7",
+  },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoCircle,
     component: AboutSettings,
     enabled: () => true,
-    shortcutKey: "7",
+    shortcutKey: "8",
   },
 } as const satisfies Record<string, SectionConfig>;
 
@@ -126,6 +138,7 @@ export const SECTION_ORDER: SidebarSection[] = [
   "models",
   "prompts",
   "shortcuts",
+  "appProfiles",
   "about",
 ];
 

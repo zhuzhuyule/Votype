@@ -1,4 +1,4 @@
-import { Box, Flex, Heading, Text } from "@radix-ui/themes";
+import { Box, Flex, Text } from "@radix-ui/themes";
 import React from "react";
 import { useCompactModeSafe } from "../theme/CompactModeProvider";
 import { TooltipIcon } from "./TooltipIcon";
@@ -36,14 +36,15 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
     <Flex
       py="2"
       px="0"
-      align={isHorizontal ? "center" : "stretch"}
+      align="center"
       justify="between"
-      direction={isHorizontal ? "row" : "column"}
+      direction="row"
       gap="4"
       style={{
         width: "100%",
         opacity: disabled ? 0.5 : 1,
         pointerEvents: disabled ? "none" : "auto",
+        minHeight: "44px", // Ensure consistent height for rows
       }}
     >
       <Flex gap="3" align="center" style={{ flex: 1, minWidth: 0 }}>
@@ -52,11 +53,21 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
             <Icon size={20} />
           </Box>
         )}
-        <Box>
+        <Box style={{ flex: 1, minWidth: 0 }}>
           <Flex align="center" gap="2">
-            <Heading size="2" weight="medium" style={{ lineHeight: "1.5" }}>
+            <Text
+              size="2"
+              weight="medium"
+              style={{
+                lineHeight: "1.5",
+                color: "var(--gray-12)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
               {title}
-            </Heading>
+            </Text>
             {effectiveDescriptionMode === "tooltip" && description && (
               <TooltipIcon
                 text={title}
@@ -67,9 +78,13 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
           </Flex>
           {effectiveDescriptionMode !== "tooltip" && description && (
             <Text
-              size="2"
+              size="1"
               color="gray"
-              style={{ lineHeight: "1.4", display: "block", marginTop: "2px" }}
+              style={{
+                lineHeight: "1.4",
+                display: "block",
+                marginTop: "1px",
+              }}
             >
               {description}
             </Text>
@@ -77,7 +92,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
         </Box>
       </Flex>
 
-      <Box style={{ flexShrink: 0 }}>{children}</Box>
+      <Box style={{ flexShrink: 0, marginLeft: "auto" }}>{children}</Box>
     </Flex>
   );
 };

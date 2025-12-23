@@ -1,7 +1,7 @@
 // Review Window - Independent floating window for reviewing low-confidence transcriptions
 // This module handles the creation, display, and lifecycle of the review window
 
-use crate::active_window::ActiveWindowInfo;
+use crate::active_window::{fetch_cursor_position, ActiveWindowInfo};
 use log::{debug, error};
 use once_cell::sync::Lazy;
 use std::sync::{
@@ -10,15 +10,20 @@ use std::sync::{
 };
 use tauri::{AppHandle, Emitter, Manager};
 
-const REVIEW_WINDOW_WIDTH: f64 = 500.0;
-const REVIEW_WINDOW_HEIGHT: f64 = 300.0;
+const REVIEW_WINDOW_WIDTH: f64 = 520.0;
+const REVIEW_WINDOW_MIN_WIDTH: f64 = 480.0;
+const REVIEW_WINDOW_MAX_WIDTH: f64 = 860.0;
+const REVIEW_WINDOW_HEIGHT: f64 = 320.0;
+const REVIEW_WINDOW_MAX_HEIGHT: f64 = 720.0;
+const REVIEW_WINDOW_MARGIN: f64 = 8.0;
 
 #[derive(Clone, serde::Serialize)]
 struct ReviewWindowPayload {
-    text: String,
-    confidence: u8,
+    source_text: String,
+    final_text: String,
+    change_percent: u8,
     history_id: Option<i64>,
-    reason: Option<Vec<String>>,
+    reason: Option<String>,
 }
 
 static REVIEW_WINDOW_READY: AtomicBool = AtomicBool::new(false);
@@ -36,6 +41,97 @@ fn emit_review_payload(app_handle: &AppHandle, payload: ReviewWindowPayload) -> 
 
     error!("review_window not found! Window may not have been created.");
     false
+}
+
+fn estimate_line_count(text: &str, line_chars: usize) -> usize {
+    let mut lines = 0usize;
+    for line in text.lines() {
+        let count = line.chars().count();
+        let wrapped = (count / line_chars).max(1);
+        lines += wrapped;
+    }
+    if lines == 0 {
+        1
+    } else {
+        lines
+    }
+}
+
+fn estimate_window_width(source_text: &str, final_text: &str) -> f64 {
+    let max_line_len = source_text
+        .lines()
+        .chain(final_text.lines())
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or(0);
+    if max_line_len == 0 {
+        return REVIEW_WINDOW_WIDTH;
+    }
+    let estimated = (max_line_len as f64 * 9.2).min(REVIEW_WINDOW_MAX_WIDTH);
+    estimated.clamp(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MAX_WIDTH)
+}
+
+fn estimate_window_height(source_text: &str, final_text: &str, width: f64) -> f64 {
+    let line_chars = (width / 9.5).floor().max(18.0) as usize;
+    let source_lines = estimate_line_count(source_text, line_chars);
+    let final_lines = estimate_line_count(final_text, line_chars);
+    let content_lines = source_lines + final_lines;
+    let content_height = content_lines as f64 * 20.0;
+    let chrome_height = 180.0;
+    let height = (chrome_height + content_height)
+        .max(REVIEW_WINDOW_HEIGHT)
+        .min(REVIEW_WINDOW_MAX_HEIGHT);
+    height
+}
+
+fn clamp(value: f64, min: f64, max: f64) -> f64 {
+    if value < min {
+        min
+    } else if value > max {
+        max
+    } else {
+        value
+    }
+}
+
+fn find_monitor_for_cursor(
+    monitors: &[tauri::Monitor],
+    cursor_x: i32,
+    cursor_y: i32,
+) -> Option<tauri::Monitor> {
+    for monitor in monitors {
+        let position = monitor.position();
+        let size = monitor.size();
+        let left = position.x;
+        let top = position.y;
+        let right = left + size.width as i32;
+        let bottom = top + size.height as i32;
+        if cursor_x >= left && cursor_x <= right && cursor_y >= top && cursor_y <= bottom {
+            return Some(monitor.clone());
+        }
+    }
+    monitors.first().cloned()
+}
+
+fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
+    let cursor = fetch_cursor_position().ok();
+    let monitors = window.available_monitors().ok().unwrap_or_default();
+
+    if let Some(cursor) = cursor {
+        if let Some(monitor) = find_monitor_for_cursor(&monitors, cursor.x, cursor.y) {
+            let scale = monitor.scale_factor();
+            let position = monitor.position();
+            let monitor_size = monitor.size();
+            let cursor_x = (cursor.x - position.x) as f64 / scale;
+            let cursor_y = (cursor.y - position.y) as f64 / scale;
+            let max_x = monitor_size.width as f64 / scale - width - REVIEW_WINDOW_MARGIN;
+            let max_y = monitor_size.height as f64 / scale - height - REVIEW_WINDOW_MARGIN;
+            let x = clamp(cursor_x - width * 0.5, REVIEW_WINDOW_MARGIN, max_x)
+                + position.x as f64 / scale;
+            let y = clamp(cursor_y - 40.0, REVIEW_WINDOW_MARGIN, max_y) + position.y as f64 / scale;
+            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
+        }
+    }
 }
 
 /// Creates the review window and keeps it hidden by default
@@ -74,14 +170,9 @@ pub fn create_review_window(app_handle: &AppHandle) {
             }
             debug!("Review window created successfully (hidden)");
 
-            // Debug: show review window immediately on startup
-            // show_review_window(
-            //     app_handle,
-            //     "Review window debug".to_string(),
-            //     100,
-            //     None,
-            //     None,
-            // );
+            // Warm up the window to avoid focus stealing on first show.
+            let _ = window.show();
+            let _ = window.hide();
         }
         Err(e) => {
             error!("Failed to create review window: {}", e);
@@ -92,28 +183,32 @@ pub fn create_review_window(app_handle: &AppHandle) {
 /// Shows the review window with the provided data
 pub fn show_review_window(
     app_handle: &AppHandle,
-    text: String,
-    confidence: u8,
+    source_text: String,
+    final_text: String,
+    change_percent: u8,
     history_id: Option<i64>,
-    reason: Option<Vec<String>>,
+    reason: Option<String>,
 ) {
     debug!(
-        "show_review_window called with confidence: {}, text length: {}",
-        confidence,
-        text.len()
+        "show_review_window called with change_percent: {}, text length: {}",
+        change_percent,
+        final_text.len()
     );
-    let preview: String = text.chars().take(80).collect();
+    let preview: String = final_text.chars().take(80).collect();
     log::info!(
-        "review_window payload: history_id={:?}, confidence={}, reason_count={}, preview=\"{}\"",
+        "review_window payload: history_id={:?}, change_percent={}, preview=\"{}\"",
         history_id,
-        confidence,
-        reason.as_ref().map(|r| r.len()).unwrap_or(0),
+        change_percent,
         preview
     );
 
+    let source_for_layout = source_text.clone();
+    let final_for_layout = final_text.clone();
+
     let payload = ReviewWindowPayload {
-        text,
-        confidence,
+        source_text,
+        final_text,
+        change_percent,
         history_id,
         reason,
     };
@@ -130,10 +225,14 @@ pub fn show_review_window(
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         debug!("Found review_window, emitting event and showing...");
 
+        let width = estimate_window_width(&source_for_layout, &final_for_layout);
+        let height = estimate_window_height(&source_for_layout, &final_for_layout, width);
+        let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+        position_window_near_cursor(&review_window, width, height);
+
         // Show the window first
         let show_result = review_window.show();
         debug!("review_window.show() result: {:?}", show_result);
-
         let focus_result = review_window.set_focus();
         debug!("review_window.set_focus() result: {:?}", focus_result);
 
@@ -166,10 +265,9 @@ pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
 
     if let Some(payload) = payload {
         log::info!(
-            "review_window_ready replaying payload: history_id={:?}, confidence={}, reason_count={}",
+            "review_window_ready replaying payload: history_id={:?}, change_percent={}",
             payload.history_id,
-            payload.confidence,
-            payload.reason.as_ref().map(|r| r.len()).unwrap_or(0)
+            payload.change_percent
         );
         if emit_review_payload(&app, payload) {
             let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();

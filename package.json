@@ -1,25 +1,8 @@
 {
-  "name": "votype",
-  "private": true,
-  "version": "0.6.8",
-  "type": "module",
-  "license": "MIT",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build --debug",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "format": "prettier --write . && cd src-tauri && cargo fmt",
-    "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
-    "format:frontend": "prettier --write .",
-    "format:backend": "cd src-tauri && cargo fmt",
-    "prepare": "husky"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write",
-    "src-tauri/**/*.rs": "bash -c 'cd src-tauri && cargo fmt'"
-  },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@iconify/react": "^6.0.2",
     "@radix-ui/themes": "^3.2.1",
     "@tabler/icons-react": "^3.35.0",
@@ -60,5 +43,25 @@
     "prettier": "^3.6.2",
     "typescript": "~5.6.3",
     "vite": "^6.4.1"
-  }
+  },
+  "license": "MIT",
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write",
+    "src-tauri/**/*.rs": "bash -c 'cd src-tauri && cargo fmt'"
+  },
+  "name": "Votype",
+  "private": true,
+  "scripts": {
+    "build": "tsc && vite build --debug",
+    "dev": "vite",
+    "format": "prettier --write . && cd src-tauri && cargo fmt",
+    "format:backend": "cd src-tauri && cargo fmt",
+    "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
+    "format:frontend": "prettier --write .",
+    "prepare": "husky",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "type": "module",
+  "version": "0.6.8"
 }

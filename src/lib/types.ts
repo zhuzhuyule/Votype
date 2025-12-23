@@ -68,6 +68,18 @@ export type RecordingRetentionPeriod = z.infer<
   typeof RecordingRetentionPeriodSchema
 >;
 
+export const AppReviewPolicySchema = z.enum(["auto", "always", "never"]);
+export type AppReviewPolicy = z.infer<typeof AppReviewPolicySchema>;
+
+export const AppProfileSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  policy: AppReviewPolicySchema,
+  prompt_id: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
+});
+export type AppProfile = z.infer<typeof AppProfileSchema>;
+
 export const LLMPromptSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -176,7 +188,13 @@ export const SettingsSchema = z.object({
   offline_vad_force_interval_ms: z.number().optional().default(2000),
   offline_vad_force_window_seconds: z.number().optional().default(30),
   confidence_check_enabled: z.boolean().optional().default(false),
-  confidence_threshold: z.number().min(0).max(100).optional().default(70),
+  confidence_threshold: z.number().min(0).max(100).optional().default(20),
+  app_review_policies: z
+    .record(z.string(), AppReviewPolicySchema)
+    .optional()
+    .default({}),
+  app_profiles: z.array(AppProfileSchema).optional().default([]),
+  app_to_profile: z.record(z.string(), z.string()).optional().default({}),
 });
 
 export const BindingResponseSchema = z.object({

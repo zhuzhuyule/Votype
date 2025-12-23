@@ -108,6 +108,26 @@ pub enum RecordingRetentionPeriod {
     Months3,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AppReviewPolicy {
+    /// Use global confidence threshold (default)
+    Auto,
+    /// Always show review window
+    Always,
+    /// Never show review window, direct insert
+    Never,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AppProfile {
+    pub id: String,
+    pub name: String,
+    pub policy: AppReviewPolicy,
+    pub prompt_id: Option<String>,
+    pub icon: Option<String>,
+}
+
 impl Default for ModelUnloadTimeout {
     fn default() -> Self {
         ModelUnloadTimeout::Never
@@ -286,6 +306,13 @@ pub struct AppSettings {
     /// Confidence threshold (0-100). Below this threshold, user review is required.
     #[serde(default = "default_confidence_threshold")]
     pub confidence_threshold: u8,
+    /// Application-specific review policies (App Bundle ID or Process Name -> Policy)
+    #[serde(default)]
+    pub app_review_policies: HashMap<String, AppReviewPolicy>,
+    #[serde(default)]
+    pub app_profiles: Vec<AppProfile>,
+    #[serde(default)]
+    pub app_to_profile: HashMap<String, String>,
 }
 
 fn default_model() -> String {
@@ -478,7 +505,7 @@ fn default_confidence_check_enabled() -> bool {
 }
 
 fn default_confidence_threshold() -> u8 {
-    70
+    20
 }
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
@@ -647,6 +674,9 @@ pub fn get_default_settings() -> AppSettings {
         offline_vad_force_window_seconds: default_offline_vad_force_window_seconds(),
         confidence_check_enabled: default_confidence_check_enabled(),
         confidence_threshold: default_confidence_threshold(),
+        app_review_policies: HashMap::new(),
+        app_profiles: Vec::new(),
+        app_to_profile: HashMap::new(),
     }
 }
 
@@ -719,6 +749,29 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
     if ensure_post_process_defaults(&mut settings) {
         store.set("settings", serde_json::to_value(&settings).unwrap());
+    }
+
+    // Migration: Convert app_review_policies to app_profiles
+    if !settings.app_review_policies.is_empty() {
+        debug!("Migrating app_review_policies to app_profiles");
+        for (app_id, policy) in settings.app_review_policies.clone() {
+            if !settings.app_to_profile.contains_key(&app_id) {
+                let profile_id = format!("profile_{}", app_id.replace(' ', "_").to_lowercase());
+                if !settings.app_profiles.iter().any(|p| p.id == profile_id) {
+                    settings.app_profiles.push(AppProfile {
+                        id: profile_id.clone(),
+                        name: app_id.clone(),
+                        policy,
+                        prompt_id: None,
+                        icon: None,
+                    });
+                }
+                settings.app_to_profile.insert(app_id.clone(), profile_id);
+            }
+        }
+        settings.app_review_policies.clear();
+        store.set("settings", serde_json::to_value(&settings).unwrap());
+        let _ = store.save();
     }
 
     settings

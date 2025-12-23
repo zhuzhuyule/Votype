@@ -113,6 +113,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   post_process_use_secondary_output: false,
   post_process_use_local_candidate_when_online_asr: false,
   post_process_secondary_model_id: null,
+  app_review_policies: {},
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -200,6 +201,10 @@ const settingUpdaters: {
   log_level: (value) => invoke("set_log_level", { level: value }),
   onboarding_completed: (value) =>
     invoke("change_onboarding_completed_setting", { completed: value }),
+  app_review_policies: (value) =>
+    invoke("set_app_review_policies", { policies: value }),
+  app_profiles: (value) => invoke("set_app_profiles", { profiles: value }),
+  app_to_profile: (value) => invoke("set_app_to_profile", { mapping: value }),
 };
 
 export const useSettingsStore = create<SettingsStore>()(

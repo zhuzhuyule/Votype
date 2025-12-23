@@ -19,6 +19,168 @@ use tokio::time::sleep;
 
 pub(super) struct TranscribeAction;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ScriptType {
+    Latin,
+    Han,
+    Other,
+}
+
+#[derive(Clone, Debug)]
+struct DiffToken {
+    normalized: String,
+    script: ScriptType,
+}
+
+fn detect_script(value: &str) -> ScriptType {
+    if value
+        .chars()
+        .any(|ch| ('\u{4e00}'..='\u{9fff}').contains(&ch))
+    {
+        return ScriptType::Han;
+    }
+    if value.chars().any(|ch| ch.is_ascii_alphabetic()) {
+        return ScriptType::Latin;
+    }
+    ScriptType::Other
+}
+
+fn tokenize_diff_words(text: &str) -> Vec<DiffToken> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    for ch in text.chars() {
+        if ('\u{4e00}'..='\u{9fff}').contains(&ch) {
+            if !current.is_empty() {
+                let raw = std::mem::take(&mut current);
+                tokens.push(DiffToken {
+                    normalized: raw.to_lowercase(),
+                    script: detect_script(&raw),
+                });
+            }
+            let raw = ch.to_string();
+            tokens.push(DiffToken {
+                normalized: raw.clone(),
+                script: detect_script(&raw),
+            });
+            continue;
+        }
+        if ch.is_whitespace() {
+            if !current.is_empty() {
+                let raw = std::mem::take(&mut current);
+                tokens.push(DiffToken {
+                    normalized: raw.to_lowercase(),
+                    script: detect_script(&raw),
+                });
+            }
+            continue;
+        }
+        if ch.is_alphanumeric() {
+            current.push(ch);
+        } else {
+            if !current.is_empty() {
+                let raw = std::mem::take(&mut current);
+                tokens.push(DiffToken {
+                    normalized: raw.to_lowercase(),
+                    script: detect_script(&raw),
+                });
+            }
+            let raw = ch.to_string();
+            tokens.push(DiffToken {
+                normalized: raw.clone(),
+                script: detect_script(&raw),
+            });
+        }
+    }
+    if !current.is_empty() {
+        let raw = current;
+        tokens.push(DiffToken {
+            normalized: raw.to_lowercase(),
+            script: detect_script(&raw),
+        });
+    }
+    tokens
+}
+
+fn count_sentence_markers(text: &str) -> usize {
+    let mut count = 0usize;
+    for ch in text.chars() {
+        if matches!(ch, '。' | '！' | '？' | '.' | '!' | '?') {
+            count += 1;
+        }
+    }
+    if count == 0 && !text.trim().is_empty() {
+        1
+    } else {
+        count
+    }
+}
+
+fn compute_change_percent(source: &str, target: &str) -> u8 {
+    let source_tokens = tokenize_diff_words(source);
+    let target_tokens = tokenize_diff_words(target);
+    let source_len = source_tokens.len();
+    let target_len = target_tokens.len();
+    let max_len = source_len.max(target_len);
+    if max_len == 0 {
+        return 0;
+    }
+
+    let mut dp = vec![vec![0usize; target_len + 1]; source_len + 1];
+    for i in 1..=source_len {
+        for j in 1..=target_len {
+            if source_tokens[i - 1].normalized == target_tokens[j - 1].normalized {
+                dp[i][j] = dp[i - 1][j - 1] + 1;
+            } else {
+                dp[i][j] = dp[i - 1][j].max(dp[i][j - 1]);
+            }
+        }
+    }
+
+    let lcs = dp[source_len][target_len];
+    let edits = max_len.saturating_sub(lcs);
+
+    let mut i = source_len;
+    let mut j = target_len;
+    let mut pending_deletes: Vec<DiffToken> = Vec::new();
+    let mut script_switches = 0usize;
+    while i > 0 || j > 0 {
+        if i > 0 && j > 0 && source_tokens[i - 1].normalized == target_tokens[j - 1].normalized {
+            pending_deletes.clear();
+            i -= 1;
+            j -= 1;
+        } else if j > 0 && (i == 0 || dp[i][j - 1] >= dp[i - 1][j]) {
+            if let Some(prev) = pending_deletes.pop() {
+                let current = &target_tokens[j - 1];
+                if prev.script != ScriptType::Other
+                    && current.script != ScriptType::Other
+                    && prev.script != current.script
+                {
+                    script_switches += 1;
+                }
+            }
+            j -= 1;
+        } else if i > 0 {
+            pending_deletes.push(source_tokens[i - 1].clone());
+            i -= 1;
+        }
+    }
+
+    let token_change_rate = edits as f64 / max_len as f64;
+    let script_switch_rate = script_switches as f64 / max_len as f64;
+    let source_sentences = count_sentence_markers(source);
+    let target_sentences = count_sentence_markers(target);
+    let sentence_change_rate = if source_sentences == 0 && target_sentences == 0 {
+        0.0
+    } else {
+        ((source_sentences as i64 - target_sentences as i64).unsigned_abs() as f64)
+            / (source_sentences.max(target_sentences) as f64)
+    };
+
+    let score = 0.6 * token_change_rate + 0.3 * script_switch_rate + 0.1 * sentence_change_rate;
+    let percent = (score * 100.0).round() as i32;
+    percent.clamp(0, 100) as u8
+}
+
 impl ShortcutAction for TranscribeAction {
     fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
         let start_time = Instant::now();
@@ -672,21 +834,47 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                let (processed_text, model, prompt_id, err, confidence, reason) =
+                                // Lookup profile for the active app
+                                let app_profile =
+                                    active_window_snapshot_for_review.as_ref().and_then(|info| {
+                                        let app_id = info.app_name.clone();
+                                        settings_clone
+                                            .app_to_profile
+                                            .get(&app_id)
+                                            .or_else(|| {
+                                                settings_clone.app_to_profile.get(&info.app_name)
+                                            })
+                                            .and_then(|profile_id| {
+                                                settings_clone
+                                                    .app_profiles
+                                                    .iter()
+                                                    .find(|p| &p.id == profile_id)
+                                            })
+                                    });
+
+                                let app_policy = app_profile
+                                    .map(|p| p.policy.clone())
+                                    .unwrap_or(crate::settings::AppReviewPolicy::Auto);
+
+                                let override_prompt_id =
+                                    app_profile.and_then(|p| p.prompt_id.clone());
+
+                                let (processed_text, model, prompt_id, err, _confidence, reason) =
                                     maybe_post_process_transcription(
                                         &ah_clone,
                                         &settings_clone,
                                         &transcription_clone,
                                         secondary.as_deref(),
                                         true,
+                                        override_prompt_id,
                                     )
                                     .await;
 
                                 error_shown = err;
                                 used_model = model;
 
-                                if let Some(text) = processed_text {
-                                    final_text = text;
+                                if let Some(text) = processed_text.as_ref() {
+                                    final_text = text.clone();
                                 }
 
                                 post_process_prompt_id = prompt_id;
@@ -702,51 +890,59 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
 
-                                // Check confidence and emit review event only when the final text is not acceptable.
-                                if let Some(score) = confidence {
-                                    let has_reason = reason
-                                        .as_ref()
-                                        .map(|r| !r.trim().is_empty())
-                                        .unwrap_or(false);
-                                    if score < settings_clone.confidence_threshold && has_reason {
-                                        log::info!(
-                                            "Low confidence score ({}/100), requesting user review",
-                                            score
-                                        );
-                                        crate::review_window::set_last_active_window(
-                                            active_window_snapshot_for_review.clone(),
-                                        );
-                                        // Persist LLM output so history always captures it
-                                        if let Some(history_id) = history_id {
-                                            if let Err(e) = hm_clone
-                                                .update_transcription_post_processing(
-                                                    history_id,
-                                                    final_text.clone(),
-                                                    post_process_prompt_text.clone(),
-                                                    post_process_prompt_id.clone(),
-                                                    used_model.clone(),
-                                                )
-                                                .await
-                                            {
-                                                error!(
-                                                    "Failed to update transcription with post-processing before review: {}",
-                                                    e
-                                                );
-                                            }
-                                        }
-                                        // Show the review window with the transcription
-                                        crate::review_window::show_review_window(
-                                            &ah_clone,
-                                            final_text.clone(),
-                                            score,
-                                            history_id,
-                                            reason.clone(),
-                                        );
-                                        // Hide the overlay since review window is now shown
-                                        utils::hide_recording_overlay(&ah_clone);
-                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                        return;
+                                let change_percent = processed_text
+                                    .as_ref()
+                                    .map(|text| compute_change_percent(&transcription_clone, text))
+                                    .unwrap_or(0);
+
+                                let should_review = match app_policy {
+                                    crate::settings::AppReviewPolicy::Always => true,
+                                    crate::settings::AppReviewPolicy::Never => false,
+                                    crate::settings::AppReviewPolicy::Auto => {
+                                        change_percent >= settings_clone.confidence_threshold as u8
                                     }
+                                };
+
+                                if should_review {
+                                    log::info!(
+                                        "Review required (policy={:?}, change_percent={}), showing window",
+                                        app_policy, change_percent
+                                    );
+
+                                    crate::review_window::set_last_active_window(
+                                        active_window_snapshot_for_review.clone(),
+                                    );
+                                    // Persist LLM output so history always captures it
+                                    if let Some(history_id) = history_id {
+                                        if let Err(e) = hm_clone
+                                            .update_transcription_post_processing(
+                                                history_id,
+                                                final_text.clone(),
+                                                post_process_prompt_text.clone(),
+                                                post_process_prompt_id.clone(),
+                                                used_model.clone(),
+                                            )
+                                            .await
+                                        {
+                                            error!(
+                                                "Failed to update transcription with post-processing before review: {}",
+                                                e
+                                            );
+                                        }
+                                    }
+                                    // Show the review window with the transcription
+                                    crate::review_window::show_review_window(
+                                        &ah_clone,
+                                        transcription_clone.clone(),
+                                        final_text.clone(),
+                                        change_percent,
+                                        history_id,
+                                        reason.clone(),
+                                    );
+                                    // Hide the overlay since review window is now shown
+                                    utils::hide_recording_overlay(&ah_clone);
+                                    change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                    return;
                                 }
                             }
 

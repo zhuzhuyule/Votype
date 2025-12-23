@@ -3,6 +3,7 @@
 
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
+import { Mark } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -12,10 +13,11 @@ import { CancelIcon } from "../components/icons";
 import "./ReviewWindow.css";
 
 interface ReviewData {
-  text: string;
-  confidence: number;
+  source_text: string;
+  final_text: string;
+  change_percent: number;
   history_id: number | null;
-  reason?: string[] | null;
+  reason?: string | null;
 }
 
 interface ReviewWindowProps {
@@ -23,12 +25,318 @@ interface ReviewWindowProps {
   onClose: () => void;
 }
 
+const DiffMark = Mark.create({
+  name: "diffMark",
+  addAttributes() {
+    return {
+      level: {
+        default: "minor",
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        tag: "span[data-diff-level]",
+        getAttrs: (element) => {
+          if (!(element instanceof HTMLElement)) return false;
+          return { level: element.getAttribute("data-diff-level") };
+        },
+      },
+    ];
+  },
+  renderHTML({ HTMLAttributes }) {
+    const level = HTMLAttributes.level ?? "minor";
+    return [
+      "span",
+      {
+        ...HTMLAttributes,
+        "data-diff-level": level,
+        class: `diff-mark diff-${level}`,
+      },
+      0,
+    ];
+  },
+});
+
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const escapeHtmlWithBreaks = (value: string): string =>
+  escapeHtml(value).replace(/\n/g, "<br />");
+
+type Token = {
+  value: string;
+  start: number;
+  end: number;
+};
+
+const isHanChar = (value: string) => /[\u4e00-\u9fff]/.test(value);
+const isAsciiWordChar = (value: string) => /[A-Za-z0-9]/.test(value);
+
+const tokenizeWithIndices = (text: string): Token[] => {
+  const tokens: Token[] = [];
+  let current = "";
+  let currentStart = 0;
+
+  const flushCurrent = (endIndex: number) => {
+    if (!current) return;
+    tokens.push({ value: current, start: currentStart, end: endIndex });
+    current = "";
+  };
+
+  for (let i = 0; i < text.length; ) {
+    const codePoint = text.codePointAt(i);
+    if (codePoint === undefined) break;
+    const char = String.fromCodePoint(codePoint);
+    const size = char.length;
+
+    if (/\s/.test(char)) {
+      flushCurrent(i);
+      i += size;
+      continue;
+    }
+
+    if (isHanChar(char)) {
+      flushCurrent(i);
+      tokens.push({ value: char, start: i, end: i + size });
+      i += size;
+      continue;
+    }
+
+    if (isAsciiWordChar(char)) {
+      if (!current) {
+        currentStart = i;
+      }
+      current += char;
+      i += size;
+      continue;
+    }
+
+    flushCurrent(i);
+    tokens.push({ value: char, start: i, end: i + size });
+    i += size;
+  }
+
+  flushCurrent(text.length);
+  return tokens;
+};
+
+const editDistance = (a: string, b: string): number => {
+  const aChars = Array.from(a);
+  const bChars = Array.from(b);
+  const aLen = aChars.length;
+  const bLen = bChars.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
+  const prev = Array.from({ length: bLen + 1 }, (_, i) => i);
+  const curr = new Array<number>(bLen + 1).fill(0);
+  for (let i = 0; i < aLen; i += 1) {
+    curr[0] = i + 1;
+    for (let j = 0; j < bLen; j += 1) {
+      const cost = aChars[i] === bChars[j] ? 0 : 1;
+      curr[j + 1] = Math.min(prev[j + 1] + 1, curr[j] + 1, prev[j] + cost);
+    }
+    for (let j = 0; j <= bLen; j += 1) {
+      prev[j] = curr[j];
+    }
+  }
+  return prev[bLen];
+};
+
+type ScriptType = "latin" | "han" | "other";
+
+const normalizeToken = (value: string) => value.toLowerCase();
+
+const getScriptType = (value: string): ScriptType => {
+  if (/[\u4e00-\u9fff]/.test(value)) return "han";
+  if (/[A-Za-z]/.test(value)) return "latin";
+  return "other";
+};
+
+const classifyChangeLevel = (current: string, previous: string | null) => {
+  if (!previous) return "major";
+  const normalizedCurrent = normalizeToken(current);
+  const normalizedPrevious = normalizeToken(previous);
+  if (normalizedCurrent === normalizedPrevious) return null;
+  const currentScript = getScriptType(current);
+  const previousScript = getScriptType(previous);
+  if (
+    currentScript !== "other" &&
+    previousScript !== "other" &&
+    currentScript !== previousScript
+  ) {
+    return "major";
+  }
+  const distance = editDistance(normalizedCurrent, normalizedPrevious);
+  return distance <= 2 ? "minor" : "major";
+};
+
+type DiffAnnotations = {
+  sourceStatuses: Array<"equal" | "delete">;
+  targetLevels: Array<"minor" | "major" | null>;
+};
+
+const computeDiffAnnotations = (
+  source: string,
+  target: string,
+): DiffAnnotations => {
+  const sourceTokens = tokenizeWithIndices(source).map((token) => ({
+    value: token.value,
+    normalized: normalizeToken(token.value),
+  }));
+  const targetTokens = tokenizeWithIndices(target).map((token) => ({
+    value: token.value,
+    normalized: normalizeToken(token.value),
+  }));
+  const sourceLen = sourceTokens.length;
+  const targetLen = targetTokens.length;
+  const dp = Array.from({ length: sourceLen + 1 }, () =>
+    new Array<number>(targetLen + 1).fill(0),
+  );
+
+  for (let i = 1; i <= sourceLen; i += 1) {
+    for (let j = 1; j <= targetLen; j += 1) {
+      if (sourceTokens[i - 1].normalized === targetTokens[j - 1].normalized) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+      } else {
+        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+  }
+
+  type Op =
+    | { type: "equal"; sourceIndex: number; targetIndex: number }
+    | { type: "insert"; targetIndex: number }
+    | { type: "delete"; sourceIndex: number; sourceToken: string };
+
+  const ops: Op[] = [];
+  let i = sourceLen;
+  let j = targetLen;
+  while (i > 0 || j > 0) {
+    if (
+      i > 0 &&
+      j > 0 &&
+      sourceTokens[i - 1].normalized === targetTokens[j - 1].normalized
+    ) {
+      ops.push({ type: "equal", sourceIndex: i - 1, targetIndex: j - 1 });
+      i -= 1;
+      j -= 1;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      ops.push({ type: "insert", targetIndex: j - 1 });
+      j -= 1;
+    } else if (i > 0) {
+      ops.push({
+        type: "delete",
+        sourceIndex: i - 1,
+        sourceToken: sourceTokens[i - 1].value,
+      });
+      i -= 1;
+    }
+  }
+
+  ops.reverse();
+  const sourceStatuses: Array<"equal" | "delete"> = new Array(sourceLen).fill(
+    "equal",
+  );
+  const targetLevels: Array<"minor" | "major" | null> = new Array(
+    targetLen,
+  ).fill(null);
+  const pendingDeletes: Array<{ index: number; token: string }> = [];
+  for (const op of ops) {
+    if (op.type === "delete") {
+      pendingDeletes.push({ index: op.sourceIndex, token: op.sourceToken });
+    } else if (op.type === "insert") {
+      const pending = pendingDeletes.pop();
+      targetLevels[op.targetIndex] = classifyChangeLevel(
+        targetTokens[op.targetIndex].value,
+        pending?.token ?? null,
+      );
+    } else {
+      for (const pending of pendingDeletes) {
+        sourceStatuses[pending.index] = "delete";
+      }
+      pendingDeletes.length = 0;
+    }
+  }
+
+  for (const pending of pendingDeletes) {
+    sourceStatuses[pending.index] = "delete";
+  }
+
+  return { sourceStatuses, targetLevels };
+};
+
+const buildSourceHtml = (
+  source: string,
+  statuses: Array<"equal" | "delete">,
+) => {
+  const tokens = tokenizeWithIndices(source);
+  let html = "";
+  let cursor = 0;
+  tokens.forEach((token, index) => {
+    html += escapeHtmlWithBreaks(source.slice(cursor, token.start));
+    const tokenText = escapeHtmlWithBreaks(token.value);
+    if (statuses[index] === "delete") {
+      html += `<span class="diff-delete">${tokenText}</span>`;
+    } else {
+      html += tokenText;
+    }
+    cursor = token.end;
+  });
+  html += escapeHtmlWithBreaks(source.slice(cursor));
+  return html;
+};
+
+const buildTargetHtml = (
+  target: string,
+  levels: Array<"minor" | "major" | null>,
+) => {
+  const tokens = tokenizeWithIndices(target);
+  let html = "";
+  let cursor = 0;
+  tokens.forEach((token, index) => {
+    html += escapeHtmlWithBreaks(target.slice(cursor, token.start));
+    const level = levels[index];
+    const tokenText = escapeHtmlWithBreaks(token.value);
+    if (level) {
+      html += `<span data-diff-level="${level}">${tokenText}</span>`;
+    } else {
+      html += tokenText;
+    }
+    cursor = token.end;
+  });
+  html += escapeHtmlWithBreaks(target.slice(cursor));
+  return html;
+};
+
+const buildDiffViews = (source: string, target: string) => {
+  const { sourceStatuses, targetLevels } = computeDiffAnnotations(
+    source,
+    target,
+  );
+  return {
+    sourceHtml: buildSourceHtml(source, sourceStatuses),
+    targetHtml: buildTargetHtml(target, targetLevels),
+  };
+};
+
 const ReviewWindow: React.FC<ReviewWindowProps> = ({
   initialData,
   onClose,
 }) => {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sourceHtml, setSourceHtml] = useState(
+    () =>
+      buildDiffViews(initialData.source_text, initialData.final_text)
+        .sourceHtml,
+  );
   const isMac =
     typeof navigator !== "undefined" &&
     navigator.platform.toLowerCase().includes("mac");
@@ -38,6 +346,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     {
       extensions: [
         StarterKit,
+        DiffMark,
         Placeholder.configure({
           placeholder: t(
             "transcription.review.placeholder",
@@ -45,7 +354,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           ),
         }),
       ],
-      content: initialData.text,
+      content: buildDiffViews(initialData.source_text, initialData.final_text)
+        .targetHtml,
       editorProps: {
         attributes: {
           class: "review-editor",
@@ -57,8 +367,13 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   useEffect(() => {
     if (!editor) return;
-    editor.commands.setContent(initialData.text, false);
-  }, [editor, initialData.text]);
+    const { sourceHtml: nextSourceHtml, targetHtml } = buildDiffViews(
+      initialData.source_text,
+      initialData.final_text,
+    );
+    editor.commands.setContent(targetHtml, false);
+    setSourceHtml(nextSourceHtml);
+  }, [editor, initialData.source_text, initialData.final_text]);
 
   useEffect(() => {
     if (!editor) return;
@@ -89,12 +404,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       setIsSubmitting(false);
     }
   }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
-
-  const reasonItems = (initialData.reason ?? [])
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const reasonList =
-    reasonItems.length > 0 ? reasonItems : ["需要关注：请检查语句通顺性。"];
 
   const handleCancel = useCallback(() => {
     if (isSubmitting) return;
@@ -132,9 +441,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     [handleInsert, handleCancel],
   );
 
-  const getConfidenceColor = (confidence: number): string => {
-    if (confidence < 50) return "var(--ruby-9)";
-    if (confidence < 70) return "var(--amber-9)";
+  const getChangeColor = (changePercent: number): string => {
+    if (changePercent >= 85) return "var(--ruby-9)";
+    if (changePercent >= 50) return "var(--amber-9)";
     return "var(--grass-9)";
   };
 
@@ -174,13 +483,22 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               <Box
                 className="w-2 h-2 rounded-full"
                 style={{
-                  backgroundColor: getConfidenceColor(initialData.confidence),
+                  backgroundColor: getChangeColor(initialData.change_percent),
                 }}
               />
               <Text size="1" weight="bold" style={{ color: "var(--gray-11)" }}>
-                {t("transcription.review.confidence", "Confidence")}:{" "}
-                {initialData.confidence}%
+                {t("transcription.review.change", "Change")}:{" "}
+                {initialData.change_percent}%
               </Text>
+              <span
+                className="review-tooltip review-tooltip-bottom review-change-tip"
+                data-tooltip={t(
+                  "transcription.review.highlightHint",
+                  "Highlighted words indicate LLM edits.",
+                )}
+              >
+                ?
+              </span>
             </Flex>
             <div
               className="review-tooltip review-tooltip-bottom"
@@ -197,12 +515,28 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         </div>
 
         {/* Editable textarea */}
-        <div className="flex-1 p-3 flex flex-col min-h-0">
-          <EditorContent
-            editor={editor}
-            onKeyDown={handleKeyDown}
-            className="flex-1 min-h-0"
-          />
+        <div className="flex-1 p-3 flex flex-col min-h-0 gap-2">
+          <div className="review-section">
+            <Text size="1" className="review-section-title">
+              {t("transcription.review.source", "Live transcript")}
+            </Text>
+            <div
+              className="review-source-content"
+              dangerouslySetInnerHTML={{
+                __html: sourceHtml || "—",
+              }}
+            />
+          </div>
+          <div className="review-section review-section-final">
+            <Text size="1" className="review-section-title">
+              {t("transcription.review.final", "Final output")}
+            </Text>
+            <EditorContent
+              editor={editor}
+              onKeyDown={handleKeyDown}
+              className="flex-1 min-h-0"
+            />
+          </div>
         </div>
 
         {/* Footer with hint and insert button */}
@@ -211,14 +545,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           align="center"
           className="px-3.5 py-2.5 border-t border-[var(--gray-4)] bg-[var(--gray-1)]"
         >
-          <div className="flex flex-col gap-0.5">
-            <ol className="review-reason-list">
-              {reasonList.map((item, index) => (
-                <li key={`${index}-${item}`}>{item}</li>
-              ))}
-            </ol>
+          <div className="review-footer-left">
+            {initialData.reason?.trim() ? (
+              <Text size="1" className="text-[var(--gray-10)] text-[11px]">
+                {initialData.reason}
+              </Text>
+            ) : null}
           </div>
-          <Flex align="center" gap="2">
+          <Flex align="center" gap="2" className="review-footer-actions">
             <div
               className="review-tooltip review-tooltip-top"
               data-tooltip={t(
@@ -228,10 +562,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             >
               <Button
                 variant="classic"
-                size="2"
+                size="1"
                 onClick={handleInsert}
                 disabled={isSubmitting || !getEditorText().trim()}
                 data-tauri-drag-region="false"
+                className="review-insert-button"
               >
                 {t("transcription.review.insert", "Insert")}
               </Button>
