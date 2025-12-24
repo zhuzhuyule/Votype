@@ -4,8 +4,9 @@
 use crate::active_window::{fetch_cursor_position, ActiveWindowInfo};
 use log::{debug, error};
 use once_cell::sync::Lazy;
+use std::collections::HashSet;
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     Mutex,
 };
 use std::time::Duration;
@@ -28,7 +29,10 @@ struct ReviewWindowPayload {
 }
 
 static REVIEW_WINDOW_READY: AtomicBool = AtomicBool::new(false);
-static MAIN_WINDOW_WAS_HIDDEN: AtomicBool = AtomicBool::new(false);
+static REVIEW_WINDOW_FORCED_ACTIVATION: AtomicBool = AtomicBool::new(false);
+static REVIEW_WINDOW_FOCUS_TOKEN: AtomicU64 = AtomicU64::new(0);
+static HIDDEN_WINDOWS_BEFORE_REVIEW: Lazy<Mutex<HashSet<String>>> =
+    Lazy::new(|| Mutex::new(HashSet::new()));
 static PENDING_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
@@ -115,31 +119,104 @@ fn find_monitor_for_cursor(
     monitors.first().cloned()
 }
 
-fn record_main_window_state(app_handle: &AppHandle) -> bool {
-    let Some(main_window) = app_handle.get_webview_window("main") else {
-        MAIN_WINDOW_WAS_HIDDEN.store(false, Ordering::SeqCst);
-        return false;
-    };
-
-    let was_visible = main_window.is_visible().unwrap_or(false);
-    let should_suppress = !was_visible;
-    MAIN_WINDOW_WAS_HIDDEN.store(should_suppress, Ordering::SeqCst);
-    should_suppress
+fn was_app_active_before_review() -> bool {
+    let pid = std::process::id() as u64;
+    let last = LAST_ACTIVE_WINDOW.lock().unwrap();
+    last.as_ref()
+        .map(|info| info.process_id == pid)
+        .unwrap_or(false)
 }
 
-fn schedule_hide_main_window(app_handle: AppHandle) {
+fn record_hidden_windows(app_handle: &AppHandle) -> bool {
+    let app_was_active = was_app_active_before_review();
+    let mut hidden = HIDDEN_WINDOWS_BEFORE_REVIEW.lock().unwrap();
+    hidden.clear();
+    let mut any_visible = false;
+    for (label, window) in app_handle.webview_windows() {
+        if label == "review_window" {
+            continue;
+        }
+        let is_visible = window.is_visible().unwrap_or(false);
+        if is_visible {
+            any_visible = true;
+        }
+        if !app_was_active || !is_visible {
+            hidden.insert(label);
+        }
+    }
+    any_visible
+}
+
+fn schedule_hide_windows(app_handle: AppHandle) {
+    let labels: Vec<String> = {
+        let hidden = HIDDEN_WINDOWS_BEFORE_REVIEW.lock().unwrap();
+        hidden.iter().cloned().collect()
+    };
+    if labels.is_empty() {
+        return;
+    }
     std::thread::spawn(move || {
         for delay in [0_u64, 120, 350] {
             if delay > 0 {
                 std::thread::sleep(Duration::from_millis(delay));
             }
-            if let Some(main_window) = app_handle.get_webview_window("main") {
-                if main_window.is_visible().unwrap_or(false) {
-                    let _ = main_window.hide();
+            for label in &labels {
+                if let Some(window) = app_handle.get_webview_window(label) {
+                    if window.is_visible().unwrap_or(false) {
+                        let _ = window.hide();
+                    }
                 }
             }
         }
     });
+}
+
+fn schedule_focus_review_window(app_handle: AppHandle, focus_token: u64) {
+    std::thread::spawn(move || {
+        for delay in [Duration::from_millis(120), Duration::from_millis(350)] {
+            std::thread::sleep(delay);
+            if let Some(window) = app_handle.get_webview_window("review_window") {
+                if REVIEW_WINDOW_FOCUS_TOKEN.load(Ordering::SeqCst) != focus_token {
+                    return;
+                }
+                if window.is_visible().unwrap_or(false) {
+                    let _ = window.set_focus();
+                }
+            }
+        }
+    });
+}
+
+#[cfg(target_os = "macos")]
+fn ensure_app_active_for_review(app_handle: &AppHandle, had_visible_windows: bool) {
+    if had_visible_windows {
+        return;
+    }
+    if app_handle
+        .set_activation_policy(tauri::ActivationPolicy::Regular)
+        .is_ok()
+    {
+        REVIEW_WINDOW_FORCED_ACTIVATION.store(true, Ordering::SeqCst);
+    }
+}
+
+fn maybe_restore_activation_policy(app_handle: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        if !REVIEW_WINDOW_FORCED_ACTIVATION.swap(false, Ordering::SeqCst) {
+            return;
+        }
+        let settings = crate::settings::get_settings(app_handle);
+        if !settings.start_hidden {
+            return;
+        }
+        let has_visible_windows = app_handle.webview_windows().iter().any(|(label, window)| {
+            label != "review_window" && window.is_visible().unwrap_or(false)
+        });
+        if !has_visible_windows {
+            let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
+        }
+    }
 }
 
 fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
@@ -218,7 +295,9 @@ pub fn show_review_window(
     history_id: Option<i64>,
     reason: Option<String>,
 ) {
-    let should_hide_main = record_main_window_state(app_handle);
+    let had_visible_windows = record_hidden_windows(app_handle);
+    #[cfg(target_os = "macos")]
+    ensure_app_active_for_review(app_handle, had_visible_windows);
     debug!(
         "show_review_window called with change_percent: {}, text length: {}",
         change_percent,
@@ -255,19 +334,18 @@ pub fn show_review_window(
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         debug!("Found review_window, emitting event and showing...");
 
+        let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
         let width = estimate_window_width(&source_for_layout, &final_for_layout);
         let height = estimate_window_height(&source_for_layout, &final_for_layout, width);
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
         position_window_near_cursor(&review_window, width, height);
 
-        // Show the window first
         let show_result = review_window.show();
         debug!("review_window.show() result: {:?}", show_result);
         let focus_result = review_window.set_focus();
         debug!("review_window.set_focus() result: {:?}", focus_result);
-        if should_hide_main {
-            schedule_hide_main_window(app_handle.clone());
-        }
+        schedule_focus_review_window(app_handle.clone(), focus_token);
+        schedule_hide_windows(app_handle.clone());
 
         if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
             if emit_review_payload(app_handle, payload) {
@@ -284,9 +362,11 @@ pub fn hide_review_window(app_handle: &AppHandle) {
         let _ = review_window.emit("review-window-hide", ());
         let _ = review_window.hide();
     }
-    if MAIN_WINDOW_WAS_HIDDEN.swap(false, Ordering::SeqCst) {
-        schedule_hide_main_window(app_handle.clone());
-    }
+    REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst);
+    schedule_hide_windows(app_handle.clone());
+    maybe_restore_activation_policy(app_handle);
+    let mut hidden = HIDDEN_WINDOWS_BEFORE_REVIEW.lock().unwrap();
+    hidden.clear();
 }
 
 #[tauri::command]

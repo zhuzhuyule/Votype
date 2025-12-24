@@ -142,10 +142,39 @@ pub fn send_paste_shift_insert(enigo: &mut Enigo) -> Result<(), String> {
 
 /// Pastes text directly using the enigo text method.
 /// This tries to use system input methods if possible, otherwise simulates keystrokes one by one.
+/// For multi-line text, sends each line separately with a delay to avoid ordering issues.
 pub fn paste_text_direct(enigo: &mut Enigo, text: &str) -> Result<(), String> {
-    enigo
-        .text(text)
-        .map_err(|e| format!("Failed to send text directly: {}", e))?;
+    // Check if text contains newlines
+    if text.contains('\n') {
+        // Split by newlines and send each part separately
+        let lines: Vec<&str> = text.split('\n').collect();
+        for (i, line) in lines.iter().enumerate() {
+            if !line.is_empty() {
+                enigo
+                    .text(line)
+                    .map_err(|e| format!("Failed to send text directly: {}", e))?;
+            }
+            // If not the last line, send Shift+Return for soft newline (avoids submit in chat apps)
+            if i < lines.len() - 1 {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                enigo
+                    .key(Key::Shift, enigo::Direction::Press)
+                    .map_err(|e| format!("Failed to press Shift: {}", e))?;
+                enigo
+                    .key(Key::Return, enigo::Direction::Click)
+                    .map_err(|e| format!("Failed to send Return key: {}", e))?;
+                enigo
+                    .key(Key::Shift, enigo::Direction::Release)
+                    .map_err(|e| format!("Failed to release Shift: {}", e))?;
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+    } else {
+        // No newlines, send directly
+        enigo
+            .text(text)
+            .map_err(|e| format!("Failed to send text directly: {}", e))?;
+    }
 
     Ok(())
 }

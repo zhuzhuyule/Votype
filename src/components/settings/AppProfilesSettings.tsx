@@ -10,16 +10,7 @@ export const AppProfilesSettings: React.FC = () => {
   return (
     <Box className="w-full max-w-5xl mx-auto">
       <Flex direction="column" gap="5">
-        <SettingsGroup
-          title={t(
-            "settings.postProcessing.appRules.title",
-            "Application Rules",
-          )}
-          description={t(
-            "settings.postProcessing.appRules.description",
-            "Set specific review behavior or custom prompts for different applications.",
-          )}
-        >
+        <SettingsGroup title={t("settings.postProcessing.appRules.title")}>
           <AppProfilesManager />
         </SettingsGroup>
       </Flex>

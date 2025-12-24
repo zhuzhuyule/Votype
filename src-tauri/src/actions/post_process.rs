@@ -156,6 +156,9 @@ pub async fn execute_llm_request(
     processed_prompt: &str,
     history: Vec<String>,
     app_name: Option<String>,
+    window_title: Option<String>,
+    match_pattern: Option<String>,
+    match_type: Option<crate::settings::TitleMatchType>,
 ) -> (Option<String>, bool, Option<u8>, Option<String>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -170,9 +173,24 @@ pub async fn execute_llm_request(
 
             let mut final_prompt = processed_prompt.to_string();
             if !history.is_empty() {
+                let context_label =
+                    if let (Some(pattern), Some(mtype)) = (&match_pattern, &match_type) {
+                        format!(
+                            "Rule: \"{}\" ({})",
+                            pattern,
+                            match mtype {
+                                crate::settings::TitleMatchType::Text => "Text match",
+                                crate::settings::TitleMatchType::Regex => "Regex match",
+                            }
+                        )
+                    } else {
+                        format!("Window: \"{}\"", window_title.clone().unwrap_or_default())
+                    };
+
                 let context_block = format!(
-                    "\n\nRecent context for application \"{}\":\n{}\n\n",
+                    "\n\nRecent context for application \"{}\" ({}):\n{}\n\n",
                     app_name.clone().unwrap_or_default(),
+                    context_label,
                     history
                         .iter()
                         .map(|s| format!("- {}", s))
@@ -227,9 +245,23 @@ pub async fn execute_llm_request(
 
     // 2. Add history as a single User message context block
     if !history.is_empty() {
+        let context_label = if let (Some(pattern), Some(mtype)) = (&match_pattern, &match_type) {
+            format!(
+                "规则: \"{}\" ({})",
+                pattern,
+                match mtype {
+                    crate::settings::TitleMatchType::Text => "文本包含",
+                    crate::settings::TitleMatchType::Regex => "正则匹配",
+                }
+            )
+        } else {
+            format!("窗口: \"{}\"", window_title.clone().unwrap_or_default())
+        };
+
         let history_block = format!(
-            "以下是对话的历史识别结果（来自应用 \"{}\"），仅用于提供上下文，请勿修改：\n\n{}",
+            "以下是对话的历史识别结果（来自应用 \"{}\"，{}），仅用于提供上下文，请勿修改：\n\n{}",
             app_name.clone().unwrap_or_default(),
+            context_label,
             history.join("\n")
         );
 
@@ -293,6 +325,9 @@ pub(crate) async fn maybe_post_process_transcription(
     show_overlay: bool,
     override_prompt_id: Option<String>,
     app_name: Option<String>,
+    window_title: Option<String>,
+    match_pattern: Option<String>,
+    match_type: Option<crate::settings::TitleMatchType>,
     exclude_history_id: Option<i64>,
 ) -> (
     Option<String>,
@@ -533,6 +568,9 @@ pub(crate) async fn maybe_post_process_transcription(
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 match hm.get_recent_history_texts_for_app(
                     &app,
+                    window_title.as_deref(),
+                    match_pattern.as_deref(),
+                    match_type,
                     settings.post_process_context_limit as usize,
                     exclude_history_id,
                 ) {
@@ -552,8 +590,9 @@ pub(crate) async fn maybe_post_process_transcription(
     if !history_entries.is_empty() {
         if processed_prompt.contains("${context}") {
             let context_block = format!(
-                "\n\nRecent context for application \"{}\":\n{}\n\n",
+                "\n\nRecent context for application \"{}\" (Window: \"{}\"):\n{}\n\n",
                 app_name.clone().unwrap_or_default(),
+                window_title.clone().unwrap_or_default(),
                 history_entries
                     .iter()
                     .map(|s| format!("- {}", s))
@@ -577,6 +616,9 @@ pub(crate) async fn maybe_post_process_transcription(
         &processed_prompt,
         history_entries,
         app_name,
+        window_title,
+        match_pattern,
+        match_type,
     )
     .await;
     (
@@ -651,6 +693,9 @@ pub(crate) async fn post_process_text_with_prompt(
         &model,
         &processed_prompt,
         Vec::new(), // No history for manual prompts
+        None,
+        None,
+        None,
         None,
     )
     .await;

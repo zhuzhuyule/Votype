@@ -834,30 +834,55 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                // Lookup profile for the active app
-                                let app_profile =
-                                    active_window_snapshot_for_review.as_ref().and_then(|info| {
-                                        let app_id = info.app_name.clone();
-                                        settings_clone
-                                            .app_to_profile
-                                            .get(&app_id)
-                                            .or_else(|| {
-                                                settings_clone.app_to_profile.get(&info.app_name)
-                                            })
-                                            .and_then(|profile_id| {
-                                                settings_clone
-                                                    .app_profiles
-                                                    .iter()
-                                                    .find(|p| &p.id == profile_id)
-                                            })
-                                    });
+                                // Lookup profile for the active app with title rule matching
+                                let (app_profile, matched_rule) = active_window_snapshot_for_review
+                                    .as_ref()
+                                    .map(|info| {
+                                        // Find profile for this app
+                                        let profile_id =
+                                            settings_clone.app_to_profile.get(&info.app_name);
+                                        let profile = profile_id.and_then(|pid| {
+                                            settings_clone
+                                                .app_profiles
+                                                .iter()
+                                                .find(|p| &p.id == pid)
+                                        });
 
-                                let app_policy = app_profile
-                                    .map(|p| p.policy.clone())
+                                        if let Some(p) = profile {
+                                            // Check sub-rules first
+                                            for rule in &p.rules {
+                                                let matched = match rule.match_type {
+                                                    crate::settings::TitleMatchType::Text => info
+                                                        .title
+                                                        .to_lowercase()
+                                                        .contains(&rule.pattern.to_lowercase()),
+                                                    crate::settings::TitleMatchType::Regex => {
+                                                        regex::Regex::new(&rule.pattern)
+                                                            .map(|re| re.is_match(&info.title))
+                                                            .unwrap_or(false)
+                                                    }
+                                                };
+                                                if matched {
+                                                    return (Some(p), Some(rule));
+                                                }
+                                            }
+                                            // No rule matched, use profile defaults
+                                            (Some(p), None)
+                                        } else {
+                                            (None, None)
+                                        }
+                                    })
+                                    .unwrap_or((None, None));
+
+                                // Determine policy and prompt_id from matched rule or profile defaults
+                                let app_policy = matched_rule
+                                    .map(|r| r.policy)
+                                    .or_else(|| app_profile.map(|p| p.policy))
                                     .unwrap_or(crate::settings::AppReviewPolicy::Auto);
 
-                                let override_prompt_id =
-                                    app_profile.and_then(|p| p.prompt_id.clone());
+                                let override_prompt_id = matched_rule
+                                    .and_then(|r| r.prompt_id.clone())
+                                    .or_else(|| app_profile.and_then(|p| p.prompt_id.clone()));
 
                                 let (
                                     processed_text,
@@ -876,6 +901,11 @@ impl ShortcutAction for TranscribeAction {
                                     active_window_snapshot_for_review
                                         .as_ref()
                                         .map(|info| info.app_name.clone()),
+                                    active_window_snapshot_for_review
+                                        .as_ref()
+                                        .map(|info| info.title.clone()),
+                                    matched_rule.map(|r| r.pattern.clone()),
+                                    matched_rule.map(|r| r.match_type),
                                     history_id,
                                 )
                                 .await;

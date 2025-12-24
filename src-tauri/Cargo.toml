@@ -72,6 +72,7 @@ active-win-pos-rs = "0.9.1"
 ferrous-opencc = "0.2.3"
 sherpa-rs-sys = "0.6.8"
 bzip2 = "0.6.1"
+regex = "1"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
@@ -96,6 +97,9 @@ windows = { version = "0.61.3", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
+objc2 = "0.5"
+core-foundation = "0.10"
+core-graphics = "0.24"
 
 [profile.release]
 lto = true

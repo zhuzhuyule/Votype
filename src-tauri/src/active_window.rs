@@ -43,14 +43,106 @@ pub fn fetch_active_window() -> Result<ActiveWindowInfo, String> {
     let active_window =
         get_active_window().map_err(|_| "无法获取当前活动窗口，可能缺少辅助权限".to_string())?;
 
+    let mut used_accessibility = false;
+    let title = if active_window.title.is_empty() {
+        #[cfg(target_os = "macos")]
+        {
+            match get_window_title_via_accessibility(active_window.process_id) {
+                Ok(t) => {
+                    used_accessibility = true;
+                    t
+                }
+                Err(_) => active_window.title.clone(),
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            active_window.title.clone()
+        }
+    } else {
+        active_window.title.clone()
+    };
+
+    log::info!(
+        "[ActiveWindow] {} | app: {:?} | title: {:?} (fallback: {})",
+        if used_accessibility { "FIXED" } else { "RAW" },
+        active_window.app_name,
+        title,
+        used_accessibility
+    );
+
     Ok(ActiveWindowInfo {
-        title: active_window.title,
+        title,
         app_name: active_window.app_name,
         window_id: active_window.window_id,
         process_id: active_window.process_id,
         process_path: active_window.process_path.to_string_lossy().to_string(),
         position: active_window.position.into(),
     })
+}
+
+/// Get window title using macOS Accessibility API (AXUIElement)
+/// This is more reliable than active_win_pos_rs for some applications
+#[cfg(target_os = "macos")]
+fn get_window_title_via_accessibility(pid: u64) -> Result<String, String> {
+    use core_foundation::base::{CFRelease, TCFType};
+    use core_foundation::string::{CFString, CFStringRef};
+    use std::ffi::c_void;
+    use std::ptr;
+
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        fn AXUIElementCreateApplication(pid: i32) -> *mut c_void;
+        fn AXUIElementCopyAttributeValue(
+            element: *mut c_void,
+            attribute: CFStringRef,
+            value: *mut *mut c_void,
+        ) -> i32;
+    }
+
+    unsafe {
+        // Create AXUIElement for the application
+        let app_element = AXUIElementCreateApplication(pid as i32);
+        if app_element.is_null() {
+            return Err("Failed to create AXUIElement for app".to_string());
+        }
+
+        // Get focused window
+        let focused_window_attr = CFString::new("AXFocusedWindow");
+        let mut focused_window: *mut c_void = ptr::null_mut();
+        let result = AXUIElementCopyAttributeValue(
+            app_element,
+            focused_window_attr.as_concrete_TypeRef(),
+            &mut focused_window,
+        );
+
+        if result != 0 || focused_window.is_null() {
+            CFRelease(app_element);
+            return Err("Failed to get focused window".to_string());
+        }
+
+        // Get window title
+        let title_attr = CFString::new("AXTitle");
+        let mut title_value: *mut c_void = ptr::null_mut();
+        let result = AXUIElementCopyAttributeValue(
+            focused_window,
+            title_attr.as_concrete_TypeRef(),
+            &mut title_value,
+        );
+
+        CFRelease(focused_window);
+        CFRelease(app_element);
+
+        if result != 0 || title_value.is_null() {
+            return Err("Failed to get window title".to_string());
+        }
+
+        // Convert CFString to Rust String
+        let cf_title = CFString::wrap_under_create_rule(title_value as CFStringRef);
+        let title = cf_title.to_string();
+
+        Ok(title)
+    }
 }
 
 pub fn fetch_cursor_position() -> Result<CursorPosition, String> {
@@ -67,18 +159,33 @@ pub fn fetch_cursor_position() -> Result<CursorPosition, String> {
 
 #[cfg(target_os = "macos")]
 pub fn focus_app_by_pid(pid: u64) -> Result<(), String> {
-    use std::process::Command;
-    let script = format!(
-        r#"tell application "System Events" to set frontmost of (first process whose unix id is {pid}) to true"#
-    );
-    let status = Command::new("osascript")
-        .args(["-e", &script])
-        .status()
-        .map_err(|e| format!("Failed to run osascript: {e}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err("Failed to activate previous app".to_string())
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send, msg_send_id};
+
+    let pid_i32 = pid as i32;
+
+    unsafe {
+        // Get NSRunningApplication class
+        let cls = class!(NSRunningApplication);
+
+        // Call +[NSRunningApplication runningApplicationWithProcessIdentifier:]
+        let app: Option<Retained<AnyObject>> =
+            msg_send_id![cls, runningApplicationWithProcessIdentifier: pid_i32];
+
+        match app {
+            Some(app) => {
+                // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2
+                let options: usize = 2;
+                let success: bool = msg_send![&*app, activateWithOptions: options];
+                if success {
+                    Ok(())
+                } else {
+                    Err("Failed to activate app".to_string())
+                }
+            }
+            None => Err(format!("No running application found for pid {}", pid)),
+        }
     }
 }
 

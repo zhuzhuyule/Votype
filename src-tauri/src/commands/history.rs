@@ -231,6 +231,9 @@ pub async fn retranscribe_history_entry(
                 false,
                 None,
                 entry.app_name,
+                entry.window_title,
+                None,
+                None,
                 Some(id),
             )
             .await;

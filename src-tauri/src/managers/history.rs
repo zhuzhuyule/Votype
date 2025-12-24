@@ -988,12 +988,18 @@ impl HistoryManager {
     pub fn get_recent_history_texts_for_app(
         &self,
         app_name: &str,
+        window_title: Option<&str>,
+        match_pattern: Option<&str>,
+        match_type: Option<crate::settings::TitleMatchType>,
         limit: usize,
         exclude_id: Option<i64>,
     ) -> Result<Vec<String>> {
         let conn = self.get_connection()?;
 
-        let mut query = "SELECT id, COALESCE(post_processed_text, transcription_text) as text 
+        // Pull more entries than limit to allow for filtering in Rust
+        let fetch_limit = limit * 4;
+
+        let mut query = "SELECT id, COALESCE(post_processed_text, transcription_text) as text, window_title
              FROM transcription_history 
              WHERE app_name = ?1 AND (post_processed_text IS NOT NULL OR transcription_text IS NOT NULL)".to_string();
 
@@ -1006,24 +1012,44 @@ impl HistoryManager {
         let mut stmt = conn.prepare(&query)?;
 
         let mut results = Vec::new();
-        if let Some(id) = exclude_id {
-            let rows =
-                stmt.query_map(params![app_name, limit, id], |row| row.get::<_, String>(1))?;
-            for row in rows {
-                if let Ok(text) = row {
-                    let trimmed = text.trim();
-                    if !trimmed.is_empty() {
-                        results.push(trimmed.to_string());
-                    }
+        let exclude_val = exclude_id.unwrap_or(-1);
+
+        let rows = stmt.query_map(params![app_name, fetch_limit, exclude_val], |row| {
+            Ok((row.get::<_, String>(1)?, row.get::<_, Option<String>>(2)?))
+        })?;
+
+        for row in rows {
+            if let Ok((text, history_win_title)) = row {
+                let trimmed = text.trim();
+                if trimmed.is_empty() {
+                    continue;
                 }
-            }
-        } else {
-            let rows = stmt.query_map(params![app_name, limit], |row| row.get::<_, String>(1))?;
-            for row in rows {
-                if let Ok(text) = row {
-                    let trimmed = text.trim();
-                    if !trimmed.is_empty() {
-                        results.push(trimmed.to_string());
+
+                let mut matched = false;
+                if let (Some(pattern), Some(mtype)) = (match_pattern, match_type) {
+                    // Pattern-based match (Rule-aware)
+                    if let Some(h_title) = history_win_title.as_ref() {
+                        matched = match mtype {
+                            crate::settings::TitleMatchType::Text => {
+                                h_title.to_lowercase().contains(&pattern.to_lowercase())
+                            }
+                            crate::settings::TitleMatchType::Regex => regex::Regex::new(pattern)
+                                .map(|re| re.is_match(h_title))
+                                .unwrap_or(false),
+                        };
+                    }
+                } else if window_title.is_some() {
+                    // Exact match fallback (Current window has no rule)
+                    matched = history_win_title.as_deref() == window_title;
+                } else {
+                    // Overall app-level match (No title provided)
+                    matched = true;
+                }
+
+                if matched {
+                    results.push(trimmed.to_string());
+                    if results.len() >= limit {
+                        break;
                     }
                 }
             }

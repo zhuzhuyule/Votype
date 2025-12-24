@@ -218,11 +218,27 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                 </Flex>
               )}
 
-              {appName ? (
-                <Text size="1" color="gray">
-                  {appName}
+              <Flex gap="1" align="center">
+                <Text size="1" color="gray" weight="medium">
+                  {appName || t("common.unknown")}
                 </Text>
-              ) : null}
+                {entry.window_title && entry.window_title !== appName && (
+                  <>
+                    <Text size="1" color="gray" className="opacity-40">
+                      ·
+                    </Text>
+                    <Tooltip content={entry.window_title}>
+                      <Text
+                        size="1"
+                        color="gray"
+                        className="max-w-[180px] truncate opacity-70"
+                      >
+                        {entry.window_title}
+                      </Text>
+                    </Tooltip>
+                  </>
+                )}
+              </Flex>
               {metaText ? (
                 <Text size="1" color="gray">
                   {metaText}

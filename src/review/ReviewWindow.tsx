@@ -371,7 +371,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       initialData.source_text,
       initialData.final_text,
     );
-    editor.commands.setContent(targetHtml, false);
+    editor.commands.setContent(targetHtml, { emitUpdate: false });
     setSourceHtml(nextSourceHtml);
   }, [editor, initialData.source_text, initialData.final_text]);
 

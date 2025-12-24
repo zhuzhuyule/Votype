@@ -71,12 +71,25 @@ export type RecordingRetentionPeriod = z.infer<
 export const AppReviewPolicySchema = z.enum(["auto", "always", "never"]);
 export type AppReviewPolicy = z.infer<typeof AppReviewPolicySchema>;
 
+export const TitleMatchTypeSchema = z.enum(["text", "regex"]);
+export type TitleMatchType = z.infer<typeof TitleMatchTypeSchema>;
+
+export const TitleRuleSchema = z.object({
+  id: z.string(),
+  pattern: z.string(),
+  match_type: TitleMatchTypeSchema.default("text"),
+  policy: AppReviewPolicySchema,
+  prompt_id: z.string().nullable().optional(),
+});
+export type TitleRule = z.infer<typeof TitleRuleSchema>;
+
 export const AppProfileSchema = z.object({
   id: z.string(),
   name: z.string(),
   policy: AppReviewPolicySchema,
   prompt_id: z.string().nullable().optional(),
   icon: z.string().nullable().optional(),
+  rules: z.array(TitleRuleSchema).default([]),
 });
 export type AppProfile = z.infer<typeof AppProfileSchema>;
 

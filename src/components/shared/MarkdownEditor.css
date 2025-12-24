@@ -40,9 +40,10 @@
 
 .markdown-editor-fullscreen .markdown-editor-textarea {
   font-size: 15px;
-  padding: 32px 48px;
-  max-width: 1000px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 32px max(48px, calc(50% - 500px));
 }
 
 /* Dark mode adjustments if needed */

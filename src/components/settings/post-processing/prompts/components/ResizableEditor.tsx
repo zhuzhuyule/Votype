@@ -21,7 +21,6 @@ import {
   IconList,
   IconQuote,
   IconSparkles,
-  IconX,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -34,6 +33,7 @@ import {
 
 interface ResizableEditorProps {
   label: string;
+  fullscreenTitle?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
@@ -42,6 +42,7 @@ interface ResizableEditorProps {
 
 export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   label,
+  fullscreenTitle,
   value,
   onChange,
   placeholder,
@@ -166,12 +167,39 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
 
   return (
     <Flex direction="column" gap="2">
-      <Text size="2" weight="medium">
-        {label}
-      </Text>
+      <Flex justify="between" align="center">
+        <Text size="2" weight="medium">
+          {label}
+        </Text>
+        <Flex gap="2">
+          <Tooltip content={t("common.aiOptimize")}>
+            <IconButton
+              variant="soft"
+              color="gray"
+              size="1"
+              onClick={handleAiOptimize}
+              loading={isAiLoading}
+              style={{ cursor: "pointer" }}
+            >
+              <IconSparkles size={14} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip content={t("common.fullscreen")}>
+            <IconButton
+              variant="soft"
+              color="gray"
+              size="1"
+              onClick={() => setIsFullscreen(true)}
+              style={{ cursor: "pointer" }}
+            >
+              <IconArrowsMaximize size={14} />
+            </IconButton>
+          </Tooltip>
+        </Flex>
+      </Flex>
 
       {/* Normal Mode Editor */}
-      <Box className="relative group">
+      <Box className="relative">
         <MarkdownEditor
           ref={isFullscreen ? null : editorRef}
           value={value}
@@ -180,30 +208,6 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
           style={{ height }}
           onKeyDown={handleKeyDown}
         />
-
-        {/* Toolcase: Fullscreen & AI Optimize */}
-        <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-1.5">
-          <IconButton
-            variant="soft"
-            color="gray"
-            size="1"
-            onClick={handleAiOptimize}
-            loading={isAiLoading}
-            title={t("common.aiOptimize")}
-            style={{ cursor: "pointer" }}
-          >
-            <IconSparkles size={14} />
-          </IconButton>
-          <IconButton
-            variant="soft"
-            color="gray"
-            size="1"
-            onClick={() => setIsFullscreen(true)}
-            title={t("common.fullscreen")}
-          >
-            <IconArrowsMaximize size={14} />
-          </IconButton>
-        </Box>
 
         {/* Resize Handle */}
         <Box
@@ -237,6 +241,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
         <Dialog.Content
           maxWidth="none"
           size="1"
+          onOpenAutoFocus={(e) => e.preventDefault()}
           style={{
             position: "fixed",
             top: 0,
@@ -267,23 +272,13 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
             style={{ flexShrink: 0 }}
             className="border-b border-[var(--gray-5)] bg-[var(--gray-1)]"
           >
-            <Flex align="center" gap="4">
-              <Dialog.Title
-                m="0"
-                style={{
-                  fontSize: "var(--font-size-3)",
-                  fontWeight: "var(--font-weight-bold)",
-                }}
-              >
-                {label}
-              </Dialog.Title>
+            <Flex align="center" gap="5">
+              <Text size="4" className="bold font-semibold">
+                {fullscreenTitle || label}
+              </Text>
 
               {/* Formatting Toolbar */}
-              <Flex
-                gap="1"
-                ml="4"
-                className="border-l pl-4 border-[var(--gray-5)]"
-              >
+              <Flex gap="4" className="border-l pl-4">
                 <Tooltip content={t("common.bold") || "加粗"}>
                   <IconButton
                     variant="ghost"
@@ -369,25 +364,16 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                 {t("common.aiOptimize") || "AI 自动优润"}
               </Button>
 
-              <IconButton
-                variant="ghost"
-                color="gray"
-                size="2"
-                onClick={() => setIsFullscreen(false)}
-                title={t("common.exitFullscreen") || "还原"}
-              >
-                <IconArrowsMinimize size={18} />
-              </IconButton>
-              <Dialog.Close>
+              <Tooltip content={t("common.exitFullscreen") || "还原"}>
                 <IconButton
                   variant="ghost"
                   color="gray"
                   size="2"
-                  title={t("common.close") || "关闭"}
+                  onClick={() => setIsFullscreen(false)}
                 >
-                  <IconX size={18} />
+                  <IconArrowsMinimize size={18} />
                 </IconButton>
-              </Dialog.Close>
+              </Tooltip>
             </Flex>
           </Flex>
 
@@ -407,7 +393,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
             />
 
             {/* Quick Save Floating Button */}
-            <Box className="absolute bottom-8 right-8 z-20">
+            <Box className="absolute bottom-8 right-12 z-20">
               <Button
                 variant="solid"
                 size="3"

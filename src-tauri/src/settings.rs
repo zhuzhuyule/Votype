@@ -123,6 +123,31 @@ pub enum AppReviewPolicy {
     Never,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TitleMatchType {
+    /// Simple text contains matching
+    Text,
+    /// Regular expression matching
+    Regex,
+}
+
+impl Default for TitleMatchType {
+    fn default() -> Self {
+        TitleMatchType::Text
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TitleRule {
+    pub id: String,
+    pub pattern: String,
+    #[serde(default)]
+    pub match_type: TitleMatchType,
+    pub policy: AppReviewPolicy,
+    pub prompt_id: Option<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AppProfile {
     pub id: String,
@@ -130,6 +155,9 @@ pub struct AppProfile {
     pub policy: AppReviewPolicy,
     pub prompt_id: Option<String>,
     pub icon: Option<String>,
+    /// Title-based sub-rules for this app group
+    #[serde(default)]
+    pub rules: Vec<TitleRule>,
 }
 
 impl Default for ModelUnloadTimeout {
@@ -796,6 +824,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                         policy,
                         prompt_id: None,
                         icon: None,
+                        rules: Vec::new(),
                     });
                 }
                 settings.app_to_profile.insert(app_id.clone(), profile_id);

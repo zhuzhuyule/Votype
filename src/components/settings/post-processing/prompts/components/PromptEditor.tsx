@@ -188,6 +188,7 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
       {/* Main Editor */}
       <ResizableEditor
         label={t("settings.postProcessing.prompts.promptInstructions")}
+        fullscreenTitle={draftName}
         value={draftContent}
         onChange={setDraftContent}
         placeholder={t(

@@ -13,9 +13,13 @@
   "common": {
     "add": "添加",
     "addNewOption": "添加新选项",
+    "aiOptimizationSuccess": "AI 优化成功",
+    "aiOptimize": "AI 润色",
     "authorize": "授权",
+    "bold": "加粗",
     "cancel": "取消",
     "close": "关闭",
+    "code": "行内代码",
     "copied": "已复制",
     "copy": "复制",
     "create": "创建",
@@ -25,9 +29,15 @@
     "done": "完成",
     "edit": "编辑",
     "enabled": "已启用",
+    "exitFullscreen": "还原窗口",
     "filterOptions": "筛选选项...",
+    "fullscreen": "全屏模式",
     "granted": "已授权",
+    "h1": "一级标题",
     "id": "ID",
+    "italic": "斜体",
+    "link": "插入链接",
+    "list": "无序列表",
     "loading": "加载中...",
     "models": "模型",
     "next": "下一步",
@@ -39,6 +49,7 @@
     "on": "开",
     "open": "打开",
     "optional": "可选",
+    "quote": "引用",
     "remove": "移除",
     "requesting": "请求中...",
     "required": "必需",
@@ -50,18 +61,7 @@
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
-    "yes": "是",
-    "aiOptimize": "AI 自动优润",
-    "aiOptimizationSuccess": "AI 优化成功",
-    "bold": "加粗",
-    "italic": "斜体",
-    "h1": "一级标题",
-    "list": "无序列表",
-    "quote": "引用",
-    "code": "行内代码",
-    "link": "插入链接",
-    "fullscreen": "全屏模式",
-    "exitFullscreen": "还原窗口"
+    "yes": "是"
   },
   "dashboard": {
     "actions": {
@@ -871,13 +871,23 @@
       },
       "appRules": {
         "activeProfiles": "当前有 {{count}} 条规则",
-        "addApp": "添加应用...",
+        "addApp": "添加应用",
         "addRuleHead": "手动添加规则",
+        "addTitlePattern": "添加标题过滤",
         "assignedApps": "关联应用",
         "assignedAppsDescription": "下方列出的应用程序将使用此配置方案的设置。",
         "capture": "探测窗口",
+        "testMatch": "测试匹配",
+        "captureTitle": "捕获标题",
+        "context": {
+          "description": "通过向大模型发送当前应用的近期转录历史来提高识别准确度。",
+          "enabled": "上下文参考",
+          "limit": "历史深度",
+          "limitDesc": "{{count}} 条消息 (范围: 1-30)",
+          "title": "上下文感知后处理"
+        },
         "createPromptHint": "创建您的第一个配置方案以开始使用",
-        "description": "为特定的应用程序设置审阅行为或自定义提示词。",
+        "default": "默认",
         "fromHistory": "从历史记录添加",
         "newProfileName": "新方案名称...",
         "noAppsAssigned": "该方案下暂未绑定应用。",
@@ -909,13 +919,7 @@
           "title": "快捷键与用法"
         },
         "title": "应用特定规则",
-        "context": {
-          "title": "上下文感知后处理",
-          "enabled": "上下文参考",
-          "description": "通过向大模型发送当前应用的近期转录历史来提高识别准确度。",
-          "limit": "历史深度",
-          "limitDesc": "{{count}} 条消息 (范围: 1-30)"
-        }
+        "titlePattern": "标题匹配 (正则)"
       },
       "confidenceCheck": {
         "description": "调整已启用审查功能的提示词的触发灵敏度。数值越高，审查窗口弹出的频率越低。",
@@ -1007,8 +1011,8 @@
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
-        "enableReview": "启用审查触发",
         "editPrompt": "编辑提示词",
+        "enableReview": "启用审查触发",
         "newPromptName": "新提示词",
         "noAliases": "暂无别名",
         "noPrefixes": "暂无指令前缀",
