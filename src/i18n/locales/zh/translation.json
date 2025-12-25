@@ -12,6 +12,7 @@
   },
   "common": {
     "add": "添加",
+    "active": "使用中",
     "addNewOption": "添加新选项",
     "aiOptimizationSuccess": "AI 优化成功",
     "aiOptimize": "AI 润色",
@@ -60,6 +61,7 @@
     "selectOption": "选择选项",
     "skip": "跳过",
     "update": "更新",
+    "useThisProvider": "启用此提供商",
     "useInput": "使用 \"{{input}}\"",
     "yes": "是"
   },
@@ -826,7 +828,15 @@
           }
         },
         "provider": {
+          "builtin": "内置",
+          "builtinTooltip": "系统内置提供商,无法删除",
+          "deleteAction": "删除提供商",
+          "deleteConfirmation": "确定要删除提供商“{{name}}”吗？此操作无法撤销。",
+          "deleteTitle": "删除提供商",
           "description": "选择一个兼容 OpenAI 的提供商。",
+          "editName": "编辑提供商名称",
+          "namePlaceholder": "提供商名称",
+          "newProvider": "新建提供商",
           "title": "提供商"
         },
         "providers": {
@@ -855,6 +865,7 @@
             "title": "暂无提供商"
           },
           "fields": {
+            "apiKey": "API 密钥",
             "baseUrl": "基础 URL",
             "modelsEndpoint": "模型接口路径",
             "modelsEndpointPlaceholder": "/models",
@@ -877,7 +888,6 @@
         "assignedApps": "关联应用",
         "assignedAppsDescription": "下方列出的应用程序将使用此配置方案的设置。",
         "capture": "探测窗口",
-        "testMatch": "测试匹配",
         "captureTitle": "捕获标题",
         "context": {
           "description": "通过向大模型发送当前应用的近期转录历史来提高识别准确度。",
@@ -918,6 +928,7 @@
           "navKeys": "⌘ + 1-8",
           "title": "快捷键与用法"
         },
+        "testMatch": "测试匹配",
         "title": "应用特定规则",
         "titlePattern": "标题匹配 (正则)"
       },
@@ -962,7 +973,7 @@
             "label": "其他"
           },
           "text": {
-            "hint": "文本润色与格式化",
+            "hint": "文本润色",
             "label": "文本"
           }
         },

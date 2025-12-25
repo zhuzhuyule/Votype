@@ -110,21 +110,44 @@ fn preserve_case_pattern(original: &str, replacement: &str) -> String {
 
 /// Extracts punctuation prefix and suffix from a word
 fn extract_punctuation(word: &str) -> (&str, &str) {
-    let prefix_end = word.chars().take_while(|c| !c.is_alphabetic()).count();
-    let suffix_start = word
-        .char_indices()
+    // Count non-alphabetic characters at the start
+    let prefix_char_count = word.chars().take_while(|c| !c.is_alphabetic()).count();
+
+    // Count non-alphabetic characters at the end
+    let suffix_char_count = word
+        .chars()
         .rev()
-        .take_while(|(_, c)| !c.is_alphabetic())
+        .take_while(|c| !c.is_alphabetic())
         .count();
 
-    let prefix = if prefix_end > 0 {
-        &word[..prefix_end]
+    // Get the byte index for prefix end (number of chars from start)
+    let prefix_byte_end = word
+        .char_indices()
+        .nth(prefix_char_count)
+        .map(|(idx, _)| idx)
+        .unwrap_or(word.len());
+
+    // Get the byte index for suffix start (total chars - suffix char count)
+    let total_chars = word.chars().count();
+    let suffix_byte_start = if suffix_char_count > 0 && suffix_char_count < total_chars {
+        word.char_indices()
+            .nth(total_chars - suffix_char_count)
+            .map(|(idx, _)| idx)
+            .unwrap_or(word.len())
+    } else if suffix_char_count >= total_chars {
+        0
+    } else {
+        word.len()
+    };
+
+    let prefix = if prefix_char_count > 0 {
+        &word[..prefix_byte_end]
     } else {
         ""
     };
 
-    let suffix = if suffix_start > 0 {
-        &word[word.len() - suffix_start..]
+    let suffix = if suffix_char_count > 0 && suffix_char_count < total_chars {
+        &word[suffix_byte_start..]
     } else {
         ""
     };
@@ -164,6 +187,10 @@ mod tests {
         assert_eq!(extract_punctuation("hello"), ("", ""));
         assert_eq!(extract_punctuation("!hello?"), ("!", "?"));
         assert_eq!(extract_punctuation("...hello..."), ("...", "..."));
+        // Test Chinese characters and punctuation
+        assert_eq!(extract_punctuation("URL写进去。"), ("", "。"));
+        assert_eq!(extract_punctuation("。写进去"), ("。", ""));
+        assert_eq!(extract_punctuation("，URL写进去。"), ("，", "。"));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSettings } from "../../../hooks/useSettings";
 import type { PostProcessProvider } from "../../../lib/types";
 import type { DropdownOption } from "../../ui/Dropdown";
@@ -29,6 +29,9 @@ type PostProcessProviderState = {
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
   testConnection: () => Promise<boolean>;
+  verifiedProviderIds: Set<string>;
+  activeProviderId: string;
+  activateProvider: (providerId: string) => Promise<void>;
 };
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
@@ -51,23 +54,35 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   // Settings are guaranteed to have providers after migration
   const providers = settings?.post_process_providers || [];
 
-  const selectedProviderId = useMemo(() => {
+  // Determine the active provider from settings
+  const activeProviderId = useMemo(() => {
     return settings?.post_process_provider_id || providers[0]?.id || "openai";
   }, [providers, settings?.post_process_provider_id]);
 
+  // Local state for which provider is currently being viewed/edited
+  const [viewingProviderId, setViewingProviderId] =
+    useState<string>(activeProviderId);
+
+  // Sync viewing provider with active provider ONLY when settings first load
+  // or if viewingProviderId is invalid
+  const isValidViewingId = providers.some((p) => p.id === viewingProviderId);
+  if (!isValidViewingId && providers.length > 0) {
+    setViewingProviderId(activeProviderId);
+  }
+
   const selectedProvider = useMemo(() => {
     return (
-      providers.find((provider) => provider.id === selectedProviderId) ||
+      providers.find((provider) => provider.id === viewingProviderId) ||
       providers[0]
     );
-  }, [providers, selectedProviderId]);
+  }, [providers, viewingProviderId]);
 
   const isAppleProvider = selectedProvider?.id === APPLE_PROVIDER_ID;
 
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
-  const apiKey = settings?.post_process_api_keys?.[selectedProviderId] ?? "";
-  const model = settings?.post_process_models?.[selectedProviderId] ?? "";
+  const apiKey = settings?.post_process_api_keys?.[viewingProviderId] ?? "";
+  const model = settings?.post_process_models?.[viewingProviderId] ?? "";
   const modelsEndpoint = selectedProvider?.models_endpoint ?? "";
 
   const providerOptions = useMemo<DropdownOption[]>(() => {
@@ -77,14 +92,9 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     }));
   }, [providers]);
 
-  const handleProviderSelect = useCallback(
-    (providerId: string) => {
-      if (providerId !== selectedProviderId) {
-        void setPostProcessProvider(providerId);
-      }
-    },
-    [selectedProviderId, setPostProcessProvider],
-  );
+  const handleProviderSelect = useCallback((providerId: string) => {
+    setViewingProviderId(providerId);
+  }, []);
 
   const handleBaseUrlChange = useCallback(
     async (value: string) => {
@@ -103,69 +113,83 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     async (value: string) => {
       const trimmed = value.trim();
       if (trimmed !== apiKey) {
-        await updatePostProcessApiKey(selectedProviderId, trimmed);
+        await updatePostProcessApiKey(viewingProviderId, trimmed);
       }
     },
-    [apiKey, selectedProviderId, updatePostProcessApiKey],
+    [apiKey, viewingProviderId, updatePostProcessApiKey],
   );
 
   const handleModelsEndpointChange = useCallback(
     (value: string) => {
-      if (!selectedProviderId) return;
+      if (!viewingProviderId) return;
       const trimmed = value.trim();
       if (trimmed !== modelsEndpoint) {
         void updateCustomProvider({
-          providerId: selectedProviderId,
+          providerId: viewingProviderId,
           modelsEndpoint: trimmed,
         });
       }
     },
-    [selectedProviderId, modelsEndpoint, updateCustomProvider],
+    [viewingProviderId, modelsEndpoint, updateCustomProvider],
   );
 
   const handleModelChange = useCallback(
     (value: string) => {
       const trimmed = value.trim();
       if (trimmed !== model) {
-        void updatePostProcessModel(selectedProviderId, trimmed);
+        void updatePostProcessModel(viewingProviderId, trimmed);
       }
     },
-    [model, selectedProviderId, updatePostProcessModel],
+    [model, viewingProviderId, updatePostProcessModel],
   );
 
   const handleModelSelect = useCallback(
     (value: string) => {
-      void updatePostProcessModel(selectedProviderId, value.trim());
+      void updatePostProcessModel(viewingProviderId, value.trim());
     },
-    [selectedProviderId, updatePostProcessModel],
+    [viewingProviderId, updatePostProcessModel],
   );
 
   const handleModelCreate = useCallback(
     (value: string) => {
-      void updatePostProcessModel(selectedProviderId, value);
+      void updatePostProcessModel(viewingProviderId, value);
     },
-    [selectedProviderId, updatePostProcessModel],
+    [viewingProviderId, updatePostProcessModel],
   );
 
   const handleRefreshModels = useCallback(() => {
     if (isAppleProvider) return;
-    fetchPostProcessModels(selectedProviderId).catch((error) => {
+    fetchPostProcessModels(viewingProviderId).catch((error) => {
       // Error is already logged in store, we just prevent unhandled promise rejection here
       // Optionally we could toast an error here if we wanted auto-feedback
     });
-  }, [fetchPostProcessModels, isAppleProvider, selectedProviderId]);
+  }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
+
+  const [verifiedProviderIds, setVerifiedProviderIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const testConnection = useCallback(async () => {
     if (isAppleProvider) return true;
     try {
-      await fetchPostProcessModels(selectedProviderId);
+      await fetchPostProcessModels(viewingProviderId);
+      setVerifiedProviderIds((prev) => {
+        const next = new Set(prev);
+        next.add(viewingProviderId);
+        return next;
+      });
       return true;
     } catch (error) {
+      setVerifiedProviderIds((prev) => {
+        const next = new Set(prev);
+        next.delete(viewingProviderId);
+        return next;
+      });
       return false;
     }
-  }, [fetchPostProcessModels, isAppleProvider, selectedProviderId]);
+  }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
 
-  const availableModelsRaw = postProcessModelOptions[selectedProviderId] || [];
+  const availableModelsRaw = postProcessModelOptions[viewingProviderId] || [];
 
   const modelOptions = useMemo<ModelOption[]>(() => {
     const seen = new Set<string>();
@@ -190,16 +214,14 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   }, [availableModelsRaw, model]);
 
   const isBaseUrlUpdating = isUpdating(
-    `post_process_base_url:${selectedProviderId}`,
+    `post_process_base_url:${viewingProviderId}`,
   );
   const isApiKeyUpdating = isUpdating(
-    `post_process_api_key:${selectedProviderId}`,
+    `post_process_api_key:${viewingProviderId}`,
   );
-  const isModelUpdating = isUpdating(
-    `post_process_model:${selectedProviderId}`,
-  );
+  const isModelUpdating = isUpdating(`post_process_model:${viewingProviderId}`);
   const isFetchingModels = isUpdating(
-    `post_process_models_fetch:${selectedProviderId}`,
+    `post_process_models_fetch:${viewingProviderId}`,
   );
 
   const isCustomProvider = selectedProvider?.id === "custom";
@@ -209,7 +231,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   return {
     enabled,
     providerOptions,
-    selectedProviderId,
+    selectedProviderId: viewingProviderId, // Keep for compatibility or rename
+    activeProviderId,
     selectedProvider,
     isCustomProvider,
     isAppleProvider,
@@ -231,5 +254,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     modelsEndpoint,
     handleModelsEndpointChange,
     testConnection,
+    verifiedProviderIds,
+    activateProvider: setPostProcessProvider,
   };
 };

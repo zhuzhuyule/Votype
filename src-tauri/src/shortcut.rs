@@ -1441,11 +1441,11 @@ pub fn confirm_reviewed_transcription(
         text.len()
     );
 
+    let resolved_history_id = history_id.or_else(crate::review_window::get_last_review_history_id);
     // Hide review window and reset tray icon
-    crate::review_window::hide_review_window(&app);
+    crate::review_window::hide_review_window(&app, resolved_history_id);
     change_tray_icon(&app, TrayIconState::Idle);
     // Update history if we have an ID
-    let resolved_history_id = history_id.or_else(crate::review_window::get_last_review_history_id);
     if let Some(id) = resolved_history_id {
         let hm = app
             .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
@@ -1491,8 +1491,9 @@ pub fn cancel_transcription_review(
         "cancel_transcription_review called with history_id: {:?}",
         history_id
     );
+    let resolved_history_id = history_id.or_else(crate::review_window::get_last_review_history_id);
     // Hide review window and reset tray icon
-    crate::review_window::hide_review_window(&app);
+    crate::review_window::hide_review_window(&app, resolved_history_id);
     change_tray_icon(&app, TrayIconState::Idle);
 
     if let Some(info) = crate::review_window::get_last_active_window() {

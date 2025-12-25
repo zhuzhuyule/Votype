@@ -3,7 +3,7 @@ import "@radix-ui/themes/styles.css";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import "../App.css";
 import { RadixThemeProvider } from "../components/theme/RadixThemeProvider";
@@ -16,6 +16,10 @@ interface ReviewData {
   change_percent: number;
   history_id: number | null;
   reason?: string | null;
+}
+
+interface ReviewHidePayload {
+  history_id: number | null;
 }
 
 class ErrorBoundary extends React.Component<
@@ -61,6 +65,11 @@ class ErrorBoundary extends React.Component<
 
 const ReviewApp: React.FC = () => {
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+  const reviewDataRef = useRef<ReviewData | null>(null);
+
+  useEffect(() => {
+    reviewDataRef.current = reviewData;
+  }, [reviewData]);
 
   useEffect(() => {
     let unlistenShow: (() => void) | null = null;
@@ -73,10 +82,20 @@ const ReviewApp: React.FC = () => {
       });
 
       // Listen for hide event from Rust
-      unlistenHide = await listen("review-window-hide", () => {
-        setReviewData(null);
-        void getCurrentWindow().hide();
-      });
+      unlistenHide = await listen<ReviewHidePayload>(
+        "review-window-hide",
+        (event) => {
+          const activeReview = reviewDataRef.current;
+          const payloadHistoryId = event.payload?.history_id ?? null;
+          const shouldHide =
+            !activeReview || activeReview.history_id === payloadHistoryId;
+
+          if (shouldHide) {
+            setReviewData(null);
+            void getCurrentWindow().hide();
+          }
+        },
+      );
 
       // Signal ready AFTER listeners are set up
       try {

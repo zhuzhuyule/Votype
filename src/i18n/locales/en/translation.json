@@ -12,6 +12,7 @@
   },
   "common": {
     "add": "Add",
+    "active": "Active",
     "addNewOption": "Add new option",
     "aiOptimizationSuccess": "AI Optimization successful",
     "aiOptimize": "AI Polish",
@@ -60,6 +61,7 @@
     "selectOption": "Select an option",
     "skip": "Skip",
     "update": "Update",
+    "useThisProvider": "Use this Provider",
     "useInput": "Use \"{{input}}\"",
     "yes": "Yes"
   },
@@ -804,8 +806,16 @@
           }
         },
         "provider": {
+          "builtin": "Built-in",
+          "builtinTooltip": "Built-in provider, cannot be deleted",
           "description": "Select an OpenAI-compatible provider.",
-          "title": "Provider"
+          "editName": "Edit Provider Name",
+          "namePlaceholder": "Provider Name",
+          "title": "Provider",
+          "newProvider": "New Provider",
+          "deleteAction": "Delete Provider",
+          "deleteTitle": "Delete Provider",
+          "deleteConfirmation": "Are you sure you want to delete the provider \"{{name}}\"? This action cannot be undone."
         },
         "providers": {
           "add": "Add Provider",
@@ -836,6 +846,7 @@
             "baseUrl": "Base URL",
             "modelsEndpoint": "Models Endpoint",
             "modelsEndpointPlaceholder": "/models",
+            "apiKey": "API Key",
             "name": "Provider Name",
             "namePlaceholder": "My Provider"
           },

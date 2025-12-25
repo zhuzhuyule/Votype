@@ -28,6 +28,11 @@ struct ReviewWindowPayload {
     reason: Option<String>,
 }
 
+#[derive(Clone, serde::Serialize)]
+struct ReviewWindowHidePayload {
+    history_id: Option<i64>,
+}
+
 static REVIEW_WINDOW_READY: AtomicBool = AtomicBool::new(false);
 static REVIEW_WINDOW_FORCED_ACTIVATION: AtomicBool = AtomicBool::new(false);
 static REVIEW_WINDOW_FOCUS_TOKEN: AtomicU64 = AtomicU64::new(0);
@@ -357,9 +362,9 @@ pub fn show_review_window(
 }
 
 /// Hides the review window
-pub fn hide_review_window(app_handle: &AppHandle) {
+pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
-        let _ = review_window.emit("review-window-hide", ());
+        let _ = review_window.emit("review-window-hide", ReviewWindowHidePayload { history_id });
         let _ = review_window.hide();
     }
     REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst);
