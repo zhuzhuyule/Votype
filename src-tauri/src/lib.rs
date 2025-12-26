@@ -402,6 +402,7 @@ pub fn run() {
             commands::show_main_window,
             commands::get_first_history_entry,
             commands::paste_text_to_active_window,
+            commands::paste_to_previous_window,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,

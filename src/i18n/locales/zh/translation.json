@@ -1038,6 +1038,15 @@
           "description": "选择用于优化转录的模板或创建新模板。可使用 <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code> 等占位符。",
           "title": "已选提示词"
         },
+        "outputMode": {
+          "refinement": "优化 (Refinement)",
+          "generation": "生成 (Assistant)",
+          "label": "输出模式"
+        },
+        "advancedSettings": "高级设置",
+        "reviewThreshold": "审核阈值",
+        "refinementDescription": "自动纠正和格式化识别的文本。",
+        "generationDescription": "基于识别文本作为提示生成新内容（例如翻译、摘要）。",
         "selectPrompt": "选择提示词",
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
         "setAsActive": "设为默认",
@@ -1180,9 +1189,14 @@
       "highlightHint": "高亮词为大模型优化后的变动",
       "hint": "⌘/Ctrl + Enter 确认, Escape 取消",
       "insert": "插入",
+      "insertCode": "插入代码",
       "placeholder": "在此编辑转录内容...",
       "source": "实时转写",
-      "title": "审阅转录"
+      "title": "审阅转录",
+      "generationTitle": "AI 助手回复",
+      "instruction": "指令",
+      "aiResponse": "AI 回复",
+      "insertStabilityHint": "快捷键：{{shortcut}}\n如果插入不稳定，可暂时关闭该功能。"
     }
   }
 }

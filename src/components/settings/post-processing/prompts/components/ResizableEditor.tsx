@@ -24,7 +24,7 @@ import {
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Trans, useTranslation } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
   MarkdownEditor,
@@ -33,23 +33,108 @@ import {
 
 interface ResizableEditorProps {
   label: string;
-  fullscreenTitle?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   tipKey: string;
+  className?: string;
+  style?: React.CSSProperties;
 }
+
+// Collapsible Tips Component
+const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
+  tipKey,
+  t,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Common variables shown when collapsed
+  const commonVars = ["${output}", "${context}", "${hot_words}"];
+
+  return (
+    <Box className="mt-1">
+      <Flex
+        align="center"
+        gap="2"
+        className="cursor-pointer select-none opacity-60 hover:opacity-100 transition-opacity"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <Text size="1" color="gray" className="font-medium">
+          {isExpanded ? "▼" : "▶"}{" "}
+          {t("common.variables", { defaultValue: "可用变量" })}:
+        </Text>
+        {!isExpanded && (
+          <Text size="1" color="gray" className="font-mono opacity-70">
+            {commonVars.join(" ")}
+          </Text>
+        )}
+      </Flex>
+
+      {isExpanded && (
+        <Box className="mt-2 pl-3 border-l-2 border-gray-200 dark:border-gray-700 space-y-1">
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${output}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varOutputDesc", {
+              defaultValue: "识别出的最终文本结果。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${streaming_output}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varStreamingDesc", {
+              defaultValue: "实时转录过程中的中间文本串。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${hot_words}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varHotWordsDesc", {
+              defaultValue: "您在「高级设置」中定义的个人词库/热词。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${prompt}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varPromptDesc", {
+              defaultValue: "当前正在使用的提示词方案的显示名称。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${context}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varContextDesc", {
+              defaultValue: "当前活动窗口的历史聊天记录信息。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block mt-2 italic opacity-80">
+            {t("settings.postProcessing.prompts.jsonHint", {
+              defaultValue:
+                "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。",
+            })}
+          </Text>
+        </Box>
+      )}
+    </Box>
+  );
+};
 
 export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   label,
-  fullscreenTitle,
   value,
   onChange,
   placeholder,
   tipKey,
+  className,
+  style,
 }) => {
   const { t } = useTranslation();
-  const [height, setHeight] = useState(400);
+  const [height, setHeight] = useState(500);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -166,12 +251,11 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   };
 
   return (
-    <Flex direction="column" gap="2">
-      <Flex justify="between" align="center">
-        <Text size="2" weight="medium">
-          {label}
-        </Text>
-        <Flex gap="2">
+    <Flex direction="column" gap="2" className={className} style={style}>
+      <Flex justify="between" align="start">
+        {/* Inline Collapsible Variables - replaces the title */}
+        <CollapsibleTips tipKey={tipKey} t={t} />
+        <Flex gap="2" className="shrink-0 ml-3">
           <Tooltip content={t("common.aiOptimize")}>
             <IconButton
               variant="soft"
@@ -224,18 +308,6 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
         </Box>
       </Box>
 
-      <Text size="1" color="gray">
-        <Trans
-          i18nKey={tipKey}
-          components={{
-            code: (
-              <code className="px-1.5 py-0.5 bg-gray-100/80 rounded text-xs font-mono text-gray-700 mx-1" />
-            ),
-            br: <br />,
-          }}
-        />
-      </Text>
-
       {/* Full-screen Dialog Mode */}
       <Dialog.Root open={isFullscreen} onOpenChange={setIsFullscreen}>
         <Dialog.Content
@@ -274,7 +346,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
           >
             <Flex align="center" gap="5">
               <Text size="4" className="bold font-semibold">
-                {fullscreenTitle || label}
+                {label}
               </Text>
 
               {/* Formatting Toolbar */}

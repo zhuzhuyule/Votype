@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useSettings } from "../../../../../hooks/useSettings";
-import type { LLMPrompt } from "../../../../../lib/types";
+import type { LLMPrompt, PromptOutputMode } from "../../../../../lib/types";
 
 export interface UsePromptsReturn {
   // Settings
@@ -34,6 +34,8 @@ export interface UsePromptsReturn {
   setDraftComplianceCheck: (value: boolean) => void;
   draftComplianceThreshold: number;
   setDraftComplianceThreshold: (value: number) => void;
+  draftOutputMode: PromptOutputMode;
+  setDraftOutputMode: (value: PromptOutputMode) => void;
   currentAliases: string[];
   currentAliasInput: string;
   setCurrentAliasInput: (value: string) => void;
@@ -83,6 +85,9 @@ export const usePrompts = (): UsePromptsReturn => {
   const [draftIcon, setDraftIcon] = useState<string | null>(null);
   const [draftComplianceCheck, setDraftComplianceCheck] = useState(false);
   const [draftComplianceThreshold, setDraftComplianceThreshold] = useState(70);
+
+  const [draftOutputMode, setDraftOutputMode] =
+    useState<PromptOutputMode>("refinement");
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
 
@@ -123,7 +128,8 @@ export const usePrompts = (): UsePromptsReturn => {
       (draftIcon || null) !== (viewingPrompt.icon || null) ||
       draftComplianceCheck !==
         (viewingPrompt.compliance_check_enabled || false) ||
-      draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70)
+      draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70) ||
+      draftOutputMode !== (viewingPrompt.output_mode || "refinement")
     );
   }, [
     isCreating,
@@ -136,6 +142,7 @@ export const usePrompts = (): UsePromptsReturn => {
     draftIcon,
     draftComplianceCheck,
     draftComplianceThreshold,
+    draftOutputMode,
   ]);
 
   // Text models for dropdown
@@ -182,7 +189,9 @@ export const usePrompts = (): UsePromptsReturn => {
         setDraftModelId(null);
         setDraftIcon(null);
         setDraftComplianceCheck(false);
+
         setDraftComplianceThreshold(20);
+        setDraftOutputMode("refinement");
         setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
@@ -196,7 +205,9 @@ export const usePrompts = (): UsePromptsReturn => {
       setDraftModelId(viewingPrompt.model_id || null);
       setDraftIcon(viewingPrompt.icon || null);
       setDraftComplianceCheck(viewingPrompt.compliance_check_enabled || false);
+
       setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
+      setDraftOutputMode(viewingPrompt.output_mode || "refinement");
       setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
@@ -315,6 +326,7 @@ export const usePrompts = (): UsePromptsReturn => {
           icon: draftIcon,
           complianceCheckEnabled: draftComplianceCheck,
           complianceThreshold: Math.round(draftComplianceThreshold),
+          outputMode: draftOutputMode,
         });
         await refreshSettings();
         setCurrentTab(newPrompt.id);
@@ -338,6 +350,7 @@ export const usePrompts = (): UsePromptsReturn => {
           icon: draftIcon,
           complianceCheckEnabled: draftComplianceCheck,
           complianceThreshold: Math.round(draftComplianceThreshold),
+          outputMode: draftOutputMode,
         });
         await refreshSettings();
         toast.success(t("settings.postProcessing.prompts.updateSuccess"));
@@ -354,6 +367,7 @@ export const usePrompts = (): UsePromptsReturn => {
     draftIcon,
     draftComplianceCheck,
     draftComplianceThreshold,
+    draftOutputMode,
     isCreating,
     validateAliases,
     viewingPrompt,
@@ -438,6 +452,8 @@ export const usePrompts = (): UsePromptsReturn => {
     setDraftComplianceCheck,
     draftComplianceThreshold,
     setDraftComplianceThreshold,
+    draftOutputMode,
+    setDraftOutputMode,
     currentAliases,
     currentAliasInput,
     setCurrentAliasInput,

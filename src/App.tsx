@@ -136,18 +136,9 @@ function App() {
       if (isSettingsShortcut) {
         event.preventDefault();
         const sectionIndex = parseInt(event.key, 10) - 1;
-        const sections: SidebarSection[] = [
-          "dashboard",
-          "general",
-          "shortcuts",
-          "advanced",
-          "models",
-          "prompts",
-          "about",
-        ];
 
-        if (sectionIndex < sections.length) {
-          const targetSection = sections[sectionIndex];
+        if (sectionIndex < SECTION_ORDER.length) {
+          const targetSection = SECTION_ORDER[sectionIndex];
           setCurrentSection(targetSection);
         }
       }

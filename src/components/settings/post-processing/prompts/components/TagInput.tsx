@@ -1,8 +1,8 @@
 // TagInput - Reusable tag input component for aliases and prefixes
 
-import { Badge, Flex, IconButton, Text, TextField } from "@radix-ui/themes";
+import { Badge, Flex, Text, TextField } from "@radix-ui/themes";
 import { IconPlus, IconX } from "@tabler/icons-react";
-import React from "react";
+import React, { useRef, useState } from "react";
 
 interface TagInputProps {
   tags: string[];
@@ -14,6 +14,7 @@ interface TagInputProps {
   placeholder: string;
   emptyMessage: string;
   color?: "indigo" | "orange" | "blue" | "gray";
+  error?: string | null;
 }
 
 export const TagInput: React.FC<TagInputProps> = ({
@@ -26,29 +27,40 @@ export const TagInput: React.FC<TagInputProps> = ({
   placeholder,
   emptyMessage,
   color = "indigo",
+  error,
 }) => {
-  return (
-    <Flex gap="2" align="center" wrap="wrap">
-      <Flex gap="2" className="flex-shrink-0">
-        <TextField.Root
-          variant="surface"
-          value={inputValue}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder={placeholder}
-          className="flex-1 min-w-[150px]"
-        />
-        <IconButton
-          variant="soft"
-          color="gray"
-          onClick={onAdd}
-          disabled={!inputValue.trim()}
-        >
-          <IconPlus size={16} />
-        </IconButton>
-      </Flex>
+  const [isEditing, setIsEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-      <Flex wrap="wrap" gap="2" align="center" className="flex-1">
+  const handlePlaceholderClick = () => {
+    setIsEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const handleBlur = () => {
+    if (inputValue.trim()) {
+      onAdd();
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDownInternal = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (inputValue.trim()) {
+        onAdd();
+      }
+      // Keep editing mode open for adding more
+    } else if (e.key === "Escape") {
+      setIsEditing(false);
+      onInputChange("");
+    }
+    onKeyDown(e);
+  };
+
+  return (
+    <Flex direction="column" gap="1">
+      <Flex wrap="wrap" gap="2" align="center">
         {tags.map((tag, i) => (
           <Badge
             key={i}
@@ -65,12 +77,39 @@ export const TagInput: React.FC<TagInputProps> = ({
             />
           </Badge>
         ))}
-        {tags.length === 0 && (
-          <Text size="1" color="gray" className="italic opacity-70">
-            {emptyMessage}
-          </Text>
+
+        {/* Inline editable placeholder tag */}
+        {isEditing ? (
+          <TextField.Root
+            ref={inputRef}
+            variant="soft"
+            size="1"
+            value={inputValue}
+            onChange={(e) => onInputChange(e.target.value)}
+            onKeyDown={handleKeyDownInternal}
+            onBlur={handleBlur}
+            placeholder={placeholder}
+            className="min-w-[100px] max-w-[150px]"
+          />
+        ) : (
+          <Badge
+            size="2"
+            variant="outline"
+            color="gray"
+            className="px-2 py-1 gap-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity border-dashed"
+            onClick={handlePlaceholderClick}
+          >
+            <IconPlus size={12} />
+            {tags.length === 0 ? emptyMessage : ""}
+          </Badge>
         )}
       </Flex>
+
+      {error && (
+        <Text size="1" color="red">
+          {error}
+        </Text>
+      )}
     </Flex>
   );
 };

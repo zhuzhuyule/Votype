@@ -28,6 +28,8 @@ pub struct LLMPrompt {
     pub compliance_check_enabled: bool,
     #[serde(default)]
     pub compliance_threshold: Option<u8>,
+    #[serde(default)]
+    pub output_mode: PromptOutputMode,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -135,6 +137,21 @@ pub enum TitleMatchType {
 impl Default for TitleMatchType {
     fn default() -> Self {
         TitleMatchType::Text
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PromptOutputMode {
+    /// Refinement mode: Input -> Optimization -> Output. UI shows Diff.
+    Refinement,
+    /// Generation mode: Input -> Q&A/Generation -> Output. UI shows Markdown.
+    Generation,
+}
+
+impl Default for PromptOutputMode {
+    fn default() -> Self {
+        PromptOutputMode::Refinement
     }
 }
 
@@ -563,6 +580,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             icon: Some("IconWand".to_string()),
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
+            output_mode: Default::default(),
         },
         LLMPrompt {
             id: "system_default_correction".to_string(),
@@ -573,6 +591,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             icon: Some("IconShieldCheck".to_string()),
             compliance_check_enabled: true,
             compliance_threshold: Some(20),
+            output_mode: Default::default(),
         }
     ]
 }

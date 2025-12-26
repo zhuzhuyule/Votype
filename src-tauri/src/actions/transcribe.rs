@@ -1002,6 +1002,17 @@ impl ShortcutAction for TranscribeAction {
                                             );
                                         }
                                     }
+                                    let output_mode = if let Some(pid) = &post_process_prompt_id {
+                                        settings_clone
+                                            .post_process_prompts
+                                            .iter()
+                                            .find(|p| &p.id == pid)
+                                            .map(|p| p.output_mode)
+                                            .unwrap_or_default()
+                                    } else {
+                                        crate::settings::PromptOutputMode::default()
+                                    };
+
                                     // Show the review window with the transcription
                                     crate::review_window::show_review_window(
                                         &ah_clone,
@@ -1010,6 +1021,7 @@ impl ShortcutAction for TranscribeAction {
                                         change_percent,
                                         history_id,
                                         reason.clone(),
+                                        output_mode,
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);

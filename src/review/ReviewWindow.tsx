@@ -2,10 +2,23 @@
 // This provides a floating window UI for editing and inserting transcribed text
 
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import {
+  IconCheck,
+  IconCopy,
+  IconCornerDownLeft,
+  IconMessageCircle,
+} from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Mark } from "@tiptap/core";
+import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
-import { EditorContent, useEditor } from "@tiptap/react";
+import {
+  EditorContent,
+  NodeViewContent,
+  NodeViewWrapper,
+  ReactNodeViewRenderer,
+  useEditor,
+} from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -18,6 +31,7 @@ interface ReviewData {
   change_percent: number;
   history_id: number | null;
   reason?: string | null;
+  output_mode?: "refinement" | "generation";
 }
 
 interface ReviewWindowProps {
@@ -326,17 +340,100 @@ const buildDiffViews = (source: string, target: string) => {
   };
 };
 
+const simpleMarkdownToHtml = (text: string): string => {
+  // 1. Handle code blocks
+  let html = text.replace(
+    /```(\w*)\n([\s\S]*?)```/g,
+    (_, lang, code) =>
+      `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`,
+  );
+
+  // 2. Handle paragraphs (simple split by double newline)
+  // But be careful not to break pre tags.
+  // Actually, simplistic approach: split by parts.
+  // Ideally we should use a parser, but for now let's just use escapeHtmlWithBreaks for non-code parts?
+  // But wait, code blocks are already replaced with HTML tags.
+  // Let's protect code blocks first.
+  const codeBlocks: string[] = [];
+  html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    codeBlocks.push(
+      `<pre><code class="language-${lang}">${escapeHtml(code.trim())}</code></pre>`,
+    );
+    return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+  });
+
+  // Now handle the rest as text with breaks
+  html = escapeHtmlWithBreaks(html);
+
+  // Restore code blocks
+  html = html.replace(/__CODE_BLOCK_(\d+)__/g, (_, index) => {
+    return codeBlocks[parseInt(index)];
+  });
+
+  return html;
+};
+
+const CodeBlockComponent = ({
+  node: { textContent },
+  extension,
+}: {
+  node: { textContent: string };
+  extension: any;
+}) => {
+  const { t } = useTranslation();
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleInsert = useCallback(async () => {
+    try {
+      await invoke("paste_to_previous_window", { text: textContent });
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (e) {
+      console.error("Failed to insert code:", e);
+    }
+  }, [textContent]);
+
+  return (
+    <NodeViewWrapper className="code-block-wrapper relative group my-2">
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <Button
+          size="1"
+          variant="soft"
+          color={isCopied ? "green" : "gray"}
+          onClick={handleInsert}
+          className="cursor-pointer shadow-sm backdrop-blur-sm"
+        >
+          {isCopied ? (
+            <Flex align="center" gap="1">
+              <IconCheck size={12} />
+              {t("common.done", "Done")}
+            </Flex>
+          ) : (
+            <Flex align="center" gap="1">
+              <IconCornerDownLeft size={12} />
+              {t("transcription.review.insertCode", "Insert")}
+            </Flex>
+          )}
+        </Button>
+      </div>
+      <pre className="bg-(--gray-3) p-3 rounded-md overflow-x-auto text-sm font-mono border border-(--gray-4)">
+        <NodeViewContent as={"code" as any} />
+      </pre>
+    </NodeViewWrapper>
+  );
+};
+
 const ReviewWindow: React.FC<ReviewWindowProps> = ({
   initialData,
   onClose,
 }) => {
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [sourceHtml, setSourceHtml] = useState(
-    () =>
-      buildDiffViews(initialData.source_text, initialData.final_text)
-        .sourceHtml,
-  );
+  const [sourceHtml, setSourceHtml] = useState(() => {
+    if (initialData.output_mode === "generation") return "";
+    return buildDiffViews(initialData.source_text, initialData.final_text)
+      .sourceHtml;
+  });
   const isMac =
     typeof navigator !== "undefined" &&
     navigator.platform.toLowerCase().includes("mac");
@@ -345,7 +442,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const editor = useEditor(
     {
       extensions: [
-        StarterKit,
+        StarterKit.configure({
+          codeBlock: false,
+        }),
+        CodeBlock.extend({
+          addNodeView() {
+            return ReactNodeViewRenderer(CodeBlockComponent);
+          },
+        }),
         DiffMark,
         Placeholder.configure({
           placeholder: t(
@@ -354,8 +458,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           ),
         }),
       ],
-      content: buildDiffViews(initialData.source_text, initialData.final_text)
-        .targetHtml,
+      content:
+        initialData.output_mode === "generation"
+          ? simpleMarkdownToHtml(initialData.final_text)
+          : buildDiffViews(initialData.source_text, initialData.final_text)
+              .targetHtml,
       editorProps: {
         attributes: {
           class: "review-editor",
@@ -367,13 +474,29 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   useEffect(() => {
     if (!editor) return;
-    const { sourceHtml: nextSourceHtml, targetHtml } = buildDiffViews(
-      initialData.source_text,
-      initialData.final_text,
-    );
-    editor.commands.setContent(targetHtml, { emitUpdate: false });
+
+    let content = "";
+    let nextSourceHtml = "";
+
+    if (initialData.output_mode === "generation") {
+      content = simpleMarkdownToHtml(initialData.final_text.trim());
+    } else {
+      const views = buildDiffViews(
+        initialData.source_text,
+        initialData.final_text,
+      );
+      content = views.targetHtml;
+      nextSourceHtml = views.sourceHtml;
+    }
+
+    editor.commands.setContent(content, { emitUpdate: false });
     setSourceHtml(nextSourceHtml);
-  }, [editor, initialData.source_text, initialData.final_text]);
+  }, [
+    editor,
+    initialData.source_text,
+    initialData.final_text,
+    initialData.output_mode,
+  ]);
 
   useEffect(() => {
     if (!editor) return;
@@ -474,63 +597,117 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }
           }}
         >
-          <Flex
-            justify="between"
-            align="center"
-            className="px-3.5 py-3 border-b border-[var(--gray-4)] bg-[var(--gray-2)] select-none cursor-grab"
-          >
-            <Flex align="center" gap="2">
-              <Box
-                className="w-2 h-2 rounded-full"
-                style={{
-                  backgroundColor: getChangeColor(initialData.change_percent),
-                }}
-              />
-              <Text size="1" weight="bold" style={{ color: "var(--gray-11)" }}>
-                {t("transcription.review.change", "Change")}:{" "}
-                {initialData.change_percent}%
-              </Text>
-              <span
-                className="review-tooltip review-tooltip-bottom review-change-tip"
-                data-tooltip={t(
-                  "transcription.review.highlightHint",
-                  "Highlighted words indicate LLM edits.",
-                )}
-              >
-                ?
-              </span>
-            </Flex>
-            <div
-              className="review-tooltip review-tooltip-bottom"
-              data-tooltip="按 ESC 也可关闭"
+          {initialData.output_mode !== "generation" && (
+            <Flex
+              justify="between"
+              align="center"
+              className="px-3.5 py-3 border-b border-[var(--gray-4)] bg-[var(--gray-2)] select-none cursor-grab"
             >
+              <Flex align="center" gap="2">
+                <Box
+                  className="w-2 h-2 rounded-full"
+                  style={{
+                    backgroundColor: getChangeColor(initialData.change_percent),
+                  }}
+                />
+                <Text
+                  size="1"
+                  weight="bold"
+                  style={{ color: "var(--gray-11)" }}
+                >
+                  {t("transcription.review.change", "Change")}:{" "}
+                  {initialData.change_percent}%
+                </Text>
+                <span
+                  className="review-tooltip review-tooltip-bottom review-change-tip"
+                  data-tooltip={t(
+                    "transcription.review.highlightHint",
+                    "Highlighted words indicate LLM edits.",
+                  )}
+                >
+                  ?
+                </span>
+              </Flex>
               <div
-                className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
-                onClick={handleCancel}
+                className="review-tooltip review-tooltip-bottom"
+                data-tooltip="按 ESC 也可关闭"
               >
-                <CancelIcon />
+                <div
+                  className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
+                  onClick={handleCancel}
+                >
+                  <CancelIcon />
+                </div>
               </div>
-            </div>
-          </Flex>
+            </Flex>
+          )}
+
+          {initialData.output_mode === "generation" && (
+            <Flex
+              justify="between"
+              align="center"
+              className="px-3.5 py-3 border-b border-[var(--gray-4)] bg-[var(--gray-2)] select-none cursor-grab"
+            >
+              <Flex align="center" gap="2">
+                <Text
+                  size="1"
+                  weight="bold"
+                  style={{ color: "var(--gray-11)" }}
+                >
+                  {t(
+                    "transcription.review.generationTitle",
+                    "AI Assistant Response",
+                  )}
+                </Text>
+                {initialData.source_text && (
+                  <span
+                    className="review-tooltip review-tooltip-bottom review-tooltip-wide review-change-tip"
+                    data-tooltip={initialData.source_text}
+                  >
+                    <IconMessageCircle size={14} />
+                  </span>
+                )}
+              </Flex>
+              <div
+                className="review-tooltip review-tooltip-bottom"
+                data-tooltip="Close (ESC)"
+              >
+                <div
+                  className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
+                  onClick={handleCancel}
+                >
+                  <CancelIcon />
+                </div>
+              </div>
+            </Flex>
+          )}
         </div>
 
         {/* Editable textarea */}
         <div className="flex-1 p-3 flex flex-col min-h-0 gap-2">
-          <div className="review-section">
-            <Text size="1" className="review-section-title">
-              {t("transcription.review.source", "Live transcript")}
-            </Text>
-            <div
-              className="review-source-content"
-              dangerouslySetInnerHTML={{
-                __html: sourceHtml || "—",
-              }}
-            />
-          </div>
-          <div className="review-section review-section-final">
-            <Text size="1" className="review-section-title">
-              {t("transcription.review.final", "Final output")}
-            </Text>
+          {/* Source section - only show for refinement mode */}
+          {initialData.output_mode !== "generation" && (
+            <div className="review-section">
+              <Text size="1" className="review-section-title">
+                {t("transcription.review.source", "Live transcript")}
+              </Text>
+              <div
+                className="review-source-content"
+                dangerouslySetInnerHTML={{
+                  __html: sourceHtml || "—",
+                }}
+              />
+            </div>
+          )}
+          {/* Final output / AI response section */}
+          <div
+            className={`review-section review-section-final ${initialData.output_mode === "generation" ? "review-section-no-title" : ""}`}
+          >
+            {initialData.output_mode !== "generation" && (
+              <Text size="1" className="review-section-title">
+                {t("transcription.review.final", "Final output")}
+              </Text>
+            )}
             <EditorContent
               editor={editor}
               onKeyDown={handleKeyDown}
@@ -553,6 +730,25 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             ) : null}
           </div>
           <Flex align="center" gap="2" className="review-footer-actions">
+            {initialData.output_mode === "generation" && (
+              <Button
+                variant="soft"
+                size="1"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(getEditorText());
+                    // Optional: Show toast or feedback
+                  } catch (err) {
+                    console.error("Failed to copy text: ", err);
+                  }
+                }}
+                disabled={isSubmitting || !getEditorText().trim()}
+                className="review-copy-button"
+              >
+                <IconCopy size={12} />
+                {t("common.copy", "Copy")}
+              </Button>
+            )}
             <div
               className="review-tooltip review-tooltip-top"
               data-tooltip={t(

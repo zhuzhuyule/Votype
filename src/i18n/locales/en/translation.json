@@ -992,12 +992,13 @@
         "createNew": "Create New Prompt",
         "createPrompt": "Create Prompt",
         "createSuccess": "Prompt created successfully",
-        "deleteConfirm": {
-          "description": "This action cannot be undone. This prompt will be permanently deleted.",
-          "title": "Delete Prompt?"
-        },
+
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
+        "deleteConfirm": {
+          "title": "Delete Prompt",
+          "description": "Are you sure you want to delete this prompt? This action cannot be undone."
+        },
         "deleteSuccess": "Prompt deleted successfully",
         "editPrompt": "Edit Prompt",
         "enableReview": "Enable Review Trigger",
@@ -1015,6 +1016,15 @@
           "description": "Select a template for refining transcriptions or create a new one. You can use variables like <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, <code>${prompt}</code>, or <code>${context}</code>.",
           "title": "Selected Prompt"
         },
+        "outputMode": {
+          "refinement": "Refinement",
+          "generation": "Assistant",
+          "label": "Output Mode"
+        },
+        "advancedSettings": "Advanced Settings",
+        "reviewThreshold": "Review Threshold",
+        "refinementDescription": "Automatically corrects and formats the recognized text.",
+        "generationDescription": "Generates new content based on the recognized text as a prompt (e.g., translation, summarization).",
         "selectPrompt": "Select a prompt",
         "selectToEdit": "Select a prompt above to view and edit its details.",
         "setAsActive": "Set as Default",
@@ -1153,9 +1163,14 @@
       "highlightHint": "Highlighted words indicate LLM edits.",
       "hint": "⌘/Ctrl + Enter to confirm, Escape to cancel",
       "insert": "Insert",
+      "insertCode": "Insert Code",
       "placeholder": "Edit transcription...",
       "source": "Live transcript",
-      "title": "Review Transcription"
+      "title": "Review Transcription",
+      "generationTitle": "AI Assistant Response",
+      "instruction": "Instruction",
+      "aiResponse": "AI Response",
+      "insertStabilityHint": "Shortcut: {{shortcut}}\nIf insertion is unstable, you can temporarily disable this feature."
     }
   }
 }

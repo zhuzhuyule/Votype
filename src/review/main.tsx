@@ -16,6 +16,7 @@ interface ReviewData {
   change_percent: number;
   history_id: number | null;
   reason?: string | null;
+  output_mode?: "refinement" | "generation";
 }
 
 interface ReviewHidePayload {

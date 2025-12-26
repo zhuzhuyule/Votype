@@ -79,6 +79,16 @@
   bottom: auto;
 }
 
+.review-tooltip-wide::after {
+  max-width: 80vw;
+  left: 0;
+  right: auto;
+}
+
+.review-section-no-title {
+  padding-top: 0;
+}
+
 .review-change-tip {
   display: inline-flex;
   align-items: center;

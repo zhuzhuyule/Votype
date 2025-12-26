@@ -1,6 +1,7 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { IconCircleCheck, IconLock } from "@tabler/icons-react";
 import React from "react";
+import { DynamicIcon } from "../../shared/IconPicker";
 
 export interface SidebarItemProps {
   option: { value: string; label: string };
@@ -11,6 +12,8 @@ export interface SidebarItemProps {
   onClick: () => void;
   onActivate: () => void;
   t: any;
+  icon?: string;
+  outputMode?: "refinement" | "generation";
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -22,6 +25,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   onClick,
   onActivate,
   t,
+  icon,
+  outputMode,
 }) => {
   return (
     <div
@@ -36,30 +41,25 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         }
       `}
     >
-      <Flex align="center" gap="3" className="flex-1 truncate">
-        {/* Active Indicator / Radio */}
-        <div
-          className="shrink-0 p-0.5 cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            onActivate();
-          }}
-          title={isActive ? t("common.active") : t("common.useThisProvider")}
-        >
-          <div
-            className={`
-              w-3 h-3 rounded-full border transition-all duration-200
-              ${
-                isActive
-                  ? "bg-green-500 border-green-500 shadow-sm"
-                  : "border-gray-300 dark:border-gray-600 group-hover:border-gray-400"
-              }
-            `}
-          />
-        </div>
-        <Text size="2" className="font-medium">
+      <Flex align="center" gap="2" className="flex-1 truncate">
+        {icon && (
+          <Box className="shrink-0 text-gray-400 group-hover:text-(--accent-11)">
+            <DynamicIcon name={icon} size={16} />
+          </Box>
+        )}
+        <Text size="2" className="font-medium truncate">
           {option.label}
         </Text>
+        {outputMode === "generation" && (
+          <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-medium leading-none">
+            生成
+          </span>
+        )}
+        {isActive && (
+          <Box className="shrink-0 bg-(--accent-a3) text-(--accent-11) px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider leading-none">
+            {t("common.default")}
+          </Box>
+        )}
         {isVerified && (
           <IconCircleCheck size={14} className="text-green-500 shrink-0" />
         )}

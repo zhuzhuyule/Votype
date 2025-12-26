@@ -25,13 +25,31 @@ export const MarkdownEditor = forwardRef<
     ref,
   ) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    // Store last cursor position when editor loses focus
+    const lastSelectionStart = useRef<number>(0);
+    const lastSelectionEnd = useRef<number>(0);
+
+    const saveSelection = () => {
+      if (textareaRef.current) {
+        lastSelectionStart.current = textareaRef.current.selectionStart;
+        lastSelectionEnd.current = textareaRef.current.selectionEnd;
+      }
+    };
 
     useImperativeHandle(ref, () => ({
       insertText: (before: string, after: string) => {
         if (!textareaRef.current) return;
         const textarea = textareaRef.current;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
+
+        // Use saved position if textarea doesn't have focus (selection would be 0,0)
+        const isFocused = document.activeElement === textarea;
+        const start = isFocused
+          ? textarea.selectionStart
+          : lastSelectionStart.current;
+        const end = isFocused
+          ? textarea.selectionEnd
+          : lastSelectionEnd.current;
+
         const selectedText = value.substring(start, end);
         const newText =
           value.substring(0, start) +
@@ -55,8 +73,9 @@ export const MarkdownEditor = forwardRef<
         textareaRef.current?.focus();
       },
       getSelection: () => ({
-        start: textareaRef.current?.selectionStart || 0,
-        end: textareaRef.current?.selectionEnd || 0,
+        start:
+          textareaRef.current?.selectionStart || lastSelectionStart.current,
+        end: textareaRef.current?.selectionEnd || lastSelectionEnd.current,
       }),
     }));
 
@@ -69,6 +88,8 @@ export const MarkdownEditor = forwardRef<
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           onKeyDown={onKeyDown}
+          onBlur={saveSelection}
+          onSelect={saveSelection}
           spellCheck={false}
         />
       </div>

@@ -149,6 +149,25 @@ pub fn paste_text_to_active_window(app: AppHandle, text: String) -> Result<(), S
     crate::clipboard::paste(text, app)
 }
 
+/// Paste text to the previously active window (saved before review window was shown)
+/// This first focuses the saved window, then pastes the text
+#[tauri::command]
+pub fn paste_to_previous_window(app: AppHandle, text: String) -> Result<(), String> {
+    use std::time::Duration;
+
+    // Focus the previously active window first
+    if let Some(info) = crate::review_window::get_last_active_window() {
+        if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
+            log::warn!("Failed to focus previous app: {}", e);
+        } else {
+            std::thread::sleep(Duration::from_millis(120));
+        }
+    }
+
+    // Then paste the text
+    crate::clipboard::paste(text, app)
+}
+
 #[tauri::command]
 pub fn log_to_console(msg: String, level: Option<String>) {
     // Default to info if no level provided

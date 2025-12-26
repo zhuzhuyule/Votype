@@ -2,6 +2,7 @@
 // This module handles the creation, display, and lifecycle of the review window
 
 use crate::active_window::{fetch_cursor_position, ActiveWindowInfo};
+use crate::settings::PromptOutputMode;
 use log::{debug, error};
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
@@ -14,9 +15,9 @@ use tauri::{AppHandle, Emitter, Manager};
 
 const REVIEW_WINDOW_WIDTH: f64 = 520.0;
 const REVIEW_WINDOW_MIN_WIDTH: f64 = 480.0;
-const REVIEW_WINDOW_MAX_WIDTH: f64 = 860.0;
+const REVIEW_WINDOW_MAX_WIDTH: f64 = 920.0;
 const REVIEW_WINDOW_HEIGHT: f64 = 320.0;
-const REVIEW_WINDOW_MAX_HEIGHT: f64 = 720.0;
+const REVIEW_WINDOW_MAX_HEIGHT: f64 = 820.0;
 const REVIEW_WINDOW_MARGIN: f64 = 8.0;
 
 #[derive(Clone, serde::Serialize)]
@@ -25,7 +26,9 @@ struct ReviewWindowPayload {
     final_text: String,
     change_percent: u8,
     history_id: Option<i64>,
+
     reason: Option<String>,
+    output_mode: PromptOutputMode,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -298,7 +301,9 @@ pub fn show_review_window(
     final_text: String,
     change_percent: u8,
     history_id: Option<i64>,
+
     reason: Option<String>,
+    output_mode: PromptOutputMode,
 ) {
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
@@ -325,6 +330,7 @@ pub fn show_review_window(
         change_percent,
         history_id,
         reason,
+        output_mode,
     };
 
     {
