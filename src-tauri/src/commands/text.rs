@@ -64,6 +64,8 @@ Votype 环境变量支持：
         provider,
         model,
         &processed_prompt,
+        "", // No template variable checking needed for text optimization
+        "", // No transcription for text optimization
         vec![format!("system: {}", system_prompt)], // simplified historical role injection if needed, or just system prompt
         None,
         None,

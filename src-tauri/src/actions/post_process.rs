@@ -154,6 +154,8 @@ pub async fn execute_llm_request(
     provider: &PostProcessProvider,
     model: &str,
     processed_prompt: &str,
+    original_prompt_template: &str,
+    transcription: &str,
     history: Vec<String>,
     app_name: Option<String>,
     window_title: Option<String>,
@@ -279,6 +281,17 @@ pub async fn execute_llm_request(
         .build()
     {
         messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
+
+    // 4. If the prompt template doesn't use ${output},
+    //    append an additional user message with the actual transcription content
+    if !original_prompt_template.contains("${output}") && !transcription.is_empty() {
+        if let Ok(input_msg) = ChatCompletionRequestUserMessageArgs::default()
+            .content(transcription.to_string())
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::User(input_msg));
+        }
     }
 
     if messages.is_empty() {
@@ -614,6 +627,8 @@ pub(crate) async fn maybe_post_process_transcription(
         provider,
         &model,
         &processed_prompt,
+        &prompt.prompt,
+        &transcription_content,
         history_entries,
         app_name,
         window_title,
@@ -692,6 +707,8 @@ pub(crate) async fn post_process_text_with_prompt(
         provider,
         &model,
         &processed_prompt,
+        &prompt.prompt,
+        transcription,
         Vec::new(), // No history for manual prompts
         None,
         None,
