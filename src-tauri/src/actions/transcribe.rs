@@ -935,45 +935,63 @@ impl ShortcutAction for TranscribeAction {
                                     .map(|text| compute_change_percent(&transcription_clone, text))
                                     .unwrap_or(0);
 
-                                let should_review = match app_policy {
-                                    crate::settings::AppReviewPolicy::Always => true,
-                                    crate::settings::AppReviewPolicy::Never => false,
-                                    crate::settings::AppReviewPolicy::Auto => {
-                                        // Gate Auto policy with PROMPT-level setting
-                                        // Find the prompt object used
-                                        let (prompt_compliance_enabled, prompt_threshold) =
-                                            if let Some(pid) = &post_process_prompt_id {
-                                                settings_clone
-                                                    .post_process_prompts
-                                                    .iter()
-                                                    .find(|p| &p.id == pid)
-                                                    .map(|p| {
-                                                        (
-                                                            p.compliance_check_enabled,
-                                                            p.compliance_threshold.unwrap_or(70),
-                                                        )
-                                                    })
-                                                    .unwrap_or((false, 70))
-                                            } else {
-                                                (false, 70)
-                                            };
-
-                                        if !prompt_compliance_enabled {
-                                            false
-                                        } else {
-                                            // Unified Risk Logic:
-                                            // 1. If LLM provides confidence (0-100, where 100 is best), Risk = 100 - confidence.
-                                            // 2. Otherwise, Risk = Change Percent (0-100, where 0 is no change).
-                                            // Trigger review if Risk >= Threshold.
-                                            let risk = if let Some(conf) = confidence_score {
-                                                100u8.saturating_sub(conf)
-                                            } else {
-                                                change_percent
-                                            };
-                                            risk >= prompt_threshold
-                                        }
-                                    }
+                                // Get output_mode early to determine review behavior
+                                let output_mode = if let Some(pid) = &post_process_prompt_id {
+                                    settings_clone
+                                        .post_process_prompts
+                                        .iter()
+                                        .find(|p| &p.id == pid)
+                                        .map(|p| p.output_mode)
+                                        .unwrap_or_default()
+                                } else {
+                                    crate::settings::PromptOutputMode::default()
                                 };
+
+                                let should_review =
+                                    // Generation mode always shows review window
+                                    if output_mode == crate::settings::PromptOutputMode::Generation {
+                                        true
+                                    } else {
+                                        match app_policy {
+                                            crate::settings::AppReviewPolicy::Always => true,
+                                            crate::settings::AppReviewPolicy::Never => false,
+                                            crate::settings::AppReviewPolicy::Auto => {
+                                                // Gate Auto policy with PROMPT-level setting
+                                                // Find the prompt object used
+                                                let (prompt_compliance_enabled, prompt_threshold) =
+                                                    if let Some(pid) = &post_process_prompt_id {
+                                                        settings_clone
+                                                            .post_process_prompts
+                                                            .iter()
+                                                            .find(|p| &p.id == pid)
+                                                            .map(|p| {
+                                                                (
+                                                                    p.compliance_check_enabled,
+                                                                    p.compliance_threshold.unwrap_or(70),
+                                                                )
+                                                            })
+                                                            .unwrap_or((false, 70))
+                                                    } else {
+                                                        (false, 70)
+                                                    };
+
+                                                if !prompt_compliance_enabled {
+                                                    false
+                                                } else {
+                                                    // Unified Risk Logic:
+                                                    // 1. If LLM provides confidence (0-100, where 100 is best), Risk = 100 - confidence.
+                                                    // 2. Otherwise, Risk = Change Percent (0-100, where 0 is no change).
+                                                    // Trigger review if Risk >= Threshold.
+                                                    let risk = if let Some(conf) = confidence_score {
+                                                        100u8.saturating_sub(conf)
+                                                    } else {
+                                                        change_percent
+                                                    };
+                                                    risk >= prompt_threshold
+                                                }
+                                            }
+                                        }
+                                    };
 
                                 if should_review {
                                     log::info!(
@@ -1002,16 +1020,6 @@ impl ShortcutAction for TranscribeAction {
                                             );
                                         }
                                     }
-                                    let output_mode = if let Some(pid) = &post_process_prompt_id {
-                                        settings_clone
-                                            .post_process_prompts
-                                            .iter()
-                                            .find(|p| &p.id == pid)
-                                            .map(|p| p.output_mode)
-                                            .unwrap_or_default()
-                                    } else {
-                                        crate::settings::PromptOutputMode::default()
-                                    };
 
                                     // Show the review window with the transcription
                                     crate::review_window::show_review_window(

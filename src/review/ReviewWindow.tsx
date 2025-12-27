@@ -1,12 +1,13 @@
 // ReviewWindow - Independent window for reviewing low-confidence transcriptions
 // This provides a floating window UI for editing and inserting transcribed text
 
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Text, Tooltip } from "@radix-ui/themes";
 import {
   IconCheck,
+  IconClipboard,
   IconCopy,
-  IconCornerDownLeft,
   IconMessageCircle,
+  IconTextPlus,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Mark } from "@tiptap/core";
@@ -341,80 +342,263 @@ const buildDiffViews = (source: string, target: string) => {
 };
 
 const simpleMarkdownToHtml = (text: string): string => {
-  // 1. Handle code blocks
-  let html = text.replace(
-    /```(\w*)\n([\s\S]*?)```/g,
-    (_, lang, code) =>
-      `<pre><code class="language-${lang}">${escapeHtml(code)}</code></pre>`,
-  );
+  // Use unique placeholders that won't conflict with markdown syntax
+  const PLACEHOLDER_PREFIX = "\x00CB"; // Code Block
+  const PLACEHOLDER_SUFFIX = "\x00";
+  const INLINE_PREFIX = "\x00IC"; // Inline Code
 
-  // 2. Handle paragraphs (simple split by double newline)
-  // But be careful not to break pre tags.
-  // Actually, simplistic approach: split by parts.
-  // Ideally we should use a parser, but for now let's just use escapeHtmlWithBreaks for non-code parts?
-  // But wait, code blocks are already replaced with HTML tags.
-  // Let's protect code blocks first.
+  // Protect code blocks first
   const codeBlocks: string[] = [];
-  html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+  let html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
     codeBlocks.push(
       `<pre><code class="language-${lang}">${escapeHtml(code.trim())}</code></pre>`,
     );
-    return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+    return `${PLACEHOLDER_PREFIX}${codeBlocks.length - 1}${PLACEHOLDER_SUFFIX}`;
   });
 
-  // Now handle the rest as text with breaks
-  html = escapeHtmlWithBreaks(html);
+  // Protect inline code
+  const inlineCodes: string[] = [];
+  html = html.replace(/`([^`\n]+)`/g, (_, code) => {
+    inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
+    return `${INLINE_PREFIX}${inlineCodes.length - 1}${PLACEHOLDER_SUFFIX}`;
+  });
+
+  // Split into lines for processing
+  const lines = html.split("\n");
+  const processedLines: string[] = [];
+  let inList = false;
+  let listType = "";
+  let inBlockquote = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Skip placeholder lines (code blocks) - pass them through unchanged
+    if (line.includes(PLACEHOLDER_PREFIX) || line.includes(INLINE_PREFIX)) {
+      if (inList) {
+        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
+        inList = false;
+      }
+      if (inBlockquote) {
+        processedLines.push("</blockquote>");
+        inBlockquote = false;
+      }
+      processedLines.push(line);
+      continue;
+    }
+
+    // Check for headings (# ## ### etc.)
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      if (inList) {
+        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
+        inList = false;
+      }
+      if (inBlockquote) {
+        processedLines.push("</blockquote>");
+        inBlockquote = false;
+      }
+      const level = headingMatch[1].length;
+      const content = processInlineMarkdown(headingMatch[2]);
+      processedLines.push(`<h${level}>${content}</h${level}>`);
+      continue;
+    }
+
+    // Check for blockquote
+    const blockquoteMatch = line.match(/^>\s?(.*)$/);
+    if (blockquoteMatch) {
+      if (inList) {
+        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
+        inList = false;
+      }
+      if (!inBlockquote) {
+        processedLines.push("<blockquote>");
+        inBlockquote = true;
+      }
+      const content = processInlineMarkdown(blockquoteMatch[1]);
+      processedLines.push(`<p>${content}</p>`);
+      continue;
+    } else if (inBlockquote) {
+      processedLines.push("</blockquote>");
+      inBlockquote = false;
+    }
+
+    // Check for unordered list
+    const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
+    if (ulMatch) {
+      if (inList && listType !== "ul") {
+        processedLines.push("</ol>");
+        inList = false;
+      }
+      if (!inList) {
+        processedLines.push("<ul>");
+        inList = true;
+        listType = "ul";
+      }
+      const content = processInlineMarkdown(ulMatch[1]);
+      processedLines.push(`<li>${content}</li>`);
+      continue;
+    }
+
+    // Check for ordered list
+    const olMatch = line.match(/^[\s]*\d+\.\s+(.+)$/);
+    if (olMatch) {
+      if (inList && listType !== "ol") {
+        processedLines.push("</ul>");
+        inList = false;
+      }
+      if (!inList) {
+        processedLines.push("<ol>");
+        inList = true;
+        listType = "ol";
+      }
+      const content = processInlineMarkdown(olMatch[1]);
+      processedLines.push(`<li>${content}</li>`);
+      continue;
+    }
+
+    // Close list if we're no longer in one
+    if (inList && line.trim() !== "") {
+      processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
+      inList = false;
+    }
+
+    // Check for horizontal rule
+    if (/^[-*_]{3,}$/.test(line.trim())) {
+      processedLines.push("<hr>");
+      continue;
+    }
+
+    // Regular paragraph
+    if (line.trim() === "") {
+      processedLines.push("");
+    } else {
+      const content = processInlineMarkdown(line);
+      processedLines.push(`<p>${content}</p>`);
+    }
+  }
+
+  // Close any open lists or blockquotes
+  if (inList) {
+    processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
+  }
+  if (inBlockquote) {
+    processedLines.push("</blockquote>");
+  }
+
+  html = processedLines.join("\n");
+
+  // Restore inline code
+  const inlineCodeRegex = new RegExp(
+    `${INLINE_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
+    "g",
+  );
+  html = html.replace(inlineCodeRegex, (_, index) => {
+    return inlineCodes[parseInt(index)];
+  });
 
   // Restore code blocks
-  html = html.replace(/__CODE_BLOCK_(\d+)__/g, (_, index) => {
+  const codeBlockRegex = new RegExp(
+    `${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
+    "g",
+  );
+  html = html.replace(codeBlockRegex, (_, index) => {
     return codeBlocks[parseInt(index)];
   });
+
+  // Clean up empty paragraphs
+  html = html.replace(/<p><\/p>/g, "");
 
   return html;
 };
 
+// Helper function to process inline markdown elements
+const processInlineMarkdown = (text: string): string => {
+  let result = escapeHtml(text);
+
+  // Bold: **text** or __text__
+  result = result.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  result = result.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+
+  // Italic: *text* or _text_
+  result = result.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+  result = result.replace(/_([^_]+)_/g, "<em>$1</em>");
+
+  // Strikethrough: ~~text~~
+  result = result.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+
+  // Links: [text](url)
+  result = result.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener">$1</a>',
+  );
+
+  return result;
+};
+
 const CodeBlockComponent = ({
   node: { textContent },
-  extension,
 }: {
   node: { textContent: string };
   extension: any;
 }) => {
   const { t } = useTranslation();
-  const [isCopied, setIsCopied] = useState(false);
+  const [insertState, setInsertState] = useState<"idle" | "success">("idle");
+  const [copyState, setCopyState] = useState<"idle" | "success">("idle");
 
   const handleInsert = useCallback(async () => {
     try {
       await invoke("paste_to_previous_window", { text: textContent });
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      setInsertState("success");
+      setTimeout(() => setInsertState("idle"), 2000);
     } catch (e) {
       console.error("Failed to insert code:", e);
     }
   }, [textContent]);
 
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(textContent);
+      setCopyState("success");
+      setTimeout(() => setCopyState("idle"), 2000);
+    } catch (e) {
+      console.error("Failed to copy code:", e);
+    }
+  }, [textContent]);
+
   return (
     <NodeViewWrapper className="code-block-wrapper relative group my-2">
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-        <Button
-          size="1"
-          variant="soft"
-          color={isCopied ? "green" : "gray"}
-          onClick={handleInsert}
-          className="cursor-pointer shadow-sm backdrop-blur-sm"
-        >
-          {isCopied ? (
-            <Flex align="center" gap="1">
-              <IconCheck size={12} />
-              {t("common.done", "Done")}
-            </Flex>
-          ) : (
-            <Flex align="center" gap="1">
-              <IconCornerDownLeft size={12} />
-              {t("transcription.review.insertCode", "Insert")}
-            </Flex>
-          )}
-        </Button>
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-1">
+        <Tooltip content={t("common.copy", "Copy")}>
+          <Button
+            size="1"
+            variant="soft"
+            color={copyState === "success" ? "green" : "gray"}
+            onClick={handleCopy}
+            className="cursor-pointer shadow-sm backdrop-blur-sm !px-1.5"
+          >
+            {copyState === "success" ? (
+              <IconCheck size={14} />
+            ) : (
+              <IconClipboard size={14} />
+            )}
+          </Button>
+        </Tooltip>
+        <Tooltip content={t("transcription.review.insertCode", "Insert")}>
+          <Button
+            size="1"
+            variant="soft"
+            color={insertState === "success" ? "green" : "gray"}
+            onClick={handleInsert}
+            className="cursor-pointer shadow-sm backdrop-blur-sm !px-1.5"
+          >
+            {insertState === "success" ? (
+              <IconCheck size={14} />
+            ) : (
+              <IconTextPlus size={14} />
+            )}
+          </Button>
+        </Tooltip>
       </div>
       <pre className="bg-(--gray-3) p-3 rounded-md overflow-x-auto text-sm font-mono border border-(--gray-4)">
         <NodeViewContent as={"code" as any} />
@@ -764,7 +948,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 data-tauri-drag-region="false"
                 className="review-insert-button"
               >
-                {t("transcription.review.insert", "Insert")}
+                <Flex align="center" gap="1">
+                  {t("transcription.review.insert", "Insert")}
+                  <IconTextPlus size={14} />
+                </Flex>
               </Button>
             </div>
           </Flex>

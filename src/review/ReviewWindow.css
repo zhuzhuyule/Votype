@@ -22,7 +22,204 @@
 }
 
 .review-editor p {
+  margin: 0 0 0.75em 0;
+}
+
+.review-editor p:last-child {
+  margin-bottom: 0;
+}
+
+/* Headings */
+.review-editor h1,
+.review-editor h2,
+.review-editor h3,
+.review-editor h4,
+.review-editor h5,
+.review-editor h6 {
+  margin: 1.25em 0 0.5em 0;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--gray-12);
+}
+
+.review-editor h1:first-child,
+.review-editor h2:first-child,
+.review-editor h3:first-child {
+  margin-top: 0;
+}
+
+.review-editor h1 {
+  font-size: 1.5em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--gray-4);
+}
+
+.review-editor h2 {
+  font-size: 1.3em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--gray-3);
+}
+
+.review-editor h3 {
+  font-size: 1.15em;
+}
+
+.review-editor h4 {
+  font-size: 1.05em;
+}
+
+/* Lists */
+.review-editor ul,
+.review-editor ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.review-editor li {
+  margin: 0.25em 0;
+  line-height: 1.6;
+}
+
+.review-editor li::marker {
+  color: var(--accent-9);
+}
+
+.review-editor ul li {
+  list-style-type: disc;
+}
+
+.review-editor ul ul li {
+  list-style-type: circle;
+}
+
+.review-editor ul ul ul li {
+  list-style-type: square;
+}
+
+/* Blockquote */
+.review-editor blockquote {
+  margin: 0.75em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--accent-8);
+  background: linear-gradient(90deg, var(--accent-2) 0%, transparent 100%);
+  border-radius: 0 6px 6px 0;
+  color: var(--gray-11);
+  font-style: italic;
+}
+
+.review-editor blockquote p {
   margin: 0;
+}
+
+/* Inline code */
+.review-editor code:not(pre code) {
+  padding: 0.15em 0.4em;
+  margin: 0 0.1em;
+  font-size: 0.9em;
+  font-family: var(--font-mono);
+  background: var(--gray-3);
+  border: 1px solid var(--gray-4);
+  border-radius: 4px;
+  color: var(--accent-11);
+}
+
+/* Code blocks - enhanced styling */
+.review-editor pre {
+  margin: 0.75em 0;
+  padding: 1em;
+  background: var(--gray-2);
+  border: 1px solid var(--gray-4);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.review-editor pre code {
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: inherit;
+  color: var(--gray-12);
+}
+
+/* Links */
+.review-editor a {
+  color: var(--accent-10);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.review-editor a:hover {
+  color: var(--accent-11);
+  border-bottom-color: var(--accent-8);
+}
+
+/* Bold and Italic */
+.review-editor strong {
+  font-weight: 600;
+  color: var(--gray-12);
+}
+
+.review-editor em {
+  font-style: italic;
+  color: var(--gray-11);
+}
+
+/* Horizontal Rule */
+.review-editor hr {
+  margin: 1.5em 0;
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gray-5), transparent);
+}
+
+/* Table */
+.review-editor table {
+  width: 100%;
+  margin: 0.75em 0;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.review-editor th,
+.review-editor td {
+  padding: 0.5em 0.75em;
+  text-align: left;
+  border: 1px solid var(--gray-4);
+}
+
+.review-editor th {
+  background: var(--gray-3);
+  font-weight: 600;
+  color: var(--gray-12);
+}
+
+.review-editor tr:nth-child(even) td {
+  background: var(--gray-2);
+}
+
+/* Strikethrough */
+.review-editor s,
+.review-editor del {
+  color: var(--gray-9);
+  text-decoration: line-through;
+}
+
+/* Task list */
+.review-editor input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: var(--accent-9);
+}
+
+/* Images */
+.review-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0.5em 0;
 }
 
 .review-editor p.is-editor-empty:first-child::before {
