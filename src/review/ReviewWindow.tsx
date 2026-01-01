@@ -32,7 +32,7 @@ interface ReviewData {
   change_percent: number;
   history_id: number | null;
   reason?: string | null;
-  output_mode?: "refinement" | "generation";
+  output_mode?: "polish" | "chat";
 }
 
 interface ReviewWindowProps {
@@ -614,7 +614,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const { t } = useTranslation();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sourceHtml, setSourceHtml] = useState(() => {
-    if (initialData.output_mode === "generation") return "";
+    if (initialData.output_mode === "chat") return "";
     return buildDiffViews(initialData.source_text, initialData.final_text)
       .sourceHtml;
   });
@@ -643,7 +643,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         }),
       ],
       content:
-        initialData.output_mode === "generation"
+        initialData.output_mode === "chat"
           ? simpleMarkdownToHtml(initialData.final_text)
           : buildDiffViews(initialData.source_text, initialData.final_text)
               .targetHtml,
@@ -662,7 +662,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     let content = "";
     let nextSourceHtml = "";
 
-    if (initialData.output_mode === "generation") {
+    if (initialData.output_mode === "chat") {
       content = simpleMarkdownToHtml(initialData.final_text.trim());
     } else {
       const views = buildDiffViews(
@@ -781,7 +781,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }
           }}
         >
-          {initialData.output_mode !== "generation" && (
+          {initialData.output_mode !== "chat" && (
             <Flex
               justify="between"
               align="center"
@@ -826,7 +826,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             </Flex>
           )}
 
-          {initialData.output_mode === "generation" && (
+          {initialData.output_mode === "chat" && (
             <Flex
               justify="between"
               align="center"
@@ -869,8 +869,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
         {/* Editable textarea */}
         <div className="flex-1 p-3 flex flex-col min-h-0 gap-2">
-          {/* Source section - only show for refinement mode */}
-          {initialData.output_mode !== "generation" && (
+          {/* Source section - only show for polish mode */}
+          {initialData.output_mode !== "chat" && (
             <div className="review-section">
               <Text size="1" className="review-section-title">
                 {t("transcription.review.source", "Live transcript")}
@@ -885,9 +885,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           )}
           {/* Final output / AI response section */}
           <div
-            className={`review-section review-section-final ${initialData.output_mode === "generation" ? "review-section-no-title" : ""}`}
+            className={`review-section review-section-final ${initialData.output_mode === "chat" ? "review-section-no-title" : ""}`}
           >
-            {initialData.output_mode !== "generation" && (
+            {initialData.output_mode !== "chat" && (
               <Text size="1" className="review-section-title">
                 {t("transcription.review.final", "Final output")}
               </Text>
@@ -914,7 +914,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             ) : null}
           </div>
           <Flex align="center" gap="2" className="review-footer-actions">
-            {initialData.output_mode === "generation" && (
+            {initialData.output_mode === "chat" && (
               <Button
                 variant="soft"
                 size="1"

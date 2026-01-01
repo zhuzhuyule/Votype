@@ -13,7 +13,7 @@ export interface SidebarItemProps {
   onActivate: () => void;
   t: any;
   icon?: string;
-  outputMode?: "refinement" | "generation";
+  outputMode?: "polish" | "chat";
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -50,9 +50,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         <Text size="2" className="font-medium truncate">
           {option.label}
         </Text>
-        {outputMode === "generation" && (
+        {outputMode === "chat" && (
           <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-medium leading-none">
-            生成
+            {t("settings.postProcessing.prompts.outputMode.chat", "AI Chat")}
           </span>
         )}
         {isActive && (

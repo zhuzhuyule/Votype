@@ -41,7 +41,6 @@ interface ResizableEditorProps {
   style?: React.CSSProperties;
 }
 
-// Collapsible Tips Component
 const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
   tipKey,
   t,
@@ -49,7 +48,7 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Common variables shown when collapsed
-  const commonVars = ["${output}", "${context}", "${hot_words}"];
+  const commonVars = ["${output}", "${select}", "${context}"];
 
   return (
     <Box className="mt-1">
@@ -77,7 +76,23 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
               {"${output}"}
             </code>{" "}
             {t("settings.postProcessing.prompts.varOutputDesc", {
-              defaultValue: "识别出的最终文本结果。",
+              defaultValue: "识别出的最终文本结果（已去除命令前缀和别名）。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${raw_input}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varRawInputDesc", {
+              defaultValue: "完整的原始转录文本（包含命令前缀和别名）。",
+            })}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${select}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varSelectDesc", {
+              defaultValue: "录音结束时当前选中的文本内容。",
             })}
           </Text>
           <Text size="1" color="gray" className="block">

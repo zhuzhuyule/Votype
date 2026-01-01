@@ -93,7 +93,7 @@ export const AppProfileSchema = z.object({
 });
 export type AppProfile = z.infer<typeof AppProfileSchema>;
 
-export const PromptOutputModeSchema = z.enum(["refinement", "generation"]);
+export const PromptOutputModeSchema = z.enum(["polish", "chat"]);
 export type PromptOutputMode = z.infer<typeof PromptOutputModeSchema>;
 
 export const LLMPromptSchema = z.object({
@@ -105,7 +105,7 @@ export const LLMPromptSchema = z.object({
   icon: z.string().optional().nullable(),
   compliance_check_enabled: z.boolean().default(false),
   compliance_threshold: z.number().optional().default(20),
-  output_mode: PromptOutputModeSchema.default("refinement"),
+  output_mode: PromptOutputModeSchema.default("polish"),
 });
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;

@@ -4,7 +4,7 @@ import type { PostProcessProvider } from "../../../lib/types";
 import type { DropdownOption } from "../../ui/Dropdown";
 import type { ModelOption } from "./types";
 
-type PostProcessProviderState = {
+export type PostProcessProviderState = {
   enabled: boolean;
   providerOptions: DropdownOption[];
   selectedProviderId: string;
@@ -92,9 +92,16 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     }));
   }, [providers]);
 
-  const handleProviderSelect = useCallback((providerId: string) => {
-    setViewingProviderId(providerId);
-  }, []);
+  const handleProviderSelect = useCallback(
+    (providerId: string) => {
+      console.log("[DEBUG] handleProviderSelect called", {
+        providerId,
+        previousId: viewingProviderId,
+      });
+      setViewingProviderId(providerId);
+    },
+    [viewingProviderId],
+  );
 
   const handleBaseUrlChange = useCallback(
     async (value: string) => {
@@ -158,11 +165,24 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   );
 
   const handleRefreshModels = useCallback(() => {
-    if (isAppleProvider) return;
-    fetchPostProcessModels(viewingProviderId).catch((error) => {
-      // Error is already logged in store, we just prevent unhandled promise rejection here
-      // Optionally we could toast an error here if we wanted auto-feedback
+    console.log("[DEBUG] handleRefreshModels called", {
+      viewingProviderId,
+      isAppleProvider,
     });
+    if (isAppleProvider) return;
+    fetchPostProcessModels(viewingProviderId)
+      .then((models) => {
+        console.log("[DEBUG] fetchPostProcessModels success", {
+          viewingProviderId,
+          models,
+        });
+      })
+      .catch((error) => {
+        console.error("[DEBUG] fetchPostProcessModels failed", {
+          viewingProviderId,
+          error,
+        });
+      });
   }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
 
   const [verifiedProviderIds, setVerifiedProviderIds] = useState<Set<string>>(
@@ -190,6 +210,11 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
 
   const availableModelsRaw = postProcessModelOptions[viewingProviderId] || [];
+  console.log("[DEBUG] modelOptions computed", {
+    viewingProviderId,
+    availableModelsRaw,
+    allOptions: postProcessModelOptions,
+  });
 
   const modelOptions = useMemo<ModelOption[]>(() => {
     const seen = new Set<string>();

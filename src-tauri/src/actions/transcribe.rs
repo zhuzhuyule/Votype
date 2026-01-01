@@ -808,6 +808,7 @@ impl ShortcutAction for TranscribeAction {
                         let task = tokio::spawn(async move {
                             let mut final_text = transcription_clone.clone();
                             let mut post_process_prompt_text = String::new();
+                            let mut post_process_prompt_name = String::new();
                             let mut post_process_prompt_id = None;
                             let used_model;
                             let mut error_shown = false;
@@ -927,6 +928,7 @@ impl ShortcutAction for TranscribeAction {
                                         .find(|p| &p.id == pid)
                                     {
                                         post_process_prompt_text = prompt.prompt.clone();
+                                        post_process_prompt_name = prompt.name.clone();
                                     }
                                 }
 
@@ -948,8 +950,8 @@ impl ShortcutAction for TranscribeAction {
                                 };
 
                                 let should_review =
-                                    // Generation mode always shows review window
-                                    if output_mode == crate::settings::PromptOutputMode::Generation {
+                                    // Chat mode always shows review window
+                                    if output_mode == crate::settings::PromptOutputMode::Chat {
                                         true
                                     } else {
                                         match app_policy {
@@ -1009,6 +1011,7 @@ impl ShortcutAction for TranscribeAction {
                                                 history_id,
                                                 final_text.clone(),
                                                 post_process_prompt_text.clone(),
+                                                post_process_prompt_name.clone(),
                                                 post_process_prompt_id.clone(),
                                                 used_model.clone(),
                                             )
@@ -1045,6 +1048,7 @@ impl ShortcutAction for TranscribeAction {
                                         history_id,
                                         final_text.clone(),
                                         post_process_prompt_text,
+                                        post_process_prompt_name,
                                         post_process_prompt_id,
                                         used_model,
                                     )

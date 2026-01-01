@@ -215,6 +215,7 @@ pub async fn retranscribe_history_entry(
                     id,
                     converted,
                     String::new(),
+                    "OpenCC".to_string(),
                     None,
                     Some("OpenCC".to_string()),
                 )
@@ -240,6 +241,7 @@ pub async fn retranscribe_history_entry(
 
             if let Some(processed) = llm_result {
                 let mut post_process_prompt_text = String::new();
+                let mut post_process_prompt_name = String::new();
 
                 // Find the prompt text to save
                 if let Some(pid) = &prompt_id {
@@ -247,6 +249,7 @@ pub async fn retranscribe_history_entry(
                         settings.post_process_prompts.iter().find(|p| &p.id == pid)
                     {
                         post_process_prompt_text = prompt.prompt.clone();
+                        post_process_prompt_name = prompt.name.clone();
                     }
                 }
 
@@ -255,6 +258,7 @@ pub async fn retranscribe_history_entry(
                         id,
                         processed,
                         post_process_prompt_text,
+                        post_process_prompt_name,
                         prompt_id,
                         used_model,
                     )
@@ -319,6 +323,7 @@ pub async fn reprocess_history_entry(
                 id,
                 text,
                 prompt.prompt.clone(),
+                prompt.name.clone(),
                 used_prompt_id,
                 used_model,
             )

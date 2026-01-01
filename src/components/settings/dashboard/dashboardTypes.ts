@@ -1,3 +1,10 @@
+export interface PostProcessStep {
+  prompt_id?: string | null;
+  prompt_name: string;
+  model?: string | null;
+  result: string;
+}
+
 export interface HistoryEntry {
   id: number;
   file_name: string;
@@ -19,6 +26,7 @@ export interface HistoryEntry {
   asr_model?: string | null;
   app_name?: string | null;
   window_title?: string | null;
+  post_process_history?: string | null; // JSON string of PostProcessStep[]
   deleted: boolean;
 }
 

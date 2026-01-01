@@ -329,14 +329,14 @@ const PromptsConfiguration: React.FC = () => {
                             }
                             size="1"
                           >
-                            <SegmentedControl.Item value="refinement">
+                            <SegmentedControl.Item value="polish">
                               {t(
-                                "settings.postProcessing.prompts.outputMode.refinement",
+                                "settings.postProcessing.prompts.outputMode.polish",
                               )}
                             </SegmentedControl.Item>
-                            <SegmentedControl.Item value="generation">
+                            <SegmentedControl.Item value="chat">
                               {t(
-                                "settings.postProcessing.prompts.outputMode.generation",
+                                "settings.postProcessing.prompts.outputMode.chat",
                               )}
                             </SegmentedControl.Item>
                           </SegmentedControl.Root>
@@ -371,8 +371,8 @@ const PromptsConfiguration: React.FC = () => {
                           />
                         </Box>
 
-                        {/* 4. Compliance (only for refinement mode) - Single row */}
-                        {draftOutputMode === "refinement" && (
+                        {/* 4. Compliance (only for polish mode) - Single row */}
+                        {draftOutputMode === "polish" && (
                           <Box>
                             <label className="text-xs font-semibold text-gray-500 mb-1 block uppercase tracking-wider">
                               {t(

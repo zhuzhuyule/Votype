@@ -153,9 +153,9 @@ pub async fn execute_llm_request(
     settings: &AppSettings,
     provider: &PostProcessProvider,
     model: &str,
-    processed_prompt: &str,
-    original_prompt_template: &str,
-    transcription: &str,
+    prompt_content: &str,
+    input_data_message: Option<&str>,
+    fallback_message: Option<&str>,
     history: Vec<String>,
     app_name: Option<String>,
     window_title: Option<String>,
@@ -173,7 +173,11 @@ pub async fn execute_llm_request(
                 return (None, true, None, None);
             }
 
-            let mut final_prompt = processed_prompt.to_string();
+            let mut final_prompt = prompt_content.to_string();
+            // Append input data if provided
+            if let Some(input_data) = input_data_message {
+                final_prompt = format!("{}\n\n{}", final_prompt, input_data);
+            }
             if !history.is_empty() {
                 let context_label =
                     if let (Some(pattern), Some(mtype)) = (&match_pattern, &match_type) {
@@ -277,20 +281,29 @@ pub async fn execute_llm_request(
 
     // 3. Add current prompt as the final User message
     if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(processed_prompt.to_string())
+        .content(prompt_content.to_string())
         .build()
     {
         messages.push(ChatCompletionRequestMessage::User(user_msg));
     }
 
-    // 4. If the prompt template doesn't use ${output},
-    //    append an additional user message with the actual transcription content
-    if !original_prompt_template.contains("${output}") && !transcription.is_empty() {
+    // 4. Add input data as a separate User message if provided
+    if let Some(input_data) = input_data_message {
         if let Ok(input_msg) = ChatCompletionRequestUserMessageArgs::default()
-            .content(transcription.to_string())
+            .content(input_data.to_string())
             .build()
         {
             messages.push(ChatCompletionRequestMessage::User(input_msg));
+        }
+    }
+
+    // 5. Add fallback message if provided (when prompt doesn't reference output/select)
+    if let Some(fallback) = fallback_message {
+        if let Ok(fallback_msg) = ChatCompletionRequestUserMessageArgs::default()
+            .content(fallback.to_string())
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::User(fallback_msg));
         }
     }
 
@@ -330,6 +343,185 @@ pub async fn execute_llm_request(
     (None, false, None, None)
 }
 
+// Helper to find the longest matching candidate with boundary checks, ignoring spaces
+fn find_best_match(text: &str, candidates: &[String]) -> Option<(String, usize)> {
+    let mut best_match: Option<(String, usize)> = None;
+
+    for candidate in candidates {
+        let candidate_lower = candidate.trim().to_lowercase();
+        if candidate_lower.is_empty() {
+            continue;
+        }
+
+        let mut text_chars = text.char_indices();
+        let mut cand_chars = candidate_lower.chars();
+
+        let mut matched = true;
+        let mut text_match_end_idx = 0;
+        let mut last_cand_char = None;
+
+        let mut c_char_opt = cand_chars.next();
+
+        while let Some(c_char) = c_char_opt {
+            if c_char.is_whitespace() {
+                c_char_opt = cand_chars.next();
+                continue;
+            }
+            last_cand_char = Some(c_char);
+
+            let mut found_char = false;
+            while let Some((idx, t_char)) = text_chars.next() {
+                if t_char.is_whitespace() {
+                    continue;
+                }
+                if t_char == c_char {
+                    found_char = true;
+                    text_match_end_idx = idx + t_char.len_utf8();
+                    break;
+                } else {
+                    matched = false;
+                    break;
+                }
+            }
+
+            if !found_char || !matched {
+                matched = false;
+                break;
+            }
+            c_char_opt = cand_chars.next();
+        }
+
+        if matched {
+            let ends_with_latin = last_cand_char.map_or(false, |c| c.is_ascii_alphanumeric());
+
+            let is_boundary_ok = if !ends_with_latin {
+                true
+            } else if text_match_end_idx == text.len() {
+                true
+            } else {
+                let next_char = text[text_match_end_idx..].chars().next();
+                match next_char {
+                    Some(c) => !c.is_ascii_alphanumeric(),
+                    None => true,
+                }
+            };
+
+            if is_boundary_ok {
+                if best_match
+                    .as_ref()
+                    .map_or(true, |(_, len)| text_match_end_idx > *len)
+                {
+                    best_match = Some((candidate.clone(), text_match_end_idx));
+                }
+            }
+        }
+    }
+    best_match
+}
+
+fn resolve_prompt_from_text<'a>(
+    text: &str,
+    settings: &'a AppSettings,
+    override_prompt_id: Option<&str>,
+) -> (Option<&'a LLMPrompt>, String, bool) {
+    let transcription_lower = text.trim().to_lowercase();
+
+    // Parse command prefixes
+    let prefixes: Vec<String> = settings
+        .command_prefixes
+        .as_ref()
+        .map(|s| {
+            s.split(&[',', '，'][..])
+                .map(|p| p.trim().to_string())
+                .filter(|p| !p.is_empty())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let has_prefixes_configured = !prefixes.is_empty();
+
+    let (content_to_check_alias, prefix_matched) = if has_prefixes_configured {
+        if let Some((_, len)) = find_best_match(&transcription_lower, &prefixes) {
+            let matched_str_lower = &transcription_lower[..len];
+            let char_count = matched_str_lower.chars().count();
+
+            let byte_offset_original = text
+                .char_indices()
+                .nth(char_count)
+                .map(|(i, _)| i)
+                .unwrap_or(text.len());
+
+            let remaining = text[byte_offset_original..].trim_start_matches(|c: char| {
+                c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
+            });
+
+            (remaining.to_string(), true)
+        } else {
+            (text.to_string(), false)
+        }
+    } else {
+        (text.to_string(), true)
+    };
+
+    let mut matched_prompt_info = None;
+
+    if prefix_matched {
+        let content_lower = content_to_check_alias.trim().to_lowercase();
+
+        for p in &settings.post_process_prompts {
+            let mut triggers = Vec::new();
+            if let Some(alias_str) = &p.alias {
+                triggers.extend(
+                    alias_str
+                        .split(&[',', '，'][..])
+                        .map(|s| s.trim().to_string()),
+                );
+            }
+            triggers.push(p.name.clone());
+
+            if let Some((_, len)) = find_best_match(&content_lower, &triggers) {
+                matched_prompt_info = Some((p, len));
+                break;
+            }
+        }
+    }
+
+    if let Some((p, match_len_lower)) = matched_prompt_info {
+        let matched_substring_lower =
+            &content_to_check_alias.trim().to_lowercase()[..match_len_lower];
+        let char_count = matched_substring_lower.chars().count();
+
+        let byte_offset = content_to_check_alias
+            .char_indices()
+            .nth(char_count)
+            .map(|(i, _)| i)
+            .unwrap_or(content_to_check_alias.len());
+
+        let final_content = content_to_check_alias[byte_offset..]
+            .trim_start_matches(|c: char| {
+                c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
+            })
+            .to_string();
+
+        (Some(p), final_content, true)
+    } else {
+        let p = if let Some(pid) = &override_prompt_id {
+            settings.post_process_prompts.iter().find(|p| &p.id == pid)
+        } else {
+            None
+        }
+        .or_else(|| {
+            settings
+                .post_process_selected_prompt_id
+                .as_ref()
+                .and_then(|id| settings.post_process_prompts.iter().find(|p| &p.id == id))
+        })
+        .or_else(|| settings.post_process_prompts.first());
+
+        (p, text.to_string(), false)
+    }
+}
+
 pub(crate) async fn maybe_post_process_transcription(
     app_handle: &AppHandle,
     settings: &AppSettings,
@@ -341,7 +533,7 @@ pub(crate) async fn maybe_post_process_transcription(
     window_title: Option<String>,
     match_pattern: Option<String>,
     match_type: Option<crate::settings::TitleMatchType>,
-    exclude_history_id: Option<i64>,
+    history_id: Option<i64>,
 ) -> (
     Option<String>,
     Option<String>,
@@ -359,290 +551,264 @@ pub(crate) async fn maybe_post_process_transcription(
         None => return (None, None, None, false, None, None),
     };
 
-    // Determine the prompt to use and the effective input content
-    let (prompt, transcription_content) = {
-        let transcription_lower = transcription.trim().to_lowercase();
+    let (initial_prompt_opt, initial_content, _is_explicit) =
+        resolve_prompt_from_text(transcription, settings, override_prompt_id.as_deref());
 
-        // Helper to find the longest matching candidate with boundary checks, ignoring spaces
-        let find_best_match = |text: &str, candidates: &[String]| -> Option<(String, usize)> {
-            let mut best_match: Option<(String, usize)> = None;
-
-            for candidate in candidates {
-                let candidate_lower = candidate.trim().to_lowercase();
-                if candidate_lower.is_empty() {
-                    continue;
-                }
-
-                let mut text_chars = text.char_indices();
-                let mut cand_chars = candidate_lower.chars();
-
-                let mut matched = true;
-                let mut text_match_end_idx = 0;
-                let mut last_cand_char = None;
-
-                let mut c_char_opt = cand_chars.next();
-
-                while let Some(c_char) = c_char_opt {
-                    if c_char.is_whitespace() {
-                        c_char_opt = cand_chars.next();
-                        continue;
-                    }
-                    last_cand_char = Some(c_char);
-
-                    let mut found_char = false;
-                    while let Some((idx, t_char)) = text_chars.next() {
-                        if t_char.is_whitespace() {
-                            continue;
-                        }
-                        if t_char == c_char {
-                            found_char = true;
-                            text_match_end_idx = idx + t_char.len_utf8();
-                            break;
-                        } else {
-                            matched = false;
-                            break;
-                        }
-                    }
-
-                    if !found_char || !matched {
-                        matched = false;
-                        break;
-                    }
-                    c_char_opt = cand_chars.next();
-                }
-
-                if matched {
-                    let ends_with_latin =
-                        last_cand_char.map_or(false, |c| c.is_ascii_alphanumeric());
-
-                    let is_boundary_ok = if !ends_with_latin {
-                        true
-                    } else if text_match_end_idx == text.len() {
-                        true
-                    } else {
-                        let next_char = text[text_match_end_idx..].chars().next();
-                        match next_char {
-                            Some(c) => !c.is_ascii_alphanumeric(),
-                            None => true,
-                        }
-                    };
-
-                    if is_boundary_ok {
-                        if best_match
-                            .as_ref()
-                            .map_or(true, |(_, len)| text_match_end_idx > *len)
-                        {
-                            best_match = Some((candidate.clone(), text_match_end_idx));
-                        }
-                    }
-                }
-            }
-            best_match
-        };
-
-        // Parse command prefixes
-        let prefixes: Vec<String> = settings
-            .command_prefixes
-            .as_ref()
-            .map(|s| {
-                s.split(&[',', '，'][..])
-                    .map(|p| p.trim().to_string())
-                    .filter(|p| !p.is_empty())
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        let has_prefixes_configured = !prefixes.is_empty();
-
-        let (content_to_check_alias, prefix_matched) = if has_prefixes_configured {
-            if let Some((_, len)) = find_best_match(&transcription_lower, &prefixes) {
-                let matched_str_lower = &transcription_lower[..len];
-                let char_count = matched_str_lower.chars().count();
-
-                let byte_offset_original = transcription
-                    .char_indices()
-                    .nth(char_count)
-                    .map(|(i, _)| i)
-                    .unwrap_or(transcription.len());
-
-                let remaining =
-                    transcription[byte_offset_original..].trim_start_matches(|c: char| {
-                        c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
-                    });
-
-                (remaining.to_string(), true)
-            } else {
-                (transcription.to_string(), false)
-            }
-        } else {
-            (transcription.to_string(), true)
-        };
-
-        let mut matched_prompt_info = None;
-
-        if prefix_matched {
-            let content_lower = content_to_check_alias.trim().to_lowercase();
-
-            for p in &settings.post_process_prompts {
-                let mut triggers = Vec::new();
-                if let Some(alias_str) = &p.alias {
-                    triggers.extend(
-                        alias_str
-                            .split(&[',', '，'][..])
-                            .map(|s| s.trim().to_string()),
-                    );
-                }
-                triggers.push(p.name.clone());
-
-                if let Some((_, len)) = find_best_match(&content_lower, &triggers) {
-                    matched_prompt_info = Some((p, len));
-                    break;
-                }
-            }
-        }
-
-        if let Some((p, match_len_lower)) = matched_prompt_info {
-            let matched_substring_lower =
-                &content_to_check_alias.trim().to_lowercase()[..match_len_lower];
-            let char_count = matched_substring_lower.chars().count();
-
-            let byte_offset = content_to_check_alias
-                .char_indices()
-                .nth(char_count)
-                .map(|(i, _)| i)
-                .unwrap_or(content_to_check_alias.len());
-
-            let final_content = content_to_check_alias[byte_offset..]
-                .trim_start_matches(|c: char| {
-                    c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
-                })
-                .to_string();
-
-            (p, final_content)
-        } else {
-            let p = if let Some(pid) = &override_prompt_id {
-                settings.post_process_prompts.iter().find(|p| &p.id == pid)
-            } else {
-                None
-            }
-            .or_else(|| {
-                settings
-                    .post_process_selected_prompt_id
-                    .as_ref()
-                    .and_then(|id| settings.post_process_prompts.iter().find(|p| &p.id == id))
-            })
-            .or_else(|| settings.post_process_prompts.first());
-
-            match p {
-                Some(p) => (p, transcription.to_string()),
-                None => return (None, None, None, false, None, None),
-            }
-        }
+    let initial_prompt = match initial_prompt_opt {
+        Some(p) => p,
+        None => return (None, None, None, false, None, None),
     };
 
-    let model = match resolve_effective_model(settings, provider, prompt) {
-        Some(m) => m,
-        None => return (None, None, Some(prompt.id.clone()), false, None, None),
-    };
+    let mut current_prompt = initial_prompt;
+    let mut current_input_content: String = initial_content;
+    let mut current_transcription = transcription.to_string();
+    let mut chain_depth = 0;
+    const MAX_CHAIN_DEPTH: usize = 2;
 
-    if show_overlay {
-        show_llm_processing_overlay(app_handle);
-    }
+    let mut final_result = None;
+    let mut last_model = None;
+    let mut last_prompt_id = None;
+    let mut last_err = false;
+    let mut last_confidence = None;
+    let mut last_reason = None;
 
-    let mut processed_prompt = prompt
-        .prompt
-        .replace("${output}", &transcription_content)
-        .replace("${prompt}", &prompt.name)
-        .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
+    while chain_depth < MAX_CHAIN_DEPTH {
+        let prompt = current_prompt;
+        let transcription_content = &current_input_content;
+        let transcription_original = &current_transcription;
 
-    // Inject hot words
-    if !settings.custom_words.is_empty() {
-        let hot_words_list = settings
-            .custom_words
-            .iter()
-            .map(|w| format!("- {}", w))
-            .collect::<Vec<_>>()
-            .join("\n");
+        let model = match resolve_effective_model(settings, provider, prompt) {
+            Some(m) => m,
+            None => {
+                return (
+                    final_result,
+                    last_model,
+                    Some(prompt.id.clone()),
+                    false,
+                    last_confidence,
+                    last_reason,
+                )
+            }
+        };
 
-        if processed_prompt.contains("${hot_words}") {
-            processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
-        } else {
-            // Automatically append if not present in template
-            processed_prompt = format!(
-                "{}\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和这些词相近，请优先修正为这些词，直接在输出文本中体现，不要解释）：\n{}",
-                processed_prompt, hot_words_list
-            );
+        if show_overlay {
+            show_llm_processing_overlay(app_handle);
         }
-    }
 
-    let mut history_entries = Vec::new();
-    if settings.post_process_context_enabled {
-        if let Some(app) = &app_name {
-            if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
-                match hm.get_recent_history_texts_for_app(
-                    &app,
-                    window_title.as_deref(),
-                    match_pattern.as_deref(),
-                    match_type,
-                    settings.post_process_context_limit as usize,
-                    exclude_history_id,
-                ) {
-                    Ok(history) => {
-                        history_entries = history;
-                    }
-                    Err(e) => {
-                        error!("Failed to fetch history for context: {}", e);
+        // Keep prompt template as-is, only replace metadata variables
+        let mut processed_prompt = prompt.prompt.replace("${prompt}", &prompt.name);
+
+        // Check which variables are referenced in the prompt template
+        let prompt_template = &prompt.prompt;
+        let has_output_ref = prompt_template.contains("output");
+        let has_select_ref = prompt_template.contains("select");
+        let has_raw_input_ref = prompt_template.contains("raw_input");
+        let has_streaming_ref = prompt_template.contains("streaming_output");
+        let has_hot_words_ref = prompt_template.contains("hot_words");
+        let has_context_ref = prompt_template.contains("context");
+
+        // Build structured input data message - only include variables referenced in prompt
+        let mut input_data_parts: Vec<String> = Vec::new();
+
+        // Add output (transcription content without prefix/alias) - only if referenced
+        if has_output_ref && !transcription_content.is_empty() {
+            input_data_parts.push(format!("```output\n{}\n```", transcription_content));
+        }
+
+        // Add raw_input (full original transcription including prefix/alias) - only if referenced
+        if has_raw_input_ref
+            && !transcription_original.is_empty()
+            && transcription_original != transcription_content
+        {
+            input_data_parts.push(format!("```raw_input\n{}\n```", transcription_original));
+        }
+
+        // Add streaming_output if available and referenced
+        if has_streaming_ref {
+            if let Some(streaming) = streaming_transcription {
+                if !streaming.is_empty() {
+                    input_data_parts.push(format!("```streaming_output\n{}\n```", streaming));
+                }
+            }
+        }
+
+        // Add selected text if referenced
+        if has_select_ref {
+            let text = crate::clipboard::get_selected_text(app_handle).unwrap_or_default();
+            if !text.is_empty() {
+                input_data_parts.push(format!("```select\n{}\n```", text));
+            }
+        }
+
+        // Inject hot words - only if referenced in prompt
+        if has_hot_words_ref && !settings.custom_words.is_empty() {
+            let hot_words_list = settings
+                .custom_words
+                .iter()
+                .map(|w| format!("- {}", w))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            if processed_prompt.contains("${hot_words}") {
+                processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
+            } else {
+                input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_list));
+            }
+        }
+
+        let mut history_entries = Vec::new();
+        if settings.post_process_context_enabled {
+            if let Some(app) = &app_name {
+                if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+                    match hm.get_recent_history_texts_for_app(
+                        &app,
+                        window_title.as_deref(),
+                        match_pattern.as_deref(),
+                        match_type,
+                        settings.post_process_context_limit as usize,
+                        history_id,
+                    ) {
+                        Ok(history) => {
+                            history_entries = history;
+                        }
+                        Err(e) => {
+                            error!("Failed to fetch history for context: {}", e);
+                        }
                     }
                 }
             }
-        } else {
         }
-    } else {
-    }
 
-    if !history_entries.is_empty() {
-        if processed_prompt.contains("${context}") {
-            let context_block = format!(
-                "\n\nRecent context for application \"{}\" (Window: \"{}\"):\n{}\n\n",
-                app_name.clone().unwrap_or_default(),
-                window_title.clone().unwrap_or_default(),
-                history_entries
-                    .iter()
-                    .map(|s| format!("- {}", s))
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            );
-            processed_prompt = processed_prompt.replace("${context}", &context_block);
-            // Clear history entries so they don't get injected twice (once in prompt, once in messages)
+        // Handle context
+        if !history_entries.is_empty() && has_context_ref {
+            let context_content = history_entries
+                .iter()
+                .map(|s| format!("- {}", s))
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            if processed_prompt.contains("${context}") {
+                let context_block = format!(
+                    "\n\nRecent context for application \"{}\" (Window: \"{}\"):\n{}\n\n",
+                    app_name.clone().unwrap_or_default(),
+                    window_title.clone().unwrap_or_default(),
+                    context_content
+                );
+                processed_prompt = processed_prompt.replace("${context}", &context_block);
+            } else {
+                input_data_parts.push(format!("```context\n{}\n```", context_content));
+            }
             history_entries.clear();
         }
+
+        // Build final input data message
+        let input_data_message = if input_data_parts.is_empty() {
+            None
+        } else {
+            Some(format!("## 输入数据\n\n{}", input_data_parts.join("\n\n")))
+        };
+
+        // Build fallback message
+        let fallback_message = if !has_output_ref
+            && !has_select_ref
+            && !has_raw_input_ref
+            && !transcription_content.is_empty()
+        {
+            Some(transcription_content.clone())
+        } else {
+            None
+        };
+
+        let (result, err, confidence, reason) = execute_llm_request(
+            app_handle,
+            settings,
+            provider,
+            &model,
+            &processed_prompt,
+            input_data_message.as_deref(),
+            fallback_message.as_deref(),
+            history_entries,
+            app_name.clone(),
+            window_title.clone(),
+            match_pattern.clone(),
+            match_type,
+        )
+        .await;
+
+        final_result = result;
+        last_model = Some(model);
+        last_prompt_id = Some(prompt.id.clone());
+        last_err = err;
+        last_confidence = confidence;
+        last_reason = reason;
+
+        if err || final_result.is_none() {
+            break;
+        }
+
+        // result_text is the result of LLM processing (fully parsed/extracted if JSON was used)
+        let result_text = final_result.as_ref().unwrap();
+        chain_depth += 1;
+
+        if chain_depth < MAX_CHAIN_DEPTH {
+            // Try to match the result against prompts again for the NEXT step in the chain
+            let (next_prompt_opt, next_content, is_explicit_match) =
+                resolve_prompt_from_text(result_text, settings, None);
+
+            if let Some(next_prompt) = next_prompt_opt {
+                // Only chain if we matched a DIFFERENT prompt through an EXPLICIT alias/prefix
+                // This ensures we only trigger the second call if the first output actually requested another action.
+                if is_explicit_match
+                    && next_prompt.id != current_prompt.id
+                    && !next_prompt.id.is_empty()
+                {
+                    info!(
+                        "[PostProcess] Chaining detected via explicit match: \"{}\" -> \"{}\". Using extracted text for next call.",
+                        current_prompt.name, next_prompt.name
+                    );
+
+                    // Notify UI about the second step
+                    app_handle
+                        .emit("post-process-status", next_prompt.name.clone())
+                        .ok();
+
+                    // Persist intermediate result to history if we have an ID
+                    if let Some(hid) = history_id {
+                        if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+                            let _ = hm
+                                .update_transcription_post_processing(
+                                    hid,
+                                    result_text.clone(),
+                                    current_prompt.prompt.clone(),
+                                    current_prompt.name.clone(),
+                                    Some(current_prompt.id.clone()),
+                                    last_model.clone(),
+                                )
+                                .await;
+                        }
+                    }
+
+                    // For the next iteration, the intermediate result text (without the prefix)
+                    // becomes the new transcription content.
+                    current_prompt = next_prompt;
+                    current_input_content = next_content;
+                    // The full intermediate text becomes the new raw input for referencing.
+                    current_transcription = result_text.clone();
+                    continue;
+                }
+            }
+        }
+
+        break;
     }
 
-    // Check if confidence checking is enabled in settings
-    let _enable_confidence_check = settings.confidence_check_enabled;
-
-    let (result, err, confidence, reason) = execute_llm_request(
-        app_handle,
-        settings,
-        provider,
-        &model,
-        &processed_prompt,
-        &prompt.prompt,
-        &transcription_content,
-        history_entries,
-        app_name,
-        window_title,
-        match_pattern,
-        match_type,
-    )
-    .await;
     (
-        result,
-        Some(model),
-        Some(prompt.id.clone()),
-        err,
-        confidence,
-        reason,
+        final_result,
+        last_model,
+        last_prompt_id,
+        last_err,
+        last_confidence,
+        last_reason,
     )
 }
 
@@ -675,11 +841,23 @@ pub(crate) async fn post_process_text_with_prompt(
         show_llm_processing_overlay(app_handle);
     }
 
-    let mut processed_prompt = prompt
-        .prompt
-        .replace("${output}", transcription)
-        .replace("${prompt}", &prompt.name)
-        .replace("${streaming_output}", streaming_transcription.unwrap_or(""));
+    // Keep prompt template as-is, only replace metadata variables
+    let mut processed_prompt = prompt.prompt.replace("${prompt}", &prompt.name);
+
+    // Build structured input data message
+    let mut input_data_parts: Vec<String> = Vec::new();
+
+    // Add output (transcription content)
+    if !transcription.is_empty() {
+        input_data_parts.push(format!("```output\n{}\n```", transcription));
+    }
+
+    // Add streaming_output if available
+    if let Some(streaming) = streaming_transcription {
+        if !streaming.is_empty() {
+            input_data_parts.push(format!("```streaming_output\n{}\n```", streaming));
+        }
+    }
 
     // Inject hot words for manual prompt too
     if !settings.custom_words.is_empty() {
@@ -693,12 +871,17 @@ pub(crate) async fn post_process_text_with_prompt(
         if processed_prompt.contains("${hot_words}") {
             processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
         } else {
-            processed_prompt = format!(
-                "{}\n\n用户自定义参考词汇：\n{}",
-                processed_prompt, hot_words_list
-            );
+            // Add hot words to input data block
+            input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_list));
         }
     }
+
+    // Build final input data message
+    let input_data_message = if input_data_parts.is_empty() {
+        None
+    } else {
+        Some(format!("## 输入数据\n\n{}", input_data_parts.join("\n\n")))
+    };
 
     // For manual prompt processing, don't enable confidence checking
     let (result, err, confidence, reason) = execute_llm_request(
@@ -707,8 +890,8 @@ pub(crate) async fn post_process_text_with_prompt(
         provider,
         &model,
         &processed_prompt,
-        &prompt.prompt,
-        transcription,
+        input_data_message.as_deref(),
+        None,       // No fallback for manual prompts
         Vec::new(), // No history for manual prompts
         None,
         None,

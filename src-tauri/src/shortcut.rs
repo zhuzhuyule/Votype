@@ -1,4 +1,4 @@
-use log::{error, warn};
+use log::{error, info, warn};
 use std::collections::HashMap;
 
 use serde::Serialize;
@@ -708,6 +708,13 @@ pub async fn fetch_post_process_models(
         .get(&provider_id)
         .cloned()
         .unwrap_or_default();
+
+    info!(
+        "[DEBUG] fetch_post_process_models: provider_id={}, api_key_len={}, all_keys={:?}",
+        provider_id,
+        api_key.len(),
+        settings.post_process_api_keys.keys().collect::<Vec<_>>()
+    );
 
     // Skip fetching if no API key for providers that typically need one
     if api_key.trim().is_empty() && provider.id != "custom" {

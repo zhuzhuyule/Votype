@@ -87,7 +87,7 @@ export const usePrompts = (): UsePromptsReturn => {
   const [draftComplianceThreshold, setDraftComplianceThreshold] = useState(70);
 
   const [draftOutputMode, setDraftOutputMode] =
-    useState<PromptOutputMode>("refinement");
+    useState<PromptOutputMode>("polish");
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
 
@@ -129,7 +129,7 @@ export const usePrompts = (): UsePromptsReturn => {
       draftComplianceCheck !==
         (viewingPrompt.compliance_check_enabled || false) ||
       draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70) ||
-      draftOutputMode !== (viewingPrompt.output_mode || "refinement")
+      draftOutputMode !== (viewingPrompt.output_mode || "polish")
     );
   }, [
     isCreating,
@@ -191,7 +191,7 @@ export const usePrompts = (): UsePromptsReturn => {
         setDraftComplianceCheck(false);
 
         setDraftComplianceThreshold(20);
-        setDraftOutputMode("refinement");
+        setDraftOutputMode("polish");
         setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
@@ -207,7 +207,7 @@ export const usePrompts = (): UsePromptsReturn => {
       setDraftComplianceCheck(viewingPrompt.compliance_check_enabled || false);
 
       setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
-      setDraftOutputMode(viewingPrompt.output_mode || "refinement");
+      setDraftOutputMode(viewingPrompt.output_mode || "polish");
       setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }

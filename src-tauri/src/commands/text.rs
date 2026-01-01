@@ -34,22 +34,29 @@ pub async fn optimize_text_with_llm(
     let system_prompt = r#"你是一位世界级的提示词工程师，专门负责优化 Votype（离线语音助手）的提示词模板。
 你的任务是重构用户提供的提示词，使其逻辑更严密、结构更清晰、对 AI 模型更友好。
 
-Votype 环境变量支持：
-- `${output}`：当前语音转录出的原始文本（必需/核心占位符）。
-- `${streaming_output}`：实时转录过程产生的转录文本（作为 output 的参考）。
-- `${hot_words}`：用户配置的自定义热词列表（有助于纠偏专业术语）。
-- `${context}`：最近 1～30 次转录的最终结果，作为上下文信息来提高 output 的语境。
-- `${prompt}`：提示词方案的显示名称。
+Votype 变量机制：
+系统会自动将输入数据作为独立消息发送给 AI，用户只需在提示词中**引用变量名**即可：
+- `${output}`：语音转录的最终文本（已去除命令前缀和别名）。
+- `${raw_input}`：完整的原始转录文本（包含命令前缀和别名）。
+- `${select}`：录音结束时当前选中的文本内容。
+- `${streaming_output}`：实时转录过程产生的中间文本，与 `${output}` 协作可提高识别准确性。
+- `${hot_words}`：用户配置的自定义热词列表。
+- `${context}`：最近 1～30 次转录的历史记录，用于上下文理解。
+- `${prompt}`：提示词方案的显示名称（会直接替换）。
+
+**重要：Fallback 机制**
+如果提示词中没有引用 `${output}`、`${raw_input}`、`${select}` 中的任何一个，系统会**自动在末尾追加**用户的转录输入内容。因此，你可以直接生成纯任务描述的提示词，无需强行插入变量。
 
 优化逻辑：
-1. **智能补全**：如果提示词中缺少 `${output}`，请根据逻辑将其插入到指令的输入位置（通常是结尾或作为待处理对象）。
-2. **结构重组**：使用 Markdown 标题（# ##）、列表和代码块来划分“角色”、“背景”、“任务”和“输出要求”。
-3. **角色增强**：为提示词注入一个强有力的专家角色。
-4. **约束对齐**：明确输出的长度、语言风格或禁止事项。
+1. **智能选择变量**：根据用户提示词的意图，智能决定使用哪些变量。不要一股脑把所有变量都加进去，只添加有意义的变量。
+2. **纯 Prompt 允许**：如果原始提示词是纯任务描述，可以保持不加变量，依赖系统的 Fallback 机制。
+3. **融合输出**：`${output}` 和 `${streaming_output}` 协作使用可提高识别准确性，适用于需要对输入内容准确较高的场景。比如：中英混读、中英混写等。
+4. **结构重组**：使用 Markdown 标题（# ##）、列表和代码块来划分"角色"、"背景"、"任务"和"输出要求"。
+5. **角色增强**：为提示词注入一个强有力的专家角色。
 
 输出要求：
 - 请直接返回优化后的 Markdown 提示词源码。
-- 严禁包含任何前缀（如“好的”、“这是优化后的结果”）、解释说明或后缀。
+- 严禁包含任何前缀（如"好的"、"这是优化后的结果"）、解释说明或后缀。
 "#;
 
     let user_instruction =
@@ -64,9 +71,9 @@ Votype 环境变量支持：
         provider,
         model,
         &processed_prompt,
-        "", // No template variable checking needed for text optimization
-        "", // No transcription for text optimization
-        vec![format!("system: {}", system_prompt)], // simplified historical role injection if needed, or just system prompt
+        Some(&format!("system: {}", system_prompt)), // Use input_data_message for system context
+        None,                                        // No fallback needed
+        Vec::new(),                                  // No history needed
         None,
         None,
         None,

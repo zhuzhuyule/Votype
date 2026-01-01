@@ -1,7 +1,7 @@
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
 use tauri_plugin_store::StoreExt;
 
@@ -143,15 +143,15 @@ impl Default for TitleMatchType {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PromptOutputMode {
-    /// Refinement mode: Input -> Optimization -> Output. UI shows Diff.
-    Refinement,
-    /// Generation mode: Input -> Q&A/Generation -> Output. UI shows Markdown.
-    Generation,
+    /// Polish mode: ASR result -> AI refinement -> Insert. UI shows Diff.
+    Polish,
+    /// Chat mode: ASR result -> AI Q&A -> Preview. UI shows Markdown.
+    Chat,
 }
 
 impl Default for PromptOutputMode {
     fn default() -> Self {
-        PromptOutputMode::Refinement
+        PromptOutputMode::Polish
     }
 }
 
@@ -790,7 +790,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
     let mut settings = if let Some(settings_value) = store.get("settings") {
         // Parse the entire settings object
-        match serde_json::from_value::<AppSettings>(settings_value) {
+        match serde_json::from_value::<AppSettings>(settings_value.clone()) {
             Ok(mut settings) => {
                 debug!("Found existing settings: {:?}", settings);
                 let default_settings = get_default_settings();
@@ -814,6 +814,24 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
             }
             Err(e) => {
                 warn!("Failed to parse settings: {}", e);
+
+                // Backup the original settings before overwriting
+                if let Ok(backup_json) = serde_json::to_string_pretty(&settings_value) {
+                    if let Some(app_data_dir) = app.path().app_data_dir().ok() {
+                        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+                        let backup_path =
+                            app_data_dir.join(format!("settings_backup_{}.json", timestamp));
+                        if let Err(backup_err) = std::fs::write(&backup_path, &backup_json) {
+                            warn!(
+                                "Failed to backup settings to {:?}: {}",
+                                backup_path, backup_err
+                            );
+                        } else {
+                            warn!("Settings backed up to {:?} before reset", backup_path);
+                        }
+                    }
+                }
+
                 // Fall back to default settings if parsing fails
                 let default_settings = get_default_settings();
                 store.set("settings", serde_json::to_value(&default_settings).unwrap());

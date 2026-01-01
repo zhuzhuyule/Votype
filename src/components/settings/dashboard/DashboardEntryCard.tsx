@@ -15,13 +15,13 @@ import {
   IconTrash,
   IconWand,
 } from "@tabler/icons-react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { DynamicIcon } from "../../shared/IconPicker";
 import { AudioPlayer } from "../../ui/AudioPlayer";
 import { Card } from "../../ui/Card";
-import type { HistoryEntry } from "./dashboardTypes";
+import type { HistoryEntry, PostProcessStep } from "./dashboardTypes";
 
 interface DashboardEntryCardProps {
   entry: HistoryEntry;
@@ -59,23 +59,38 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     const [audioMissing, setAudioMissing] = useState(false);
     const [isLoadingAudio, setIsLoadingAudio] = useState(false);
     const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
-    const [activeTab, setActiveTab] = useState<
-      "improved" | "original" | "streaming"
-    >(entry.post_processed_text?.trim() ? "improved" : "original");
+    const [activeTab, setActiveTab] = useState<string>("original");
+
     const [retranscribing, setRetranscribing] = useState(false);
     const [reprocessing, setReprocessing] = useState(false);
 
-    const hasImprovement = !!entry.post_processed_text?.trim();
+    const historySteps = useMemo(() => {
+      if (!entry.post_process_history) return [];
+      try {
+        return JSON.parse(entry.post_process_history) as PostProcessStep[];
+      } catch (e) {
+        console.error("Failed to parse post_process_history", e);
+        return [];
+      }
+    }, [entry.post_process_history]);
+
+    const hasSteps = historySteps.length > 0;
+    const hasImprovement = !!entry.post_processed_text?.trim() && !hasSteps;
     const hasStreaming = !!entry.streaming_text?.trim();
 
+    const finalStepIdx = hasSteps ? historySteps.length - 1 : -1;
+    const intermediateSteps = hasSteps ? historySteps.slice(0, -1) : [];
+
     // Auto-reset tab to the first/best one when entry changes or gets processed
-    React.useEffect(() => {
-      if (hasImprovement) {
+    useEffect(() => {
+      if (hasSteps) {
+        setActiveTab(`step:${finalStepIdx}`);
+      } else if (hasImprovement) {
         setActiveTab("improved");
       } else {
         setActiveTab("original");
       }
-    }, [entry.id, hasImprovement]);
+    }, [entry.id, hasImprovement, hasSteps, historySteps.length]);
 
     const onRetranscribeClick = async () => {
       console.log(
@@ -176,7 +191,7 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
               </Text>
 
               {/* Processing Chain Badges - Only shown if step count > 1 */}
-              {(entry.streaming_asr_model || hasImprovement) && (
+              {(entry.streaming_asr_model || hasImprovement || hasSteps) && (
                 <Flex
                   gap="1"
                   align="center"
@@ -199,19 +214,30 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                     </>
                   )}
 
-                  {hasImprovement && (
+                  {(hasImprovement || hasSteps) && (
                     <>
                       <Text size="1" className="opacity-30">
                         →
                       </Text>
                       <Tooltip
-                        content={`AI: ${entry.post_process_model || "Unknown"}`}
+                        content={
+                          hasSteps
+                            ? `${t("settings.history.content.chained")}: ${historySteps.length} steps`
+                            : `AI: ${entry.post_process_model || "Unknown"}`
+                        }
                       >
-                        <DynamicIcon
-                          name={improvedTabIcon}
-                          size={12}
-                          className="text-logo-primary opacity-80"
-                        />
+                        <Flex gap="1" align="center">
+                          <DynamicIcon
+                            name={improvedTabIcon}
+                            size={12}
+                            className="text-logo-primary opacity-80"
+                          />
+                          {hasSteps && historySteps.length > 1 && (
+                            <Text size="1" color="iris" weight="bold">
+                              {historySteps.length}
+                            </Text>
+                          )}
+                        </Flex>
                       </Tooltip>
                     </>
                   )}
@@ -304,7 +330,11 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   size="2"
                   onClick={() => {
                     let text = entry.transcription_text;
-                    if (activeTab === "improved") {
+                    if (activeTab.startsWith("step:")) {
+                      const idx = parseInt(activeTab.split(":")[1]);
+                      text =
+                        historySteps[idx]?.result ?? entry.transcription_text;
+                    } else if (activeTab === "improved") {
                       text =
                         entry.post_processed_text ?? entry.transcription_text;
                     } else if (activeTab === "streaming") {
@@ -361,7 +391,26 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
               value={activeTab}
               onValueChange={(v) => setActiveTab(v as any)}
             >
-              <Tabs.List size="1" className="mb-3">
+              <Tabs.List size="1" className="flex-wrap gap-y-1 mb-3">
+                {/* 1. Final Step (Most important) */}
+                {hasSteps && (
+                  <Tabs.Trigger value={`step:${finalStepIdx}`}>
+                    <Flex align="center" gap="2">
+                      <DynamicIcon
+                        name={
+                          (historySteps[finalStepIdx].prompt_id &&
+                            settings?.post_process_prompts.find(
+                              (p) =>
+                                p.id === historySteps[finalStepIdx].prompt_id,
+                            )?.icon) ||
+                          "IconWand"
+                        }
+                        size={14}
+                      />
+                      {historySteps[finalStepIdx].prompt_name}
+                    </Flex>
+                  </Tabs.Trigger>
+                )}
                 {hasImprovement && (
                   <Tabs.Trigger value="improved">
                     <Flex align="center" gap="2">
@@ -370,28 +419,69 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                     </Flex>
                   </Tabs.Trigger>
                 )}
+
+                {/* 2. Original Transcription (Comparison base) */}
                 <Tabs.Trigger value="original">
                   {t("settings.history.content.original")}
                 </Tabs.Trigger>
+
+                {/* 3. Streaming (If exists) */}
                 {hasStreaming && (
                   <Tabs.Trigger value="streaming">
                     {t("settings.history.content.streaming")}
                   </Tabs.Trigger>
                 )}
+
+                {/* 4. Intermediate Steps (Process audit) */}
+                {intermediateSteps.map((step, idx) => (
+                  <Tabs.Trigger key={idx} value={`step:${idx}`}>
+                    <Flex align="center" gap="2">
+                      <DynamicIcon
+                        name={
+                          (step.prompt_id &&
+                            settings?.post_process_prompts.find(
+                              (p) => p.id === step.prompt_id,
+                            )?.icon) ||
+                          "IconWand"
+                        }
+                        size={14}
+                      />
+                      {step.prompt_name}
+                    </Flex>
+                  </Tabs.Trigger>
+                ))}
               </Tabs.List>
               <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
+                {hasSteps &&
+                  historySteps.map((step, idx) => (
+                    <Tabs.Content key={idx} value={`step:${idx}`}>
+                      <Flex direction="column" gap="2">
+                        <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
+                          {step.result}
+                        </Text>
+                        <Flex
+                          justify="end"
+                          align="center"
+                          gap="2"
+                          className="mt-1 opacity-50"
+                        >
+                          <Text size="1">Model: {step.model || "Unknown"}</Text>
+                        </Flex>
+                      </Flex>
+                    </Tabs.Content>
+                  ))}
                 <Tabs.Content value="improved">
-                  <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
+                  <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
                     {entry.post_processed_text}
                   </Text>
                 </Tabs.Content>
                 <Tabs.Content value="original">
-                  <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
+                  <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
                     {entry.transcription_text}
                   </Text>
                 </Tabs.Content>
                 <Tabs.Content value="streaming">
-                  <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono italic">
+                  <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono italic">
                     {entry.streaming_text}
                   </Text>
                 </Tabs.Content>
@@ -399,7 +489,7 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
             </Tabs.Root>
           ) : (
             <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
-              <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap break-words font-mono">
+              <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
                 {entry.transcription_text}
               </Text>
             </Box>

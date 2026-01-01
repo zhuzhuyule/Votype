@@ -80,7 +80,17 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN audio_deleted BOOLEAN NOT NULL DEFAULT 0;"),
     // Migration 11: Revert global_stats and audio_deleted column
     M::up("DROP TABLE IF EXISTS global_stats;"),
+    // Migration 12: Add post_process_history column for chained prompts
+    M::up("ALTER TABLE transcription_history ADD COLUMN post_process_history TEXT;"),
 ];
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PostProcessStep {
+    pub prompt_id: Option<String>,
+    pub prompt_name: String,
+    pub model: Option<String>,
+    pub result: String,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -104,6 +114,7 @@ pub struct HistoryEntry {
     pub asr_model: Option<String>,
     pub app_name: Option<String>,
     pub window_title: Option<String>,
+    pub post_process_history: Option<String>, // JSON array of PostProcessStep
     pub deleted: bool,
 }
 
@@ -453,6 +464,7 @@ impl HistoryManager {
             asr_model,
             app_name,
             window_title,
+            None, // post_process_history initially null
             char_count,
             corrected_char_count,
         )?;
@@ -486,13 +498,14 @@ impl HistoryManager {
         asr_model: Option<String>,
         app_name: Option<String>,
         window_title: Option<String>,
+        post_process_history: Option<String>,
         char_count: Option<i64>,
         corrected_char_count: Option<i64>,
     ) -> Result<i64> {
         let conn = self.get_connection()?;
         conn.execute(
-            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
-            params![file_name, timestamp, false, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, transcription_ms, language, asr_model, app_name, window_title, char_count, corrected_char_count],
+            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, transcription_ms, language, asr_model, app_name, window_title, post_process_history, char_count, corrected_char_count) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+            params![file_name, timestamp, false, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, transcription_ms, language, asr_model, app_name, window_title, post_process_history, char_count, corrected_char_count],
         )?;
 
         let id = conn.last_insert_rowid();
@@ -540,6 +553,7 @@ impl HistoryManager {
         id: i64,
         post_processed_text: String,
         post_process_prompt: String,
+        prompt_name: String,
         post_process_prompt_id: Option<String>,
         post_process_model: Option<String>,
     ) -> Result<()> {
@@ -555,24 +569,38 @@ impl HistoryManager {
             )
             .unwrap_or(false);
 
-        // Get the old corrected_char_count to calculate delta
-        let old_corrected_char_count: i64 = conn
+        // Get the old corrected_char_count and existing history
+        let (old_corrected_char_count, existing_history_json): (i64, Option<String>) = conn
             .query_row(
-                "SELECT COALESCE(corrected_char_count, 0) FROM transcription_history WHERE id = ?1",
+                "SELECT COALESCE(corrected_char_count, 0), post_process_history FROM transcription_history WHERE id = ?1",
                 params![id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
-            .unwrap_or(0);
+            .unwrap_or((0, None));
+
+        // Update history array
+        let mut history: Vec<PostProcessStep> = existing_history_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+
+        history.push(PostProcessStep {
+            prompt_id: post_process_prompt_id.clone(),
+            prompt_name,
+            model: post_process_model.clone(),
+            result: post_processed_text.clone(),
+        });
+
+        let history_json = serde_json::to_string(&history)?;
 
         conn.execute(
-            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5 WHERE id = ?6",
-            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, id],
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5, post_process_history = ?6 WHERE id = ?7",
+            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, history_json, id],
         )?;
 
         let _ = if had_post_processing { 0 } else { 1 };
         let _ = corrected_char_count - old_corrected_char_count;
 
-        debug!("Updated transcription {} with post-processing results", id);
+        debug!("Updated transcription {} with post-processing step", id);
 
         // Emit history updated event
         if let Err(e) = self.app_handle.emit("history-updated", ()) {
@@ -764,7 +792,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -789,6 +817,7 @@ impl HistoryManager {
                 asr_model: row.get("asr_model")?,
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
+                post_process_history: row.get("post_process_history")?,
                 deleted: row.get("deleted")?,
             })
         })?;
@@ -839,7 +868,7 @@ impl HistoryManager {
 
         // Build paginated query
         let query_sql = format!(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             where_clause, limit, offset
         );
 
@@ -868,6 +897,7 @@ impl HistoryManager {
                 asr_model: row.get("asr_model")?,
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
+                post_process_history: row.get("post_process_history")?,
                 deleted: row.get("deleted")?,
             })
         };
@@ -919,7 +949,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, deleted
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -946,6 +976,7 @@ impl HistoryManager {
                     asr_model: row.get("asr_model")?,
                     app_name: row.get("app_name")?,
                     window_title: row.get("window_title")?,
+                    post_process_history: row.get("post_process_history")?,
                     deleted: row.get("deleted")?,
                 })
             })

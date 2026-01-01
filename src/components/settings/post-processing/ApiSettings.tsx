@@ -22,21 +22,22 @@ import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
 import { Card } from "../../ui/Card";
-import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
+import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { AdvancedSettings } from "./AdvancedSettings";
 import { SidebarItem } from "./SidebarItem";
 
 interface ApiSettingsProps {
   onAddModel: () => void;
   isFetchingModels: boolean;
+  providerState: PostProcessProviderState;
 }
 
 export const ApiSettings: React.FC<ApiSettingsProps> = ({
   onAddModel,
   isFetchingModels,
+  providerState: state,
 }) => {
   const { t } = useTranslation();
-  const state = usePostProcessProviderState();
   const [showApiKey, setShowApiKey] = useState(false);
   const { updateCustomProvider, removeCustomProvider, addCustomProvider } =
     useSettings();

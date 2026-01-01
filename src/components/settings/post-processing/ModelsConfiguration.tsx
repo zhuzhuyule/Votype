@@ -137,6 +137,7 @@ export const ModelsConfiguration: React.FC = () => {
       <ApiSettings
         onAddModel={() => setIsModelPickerOpen(true)}
         isFetchingModels={providerState.isFetchingModels}
+        providerState={providerState}
       />
       {/* 2. Models Grid (Side-by-Side) */}
       <Grid columns="2" gap="4">

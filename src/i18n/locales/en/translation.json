@@ -1011,14 +1011,14 @@
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tips: The following variables are available (click to copy):<br/><code>${output}</code>: The final transcribed text result.<br/><code>${streaming_output}</code>: Intermediate real-time transcription text.<br/><code>${hot_words}</code>: Custom words/terminology from your settings.<br/><code>${prompt}</code>: Display name of the currently active prompt scheme.<br/><code>${context}</code>: Historical chat information from the active window.<br/><b>Note: If your prompt instructs the AI to output a JSON structure with text and confidence fields, the review window will trigger automatically.</b>",
+        "promptTip": "Tip: The system automatically sends input data as a separate message to the AI. You only need to reference variable names in your prompt:<br/><b>Input Variables (auto-appended):</b><br/><code>${output}</code>: Final transcribed text (without command prefix/alias).<br/><code>${raw_input}</code>: Complete original transcription (with prefix/alias).<br/><code>${select}</code>: Text selected when recording ended.<br/><code>${streaming_output}</code>: Real-time transcription (works with output for better accuracy).<br/><code>${hot_words}</code>: Your custom vocabulary/hot words.<br/><code>${context}</code>: Historical context from the active window.<br/><b>Metadata Variables (directly replaced):</b><br/><code>${prompt}</code>: Current prompt scheme name.<br/><br/><b>Fallback:</b> If your prompt doesn't reference output/raw_input/select, the system will automatically append the transcription at the end, so you can write pure task descriptions.<br/><br/><b>Note:</b> If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
         "selectedPrompt": {
-          "description": "Select a template for refining transcriptions or create a new one. You can use variables like <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, <code>${prompt}</code>, or <code>${context}</code>.",
+          "description": "The system automatically sends referenced variables (like <code>${output}</code>, <code>${select}</code>) as a separate message to the AI. If no input variables are referenced, the system will auto-append the transcription.",
           "title": "Selected Prompt"
         },
         "outputMode": {
-          "refinement": "Refinement",
-          "generation": "Assistant",
+          "polish": "Text Polish",
+          "chat": "AI Chat",
           "label": "Output Mode"
         },
         "advancedSettings": "Advanced Settings",

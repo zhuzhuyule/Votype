@@ -177,3 +177,147 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
 
     Ok(())
 }
+
+/// Get the currently selected text from the active application.
+/// On macOS, tries Accessibility API first, falls back to clipboard method.
+/// On other platforms, uses clipboard method.
+pub fn get_selected_text(app_handle: &AppHandle) -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    {
+        // Try Accessibility API first
+        match get_selected_text_via_accessibility() {
+            Ok(text) if !text.is_empty() => {
+                info!(
+                    "[Selection] Got text via Accessibility API: {} chars",
+                    text.len()
+                );
+                return Ok(text);
+            }
+            Ok(_) => {
+                info!("[Selection] Accessibility API returned empty, trying clipboard method");
+            }
+            Err(e) => {
+                info!(
+                    "[Selection] Accessibility API failed ({}), trying clipboard method",
+                    e
+                );
+            }
+        }
+    }
+
+    // Fallback: use clipboard method
+    get_selected_text_via_clipboard(app_handle)
+}
+
+/// Get selected text using the clipboard method:
+/// 1. Save current clipboard content
+/// 2. Send Cmd+C / Ctrl+C to copy selection
+/// 3. Read clipboard content
+/// 4. Restore original clipboard content
+fn get_selected_text_via_clipboard(app_handle: &AppHandle) -> Result<String, String> {
+    let clipboard = app_handle.clipboard();
+
+    // Save current clipboard content
+    let original_content = clipboard.read_text().unwrap_or_default();
+
+    // Clear clipboard to detect if copy succeeded
+    clipboard
+        .write_text("")
+        .map_err(|e| format!("Failed to clear clipboard: {}", e))?;
+
+    // Get enigo for sending keystrokes
+    let enigo_state = app_handle
+        .try_state::<EnigoState>()
+        .ok_or("Enigo state not initialized")?;
+    let mut enigo_opt = enigo_state.get_or_init()?;
+    let enigo = enigo_opt
+        .as_mut()
+        .ok_or("Failed to initialize input system")?;
+
+    // Send copy keystroke
+    #[cfg(target_os = "macos")]
+    input::send_copy_cmd_c(enigo)?;
+    #[cfg(not(target_os = "macos"))]
+    input::send_copy_ctrl_c(enigo)?;
+
+    // Wait for clipboard to update
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    // Read the selected text
+    let selected_text = clipboard.read_text().unwrap_or_default();
+
+    // Restore original clipboard content
+    clipboard
+        .write_text(&original_content)
+        .map_err(|e| format!("Failed to restore clipboard: {}", e))?;
+
+    info!(
+        "[Selection] Got text via clipboard method: {} chars",
+        selected_text.len()
+    );
+    Ok(selected_text)
+}
+
+/// Get selected text using macOS Accessibility API (AXSelectedText).
+/// This is more efficient as it doesn't affect the clipboard.
+#[cfg(target_os = "macos")]
+fn get_selected_text_via_accessibility() -> Result<String, String> {
+    use core_foundation::base::{CFRelease, TCFType};
+    use core_foundation::string::{CFString, CFStringRef};
+    use std::ffi::c_void;
+    use std::ptr;
+
+    #[link(name = "ApplicationServices", kind = "framework")]
+    extern "C" {
+        fn AXUIElementCreateSystemWide() -> *mut c_void;
+        fn AXUIElementCopyAttributeValue(
+            element: *mut c_void,
+            attribute: CFStringRef,
+            value: *mut *mut c_void,
+        ) -> i32;
+    }
+
+    unsafe {
+        // Create system-wide accessibility element
+        let system_element = AXUIElementCreateSystemWide();
+        if system_element.is_null() {
+            return Err("Failed to create system-wide AXUIElement".to_string());
+        }
+
+        // Get the focused UI element
+        let focused_attr = CFString::new("AXFocusedUIElement");
+        let mut focused_element: *mut c_void = ptr::null_mut();
+        let result = AXUIElementCopyAttributeValue(
+            system_element,
+            focused_attr.as_concrete_TypeRef(),
+            &mut focused_element,
+        );
+
+        if result != 0 || focused_element.is_null() {
+            CFRelease(system_element);
+            return Err("Failed to get focused UI element".to_string());
+        }
+
+        // Get the selected text from the focused element
+        let selected_text_attr = CFString::new("AXSelectedText");
+        let mut selected_text_value: *mut c_void = ptr::null_mut();
+        let result = AXUIElementCopyAttributeValue(
+            focused_element,
+            selected_text_attr.as_concrete_TypeRef(),
+            &mut selected_text_value,
+        );
+
+        CFRelease(focused_element);
+        CFRelease(system_element);
+
+        if result != 0 || selected_text_value.is_null() {
+            return Err("Failed to get selected text".to_string());
+        }
+
+        // Convert CFString to Rust String
+        let cf_text = CFString::wrap_under_create_rule(selected_text_value as CFStringRef);
+        let text = cf_text.to_string();
+
+        Ok(text)
+    }
+}

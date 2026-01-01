@@ -65,6 +65,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [realtimeText, setRealtimeText] = useState<string>("");
   const [realtimeIsFinal, setRealtimeIsFinal] = useState<boolean>(false);
   const [errorText, setErrorText] = useState<string>("");
+  const [chainedPromptName, setChainedPromptName] = useState<string>("");
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OverlayState>(initialState);
@@ -88,6 +89,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       setRealtimeText("");
       setRealtimeIsFinal(false);
       setErrorText("");
+      setChainedPromptName("");
     }
   }, [initialState]);
 
@@ -179,6 +181,13 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         handlePartial as any,
       );
 
+      const unlistenPostProcessStatus = await listen<string>(
+        "post-process-status",
+        (event) => {
+          setChainedPromptName(event.payload);
+        },
+      );
+
       const unlistenStateUpdate = await listen("show-overlay", (event) => {
         const overlayState = event.payload as OverlayState;
         setState(overlayState);
@@ -187,6 +196,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           setRealtimeText("");
           setRealtimeIsFinal(false);
           setErrorText("");
+          setChainedPromptName("");
           allowNonFinalRef.current = true;
           finalLockedRef.current = false;
         }
@@ -207,6 +217,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         unlistenLevel();
         unlistenSherpaOnlinePartial();
         unlistenSherpaOfflinePartial();
+        unlistenPostProcessStatus();
         unlistenStateUpdate();
         window.removeEventListener("storage", handleStorageChange);
       };
@@ -294,7 +305,13 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           )}
           {!showRealtimeText && state !== "recording" && (
             <Flex direction="column" className="status-text" align="center">
-              {!showErrorText && <Text>{statusTextMap[state]}</Text>}
+              {!showErrorText && (
+                <Text>
+                  {chainedPromptName
+                    ? `${t("overlay.status.llm")}：${chainedPromptName}`
+                    : statusTextMap[state]}
+                </Text>
+              )}
               {showErrorText && (
                 <Text style={{ color: "var(--ruby-9)", fontWeight: "bold" }}>
                   {errorText}
