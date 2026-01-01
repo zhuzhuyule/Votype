@@ -88,9 +88,7 @@ const PromptsConfiguration: React.FC = () => {
       <Flex direction="column" gap="5">
         {/* Top Section: Global Configuration (全局配置) */}
         <SettingsGroup
-          title={t("settings.postProcessing.prompts.globalConfigTitle", {
-            defaultValue: "全局配置",
-          })}
+          title={t("settings.postProcessing.prompts.globalConfigTitle")}
         >
           <Flex direction="column" gap="2">
             <PostProcessingToggle grouped={true} />
@@ -125,9 +123,7 @@ const PromptsConfiguration: React.FC = () => {
                   className="pt-5 pb-2 px-4 shrink-0"
                 >
                   <Text size="3" weight="bold" color="gray">
-                    {t("settings.postProcessing.prompts.managementTitle", {
-                      defaultValue: "提示词管理",
-                    })}
+                    {t("settings.postProcessing.prompts.managementTitle")}
                   </Text>
                   <IconButton
                     variant="soft"
@@ -154,6 +150,7 @@ const PromptsConfiguration: React.FC = () => {
                       t={t}
                       icon={prompt.icon || "IconWand"}
                       outputMode={prompt.output_mode}
+                      alias={prompt.alias}
                     />
                   ))}
                   {/* Temporary item for NEW prompt being created */}
@@ -163,9 +160,7 @@ const PromptsConfiguration: React.FC = () => {
                         value: "NEW",
                         label:
                           draftName ||
-                          t("settings.postProcessing.prompts.newPromptName", {
-                            defaultValue: "新提示词",
-                          }),
+                          t("settings.postProcessing.prompts.newPromptName"),
                       }}
                       isActive={false}
                       isSelected={true}
@@ -176,6 +171,7 @@ const PromptsConfiguration: React.FC = () => {
                       t={t}
                       icon={draftIcon || "IconSparkles"}
                       outputMode={draftOutputMode}
+                      alias={currentAliases.join(",")}
                     />
                   )}
                 </Box>
@@ -185,16 +181,16 @@ const PromptsConfiguration: React.FC = () => {
               <Flex direction="column">
                 {/* Header - Compressed Height */}
                 <Box className="py-2.5 px-8 shrink-0 border-b border-gray-100 dark:border-gray-800">
-                  <Flex direction="column" gap="2">
+                  <Flex direction="column" gap="1">
                     <Flex justify="between" align="center" width="100%">
-                      <Flex align="center" gap="3" className="flex-1">
+                      <Flex align="center" gap="2" className="flex-1">
                         <IconPicker
                           value={draftIcon || "IconWand"}
                           onChange={(icon: string) => setDraftIcon(icon)}
                         />
                         <TextField.Root
-                          size="3"
-                          className="flex-1 max-w-sm bg-transparent! border-0! shadow-none! font-bold text-xl focus-within:ring-0!"
+                          size="2"
+                          className="flex-1 max-w-sm bg-transparent! border-0! shadow-none! font-semibold text-lg focus-within:ring-0!"
                           placeholder={t(
                             "settings.postProcessing.prompts.promptLabelPlaceholder",
                           )}
@@ -205,10 +201,11 @@ const PromptsConfiguration: React.FC = () => {
                         />
                       </Flex>
 
-                      <Flex gap="3" align="center">
+                      <Flex gap="2" align="center">
                         <IconButton
                           variant="ghost"
                           color="gray"
+                          size="1"
                           onClick={() => setShowAdvanced(!showAdvanced)}
                           className="cursor-pointer opacity-60 hover:opacity-100"
                           title={t(
@@ -216,7 +213,7 @@ const PromptsConfiguration: React.FC = () => {
                           )}
                         >
                           <IconChevronDown
-                            size={18}
+                            size={16}
                             style={{
                               transform: showAdvanced
                                 ? "rotate(180deg)"
@@ -235,12 +232,13 @@ const PromptsConfiguration: React.FC = () => {
                               <IconButton
                                 variant="ghost"
                                 color="red"
+                                size="1"
                                 className="cursor-pointer"
                                 title={t(
                                   "settings.postProcessing.prompts.deletePrompt",
                                 )}
                               >
-                                <IconTrash size={18} />
+                                <IconTrash size={16} />
                               </IconButton>
                             </Dialog.Trigger>
                             <Dialog.Content maxWidth="450px">
@@ -283,6 +281,7 @@ const PromptsConfiguration: React.FC = () => {
 
                         <Button
                           variant="solid"
+                          size="1"
                           onClick={handleSave}
                           disabled={
                             !isDirty ||
@@ -291,10 +290,38 @@ const PromptsConfiguration: React.FC = () => {
                           }
                           className="cursor-pointer"
                         >
-                          <IconDeviceFloppy size={18} />
+                          <IconDeviceFloppy size={14} />
                           {t("common.save")}
                         </Button>
                       </Flex>
+                    </Flex>
+
+                    {/* Alias Input Row - Always Visible */}
+                    <Flex align="center" gap="2">
+                      <Text size="1" className="text-gray-400 shrink-0">
+                        {t("settings.postProcessing.prompts.alias")}
+                      </Text>
+                      <Box className="flex-1">
+                        <TagInput
+                          tags={currentAliases}
+                          inputValue={currentAliasInput}
+                          onInputChange={setCurrentAliasInput}
+                          onAdd={handleAddAlias}
+                          onRemove={handleRemoveAlias}
+                          onKeyDown={(e: React.KeyboardEvent) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddAlias();
+                            }
+                          }}
+                          placeholder={t(
+                            "settings.postProcessing.prompts.aliasPlaceholder",
+                          )}
+                          emptyMessage=""
+                          error={aliasError}
+                          compact
+                        />
+                      </Box>
                     </Flex>
 
                     {/* Collapsible Advanced Settings - No Card, inline flow */}
@@ -302,7 +329,7 @@ const PromptsConfiguration: React.FC = () => {
                       <Grid columns="2" gap="4" className="pt-2">
                         {/* 1. Model */}
                         <Box>
-                          <label className="text-xs font-semibold text-gray-500 mb-1 block uppercase tracking-wider">
+                          <label className="text-xs font-medium text-gray-500 mb-1 block">
                             {t("settings.postProcessing.api.model.title")}
                           </label>
                           <Dropdown
@@ -317,7 +344,7 @@ const PromptsConfiguration: React.FC = () => {
 
                         {/* 2. Output Mode - SegmentedControl */}
                         <Box>
-                          <label className="text-xs font-semibold text-gray-500 mb-1 block uppercase tracking-wider">
+                          <label className="text-xs font-medium text-gray-500 mb-1 block">
                             {t(
                               "settings.postProcessing.prompts.outputMode.label",
                             )}
@@ -342,42 +369,12 @@ const PromptsConfiguration: React.FC = () => {
                           </SegmentedControl.Root>
                         </Box>
 
-                        {/* 3. Aliases */}
-                        <Box>
-                          <label className="text-xs font-semibold text-gray-500 mb-1 block uppercase tracking-wider">
-                            {t("settings.postProcessing.prompts.aliasesLabel", {
-                              defaultValue: "别名",
-                            })}
-                          </label>
-                          <TagInput
-                            tags={currentAliases}
-                            inputValue={currentAliasInput}
-                            onInputChange={setCurrentAliasInput}
-                            onAdd={handleAddAlias}
-                            onRemove={handleRemoveAlias}
-                            onKeyDown={(e: React.KeyboardEvent) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAddAlias();
-                              }
-                            }}
-                            placeholder={t(
-                              "settings.postProcessing.prompts.aliasPlaceholder",
-                            )}
-                            emptyMessage={t(
-                              "settings.postProcessing.prompts.noAliases",
-                            )}
-                            error={aliasError}
-                          />
-                        </Box>
-
                         {/* 4. Compliance (only for polish mode) - Single row */}
                         {draftOutputMode === "polish" && (
                           <Box>
-                            <label className="text-xs font-semibold text-gray-500 mb-1 block uppercase tracking-wider">
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">
                               {t(
                                 "settings.postProcessing.prompts.enableReview",
-                                { defaultValue: "启用审查触发" },
                               )}
                             </label>
                             <Flex align="center" gap="3" className="mt-1.5">

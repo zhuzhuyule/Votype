@@ -122,6 +122,11 @@ const DEFAULT_AUDIO_DEVICE: AudioDevice = {
   is_default: true,
 };
 
+const normalizeDeviceName = (name?: string | null) => {
+  if (!name) return "Default";
+  return name.toLowerCase() === "default" ? "Default" : name;
+};
+
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
 } = {
@@ -268,15 +273,15 @@ export const useSettingsStore = create<SettingsStore>()(
               : false,
           selected_microphone:
             selectedMicrophone.status === "fulfilled"
-              ? (selectedMicrophone.value as string)
+              ? normalizeDeviceName(selectedMicrophone.value as string)
               : "Default",
           clamshell_microphone:
             clamshellMicrophone.status === "fulfilled"
-              ? (clamshellMicrophone.value as string)
+              ? normalizeDeviceName(clamshellMicrophone.value as string)
               : "Default",
           selected_output_device:
             selectedOutputDevice.status === "fulfilled"
-              ? (selectedOutputDevice.value as string)
+              ? normalizeDeviceName(selectedOutputDevice.value as string)
               : "Default",
         };
 

@@ -8,6 +8,7 @@ import { useSettings } from "../../hooks/useSettings";
 import { useModels } from "../../hooks/useModels";
 import { LANGUAGES } from "../../lib/constants/languages";
 import { ActionWrapper } from "../ui";
+import type { ModelInfo } from "../../lib/types";
 
 interface LanguageSelectorProps {
   descriptionMode?: "inline" | "tooltip";
@@ -22,10 +23,36 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
 }) => {
   const { t } = useTranslation();
   const { getSetting, updateSetting, resetSetting, isUpdating } = useSettings();
-  const { currentModel, loadCurrentModel } = useModels();
+  const { currentModel, loadCurrentModel, models } = useModels();
 
   const selectedLanguage = getSetting("selected_language") || "auto";
-  const isUnsupported = unsupportedModels.includes(currentModel);
+  const currentModelInfo = models.find((m: ModelInfo) => m.id === currentModel);
+
+  const supportStatus = (() => {
+    if (!currentModel) return "noModel";
+    if (!currentModelInfo) return "unknownModel";
+    if (unsupportedModels.includes(currentModel)) return "unsupportedModel";
+    if (currentModelInfo.engine_type === "Whisper") return "whisper";
+    if (
+      currentModelInfo.engine_type === "SherpaOnnx" &&
+      currentModelInfo.sherpa?.family === "SenseVoice"
+    ) {
+      return "sensevoice";
+    }
+    return "unsupportedEngine";
+  })() as
+    | "noModel"
+    | "unknownModel"
+    | "unsupportedModel"
+    | "whisper"
+    | "sensevoice"
+    | "unsupportedEngine";
+
+  const isDisabled =
+    supportStatus === "noModel" ||
+    supportStatus === "unknownModel" ||
+    supportStatus === "unsupportedModel" ||
+    supportStatus === "unsupportedEngine";
 
   useEffect(() => {
     const modelStateUnlisten = listen("model-state-changed", () => {
@@ -51,22 +78,29 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     label: lang.label,
   }));
 
+  const descriptionMap: Record<typeof supportStatus, string> = {
+    noModel: t("settings.general.language.descriptionNoModel"),
+    unknownModel: t("settings.general.language.descriptionUnknownModel"),
+    unsupportedModel: t("settings.general.language.descriptionUnsupported"),
+    unsupportedEngine: t(
+      "settings.general.language.descriptionUnsupportedEngine",
+    ),
+    whisper: t("settings.general.language.description"),
+    sensevoice: t("settings.general.language.descriptionSenseVoice"),
+  };
+
   return (
     <SettingContainer
       title={t("settings.general.language.title")}
-      description={
-        isUnsupported
-          ? t("settings.general.language.descriptionUnsupported")
-          : t("settings.general.language.description")
-      }
+      description={descriptionMap[supportStatus]}
       descriptionMode={descriptionMode}
       grouped={grouped}
-      disabled={isUnsupported}
+      disabled={isDisabled}
     >
       <ActionWrapper
         onReset={handleReset}
         resetProps={{
-          disabled: isUpdating("selected_language") || isUnsupported,
+          disabled: isUpdating("selected_language") || isDisabled,
         }}
       >
         <Dropdown
@@ -74,7 +108,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
           onSelect={handleLanguageChange}
           options={languageOptions}
           placeholder={t("settings.general.language.searchPlaceholder")}
-          disabled={isUnsupported || isUpdating("selected_language")}
+          disabled={isDisabled || isUpdating("selected_language")}
         />
       </ActionWrapper>
     </SettingContainer>

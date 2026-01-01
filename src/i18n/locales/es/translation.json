@@ -405,6 +405,9 @@
       "translateToEnglish": {
         "description": "Traducir automáticamente el habla de otros idiomas al inglés durante la transcripción.",
         "descriptionUnsupported": "La traducción no es compatible con el modelo {{model}}.",
+        "descriptionNoModel": "Selecciona un modelo local para habilitar la traducción.",
+        "descriptionNonWhisper": "La traducción solo funciona con modelos Whisper. Actual: {{model}}",
+        "descriptionUnknownModel": "Capacidades del modelo desconocidas. Selecciona un modelo descargado para habilitar la traducción.",
         "label": "Traducir al Inglés"
       }
     },

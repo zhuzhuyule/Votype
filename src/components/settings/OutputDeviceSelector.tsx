@@ -4,7 +4,10 @@ import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { ActionWrapper } from "../ui";
 import { useSettings } from "../../hooks/useSettings";
-import { AudioDevice } from "../../lib/types";
+import {
+  normalizeDeviceValue,
+  toDeviceDropdownOptions,
+} from "./utils/deviceOptions";
 
 interface OutputDeviceSelectorProps {
   descriptionMode?: "inline" | "tooltip";
@@ -26,10 +29,9 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
         refreshOutputDevices,
       } = useSettings();
 
-      const selectedOutputDevice =
-        getSetting("selected_output_device") === "default"
-          ? t("common.default")
-          : getSetting("selected_output_device") || t("common.default");
+      const selectedOutputDevice = normalizeDeviceValue(
+        getSetting("selected_output_device"),
+      );
 
       const handleOutputDeviceSelect = async (deviceName: string) => {
         await updateSetting("selected_output_device", deviceName);
@@ -39,10 +41,10 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
         await resetSetting("selected_output_device");
       };
 
-      const outputDeviceOptions = outputDevices.map((device: AudioDevice) => ({
-        value: device.name,
-        label: device.name,
-      }));
+      const outputDeviceOptions = toDeviceDropdownOptions(
+        outputDevices,
+        t("common.default"),
+      );
 
       return (
         <SettingContainer

@@ -15,6 +15,7 @@
     "active": "Active",
     "addNewOption": "Add new option",
     "aiOptimizationSuccess": "AI Optimization successful",
+    "aiOptimizationFailed": "AI optimization failed, please check configuration",
     "aiOptimize": "AI Polish",
     "authorize": "Authorize",
     "bold": "Bold",
@@ -63,6 +64,7 @@
     "update": "Update",
     "useThisProvider": "Use this Provider",
     "useInput": "Use \"{{input}}\"",
+    "variables": "Available Variables",
     "yes": "Yes"
   },
   "dashboard": {
@@ -505,6 +507,9 @@
       "translateToEnglish": {
         "description": "Automatically translate speech from other languages to English during transcription.",
         "descriptionUnsupported": "Translation is not supported by the {{model}} model.",
+        "descriptionNoModel": "Select a local model to enable translation.",
+        "descriptionNonWhisper": "Translation only works with Whisper models. Current: {{model}}",
+        "descriptionUnknownModel": "This model's capabilities are unknown. Select a downloaded model to enable translation.",
         "label": "Translate to English"
       }
     },
@@ -707,6 +712,10 @@
         "auto": "Auto",
         "description": "Select the language for speech recognition. Auto will automatically determine the language, while selecting a specific language can improve accuracy for that language.",
         "descriptionUnsupported": "Parakeet model automatically detects the language. No manual selection is needed.",
+        "descriptionNoModel": "Select a local model to configure language.",
+        "descriptionUnknownModel": "Current model is unknown; language selection is disabled.",
+        "descriptionUnsupportedEngine": "Language selection only applies to Whisper or SenseVoice models.",
+        "descriptionSenseVoice": "SenseVoice applies language when the model loads. Re-select the model after changing language.",
         "noResults": "No languages found",
         "searchPlaceholder": "Search languages...",
         "title": "Language"
@@ -984,7 +993,9 @@
         "aliasDuplicate": "Alias '{{alias}}' conflicts with prompt '{{promptName}}'",
         "aliasLabel": "Alias / Trigger Word",
         "aliasPlaceholder": "eg: translate, translate English",
-        "cancel": "Cancel",
+        "aliasesLabel": "Aliases",
+        "addAlias": "Add alias",
+        "alias": "Alias",
         "commandPrefixDescription": "Set after saying [prefix][prompt alias] to dynamically trigger the prompt (supports multiple prefixes, separated by \",\")",
         "commandPrefixPlaceholder": "eg: help me, please",
         "commandPrefixTitle": "Voice Command Prefix",
@@ -992,7 +1003,8 @@
         "createNew": "Create New Prompt",
         "createPrompt": "Create Prompt",
         "createSuccess": "Prompt created successfully",
-
+        "globalConfigTitle": "Global Configuration",
+        "managementTitle": "Prompts",
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
         "deleteConfirm": {
@@ -1031,7 +1043,15 @@
         "title": "Prompt",
         "updateFailed": "Update failed",
         "updatePrompt": "Update Prompt",
-        "updateSuccess": "Prompt updated successfully"
+        "updateSuccess": "Prompt updated successfully",
+        "varOutputDesc": "Final transcribed text (without command prefix/alias).",
+        "varRawInputDesc": "Complete original transcription (with command prefix/alias).",
+        "varSelectDesc": "Text selected when recording ended.",
+        "varStreamingDesc": "Intermediate text during real-time transcription.",
+        "varHotWordsDesc": "Custom vocabulary/hot words from Advanced Settings.",
+        "varPromptDesc": "Current prompt scheme's display name.",
+        "varContextDesc": "Historical context from the active window.",
+        "jsonHint": "Note: If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically."
       },
       "title": "Post Process"
     },

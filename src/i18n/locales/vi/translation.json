@@ -406,6 +406,9 @@
       "translateToEnglish": {
         "description": "Tự động dịch giọng nói từ các ngôn ngữ khác sang tiếng Anh trong quá trình chuyển đổi.",
         "descriptionUnsupported": "Mô hình {{model}} không hỗ trợ dịch thuật.",
+        "descriptionNoModel": "Chọn một mô hình cục bộ để bật dịch.",
+        "descriptionNonWhisper": "Dịch chỉ hoạt động với các mô hình Whisper. Hiện tại: {{model}}",
+        "descriptionUnknownModel": "Không rõ khả năng của mô hình hiện tại. Chọn mô hình đã tải xuống để bật dịch.",
         "label": "Dịch sang tiếng Anh"
       }
     },

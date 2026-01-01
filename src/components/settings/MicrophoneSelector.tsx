@@ -1,6 +1,10 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
+import {
+  normalizeDeviceValue,
+  toDeviceDropdownOptions,
+} from "./utils/deviceOptions";
 import { ActionWrapper } from "../ui";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -23,10 +27,9 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
     } = useSettings();
 
     const { t } = useTranslation();
-    const selectedMicrophone =
-      getSetting("selected_microphone") === "default"
-        ? t("common.default")
-        : getSetting("selected_microphone") || t("common.default");
+    const selectedMicrophone = normalizeDeviceValue(
+      getSetting("selected_microphone"),
+    );
 
     const handleMicrophoneSelect = async (deviceName: string) => {
       await updateSetting("selected_microphone", deviceName);
@@ -36,10 +39,10 @@ export const MicrophoneSelector: React.FC<MicrophoneSelectorProps> = React.memo(
       await resetSetting("selected_microphone");
     };
 
-    const microphoneOptions = audioDevices.map((device) => ({
-      value: device.name,
-      label: device.name,
-    }));
+    const microphoneOptions = toDeviceDropdownOptions(
+      audioDevices,
+      t("common.default"),
+    );
 
     return (
       <SettingContainer

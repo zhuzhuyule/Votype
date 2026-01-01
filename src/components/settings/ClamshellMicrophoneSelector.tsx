@@ -2,6 +2,10 @@ import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
+import {
+  normalizeDeviceValue,
+  toDeviceDropdownOptions,
+} from "./utils/deviceOptions";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 
@@ -44,10 +48,9 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
       return null;
     }
 
-    const selectedClamshellMicrophone =
-      getSetting("clamshell_microphone") === "default"
-        ? t("common.default")
-        : getSetting("clamshell_microphone") || t("common.default");
+    const selectedClamshellMicrophone = normalizeDeviceValue(
+      getSetting("clamshell_microphone"),
+    );
 
     const handleClamshellMicrophoneSelect = async (deviceName: string) => {
       await updateSetting("clamshell_microphone", deviceName);
@@ -57,10 +60,10 @@ export const ClamshellMicrophoneSelector: React.FC<ClamshellMicrophoneSelectorPr
       await resetSetting("clamshell_microphone");
     };
 
-    const microphoneOptions = audioDevices.map((device) => ({
-      value: device.name,
-      label: device.name,
-    }));
+    const microphoneOptions = toDeviceDropdownOptions(
+      audioDevices,
+      t("common.default"),
+    );
 
     return (
       <SettingContainer

@@ -86,7 +86,22 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     }
   };
 
+  // Find if there's already an empty custom provider (no API key configured)
+  const emptyCustomProvider = useMemo(() => {
+    const builtins = ["openai", "anthropic", "apple_intelligence"];
+    return state.providerOptions.find((p) => {
+      if (builtins.includes(p.value)) return false;
+      const apiKey = state.apiKeys?.[p.value] ?? "";
+      return !apiKey.trim();
+    });
+  }, [state.providerOptions, state.apiKeys]);
+
   const handleAddProvider = async () => {
+    // If there's already an empty custom provider, select it instead of creating a new one
+    if (emptyCustomProvider) {
+      state.handleProviderSelect(emptyCustomProvider.value);
+      return;
+    }
     await addCustomProvider({
       label: t("settings.postProcessing.api.provider.newProvider"),
       baseUrl: "",
@@ -112,11 +127,24 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           direction="column"
           className="h-full border-r border-gray-100 dark:border-gray-800"
         >
-          <Box className="pt-5 pb-2 px-4 shrink-0">
+          <Flex
+            align="center"
+            justify="between"
+            className="pt-5 pb-2 px-4 shrink-0"
+          >
             <Text size="3" weight="bold">
               {t("settings.postProcessing.api.provider.title")}
             </Text>
-          </Box>
+            <IconButton
+              variant="ghost"
+              size="1"
+              onClick={handleAddProvider}
+              className="cursor-pointer text-gray-500 hover:text-(--accent-11)"
+              title={t("settings.postProcessing.api.providers.add")}
+            >
+              <IconPlus size={16} />
+            </IconButton>
+          </Flex>
           <Box className="flex-1 overflow-y-auto px-2 space-y-0.5">
             {sortedOptions.map((option) => (
               <SidebarItem
@@ -132,15 +160,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               />
             ))}
           </Box>
-          <Button
-            variant="ghost"
-            className="m-2! w-full justify-start cursor-pointer hover:bg-gray-200/50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
-            onClick={handleAddProvider}
-            size="2"
-          >
-            <IconPlus size={16} />
-            {t("settings.postProcessing.api.providers.add")}
-          </Button>
         </Flex>
 
         {/* Content Area */}

@@ -23,24 +23,51 @@ export const TranslateToEnglish: React.FC<TranslateToEnglishProps> = React.memo(
     const { currentModel, loadCurrentModel, models } = useModels();
 
     const translateToEnglish = getSetting("translate_to_english") || false;
+    const currentModelInfo = models.find((model) => model.id === currentModel);
+    const isUnsupportedModelId =
+      currentModel && unsupportedTranslationModels.includes(currentModel);
+    const isNonWhisperEngine =
+      currentModelInfo && currentModelInfo.engine_type !== "Whisper";
     const isDisabledTranslation =
-      unsupportedTranslationModels.includes(currentModel);
+      !currentModel ||
+      !currentModelInfo ||
+      isUnsupportedModelId ||
+      isNonWhisperEngine;
 
     const description = useMemo(() => {
-      if (isDisabledTranslation) {
-        const currentModelDisplayName = models.find(
-          (model) => model.id === currentModel,
-        )?.name;
+      if (!currentModel) {
+        return t("settings.advanced.translateToEnglish.descriptionNoModel");
+      }
+
+      if (!currentModelInfo) {
+        return t(
+          "settings.advanced.translateToEnglish.descriptionUnknownModel",
+        );
+      }
+
+      if (isNonWhisperEngine) {
+        return t("settings.advanced.translateToEnglish.descriptionNonWhisper", {
+          model: currentModelInfo.name,
+        });
+      }
+
+      if (isUnsupportedModelId) {
         return t(
           "settings.advanced.translateToEnglish.descriptionUnsupported",
           {
-            model: currentModelDisplayName,
+            model: currentModelInfo.name,
           },
         );
       }
 
       return t("settings.advanced.translateToEnglish.description");
-    }, [t, models, currentModel, isDisabledTranslation]);
+    }, [
+      t,
+      currentModel,
+      currentModelInfo,
+      isUnsupportedModelId,
+      isNonWhisperEngine,
+    ]);
 
     // Listen for model state changes to update UI reactively
     useEffect(() => {
@@ -63,6 +90,7 @@ export const TranslateToEnglish: React.FC<TranslateToEnglishProps> = React.memo(
         description={description}
         descriptionMode={descriptionMode}
         grouped={grouped}
+        tooltipPosition="bottom"
       />
     );
   },

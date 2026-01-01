@@ -15,6 +15,7 @@ interface TagInputProps {
   emptyMessage: string;
   color?: "indigo" | "orange" | "blue" | "gray";
   error?: string | null;
+  compact?: boolean;
 }
 
 export const TagInput: React.FC<TagInputProps> = ({
@@ -28,6 +29,7 @@ export const TagInput: React.FC<TagInputProps> = ({
   emptyMessage,
   color = "indigo",
   error,
+  compact = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,20 +60,24 @@ export const TagInput: React.FC<TagInputProps> = ({
     onKeyDown(e);
   };
 
+  const badgeSize = compact ? "1" : "2";
+  const badgePadding = compact ? "px-1.5 py-0.5" : "px-2 py-1";
+  const iconSize = compact ? 11 : 13;
+
   return (
     <Flex direction="column" gap="1">
-      <Flex wrap="wrap" gap="2" align="center">
+      <Flex wrap="wrap" gap={compact ? "1" : "2"} align="center">
         {tags.map((tag, i) => (
           <Badge
             key={i}
-            size="2"
+            size={badgeSize}
             variant="soft"
             color={color}
-            className="px-2 py-1 gap-1 cursor-default"
+            className={`${badgePadding} gap-1 cursor-default`}
           >
             {tag}
             <IconX
-              size={13}
+              size={iconSize}
               className="cursor-pointer hover:text-red-600 opacity-60 hover:opacity-100 transition-opacity"
               onClick={() => onRemove(tag)}
             />
@@ -89,18 +95,20 @@ export const TagInput: React.FC<TagInputProps> = ({
             onKeyDown={handleKeyDownInternal}
             onBlur={handleBlur}
             placeholder={placeholder}
-            className="min-w-[100px] max-w-[150px]"
+            className={
+              compact ? "min-w-20 max-w-30" : "min-w-[100px] max-w-[150px]"
+            }
           />
         ) : (
           <Badge
-            size="2"
+            size={badgeSize}
             variant="outline"
             color="gray"
-            className="px-2 py-1 gap-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity border-dashed"
+            className={`${badgePadding} gap-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity border-dashed`}
             onClick={handlePlaceholderClick}
           >
-            <IconPlus size={12} />
-            {tags.length === 0 ? emptyMessage : ""}
+            <IconPlus size={compact ? 10 : 12} />
+            {tags.length === 0 && emptyMessage ? emptyMessage : ""}
           </Badge>
         )}
       </Flex>

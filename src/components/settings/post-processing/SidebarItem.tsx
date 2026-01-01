@@ -14,6 +14,7 @@ export interface SidebarItemProps {
   t: any;
   icon?: string;
   outputMode?: "polish" | "chat";
+  alias?: string | null;
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -27,7 +28,17 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   t,
   icon,
   outputMode,
+  alias,
 }) => {
+  // 解析别名列表
+  const aliases = React.useMemo(() => {
+    if (!alias) return [];
+    return alias
+      .split(/[,，]/)
+      .map((a) => a.trim())
+      .filter((a) => a.length > 0);
+  }, [alias]);
+
   return (
     <div
       onClick={onClick}
@@ -41,28 +52,50 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         }
       `}
     >
-      <Flex align="center" gap="2" className="flex-1 truncate">
+      <Flex align="start" gap="2" className="flex-1 min-w-0">
         {icon && (
-          <Box className="shrink-0 text-gray-400 group-hover:text-(--accent-11)">
+          <Box className="shrink-0 text-gray-400 group-hover:text-(--accent-11) mt-0.5">
             <DynamicIcon name={icon} size={16} />
           </Box>
         )}
-        <Text size="2" className="font-medium truncate">
-          {option.label}
-        </Text>
-        {outputMode === "chat" && (
-          <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-medium leading-none">
-            {t("settings.postProcessing.prompts.outputMode.chat", "AI Chat")}
-          </span>
-        )}
-        {isActive && (
-          <Box className="shrink-0 bg-(--accent-a3) text-(--accent-11) px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider leading-none">
-            {t("common.default")}
-          </Box>
-        )}
-        {isVerified && (
-          <IconCircleCheck size={14} className="text-green-500 shrink-0" />
-        )}
+        <Flex direction="column" gap="0" className="flex-1 min-w-0">
+          {/* 标题行 */}
+          <Flex align="center" gap="2" className="min-w-0">
+            <Text size="2" className="font-medium truncate">
+              {option.label}
+            </Text>
+            {outputMode === "chat" && (
+              <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-medium leading-none">
+                {t(
+                  "settings.postProcessing.prompts.outputMode.chat",
+                  "AI Chat",
+                )}
+              </span>
+            )}
+            {isActive && (
+              <Box className="shrink-0 bg-(--accent-a3) text-(--accent-11) px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider leading-none">
+                {t("common.default")}
+              </Box>
+            )}
+            {isVerified && (
+              <IconCircleCheck size={14} className="text-green-500 shrink-0" />
+            )}
+          </Flex>
+          {/* 别名行（副标题）- 仅当有别名时显示 */}
+          {aliases.length > 0 && (
+            <Flex gap="1" wrap="wrap" className="min-w-0 mt-0.5">
+              {aliases.map((a, idx) => (
+                <span
+                  key={idx}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 leading-none truncate max-w-20"
+                  title={a}
+                >
+                  {a}
+                </span>
+              ))}
+            </Flex>
+          )}
+        </Flex>
       </Flex>
       {isBuiltin && (
         <Box title={t("settings.postProcessing.api.provider.builtinTooltip")}>

@@ -15,6 +15,7 @@ export type PostProcessProviderState = {
   handleBaseUrlChange: (value: string) => Promise<void>;
   isBaseUrlUpdating: boolean;
   apiKey: string;
+  apiKeys: Record<string, string>;
   handleApiKeyChange: (value: string) => Promise<void>;
   isApiKeyUpdating: boolean;
   modelsEndpoint: string;
@@ -36,6 +37,8 @@ export type PostProcessProviderState = {
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
 
+const BUILTIN_PROVIDER_IDS = ["openai", "anthropic", "apple_intelligence"];
+
 export const usePostProcessProviderState = (): PostProcessProviderState => {
   const {
     settings,
@@ -47,6 +50,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     fetchPostProcessModels,
     postProcessModelOptions,
     updateCustomProvider,
+    removeCustomProvider,
   } = useSettings();
 
   const enabled = settings?.post_process_enabled || false;
@@ -98,9 +102,28 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         providerId,
         previousId: viewingProviderId,
       });
+
+      // Clean up empty custom providers when switching away
+      const previousApiKey =
+        settings?.post_process_api_keys?.[viewingProviderId] ?? "";
+      const isBuiltin = BUILTIN_PROVIDER_IDS.includes(viewingProviderId);
+
+      if (
+        !isBuiltin &&
+        !previousApiKey.trim() &&
+        viewingProviderId !== providerId
+      ) {
+        // The previous provider has no API key and is not builtin - remove it
+        console.log(
+          "[DEBUG] Removing empty custom provider:",
+          viewingProviderId,
+        );
+        void removeCustomProvider(viewingProviderId);
+      }
+
       setViewingProviderId(providerId);
     },
-    [viewingProviderId],
+    [viewingProviderId, settings?.post_process_api_keys, removeCustomProvider],
   );
 
   const handleBaseUrlChange = useCallback(
@@ -253,6 +276,9 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   // No automatic fetching - user must click refresh button
 
+  // All API keys for checking empty providers
+  const apiKeys = settings?.post_process_api_keys ?? {};
+
   return {
     enabled,
     providerOptions,
@@ -265,6 +291,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     handleBaseUrlChange,
     isBaseUrlUpdating,
     apiKey,
+    apiKeys,
     handleApiKeyChange,
     isApiKeyUpdating,
     model,

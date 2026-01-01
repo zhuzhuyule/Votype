@@ -59,8 +59,7 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <Text size="1" color="gray" className="font-medium">
-          {isExpanded ? "▼" : "▶"}{" "}
-          {t("common.variables", { defaultValue: "可用变量" })}:
+          {isExpanded ? "▼" : "▶"} {t("common.variables")}:
         </Text>
         {!isExpanded && (
           <Text size="1" color="gray" className="font-mono opacity-70">
@@ -75,63 +74,46 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${output}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varOutputDesc", {
-              defaultValue: "识别出的最终文本结果（已去除命令前缀和别名）。",
-            })}
+            {t("settings.postProcessing.prompts.varOutputDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${raw_input}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varRawInputDesc", {
-              defaultValue: "完整的原始转录文本（包含命令前缀和别名）。",
-            })}
+            {t("settings.postProcessing.prompts.varRawInputDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${select}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varSelectDesc", {
-              defaultValue: "录音结束时当前选中的文本内容。",
-            })}
+            {t("settings.postProcessing.prompts.varSelectDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${streaming_output}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varStreamingDesc", {
-              defaultValue: "实时转录过程中的中间文本串。",
-            })}
+            {t("settings.postProcessing.prompts.varStreamingDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${hot_words}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varHotWordsDesc", {
-              defaultValue: "您在「高级设置」中定义的个人词库/热词。",
-            })}
+            {t("settings.postProcessing.prompts.varHotWordsDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${prompt}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varPromptDesc", {
-              defaultValue: "当前正在使用的提示词方案的显示名称。",
-            })}
+            {t("settings.postProcessing.prompts.varPromptDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${context}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varContextDesc", {
-              defaultValue: "当前活动窗口的历史聊天记录信息。",
-            })}
+            {t("settings.postProcessing.prompts.varContextDesc")}
           </Text>
           <Text size="1" color="gray" className="block mt-2 italic opacity-80">
-            {t("settings.postProcessing.prompts.jsonHint", {
-              defaultValue:
-                "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。",
-            })}
+            {t("settings.postProcessing.prompts.jsonHint")}
           </Text>
         </Box>
       )}
@@ -254,11 +236,11 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       });
       onChange(optimizedText);
       setAiInstruction("");
-      toast.success(t("common.aiOptimizationSuccess") || "AI 优化成功");
+      toast.success(t("common.aiOptimizationSuccess"));
     } catch (error) {
       console.error("AI optimization failed:", error);
       toast.error(
-        typeof error === "string" ? error : "AI 优化失败，请检查配置",
+        typeof error === "string" ? error : t("common.aiOptimizationFailed"),
       );
     } finally {
       setIsAiLoading(false);
@@ -366,7 +348,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
 
               {/* Formatting Toolbar */}
               <Flex gap="4" className="border-l pl-4">
-                <Tooltip content={t("common.bold") || "加粗"}>
+                <Tooltip content={t("common.bold")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -376,7 +358,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                     <IconBold size={18} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip content={t("common.italic") || "斜体"}>
+                <Tooltip content={t("common.italic")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -386,7 +368,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                     <IconItalic size={18} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip content={t("common.h1") || "标题"}>
+                <Tooltip content={t("common.h1")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -396,7 +378,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                     <IconH1 size={18} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip content={t("common.list") || "无序列表"}>
+                <Tooltip content={t("common.list")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -406,7 +388,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                     <IconList size={18} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip content={t("common.quote") || "引用"}>
+                <Tooltip content={t("common.quote")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -416,7 +398,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                     <IconQuote size={18} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip content={t("common.code") || "行内代码"}>
+                <Tooltip content={t("common.code")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -426,7 +408,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                     <IconCode size={18} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip content={t("common.link") || "插入链接"}>
+                <Tooltip content={t("common.link")}>
                   <IconButton
                     variant="ghost"
                     color="gray"
@@ -448,10 +430,10 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                 style={{ cursor: "pointer", marginRight: "16px" }}
               >
                 <IconSparkles size={16} />
-                {t("common.aiOptimize") || "AI 自动优润"}
+                {t("common.aiOptimize")}
               </Button>
 
-              <Tooltip content={t("common.exitFullscreen") || "还原"}>
+              <Tooltip content={t("common.exitFullscreen")}>
                 <IconButton
                   variant="ghost"
                   color="gray"
@@ -496,7 +478,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
                 }}
               >
                 <IconDeviceFloppy size={24} />
-                {t("common.save") || "保存内容并退出全屏"}
+                {t("common.save")}
               </Button>
             </Box>
           </Box>

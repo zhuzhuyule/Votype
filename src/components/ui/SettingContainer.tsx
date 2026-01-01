@@ -43,7 +43,8 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
       style={{
         width: "100%",
         opacity: disabled ? 0.5 : 1,
-        pointerEvents: disabled ? "none" : "auto",
+        // Keep pointer events to allow tooltips/hover explanations even when disabled.
+        pointerEvents: "auto",
         minHeight: "44px", // Ensure consistent height for rows
       }}
     >

@@ -15,6 +15,7 @@
     "add": "添加",
     "addNewOption": "添加新选项",
     "aiOptimizationSuccess": "AI 优化成功",
+    "aiOptimizationFailed": "AI 优化失败，请检查配置",
     "aiOptimize": "AI 润色",
     "authorize": "授权",
     "bold": "加粗",
@@ -63,6 +64,7 @@
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
     "useThisProvider": "启用此提供商",
+    "variables": "可用变量",
     "yes": "是"
   },
   "dashboard": {
@@ -527,6 +529,9 @@
       "translateToEnglish": {
         "description": "在转录过程中自动将其他语言的语音翻译为英语。",
         "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
+        "descriptionNoModel": "请选择一个本地模型后再开启翻译。",
+        "descriptionNonWhisper": "仅 Whisper 系列支持翻译。当前模型：{{model}}",
+        "descriptionUnknownModel": "无法识别当前模型能力，请选择已下载的模型后再开启翻译。",
         "label": "翻译为英语"
       }
     },
@@ -729,6 +734,10 @@
         "auto": "自动",
         "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
         "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
+        "descriptionNoModel": "请先选择一个本地模型再设置语言。",
+        "descriptionUnknownModel": "当前模型未知，暂时无法手动设置语言。",
+        "descriptionUnsupportedEngine": "仅 Whisper 或 SenseVoice 模型支持手动设置语言。",
+        "descriptionSenseVoice": "SenseVoice 在模型加载时应用语言，修改后请重新选择该模型以生效。",
         "noResults": "未找到语言",
         "searchPlaceholder": "搜索语言...",
         "title": "语言"
@@ -1008,7 +1017,9 @@
         "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
         "aliasLabel": "别名 / 触发词",
         "aliasPlaceholder": "例如：翻译，翻译英语",
-        "cancel": "取消",
+        "aliasesLabel": "别名",
+        "addAlias": "添加别名",
+        "alias": "别名",
         "commandPrefixDescription": "设置后说出 [前缀][提示词别名] 即可动态触发提示词（支持多前缀，用\",\"分隔）",
         "commandPrefixPlaceholder": "例如：帮我,请",
         "commandPrefixTitle": "语音指令前缀",
@@ -1016,6 +1027,8 @@
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",
         "createSuccess": "提示词创建成功",
+        "globalConfigTitle": "全局配置",
+        "managementTitle": "提示词列表",
         "deleteConfirm": {
           "description": "此操作无法撤销。该提示词将被永久删除。",
           "title": "删除提示词？"
@@ -1053,7 +1066,15 @@
         "title": "提示词",
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
-        "updateSuccess": "提示词更新成功"
+        "updateSuccess": "提示词更新成功",
+        "varOutputDesc": "识别出的最终文本结果（已去除命令前缀和别名）。",
+        "varRawInputDesc": "完整的原始转录文本（包含命令前缀和别名）。",
+        "varSelectDesc": "录音结束时当前选中的文本内容。",
+        "varStreamingDesc": "实时转录过程中的中间文本串。",
+        "varHotWordsDesc": "您在「高级设置」中定义的个人词库/热词。",
+        "varPromptDesc": "当前正在使用的提示词方案的显示名称。",
+        "varContextDesc": "当前活动窗口的历史聊天记录信息。",
+        "jsonHint": "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。"
       },
       "title": "后期处理"
     },

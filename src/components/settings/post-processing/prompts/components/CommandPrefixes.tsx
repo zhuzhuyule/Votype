@@ -49,9 +49,7 @@ export const CommandPrefixes: React.FC<CommandPrefixesProps> = ({
         placeholder={t(
           "settings.postProcessing.prompts.commandPrefixPlaceholder",
         )}
-        emptyMessage={
-          t("settings.postProcessing.prompts.noPrefixes") || "No prefixes added"
-        }
+        emptyMessage={t("settings.postProcessing.prompts.noPrefixes")}
         color="orange"
       />
     </SettingContainer>

@@ -404,6 +404,9 @@
       "translateToEnglish": {
         "description": "文字起こし中に他の言語から英語に自動的に翻訳。",
         "descriptionUnsupported": "翻訳は{{model}}モデルではサポートされていません。",
+        "descriptionNoModel": "まずローカルモデルを選択すると翻訳を有効にできます。",
+        "descriptionNonWhisper": "翻訳は Whisper 系モデルでのみ動作します。現在: {{model}}",
+        "descriptionUnknownModel": "現在のモデルの機能が不明です。ダウンロード済みのモデルを選択して翻訳を有効にしてください。",
         "label": "英語に翻訳"
       }
     },
