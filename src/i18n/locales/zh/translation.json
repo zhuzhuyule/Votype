@@ -783,7 +783,8 @@
       "content": {
         "improved": "优化后",
         "original": "语音识别结果",
-        "streaming": "实时识别结果"
+        "streaming": "实时识别结果",
+        "chained": "链式处理"
       },
       "copyToClipboard": "复制转录到剪贴板",
       "delete": "删除条目",

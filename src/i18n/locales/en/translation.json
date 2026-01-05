@@ -761,7 +761,8 @@
       "content": {
         "improved": "Improved",
         "original": "Speech Recognition Result",
-        "streaming": "Real-time Recognition Result"
+        "streaming": "Real-time Recognition Result",
+        "chained": "Chained processing"
       },
       "copyToClipboard": "Copy transcription to clipboard",
       "delete": "Delete entry",
