@@ -408,7 +408,7 @@ fn default_overlay_position() -> OverlayPosition {
     #[cfg(target_os = "linux")]
     return OverlayPosition::None;
     #[cfg(not(target_os = "linux"))]
-    return OverlayPosition::Bottom;
+    return OverlayPosition::FollowCursor;
 }
 
 fn default_debug_mode() -> bool {

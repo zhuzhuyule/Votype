@@ -92,7 +92,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   selected_output_device: "Default",
   translate_to_english: false,
   selected_language: "auto",
-  overlay_position: "bottom",
+  overlay_position: "follow",
   debug_mode: false,
   log_level: 2,
   custom_words: [],

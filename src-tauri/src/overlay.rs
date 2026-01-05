@@ -146,9 +146,15 @@ fn position_on_monitor(monitor: &tauri::Monitor, overlay_position: OverlayPositi
     let x = work_area_x + (work_area_width - OVERLAY_WIDTH) / 2.0;
     let y = match overlay_position {
         OverlayPosition::Top => work_area_y + OVERLAY_TOP_OFFSET,
-        OverlayPosition::Bottom => work_area_y + work_area_height - OVERLAY_BOTTOM_OFFSET,
-        OverlayPosition::None => work_area_y + work_area_height - OVERLAY_BOTTOM_OFFSET,
-        OverlayPosition::FollowCursor => work_area_y + work_area_height - OVERLAY_BOTTOM_OFFSET,
+        OverlayPosition::Bottom => {
+            work_area_y + work_area_height - OVERLAY_HEIGHT - OVERLAY_BOTTOM_OFFSET
+        }
+        OverlayPosition::FollowCursor => {
+            work_area_y + work_area_height - OVERLAY_HEIGHT - OVERLAY_BOTTOM_OFFSET
+        }
+        OverlayPosition::None => {
+            work_area_y + work_area_height - OVERLAY_HEIGHT - OVERLAY_BOTTOM_OFFSET
+        }
     };
 
     (x, y)

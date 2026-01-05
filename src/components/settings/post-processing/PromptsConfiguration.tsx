@@ -18,6 +18,7 @@ import {
   IconChevronDown,
   IconDeviceFloppy,
   IconPlus,
+  IconStar,
   IconTrash,
 } from "@tabler/icons-react";
 import React, { useState } from "react";
@@ -277,6 +278,18 @@ const PromptsConfiguration: React.FC = () => {
                               </Flex>
                             </Dialog.Content>
                           </Dialog.Root>
+                        )}
+
+                        {!isCreating && currentTab !== activePromptId && (
+                          <Button
+                            variant="soft"
+                            size="1"
+                            onClick={handleSetAsActive}
+                            className="cursor-pointer"
+                          >
+                            <IconStar size={14} />
+                            {t("settings.postProcessing.prompts.setAsActive")}
+                          </Button>
                         )}
 
                         <Button

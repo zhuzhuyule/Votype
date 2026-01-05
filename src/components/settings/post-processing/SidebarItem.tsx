@@ -1,5 +1,5 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
-import { IconCircleCheck, IconLock } from "@tabler/icons-react";
+import { IconCircleCheck, IconLock, IconStar } from "@tabler/icons-react";
 import React from "react";
 import { DynamicIcon } from "../../shared/IconPicker";
 
@@ -72,11 +72,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 )}
               </span>
             )}
-            {isActive && (
-              <Box className="shrink-0 bg-(--accent-a3) text-(--accent-11) px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider leading-none">
-                {t("common.default")}
-              </Box>
-            )}
             {isVerified && (
               <IconCircleCheck size={14} className="text-green-500 shrink-0" />
             )}
@@ -97,11 +92,31 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           )}
         </Flex>
       </Flex>
-      {isBuiltin && (
-        <Box title={t("settings.postProcessing.api.provider.builtinTooltip")}>
-          <IconLock size={14} style={{ opacity: 0.5 }} />
-        </Box>
-      )}
+
+      <Flex align="center" gap="2" className="shrink-0">
+        {!isActive && !isBuiltin && (
+          <Box
+            onClick={(e) => {
+              e.stopPropagation();
+              onActivate();
+            }}
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all text-gray-400 hover:text-orange-400"
+            title={t("settings.postProcessing.prompts.setAsActive")}
+          >
+            <IconStar size={14} />
+          </Box>
+        )}
+        {isActive && (
+          <Box className="bg-(--accent-a3) text-(--accent-11) px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider leading-none">
+            {t("common.default")}
+          </Box>
+        )}
+        {isBuiltin && (
+          <Box title={t("settings.postProcessing.api.provider.builtinTooltip")}>
+            <IconLock size={14} style={{ opacity: 0.5 }} />
+          </Box>
+        )}
+      </Flex>
     </div>
   );
 };
