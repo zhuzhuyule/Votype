@@ -700,8 +700,8 @@ pub fn get_default_settings() -> AppSettings {
     AppSettings {
         bindings,
         app_language: default_app_language(),
-        push_to_talk: true,
-        audio_feedback: false,
+        push_to_talk: false,
+        audio_feedback: true,
         audio_feedback_volume: default_audio_feedback_volume(),
         sound_theme: default_sound_theme(),
         start_hidden: default_start_hidden(),
