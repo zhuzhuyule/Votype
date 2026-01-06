@@ -49,6 +49,8 @@ const PromptsConfiguration: React.FC = () => {
     setDraftName,
     draftContent,
     setDraftContent,
+    draftDescription,
+    setDraftDescription,
     draftModelId,
     setDraftModelId,
     draftIcon,
@@ -133,7 +135,7 @@ const PromptsConfiguration: React.FC = () => {
                       t={t}
                       icon={prompt.icon || "IconWand"}
                       outputMode={prompt.output_mode}
-                      alias={prompt.alias}
+                      aliases={prompt.aliases || (prompt as any).alias}
                     />
                   ))}
                   {/* Temporary item for NEW prompt being created */}
@@ -154,7 +156,7 @@ const PromptsConfiguration: React.FC = () => {
                       t={t}
                       icon={draftIcon || "IconSparkles"}
                       outputMode={draftOutputMode}
-                      alias={currentAliases.join(",")}
+                      aliases={currentAliases.join(",")}
                     />
                   )}
                 </Box>
@@ -280,8 +282,8 @@ const PromptsConfiguration: React.FC = () => {
                           onClick={handleSave}
                           disabled={
                             !isDirty ||
-                            !draftName.trim() ||
-                            !draftContent.trim()
+                            !(draftName || "").trim() ||
+                            !(draftContent || "").trim()
                           }
                           className="cursor-pointer"
                         >
@@ -321,90 +323,109 @@ const PromptsConfiguration: React.FC = () => {
 
                     {/* Collapsible Advanced Settings - No Card, inline flow */}
                     {showAdvanced && (
-                      <Grid columns="2" gap="4" className="pt-2">
-                        {/* 1. Model */}
+                      <Flex direction="column" gap="3" className="pt-2">
+                        {/* Description - Full Width */}
                         <Box>
                           <label className="text-xs font-medium text-gray-500 mb-1 block">
-                            {t("settings.postProcessing.api.model.title")}
+                            {t("settings.postProcessing.prompts.description")}
                           </label>
-                          <Dropdown
-                            options={textModels}
-                            selectedValue={draftModelId || "default"}
-                            onSelect={(val) =>
-                              setDraftModelId(val === "default" ? null : val)
-                            }
-                            className="w-full"
+                          <TextField.Root
+                            size="2"
+                            placeholder={t(
+                              "settings.postProcessing.prompts.descriptionPlaceholder",
+                            )}
+                            value={draftDescription}
+                            onChange={(
+                              e: React.ChangeEvent<HTMLInputElement>,
+                            ) => setDraftDescription(e.target.value)}
                           />
                         </Box>
 
-                        {/* 2. Output Mode - SegmentedControl */}
-                        <Box>
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">
-                            {t(
-                              "settings.postProcessing.prompts.outputMode.label",
-                            )}
-                          </label>
-                          <SegmentedControl.Root
-                            value={draftOutputMode}
-                            onValueChange={(val) =>
-                              setDraftOutputMode(val as any)
-                            }
-                            size="1"
-                          >
-                            <SegmentedControl.Item value="polish">
-                              {t(
-                                "settings.postProcessing.prompts.outputMode.polish",
-                              )}
-                            </SegmentedControl.Item>
-                            <SegmentedControl.Item value="chat">
-                              {t(
-                                "settings.postProcessing.prompts.outputMode.chat",
-                              )}
-                            </SegmentedControl.Item>
-                          </SegmentedControl.Root>
-                        </Box>
+                        <Grid columns="2" gap="4">
+                          {/* 1. Model */}
+                          <Box>
+                            <label className="text-xs font-medium text-gray-500 mb-1 block">
+                              {t("settings.postProcessing.api.model.title")}
+                            </label>
+                            <Dropdown
+                              options={textModels}
+                              selectedValue={draftModelId || "default"}
+                              onSelect={(val) =>
+                                setDraftModelId(val === "default" ? null : val)
+                              }
+                              className="w-full"
+                            />
+                          </Box>
 
-                        {/* 4. Compliance (only for polish mode) - Single row */}
-                        {draftOutputMode === "polish" && (
+                          {/* 2. Output Mode - SegmentedControl */}
                           <Box>
                             <label className="text-xs font-medium text-gray-500 mb-1 block">
                               {t(
-                                "settings.postProcessing.prompts.enableReview",
+                                "settings.postProcessing.prompts.outputMode.label",
                               )}
                             </label>
-                            <Flex align="center" gap="3" className="mt-1.5">
-                              <Switch
-                                size="1"
-                                checked={draftComplianceCheck}
-                                onCheckedChange={setDraftComplianceCheck}
-                                className="cursor-pointer shrink-0"
-                              />
-                              {draftComplianceCheck && (
-                                <>
-                                  <Slider
-                                    value={[draftComplianceThreshold]}
-                                    onValueChange={(val: number[]) =>
-                                      setDraftComplianceThreshold(val[0])
-                                    }
-                                    min={0}
-                                    max={100}
-                                    step={5}
-                                    size="1"
-                                    className="flex-1 min-w-20"
-                                  />
-                                  <Text
-                                    size="1"
-                                    weight="medium"
-                                    className="shrink-0 w-10 text-right tabular-nums"
-                                  >
-                                    {draftComplianceThreshold}%
-                                  </Text>
-                                </>
-                              )}
-                            </Flex>
+                            <SegmentedControl.Root
+                              value={draftOutputMode}
+                              onValueChange={(val) =>
+                                setDraftOutputMode(val as any)
+                              }
+                              size="1"
+                            >
+                              <SegmentedControl.Item value="polish">
+                                {t(
+                                  "settings.postProcessing.prompts.outputMode.polish",
+                                )}
+                              </SegmentedControl.Item>
+                              <SegmentedControl.Item value="chat">
+                                {t(
+                                  "settings.postProcessing.prompts.outputMode.chat",
+                                )}
+                              </SegmentedControl.Item>
+                            </SegmentedControl.Root>
                           </Box>
-                        )}
-                      </Grid>
+
+                          {/* 4. Compliance (only for polish mode) - Single row */}
+                          {draftOutputMode === "polish" && (
+                            <Box>
+                              <label className="text-xs font-medium text-gray-500 mb-1 block">
+                                {t(
+                                  "settings.postProcessing.prompts.enableReview",
+                                )}
+                              </label>
+                              <Flex align="center" gap="3" className="mt-1.5">
+                                <Switch
+                                  size="1"
+                                  checked={draftComplianceCheck}
+                                  onCheckedChange={setDraftComplianceCheck}
+                                  className="cursor-pointer shrink-0"
+                                />
+                                {draftComplianceCheck && (
+                                  <>
+                                    <Slider
+                                      value={[draftComplianceThreshold]}
+                                      onValueChange={(val: number[]) =>
+                                        setDraftComplianceThreshold(val[0])
+                                      }
+                                      min={0}
+                                      max={100}
+                                      step={5}
+                                      size="1"
+                                      className="flex-1 min-w-20"
+                                    />
+                                    <Text
+                                      size="1"
+                                      weight="medium"
+                                      className="shrink-0 w-10 text-right tabular-nums"
+                                    >
+                                      {draftComplianceThreshold}%
+                                    </Text>
+                                  </>
+                                )}
+                              </Flex>
+                            </Box>
+                          )}
+                        </Grid>
+                      </Flex>
                     )}
                   </Flex>
                 </Box>

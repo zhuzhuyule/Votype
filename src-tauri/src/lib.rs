@@ -389,6 +389,7 @@ pub fn run() {
             shortcut::test_asr_model_inference,
             trigger_update_check,
             commands::cancel_operation,
+            commands::get_app_settings,
             commands::get_app_dir_path,
             commands::get_log_dir_path,
             commands::set_log_level,

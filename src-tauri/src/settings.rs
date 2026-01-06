@@ -16,21 +16,60 @@ pub struct ShortcutBinding {
     pub current_binding: String,
 }
 
+/// Skill type determines execution behavior
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SkillType {
+    /// Text processing skill (polish, translate, etc.)
+    #[default]
+    Text,
+    /// Action skill (open folder, query weather, etc.)
+    Action,
+}
+
+/// Skill source indicates where the skill was loaded from
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SkillSource {
+    /// Built-in skill shipped with the app
+    #[default]
+    Builtin,
+    /// User-created skill in ~/.votype/skills/user/
+    User,
+    /// Imported third-party skill in ~/.votype/skills/imported/
+    Imported,
+    /// External skill referenced by path
+    External { path: String },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct LLMPrompt {
+pub struct Skill {
     pub id: String,
     pub name: String,
-    pub prompt: String,
+    /// Description for LLM intent recognition (Agent Skills compatible)
+    #[serde(default)]
+    pub description: String,
+    /// Instructions (SKILL.md body content)
+    #[serde(alias = "prompt")]
+    pub instructions: String,
     pub model_id: Option<String>,
-    pub alias: Option<String>,
+    #[serde(alias = "alias")]
+    pub aliases: Option<String>,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub skill_type: SkillType,
+    #[serde(default)]
+    pub source: SkillSource,
     #[serde(default)]
     pub compliance_check_enabled: bool,
     #[serde(default)]
     pub compliance_threshold: Option<u8>,
     #[serde(default)]
-    pub output_mode: PromptOutputMode,
+    pub output_mode: SkillOutputMode,
 }
+
+/// Backward compatibility: LLMPrompt is now an alias for Skill
+pub type LLMPrompt = Skill;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostProcessProvider {
@@ -142,16 +181,20 @@ impl Default for TitleMatchType {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-pub enum PromptOutputMode {
+pub enum SkillOutputMode {
     /// Polish mode: ASR result -> AI refinement -> Insert. UI shows Diff.
     Polish,
     /// Chat mode: ASR result -> AI Q&A -> Preview. UI shows Markdown.
     Chat,
+    /// Silent mode: No UI output (for Action skills)
+    Silent,
 }
 
-impl Default for PromptOutputMode {
+pub type PromptOutputMode = SkillOutputMode;
+
+impl Default for SkillOutputMode {
     fn default() -> Self {
-        PromptOutputMode::Polish
+        SkillOutputMode::Polish
     }
 }
 
@@ -572,10 +615,14 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
         LLMPrompt {
             id: "default_improve_transcriptions".to_string(),
             name: "Improve Transcriptions".to_string(),
-            prompt: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和这些词相近，请优先修正为这些词）：\n${hot_words}\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
+            description: "Clean and improve transcription text. Basic text cleaning.".to_string(),
+            instructions: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和 these 词相近，请优先修正为这些词）：\n${hot_words}\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
+
             model_id: None,
-            alias: None,
+            aliases: None,
             icon: Some("IconWand".to_string()),
+            skill_type: SkillType::Text,
+            source: SkillSource::Builtin,
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
             output_mode: Default::default(),
@@ -583,24 +630,30 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
         LLMPrompt {
             id: "system_default_correction".to_string(),
             name: "默认润色".to_string(),
-            prompt: "# ASR 文本清理与质量评估专家\n\n你是一位专注于语音识别（ASR）后处理的自然语言处理专家，擅长对转录文本进行高保真清理、语言润色与质量评估。你的工作严格遵循两阶段流程，确保输出文本在保持原始语义和表达习惯的前提下，达到出版级可读性与准确性。\n\n## 背景说明\n\n系统将提供以下输入变量供你参考：\n- `${output}`：语音转录的最终文本（已去除命令前缀和别名），作为主要处理依据。\n- `${streaming_output}`：实时转录过程中产生的中间文本，用于辅助上下文理解与歧义消解。\n\n> **注意**：你应优先以 `${output}` 为主，必要时结合 `${streaming_output}` 提升识别鲁棒性，尤其在处理中英混杂、专业术语或同音词场景时。\n\n## 任务流程\n\n### 阶段一：文本清理与润色\n\n基于输入文本，执行以下操作，生成自然、清晰、结构完整的最终文本：\n\n- **保留原始语言混合习惯**  \n  不翻译英文内容，维持用户原有的中英混用风格（如“这个 bug 很 critical”）。\n\n- **修正基础语言问题**  \n  - 删除无意义的填充词（如孤立的“嗯”、“啊”、“呃”）。\n  - 消除不合理叠词（如“你好啊啊” → “你好啊”）。\n  - 修正明显语病、重复、拼写错误及标点缺失；在缺失处合理补全中文标点。\n\n- **规范格式细节**  \n  中文与英文/数字之间必须保留一个空格，例如：  \n  `第1个question是xxx` → `第 1 个 question 是 xxx`\n\n- **优化长句可读性**  \n  对超过 40 字且逻辑复杂的句子，在语义自然断点处插入换行符（`\\n`），提升阅读流畅度。\n\n- **语义保真原则**  \n  所有修改必须基于上下文，不得改变原意或引入主观解读。\n\n### 阶段二：质量评估（仅基于阶段一输出）\n\n仅针对阶段一生成的最终文本，进行整体质量判断：\n\n检查是否存在以下问题（无需逐字标注，仅用于综合评分）：\n- 含糊、无意义或疑似乱码的词语\n- 语法错误或语句不通顺\n- 明显的 ASR 误识别（如同音字、近音词错误）\n- 语句片段化或逻辑不完整\n- 英文拼写异常或识别错误\n\n## 输出规范\n\n严格按以下 JSON 格式输出，**禁止任何额外文本、解释 or Markdown**：\n\n```json\n{\n  \"text\": \"阶段一生成的最终清理文本\",\n  \"confidence\": 0-100 的整数,\n  \"reason\": \"若存在明显问题，用一句话描述；否则为空字符串\"\n}\n```\n\n### 评分规则\n- `confidence`：对最终文本整体准确率的置信度估计（0–100 整数）。\n- `reason`：**仅当文本仍存在显著问题时填写**，且必须聚焦于最终文本本身的问题，不得提及修改过程、原始输入或推理逻辑。\n- 若文本通顺、准确、无歧义，则 `reason` 必须为 `\"\"`。".to_string(),
+            description: "润色和优化文本表达。当用户说\"润色\"、\"优化\"、\"清理\"时使用。这是默认 Skill。".to_string(),
+            instructions: "# ASR 文本清理与质量评估专家\n\n你是一位专注于语音识别（ASR）后处理的自然语言处理专家，擅长对转录文本进行高保真清理、语言润色与质量评估。你的工作严格遵循两阶段流程，确保输出文本在保持原始语义和表达习惯的前提下，达到出版级可读性与准确性。\n\n## 背景说明\n\n系统将提供以下输入变量供你参考：\n- `${output}`：语音转录的最终文本（已去除命令前缀和别名），作为主要处理依据。\n- `${streaming_output}`：实时转录过程中产生的中间文本，用于辅助上下文理解与歧义消解。\n\n> **注意**：你应优先以 `${output}` 为主，必要时结合 `${streaming_output}` 提升识别鲁棒性，尤其在处理中英混杂、专业术语或同音词场景时。\n\n## 任务流程\n\n### 阶段一：文本清理与润色\n\n基于输入文本，执行以下操作，生成自然、清晰、结构完整的最终文本：\n\n- **保留原始语言混合习惯**  \n  不翻译英文内容，维持用户原有的中英混用风格（如“这个 bug 很 critical”）。\n\n- **修正基础语言问题**  \n  - 删除无意义的填充词（如孤立的“嗯”、“啊”、“呃”）。\n  - 消除不合理叠词（如“你好啊啊” → “你好啊”）。\n  - 修正明显语病、重复、拼写错误及标点缺失；在缺失处合理补全中文标点。\n\n- **规范格式细节**  \n  中文与英文/数字之间必须保留一个空格，例如：  \n  `第1个question是xxx` → `第 1 个 question 是 xxx`\n\n- **优化长句可读性**  \n  对超过 40 字且逻辑复杂的句子，在语义自然断点处插入换行符（`\\n`），提升阅读流畅度。\n\n- **语义保真原则**  \n  所有修改必须基于上下文，不得改变原意或引入主观解读。\n\n### 阶段二：质量评估（仅基于阶段一输出）\n\n仅针对阶段一生成的最终文本，进行整体质量判断：\n\n检查是否存在以下问题（无需逐字标注，仅用于综合评分）：\n- 含糊、无意义或疑似乱码的词语\n- 语法错误或语句不通顺\n- 明显的 ASR 误识别（如同音字、近音词错误）\n- 语句片段化或逻辑不完整\n- 英文拼写异常或识别错误\n\n## 输出规范\n\n严格按以下 JSON 格式输出，**禁止任何额外文本、解释 or Markdown**：\n\n```json\n{\n  \"text\": \"阶段一生成的最终清理文本\",\n  \"confidence\": 0-100 的整数,\n  \"reason\": \"若存在明显问题，用一句话描述；否则为空字符串\"\n}\n```\n\n### 评分规则\n- `confidence`：对最终文本整体准确率的置信度估计（0–100 整数）。\n- `reason`：**仅当文本仍存在显著问题时填写**，且必须聚焦于最终文本本身的问题，不得提及修改过程、原始输入或推理逻辑。\n- 若文本通顺、准确、无歧义，则 `reason` 必须为 `\"\"`。".to_string(),
             model_id: None,
-            alias: Some("润色,优化,清理".to_string()),
+            aliases: Some("润色,优化,清理".to_string()),
             icon: Some("IconShieldCheck".to_string()),
+            skill_type: SkillType::Text,
+            source: SkillSource::Builtin,
             compliance_check_enabled: true,
             compliance_threshold: Some(20),
-            output_mode: PromptOutputMode::Polish,
+            output_mode: SkillOutputMode::Polish,
         },
         LLMPrompt {
             id: "system_default_ai_chat".to_string(),
             name: "AI 问答".to_string(),
-            prompt: "# 意图驱动的文本操作专家\n\n## 角色\n你是一位精通自然语言理解与指令执行的语义分析专家，擅长从用户语音输入中精准识别意图，并据此对指定文本执行结构化操作。\n\n## 背景\n- 用户通过语音输入一段指令（`${raw_input}`），其中隐含对某段选中文本（`${select}`）的操作意图。\n- 你的任务是解析该意图，并对 `${select}` 执行相应处理。\n- 可参考上下文（`${context}`）和热词（`${hot_words}`）以提升意图识别准确性。\n\n## 任务\n1. **意图识别**：深入分析 `${raw_input}` 中表达的核心意图（如改写、摘要、翻译、格式化、纠错等）。\n2. **文本操作**：基于识别出的意图，对 `${select}` 执行精确、一致且符合用户预期的操作。\n3. **结果生成**：输出结构清晰、仅包含必要信息的响应。\n\n## 输出要求\n- 严格使用以下格式输出，不得添加额外说明或解释：\n原文：\n```text\n[用户意图]\n```\n结果：\n```text\n[根据意图执行后的结果]\n```\n- 结果必须忠实反映 `${raw_input}` 的指令意图，语言简洁、专业。\n- 禁止引入未在 `${raw_input}` 中暗示的操作；若意图模糊，优先保持原文不变并标注“[意图不明确，保留原文]”。\n- 输出语言应与 `${select}` 保持一致。".to_string(),
+            description: "智能问答和通用对话。当用户提问或寻求帮助时使用。".to_string(),
+            instructions: "# 意图驱动的文本操作专家\n\n## 角色\n你是一位精通自然语言理解与指令执行的语义分析专家，擅长从用户语音输入中精准识别意图，并据此对指定文本执行结构化操作。\n\n## 背景\n- 用户通过语音输入一段指令（`${raw_input}`），其中隐含对某段选中文本（`${select}`）的操作意图。\n- 你的任务是解析该意图，并对 `${select}` 执行相应处理。\n- 可参考上下文（`${context}`）和热词（`${hot_words}`）以提升意图识别准确性。\n\n## 任务\n1. **意图识别**：深入分析 `${raw_input}` 中表达的核心意图（如改写、摘要、翻译、格式化、纠错等）。\n2. **文本操作**：基于识别出的意图，对 `${select}` 执行精确、一致且符合用户预期的操作。\n3. **结果生成**：输出结构清晰、仅包含必要信息的响应。\n\n## 输出要求\n- 严格使用以下格式输出，不得添加额外说明或解释：\n原文：\n```text\n[用户意图]\n```\n结果：\n```text\n[根据意图执行后的结果]\n```\n- 结果必须忠实反映 `${raw_input}` 的指令意图，语言简洁、专业。\n- 禁止引入未在 `${raw_input}` 中暗示的操作；若意图模糊，优先保持原文不变并标注“[意图不明确，保留原文]”。\n- 输出语言应与 `${select}` 保持一致。".to_string(),
             model_id: None,
-            alias: Some("问问,帮我,帮我写,请问".to_string()),
+            aliases: Some("问问,帮我,帮我写,请问".to_string()),
             icon: Some("IconMessageSparkle".to_string()),
+            skill_type: SkillType::Text,
+            source: SkillSource::Builtin,
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
-            output_mode: PromptOutputMode::Chat,
+            output_mode: SkillOutputMode::Chat,
         }
     ]
 }
@@ -904,6 +957,9 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         store.set("settings", serde_json::to_value(&settings).unwrap());
     }
 
+    // Merge external skills from ~/.votype/skills/
+    merge_external_skills(app, &mut settings);
+
     if settings.post_process_selected_prompt_id.is_none() {
         if let Some(first) = settings.post_process_prompts.first() {
             settings.post_process_selected_prompt_id = Some(first.id.clone());
@@ -912,6 +968,29 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     }
 
     settings
+}
+
+fn merge_external_skills(app: &AppHandle, settings: &mut AppSettings) {
+    let skill_manager = crate::managers::skill::SkillManager::new(app);
+    let external_skills = skill_manager.load_all_external_skills();
+
+    for skill in external_skills {
+        // Check if already exists in the list
+        if let Some(pos) = settings
+            .post_process_prompts
+            .iter()
+            .position(|p| p.id == skill.id)
+        {
+            // If it's the SAME source (external), update it with newest content from disk.
+            // If the user modified a built-in skill or saved an external one to JSON store,
+            // we might want to decide which one wins.
+            // For now, external file-based skills always override the memory/store version
+            // if they have the same ID, to allow "live" editing of SKILL.md.
+            settings.post_process_prompts[pos] = skill;
+        } else {
+            settings.post_process_prompts.push(skill);
+        }
+    }
 }
 
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {

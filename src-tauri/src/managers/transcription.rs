@@ -2142,7 +2142,7 @@ impl TranscriptionManager {
         let mut words = settings.custom_words.clone();
         for p in &settings.post_process_prompts {
             words.push(p.name.clone());
-            if let Some(alias_str) = &p.alias {
+            if let Some(alias_str) = &p.aliases {
                 words.extend(
                     alias_str
                         .split(&[',', '，'][..])

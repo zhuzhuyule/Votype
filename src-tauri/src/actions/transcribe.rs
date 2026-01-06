@@ -927,7 +927,7 @@ impl ShortcutAction for TranscribeAction {
                                         .iter()
                                         .find(|p| &p.id == pid)
                                     {
-                                        post_process_prompt_text = prompt.prompt.clone();
+                                        post_process_prompt_text = prompt.instructions.clone();
                                         post_process_prompt_name = prompt.name.clone();
                                     }
                                 }

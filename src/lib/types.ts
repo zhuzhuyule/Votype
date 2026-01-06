@@ -93,19 +93,34 @@ export const AppProfileSchema = z.object({
 });
 export type AppProfile = z.infer<typeof AppProfileSchema>;
 
-export const PromptOutputModeSchema = z.enum(["polish", "chat"]);
+export const PromptOutputModeSchema = z.enum(["polish", "chat", "silent"]);
 export type PromptOutputMode = z.infer<typeof PromptOutputModeSchema>;
+
+export const SkillTypeSchema = z.enum(["text", "action"]);
+export type SkillType = z.infer<typeof SkillTypeSchema>;
+
+export const SkillSourceSchema = z.union([
+  z.enum(["builtin", "user", "imported"]),
+  z.object({ external: z.object({ path: z.string() }) }),
+]);
+export type SkillSource = z.infer<typeof SkillSourceSchema>;
 
 export const LLMPromptSchema = z.object({
   id: z.string(),
   name: z.string(),
-  prompt: z.string(),
-  model_id: z.string().optional(),
-  alias: z.string().optional().nullable(),
+  description: z.string().optional().default(""),
+  instructions: z.string(),
+  model_id: z.string().optional().nullable(),
+  aliases: z.string().optional().nullable(),
   icon: z.string().optional().nullable(),
+  skill_type: SkillTypeSchema.default("text"),
+  source: SkillSourceSchema.default("builtin"),
   compliance_check_enabled: z.boolean().default(false),
   compliance_threshold: z.number().optional().default(20),
   output_mode: PromptOutputModeSchema.default("polish"),
+  // Keep legacy fields for a bit of safety during transition if any code still uses them
+  prompt: z.string().optional(),
+  alias: z.string().optional().nullable(),
 });
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;

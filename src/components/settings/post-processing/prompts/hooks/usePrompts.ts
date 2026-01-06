@@ -24,6 +24,8 @@ export interface UsePromptsReturn {
   setDraftName: (value: string) => void;
   draftContent: string;
   setDraftContent: (value: string) => void;
+  draftDescription: string;
+  setDraftDescription: (value: string) => void;
   draftAlias: string;
   setDraftAlias: (value: string) => void;
   draftModelId: string | null;
@@ -78,6 +80,7 @@ export const usePrompts = (): UsePromptsReturn => {
   // Draft state
   const [draftName, setDraftName] = useState("");
   const [draftContent, setDraftContent] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
   const [draftAlias, setDraftAlias] = useState("");
   const [draftModelId, setDraftModelId] = useState<string | null>(null);
   const [draftIcon, setDraftIcon] = useState<string | null>(null);
@@ -108,8 +111,10 @@ export const usePrompts = (): UsePromptsReturn => {
     if (!viewingPrompt) return false;
     return (
       draftName !== viewingPrompt.name ||
-      draftContent !== viewingPrompt.prompt ||
-      draftAlias !== (viewingPrompt.alias || "") ||
+      draftContent !==
+        (viewingPrompt.instructions || viewingPrompt.prompt || "") ||
+      draftDescription !== (viewingPrompt.description || "") ||
+      draftAlias !== (viewingPrompt.aliases || viewingPrompt.alias || "") ||
       (draftModelId || null) !== (viewingPrompt.model_id || null) ||
       (draftIcon || null) !== (viewingPrompt.icon || null) ||
       draftComplianceCheck !==
@@ -122,6 +127,7 @@ export const usePrompts = (): UsePromptsReturn => {
     viewingPrompt,
     draftName,
     draftContent,
+    draftDescription,
     draftAlias,
     draftModelId,
     draftIcon,
@@ -170,6 +176,7 @@ export const usePrompts = (): UsePromptsReturn => {
       if (lastLoadedTabRef.current !== "NEW") {
         setDraftName(t("settings.postProcessing.prompts.newPromptName"));
         setDraftContent("");
+        setDraftDescription("");
         setDraftAlias("");
         setDraftModelId(null);
         setDraftIcon(null);
@@ -184,9 +191,10 @@ export const usePrompts = (): UsePromptsReturn => {
     }
 
     if (viewingPrompt && viewingPrompt.id !== lastLoadedTabRef.current) {
-      setDraftName(viewingPrompt.name);
-      setDraftContent(viewingPrompt.prompt);
-      setDraftAlias(viewingPrompt.alias || "");
+      setDraftName(viewingPrompt.name || "");
+      setDraftContent(viewingPrompt.instructions || viewingPrompt.prompt || "");
+      setDraftDescription(viewingPrompt.description || "");
+      setDraftAlias(viewingPrompt.aliases || viewingPrompt.alias || "");
       setDraftModelId(viewingPrompt.model_id || null);
       setDraftIcon(viewingPrompt.icon || null);
       setDraftComplianceCheck(viewingPrompt.compliance_check_enabled || false);
@@ -217,7 +225,7 @@ export const usePrompts = (): UsePromptsReturn => {
       for (const prompt of prompts) {
         if (prompt.id === currentPromptId) continue;
 
-        const existingAliases = (prompt.alias || "")
+        const existingAliases = (prompt.aliases || "")
           .split(/[,，]/)
           .map((a) => a.trim().toLowerCase())
           .filter((a) => a.length > 0);
@@ -295,10 +303,11 @@ export const usePrompts = (): UsePromptsReturn => {
     try {
       if (isCreating) {
         const newPrompt = await invoke<LLMPrompt>("add_post_process_prompt", {
-          name: draftName.trim(),
-          prompt: draftContent.trim(),
+          name: (draftName || "").trim(),
+          instructions: (draftContent || "").trim(),
           modelId: draftModelId === "default" ? null : draftModelId,
-          alias: draftAlias.trim() || null,
+          aliases: (draftAlias || "").trim() || null,
+          description: (draftDescription || "").trim(),
           icon: draftIcon,
           complianceCheckEnabled: draftComplianceCheck,
           complianceThreshold: Math.round(draftComplianceThreshold),
@@ -319,10 +328,11 @@ export const usePrompts = (): UsePromptsReturn => {
         });
         await invoke("update_post_process_prompt", {
           id: viewingPrompt.id,
-          name: draftName.trim(),
-          prompt: draftContent.trim(),
+          name: (draftName || "").trim(),
+          instructions: (draftContent || "").trim(),
           modelId: draftModelId === "default" ? null : draftModelId,
-          alias: draftAlias.trim() || null,
+          aliases: (draftAlias || "").trim() || null,
+          description: (draftDescription || "").trim(),
           icon: draftIcon,
           complianceCheckEnabled: draftComplianceCheck,
           complianceThreshold: Math.round(draftComplianceThreshold),
@@ -385,6 +395,8 @@ export const usePrompts = (): UsePromptsReturn => {
     setDraftName,
     draftContent,
     setDraftContent,
+    draftDescription,
+    setDraftDescription,
     draftAlias,
     setDraftAlias,
     draftModelId,

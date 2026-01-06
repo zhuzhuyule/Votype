@@ -1025,6 +1025,8 @@
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",
         "createSuccess": "提示词创建成功",
+        "description": "描述（用于智能识别）",
+        "descriptionPlaceholder": "简要描述此 Skill 的用途，帮助系统识别何时应使用它",
         "globalConfigTitle": "全局配置",
         "managementTitle": "提示词列表",
         "deleteConfirm": {

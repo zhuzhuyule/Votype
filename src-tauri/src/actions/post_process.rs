@@ -5,11 +5,11 @@ use crate::settings::{
     AppSettings, LLMPrompt, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
-    CreateChatCompletionRequestArgs,
+    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
-use log::{error, info};
+use log::{debug, error, info};
 use serde::Deserialize;
 
 use std::sync::Arc;
@@ -40,6 +40,133 @@ struct LlmReviewResponse {
     pub text: Option<String>,
     pub confidence: Option<u8>,
     pub reason: Option<serde_json::Value>,
+}
+
+/// Response from LLM for skill routing intent recognition
+#[derive(Deserialize, Debug)]
+struct SkillRouteResponse {
+    /// The skill_id to use, or "default" for default processing
+    pub skill_id: String,
+    /// Confidence score (0-100) of the routing decision
+    #[serde(default)]
+    pub confidence: Option<u8>,
+}
+
+/// Build the system prompt for skill routing
+fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
+    let mut skill_list = String::new();
+    for prompt in prompts {
+        let description = if prompt.description.is_empty() {
+            format!("{}.", prompt.name)
+        } else {
+            prompt.description.clone()
+        };
+        skill_list.push_str(&format!(
+            "- id: \"{}\", name: \"{}\", description: \"{}\"\n",
+            prompt.id, prompt.name, description
+        ));
+    }
+
+    format!(
+        r#"你是一个智能意图识别助手。根据用户的语音转录文本，判断应该使用哪个 Skill 来处理。
+
+## 可用 Skills
+{skill_list}
+
+## 任务
+分析用户输入，选择最合适的 Skill。
+
+**重要原则：**
+1. **优先返回 "default"**：如果用户只是在正常说话、陈述事实、记录笔记、写代码、写文档，请务必返回 "default"。
+2. **仅在有明确指令时路由**：只有当用户表达了明确的请求（如提问、要求翻译、要求总结、要求执行特定动作）且该请求与某个 Skill 的描述高度匹配时，才返回该 Skill 的 ID。
+3. 如果意图不明确或属于多种可能，请返回 "default"。
+
+## 输出格式
+严格返回 JSON，不要有任何其他内容：
+{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数}}"#,
+        skill_list = skill_list
+    )
+}
+
+/// Parse the skill routing response from LLM
+fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
+    let cleaned = clean_response_content(content);
+    if let Some(json) = extract_json_block(&cleaned) {
+        if let Ok(parsed) = serde_json::from_str::<SkillRouteResponse>(&json) {
+            return Some(parsed);
+        }
+    }
+    // Try parsing directly
+    if let Ok(parsed) = serde_json::from_str::<SkillRouteResponse>(&cleaned) {
+        return Some(parsed);
+    }
+    None
+}
+
+/// Perform asynchronous skill routing using LLM
+async fn perform_skill_routing(
+    _app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    transcription: &str,
+) -> Option<String> {
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    let client = crate::llm_client::create_client(provider, api_key).ok()?;
+
+    let routing_prompt = build_skill_routing_prompt(&settings.post_process_prompts);
+
+    let mut messages = Vec::new();
+
+    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+        .content(routing_prompt)
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::System(sys_msg));
+    }
+
+    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(transcription.to_string())
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
+
+    let req = CreateChatCompletionRequestArgs::default()
+        .model(model.to_string())
+        .messages(messages)
+        .build()
+        .ok()?;
+
+    let response = client.chat().create(req).await.ok()?;
+    let content = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())?;
+
+    let route = parse_skill_route_response(&content)?;
+
+    // Confidence threshold: Only route if LLM is fairly certain (> 70%)
+    if route.skill_id == "default" || route.confidence.unwrap_or(0) < 70 {
+        if route.skill_id != "default" {
+            debug!(
+                "[SkillRouter] Low confidence routing ignored: {} ({:?})",
+                route.skill_id, route.confidence
+            );
+        }
+        None
+    } else {
+        info!(
+            "[SkillRouter] Routed to skill: {} (Confidence: {:?})",
+            route.skill_id, route.confidence
+        );
+        Some(route.skill_id)
+    }
 }
 
 fn extract_json_block(content: &str) -> Option<String> {
@@ -435,7 +562,7 @@ fn resolve_prompt_from_text<'a>(
     // 1. Try matching prompt directly from the ORIGINAL text
     for p in &settings.post_process_prompts {
         let mut triggers = Vec::new();
-        if let Some(alias_str) = &p.alias {
+        if let Some(alias_str) = &p.aliases {
             triggers.extend(
                 alias_str
                     .split(&[',', '，'][..])
@@ -514,8 +641,39 @@ pub(crate) async fn maybe_post_process_transcription(
         None => return (None, None, None, false, None, None),
     };
 
-    let (initial_prompt_opt, initial_content, is_explicit) =
+    let (mut initial_prompt_opt, mut initial_content, mut is_explicit) =
         resolve_prompt_from_text(transcription, settings, override_prompt_id.as_deref());
+
+    // --- Smart Routing Phase ---
+    // If no explicit match and not overridden, try routing via LLM
+    if !is_explicit && override_prompt_id.is_none() && !transcription.trim().is_empty() {
+        if let Some(p) = initial_prompt_opt {
+            if let Some(m) = resolve_effective_model(settings, provider, p) {
+                if let Some(skill_id) =
+                    perform_skill_routing(app_handle, settings, provider, &m, transcription).await
+                {
+                    if let Some(routed_prompt) = settings
+                        .post_process_prompts
+                        .iter()
+                        .find(|p| p.id == skill_id)
+                    {
+                        info!(
+                            "[PostProcess] Routed to skill \"{}\" via LLM",
+                            routed_prompt.name
+                        );
+                        initial_prompt_opt = Some(routed_prompt);
+                        initial_content = transcription.to_string(); // Use full text for routed skill
+                        is_explicit = true; // Use clean context for specific skills
+
+                        // Notify UI about the routed skill
+                        app_handle
+                            .emit("post-process-status", routed_prompt.name.clone())
+                            .ok();
+                    }
+                }
+            }
+        }
+    }
 
     let initial_prompt = match initial_prompt_opt {
         Some(p) => p,
@@ -559,10 +717,10 @@ pub(crate) async fn maybe_post_process_transcription(
         }
 
         // Keep prompt template as-is, only replace metadata variables
-        let mut processed_prompt = prompt.prompt.replace("${prompt}", &prompt.name);
+        let mut processed_prompt = prompt.instructions.replace("${prompt}", &prompt.name);
 
         // Check which variables are referenced in the prompt template
-        let prompt_template = &prompt.prompt;
+        let prompt_template = &prompt.instructions;
         let has_output_ref = prompt_template.contains("output");
         let has_select_ref = prompt_template.contains("select");
         let has_raw_input_ref = prompt_template.contains("raw_input");
@@ -628,7 +786,7 @@ pub(crate) async fn maybe_post_process_transcription(
             for p in &settings.post_process_prompts {
                 // For hot_words variable: add names and aliases for fuzzy matching
                 hot_words.push(p.name.clone());
-                if let Some(alias_str) = &p.alias {
+                if let Some(alias_str) = &p.aliases {
                     let aliases: Vec<String> = alias_str
                         .split(&[',', '，'][..])
                         .map(|s| s.trim().to_string())
@@ -791,7 +949,7 @@ pub(crate) async fn maybe_post_process_transcription(
                                 .update_transcription_post_processing(
                                     hid,
                                     result_text.clone(),
-                                    current_prompt.prompt.clone(),
+                                    current_prompt.instructions.clone(),
                                     current_prompt.name.clone(),
                                     Some(current_prompt.id.clone()),
                                     last_model.clone(),
@@ -854,7 +1012,7 @@ pub(crate) async fn post_process_text_with_prompt(
     }
 
     // Keep prompt template as-is, only replace metadata variables
-    let mut processed_prompt = prompt.prompt.replace("${prompt}", &prompt.name);
+    let mut processed_prompt = prompt.instructions.replace("${prompt}", &prompt.name);
 
     // Build structured input data message
     let mut input_data_parts: Vec<String> = Vec::new();

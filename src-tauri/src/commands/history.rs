@@ -248,7 +248,7 @@ pub async fn retranscribe_history_entry(
                     if let Some(prompt) =
                         settings.post_process_prompts.iter().find(|p| &p.id == pid)
                     {
-                        post_process_prompt_text = prompt.prompt.clone();
+                        post_process_prompt_text = prompt.instructions.clone();
                         post_process_prompt_name = prompt.name.clone();
                     }
                 }
@@ -322,7 +322,7 @@ pub async fn reprocess_history_entry(
             .update_transcription_post_processing(
                 id,
                 text,
-                prompt.prompt.clone(),
+                prompt.instructions.clone(),
                 prompt.name.clone(),
                 used_prompt_id,
                 used_model,

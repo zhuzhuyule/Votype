@@ -13,8 +13,8 @@ export interface SidebarItemProps {
   onActivate: () => void;
   t: any;
   icon?: string;
-  outputMode?: "polish" | "chat";
-  alias?: string | null;
+  outputMode?: "polish" | "chat" | "silent";
+  aliases?: string | null;
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -28,16 +28,16 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   t,
   icon,
   outputMode,
-  alias,
+  aliases: aliasStr,
 }) => {
   // 解析别名列表
   const aliases = React.useMemo(() => {
-    if (!alias) return [];
-    return alias
+    if (!aliasStr) return [];
+    return aliasStr
       .split(/[,，]/)
       .map((a) => a.trim())
       .filter((a) => a.length > 0);
-  }, [alias]);
+  }, [aliasStr]);
 
   return (
     <div

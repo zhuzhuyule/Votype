@@ -569,9 +569,10 @@ pub fn set_post_process_provider(app: AppHandle, provider_id: String) -> Result<
 pub fn add_post_process_prompt(
     app: AppHandle,
     name: String,
-    prompt: String,
+    instructions: String,
     model_id: Option<String>,
-    alias: Option<String>,
+    aliases: Option<String>,
+    description: Option<String>,
     icon: Option<String>,
     compliance_check_enabled: bool,
     compliance_threshold: Option<u8>,
@@ -584,11 +585,14 @@ pub fn add_post_process_prompt(
 
     let new_prompt = LLMPrompt {
         id: id.clone(),
-        name,
-        prompt,
+        name: name.clone(),
+        description: description.unwrap_or_default(),
+        instructions,
         model_id,
-        alias,
+        aliases,
         icon,
+        skill_type: settings::SkillType::default(),
+        source: settings::SkillSource::default(),
 
         compliance_check_enabled,
         compliance_threshold: Some(compliance_threshold.unwrap_or(20)),
@@ -606,9 +610,10 @@ pub fn update_post_process_prompt(
     app: AppHandle,
     id: String,
     name: String,
-    prompt: String,
+    instructions: String,
     model_id: Option<String>,
-    alias: Option<String>,
+    aliases: Option<String>,
+    description: Option<String>,
     icon: Option<String>,
     compliance_check_enabled: bool,
     compliance_threshold: Option<u8>,
@@ -627,9 +632,10 @@ pub fn update_post_process_prompt(
         .find(|p| p.id == id)
     {
         existing_prompt.name = name;
-        existing_prompt.prompt = prompt;
+        existing_prompt.instructions = instructions;
         existing_prompt.model_id = model_id;
-        existing_prompt.alias = alias;
+        existing_prompt.aliases = aliases;
+        existing_prompt.description = description.unwrap_or_default();
         existing_prompt.icon = icon;
         existing_prompt.compliance_check_enabled = compliance_check_enabled;
         existing_prompt.compliance_threshold = Some(compliance_threshold.unwrap_or(20));

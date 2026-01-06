@@ -1004,6 +1004,8 @@
         "createNew": "Create New Prompt",
         "createPrompt": "Create Prompt",
         "createSuccess": "Prompt created successfully",
+        "description": "Description (for smart routing)",
+        "descriptionPlaceholder": "Briefly describe what this Skill does and when it should be triggered",
         "globalConfigTitle": "Global Configuration",
         "managementTitle": "Prompts",
         "deleteFailed": "Delete failed",

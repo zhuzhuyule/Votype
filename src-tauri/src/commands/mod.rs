@@ -10,6 +10,11 @@ use tauri_plugin_log::LogLevel;
 use tauri_plugin_opener::OpenerExt;
 
 #[tauri::command]
+pub fn get_app_settings(app: AppHandle) -> settings::AppSettings {
+    settings::get_settings(&app)
+}
+
+#[tauri::command]
 pub fn cancel_operation(app: AppHandle) {
     cancel_current_operation(&app);
 }
