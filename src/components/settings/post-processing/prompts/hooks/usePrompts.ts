@@ -72,10 +72,16 @@ export const usePrompts = (): UsePromptsReturn => {
   const prompts = getSetting("post_process_prompts") || [];
   const activePromptId = getSetting("post_process_selected_prompt_id");
 
-  // Tab state
-  const [currentTab, setCurrentTab] = useState<string>(
-    activePromptId || prompts[0]?.id || "NEW",
-  );
+  const [currentTab, setCurrentTab] = useState<string>("NEW");
+
+  // Sync initial tab when settings load
+  const hasInitializedTab = useRef(false);
+  useEffect(() => {
+    if (!hasInitializedTab.current && prompts.length > 0) {
+      setCurrentTab(activePromptId || prompts[0].id);
+      hasInitializedTab.current = true;
+    }
+  }, [prompts, activePromptId]);
 
   // Draft state
   const [draftName, setDraftName] = useState("");
