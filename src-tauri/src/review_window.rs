@@ -18,7 +18,6 @@ const REVIEW_WINDOW_MIN_WIDTH: f64 = 480.0;
 const REVIEW_WINDOW_MAX_WIDTH: f64 = 920.0;
 const REVIEW_WINDOW_HEIGHT: f64 = 320.0;
 const REVIEW_WINDOW_MAX_HEIGHT: f64 = 820.0;
-const REVIEW_WINDOW_MARGIN: f64 = 8.0;
 
 #[derive(Clone, serde::Serialize)]
 struct ReviewWindowPayload {
@@ -96,16 +95,6 @@ fn estimate_window_height(source_text: &str, final_text: &str, width: f64) -> f6
         .max(REVIEW_WINDOW_HEIGHT)
         .min(REVIEW_WINDOW_MAX_HEIGHT);
     height
-}
-
-fn clamp(value: f64, min: f64, max: f64) -> f64 {
-    if value < min {
-        min
-    } else if value > max {
-        max
-    } else {
-        value
-    }
 }
 
 fn find_monitor_for_cursor(
@@ -236,13 +225,11 @@ fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height
             let scale = monitor.scale_factor();
             let position = monitor.position();
             let monitor_size = monitor.size();
-            let cursor_x = (cursor.x - position.x) as f64 / scale;
-            let cursor_y = (cursor.y - position.y) as f64 / scale;
-            let max_x = monitor_size.width as f64 / scale - width - REVIEW_WINDOW_MARGIN;
-            let max_y = monitor_size.height as f64 / scale - height - REVIEW_WINDOW_MARGIN;
-            let x = clamp(cursor_x - width * 0.5, REVIEW_WINDOW_MARGIN, max_x)
-                + position.x as f64 / scale;
-            let y = clamp(cursor_y - 40.0, REVIEW_WINDOW_MARGIN, max_y) + position.y as f64 / scale;
+            // Center the window on the monitor where the cursor is located
+            let monitor_width = monitor_size.width as f64 / scale;
+            let monitor_height = monitor_size.height as f64 / scale;
+            let x = (monitor_width - width) / 2.0 + position.x as f64 / scale;
+            let y = (monitor_height - height) / 2.0 + position.y as f64 / scale;
             let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
         }
     }

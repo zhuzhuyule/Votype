@@ -514,7 +514,7 @@ pub(crate) async fn maybe_post_process_transcription(
         None => return (None, None, None, false, None, None),
     };
 
-    let (initial_prompt_opt, initial_content, _is_explicit) =
+    let (initial_prompt_opt, initial_content, is_explicit) =
         resolve_prompt_from_text(transcription, settings, override_prompt_id.as_deref());
 
     let initial_prompt = match initial_prompt_opt {
@@ -603,19 +603,68 @@ pub(crate) async fn maybe_post_process_transcription(
             }
         }
 
-        // Inject hot words - only if referenced in prompt
-        if has_hot_words_ref && !settings.custom_words.is_empty() {
-            let hot_words_list = settings
-                .custom_words
-                .iter()
-                .map(|w| format!("- {}", w))
-                .collect::<Vec<_>>()
-                .join("\n");
+        // Inject hot words and skills - logic depends on whether we had an explicit match
+        if is_explicit {
+            // Case A: Explicitly matched an alias. Keep context clean, only inject user custom words.
+            if has_hot_words_ref && !settings.custom_words.is_empty() {
+                let hot_words_list = settings
+                    .custom_words
+                    .iter()
+                    .map(|w| format!("- {}", w))
+                    .collect::<Vec<_>>()
+                    .join("\n");
 
-            if processed_prompt.contains("${hot_words}") {
-                processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
-            } else {
-                input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_list));
+                if processed_prompt.contains("${hot_words}") {
+                    processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
+                } else {
+                    input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_list));
+                }
+            }
+        } else {
+            // Case B: Fallback (unrecognized intent). Inject EVERYTHING to guide the LLM.
+            let mut hot_words = settings.custom_words.clone();
+            let mut skills_info = Vec::new();
+
+            for p in &settings.post_process_prompts {
+                // For hot_words variable: add names and aliases for fuzzy matching
+                hot_words.push(p.name.clone());
+                if let Some(alias_str) = &p.alias {
+                    let aliases: Vec<String> = alias_str
+                        .split(&[',', '，'][..])
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    hot_words.extend(aliases.clone());
+                    skills_info.push(format!("- **{}**: (别名: {})", p.name, aliases.join(", ")));
+                } else {
+                    skills_info.push(format!("- **{}**", p.name));
+                }
+            }
+            hot_words.sort();
+            hot_words.dedup();
+
+            // 1. Inject into ${hot_words} if referenced
+            if !hot_words.is_empty() {
+                let hot_words_text = hot_words
+                    .iter()
+                    .map(|w| format!("- {}", w))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+
+                if processed_prompt.contains("${hot_words}") {
+                    processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_text);
+                } else {
+                    input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_text));
+                }
+            }
+
+            // 2. Inject Semantic Skills block (NEW)
+            if !skills_info.is_empty() {
+                let skills_block = format!(
+                    "## 可用技能\n\n用户可能正在尝试执行以下某种操作（技能）。请分析用户输入（raw_input）的意图，并根据最匹配的技能进行处理：\n\n{}",
+                    skills_info.join("\n")
+                );
+                input_data_parts.push(skills_block);
             }
         }
 
@@ -822,7 +871,7 @@ pub(crate) async fn post_process_text_with_prompt(
         }
     }
 
-    // Inject hot words for manual prompt too
+    // For manual prompt processing, this is ALWAYS explicit. Use only custom words.
     if !settings.custom_words.is_empty() {
         let hot_words_list = settings
             .custom_words

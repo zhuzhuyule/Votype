@@ -1724,10 +1724,11 @@ impl TranscriptionManager {
                         return match handle.join() {
                             Ok(Ok(text)) => {
                                 self.emit_online_asr_status("completed", None);
-                                let corrected = if !settings.custom_words.is_empty() {
+                                let all_custom_words = Self::get_all_custom_words(&settings);
+                                let corrected = if !all_custom_words.is_empty() {
                                     apply_custom_words(
                                         &text,
-                                        &settings.custom_words,
+                                        &all_custom_words,
                                         settings.word_correction_threshold,
                                     )
                                 } else {
@@ -1855,11 +1856,12 @@ impl TranscriptionManager {
             }
         };
 
-        // Apply word correction if custom words are configured
-        let corrected_result = if !settings.custom_words.is_empty() {
+        let all_custom_words = Self::get_all_custom_words(&settings);
+        // Apply word correction if custom words or prompt aliases are configured
+        let corrected_result = if !all_custom_words.is_empty() {
             apply_custom_words(
                 &result.text,
-                &settings.custom_words,
+                &all_custom_words,
                 settings.word_correction_threshold,
             )
         } else {
@@ -2038,10 +2040,11 @@ impl TranscriptionManager {
             }
         };
 
-        let corrected_result = if !settings.custom_words.is_empty() {
+        let all_custom_words = Self::get_all_custom_words(&settings);
+        let corrected_result = if !all_custom_words.is_empty() {
             apply_custom_words(
                 &result.text,
-                &settings.custom_words,
+                &all_custom_words,
                 settings.word_correction_threshold,
             )
         } else {
@@ -2133,6 +2136,24 @@ impl TranscriptionManager {
                 detail,
             },
         );
+    }
+
+    fn get_all_custom_words(settings: &crate::settings::AppSettings) -> Vec<String> {
+        let mut words = settings.custom_words.clone();
+        for p in &settings.post_process_prompts {
+            words.push(p.name.clone());
+            if let Some(alias_str) = &p.alias {
+                words.extend(
+                    alias_str
+                        .split(&[',', '，'][..])
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty()),
+                );
+            }
+        }
+        words.sort();
+        words.dedup();
+        words
     }
 }
 

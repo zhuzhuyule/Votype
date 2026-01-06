@@ -392,29 +392,34 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
               onValueChange={(v) => setActiveTab(v as any)}
             >
               <Tabs.List size="1" className="flex-wrap gap-y-1 mb-3">
-                {/* 1. Final Step (Most important) */}
-                {hasSteps && (
-                  <Tooltip
-                    content={`${t("common.models")}: ${historySteps[finalStepIdx].model || "Unknown"}`}
-                  >
-                    <Tabs.Trigger value={`step:${finalStepIdx}`}>
-                      <Flex align="center" gap="2">
-                        <DynamicIcon
-                          name={
-                            (historySteps[finalStepIdx].prompt_id &&
-                              settings?.post_process_prompts.find(
-                                (p) =>
-                                  p.id === historySteps[finalStepIdx].prompt_id,
-                              )?.icon) ||
-                            "IconWand"
-                          }
-                          size={14}
-                        />
-                        {historySteps[finalStepIdx].prompt_name}
-                      </Flex>
-                    </Tabs.Trigger>
-                  </Tooltip>
-                )}
+                {/* 1. All Processing Steps (Reverse chronological order - most recent first) */}
+                {[...historySteps].reverse().map((step, revIdx) => {
+                  const actualIdx = historySteps.length - 1 - revIdx;
+                  return (
+                    <Tooltip
+                      key={actualIdx}
+                      content={`${t("common.models")}: ${step.model || "Unknown"}`}
+                    >
+                      <Tabs.Trigger value={`step:${actualIdx}`}>
+                        <Flex align="center" gap="2">
+                          <DynamicIcon
+                            name={
+                              (step.prompt_id &&
+                                settings?.post_process_prompts.find(
+                                  (p) => p.id === step.prompt_id,
+                                )?.icon) ||
+                              "IconWand"
+                            }
+                            size={14}
+                          />
+                          {step.prompt_name}
+                        </Flex>
+                      </Tabs.Trigger>
+                    </Tooltip>
+                  );
+                })}
+
+                {/* 2. Legacy Improved Text (if exists) */}
                 {hasImprovement && (
                   <Tooltip
                     content={`${t("common.models")}: ${entry.post_process_model || "Unknown"}`}
@@ -428,41 +433,17 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   </Tooltip>
                 )}
 
-                {/* 2. Original Transcription (Comparison base) */}
+                {/* 3. Original Transcription (The source of truth) */}
                 <Tabs.Trigger value="original">
                   {t("settings.history.content.original")}
                 </Tabs.Trigger>
 
-                {/* 3. Streaming (If exists) */}
+                {/* 4. Streaming (Realtime) - At the end as it's the most transient data */}
                 {hasStreaming && (
                   <Tabs.Trigger value="streaming">
                     {t("settings.history.content.streaming")}
                   </Tabs.Trigger>
                 )}
-
-                {/* 4. Intermediate Steps (Process audit) */}
-                {intermediateSteps.map((step, idx) => (
-                  <Tooltip
-                    key={idx}
-                    content={`${t("common.models")}: ${step.model || "Unknown"}`}
-                  >
-                    <Tabs.Trigger value={`step:${idx}`}>
-                      <Flex align="center" gap="2">
-                        <DynamicIcon
-                          name={
-                            (step.prompt_id &&
-                              settings?.post_process_prompts.find(
-                                (p) => p.id === step.prompt_id,
-                              )?.icon) ||
-                            "IconWand"
-                          }
-                          size={14}
-                        />
-                        {step.prompt_name}
-                      </Flex>
-                    </Tabs.Trigger>
-                  </Tooltip>
-                ))}
               </Tabs.List>
               <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
                 {hasSteps &&
