@@ -424,102 +424,65 @@ fn resolve_prompt_from_text<'a>(
     settings: &'a AppSettings,
     override_prompt_id: Option<&str>,
 ) -> (Option<&'a LLMPrompt>, String, bool) {
-    let transcription_lower = text.trim().to_lowercase();
+    let content_original_trimmed = text.trim();
+    if content_original_trimmed.is_empty() {
+        let p = get_default_prompt(settings, override_prompt_id);
+        return (p, text.to_string(), false);
+    }
 
-    // Parse command prefixes
-    let prefixes: Vec<String> = settings
-        .command_prefixes
-        .as_ref()
-        .map(|s| {
-            s.split(&[',', '，'][..])
-                .map(|p| p.trim().to_string())
-                .filter(|p| !p.is_empty())
-                .collect()
-        })
-        .unwrap_or_default();
+    let content_lower = content_original_trimmed.to_lowercase();
 
-    let has_prefixes_configured = !prefixes.is_empty();
+    // 1. Try matching prompt directly from the ORIGINAL text
+    for p in &settings.post_process_prompts {
+        let mut triggers = Vec::new();
+        if let Some(alias_str) = &p.alias {
+            triggers.extend(
+                alias_str
+                    .split(&[',', '，'][..])
+                    .map(|s| s.trim().to_string()),
+            );
+        }
+        triggers.push(p.name.clone());
 
-    let (content_to_check_alias, prefix_matched) = if has_prefixes_configured {
-        if let Some((_, len)) = find_best_match(&transcription_lower, &prefixes) {
-            let matched_str_lower = &transcription_lower[..len];
-            let char_count = matched_str_lower.chars().count();
+        if let Some((_, len)) = find_best_match(&content_lower, &triggers) {
+            let char_count = content_lower[..len].chars().count();
 
-            let byte_offset_original = text
+            let byte_offset_in_trimmed = content_original_trimmed
                 .char_indices()
                 .nth(char_count)
                 .map(|(i, _)| i)
-                .unwrap_or(text.len());
+                .unwrap_or(content_original_trimmed.len());
 
-            let remaining = text[byte_offset_original..].trim_start_matches(|c: char| {
-                c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
-            });
+            let final_content = content_original_trimmed[byte_offset_in_trimmed..]
+                .trim_start_matches(|c: char| {
+                    c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
+                })
+                .to_string();
 
-            (remaining.to_string(), true)
-        } else {
-            (text.to_string(), false)
-        }
-    } else {
-        (text.to_string(), true)
-    };
-
-    let mut matched_prompt_info = None;
-
-    if prefix_matched {
-        let content_lower = content_to_check_alias.trim().to_lowercase();
-
-        for p in &settings.post_process_prompts {
-            let mut triggers = Vec::new();
-            if let Some(alias_str) = &p.alias {
-                triggers.extend(
-                    alias_str
-                        .split(&[',', '，'][..])
-                        .map(|s| s.trim().to_string()),
-                );
-            }
-            triggers.push(p.name.clone());
-
-            if let Some((_, len)) = find_best_match(&content_lower, &triggers) {
-                matched_prompt_info = Some((p, len));
-                break;
-            }
+            return (Some(p), final_content, true);
         }
     }
 
-    if let Some((p, match_len_lower)) = matched_prompt_info {
-        let matched_substring_lower =
-            &content_to_check_alias.trim().to_lowercase()[..match_len_lower];
-        let char_count = matched_substring_lower.chars().count();
+    // 2. Fallback: Use full text and default prompt
+    let p = get_default_prompt(settings, override_prompt_id);
+    (p, text.to_string(), false)
+}
 
-        let byte_offset = content_to_check_alias
-            .char_indices()
-            .nth(char_count)
-            .map(|(i, _)| i)
-            .unwrap_or(content_to_check_alias.len());
-
-        let final_content = content_to_check_alias[byte_offset..]
-            .trim_start_matches(|c: char| {
-                c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
-            })
-            .to_string();
-
-        (Some(p), final_content, true)
-    } else {
-        let p = if let Some(pid) = &override_prompt_id {
-            settings.post_process_prompts.iter().find(|p| &p.id == pid)
-        } else {
-            None
+fn get_default_prompt<'a>(
+    settings: &'a AppSettings,
+    override_prompt_id: Option<&str>,
+) -> Option<&'a LLMPrompt> {
+    if let Some(pid) = override_prompt_id {
+        if let Some(p) = settings.post_process_prompts.iter().find(|p| &p.id == pid) {
+            return Some(p);
         }
-        .or_else(|| {
-            settings
-                .post_process_selected_prompt_id
-                .as_ref()
-                .and_then(|id| settings.post_process_prompts.iter().find(|p| &p.id == id))
-        })
-        .or_else(|| settings.post_process_prompts.first());
-
-        (p, text.to_string(), false)
     }
+
+    settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .and_then(|id| settings.post_process_prompts.iter().find(|p| &p.id == id))
+        .or_else(|| settings.post_process_prompts.first())
 }
 
 pub(crate) async fn maybe_post_process_transcription(

@@ -29,7 +29,7 @@ import { Dropdown } from "../../ui/Dropdown";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 import { SidebarItem } from "./SidebarItem";
-import { CommandPrefixes, PromptEditor, TagInput } from "./prompts/components";
+import { PromptEditor, TagInput } from "./prompts/components";
 import { usePrompts } from "./prompts/hooks/usePrompts";
 
 const PromptsConfiguration: React.FC = () => {
@@ -58,9 +58,6 @@ const PromptsConfiguration: React.FC = () => {
     setCurrentAliasInput,
     aliasError,
     setAliasError,
-    currentPrefixes,
-    currentPrefixInput,
-    setCurrentPrefixInput,
     isDirty,
     textModels,
     handleAddAlias,
@@ -68,8 +65,6 @@ const PromptsConfiguration: React.FC = () => {
     handleSave,
     handleDelete,
     handleSetAsActive,
-    handleAddPrefix,
-    handleRemovePrefix,
     draftComplianceCheck,
     setDraftComplianceCheck,
     draftComplianceThreshold,
@@ -93,19 +88,6 @@ const PromptsConfiguration: React.FC = () => {
         >
           <Flex direction="column" gap="2">
             <PostProcessingToggle grouped={true} />
-
-            {enabled && (
-              <Box>
-                <CommandPrefixes
-                  t={t}
-                  prefixes={currentPrefixes}
-                  currentPrefixInput={currentPrefixInput}
-                  setCurrentPrefixInput={setCurrentPrefixInput}
-                  onAddPrefix={handleAddPrefix}
-                  onRemovePrefix={handleRemovePrefix}
-                />
-              </Box>
-            )}
           </Flex>
         </SettingsGroup>
 

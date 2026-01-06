@@ -42,12 +42,6 @@ export interface UsePromptsReturn {
   aliasError: string | null;
   setAliasError: (error: string | null) => void;
 
-  // Prefix state
-  prefixes: string;
-  currentPrefixes: string[];
-  currentPrefixInput: string;
-  setCurrentPrefixInput: (value: string) => void;
-
   // Computed
   isDirty: boolean;
   textModels: { value: string; label: string }[];
@@ -58,8 +52,6 @@ export interface UsePromptsReturn {
   handleSave: () => Promise<void>;
   handleDelete: () => Promise<void>;
   handleSetAsActive: () => void;
-  handleAddPrefix: () => void;
-  handleRemovePrefix: (prefix: string) => void;
 }
 
 export const usePrompts = (): UsePromptsReturn => {
@@ -97,11 +89,6 @@ export const usePrompts = (): UsePromptsReturn => {
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
 
-  // Prefix state
-  const [prefixes, setPrefixes] = useState("");
-  const [currentPrefixInput, setCurrentPrefixInput] = useState("");
-  const lastLoadedPrefixesRef = useRef<string | null>(null);
-
   // Derived values
   const isCreating = currentTab === "NEW";
   const viewingPrompt = useMemo(
@@ -115,13 +102,6 @@ export const usePrompts = (): UsePromptsReturn => {
       .map((a) => a.trim())
       .filter((a) => a.length > 0);
   }, [draftAlias]);
-
-  const currentPrefixes = useMemo(() => {
-    return prefixes
-      .split(/[,，]/)
-      .map((a) => a.trim())
-      .filter((a) => a.length > 0);
-  }, [prefixes]);
 
   const isDirty = useMemo(() => {
     if (isCreating) return true;
@@ -144,7 +124,6 @@ export const usePrompts = (): UsePromptsReturn => {
     draftContent,
     draftAlias,
     draftModelId,
-    draftIcon,
     draftIcon,
     draftComplianceCheck,
     draftComplianceThreshold,
@@ -224,15 +203,6 @@ export const usePrompts = (): UsePromptsReturn => {
       setCurrentTab("NEW");
     }
   }, [currentTab, viewingPrompt, t, prompts]);
-
-  // Sync prefixes from settings
-  useEffect(() => {
-    const backendPrefixes = settings?.command_prefixes || "";
-    if (backendPrefixes !== lastLoadedPrefixesRef.current) {
-      setPrefixes(backendPrefixes);
-      lastLoadedPrefixesRef.current = backendPrefixes;
-    }
-  }, [settings?.command_prefixes]);
 
   // Validation
   const validateAliases = useCallback(
@@ -403,39 +373,6 @@ export const usePrompts = (): UsePromptsReturn => {
     }
   }, [viewingPrompt, updateSetting, t]);
 
-  const handleSavePrefixes = useCallback(
-    async (newPrefixesStr: string) => {
-      setPrefixes(newPrefixesStr);
-      await invoke("set_command_prefixes", {
-        prefixes: newPrefixesStr.trim() || null,
-      });
-      await refreshSettings();
-    },
-    [refreshSettings],
-  );
-
-  const handleAddPrefix = useCallback(() => {
-    const val = currentPrefixInput.trim();
-    if (!val) return;
-
-    if (currentPrefixes.some((p) => p.toLowerCase() === val.toLowerCase())) {
-      setCurrentPrefixInput("");
-      return;
-    }
-
-    const newPrefixList = [...currentPrefixes, val];
-    handleSavePrefixes(newPrefixList.join(","));
-    setCurrentPrefixInput("");
-  }, [currentPrefixInput, currentPrefixes, handleSavePrefixes]);
-
-  const handleRemovePrefix = useCallback(
-    (prefixToRemove: string) => {
-      const newPrefixList = currentPrefixes.filter((p) => p !== prefixToRemove);
-      handleSavePrefixes(newPrefixList.join(","));
-    },
-    [currentPrefixes, handleSavePrefixes],
-  );
-
   return {
     enabled,
     prompts,
@@ -465,10 +402,6 @@ export const usePrompts = (): UsePromptsReturn => {
     setCurrentAliasInput,
     aliasError,
     setAliasError,
-    prefixes,
-    currentPrefixes,
-    currentPrefixInput,
-    setCurrentPrefixInput,
     isDirty,
     textModels,
     handleAddAlias,
@@ -476,7 +409,5 @@ export const usePrompts = (): UsePromptsReturn => {
     handleSave,
     handleDelete,
     handleSetAsActive,
-    handleAddPrefix,
-    handleRemovePrefix,
   };
 };

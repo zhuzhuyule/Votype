@@ -557,14 +557,6 @@ pub fn change_post_process_model_setting(
 }
 
 #[tauri::command]
-pub fn set_command_prefixes(app: AppHandle, prefixes: Option<String>) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.command_prefixes = prefixes;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
 pub fn set_post_process_provider(app: AppHandle, provider_id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
