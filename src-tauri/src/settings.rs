@@ -758,6 +758,25 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: "ctrl+shift+v".to_string(),
         },
     );
+    bindings.insert(
+        "invoke_skill".to_string(),
+        ShortcutBinding {
+            id: "invoke_skill".to_string(),
+            name: "Invoke Skill".to_string(),
+            description: "Starts recording in Skill mode with intelligent intent routing."
+                .to_string(),
+            default_binding: if cfg!(target_os = "macos") {
+                "command+shift+space".to_string()
+            } else {
+                "ctrl+shift+space".to_string()
+            },
+            current_binding: if cfg!(target_os = "macos") {
+                "command+shift+space".to_string()
+            } else {
+                "ctrl+shift+space".to_string()
+            },
+        },
+    );
 
     AppSettings {
         bindings,

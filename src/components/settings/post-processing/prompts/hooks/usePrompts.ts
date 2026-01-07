@@ -54,6 +54,8 @@ export interface UsePromptsReturn {
   handleSave: () => Promise<void>;
   handleDelete: () => Promise<void>;
   handleSetAsActive: () => void;
+  isSuggestingAliases: boolean;
+  handleSuggestAliases: () => Promise<void>;
 }
 
 export const usePrompts = (): UsePromptsReturn => {
@@ -91,6 +93,7 @@ export const usePrompts = (): UsePromptsReturn => {
     useState<PromptOutputMode>("polish");
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
+  const [isSuggestingAliases, setIsSuggestingAliases] = useState(false);
 
   // Derived values
   const isCreating = currentTab === "NEW";
@@ -383,6 +386,42 @@ export const usePrompts = (): UsePromptsReturn => {
     }
   }, [viewingPrompt, updateSetting, t]);
 
+  const handleSuggestAliases = useCallback(async () => {
+    if (!draftDescription.trim()) {
+      toast.error(t("settings.postProcessing.prompts.descriptionRequired"));
+      return;
+    }
+
+    setIsSuggestingAliases(true);
+    try {
+      const suggested = await invoke<string[]>("suggest_aliases", {
+        description: draftDescription.trim(),
+      });
+
+      if (suggested && suggested.length > 0) {
+        // Merge with existing aliases, keeping uniqueness
+        const existingSet = new Set(currentAliases.map((a) => a.toLowerCase()));
+        const newAliases = [...currentAliases];
+
+        suggested.forEach((alias) => {
+          if (!existingSet.has(alias.toLowerCase())) {
+            newAliases.push(alias);
+          }
+        });
+
+        setDraftAlias(newAliases.join(","));
+        toast.success(t("settings.postProcessing.prompts.suggestSuccess"));
+      } else {
+        toast.info(t("settings.postProcessing.prompts.noSuggestions"));
+      }
+    } catch (error) {
+      console.error("Failed to suggest aliases:", error);
+      toast.error(t("settings.postProcessing.prompts.suggestFailed"));
+    } finally {
+      setIsSuggestingAliases(false);
+    }
+  }, [draftDescription, currentAliases, setDraftAlias, t]);
+
   return {
     enabled,
     prompts,
@@ -421,5 +460,7 @@ export const usePrompts = (): UsePromptsReturn => {
     handleSave,
     handleDelete,
     handleSetAsActive,
+    isSuggestingAliases,
+    handleSuggestAliases,
   };
 };

@@ -17,7 +17,15 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time::sleep;
 
-pub(super) struct TranscribeAction;
+pub(super) struct TranscribeAction {
+    pub skill_mode: bool,
+}
+
+impl TranscribeAction {
+    pub fn new(skill_mode: bool) -> Self {
+        Self { skill_mode }
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ScriptType {
@@ -496,6 +504,7 @@ impl ShortcutAction for TranscribeAction {
 
         let current_transcription_id = rm.get_current_transcription_id();
         let binding_id = binding_id.to_string();
+        let skill_mode = self.skill_mode;
 
         tauri::async_runtime::spawn(async move {
             debug!(
@@ -531,6 +540,12 @@ impl ShortcutAction for TranscribeAction {
                         "Active window (snapshot): app='{}' title='{}' pid={} window_id={}",
                         info.app_name, info.title, info.process_id, info.window_id
                     );
+                }
+
+                // Capture selected text for Mode C (auto-routing)
+                let selected_text = crate::clipboard::get_selected_text(&ah).ok();
+                if let Some(text) = &selected_text {
+                    info!("[Selection] Captured {} chars", text.len());
                 }
 
                 let transcription_time = Instant::now();
@@ -908,6 +923,8 @@ impl ShortcutAction for TranscribeAction {
                                     matched_rule.map(|r| r.pattern.clone()),
                                     matched_rule.map(|r| r.match_type),
                                     history_id,
+                                    skill_mode, // Pass skill_mode to control LLM routing
+                                    selected_text.clone(), // Pass captured context for Mode C
                                 )
                                 .await;
 

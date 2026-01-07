@@ -414,6 +414,9 @@
       "recording": "录音中…",
       "review": "审阅中…",
       "transcribing": "转录中…"
+    },
+    "skillConfirmation": {
+      "prompt": "使用此技能？"
     }
   },
   "settings": {
@@ -763,6 +766,10 @@
           "transcribe": {
             "description": "将语音转换为文字。",
             "name": "转录"
+          },
+          "invoke_skill": {
+            "description": "以 Skill 模式开始录音，启用智能意图识别路由。",
+            "name": "调用 Skill"
           }
         },
         "description": "配置启动语音转文字录制的键盘快捷键",
@@ -1021,6 +1028,11 @@
         "aliasesLabel": "别名",
         "addAlias": "添加别名",
         "alias": "别名",
+        "suggestAliases": "建议触发词",
+        "suggestSuccess": "已获取建议触发词",
+        "suggestFailed": "获取建议失败",
+        "noSuggestions": "未发现建议",
+        "descriptionRequired": "获取建议需要填写描述",
         "createFirst": "点击上方的「创建新提示词」来创建您的第一个后期处理提示词。",
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",

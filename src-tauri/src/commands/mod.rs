@@ -186,3 +186,95 @@ pub fn log_to_console(msg: String, level: Option<String>) {
 
     log::log!(log_level, "[Frontend] {}", msg);
 }
+
+#[tauri::command]
+pub async fn suggest_aliases(app: AppHandle, description: String) -> Result<Vec<String>, String> {
+    crate::actions::post_process::suggest_aliases(&app, &description).await
+}
+
+/// Handle user response to skill confirmation prompt
+#[tauri::command]
+pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> Result<(), String> {
+    use crate::ManagedPendingSkillConfirmation;
+    use tauri::Manager;
+
+    // Get pending confirmation state
+    let pending_state = app.state::<ManagedPendingSkillConfirmation>();
+    let pending = {
+        let guard = pending_state.lock().map_err(|e| e.to_string())?;
+        guard.clone()
+    };
+
+    // Clear the pending state
+    {
+        let mut guard = pending_state.lock().map_err(|e| e.to_string())?;
+        *guard = crate::PendingSkillConfirmation::default();
+    }
+
+    // Verify skill_id matches
+    if pending.skill_id.as_ref() != Some(&skill_id) {
+        return Err("Skill confirmation mismatch".to_string());
+    }
+
+    let transcription = pending
+        .transcription
+        .ok_or("No transcription in pending state")?;
+    let settings = crate::settings::get_settings(&app);
+
+    if accepted {
+        // User confirmed - execute the skill
+        log::info!("[SkillConfirmation] User accepted skill: {}", skill_id);
+
+        // Execute post-processing with the confirmed skill
+        let (result, _model, _prompt_id, _err, _confidence, _reason) =
+            crate::actions::post_process::maybe_post_process_transcription(
+                &app,
+                &settings,
+                &transcription,
+                None,
+                false,
+                Some(skill_id),
+                pending.app_name,
+                pending.window_title,
+                None,
+                None,
+                pending.history_id,
+                true, // skill_mode
+                pending.selected_text,
+            )
+            .await;
+
+        // Paste result if available
+        if let Some(text) = result {
+            crate::clipboard::paste(text, app)?;
+        }
+    } else {
+        // User rejected - execute default polish
+        log::info!("[SkillConfirmation] User rejected skill, using default polish");
+
+        let (result, _model, _prompt_id, _err, _confidence, _reason) =
+            crate::actions::post_process::maybe_post_process_transcription(
+                &app,
+                &settings,
+                &transcription,
+                None,
+                false,
+                None, // Use default prompt
+                pending.app_name,
+                pending.window_title,
+                None,
+                None,
+                pending.history_id,
+                false, // Not skill_mode
+                None,  // Ignore selected text for polish
+            )
+            .await;
+
+        // Paste result if available
+        if let Some(text) = result {
+            crate::clipboard::paste(text, app)?;
+        }
+    }
+
+    Ok(())
+}

@@ -93,6 +93,20 @@ struct ShortcutToggleStates {
 
 type ManagedToggleState = Mutex<ShortcutToggleStates>;
 
+/// State for pending skill confirmation when selected text is present
+#[derive(Default, Clone)]
+pub struct PendingSkillConfirmation {
+    pub skill_id: Option<String>,
+    pub skill_name: Option<String>,
+    pub transcription: Option<String>,
+    pub selected_text: Option<String>,
+    pub app_name: Option<String>,
+    pub window_title: Option<String>,
+    pub history_id: Option<i64>,
+}
+
+pub type ManagedPendingSkillConfirmation = Mutex<PendingSkillConfirmation>;
+
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Initialize the input state (Enigo will be lazily initialized on first use)
     let enigo_state = input::EnigoState::new();
@@ -121,6 +135,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));
+    app_handle.manage(Mutex::new(PendingSkillConfirmation::default()));
 
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
@@ -446,7 +461,9 @@ pub fn run() {
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
             commands::text::optimize_text_with_llm,
-            commands::log_to_console
+            commands::log_to_console,
+            commands::suggest_aliases,
+            commands::confirm_skill
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

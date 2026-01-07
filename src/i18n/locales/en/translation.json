@@ -392,6 +392,9 @@
       "llm": "Post Processing...",
       "recording": "Recording...",
       "transcribing": "Transcribing..."
+    },
+    "skillConfirmation": {
+      "prompt": "Use this skill?"
     }
   },
   "settings": {
@@ -741,6 +744,10 @@
           "transcribe": {
             "description": "Converts your speech into text.",
             "name": "Transcribe"
+          },
+          "invoke_skill": {
+            "description": "Starts recording in Skill mode with intelligent intent routing.",
+            "name": "Invoke Skill"
           }
         },
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
@@ -997,6 +1004,11 @@
         "aliasesLabel": "Aliases",
         "addAlias": "Add alias",
         "alias": "Alias",
+        "suggestAliases": "Suggest Trigger words",
+        "suggestSuccess": "Trigger words suggested successfully",
+        "suggestFailed": "Failed to suggest trigger words",
+        "noSuggestions": "No suggestions found",
+        "descriptionRequired": "A description is required to suggest trigger words",
         "commandPrefixDescription": "Set after saying [prefix][prompt alias] to dynamically trigger the prompt (supports multiple prefixes, separated by \",\")",
         "commandPrefixPlaceholder": "eg: help me, please",
         "commandPrefixTitle": "Voice Command Prefix",

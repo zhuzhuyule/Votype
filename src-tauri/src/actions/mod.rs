@@ -138,7 +138,11 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     let mut map = HashMap::new();
     map.insert(
         "transcribe".to_string(),
-        Arc::new(transcribe::TranscribeAction) as Arc<dyn ShortcutAction>,
+        Arc::new(transcribe::TranscribeAction::new(false)) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "invoke_skill".to_string(),
+        Arc::new(transcribe::TranscribeAction::new(true)) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "cancel".to_string(),

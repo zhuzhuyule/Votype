@@ -19,6 +19,13 @@ type SherpaPartialEvent = {
 };
 type OverlayErrorEvent = { code?: string; message?: string };
 
+// Skill confirmation event payload
+type SkillConfirmationEvent = {
+  skill_id: string;
+  skill_name: string;
+  transcription: string;
+};
+
 const stripTrailingSentencePunctuation = (input: string) => {
   let out = input.trimEnd();
   if (!out) return out;
@@ -66,6 +73,8 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [realtimeIsFinal, setRealtimeIsFinal] = useState<boolean>(false);
   const [errorText, setErrorText] = useState<string>("");
   const [chainedPromptName, setChainedPromptName] = useState<string>("");
+  const [skillConfirmation, setSkillConfirmation] =
+    useState<SkillConfirmationEvent | null>(null);
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OverlayState>(initialState);
@@ -90,6 +99,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       setRealtimeIsFinal(false);
       setErrorText("");
       setChainedPromptName("");
+      setSkillConfirmation(null);
     }
   }, [initialState]);
 
@@ -197,10 +207,19 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           setRealtimeIsFinal(false);
           setErrorText("");
           setChainedPromptName("");
+          setSkillConfirmation(null);
           allowNonFinalRef.current = true;
           finalLockedRef.current = false;
         }
       });
+
+      // Listen for skill confirmation requests (selected text scenario)
+      const unlistenSkillConfirmation = await listen<SkillConfirmationEvent>(
+        "skill-confirmation",
+        (event) => {
+          setSkillConfirmation(event.payload);
+        },
+      );
 
       // Listen for theme changes from localStorage (when main app changes theme)
       const handleStorageChange = (e: StorageEvent) => {
@@ -219,6 +238,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         unlistenSherpaOfflinePartial();
         unlistenPostProcessStatus();
         unlistenStateUpdate();
+        unlistenSkillConfirmation();
         window.removeEventListener("storage", handleStorageChange);
       };
     };
@@ -303,7 +323,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               </Flex>
             </>
           )}
-          {!showRealtimeText && state !== "recording" && (
+          {!showRealtimeText && state !== "recording" && !skillConfirmation && (
             <Flex direction="column" className="status-text" align="center">
               {!showErrorText && (
                 <Text>
@@ -317,6 +337,53 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                   {errorText}
                 </Text>
               )}
+            </Flex>
+          )}
+
+          {/* Skill Confirmation UI */}
+          {skillConfirmation && (
+            <Flex
+              direction="column"
+              className="skill-confirmation"
+              align="center"
+              gap="2"
+            >
+              <Text size="2" style={{ color: "var(--gray-11)" }}>
+                {t("overlay.skillConfirmation.prompt")}
+              </Text>
+              <Text
+                size="3"
+                weight="bold"
+                style={{ color: "var(--accent-11)" }}
+              >
+                {skillConfirmation.skill_name}
+              </Text>
+              <Flex gap="3" mt="2">
+                <Box
+                  className="confirm-button accept"
+                  onClick={() => {
+                    invoke("confirm_skill", {
+                      skillId: skillConfirmation.skill_id,
+                      accepted: true,
+                    });
+                    setSkillConfirmation(null);
+                  }}
+                >
+                  <Text size="1">{t("common.confirm")}</Text>
+                </Box>
+                <Box
+                  className="confirm-button reject"
+                  onClick={() => {
+                    invoke("confirm_skill", {
+                      skillId: skillConfirmation.skill_id,
+                      accepted: false,
+                    });
+                    setSkillConfirmation(null);
+                  }}
+                >
+                  <Text size="1">{t("common.cancel")}</Text>
+                </Box>
+              </Flex>
             </Flex>
           )}
         </Flex>

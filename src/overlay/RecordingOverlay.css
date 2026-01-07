@@ -148,3 +148,40 @@
 .cancel-button:active {
   transform: scale(0.95);
 }
+
+/* Skill Confirmation UI */
+.skill-confirmation {
+  padding: 8px 16px;
+}
+
+.confirm-button {
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+  font-size: 12px;
+}
+
+.confirm-button.accept {
+  background: var(--overlay-accent-color, #4ade80);
+  color: #000;
+}
+
+.confirm-button.accept:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.confirm-button.reject {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.confirm-button.reject:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.02);
+}
+
+.confirm-button:active {
+  transform: scale(0.98);
+}

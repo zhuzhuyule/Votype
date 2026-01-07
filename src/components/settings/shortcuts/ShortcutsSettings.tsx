@@ -21,6 +21,11 @@ export const ShortcutsSettings: React.FC = () => {
           grouped={true}
         />
         <VotypeShortcut
+          shortcutId="invoke_skill"
+          descriptionMode="inline"
+          grouped={true}
+        />
+        <VotypeShortcut
           shortcutId="paste_first_entry"
           descriptionMode="inline"
           grouped={true}

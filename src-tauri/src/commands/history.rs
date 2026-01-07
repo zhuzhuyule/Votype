@@ -236,6 +236,8 @@ pub async fn retranscribe_history_entry(
                 None,
                 None,
                 Some(id),
+                false, // skill_mode
+                None,  // selected_text
             )
             .await;
 

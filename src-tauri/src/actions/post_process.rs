@@ -88,6 +88,19 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
     )
 }
 
+/// Build the system prompt for alias suggestion
+fn build_alias_suggestion_prompt() -> String {
+    "你是一个触发词提取专家。请根据用户提供的功能描述，提取 2-3 个最适合作为语音指令触发词的短语（别名）。\n\
+     要求：\n\
+     1. 极其简洁（通常 2-4 个字，中文优先）。\n\
+     2. 必须是动词或名词短语，能够代表核心操作。\n\
+     3. 返回格式仅为逗号分隔的列表，不要有任何解释、引言或分点。\n\
+     例如：\n\
+     输入：将选中的文本翻译成英文或中文\n\
+     输出：翻译,转译,translate"
+        .to_string()
+}
+
 /// Parse the skill routing response from LLM
 fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
     let cleaned = clean_response_content(content);
@@ -167,6 +180,75 @@ async fn perform_skill_routing(
         );
         Some(route.skill_id)
     }
+}
+
+pub(crate) async fn suggest_aliases(
+    app_handle: &AppHandle,
+    description: &str,
+) -> Result<Vec<String>, String> {
+    let settings = crate::settings::get_settings(app_handle);
+    let provider = settings
+        .active_post_process_provider()
+        .ok_or_else(|| "No active post-process provider".to_string())?;
+
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    let client = crate::llm_client::create_client(provider, api_key)
+        .map_err(|e| format!("Failed to create LLM client: {}", e))?;
+
+    let model = settings
+        .selected_prompt_model_id
+        .clone()
+        .filter(|id| !id.is_empty())
+        .unwrap_or_else(|| settings.selected_model.clone());
+
+    let sys_prompt = build_alias_suggestion_prompt();
+
+    let mut messages = Vec::new();
+    messages.push(ChatCompletionRequestMessage::System(
+        ChatCompletionRequestSystemMessageArgs::default()
+            .content(sys_prompt)
+            .build()
+            .map_err(|e| e.to_string())?,
+    ));
+
+    messages.push(ChatCompletionRequestMessage::User(
+        ChatCompletionRequestUserMessageArgs::default()
+            .content(description.to_string())
+            .build()
+            .map_err(|e| e.to_string())?,
+    ));
+
+    let req = CreateChatCompletionRequestArgs::default()
+        .model(model)
+        .messages(messages)
+        .temperature(0.3)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .chat()
+        .create(req)
+        .await
+        .map_err(|e| format!("LLM request failed: {}", e))?;
+
+    let content = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+        .ok_or_else(|| "Empty response from LLM".to_string())?;
+
+    let aliases: Vec<String> = content
+        .split(&[',', '，'][..])
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    Ok(aliases)
 }
 
 fn extract_json_block(content: &str) -> Option<String> {
@@ -470,79 +552,61 @@ pub async fn execute_llm_request(
     (None, false, None, None)
 }
 
-// Helper to find the longest matching candidate with boundary checks, ignoring spaces
-fn find_best_match(text: &str, candidates: &[String]) -> Option<(String, usize)> {
+/// Finds the best prefix match from candidates at the START of text.
+/// Returns (matched_candidate, matched_char_count_in_original) if found.
+///
+/// Matching logic:
+/// 1. Normalize alias: keep only alphanumeric chars, convert to lowercase
+/// 2. Normalize ASR text: take first ~15 chars, keep only alphanumeric, convert to lowercase
+/// 3. If normalized text starts with normalized alias, it's a match
+fn find_prefix_match(text: &str, candidates: &[String]) -> Option<(String, usize)> {
+    // Helper to normalize text: keep only alphanumeric characters (including CJK)
+    fn normalize(s: &str) -> String {
+        s.chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(|c| c.to_lowercase())
+            .collect()
+    }
+
+    // Extract first ~15 chars from original text for prefix matching
+    let prefix_chars: String = text.chars().take(15).collect();
+    let normalized_prefix = normalize(&prefix_chars);
+
     let mut best_match: Option<(String, usize)> = None;
+    let mut best_normalized_len = 0;
 
     for candidate in candidates {
-        let candidate_lower = candidate.trim().to_lowercase();
-        if candidate_lower.is_empty() {
+        let normalized_candidate = normalize(candidate);
+        if normalized_candidate.is_empty() {
             continue;
         }
 
-        let mut text_chars = text.char_indices();
-        let mut cand_chars = candidate_lower.chars();
+        // Check if normalized prefix starts with normalized candidate
+        if normalized_prefix.starts_with(&normalized_candidate) {
+            // Calculate how many original chars were consumed
+            let mut consumed_normalized = 0;
+            let mut original_char_count = 0;
 
-        let mut matched = true;
-        let mut text_match_end_idx = 0;
-        let mut last_cand_char = None;
-
-        let mut c_char_opt = cand_chars.next();
-
-        while let Some(c_char) = c_char_opt {
-            if c_char.is_whitespace() {
-                c_char_opt = cand_chars.next();
-                continue;
-            }
-            last_cand_char = Some(c_char);
-
-            let mut found_char = false;
-            while let Some((idx, t_char)) = text_chars.next() {
-                if t_char.is_whitespace() {
-                    continue;
-                }
-                if t_char == c_char {
-                    found_char = true;
-                    text_match_end_idx = idx + t_char.len_utf8();
-                    break;
-                } else {
-                    matched = false;
+            for c in text.chars() {
+                if consumed_normalized >= normalized_candidate.chars().count() {
                     break;
                 }
+                original_char_count += 1;
+
+                // Only count alphanumeric chars
+                if c.is_alphanumeric() {
+                    consumed_normalized += 1;
+                }
             }
 
-            if !found_char || !matched {
-                matched = false;
-                break;
-            }
-            c_char_opt = cand_chars.next();
-        }
-
-        if matched {
-            let ends_with_latin = last_cand_char.map_or(false, |c| c.is_ascii_alphanumeric());
-
-            let is_boundary_ok = if !ends_with_latin {
-                true
-            } else if text_match_end_idx == text.len() {
-                true
-            } else {
-                let next_char = text[text_match_end_idx..].chars().next();
-                match next_char {
-                    Some(c) => !c.is_ascii_alphanumeric(),
-                    None => true,
-                }
-            };
-
-            if is_boundary_ok {
-                if best_match
-                    .as_ref()
-                    .map_or(true, |(_, len)| text_match_end_idx > *len)
-                {
-                    best_match = Some((candidate.clone(), text_match_end_idx));
-                }
+            // Prefer longer alias matches
+            if normalized_candidate.chars().count() > best_normalized_len {
+                best_normalized_len = normalized_candidate.chars().count();
+                best_match = Some((candidate.clone(), original_char_count));
             }
         }
     }
+
     best_match
 }
 
@@ -557,9 +621,7 @@ fn resolve_prompt_from_text<'a>(
         return (p, text.to_string(), false);
     }
 
-    let content_lower = content_original_trimmed.to_lowercase();
-
-    // 1. Try matching prompt directly from the ORIGINAL text
+    // 1. Try PREFIX matching only - alias must be at the START of text
     for p in &settings.post_process_prompts {
         let mut triggers = Vec::new();
         if let Some(alias_str) = &p.aliases {
@@ -571,16 +633,17 @@ fn resolve_prompt_from_text<'a>(
         }
         triggers.push(p.name.clone());
 
-        if let Some((_, len)) = find_best_match(&content_lower, &triggers) {
-            let char_count = content_lower[..len].chars().count();
-
-            let byte_offset_in_trimmed = content_original_trimmed
+        // Only match if text STARTS with the alias
+        if let Some((_, char_count)) = find_prefix_match(content_original_trimmed, &triggers) {
+            // Convert char count to byte offset for UTF-8 safe slicing
+            let byte_offset = content_original_trimmed
                 .char_indices()
                 .nth(char_count)
                 .map(|(i, _)| i)
                 .unwrap_or(content_original_trimmed.len());
 
-            let final_content = content_original_trimmed[byte_offset_in_trimmed..]
+            // Strip the command/alias from the beginning
+            let final_content = content_original_trimmed[byte_offset..]
                 .trim_start_matches(|c: char| {
                     c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
                 })
@@ -590,7 +653,7 @@ fn resolve_prompt_from_text<'a>(
         }
     }
 
-    // 2. Fallback: Use full text and default prompt
+    // 2. Fallback: Use full text and default prompt (polish mode)
     let p = get_default_prompt(settings, override_prompt_id);
     (p, text.to_string(), false)
 }
@@ -624,6 +687,8 @@ pub(crate) async fn maybe_post_process_transcription(
     match_pattern: Option<String>,
     match_type: Option<crate::settings::TitleMatchType>,
     history_id: Option<i64>,
+    skill_mode: bool,
+    selected_text: Option<String>,
 ) -> (
     Option<String>,
     Option<String>,
@@ -645,8 +710,19 @@ pub(crate) async fn maybe_post_process_transcription(
         resolve_prompt_from_text(transcription, settings, override_prompt_id.as_deref());
 
     // --- Smart Routing Phase ---
-    // If no explicit match and not overridden, try routing via LLM
-    if !is_explicit && override_prompt_id.is_none() && !transcription.trim().is_empty() {
+    // Only perform LLM-based routing if skill_mode is enabled (dedicated shortcut pressed - Mode B)
+    // For selected text (Mode C), we need user confirmation before executing skills
+    let has_selected_text = selected_text
+        .as_ref()
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false);
+
+    // Mode B: Skill shortcut pressed - do LLM routing and execute
+    if skill_mode
+        && !is_explicit
+        && override_prompt_id.is_none()
+        && !transcription.trim().is_empty()
+    {
         if let Some(p) = initial_prompt_opt {
             if let Some(m) = resolve_effective_model(settings, provider, p) {
                 if let Some(skill_id) =
@@ -675,6 +751,77 @@ pub(crate) async fn maybe_post_process_transcription(
         }
     }
 
+    // Mode C: Selected text - do LLM routing and require user confirmation
+    // If a skill is matched, emit confirmation event and return early
+    if has_selected_text
+        && !skill_mode
+        && !is_explicit
+        && override_prompt_id.is_none()
+        && !transcription.trim().is_empty()
+    {
+        if let Some(p) = initial_prompt_opt {
+            if let Some(m) = resolve_effective_model(settings, provider, p) {
+                if let Some(skill_id) =
+                    perform_skill_routing(app_handle, settings, provider, &m, transcription).await
+                {
+                    if let Some(routed_prompt) = settings
+                        .post_process_prompts
+                        .iter()
+                        .find(|p| p.id == skill_id)
+                    {
+                        info!(
+                            "[PostProcess] Selected text mode - found skill \"{}\", requesting confirmation",
+                            routed_prompt.name
+                        );
+
+                        // Save pending confirmation state
+                        use tauri::Manager;
+                        if let Some(pending_state) =
+                            app_handle.try_state::<crate::ManagedPendingSkillConfirmation>()
+                        {
+                            if let Ok(mut guard) = pending_state.lock() {
+                                *guard = crate::PendingSkillConfirmation {
+                                    skill_id: Some(skill_id.clone()),
+                                    skill_name: Some(routed_prompt.name.clone()),
+                                    transcription: Some(transcription.to_string()),
+                                    selected_text: selected_text.clone(),
+                                    app_name: None, // Will be set by caller if needed
+                                    window_title: None,
+                                    history_id,
+                                };
+                            }
+                        }
+
+                        // Emit confirmation event to frontend
+                        #[derive(serde::Serialize, Clone)]
+                        struct SkillConfirmationPayload {
+                            skill_id: String,
+                            skill_name: String,
+                            transcription: String,
+                        }
+
+                        app_handle
+                            .emit(
+                                "skill-confirmation",
+                                SkillConfirmationPayload {
+                                    skill_id: skill_id.clone(),
+                                    skill_name: routed_prompt.name.clone(),
+                                    transcription: transcription.to_string(),
+                                },
+                            )
+                            .ok();
+
+                        // Return early - actual processing will happen after user confirmation
+                        return (None, None, None, false, None, None);
+                    }
+                }
+            }
+        }
+
+        // No skill matched - continue with default polish
+        info!("[PostProcess] Selected text mode - no skill matched, using default polish");
+    }
+
     let initial_prompt = match initial_prompt_opt {
         Some(p) => p,
         None => return (None, None, None, false, None, None),
@@ -685,6 +832,10 @@ pub(crate) async fn maybe_post_process_transcription(
     let mut current_transcription = transcription.to_string();
     let mut chain_depth = 0;
     const MAX_CHAIN_DEPTH: usize = 2;
+
+    // Track if first iteration used default prompt (non-explicit match)
+    // Chain calls should ONLY happen after default prompt processing
+    let was_default_prompt = !is_explicit;
 
     let mut final_result = None;
     let mut last_model = None;
@@ -755,9 +906,10 @@ pub(crate) async fn maybe_post_process_transcription(
 
         // Add selected text if referenced
         if has_select_ref {
-            let text = crate::clipboard::get_selected_text(app_handle).unwrap_or_default();
-            if !text.is_empty() {
-                input_data_parts.push(format!("```select\n{}\n```", text));
+            if let Some(text) = &selected_text {
+                if !text.is_empty() {
+                    input_data_parts.push(format!("```select\n{}\n```", text));
+                }
             }
         }
 
@@ -926,9 +1078,14 @@ pub(crate) async fn maybe_post_process_transcription(
                 resolve_prompt_from_text(result_text, settings, None);
 
             if let Some(next_prompt) = next_prompt_opt {
-                // Only chain if we matched a DIFFERENT prompt through an EXPLICIT alias/prefix
-                // This ensures we only trigger the second call if the first output actually requested another action.
+                // Only chain if:
+                // 1. We matched a DIFFERENT prompt through an EXPLICIT alias/prefix
+                // 2. The first prompt was the DEFAULT prompt (non-explicit match)
+                // This ensures chain calls only happen after ASR -> polish -> result matches alias
+                // NOT after translation -> result happens to start with alias
                 if is_explicit_match
+                    && was_default_prompt
+                    && chain_depth == 1
                     && next_prompt.id != current_prompt.id
                     && !next_prompt.id.is_empty()
                 {

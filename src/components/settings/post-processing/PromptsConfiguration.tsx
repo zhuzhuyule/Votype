@@ -18,6 +18,7 @@ import {
   IconChevronDown,
   IconDeviceFloppy,
   IconPlus,
+  IconSparkles,
   IconStar,
   IconTrash,
 } from "@tabler/icons-react";
@@ -74,6 +75,8 @@ const PromptsConfiguration: React.FC = () => {
 
     draftOutputMode,
     setDraftOutputMode,
+    isSuggestingAliases,
+    handleSuggestAliases,
   } = usePrompts();
 
   // Helper to handle adding a new prompt
@@ -295,9 +298,24 @@ const PromptsConfiguration: React.FC = () => {
 
                     {/* Alias Input Row - Always Visible */}
                     <Flex align="center" gap="2">
-                      <Text size="1" className="text-gray-400 shrink-0">
-                        {t("settings.postProcessing.prompts.alias")}
-                      </Text>
+                      <Flex align="center" gap="1" className="shrink-0">
+                        <Text size="1" className="text-gray-400">
+                          {t("settings.postProcessing.prompts.alias")}
+                        </Text>
+                        <IconButton
+                          variant="ghost"
+                          color="indigo"
+                          size="1"
+                          onClick={handleSuggestAliases}
+                          loading={isSuggestingAliases}
+                          className="cursor-pointer opacity-40 hover:opacity-100"
+                          title={t(
+                            "settings.postProcessing.prompts.suggestAliases",
+                          )}
+                        >
+                          <IconSparkles size={12} />
+                        </IconButton>
+                      </Flex>
                       <Box className="flex-1">
                         <TagInput
                           tags={currentAliases}
@@ -321,26 +339,27 @@ const PromptsConfiguration: React.FC = () => {
                       </Box>
                     </Flex>
 
+                    {/* Description - Always Visible as it's a core Skill attribute */}
+                    <Flex align="center" gap="2">
+                      <Text size="1" className="text-gray-400 shrink-0">
+                        {t("settings.postProcessing.prompts.description")}
+                      </Text>
+                      <TextField.Root
+                        size="1"
+                        className="flex-1 bg-transparent! border-0! shadow-none! opacity-70 focus-within:opacity-100 transition-opacity"
+                        placeholder={t(
+                          "settings.postProcessing.prompts.descriptionPlaceholder",
+                        )}
+                        value={draftDescription}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setDraftDescription(e.target.value)
+                        }
+                      />
+                    </Flex>
+
                     {/* Collapsible Advanced Settings - No Card, inline flow */}
                     {showAdvanced && (
                       <Flex direction="column" gap="3" className="pt-2">
-                        {/* Description - Full Width */}
-                        <Box>
-                          <label className="text-xs font-medium text-gray-500 mb-1 block">
-                            {t("settings.postProcessing.prompts.description")}
-                          </label>
-                          <TextField.Root
-                            size="2"
-                            placeholder={t(
-                              "settings.postProcessing.prompts.descriptionPlaceholder",
-                            )}
-                            value={draftDescription}
-                            onChange={(
-                              e: React.ChangeEvent<HTMLInputElement>,
-                            ) => setDraftDescription(e.target.value)}
-                          />
-                        </Box>
-
                         <Grid columns="2" gap="4">
                           {/* 1. Model */}
                           <Box>
