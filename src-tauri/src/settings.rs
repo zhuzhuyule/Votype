@@ -209,7 +209,7 @@ pub type PromptOutputMode = SkillOutputMode;
 
 impl Default for SkillOutputMode {
     fn default() -> Self {
-        SkillOutputMode::Polish
+        SkillOutputMode::Chat
     }
 }
 
