@@ -24,7 +24,6 @@ type SkillConfirmationEvent = {
   skill_id: string;
   skill_name: string;
   transcription: string;
-  extracted_instruction?: string;
   polish_result?: string;
 };
 

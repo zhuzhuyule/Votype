@@ -105,8 +105,6 @@ pub struct PendingSkillConfirmation {
     pub history_id: Option<i64>,
     /// Process ID of the original window for focus restoration
     pub process_id: Option<u64>,
-    /// Extracted user instruction from intent detection (e.g., "翻译成英文")
-    pub extracted_instruction: Option<String>,
     /// Cached polish result from parallel request
     pub polish_result: Option<String>,
     /// Whether the confirmation UI is visible in the frontend

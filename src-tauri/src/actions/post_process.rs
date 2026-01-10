@@ -10,7 +10,7 @@ use async_openai::types::{
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{debug, error, info};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
 
@@ -43,16 +43,13 @@ struct LlmReviewResponse {
 }
 
 /// Response from LLM for skill routing intent recognition
-#[derive(Deserialize, Debug, Clone)]
-struct SkillRouteResponse {
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct SkillRouteResponse {
     /// The skill_id to use, or "default" for default processing
     pub skill_id: String,
     /// Confidence score (0-100) of the routing decision
     #[serde(default)]
-    pub confidence: Option<u8>,
-    /// Extracted user instruction/intent describing what the skill should do
-    #[serde(default)]
-    pub instruction: Option<String>,
+    pub confidence: Option<i32>,
 }
 
 /// Build the system prompt for skill routing
@@ -110,7 +107,7 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
 
 ## 输出格式
 严格返回 JSON，不要有任何其他内容：
-{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数, "instruction": "提取用户想要执行的具体操作，如'翻译成英文'或'总结成三点'（如果skill_id为default则留空）"}}"#,
+{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数}}"#,
         skill_list = skill_list
     )
 }
@@ -144,7 +141,7 @@ fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
 }
 
 /// Perform asynchronous skill routing using LLM
-/// Returns the full routing response including skill_id, confidence, and extracted instruction
+/// Returns the full routing response including skill_id and confidence
 async fn perform_skill_routing(
     _app_handle: &AppHandle,
     api_key: String,
@@ -234,8 +231,8 @@ async fn perform_skill_routing(
         None
     } else {
         info!(
-            "[SkillRouter] Routed to skill: {} (Confidence: {:?}, Instruction: {:?})",
-            route.skill_id, route.confidence, route.instruction
+            "[SkillRouter] Routed to skill: {} (Confidence: {:?})",
+            route.skill_id, route.confidence
         );
         Some(route)
     }
@@ -983,7 +980,6 @@ pub(crate) async fn maybe_post_process_transcription(
 
                 if let Some(route_response) = intent_result {
                     let skill_id = &route_response.skill_id;
-                    let extracted_instruction = route_response.instruction.clone();
 
                     if let Some(routed_prompt) = all_prompts.iter().find(|p| &p.id == skill_id) {
                         // [DEBUG] Log selected text content before showing confirmation
@@ -1010,8 +1006,8 @@ pub(crate) async fn maybe_post_process_transcription(
                         }
 
                         info!(
-                            "[PostProcess] Selected text mode - found skill \"{}\", instruction: {:?}, polish_available: {}, requesting confirmation",
-                            routed_prompt.name, extracted_instruction, polish_ok
+                            "[PostProcess] Selected text mode - found skill \"{}\", polish_available: {}, requesting confirmation",
+                            routed_prompt.name, polish_ok
                         );
 
                         // Save pending confirmation state with cached polish result (may be None if failed)
@@ -1034,7 +1030,6 @@ pub(crate) async fn maybe_post_process_transcription(
                                     window_title: None,
                                     history_id,
                                     process_id: active_pid,
-                                    extracted_instruction: extracted_instruction.clone(),
                                     polish_result: polish_result.clone(), // May be None if parallel polish failed!
                                     is_ui_visible: false,
                                 };
@@ -1047,7 +1042,6 @@ pub(crate) async fn maybe_post_process_transcription(
                             skill_id: String,
                             skill_name: String,
                             transcription: String,
-                            extracted_instruction: Option<String>,
                             polish_result: Option<String>,
                         }
 
@@ -1058,7 +1052,6 @@ pub(crate) async fn maybe_post_process_transcription(
                                     skill_id: skill_id.clone(),
                                     skill_name: routed_prompt.name.clone(),
                                     transcription: transcription.to_string(),
-                                    extracted_instruction,
                                     polish_result, // Frontend should handle None case (show loading or N/A)
                                 },
                             )
