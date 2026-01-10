@@ -216,22 +216,17 @@ fn maybe_restore_activation_policy(app_handle: &AppHandle) {
     }
 }
 
-fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
-    let cursor = fetch_cursor_position().ok();
-    let monitors = window.available_monitors().ok().unwrap_or_default();
-
-    if let Some(cursor) = cursor {
-        if let Some(monitor) = find_monitor_for_cursor(&monitors, cursor.x, cursor.y) {
-            let scale = monitor.scale_factor();
-            let position = monitor.position();
-            let monitor_size = monitor.size();
-            // Center the window on the monitor where the cursor is located
-            let monitor_width = monitor_size.width as f64 / scale;
-            let monitor_height = monitor_size.height as f64 / scale;
-            let x = (monitor_width - width) / 2.0 + position.x as f64 / scale;
-            let y = (monitor_height - height) / 2.0 + position.y as f64 / scale;
-            let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
-        }
+fn position_window_on_primary_monitor(window: &tauri::WebviewWindow, width: f64, height: f64) {
+    // Always center on the primary monitor, regardless of cursor position
+    if let Some(monitor) = window.primary_monitor().ok().flatten() {
+        let scale = monitor.scale_factor();
+        let position = monitor.position();
+        let monitor_size = monitor.size();
+        let monitor_width = monitor_size.width as f64 / scale;
+        let monitor_height = monitor_size.height as f64 / scale;
+        let x = (monitor_width - width) / 2.0 + position.x as f64 / scale;
+        let y = (monitor_height - height) / 2.0 + position.y as f64 / scale;
+        let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
     }
 }
 
@@ -336,7 +331,7 @@ pub fn show_review_window(
         let width = estimate_window_width(&source_for_layout, &final_for_layout);
         let height = estimate_window_height(&source_for_layout, &final_for_layout, width);
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
-        position_window_near_cursor(&review_window, width, height);
+        position_window_on_primary_monitor(&review_window, width, height);
 
         // Emit event to frontend to start rendering content
         // The actual show() will be called when frontend reports content ready

@@ -50,6 +50,13 @@ pub struct SkillRouteResponse {
     /// Confidence score (0-100) of the routing decision
     #[serde(default)]
     pub confidence: Option<i32>,
+    /// Input source: "select" (use selected text), "output" (use full transcription),
+    /// "extract" (use extracted content)
+    #[serde(default)]
+    pub input_source: Option<String>,
+    /// Extracted/refined content from user's speech (only when input_source is "extract")
+    #[serde(default)]
+    pub extracted_content: Option<String>,
 }
 
 /// Build the system prompt for skill routing
