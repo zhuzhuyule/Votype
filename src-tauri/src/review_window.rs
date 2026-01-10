@@ -330,27 +330,24 @@ pub fn show_review_window(
     }
 
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
-        debug!("Found review_window, emitting event and showing...");
+        debug!("Found review_window, setting size/position and emitting event...");
 
-        let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
+        // Pre-calculate and set window size/position (but don't show yet)
         let width = estimate_window_width(&source_for_layout, &final_for_layout);
         let height = estimate_window_height(&source_for_layout, &final_for_layout, width);
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
         position_window_near_cursor(&review_window, width, height);
 
-        let show_result = review_window.show();
-        debug!("review_window.show() result: {:?}", show_result);
-        let focus_result = review_window.set_focus();
-        debug!("review_window.set_focus() result: {:?}", focus_result);
-        schedule_focus_review_window(app_handle.clone(), focus_token);
-        schedule_hide_windows(app_handle.clone());
-
+        // Emit event to frontend to start rendering content
+        // The actual show() will be called when frontend reports content ready
         if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
             if emit_review_payload(app_handle, payload) {
                 let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
                 *pending = None;
             }
         }
+
+        schedule_hide_windows(app_handle.clone());
     }
 }
 
@@ -387,6 +384,24 @@ pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
             let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
             *pending = None;
         }
+    }
+
+    Ok(())
+}
+
+/// Called by frontend when content is rendered and ready to be shown
+#[tauri::command]
+pub fn review_window_content_ready(app: AppHandle) -> Result<(), String> {
+    log::info!("review_window_content_ready received");
+
+    if let Some(review_window) = app.get_webview_window("review_window") {
+        let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
+
+        let show_result = review_window.show();
+        debug!("review_window.show() result: {:?}", show_result);
+        let focus_result = review_window.set_focus();
+        debug!("review_window.set_focus() result: {:?}", focus_result);
+        schedule_focus_review_window(app.clone(), focus_token);
     }
 
     Ok(())

@@ -403,6 +403,7 @@ pub fn run() {
             shortcut::confirm_reviewed_transcription,
             shortcut::cancel_transcription_review,
             review_window::review_window_ready,
+            review_window::review_window_content_ready,
             shortcut::test_post_process_model_inference,
             shortcut::test_asr_model_inference,
             trigger_update_check,
