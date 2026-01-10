@@ -117,7 +117,7 @@ export const LLMPromptSchema = z.object({
   source: SkillSourceSchema.default("builtin"),
   compliance_check_enabled: z.boolean().default(false),
   compliance_threshold: z.number().optional().default(20),
-  output_mode: PromptOutputModeSchema.default("polish"),
+  output_mode: PromptOutputModeSchema.default("chat"),
   enabled: z.boolean().default(true),
   // Keep legacy fields for a bit of safety during transition if any code still uses them
   prompt: z.string().optional(),

@@ -600,6 +600,8 @@ pub fn add_post_process_prompt(
         compliance_threshold: Some(compliance_threshold.unwrap_or(20)),
         output_mode: output_mode.unwrap_or_default(),
         enabled: enabled.unwrap_or(true),
+        customized: true, // User-created skills are always customized
+        file_path: None,  // User-created skills don't have a file
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
@@ -635,6 +637,9 @@ pub fn update_post_process_prompt(
         .iter_mut()
         .find(|p| p.id == id)
     {
+        // Mark as customized (user has edited this skill)
+        existing_prompt.customized = true;
+
         existing_prompt.name = name;
         existing_prompt.instructions = instructions;
         existing_prompt.model_id = model_id;
@@ -658,10 +663,28 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
 
     // Don't allow deleting the last prompt
     if settings.post_process_prompts.len() <= 1 {
-        return Err("Cannot delete the last prompt".to_string());
+        return Err("Cannot delete of last prompt".to_string());
     }
 
-    // Find and remove the prompt
+    // Check if prompt exists
+    let prompt_exists = settings.post_process_prompts.iter().any(|p| p.id == id);
+    if !prompt_exists {
+        return Err(format!("Prompt with id '{}' not found", id));
+    }
+
+    // Try to delete external file from disk
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    if let Some(file_path) = skill_manager.find_skill_file_path(&id) {
+        if file_path.exists() {
+            log::info!("Deleting external skill file: {:?}", file_path);
+            match std::fs::remove_file(&file_path) {
+                Ok(()) => log::info!("Successfully deleted file: {:?}", file_path),
+                Err(e) => log::warn!("Failed to delete file {:?}: {}", file_path, e),
+            }
+        }
+    }
+
+    // Remove prompt from settings
     let original_len = settings.post_process_prompts.len();
     settings.post_process_prompts.retain(|p| p.id != id);
 
@@ -669,7 +692,7 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
         return Err(format!("Prompt with id '{}' not found", id));
     }
 
-    // If the deleted prompt was selected, select the first one or None
+    // If deleted prompt was selected, select the first one or None
     if settings.post_process_selected_prompt_id.as_ref() == Some(&id) {
         settings.post_process_selected_prompt_id =
             settings.post_process_prompts.first().map(|p| p.id.clone());
@@ -799,6 +822,198 @@ pub fn open_skills_folder(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn refresh_external_skills(app: AppHandle) -> Vec<Skill> {
     get_external_skills(app)
+}
+
+/// Reset skill to file version
+#[tauri::command]
+pub fn reset_skill_to_file_version(app: AppHandle, skill_id: String) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+
+    // Find file path
+    let file_path = skill_manager
+        .find_skill_file_path(&skill_id)
+        .ok_or_else(|| format!("Skill '{}' file not found", skill_id))?;
+
+    // Determine source from file path
+    let source = if file_path.to_string_lossy().contains("/user/") {
+        settings::SkillSource::User
+    } else {
+        settings::SkillSource::Imported
+    };
+
+    // Load from file
+    let file_skill = skill_manager
+        .load_skill_from_path(&file_path, source)
+        .ok_or_else(|| format!("Failed to load skill from file"))?;
+
+    // Update settings
+    let mut settings = settings::get_settings(&app);
+    if let Some(existing) = settings
+        .post_process_prompts
+        .iter_mut()
+        .find(|p| p.id == skill_id)
+    {
+        // Reset customized to false
+        *existing = file_skill;
+        existing.customized = false;
+        settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        Err(format!("Skill '{}' not found in settings", skill_id))
+    }
+}
+
+/// Open skill source file in system editor
+#[tauri::command]
+pub fn open_skill_source_file(app: AppHandle, skill_id: String) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = skill_manager
+        .find_skill_file_path(&skill_id)
+        .ok_or_else(|| format!("Skill '{}' file not found", skill_id))?;
+
+    app.opener()
+        .open_path(file_path.to_string_lossy().to_string(), None::<String>)
+        .map_err(|e| e.to_string())
+}
+
+/// AI generate skill instructions
+#[tauri::command]
+pub async fn ai_generate_skill(
+    app: AppHandle,
+    name: String,
+    description: String,
+    output_mode: String,
+) -> Result<String, String> {
+    use crate::llm_client::create_client;
+    use async_openai::types::{
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    };
+
+    let settings = settings::get_settings(&app);
+
+    // Get text provider
+    let provider = settings
+        .active_post_process_provider()
+        .ok_or("No text provider configured")?;
+
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    let client = create_client(&provider, api_key).map_err(|e| e.to_string())?;
+
+    // Get model ID
+    let model_id = settings
+        .post_process_models
+        .get(&provider.id)
+        .cloned()
+        .filter(|id| !id.trim().is_empty())
+        .or_else(|| {
+            settings
+                .cached_models
+                .iter()
+                .find(|m| m.provider_id == provider.id && m.model_type == settings::ModelType::Text)
+                .map(|m| m.model_id.clone())
+        })
+        .ok_or_else(|| format!("No model found for provider {}", provider.id))?;
+
+    // Build prompt
+    let prompt = format!(
+        r#"You are a professional Prompt Engineer. Generate a high-quality AI Skill instruction based on the information provided.
+
+## Skill Name
+{}
+
+## Function Description
+{}
+
+## Output Mode
+{}
+
+## Requirements
+1. The instruction should be clear, professional, and easy to understand
+2. Include role definition, task description, input variable description, and output format
+3. Design appropriate output format based on "output mode" ({}):
+   - polish mode: Return JSON format {{"text": "...", "confidence": 0-100, "reason": "..."}}
+   - chat mode: Return processed text content directly
+4. Use Markdown format with variable placeholders:
+   - ${{output}}: Final recognized text (command prefix and aliases removed)
+   - ${{raw_input}}: Complete original transcription text (including command prefix and aliases)
+   - ${{select}}: Selected text content
+   - ${{streaming_output}}: Intermediate text during real-time transcription
+   - ${{hot_words}}: Custom vocabulary/hot words
+   - ${{context}}: Historical chat context
+   - ${{app_name}}: Current application name
+   - ${{window_title}}: Current window title
+   - ${{time}}: Current time
+5. Return ONLY the instruction content, without any explanation, preface, or suffix"#,
+        name, description, output_mode, output_mode
+    );
+
+    // Call LLM
+    let mut messages = Vec::new();
+
+    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+        .content("You are a helpful prompt engineering assistant.")
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::System(sys_msg));
+    }
+
+    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(prompt)
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
+
+    let request = CreateChatCompletionRequestArgs::default()
+        .model(model_id)
+        .messages(messages)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .chat()
+        .create(request)
+        .await
+        .map_err(|e| format!("LLM request failed: {}", e))?;
+
+    let content = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+        .ok_or("No response from LLM")?;
+
+    Ok(content)
+}
+
+/// Check if skill ID conflicts with existing skills
+#[tauri::command]
+pub fn check_skill_id_conflict(
+    app: AppHandle,
+    skill_id: String,
+    is_external: bool,
+) -> Result<bool, String> {
+    let settings = settings::get_settings(&app);
+
+    if is_external {
+        // External skill checks for conflict with builtin skills
+        let conflict = settings
+            .post_process_prompts
+            .iter()
+            .any(|p| p.id == skill_id && p.source == settings::SkillSource::Builtin);
+        Ok(conflict)
+    } else {
+        // Builtin skill checks for conflict with external skills
+        let skill_manager = crate::managers::skill::SkillManager::new(&app);
+        let external_skills = skill_manager.load_all_external_skills();
+        let conflict = external_skills.iter().any(|s| s.id == skill_id);
+        Ok(conflict)
+    }
 }
 
 #[tauri::command]

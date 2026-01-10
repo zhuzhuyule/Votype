@@ -842,16 +842,43 @@ pub(crate) async fn maybe_post_process_transcription(
     let skill_manager = crate::managers::skill::SkillManager::new(app_handle);
     let external_skills = skill_manager.load_all_external_skills();
 
-    // Merge skills: User defined (settings) + External
-    // Convert Settings-LLMPrompt (reference?) to strict LLMPrompt.
-    // settings.post_process_prompts is Vec<LLMPrompt>.
+    // Merge skills with same logic as merge_external_skills:
+    // - Builtin skills take priority over external skills with same ID
+    // - Customized skills (customized=true) are not overwritten by file versions
     let mut all_prompts = settings.post_process_prompts.clone();
-    all_prompts.extend(external_skills);
 
-    // Filter out duplicates based on ID?
-    // For now we assume IDs are unique enough (external use "ext_" prefix).
-    // If user overrides an ID, the first one (from user settings) usually appearing first in iteration "wins" if we use find.
-    // But here we are appending, so user settings come first.
+    for mut file_skill in external_skills {
+        // Skip if ID conflicts with builtin skill
+        if all_prompts
+            .iter()
+            .any(|p| p.id == file_skill.id && p.source == crate::settings::SkillSource::Builtin)
+        {
+            continue;
+        }
+
+        if let Some(existing) = all_prompts.iter().find(|p| p.id == file_skill.id) {
+            // Keep user's customized version
+            if existing.customized {
+                continue;
+            }
+
+            // Update with file version while preserving customized state
+            let pos = all_prompts
+                .iter()
+                .position(|p| p.id == file_skill.id)
+                .unwrap();
+            let was_customized = all_prompts[pos].customized;
+            let old_file_path = all_prompts[pos].file_path.clone();
+
+            all_prompts[pos] = file_skill;
+            all_prompts[pos].customized = was_customized;
+            all_prompts[pos].file_path = old_file_path;
+        } else {
+            // New skill, add it
+            file_skill.customized = false;
+            all_prompts.push(file_skill);
+        }
+    }
 
     // Resolve default prompt from the combined list
     let default_prompt = get_default_prompt(
