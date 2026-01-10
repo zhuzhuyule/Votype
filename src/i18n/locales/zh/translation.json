@@ -1050,6 +1050,7 @@
         "deleteSuccess": "提示词删除成功",
         "editPrompt": "编辑提示词",
         "enableReview": "启用审查触发",
+        "enabledToggle": "启用/禁用此技能",
         "generationDescription": "基于识别文本作为提示生成新内容（例如翻译、摘要）。",
         "newPromptName": "新提示词",
         "noAliases": "暂无别名",
@@ -1085,6 +1086,19 @@
         "varPromptDesc": "当前正在使用的提示词方案的显示名称。",
         "varContextDesc": "当前活动窗口的历史聊天记录信息。",
         "jsonHint": "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。"
+      },
+      "skills": {
+        "quickCommands": "快捷指令",
+        "advancedSkills": "高级 Skills",
+        "openFolder": "打开文件夹",
+        "refresh": "刷新",
+        "noExternalSkills": "未找到外部 Skills",
+        "createHint": "在 ~/.votype/skills/ 中创建 .md 文件以添加自定义 Skills",
+        "sourceFile": "文件",
+        "sourceUser": "用户",
+        "sourceBuiltin": "内置",
+        "enabledInFile": "此 Skill 始终启用（在文件中配置）",
+        "helpText": "在 skills 文件夹中创建带有 YAML frontmatter 的 .md 文件，它们将被自动加载并可供使用。"
       },
       "title": "后期处理"
     },

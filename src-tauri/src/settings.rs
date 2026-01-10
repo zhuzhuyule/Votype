@@ -66,6 +66,13 @@ pub struct Skill {
     pub compliance_threshold: Option<u8>,
     #[serde(default)]
     pub output_mode: SkillOutputMode,
+    /// Whether this skill is enabled (default: true)
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Backward compatibility: LLMPrompt is now an alias for Skill
@@ -626,6 +633,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
             output_mode: Default::default(),
+            enabled: true,
         },
         LLMPrompt {
             id: "system_default_correction".to_string(),
@@ -640,6 +648,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_check_enabled: true,
             compliance_threshold: Some(20),
             output_mode: SkillOutputMode::Polish,
+            enabled: true,
         },
         LLMPrompt {
             id: "system_default_ai_chat".to_string(),
@@ -654,6 +663,81 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
             output_mode: SkillOutputMode::Chat,
+            enabled: true,
+        },
+        // Preset: Translation
+        LLMPrompt {
+            id: "system_preset_translate".to_string(),
+            name: "翻译".to_string(),
+            description: "将文本翻译成目标语言。当用户说\"翻译\"、\"译成\"、\"translate\"时使用。".to_string(),
+            instructions: r#"# 智能翻译专家
+
+你是一位专业翻译，擅长多语言互译。
+
+## 输入
+- `${output}`：需要翻译的文本
+- `${raw_input}`：用户原始指令（可能包含目标语言信息）
+
+## 任务
+1. 分析用户指令确定目标语言（如未指定，中文译英文、英文译中文）
+2. 执行高质量翻译
+
+## 翻译原则
+- 保持原文的语气、风格和专业术语
+- 代码、变量名、专有名词保持原样
+- 使用自然流畅的目标语言表达
+
+## 输出
+仅输出翻译结果，不要任何解释或额外内容。"#.to_string(),
+            model_id: None,
+            aliases: Some("翻译,译成,translate,翻成".to_string()),
+            icon: Some("IconLanguage".to_string()),
+            skill_type: SkillType::Text,
+            source: SkillSource::Builtin,
+            compliance_check_enabled: false,
+            compliance_threshold: Some(20),
+            output_mode: SkillOutputMode::Chat,
+            enabled: true,
+        },
+        // Preset: Summary
+        LLMPrompt {
+            id: "system_preset_summary".to_string(),
+            name: "总结".to_string(),
+            description: "总结和提炼文本要点。当用户说\"总结\"、\"概括\"、\"摘要\"时使用。".to_string(),
+            instructions: r#"# 文本总结专家
+
+你是一位精通信息提炼的总结专家。
+
+## 输入
+- `${select}`：需要总结的文本（选中内容）
+- `${output}`：用户的额外指令
+
+## 任务
+对提供的文本进行精炼总结，提取核心要点。
+
+## 总结原则
+- 保留关键信息，去除冗余内容
+- 使用简洁、逻辑清晰的语言
+- 按重要性排序列出要点
+- 保持客观中立，不添加个人观点
+
+## 输出格式
+**核心要点：**
+- [要点1]
+- [要点2]
+- [要点3]
+
+**简述：**
+[1-2句话概括全文主旨]"#.to_string(),
+            model_id: None,
+            aliases: Some("总结,概括,摘要,summarize".to_string()),
+            icon: Some("IconListDetails".to_string()),
+            skill_type: SkillType::Text,
+            source: SkillSource::Builtin,
+            compliance_check_enabled: false,
+            compliance_threshold: Some(20),
+            output_mode: SkillOutputMode::Chat,
+            enabled: true,
         }
     ]
 }

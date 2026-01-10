@@ -5,12 +5,13 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::actions::{ActionMode, ACTION_MAP};
 use crate::settings::ShortcutBinding;
 use crate::settings::{
     self, get_settings, CachedModel, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
-    PasteMethod, PostProcessProvider, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
+    PasteMethod, PostProcessProvider, Skill, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray::{ManagedTrayIconState, TrayIconState};
@@ -577,6 +578,7 @@ pub fn add_post_process_prompt(
     compliance_check_enabled: bool,
     compliance_threshold: Option<u8>,
     output_mode: Option<settings::PromptOutputMode>,
+    enabled: Option<bool>,
 ) -> Result<LLMPrompt, String> {
     let mut settings = settings::get_settings(&app);
 
@@ -597,6 +599,7 @@ pub fn add_post_process_prompt(
         compliance_check_enabled,
         compliance_threshold: Some(compliance_threshold.unwrap_or(20)),
         output_mode: output_mode.unwrap_or_default(),
+        enabled: enabled.unwrap_or(true),
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
@@ -618,6 +621,7 @@ pub fn update_post_process_prompt(
     compliance_check_enabled: bool,
     compliance_threshold: Option<u8>,
     output_mode: Option<settings::PromptOutputMode>,
+    enabled: Option<bool>,
 ) -> Result<(), String> {
     println!(
         "DEBUG: update_post_process_prompt called. ID: {}, Enabled: {}, Threshold: {:?}",
@@ -640,6 +644,7 @@ pub fn update_post_process_prompt(
         existing_prompt.compliance_check_enabled = compliance_check_enabled;
         existing_prompt.compliance_threshold = Some(compliance_threshold.unwrap_or(20));
         existing_prompt.output_mode = output_mode.unwrap_or_default();
+        existing_prompt.enabled = enabled.unwrap_or(true);
         settings::write_settings(&app, settings);
         Ok(())
     } else {
@@ -768,6 +773,32 @@ pub fn add_custom_provider(
     settings::write_settings(&app, settings);
 
     Ok(provider)
+}
+
+#[tauri::command]
+pub fn get_external_skills(app: AppHandle) -> Vec<Skill> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.load_all_external_skills()
+}
+
+#[tauri::command]
+pub fn open_skills_folder(app: AppHandle) -> Result<(), String> {
+    let home_dir = app.path().home_dir().map_err(|e| e.to_string())?;
+    let skills_dir = home_dir.join(".votype").join("skills");
+
+    // Ensure directory exists
+    if !skills_dir.exists() {
+        std::fs::create_dir_all(&skills_dir).map_err(|e| e.to_string())?;
+    }
+
+    app.opener()
+        .open_path(skills_dir.to_string_lossy().to_string(), None::<String>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn refresh_external_skills(app: AppHandle) -> Vec<Skill> {
+    get_external_skills(app)
 }
 
 #[tauri::command]

@@ -1,5 +1,5 @@
 use crate::settings::{Skill, SkillOutputMode, SkillSource, SkillType};
-use log::{debug, error, info};
+use log::{debug, error};
 use serde::Deserialize;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -138,6 +138,7 @@ impl SkillManager {
                 compliance_check_enabled: false,
                 compliance_threshold: Some(20),
                 output_mode: SkillOutputMode::Polish,
+                enabled: true,
             });
         }
 
@@ -169,6 +170,7 @@ impl SkillManager {
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
             output_mode: fm.output_mode,
+            enabled: true,
         })
     }
 }

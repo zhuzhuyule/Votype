@@ -118,6 +118,7 @@ export const LLMPromptSchema = z.object({
   compliance_check_enabled: z.boolean().default(false),
   compliance_threshold: z.number().optional().default(20),
   output_mode: PromptOutputModeSchema.default("polish"),
+  enabled: z.boolean().default(true),
   // Keep legacy fields for a bit of safety during transition if any code still uses them
   prompt: z.string().optional(),
   alias: z.string().optional().nullable(),

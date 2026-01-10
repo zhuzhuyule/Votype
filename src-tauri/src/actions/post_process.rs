@@ -56,14 +56,27 @@ struct SkillRouteResponse {
 fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
     let mut skill_list = String::new();
     for prompt in prompts {
+        // Skip disabled skills
+        if !prompt.enabled {
+            continue;
+        }
+
         let description = if prompt.description.is_empty() {
             format!("{}.", prompt.name)
         } else {
             prompt.description.clone()
         };
+
+        // Include aliases if available for better matching
+        let aliases_info = if let Some(aliases) = &prompt.aliases {
+            format!(", aliases: \"{}\"", aliases)
+        } else {
+            String::new()
+        };
+
         skill_list.push_str(&format!(
-            "- id: \"{}\", name: \"{}\", description: \"{}\"\n",
-            prompt.id, prompt.name, description
+            "- id: \"{}\", name: \"{}\"{}, description: \"{}\"\n",
+            prompt.id, prompt.name, aliases_info, description
         ));
     }
 
@@ -74,16 +87,27 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
 {skill_list}
 
 ## 任务
-分析用户输入，选择最合适的 Skill。
+分析用户输入的语音转录文本，判断用户的真实意图并选择最匹配的 Skill。
 
-**重要原则：**
-1. **优先返回 "default"**：如果用户只是在正常说话、陈述事实、记录笔记、写代码、写文档，请务必返回 "default"。
-2. **仅在有明确指令时路由**：只有当用户表达了明确的请求（如提问、要求翻译、要求总结、要求执行特定动作）且该请求与某个 Skill 的描述高度匹配时，才返回该 Skill 的 ID。
-3. 如果意图不明确或属于多种可能，请返回 "default"。
+## 判断原则（按优先级排序）
+1. **优先返回 "default"**：如果用户只是在：
+   - 正常说话、陈述事实
+   - 记录笔记、写文档
+   - 写代码、技术讨论
+   - 没有明确指令，只是在"想事情"或"自言自语"
+   → 必须返回 "default"
+
+2. **仅在有明确动作意图时路由**：
+   - 用户使用了祈使句（如"帮我..."、"请..."、"翻译..."）
+   - 用户提出了明确问题（如"...是什么？"、"...怎么做？"）
+   - 用户请求了具体操作（如"总结一下..."、"优化这段..."）
+   → 且该请求与某个 Skill 的描述/别名高度匹配时，才返回该 Skill ID
+
+3. **宁可误判为 default，也不要误判为其他 Skill**
 
 ## 输出格式
 严格返回 JSON，不要有任何其他内容：
-{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数}}"#,
+{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数, "reason": "一句话解释判断理由"}}"#,
         skill_list = skill_list
     )
 }
@@ -119,20 +143,15 @@ fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
 /// Perform asynchronous skill routing using LLM
 async fn perform_skill_routing(
     _app_handle: &AppHandle,
-    settings: &AppSettings,
+    api_key: String,
+    prompts: &[LLMPrompt],
     provider: &PostProcessProvider,
     model: &str,
     transcription: &str,
 ) -> Option<String> {
-    let api_key = settings
-        .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
-
     let client = crate::llm_client::create_client(provider, api_key).ok()?;
 
-    let routing_prompt = build_skill_routing_prompt(&settings.post_process_prompts);
+    let routing_prompt = build_skill_routing_prompt(prompts);
 
     let mut messages = Vec::new();
 
@@ -610,19 +629,29 @@ fn find_prefix_match(text: &str, candidates: &[String]) -> Option<(String, usize
     best_match
 }
 
-fn resolve_prompt_from_text<'a>(
+fn resolve_prompt_from_text(
     text: &str,
-    settings: &'a AppSettings,
+    prompts: &[LLMPrompt],
+    default_prompt: Option<&LLMPrompt>,
     override_prompt_id: Option<&str>,
-) -> (Option<&'a LLMPrompt>, String, bool) {
+) -> (Option<LLMPrompt>, String, bool) {
     let content_original_trimmed = text.trim();
     if content_original_trimmed.is_empty() {
-        let p = get_default_prompt(settings, override_prompt_id);
-        return (p, text.to_string(), false);
+        if let Some(override_id) = override_prompt_id {
+            if let Some(p) = prompts.iter().find(|p| p.id == override_id) {
+                return (Some(p.clone()), text.to_string(), false);
+            }
+        }
+        return (default_prompt.cloned(), text.to_string(), false);
     }
 
     // 1. Try PREFIX matching only - alias must be at the START of text
-    for p in &settings.post_process_prompts {
+    for p in prompts {
+        // Skip disabled skills
+        if !p.enabled {
+            continue;
+        }
+
         let mut triggers = Vec::new();
         if let Some(alias_str) = &p.aliases {
             triggers.extend(
@@ -649,30 +678,32 @@ fn resolve_prompt_from_text<'a>(
                 })
                 .to_string();
 
-            return (Some(p), final_content, true);
+            return (Some(p.clone()), final_content, true);
         }
     }
 
     // 2. Fallback: Use full text and default prompt (polish mode)
-    let p = get_default_prompt(settings, override_prompt_id);
-    (p, text.to_string(), false)
+    (default_prompt.cloned(), text.to_string(), false)
 }
 
 fn get_default_prompt<'a>(
-    settings: &'a AppSettings,
+    prompts: &'a [LLMPrompt],
+    selected_id: Option<&str>,
     override_prompt_id: Option<&str>,
 ) -> Option<&'a LLMPrompt> {
     if let Some(pid) = override_prompt_id {
-        if let Some(p) = settings.post_process_prompts.iter().find(|p| &p.id == pid) {
+        if let Some(p) = prompts.iter().find(|p| &p.id == pid) {
             return Some(p);
         }
     }
 
-    settings
-        .post_process_selected_prompt_id
-        .as_ref()
-        .and_then(|id| settings.post_process_prompts.iter().find(|p| &p.id == id))
-        .or_else(|| settings.post_process_prompts.first())
+    if let Some(id) = selected_id {
+        if let Some(p) = prompts.iter().find(|p| &p.id == id) {
+            return Some(p);
+        }
+    }
+
+    prompts.first()
 }
 
 pub(crate) async fn maybe_post_process_transcription(
@@ -706,8 +737,34 @@ pub(crate) async fn maybe_post_process_transcription(
         None => return (None, None, None, false, None, None),
     };
 
-    let (mut initial_prompt_opt, mut initial_content, mut is_explicit) =
-        resolve_prompt_from_text(transcription, settings, override_prompt_id.as_deref());
+    // Load external skills (Phase 9)
+    let skill_manager = crate::managers::skill::SkillManager::new(app_handle);
+    let external_skills = skill_manager.load_all_external_skills();
+
+    // Merge skills: User defined (settings) + External
+    // Convert Settings-LLMPrompt (reference?) to strict LLMPrompt.
+    // settings.post_process_prompts is Vec<LLMPrompt>.
+    let mut all_prompts = settings.post_process_prompts.clone();
+    all_prompts.extend(external_skills);
+
+    // Filter out duplicates based on ID?
+    // For now we assume IDs are unique enough (external use "ext_" prefix).
+    // If user overrides an ID, the first one (from user settings) usually appearing first in iteration "wins" if we use find.
+    // But here we are appending, so user settings come first.
+
+    // Resolve default prompt from the combined list
+    let default_prompt = get_default_prompt(
+        &all_prompts,
+        settings.post_process_selected_prompt_id.as_deref(),
+        override_prompt_id.as_deref(),
+    );
+
+    let (mut initial_prompt_opt, mut initial_content, mut is_explicit) = resolve_prompt_from_text(
+        transcription,
+        &all_prompts,
+        default_prompt,
+        override_prompt_id.as_deref(),
+    );
 
     // --- Smart Routing Phase ---
     // Only perform LLM-based routing if skill_mode is enabled (dedicated shortcut pressed - Mode B)
@@ -723,23 +780,35 @@ pub(crate) async fn maybe_post_process_transcription(
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
     {
-        if let Some(p) = initial_prompt_opt {
+        if let Some(p) = &initial_prompt_opt {
             if let Some(m) = resolve_effective_model(settings, provider, p) {
-                if let Some(skill_id) =
-                    perform_skill_routing(app_handle, settings, provider, &m, transcription).await
+                let api_key = settings
+                    .post_process_api_keys
+                    .get(&provider.id)
+                    .cloned()
+                    .unwrap_or_default();
+
+                if let Some(skill_id) = perform_skill_routing(
+                    app_handle,
+                    api_key,
+                    &all_prompts,
+                    provider,
+                    &m,
+                    transcription,
+                )
+                .await
                 {
-                    if let Some(routed_prompt) = settings
-                        .post_process_prompts
-                        .iter()
-                        .find(|p| p.id == skill_id)
-                    {
+                    if let Some(routed_prompt) = all_prompts.iter().find(|p| p.id == skill_id) {
+                        // If routed to "default", we likely already have the default prompt selected in initial_prompt_opt
+                        if skill_id != "default" {
+                            initial_prompt_opt = Some(routed_prompt.clone());
+                            is_explicit = true; // Mark as explicit so we don't treat it as default polish
+                        }
                         info!(
                             "[PostProcess] Routed to skill \"{}\" via LLM",
                             routed_prompt.name
                         );
-                        initial_prompt_opt = Some(routed_prompt);
                         initial_content = transcription.to_string(); // Use full text for routed skill
-                        is_explicit = true; // Use clean context for specific skills
 
                         // Notify UI about the routed skill
                         app_handle
@@ -759,16 +828,25 @@ pub(crate) async fn maybe_post_process_transcription(
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
     {
-        if let Some(p) = initial_prompt_opt {
+        if let Some(p) = &initial_prompt_opt {
             if let Some(m) = resolve_effective_model(settings, provider, p) {
-                if let Some(skill_id) =
-                    perform_skill_routing(app_handle, settings, provider, &m, transcription).await
+                let api_key = settings
+                    .post_process_api_keys
+                    .get(&provider.id)
+                    .cloned()
+                    .unwrap_or_default();
+
+                if let Some(skill_id) = perform_skill_routing(
+                    app_handle,
+                    api_key,
+                    &all_prompts,
+                    provider,
+                    &m,
+                    transcription,
+                )
+                .await
                 {
-                    if let Some(routed_prompt) = settings
-                        .post_process_prompts
-                        .iter()
-                        .find(|p| p.id == skill_id)
-                    {
+                    if let Some(routed_prompt) = all_prompts.iter().find(|p| p.id == skill_id) {
                         info!(
                             "[PostProcess] Selected text mode - found skill \"{}\", requesting confirmation",
                             routed_prompt.name
@@ -845,11 +923,11 @@ pub(crate) async fn maybe_post_process_transcription(
     let mut last_reason = None;
 
     while chain_depth < MAX_CHAIN_DEPTH {
-        let prompt = current_prompt;
+        let prompt = current_prompt.clone();
         let transcription_content = &current_input_content;
         let transcription_original = &current_transcription;
 
-        let model = match resolve_effective_model(settings, provider, prompt) {
+        let model = match resolve_effective_model(settings, provider, &prompt) {
             Some(m) => m,
             None => {
                 return (
@@ -878,6 +956,9 @@ pub(crate) async fn maybe_post_process_transcription(
         let has_streaming_ref = prompt_template.contains("streaming_output");
         let has_hot_words_ref = prompt_template.contains("hot_words");
         let has_context_ref = prompt_template.contains("context");
+        let has_app_name_ref = prompt_template.contains("app_name");
+        let has_window_title_ref = prompt_template.contains("window_title");
+        let has_time_ref = prompt_template.contains("time");
 
         // Build structured input data message - only include variables referenced in prompt
         let mut input_data_parts: Vec<String> = Vec::new();
@@ -911,6 +992,31 @@ pub(crate) async fn maybe_post_process_transcription(
                     input_data_parts.push(format!("```select\n{}\n```", text));
                 }
             }
+        }
+
+        // Add app_name if referenced
+        if has_app_name_ref {
+            if let Some(name) = &app_name {
+                if !name.is_empty() {
+                    processed_prompt = processed_prompt.replace("${app_name}", name);
+                }
+            }
+        }
+
+        // Add window_title if referenced
+        if has_window_title_ref {
+            if let Some(title) = &window_title {
+                if !title.is_empty() {
+                    processed_prompt = processed_prompt.replace("${window_title}", title);
+                }
+            }
+        }
+
+        // Add current time if referenced
+        if has_time_ref {
+            let now = chrono::Local::now();
+            let time_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
+            processed_prompt = processed_prompt.replace("${time}", &time_str);
         }
 
         // Inject hot words and skills - logic depends on whether we had an explicit match
@@ -1075,7 +1181,7 @@ pub(crate) async fn maybe_post_process_transcription(
         if chain_depth < MAX_CHAIN_DEPTH {
             // Try to match the result against prompts again for the NEXT step in the chain
             let (next_prompt_opt, next_content, is_explicit_match) =
-                resolve_prompt_from_text(result_text, settings, None);
+                resolve_prompt_from_text(result_text, &all_prompts, default_prompt, None);
 
             if let Some(next_prompt) = next_prompt_opt {
                 // Only chain if:

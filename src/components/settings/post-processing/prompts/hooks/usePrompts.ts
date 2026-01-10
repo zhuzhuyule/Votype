@@ -38,6 +38,8 @@ export interface UsePromptsReturn {
   setDraftComplianceThreshold: (value: number) => void;
   draftOutputMode: PromptOutputMode;
   setDraftOutputMode: (value: PromptOutputMode) => void;
+  draftEnabled: boolean;
+  setDraftEnabled: (value: boolean) => void;
   currentAliases: string[];
   currentAliasInput: string;
   setCurrentAliasInput: (value: string) => void;
@@ -91,6 +93,7 @@ export const usePrompts = (): UsePromptsReturn => {
 
   const [draftOutputMode, setDraftOutputMode] =
     useState<PromptOutputMode>("polish");
+  const [draftEnabled, setDraftEnabled] = useState(true);
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
   const [isSuggestingAliases, setIsSuggestingAliases] = useState(false);
@@ -123,7 +126,8 @@ export const usePrompts = (): UsePromptsReturn => {
       draftComplianceCheck !==
         (viewingPrompt.compliance_check_enabled || false) ||
       draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70) ||
-      draftOutputMode !== (viewingPrompt.output_mode || "polish")
+      draftOutputMode !== (viewingPrompt.output_mode || "polish") ||
+      draftEnabled !== (viewingPrompt.enabled ?? true)
     );
   }, [
     isCreating,
@@ -137,6 +141,7 @@ export const usePrompts = (): UsePromptsReturn => {
     draftComplianceCheck,
     draftComplianceThreshold,
     draftOutputMode,
+    draftEnabled,
   ]);
 
   // Text models for dropdown
@@ -187,6 +192,7 @@ export const usePrompts = (): UsePromptsReturn => {
 
         setDraftComplianceThreshold(20);
         setDraftOutputMode("polish");
+        setDraftEnabled(true);
         setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
@@ -204,6 +210,7 @@ export const usePrompts = (): UsePromptsReturn => {
 
       setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
       setDraftOutputMode(viewingPrompt.output_mode || "polish");
+      setDraftEnabled(viewingPrompt.enabled ?? true);
       setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
@@ -315,6 +322,7 @@ export const usePrompts = (): UsePromptsReturn => {
           complianceCheckEnabled: draftComplianceCheck,
           complianceThreshold: Math.round(draftComplianceThreshold),
           outputMode: draftOutputMode,
+          enabled: draftEnabled,
         });
         await refreshSettings();
         setCurrentTab(newPrompt.id);
@@ -340,6 +348,7 @@ export const usePrompts = (): UsePromptsReturn => {
           complianceCheckEnabled: draftComplianceCheck,
           complianceThreshold: Math.round(draftComplianceThreshold),
           outputMode: draftOutputMode,
+          enabled: draftEnabled,
         });
         await refreshSettings();
         toast.success(t("settings.postProcessing.prompts.updateSuccess"));
@@ -357,6 +366,7 @@ export const usePrompts = (): UsePromptsReturn => {
     draftComplianceCheck,
     draftComplianceThreshold,
     draftOutputMode,
+    draftEnabled,
     isCreating,
     validateAliases,
     viewingPrompt,
@@ -448,6 +458,8 @@ export const usePrompts = (): UsePromptsReturn => {
     setDraftComplianceThreshold,
     draftOutputMode,
     setDraftOutputMode,
+    draftEnabled,
+    setDraftEnabled,
     currentAliases,
     currentAliasInput,
     setCurrentAliasInput,

@@ -1029,6 +1029,7 @@
         "deleteSuccess": "Prompt deleted successfully",
         "editPrompt": "Edit Prompt",
         "enableReview": "Enable Review Trigger",
+        "enabledToggle": "Enable/Disable this Skill",
         "newPromptName": "New Prompt",
         "noAliases": "No aliases added",
         "noPrefixes": "No prefixes added",
@@ -1067,6 +1068,19 @@
         "varPromptDesc": "Current prompt scheme's display name.",
         "varContextDesc": "Historical context from the active window.",
         "jsonHint": "Note: If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically."
+      },
+      "skills": {
+        "quickCommands": "Quick Commands",
+        "advancedSkills": "Advanced Skills",
+        "openFolder": "Open Folder",
+        "refresh": "Refresh",
+        "noExternalSkills": "No external skills found",
+        "createHint": "Create .md files in ~/.votype/skills/ to add custom skills",
+        "sourceFile": "File",
+        "sourceUser": "User",
+        "sourceBuiltin": "Built-in",
+        "enabledInFile": "Skill is always enabled (configure in file)",
+        "helpText": "Create .md files with YAML frontmatter in the skills folder. They will be automatically loaded and available for use."
       },
       "title": "Post Process"
     },
