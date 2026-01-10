@@ -37,7 +37,13 @@ export type PostProcessProviderState = {
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
 
-const BUILTIN_PROVIDER_IDS = ["openai", "anthropic", "apple_intelligence"];
+const BUILTIN_PROVIDER_IDS = [
+  "openai",
+  "anthropic",
+  "apple_intelligence",
+  "iflow",
+  "gitee",
+];
 
 export const usePostProcessProviderState = (): PostProcessProviderState => {
   const {

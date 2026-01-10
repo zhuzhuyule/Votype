@@ -47,7 +47,13 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const builtinProviders = ["openai", "anthropic", "apple_intelligence"];
+  const builtinProviders = [
+    "openai",
+    "anthropic",
+    "apple_intelligence",
+    "iflow",
+    "gitee",
+  ];
   const isSelectedBuiltin = builtinProviders.includes(state.selectedProviderId);
   const selectedProviderLabel =
     state.providerOptions.find((p) => p.value === state.selectedProviderId)
@@ -88,7 +94,13 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   // Find if there's already an empty custom provider (no API key configured)
   const emptyCustomProvider = useMemo(() => {
-    const builtins = ["openai", "anthropic", "apple_intelligence"];
+    const builtins = [
+      "openai",
+      "anthropic",
+      "apple_intelligence",
+      "iflow",
+      "gitee",
+    ];
     return state.providerOptions.find((p) => {
       if (builtins.includes(p.value)) return false;
       const apiKey = state.apiKeys?.[p.value] ?? "";

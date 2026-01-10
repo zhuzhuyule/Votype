@@ -69,6 +69,14 @@ pub struct Skill {
     /// Whether this skill is enabled (default: true)
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Whether this skill has been customized by user in settings
+    /// If true, user's version takes priority over file-based version
+    #[serde(default)]
+    pub customized: bool,
+    /// File path for external skills (user/imported source only)
+    /// Skipped from serialization (runtime only)
+    #[serde(skip)]
+    pub file_path: Option<std::path::PathBuf>,
 }
 
 fn default_true() -> bool {
@@ -533,6 +541,20 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: true,
             models_endpoint: Some("/models".to_string()),
         },
+        PostProcessProvider {
+            id: "iflow".to_string(),
+            label: "iflow".to_string(),
+            base_url: "https://apis.iflow.cn/v1".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: Some("/models".to_string()),
+        },
+        PostProcessProvider {
+            id: "gitee".to_string(),
+            label: "Gitee".to_string(),
+            base_url: "https://ai.gitee.com/v1".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: Some("/models".to_string()),
+        },
     ];
 
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -634,6 +656,8 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_threshold: Some(20),
             output_mode: Default::default(),
             enabled: true,
+            customized: false,
+            file_path: None,
         },
         LLMPrompt {
             id: "system_default_correction".to_string(),
@@ -649,6 +673,8 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_threshold: Some(20),
             output_mode: SkillOutputMode::Polish,
             enabled: true,
+            customized: false,
+            file_path: None,
         },
         LLMPrompt {
             id: "system_default_ai_chat".to_string(),
@@ -664,6 +690,8 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_threshold: Some(20),
             output_mode: SkillOutputMode::Chat,
             enabled: true,
+            customized: false,
+            file_path: None,
         },
         // Preset: Translation
         LLMPrompt {
@@ -698,6 +726,8 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_threshold: Some(20),
             output_mode: SkillOutputMode::Chat,
             enabled: true,
+            customized: false,
+            file_path: None,
         },
         // Preset: Summary
         LLMPrompt {
@@ -738,6 +768,8 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             compliance_threshold: Some(20),
             output_mode: SkillOutputMode::Chat,
             enabled: true,
+            customized: false,
+            file_path: None,
         }
     ]
 }
