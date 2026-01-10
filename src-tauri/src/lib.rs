@@ -103,6 +103,14 @@ pub struct PendingSkillConfirmation {
     pub app_name: Option<String>,
     pub window_title: Option<String>,
     pub history_id: Option<i64>,
+    /// Process ID of the original window for focus restoration
+    pub process_id: Option<u64>,
+    /// Extracted user instruction from intent detection (e.g., "翻译成英文")
+    pub extracted_instruction: Option<String>,
+    /// Cached polish result from parallel request
+    pub polish_result: Option<String>,
+    /// Whether the confirmation UI is visible in the frontend
+    pub is_ui_visible: bool,
 }
 
 pub type ManagedPendingSkillConfirmation = Mutex<PendingSkillConfirmation>;
@@ -467,6 +475,7 @@ pub fn run() {
             commands::text::optimize_text_with_llm,
             commands::log_to_console,
             commands::suggest_aliases,
+            commands::focus_overlay,
             commands::confirm_skill
         ])
         .run(tauri::generate_context!())

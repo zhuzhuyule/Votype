@@ -192,6 +192,23 @@ pub async fn suggest_aliases(app: AppHandle, description: String) -> Result<Vec<
     crate::actions::post_process::suggest_aliases(&app, &description).await
 }
 
+/// Request focus for overlay window so it can receive keyboard input
+/// Called from frontend after skill confirmation UI is rendered
+#[tauri::command]
+pub fn focus_overlay(app: AppHandle) {
+    use crate::ManagedPendingSkillConfirmation;
+    use tauri::Manager;
+
+    // Set UI visible flag so global ESC can skip its own handler
+    if let Some(pending_state) = app.try_state::<ManagedPendingSkillConfirmation>() {
+        if let Ok(mut guard) = pending_state.lock() {
+            guard.is_ui_visible = true;
+        }
+    }
+
+    crate::overlay::focus_recording_overlay(&app);
+}
+
 /// Handle user response to skill confirmation prompt
 #[tauri::command]
 pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> Result<(), String> {
@@ -220,61 +237,122 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         .transcription
         .ok_or("No transcription in pending state")?;
     let settings = crate::settings::get_settings(&app);
+    // Clone app for use after paste (which takes ownership)
+    let app_for_cleanup = app.clone();
+
+    // Restore focus to original window before pasting
+    if let Some(pid) = pending.process_id {
+        log::info!("[SkillConfirmation] Restoring focus to PID: {}", pid);
+        if let Err(e) = crate::active_window::focus_app_by_pid(pid) {
+            log::warn!("[SkillConfirmation] Failed to restore focus: {}", e);
+        }
+        // Small delay to ensure focus is restored before paste
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    }
 
     if accepted {
         // User confirmed - execute the skill
         log::info!("[SkillConfirmation] User accepted skill: {}", skill_id);
 
-        // Execute post-processing with the confirmed skill
+        // Get skill's output_mode to determine how to display result
+        let output_mode = settings
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == skill_id)
+            .map(|p| p.output_mode)
+            .unwrap_or_default();
+
+        // Execute skill with:
+        // - transcription: original voice command (raw)
+        // - secondary_output: polished transcription (for ${output} variable)
+        // - selected_text: the text user selected (for ${select} variable)
         let (result, _model, _prompt_id, _err, _confidence, _reason) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
                 &transcription,
-                None,
+                pending.polish_result.as_deref(), // Pass polished text as secondary output
                 false,
                 Some(skill_id),
-                pending.app_name,
-                pending.window_title,
+                pending.app_name.clone(),
+                pending.window_title.clone(),
                 None,
                 None,
                 pending.history_id,
                 true, // skill_mode
-                pending.selected_text,
+                pending.selected_text.clone(),
             )
             .await;
 
-        // Paste result if available
+        // Handle result based on output_mode
         if let Some(text) = result {
-            crate::clipboard::paste(text, app)?;
+            match output_mode {
+                crate::settings::SkillOutputMode::Chat => {
+                    // Chat mode: show Review Window with the result
+                    log::info!("[SkillConfirmation] Chat mode - showing Review Window");
+                    let source_text = pending
+                        .selected_text
+                        .unwrap_or_else(|| transcription.clone());
+                    crate::review_window::show_review_window(
+                        &app_for_cleanup,
+                        source_text,
+                        text,
+                        0, // No change percent for skill results
+                        pending.history_id,
+                        None,
+                        output_mode,
+                    );
+                }
+                crate::settings::SkillOutputMode::Polish => {
+                    // Polish mode: paste directly
+                    log::info!("[SkillConfirmation] Polish mode - pasting result");
+                    crate::clipboard::paste(text, app)?;
+                }
+                crate::settings::SkillOutputMode::Silent => {
+                    // Silent mode: do nothing visible
+                    log::info!("[SkillConfirmation] Silent mode - no output");
+                }
+            }
         }
     } else {
-        // User rejected - execute default polish
+        // User rejected - use cached polish result if available, otherwise execute default polish
         log::info!("[SkillConfirmation] User rejected skill, using default polish");
 
-        let (result, _model, _prompt_id, _err, _confidence, _reason) =
-            crate::actions::post_process::maybe_post_process_transcription(
-                &app,
-                &settings,
-                &transcription,
-                None,
-                false,
-                None, // Use default prompt
-                pending.app_name,
-                pending.window_title,
-                None,
-                None,
-                pending.history_id,
-                false, // Not skill_mode
-                None,  // Ignore selected text for polish
-            )
-            .await;
+        // Check if we have a cached polish result from parallel request
+        if let Some(cached_result) = pending.polish_result {
+            log::info!("[SkillConfirmation] Using cached polish result");
+            crate::clipboard::paste(cached_result, app)?;
+        } else {
+            // Fallback: execute default polish (should not happen with parallel requests)
+            log::warn!("[SkillConfirmation] No cached polish result, executing default polish");
+            let (result, _model, _prompt_id, _err, _confidence, _reason) =
+                crate::actions::post_process::maybe_post_process_transcription(
+                    &app,
+                    &settings,
+                    &transcription,
+                    None,
+                    false,
+                    None, // Use default prompt
+                    pending.app_name,
+                    pending.window_title,
+                    None,
+                    None,
+                    pending.history_id,
+                    false, // Not skill_mode
+                    None,  // Ignore selected text for polish
+                )
+                .await;
 
-        // Paste result if available
-        if let Some(text) = result {
-            crate::clipboard::paste(text, app)?;
+            // Paste result if available
+            if let Some(text) = result {
+                crate::clipboard::paste(text, app)?;
+            }
         }
     }
+
+    // Hide overlay and reset tray icon after confirmation is handled
+    crate::overlay::hide_recording_overlay(&app_for_cleanup);
+    crate::tray::change_tray_icon(&app_for_cleanup, crate::tray::TrayIconState::Idle);
 
     Ok(())
 }

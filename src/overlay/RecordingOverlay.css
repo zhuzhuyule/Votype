@@ -151,20 +151,46 @@
 
 /* Skill Confirmation UI */
 .skill-confirmation {
-  padding: 8px 16px;
+  padding: 6px 14px;
+  min-width: 200px;
+}
+
+.skill-confirmation .skill-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--overlay-accent-color, #faa2ca);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.skill-confirmation .prompt-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+.confirm-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
 }
 
 .confirm-button {
-  padding: 4px 12px;
+  padding: 5px 12px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 150ms ease-out;
   font-size: 12px;
+  font-weight: 500;
+  border: 2px solid transparent;
+  outline: none;
 }
 
 .confirm-button.accept {
   background: var(--overlay-accent-color, #4ade80);
-  color: #000;
+  color: #fff;
 }
 
 .confirm-button.accept:hover {
@@ -173,15 +199,37 @@
 }
 
 .confirm-button.reject {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
 
 .confirm-button.reject:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.2);
   transform: scale(1.02);
 }
 
 .confirm-button:active {
   transform: scale(0.98);
+}
+
+/* Focused state for keyboard navigation */
+.confirm-button.focused {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.confirm-button.accept.focused {
+  border-color: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+.confirm-button.reject.focused {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Wider overlay when showing skill confirmation */
+.recording-overlay.has-skill-confirm {
+  width: auto;
+  min-width: 220px;
+  max-width: 360px;
 }

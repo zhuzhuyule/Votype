@@ -43,13 +43,16 @@ struct LlmReviewResponse {
 }
 
 /// Response from LLM for skill routing intent recognition
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct SkillRouteResponse {
     /// The skill_id to use, or "default" for default processing
     pub skill_id: String,
     /// Confidence score (0-100) of the routing decision
     #[serde(default)]
     pub confidence: Option<u8>,
+    /// Extracted user instruction/intent describing what the skill should do
+    #[serde(default)]
+    pub instruction: Option<String>,
 }
 
 /// Build the system prompt for skill routing
@@ -107,7 +110,7 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
 
 ## 输出格式
 严格返回 JSON，不要有任何其他内容：
-{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数, "reason": "一句话解释判断理由"}}"#,
+{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数, "instruction": "提取用户想要执行的具体操作，如'翻译成英文'或'总结成三点'（如果skill_id为default则留空）"}}"#,
         skill_list = skill_list
     )
 }
@@ -141,6 +144,7 @@ fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
 }
 
 /// Perform asynchronous skill routing using LLM
+/// Returns the full routing response including skill_id, confidence, and extracted instruction
 async fn perform_skill_routing(
     _app_handle: &AppHandle,
     api_key: String,
@@ -148,8 +152,14 @@ async fn perform_skill_routing(
     provider: &PostProcessProvider,
     model: &str,
     transcription: &str,
-) -> Option<String> {
-    let client = crate::llm_client::create_client(provider, api_key).ok()?;
+) -> Option<SkillRouteResponse> {
+    let client = match crate::llm_client::create_client(provider, api_key) {
+        Ok(c) => c,
+        Err(e) => {
+            log::warn!("[SkillRouter] Failed to create LLM client: {:?}", e);
+            return None;
+        }
+    };
 
     let routing_prompt = build_skill_routing_prompt(prompts);
 
@@ -169,8 +179,113 @@ async fn perform_skill_routing(
         messages.push(ChatCompletionRequestMessage::User(user_msg));
     }
 
-    let req = CreateChatCompletionRequestArgs::default()
+    let req = match CreateChatCompletionRequestArgs::default()
         .model(model.to_string())
+        .messages(messages)
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("[SkillRouter] Failed to build request: {:?}", e);
+            return None;
+        }
+    };
+
+    let response = match client.chat().create(req).await {
+        Ok(r) => r,
+        Err(e) => {
+            log::warn!("[SkillRouter] LLM request failed: {:?}", e);
+            return None;
+        }
+    };
+
+    let content = match response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+    {
+        Some(c) => c,
+        None => {
+            log::warn!("[SkillRouter] LLM response has no content");
+            return None;
+        }
+    };
+
+    info!("[SkillRouter] Raw LLM response: {}", content);
+
+    let route = match parse_skill_route_response(&content) {
+        Some(r) => r,
+        None => {
+            log::warn!("[SkillRouter] Failed to parse skill route response");
+            return None;
+        }
+    };
+
+    // Confidence threshold: Only route if LLM is fairly certain (> 70%)
+    if route.skill_id == "default" || route.confidence.unwrap_or(0) < 70 {
+        if route.skill_id != "default" {
+            info!(
+                "[SkillRouter] Low confidence routing ignored: {} (conf: {:?})",
+                route.skill_id, route.confidence
+            );
+        } else {
+            info!("[SkillRouter] LLM returned 'default' - no skill match");
+        }
+        None
+    } else {
+        info!(
+            "[SkillRouter] Routed to skill: {} (Confidence: {:?}, Instruction: {:?})",
+            route.skill_id, route.confidence, route.instruction
+        );
+        Some(route)
+    }
+}
+
+/// Execute default polish request for parallel processing.
+/// This is a simplified version that only runs the default prompt.
+/// Returns the polished text or None if failed.
+async fn execute_default_polish(
+    _app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    default_prompt: &LLMPrompt,
+    transcription: &str,
+) -> Option<String> {
+    let model = resolve_effective_model(settings, provider, default_prompt)?;
+
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    let client = crate::llm_client::create_client(provider, api_key).ok()?;
+
+    // Build a simple prompt for polish
+    let mut messages = Vec::new();
+
+    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(default_prompt.instructions.clone())
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
+
+    // Add the transcription as input
+    let input_message = format!("```output\n{}\n```", transcription);
+    if let Ok(input_msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(input_message)
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::User(input_msg));
+    }
+
+    if messages.is_empty() {
+        return None;
+    }
+
+    let req = CreateChatCompletionRequestArgs::default()
+        .model(model)
         .messages(messages)
         .build()
         .ok()?;
@@ -181,24 +296,13 @@ async fn perform_skill_routing(
         .first()
         .and_then(|c| c.message.content.clone())?;
 
-    let route = parse_skill_route_response(&content)?;
+    let (text, _confidence, _reason) = parse_response_with_confidence(&content);
 
-    // Confidence threshold: Only route if LLM is fairly certain (> 70%)
-    if route.skill_id == "default" || route.confidence.unwrap_or(0) < 70 {
-        if route.skill_id != "default" {
-            debug!(
-                "[SkillRouter] Low confidence routing ignored: {} ({:?})",
-                route.skill_id, route.confidence
-            );
-        }
-        None
-    } else {
-        info!(
-            "[SkillRouter] Routed to skill: {} (Confidence: {:?})",
-            route.skill_id, route.confidence
-        );
-        Some(route.skill_id)
-    }
+    info!(
+        "[ParallelPolish] Default polish completed, result length: {}",
+        text.len()
+    );
+    Some(text)
 }
 
 pub(crate) async fn suggest_aliases(
@@ -788,7 +892,7 @@ pub(crate) async fn maybe_post_process_transcription(
                     .cloned()
                     .unwrap_or_default();
 
-                if let Some(skill_id) = perform_skill_routing(
+                if let Some(route_response) = perform_skill_routing(
                     app_handle,
                     api_key,
                     &all_prompts,
@@ -798,7 +902,8 @@ pub(crate) async fn maybe_post_process_transcription(
                 )
                 .await
                 {
-                    if let Some(routed_prompt) = all_prompts.iter().find(|p| p.id == skill_id) {
+                    let skill_id = &route_response.skill_id;
+                    if let Some(routed_prompt) = all_prompts.iter().find(|p| &p.id == skill_id) {
                         // If routed to "default", we likely already have the default prompt selected in initial_prompt_opt
                         if skill_id != "default" {
                             initial_prompt_opt = Some(routed_prompt.clone());
@@ -820,40 +925,102 @@ pub(crate) async fn maybe_post_process_transcription(
         }
     }
 
-    // Mode C: Selected text - do LLM routing and require user confirmation
-    // If a skill is matched, emit confirmation event and return early
+    // Mode C: Selected text - do parallel LLM routing and polish, require user confirmation
+    // Both requests run simultaneously using tokio::join!
+    // Note: Some LLM providers may not support concurrent requests, so we handle failures gracefully
     if has_selected_text
         && !skill_mode
         && !is_explicit
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
     {
-        if let Some(p) = &initial_prompt_opt {
-            if let Some(m) = resolve_effective_model(settings, provider, p) {
+        if let Some(default_prompt) = &initial_prompt_opt {
+            if let Some(m) = resolve_effective_model(settings, provider, default_prompt) {
                 let api_key = settings
                     .post_process_api_keys
                     .get(&provider.id)
                     .cloned()
                     .unwrap_or_default();
 
-                if let Some(skill_id) = perform_skill_routing(
-                    app_handle,
-                    api_key,
-                    &all_prompts,
-                    provider,
-                    &m,
-                    transcription,
-                )
-                .await
-                {
-                    if let Some(routed_prompt) = all_prompts.iter().find(|p| p.id == skill_id) {
+                info!("[PostProcess] Mode C: Starting parallel intent detection and polish...");
+
+                // Execute both requests in parallel
+                let (intent_result, polish_result) = tokio::join!(
+                    // Intent detection
+                    perform_skill_routing(
+                        app_handle,
+                        api_key.clone(),
+                        &all_prompts,
+                        provider,
+                        &m,
+                        transcription,
+                    ),
+                    // Default polish
+                    execute_default_polish(
+                        app_handle,
+                        settings,
+                        provider,
+                        default_prompt,
+                        transcription,
+                    )
+                );
+
+                // Log results for debugging concurrency issues
+                let intent_ok = intent_result.is_some();
+                let polish_ok = polish_result.is_some();
+                info!(
+                    "[PostProcess] Parallel requests completed - Intent: {} (skill: {:?}), Polish: {} (len: {})",
+                    if intent_ok { "OK" } else { "FAILED" },
+                    intent_result.as_ref().map(|r| &r.skill_id),
+                    if polish_ok { "OK" } else { "FAILED" },
+                    polish_result.as_ref().map(|s| s.len()).unwrap_or(0)
+                );
+
+                // Handle different result combinations:
+                // 1. Intent matched + Polish OK/Failed -> Show confirmation (polish_result may be None)
+                // 2. Intent failed + Polish OK -> Use polish result directly
+                // 3. Both failed -> Fall through to standard processing
+
+                if let Some(route_response) = intent_result {
+                    let skill_id = &route_response.skill_id;
+                    let extracted_instruction = route_response.instruction.clone();
+
+                    if let Some(routed_prompt) = all_prompts.iter().find(|p| &p.id == skill_id) {
+                        // [DEBUG] Log selected text content before showing confirmation
+                        match &selected_text {
+                            Some(text) if !text.trim().is_empty() => {
+                                let preview: String = text.chars().take(100).collect();
+                                let suffix = if text.chars().count() > 100 {
+                                    "..."
+                                } else {
+                                    ""
+                                };
+                                info!("[PostProcess] Before confirmation - selected text ({} chars): \"{}{}\"",
+                                    text.len(), preview, suffix
+                                );
+                            }
+                            Some(_) => {
+                                info!("[PostProcess] Before confirmation - selected text is empty/whitespace");
+                            }
+                            None => {
+                                info!(
+                                    "[PostProcess] Before confirmation - no selected text (None)"
+                                );
+                            }
+                        }
+
                         info!(
-                            "[PostProcess] Selected text mode - found skill \"{}\", requesting confirmation",
-                            routed_prompt.name
+                            "[PostProcess] Selected text mode - found skill \"{}\", instruction: {:?}, polish_available: {}, requesting confirmation",
+                            routed_prompt.name, extracted_instruction, polish_ok
                         );
 
-                        // Save pending confirmation state
+                        // Save pending confirmation state with cached polish result (may be None if failed)
+                        // Also capture current active window PID for focus restoration
                         use tauri::Manager;
+                        let active_pid = crate::active_window::fetch_active_window()
+                            .ok()
+                            .map(|info| info.process_id);
+
                         if let Some(pending_state) =
                             app_handle.try_state::<crate::ManagedPendingSkillConfirmation>()
                         {
@@ -863,9 +1030,13 @@ pub(crate) async fn maybe_post_process_transcription(
                                     skill_name: Some(routed_prompt.name.clone()),
                                     transcription: Some(transcription.to_string()),
                                     selected_text: selected_text.clone(),
-                                    app_name: None, // Will be set by caller if needed
+                                    app_name: None,
                                     window_title: None,
                                     history_id,
+                                    process_id: active_pid,
+                                    extracted_instruction: extracted_instruction.clone(),
+                                    polish_result: polish_result.clone(), // May be None if parallel polish failed!
+                                    is_ui_visible: false,
                                 };
                             }
                         }
@@ -876,6 +1047,8 @@ pub(crate) async fn maybe_post_process_transcription(
                             skill_id: String,
                             skill_name: String,
                             transcription: String,
+                            extracted_instruction: Option<String>,
+                            polish_result: Option<String>,
                         }
 
                         app_handle
@@ -885,19 +1058,40 @@ pub(crate) async fn maybe_post_process_transcription(
                                     skill_id: skill_id.clone(),
                                     skill_name: routed_prompt.name.clone(),
                                     transcription: transcription.to_string(),
+                                    extracted_instruction,
+                                    polish_result, // Frontend should handle None case (show loading or N/A)
                                 },
                             )
                             .ok();
 
-                        // Return early - actual processing will happen after user confirmation
-                        return (None, None, None, false, None, None);
+                        // Return early with special model marker to signal pending confirmation
+                        // Caller should check for this and skip paste/hide operations
+                        return (
+                            None,
+                            Some("__PENDING_SKILL_CONFIRMATION__".to_string()),
+                            None,
+                            false,
+                            None,
+                            None,
+                        );
                     }
+                }
+
+                // No skill matched - use the polish result directly if available
+                if let Some(polished) = polish_result {
+                    info!("[PostProcess] Selected text mode - no skill matched, using parallel polish result");
+                    return (Some(polished), None, None, false, None, None);
+                }
+
+                // Both failed or no match + polish failed - fall through to standard processing
+                if !intent_ok && !polish_ok {
+                    log::warn!("[PostProcess] Both parallel requests failed, falling back to standard processing");
                 }
             }
         }
 
-        // No skill matched - continue with default polish
-        info!("[PostProcess] Selected text mode - no skill matched, using default polish");
+        // Fallback: continue with default polish
+        info!("[PostProcess] Selected text mode - continuing with default polish");
     }
 
     let initial_prompt = match initial_prompt_opt {

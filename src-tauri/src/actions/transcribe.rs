@@ -544,8 +544,28 @@ impl ShortcutAction for TranscribeAction {
 
                 // Capture selected text for Mode C (auto-routing)
                 let selected_text = crate::clipboard::get_selected_text(&ah).ok();
-                if let Some(text) = &selected_text {
-                    info!("[Selection] Captured {} chars", text.len());
+                // [DEBUG] Log selected text at recording stop
+                match &selected_text {
+                    Some(text) if !text.trim().is_empty() => {
+                        let preview: String = text.chars().take(100).collect();
+                        let suffix = if text.chars().count() > 100 {
+                            "..."
+                        } else {
+                            ""
+                        };
+                        info!(
+                            "[Selection] Recording stopped - captured {} chars: \"{}{}\"",
+                            text.len(),
+                            preview,
+                            suffix
+                        );
+                    }
+                    Some(_) => {
+                        info!("[Selection] Recording stopped - captured text is empty/whitespace only");
+                    }
+                    None => {
+                        info!("[Selection] Recording stopped - no text captured (get_selected_text returned None)");
+                    }
                 }
 
                 let transcription_time = Instant::now();
@@ -927,6 +947,13 @@ impl ShortcutAction for TranscribeAction {
                                     selected_text.clone(), // Pass captured context for Mode C
                                 )
                                 .await;
+
+                                // Check if pending skill confirmation - skip all subsequent processing
+                                if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
+                                    info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
+                                    // Don't hide overlay, don't paste - wait for user confirmation via confirm_skill
+                                    return;
+                                }
 
                                 error_shown = err;
                                 used_model = model;

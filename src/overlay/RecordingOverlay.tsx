@@ -24,6 +24,8 @@ type SkillConfirmationEvent = {
   skill_id: string;
   skill_name: string;
   transcription: string;
+  extracted_instruction?: string;
+  polish_result?: string;
 };
 
 const stripTrailingSentencePunctuation = (input: string) => {
@@ -75,6 +77,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [chainedPromptName, setChainedPromptName] = useState<string>("");
   const [skillConfirmation, setSkillConfirmation] =
     useState<SkillConfirmationEvent | null>(null);
+  // Track which button is focused for keyboard navigation: 'accept' or 'reject'
+  const [focusedButton, setFocusedButton] = useState<"accept" | "reject">(
+    "accept",
+  );
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OverlayState>(initialState);
@@ -217,7 +223,15 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       const unlistenSkillConfirmation = await listen<SkillConfirmationEvent>(
         "skill-confirmation",
         (event) => {
+          console.log("[SkillConfirmation] Received event:", event.payload);
           setSkillConfirmation(event.payload);
+          setFocusedButton("accept"); // Default to accept button
+          // Request focus after a short delay to ensure UI is rendered
+          setTimeout(() => {
+            invoke("focus_overlay").catch((e) =>
+              console.warn("Failed to focus overlay:", e),
+            );
+          }, 50);
         },
       );
 
@@ -245,6 +259,46 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
 
     setupEventListeners();
   }, []); // Run once on mount
+
+  // Keyboard navigation for skill confirmation
+  useEffect(() => {
+    if (!skillConfirmation) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Arrow keys to switch between buttons
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setFocusedButton((prev) => (prev === "accept" ? "reject" : "accept"));
+        return;
+      }
+
+      // Enter to confirm current selection
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const accepted = e.metaKey || e.ctrlKey || focusedButton === "accept";
+        invoke("confirm_skill", {
+          skillId: skillConfirmation.skill_id,
+          accepted,
+        });
+        setSkillConfirmation(null);
+        return;
+      }
+
+      // Escape to cancel (reject skill, use polish result)
+      if (e.key === "Escape") {
+        e.preventDefault();
+        invoke("confirm_skill", {
+          skillId: skillConfirmation.skill_id,
+          accepted: false,
+        });
+        setSkillConfirmation(null);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [skillConfirmation, focusedButton]);
 
   // Update CSS variable when accent color changes
   useEffect(() => {
@@ -291,7 +345,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       <Box
         className={`recording-overlay fade-in ${
           showRealtimeText ? "has-realtime" : ""
-        }`}
+        } ${skillConfirmation ? "has-skill-confirm" : ""}`}
       >
         <Flex className="overlay-left">{getIcon()}</Flex>
 
@@ -348,19 +402,16 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               align="center"
               gap="2"
             >
-              <Text size="2" style={{ color: "var(--gray-11)" }}>
-                {t("overlay.skillConfirmation.prompt")}
+              <Text className="prompt-text">
+                {t("overlay.skillConfirmation.detectedSelection")}
               </Text>
-              <Text
-                size="3"
-                weight="bold"
-                style={{ color: "var(--accent-11)" }}
-              >
-                {skillConfirmation.skill_name}
+              <Text className="skill-name">{skillConfirmation.skill_name}</Text>
+              <Text className="prompt-text">
+                {t("overlay.skillConfirmation.confirmUse")}
               </Text>
-              <Flex gap="3" mt="2">
+              <Flex className="confirm-buttons" justify="center" gap="2">
                 <Box
-                  className="confirm-button accept"
+                  className={`confirm-button accept ${focusedButton === "accept" ? "focused" : ""}`}
                   onClick={() => {
                     invoke("confirm_skill", {
                       skillId: skillConfirmation.skill_id,
@@ -369,10 +420,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                     setSkillConfirmation(null);
                   }}
                 >
-                  <Text size="1">{t("common.confirm")}</Text>
+                  {t("common.confirm")} (Enter)
                 </Box>
                 <Box
-                  className="confirm-button reject"
+                  className={`confirm-button reject ${focusedButton === "reject" ? "focused" : ""}`}
                   onClick={() => {
                     invoke("confirm_skill", {
                       skillId: skillConfirmation.skill_id,
@@ -381,7 +432,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                     setSkillConfirmation(null);
                   }}
                 >
-                  <Text size="1">{t("common.cancel")}</Text>
+                  {t("common.cancel")} (Esc)
                 </Box>
               </Flex>
             </Flex>

@@ -95,7 +95,27 @@ fn create_main_window(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>>
 /// Centralized cancellation function that can be called from anywhere in the app.
 /// Handles cancelling both recording and transcription operations and updates UI state.
 pub fn cancel_current_operation(app: &AppHandle) {
+    use crate::ManagedPendingSkillConfirmation;
+
+    // If there's a pending skill confirmation and the UI is visible, let the overlay handle Esc
+    // The overlay will call confirm_skill with accepted=false
+    if let Some(pending_state) = app.try_state::<ManagedPendingSkillConfirmation>() {
+        if let Ok(guard) = pending_state.lock() {
+            if guard.is_ui_visible {
+                info!("Skill confirmation UI is visible - overlay will handle Esc, skipping global cancel");
+                return;
+            }
+        }
+    }
+
     info!("Initiating operation cancellation...");
+
+    // Clear any pending skill confirmation state
+    if let Some(pending_state) = app.try_state::<ManagedPendingSkillConfirmation>() {
+        if let Ok(mut guard) = pending_state.lock() {
+            *guard = crate::PendingSkillConfirmation::default();
+        }
+    }
 
     // Unregister the cancel shortcut asynchronously
     shortcut::unregister_cancel_shortcut(app);

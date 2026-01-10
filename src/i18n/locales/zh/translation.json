@@ -14,14 +14,15 @@
     "active": "使用中",
     "add": "添加",
     "addNewOption": "添加新选项",
-    "aiOptimizationSuccess": "AI 优化成功",
     "aiOptimizationFailed": "AI 优化失败，请检查配置",
+    "aiOptimizationSuccess": "AI 优化成功",
     "aiOptimize": "AI 润色",
     "authorize": "授权",
     "bold": "加粗",
     "cancel": "取消",
     "close": "关闭",
     "code": "行内代码",
+    "confirm": "确认",
     "copied": "已复制",
     "copy": "复制",
     "create": "创建",
@@ -409,14 +410,16 @@
       "llmRequestFailed": "LLM 请求失败，请检查网络/API",
       "transcriptionFailedSaved": "转录失败（已保存）"
     },
+    "skillConfirmation": {
+      "confirmUse": " 此技能处理？",
+      "detectedSelection": "检测到选中内容，是否使用 ",
+      "prompt": "使用此技能？"
+    },
     "status": {
       "llm": "后处理中…",
       "recording": "录音中…",
       "review": "审阅中…",
       "transcribing": "转录中…"
-    },
-    "skillConfirmation": {
-      "prompt": "使用此技能？"
     }
   },
   "settings": {
@@ -531,10 +534,10 @@
       "title": "高级",
       "translateToEnglish": {
         "description": "在转录过程中自动将其他语言的语音翻译为英语。",
-        "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
         "descriptionNoModel": "请选择一个本地模型后再开启翻译。",
         "descriptionNonWhisper": "仅 Whisper 系列支持翻译。当前模型：{{model}}",
         "descriptionUnknownModel": "无法识别当前模型能力，请选择已下载的模型后再开启翻译。",
+        "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
         "label": "翻译为英语"
       }
     },
@@ -736,11 +739,11 @@
       "language": {
         "auto": "自动",
         "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
-        "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
         "descriptionNoModel": "请先选择一个本地模型再设置语言。",
-        "descriptionUnknownModel": "当前模型未知，暂时无法手动设置语言。",
-        "descriptionUnsupportedEngine": "仅 Whisper 或 SenseVoice 模型支持手动设置语言。",
         "descriptionSenseVoice": "SenseVoice 在模型加载时应用语言，修改后请重新选择该模型以生效。",
+        "descriptionUnknownModel": "当前模型未知，暂时无法手动设置语言。",
+        "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
+        "descriptionUnsupportedEngine": "仅 Whisper 或 SenseVoice 模型支持手动设置语言。",
         "noResults": "未找到语言",
         "searchPlaceholder": "搜索语言...",
         "title": "语言"
@@ -755,6 +758,10 @@
             "description": "取消当前录制。",
             "name": "取消"
           },
+          "invoke_skill": {
+            "description": "以 Skill 模式开始录音，启用智能意图识别路由。",
+            "name": "调用 Skill"
+          },
           "open_settings": {
             "description": "打开设置窗口。",
             "name": "打开设置"
@@ -766,10 +773,6 @@
           "transcribe": {
             "description": "将语音转换为文字。",
             "name": "转录"
-          },
-          "invoke_skill": {
-            "description": "以 Skill 模式开始录音，启用智能意图识别路由。",
-            "name": "调用 Skill"
           }
         },
         "description": "配置启动语音转文字录制的键盘快捷键",
@@ -788,10 +791,10 @@
     },
     "history": {
       "content": {
+        "chained": "链式处理",
         "improved": "优化后",
         "original": "语音识别结果",
-        "streaming": "实时识别结果",
-        "chained": "链式处理"
+        "streaming": "实时识别结果"
       },
       "copyToClipboard": "复制转录到剪贴板",
       "delete": "删除条目",
@@ -1021,26 +1024,17 @@
       },
       "prompts": {
         "activeSet": "已设为默认提示词",
+        "addAlias": "添加别名",
         "advancedSettings": "高级设置",
+        "alias": "别名",
         "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
+        "aliasesLabel": "别名",
         "aliasLabel": "别名 / 触发词",
         "aliasPlaceholder": "例如：翻译，翻译英语",
-        "aliasesLabel": "别名",
-        "addAlias": "添加别名",
-        "alias": "别名",
-        "suggestAliases": "建议触发词",
-        "suggestSuccess": "已获取建议触发词",
-        "suggestFailed": "获取建议失败",
-        "noSuggestions": "未发现建议",
-        "descriptionRequired": "获取建议需要填写描述",
         "createFirst": "点击上方的「创建新提示词」来创建您的第一个后期处理提示词。",
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",
         "createSuccess": "提示词创建成功",
-        "description": "描述（用于智能识别）",
-        "descriptionPlaceholder": "简要描述此 Skill 的用途，帮助系统识别何时应使用它",
-        "globalConfigTitle": "全局配置",
-        "managementTitle": "提示词列表",
         "deleteConfirm": {
           "description": "此操作无法撤销。该提示词将被永久删除。",
           "title": "删除提示词？"
@@ -1048,13 +1042,20 @@
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
+        "description": "描述（用于智能识别）",
+        "descriptionPlaceholder": "简要描述此 Skill 的用途，帮助系统识别何时应使用它",
+        "descriptionRequired": "获取建议需要填写描述",
         "editPrompt": "编辑提示词",
-        "enableReview": "启用审查触发",
         "enabledToggle": "启用/禁用此技能",
+        "enableReview": "启用审查触发",
         "generationDescription": "基于识别文本作为提示生成新内容（例如翻译、摘要）。",
+        "globalConfigTitle": "全局配置",
+        "jsonHint": "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。",
+        "managementTitle": "提示词列表",
         "newPromptName": "新提示词",
         "noAliases": "暂无别名",
         "noPrompts": "没有可用的提示词",
+        "noSuggestions": "未发现建议",
         "outputMode": {
           "chat": "AI 问答",
           "label": "输出模式",
@@ -1074,31 +1075,33 @@
         "selectPrompt": "选择提示词",
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
         "setAsActive": "设为默认",
+        "suggestAliases": "建议触发词",
+        "suggestFailed": "获取建议失败",
+        "suggestSuccess": "已获取建议触发词",
         "title": "提示词",
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
         "updateSuccess": "提示词更新成功",
+        "varContextDesc": "当前活动窗口的历史聊天记录信息。",
+        "varHotWordsDesc": "您在「高级设置」中定义的个人词库/热词。",
         "varOutputDesc": "识别出的最终文本结果（已去除命令前缀和别名）。",
+        "varPromptDesc": "当前正在使用的提示词方案的显示名称。",
         "varRawInputDesc": "完整的原始转录文本（包含命令前缀和别名）。",
         "varSelectDesc": "录音结束时当前选中的文本内容。",
-        "varStreamingDesc": "实时转录过程中的中间文本串。",
-        "varHotWordsDesc": "您在「高级设置」中定义的个人词库/热词。",
-        "varPromptDesc": "当前正在使用的提示词方案的显示名称。",
-        "varContextDesc": "当前活动窗口的历史聊天记录信息。",
-        "jsonHint": "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。"
+        "varStreamingDesc": "实时转录过程中的中间文本串。"
       },
       "skills": {
-        "quickCommands": "快捷指令",
         "advancedSkills": "高级 Skills",
-        "openFolder": "打开文件夹",
-        "refresh": "刷新",
-        "noExternalSkills": "未找到外部 Skills",
         "createHint": "在 ~/.votype/skills/ 中创建 .md 文件以添加自定义 Skills",
-        "sourceFile": "文件",
-        "sourceUser": "用户",
-        "sourceBuiltin": "内置",
         "enabledInFile": "此 Skill 始终启用（在文件中配置）",
-        "helpText": "在 skills 文件夹中创建带有 YAML frontmatter 的 .md 文件，它们将被自动加载并可供使用。"
+        "helpText": "在 skills 文件夹中创建带有 YAML frontmatter 的 .md 文件，它们将被自动加载并可供使用。",
+        "noExternalSkills": "未找到外部 Skills",
+        "openFolder": "打开文件夹",
+        "quickCommands": "快捷指令",
+        "refresh": "刷新",
+        "sourceBuiltin": "内置",
+        "sourceFile": "文件",
+        "sourceUser": "用户"
       },
       "title": "后期处理"
     },

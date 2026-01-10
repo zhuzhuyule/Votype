@@ -11,17 +11,18 @@
     "title": "Application Language"
   },
   "common": {
-    "add": "Add",
     "active": "Active",
+    "add": "Add",
     "addNewOption": "Add new option",
-    "aiOptimizationSuccess": "AI Optimization successful",
     "aiOptimizationFailed": "AI optimization failed, please check configuration",
+    "aiOptimizationSuccess": "AI Optimization successful",
     "aiOptimize": "AI Polish",
     "authorize": "Authorize",
     "bold": "Bold",
     "cancel": "Cancel",
     "close": "Close",
     "code": "Inline Code",
+    "confirm": "Confirm",
     "copied": "Copied",
     "copy": "Copy",
     "create": "Create",
@@ -62,8 +63,8 @@
     "selectOption": "Select an option",
     "skip": "Skip",
     "update": "Update",
-    "useThisProvider": "Use this Provider",
     "useInput": "Use \"{{input}}\"",
+    "useThisProvider": "Use this Provider",
     "variables": "Available Variables",
     "yes": "Yes"
   },
@@ -388,13 +389,15 @@
       "llmRequestFailed": "LLM Request Failed. Check network/API.",
       "transcriptionFailedSaved": "Transcription failed (saved)"
     },
+    "skillConfirmation": {
+      "confirmUse": "to deal?",
+      "detectedSelection": "Detected selection, use this skill ",
+      "prompt": "Use this skill?"
+    },
     "status": {
       "llm": "Post Processing...",
       "recording": "Recording...",
       "transcribing": "Transcribing..."
-    },
-    "skillConfirmation": {
-      "prompt": "Use this skill?"
     }
   },
   "settings": {
@@ -509,10 +512,10 @@
       "title": "Advanced",
       "translateToEnglish": {
         "description": "Automatically translate speech from other languages to English during transcription.",
-        "descriptionUnsupported": "Translation is not supported by the {{model}} model.",
         "descriptionNoModel": "Select a local model to enable translation.",
         "descriptionNonWhisper": "Translation only works with Whisper models. Current: {{model}}",
         "descriptionUnknownModel": "This model's capabilities are unknown. Select a downloaded model to enable translation.",
+        "descriptionUnsupported": "Translation is not supported by the {{model}} model.",
         "label": "Translate to English"
       }
     },
@@ -714,11 +717,11 @@
       "language": {
         "auto": "Auto",
         "description": "Select the language for speech recognition. Auto will automatically determine the language, while selecting a specific language can improve accuracy for that language.",
-        "descriptionUnsupported": "Parakeet model automatically detects the language. No manual selection is needed.",
         "descriptionNoModel": "Select a local model to configure language.",
-        "descriptionUnknownModel": "Current model is unknown; language selection is disabled.",
-        "descriptionUnsupportedEngine": "Language selection only applies to Whisper or SenseVoice models.",
         "descriptionSenseVoice": "SenseVoice applies language when the model loads. Re-select the model after changing language.",
+        "descriptionUnknownModel": "Current model is unknown; language selection is disabled.",
+        "descriptionUnsupported": "Parakeet model automatically detects the language. No manual selection is needed.",
+        "descriptionUnsupportedEngine": "Language selection only applies to Whisper or SenseVoice models.",
         "noResults": "No languages found",
         "searchPlaceholder": "Search languages...",
         "title": "Language"
@@ -733,6 +736,10 @@
             "description": "Cancels the current recording.",
             "name": "Cancel"
           },
+          "invoke_skill": {
+            "description": "Starts recording in Skill mode with intelligent intent routing.",
+            "name": "Invoke Skill"
+          },
           "open_settings": {
             "description": "Opens the settings window.",
             "name": "Open Settings"
@@ -744,10 +751,6 @@
           "transcribe": {
             "description": "Converts your speech into text.",
             "name": "Transcribe"
-          },
-          "invoke_skill": {
-            "description": "Starts recording in Skill mode with intelligent intent routing.",
-            "name": "Invoke Skill"
           }
         },
         "description": "Configure keyboard shortcuts to trigger speech-to-text recording",
@@ -766,10 +769,10 @@
     },
     "history": {
       "content": {
+        "chained": "Chained processing",
         "improved": "Improved",
         "original": "Speech Recognition Result",
-        "streaming": "Real-time Recognition Result",
-        "chained": "Chained processing"
+        "streaming": "Real-time Recognition Result"
       },
       "copyToClipboard": "Copy transcription to clipboard",
       "delete": "Delete entry",
@@ -825,14 +828,14 @@
         "provider": {
           "builtin": "Built-in",
           "builtinTooltip": "Built-in provider, cannot be deleted",
+          "deleteAction": "Delete Provider",
+          "deleteConfirmation": "Are you sure you want to delete the provider \"{{name}}\"? This action cannot be undone.",
+          "deleteTitle": "Delete Provider",
           "description": "Select an OpenAI-compatible provider.",
           "editName": "Edit Provider Name",
           "namePlaceholder": "Provider Name",
-          "title": "Provider",
           "newProvider": "New Provider",
-          "deleteAction": "Delete Provider",
-          "deleteTitle": "Delete Provider",
-          "deleteConfirmation": "Are you sure you want to delete the provider \"{{name}}\"? This action cannot be undone."
+          "title": "Provider"
         },
         "providers": {
           "add": "Add Provider",
@@ -860,10 +863,10 @@
             "title": "No providers"
           },
           "fields": {
+            "apiKey": "API Key",
             "baseUrl": "Base URL",
             "modelsEndpoint": "Models Endpoint",
             "modelsEndpointPlaceholder": "/models",
-            "apiKey": "API Key",
             "name": "Provider Name",
             "namePlaceholder": "My Provider"
           },
@@ -998,17 +1001,13 @@
       },
       "prompts": {
         "activeSet": "Set as default prompt",
+        "addAlias": "Add alias",
+        "advancedSettings": "Advanced Settings",
+        "alias": "Alias",
         "aliasDuplicate": "Alias '{{alias}}' conflicts with prompt '{{promptName}}'",
+        "aliasesLabel": "Aliases",
         "aliasLabel": "Alias / Trigger Word",
         "aliasPlaceholder": "eg: translate, translate English",
-        "aliasesLabel": "Aliases",
-        "addAlias": "Add alias",
-        "alias": "Alias",
-        "suggestAliases": "Suggest Trigger words",
-        "suggestSuccess": "Trigger words suggested successfully",
-        "suggestFailed": "Failed to suggest trigger words",
-        "noSuggestions": "No suggestions found",
-        "descriptionRequired": "A description is required to suggest trigger words",
         "commandPrefixDescription": "Set after saying [prefix][prompt alias] to dynamically trigger the prompt (supports multiple prefixes, separated by \",\")",
         "commandPrefixPlaceholder": "eg: help me, please",
         "commandPrefixTitle": "Voice Command Prefix",
@@ -1016,71 +1015,75 @@
         "createNew": "Create New Prompt",
         "createPrompt": "Create Prompt",
         "createSuccess": "Prompt created successfully",
-        "description": "Description (for smart routing)",
-        "descriptionPlaceholder": "Briefly describe what this Skill does and when it should be triggered",
-        "globalConfigTitle": "Global Configuration",
-        "managementTitle": "Prompts",
+        "deleteConfirm": {
+          "description": "Are you sure you want to delete this prompt? This action cannot be undone.",
+          "title": "Delete Prompt"
+        },
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
-        "deleteConfirm": {
-          "title": "Delete Prompt",
-          "description": "Are you sure you want to delete this prompt? This action cannot be undone."
-        },
         "deleteSuccess": "Prompt deleted successfully",
+        "description": "Description (for smart routing)",
+        "descriptionPlaceholder": "Briefly describe what this Skill does and when it should be triggered",
+        "descriptionRequired": "A description is required to suggest trigger words",
         "editPrompt": "Edit Prompt",
-        "enableReview": "Enable Review Trigger",
         "enabledToggle": "Enable/Disable this Skill",
+        "enableReview": "Enable Review Trigger",
+        "generationDescription": "Generates new content based on the recognized text as a prompt (e.g., translation, summarization).",
+        "globalConfigTitle": "Global Configuration",
+        "jsonHint": "Note: If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
+        "managementTitle": "Prompts",
         "newPromptName": "New Prompt",
         "noAliases": "No aliases added",
         "noPrefixes": "No prefixes added",
         "noPrompts": "No prompts available",
+        "noSuggestions": "No suggestions found",
+        "outputMode": {
+          "chat": "AI Chat",
+          "label": "Output Mode",
+          "polish": "Text Polish"
+        },
         "prefixesSaved": "Command prefixes saved",
         "promptInstructions": "Prompt Instructions",
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
         "promptTip": "Tip: The system automatically sends input data as a separate message to the AI. You only need to reference variable names in your prompt:<br/><b>Input Variables (auto-appended):</b><br/><code>${output}</code>: Final transcribed text (without command prefix/alias).<br/><code>${raw_input}</code>: Complete original transcription (with prefix/alias).<br/><code>${select}</code>: Text selected when recording ended.<br/><code>${streaming_output}</code>: Real-time transcription (works with output for better accuracy).<br/><code>${hot_words}</code>: Your custom vocabulary/hot words.<br/><code>${context}</code>: Historical context from the active window.<br/><b>Metadata Variables (directly replaced):</b><br/><code>${prompt}</code>: Current prompt scheme name.<br/><br/><b>Fallback:</b> If your prompt doesn't reference output/raw_input/select, the system will automatically append the transcription at the end, so you can write pure task descriptions.<br/><br/><b>Note:</b> If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
+        "refinementDescription": "Automatically corrects and formats the recognized text.",
+        "reviewThreshold": "Review Threshold",
         "selectedPrompt": {
           "description": "The system automatically sends referenced variables (like <code>${output}</code>, <code>${select}</code>) as a separate message to the AI. If no input variables are referenced, the system will auto-append the transcription.",
           "title": "Selected Prompt"
         },
-        "outputMode": {
-          "polish": "Text Polish",
-          "chat": "AI Chat",
-          "label": "Output Mode"
-        },
-        "advancedSettings": "Advanced Settings",
-        "reviewThreshold": "Review Threshold",
-        "refinementDescription": "Automatically corrects and formats the recognized text.",
-        "generationDescription": "Generates new content based on the recognized text as a prompt (e.g., translation, summarization).",
         "selectPrompt": "Select a prompt",
         "selectToEdit": "Select a prompt above to view and edit its details.",
         "setAsActive": "Set as Default",
+        "suggestAliases": "Suggest Trigger words",
+        "suggestFailed": "Failed to suggest trigger words",
+        "suggestSuccess": "Trigger words suggested successfully",
         "title": "Prompt",
         "updateFailed": "Update failed",
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully",
+        "varContextDesc": "Historical context from the active window.",
+        "varHotWordsDesc": "Custom vocabulary/hot words from Advanced Settings.",
         "varOutputDesc": "Final transcribed text (without command prefix/alias).",
+        "varPromptDesc": "Current prompt scheme's display name.",
         "varRawInputDesc": "Complete original transcription (with command prefix/alias).",
         "varSelectDesc": "Text selected when recording ended.",
-        "varStreamingDesc": "Intermediate text during real-time transcription.",
-        "varHotWordsDesc": "Custom vocabulary/hot words from Advanced Settings.",
-        "varPromptDesc": "Current prompt scheme's display name.",
-        "varContextDesc": "Historical context from the active window.",
-        "jsonHint": "Note: If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically."
+        "varStreamingDesc": "Intermediate text during real-time transcription."
       },
       "skills": {
-        "quickCommands": "Quick Commands",
         "advancedSkills": "Advanced Skills",
-        "openFolder": "Open Folder",
-        "refresh": "Refresh",
-        "noExternalSkills": "No external skills found",
         "createHint": "Create .md files in ~/.votype/skills/ to add custom skills",
-        "sourceFile": "File",
-        "sourceUser": "User",
-        "sourceBuiltin": "Built-in",
         "enabledInFile": "Skill is always enabled (configure in file)",
-        "helpText": "Create .md files with YAML frontmatter in the skills folder. They will be automatically loaded and available for use."
+        "helpText": "Create .md files with YAML frontmatter in the skills folder. They will be automatically loaded and available for use.",
+        "noExternalSkills": "No external skills found",
+        "openFolder": "Open Folder",
+        "quickCommands": "Quick Commands",
+        "refresh": "Refresh",
+        "sourceBuiltin": "Built-in",
+        "sourceFile": "File",
+        "sourceUser": "User"
       },
       "title": "Post Process"
     },
@@ -1204,22 +1207,22 @@
   },
   "transcription": {
     "review": {
+      "aiResponse": "AI Response",
       "change": "Change",
       "confidence": "Confidence",
       "confirm": "Confirm & Insert",
       "description": "The transcription may contain errors. Please review and edit if needed.",
       "final": "Final output",
+      "generationTitle": "AI Assistant Response",
       "highlightHint": "Highlighted words indicate LLM edits.",
       "hint": "⌘/Ctrl + Enter to confirm, Escape to cancel",
       "insert": "Insert",
       "insertCode": "Insert Code",
+      "insertStabilityHint": "Shortcut: {{shortcut}}\nIf insertion is unstable, you can temporarily disable this feature.",
+      "instruction": "Instruction",
       "placeholder": "Edit transcription...",
       "source": "Live transcript",
-      "title": "Review Transcription",
-      "generationTitle": "AI Assistant Response",
-      "instruction": "Instruction",
-      "aiResponse": "AI Response",
-      "insertStabilityHint": "Shortcut: {{shortcut}}\nIf insertion is unstable, you can temporarily disable this feature."
+      "title": "Review Transcription"
     }
   }
 }

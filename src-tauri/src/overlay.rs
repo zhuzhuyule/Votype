@@ -21,7 +21,8 @@ use tauri_nspanel::{tauri_panel, CollectionBehavior, PanelBuilder, PanelLevel};
 tauri_panel! {
     panel!(RecordingOverlayPanel {
         config: {
-            can_become_key_window: false,
+            // Allow becoming key window so we can receive keyboard input for skill confirmation
+            can_become_key_window: true,
             is_floating_panel: true
         }
     })
@@ -344,5 +345,54 @@ pub fn emit_levels(app_handle: &AppHandle, levels: &Vec<f32>) {
     // also emit to the recording overlay if it's open
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         let _ = overlay_window.emit("mic-level", levels);
+    }
+}
+
+/// Makes the overlay window key window so it can receive keyboard input
+/// Used when showing skill confirmation dialog
+/// On macOS, we need to activate the app first, then make the panel key window
+#[cfg(target_os = "macos")]
+pub fn focus_recording_overlay(app_handle: &AppHandle) {
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send, msg_send_id};
+    use tauri_nspanel::ManagerExt;
+
+    let app_handle_inner = app_handle.clone();
+    let _ = app_handle.run_on_main_thread(move || {
+        // First, activate the current app to force macOS to give us focus
+        unsafe {
+            // Get current process ID
+            let pid = std::process::id() as i32;
+
+            // Get NSRunningApplication class
+            let cls = class!(NSRunningApplication);
+
+            // Call +[NSRunningApplication runningApplicationWithProcessIdentifier:]
+            let app: Option<Retained<AnyObject>> =
+                msg_send_id![cls, runningApplicationWithProcessIdentifier: pid];
+
+            if let Some(app) = app {
+                // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2
+                let options: usize = 2;
+                let _: bool = msg_send![&*app, activateWithOptions: options];
+            }
+        }
+
+        // Small delay to ensure activation completes (using sleep on main thread is slightly risky
+        // but 20ms is short enough for this specific UX requirement)
+        std::thread::sleep(std::time::Duration::from_millis(20));
+
+        // Now make the panel key window
+        if let Ok(panel) = app_handle_inner.get_webview_panel("recording_overlay") {
+            panel.make_key_window();
+        }
+    });
+}
+
+#[cfg(not(target_os = "macos"))]
+pub fn focus_recording_overlay(app_handle: &AppHandle) {
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.set_focus();
     }
 }

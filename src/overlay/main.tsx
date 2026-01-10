@@ -2,7 +2,8 @@ import { Box } from "@radix-ui/themes";
 import { listen } from "@tauri-apps/api/event";
 import React, { Suspense, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import "../i18n";
+import { I18nextProvider } from "react-i18next";
+import i18n from "../i18n";
 import { OverlayState } from "./RecordingOverlay";
 
 // Lazy load the heavy overlay component
@@ -42,6 +43,8 @@ const OverlayApp: React.FC = () => {
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <OverlayApp />
+    <I18nextProvider i18n={i18n}>
+      <OverlayApp />
+    </I18nextProvider>
   </React.StrictMode>,
 );

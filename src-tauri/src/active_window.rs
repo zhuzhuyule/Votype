@@ -165,18 +165,18 @@ pub fn focus_app_by_pid(pid: u64) -> Result<(), String> {
 
     let pid_i32 = pid as i32;
 
-    unsafe {
-        // Get NSRunningApplication class
-        let cls = class!(NSRunningApplication);
+    // NSRunningApplication is documented as thread-safe for many operations.
+    // For now, we perform the activation here. If crashes persist during focus restoration,
+    // this should also be wrapped in run_on_main_thread by callers with AppHandle.
 
-        // Call +[NSRunningApplication runningApplicationWithProcessIdentifier:]
+    unsafe {
+        let cls = class!(NSRunningApplication);
         let app: Option<Retained<AnyObject>> =
             msg_send_id![cls, runningApplicationWithProcessIdentifier: pid_i32];
 
         match app {
             Some(app) => {
-                // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2
-                let options: usize = 2;
+                let options: usize = 2; // NSApplicationActivateIgnoringOtherApps
                 let success: bool = msg_send![&*app, activateWithOptions: options];
                 if success {
                     Ok(())
