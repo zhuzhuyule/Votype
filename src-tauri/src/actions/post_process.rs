@@ -60,7 +60,7 @@ pub struct SkillRouteResponse {
 }
 
 /// Build the system prompt for skill routing
-fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
+fn build_skill_routing_prompt(prompts: &[LLMPrompt], has_selected_text: bool) -> String {
     let mut skill_list = String::new();
     for prompt in prompts {
         // Skip disabled skills
@@ -87,14 +87,23 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
         ));
     }
 
+    let selected_text_note = if has_selected_text {
+        r#"
+
+## 注意
+用户当前**有选中的文本内容**。如果用户的指令是针对选中内容的操作（如"翻译这个"、"总结一下"、"帮我检查"等），应该返回 input_source: "select"。"#
+    } else {
+        ""
+    };
+
     format!(
-        r#"你是一个智能意图识别助手。根据用户的语音转录文本，判断应该使用哪个 Skill 来处理。
+        r#"你是一个智能意图识别助手。根据用户的语音转录文本，判断应该使用哪个 Skill 来处理，并决定输入数据的来源。
 
 ## 可用 Skills
-{skill_list}
+{skill_list}{selected_text_note}
 
 ## 任务
-分析用户输入的语音转录文本，判断用户的真实意图并选择最匹配的 Skill。
+分析用户输入的语音转录文本，判断用户的真实意图，选择最匹配的 Skill，并决定输入数据的来源。
 
 ## 判断原则（按优先级排序）
 1. **优先返回 "default"**：如果用户只是在：
@@ -112,10 +121,23 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt]) -> String {
 
 3. **宁可误判为 default，也不要误判为其他 Skill**
 
+## 输入来源决策 (input_source)
+- **"select"**: 用户指令针对选中内容（如"翻译这个"、"帮我检查一下"），且有选中文本时
+- **"output"**: 使用完整的语音识别内容作为输入
+- **"extract"**: 用户语音中包含指令和实际内容，需要提取内容部分
+  - 例如："帮我翻译一下今天天气不错" → 需要提取 "今天天气不错"
+  - 例如："写一封邮件给张三，感谢他的帮助" → 需要提取 "给张三，感谢他的帮助"
+
 ## 输出格式
 严格返回 JSON，不要有任何其他内容：
-{{"skill_id": "选择的skill_id或default", "confidence": 0-100的整数}}"#,
-        skill_list = skill_list
+{{
+  "skill_id": "选择的skill_id或default",
+  "confidence": 0-100的整数,
+  "input_source": "select|output|extract",
+  "extracted_content": "如果input_source是extract，这里填提取的内容；否则为null"
+}}"#,
+        skill_list = skill_list,
+        selected_text_note = selected_text_note
     )
 }
 
@@ -148,7 +170,7 @@ fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
 }
 
 /// Perform asynchronous skill routing using LLM
-/// Returns the full routing response including skill_id and confidence
+/// Returns the full routing response including skill_id, confidence, input_source and extracted_content
 async fn perform_skill_routing(
     _app_handle: &AppHandle,
     api_key: String,
@@ -156,6 +178,7 @@ async fn perform_skill_routing(
     provider: &PostProcessProvider,
     model: &str,
     transcription: &str,
+    selected_text: Option<&str>,
 ) -> Option<SkillRouteResponse> {
     let client = match crate::llm_client::create_client(provider, api_key) {
         Ok(c) => c,
@@ -165,7 +188,8 @@ async fn perform_skill_routing(
         }
     };
 
-    let routing_prompt = build_skill_routing_prompt(prompts);
+    let has_selected_text = selected_text.map(|s| !s.trim().is_empty()).unwrap_or(false);
+    let routing_prompt = build_skill_routing_prompt(prompts, has_selected_text);
 
     let mut messages = Vec::new();
 
@@ -238,8 +262,8 @@ async fn perform_skill_routing(
         None
     } else {
         info!(
-            "[SkillRouter] Routed to skill: {} (Confidence: {:?})",
-            route.skill_id, route.confidence
+            "[SkillRouter] Routed to skill: {} (Confidence: {:?}, InputSource: {:?})",
+            route.skill_id, route.confidence, route.input_source
         );
         Some(route)
     }
@@ -930,6 +954,7 @@ pub(crate) async fn maybe_post_process_transcription(
                     provider,
                     &m,
                     transcription,
+                    selected_text.as_deref(),
                 )
                 .await
                 {
@@ -941,10 +966,19 @@ pub(crate) async fn maybe_post_process_transcription(
                             is_explicit = true; // Mark as explicit so we don't treat it as default polish
                         }
                         info!(
-                            "[PostProcess] Routed to skill \"{}\" via LLM",
-                            routed_prompt.name
+                            "[PostProcess] Routed to skill \"{}\" via LLM (input_source: {:?})",
+                            routed_prompt.name, route_response.input_source
                         );
-                        initial_content = transcription.to_string(); // Use full text for routed skill
+
+                        // Use input_source to determine which content to use
+                        initial_content = match route_response.input_source.as_deref() {
+                            Some("select") => selected_text.clone().unwrap_or_default(),
+                            Some("extract") => route_response
+                                .extracted_content
+                                .clone()
+                                .unwrap_or_else(|| transcription.to_string()),
+                            _ => transcription.to_string(), // "output" or unspecified
+                        };
 
                         // Notify UI about the routed skill
                         app_handle
@@ -985,6 +1019,7 @@ pub(crate) async fn maybe_post_process_transcription(
                         provider,
                         &m,
                         transcription,
+                        selected_text.as_deref(),
                     ),
                     // Default polish
                     execute_default_polish(
