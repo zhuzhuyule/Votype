@@ -38,8 +38,6 @@ export interface UsePromptsReturn {
   setDraftComplianceThreshold: (value: number) => void;
   draftOutputMode: PromptOutputMode;
   setDraftOutputMode: (value: PromptOutputMode) => void;
-  draftEnabled: boolean;
-  setDraftEnabled: (value: boolean) => void;
   currentAliases: string[];
   currentAliasInput: string;
   setCurrentAliasInput: (value: string) => void;
@@ -96,7 +94,6 @@ export const usePrompts = (
 
   const [draftOutputMode, setDraftOutputMode] =
     useState<PromptOutputMode>("polish");
-  const [draftEnabled, setDraftEnabled] = useState(true);
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [currentAliasInput, setCurrentAliasInput] = useState("");
   const [isSuggestingAliases, setIsSuggestingAliases] = useState(false);
@@ -158,8 +155,7 @@ export const usePrompts = (
       draftComplianceCheck !==
         (viewingPrompt.compliance_check_enabled || false) ||
       draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70) ||
-      draftOutputMode !== (viewingPrompt.output_mode || "polish") ||
-      draftEnabled !== (viewingPrompt.enabled ?? true)
+      draftOutputMode !== (viewingPrompt.output_mode || "polish")
     );
   }, [
     isCreating,
@@ -173,7 +169,6 @@ export const usePrompts = (
     draftComplianceCheck,
     draftComplianceThreshold,
     draftOutputMode,
-    draftEnabled,
   ]);
 
   // Text models for dropdown
@@ -224,7 +219,6 @@ export const usePrompts = (
 
         setDraftComplianceThreshold(20);
         setDraftOutputMode("polish");
-        setDraftEnabled(true);
         setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
@@ -242,7 +236,6 @@ export const usePrompts = (
 
       setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
       setDraftOutputMode(viewingPrompt.output_mode || "polish");
-      setDraftEnabled(viewingPrompt.enabled ?? true);
       setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
@@ -375,7 +368,7 @@ export const usePrompts = (
         compliance_check_enabled: draftComplianceCheck,
         compliance_threshold: Math.round(draftComplianceThreshold),
         output_mode: draftOutputMode,
-        enabled: draftEnabled,
+        enabled: true,
         customized: true,
       };
 
@@ -401,7 +394,6 @@ export const usePrompts = (
     draftComplianceCheck,
     draftComplianceThreshold,
     draftOutputMode,
-    draftEnabled,
     draftDescription,
     validateAliases,
     viewingPrompt,
@@ -506,8 +498,6 @@ export const usePrompts = (
     setDraftComplianceThreshold,
     draftOutputMode,
     setDraftOutputMode,
-    draftEnabled,
-    setDraftEnabled,
     currentAliases,
     currentAliasInput,
     setCurrentAliasInput,

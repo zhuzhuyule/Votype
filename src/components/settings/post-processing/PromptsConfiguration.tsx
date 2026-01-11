@@ -29,8 +29,8 @@ import { IconPicker } from "../../shared/IconPicker";
 import { Card } from "../../ui/Card";
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingsGroup } from "../../ui/SettingsGroup";
-import { IntentModelSelection } from "./IntentModelSelection";
 import { PostProcessingToggle } from "../PostProcessingToggle";
+import { IntentModelSelection } from "./IntentModelSelection";
 import { SidebarItem } from "./SidebarItem";
 import { PromptEditor, TagInput } from "./prompts/components";
 import type { SkillTemplate } from "./prompts/hooks/useExternalSkills";
@@ -91,8 +91,6 @@ const PromptsConfiguration: React.FC = () => {
 
     draftOutputMode,
     setDraftOutputMode,
-    draftEnabled,
-    setDraftEnabled,
     isSuggestingAliases,
     handleSuggestAliases,
   } = usePrompts(fileSkills, async (skillId: string) => {
@@ -256,15 +254,6 @@ const PromptsConfiguration: React.FC = () => {
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                             setDraftName(e.target.value)
                           }
-                        />
-                        <Switch
-                          size="1"
-                          checked={draftEnabled}
-                          onCheckedChange={setDraftEnabled}
-                          className="cursor-pointer"
-                          title={t(
-                            "settings.postProcessing.prompts.enabledToggle",
-                          )}
                         />
                       </Flex>
 
