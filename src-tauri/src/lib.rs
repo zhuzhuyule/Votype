@@ -381,9 +381,6 @@ pub fn run() {
             shortcut::toggle_online_asr,
             shortcut::select_asr_model,
             shortcut::select_post_process_model,
-            shortcut::add_post_process_prompt,
-            shortcut::update_post_process_prompt,
-            shortcut::delete_post_process_prompt,
             shortcut::set_post_process_selected_prompt,
             shortcut::update_custom_words,
             shortcut::get_external_skills,
@@ -484,7 +481,6 @@ pub fn run() {
             shortcut::get_all_skills,
             shortcut::create_skill,
             shortcut::delete_skill,
-            shortcut::migrate_prompts_to_skills,
             shortcut::get_skill_templates,
             shortcut::create_skill_from_template
         ])

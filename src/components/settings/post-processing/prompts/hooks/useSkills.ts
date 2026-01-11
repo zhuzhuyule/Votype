@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 import { LLMPrompt, LLMPromptSchema } from "../../../../../lib/types";
 
@@ -120,22 +119,6 @@ export function useSkills(): UseSkillsReturn {
   // Load skills on mount
   useEffect(() => {
     loadSkills();
-  }, [loadSkills]);
-
-  // Run migration on first load
-  useEffect(() => {
-    const migrate = async () => {
-      try {
-        const migrated = await invoke<number>("migrate_prompts_to_skills");
-        if (migrated > 0) {
-          toast.success(`Migrated ${migrated} prompts to skill files`);
-          await loadSkills();
-        }
-      } catch (e) {
-        console.error("Migration failed:", e);
-      }
-    };
-    migrate();
   }, [loadSkills]);
 
   return {

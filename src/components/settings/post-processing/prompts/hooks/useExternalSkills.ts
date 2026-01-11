@@ -33,7 +33,6 @@ export function useExternalSkills() {
   const [externalSkills, setExternalSkills] = useState<LLMPrompt[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasMigrated, setHasMigrated] = useState(false);
 
   const loadExternalSkills = useCallback(async () => {
     setIsLoading(true);
@@ -80,24 +79,10 @@ export function useExternalSkills() {
     }
   }, []);
 
-  // Run migration once on first load
+  // Load skills on first mount
   useEffect(() => {
-    const migrateAndLoad = async () => {
-      if (!hasMigrated) {
-        try {
-          const migrated = await invoke<number>("migrate_prompts_to_skills");
-          if (migrated > 0) {
-            toast.success(`已迁移 ${migrated} 个技能到文件系统`);
-          }
-        } catch (e) {
-          console.error("Migration failed:", e);
-        }
-        setHasMigrated(true);
-      }
-      await loadExternalSkills();
-    };
-    migrateAndLoad();
-  }, [loadExternalSkills, hasMigrated]);
+    loadExternalSkills();
+  }, [loadExternalSkills]);
 
   return {
     externalSkills,
