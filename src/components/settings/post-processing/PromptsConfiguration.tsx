@@ -200,7 +200,6 @@ const PromptsConfiguration: React.FC = () => {
                       option={{ value: skill.id, label: skill.name }}
                       isActive={activePromptId === skill.id}
                       isSelected={currentTab === skill.id}
-                      isBuiltin={skill.source === "builtin"}
                       isVerified={false}
                       onClick={() => setCurrentTab(skill.id)}
                       onActivate={() => handleSetAsActive()}
@@ -208,7 +207,6 @@ const PromptsConfiguration: React.FC = () => {
                       icon={skill.icon || "IconWand"}
                       outputMode={skill.output_mode}
                       aliases={skill.aliases || (skill as any).alias}
-                      source={skill.source}
                     />
                   ))}
                   {/* Temporary item for NEW prompt being created */}

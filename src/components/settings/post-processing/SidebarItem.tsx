@@ -7,7 +7,7 @@ export interface SidebarItemProps {
   option: { value: string; label: string };
   isSelected: boolean;
   isActive?: boolean;
-  isBuiltin: boolean;
+  isBuiltin?: boolean;
   isVerified?: boolean;
   onClick: () => void;
   onActivate: () => void;
@@ -15,7 +15,6 @@ export interface SidebarItemProps {
   icon?: string;
   outputMode?: "polish" | "chat" | "silent";
   aliases?: string | null;
-  source?: "builtin" | "user" | "imported" | { external: { path: string } };
 }
 
 export const SidebarItem: React.FC<SidebarItemProps> = ({
@@ -30,7 +29,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   icon,
   outputMode,
   aliases: aliasStr,
-  source,
 }) => {
   // 解析别名列表
   const aliases = React.useMemo(() => {
@@ -40,13 +38,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       .map((a) => a.trim())
       .filter((a) => a.length > 0);
   }, [aliasStr]);
-
-  // Source label for external skills
-  const sourceLabel = React.useMemo(() => {
-    if (source === "user") return "用户";
-    if (source === "imported") return "导入";
-    return null;
-  }, [source]);
 
   return (
     <div
@@ -81,11 +72,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
                 )}
               </span>
             )}
-            {sourceLabel && (
-              <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 font-medium leading-none">
-                {sourceLabel}
-              </span>
-            )}
+
             {isVerified && (
               <IconCircleCheck size={14} className="text-green-500 shrink-0" />
             )}

@@ -20,6 +20,7 @@ import {
   ReactNodeViewRenderer,
   useEditor,
 } from "@tiptap/react";
+import hljs from "highlight.js";
 import StarterKit from "@tiptap/starter-kit";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -350,8 +351,19 @@ const simpleMarkdownToHtml = (text: string): string => {
   // Protect code blocks first
   const codeBlocks: string[] = [];
   let html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const trimmedCode = code.trim();
+    let highlightedCode = "";
+    try {
+      if (lang && hljs.getLanguage(lang)) {
+        highlightedCode = hljs.highlight(trimmedCode, { language: lang }).value;
+      } else {
+        highlightedCode = hljs.highlightAuto(trimmedCode).value;
+      }
+    } catch {
+      highlightedCode = escapeHtml(trimmedCode);
+    }
     codeBlocks.push(
-      `<pre><code class="language-${lang}">${escapeHtml(code.trim())}</code></pre>`,
+      `<pre><code class="hljs language-${lang}">${highlightedCode}</code></pre>`,
     );
     return `${PLACEHOLDER_PREFIX}${codeBlocks.length - 1}${PLACEHOLDER_SUFFIX}`;
   });
@@ -427,16 +439,36 @@ const simpleMarkdownToHtml = (text: string): string => {
     const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
     if (ulMatch) {
       if (inList && listType !== "ul") {
-        processedLines.push("</ol>");
+        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
         inList = false;
       }
       if (!inList) {
-        processedLines.push("<ul>");
+        processedLines.push('<ul class="contains-task-list">');
         inList = true;
         listType = "ul";
       }
       const content = processInlineMarkdown(ulMatch[1]);
       processedLines.push(`<li>${content}</li>`);
+      continue;
+    }
+
+    // Check for task list item
+    const taskMatch = line.match(/^[\s]*[-*+]\s+\[([ xX])\]\s+(.+)$/);
+    if (taskMatch) {
+      if (inList && listType !== "ul") {
+        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
+        inList = false;
+      }
+      if (!inList) {
+        processedLines.push('<ul class="contains-task-list">');
+        inList = true;
+        listType = "ul";
+      }
+      const isChecked = taskMatch[1].toLowerCase() === "x";
+      const taskContent = processInlineMarkdown(taskMatch[2]);
+      processedLines.push(
+        `<li><input type="checkbox" disabled${isChecked ? " checked" : ""} /><span>${taskContent}</span></li>`,
+      );
       continue;
     }
 
@@ -463,6 +495,45 @@ const simpleMarkdownToHtml = (text: string): string => {
       inList = false;
     }
 
+    // Check for table
+    const tableMatch = line.match(/^\|[\s\S]+\|$/);
+    if (tableMatch) {
+      if (inBlockquote) {
+        processedLines.push("</blockquote>");
+        inBlockquote = false;
+      }
+
+      // Check if this is a header separator row
+      const isHeaderSeparator = /^[\s\|:\-]+$/.test(line);
+      if (isHeaderSeparator) {
+        continue;
+      }
+
+      // Parse table cells
+      const cells = line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim());
+      const isFirstRow =
+        processedLines.length === 0 ||
+        !processedLines[processedLines.length - 1].startsWith("<table");
+
+      if (isFirstRow) {
+        processedLines.push("<table><thead><tr>");
+        cells.forEach((cell) => {
+          processedLines.push(`<th>${processInlineMarkdown(cell)}</th>`);
+        });
+        processedLines.push("</tr></thead><tbody>");
+      } else {
+        processedLines.push("<tr>");
+        cells.forEach((cell) => {
+          processedLines.push(`<td>${processInlineMarkdown(cell)}</td>`);
+        });
+        processedLines.push("</tr>");
+      }
+      continue;
+    }
+
     // Check for horizontal rule
     if (/^[-*_]{3,}$/.test(line.trim())) {
       processedLines.push("<hr>");
@@ -478,12 +549,23 @@ const simpleMarkdownToHtml = (text: string): string => {
     }
   }
 
-  // Close any open lists or blockquotes
+  // Close any open lists, blockquotes, or tables
   if (inList) {
     processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
   }
   if (inBlockquote) {
     processedLines.push("</blockquote>");
+  }
+
+  // Close table if open
+  if (processedLines.length > 0) {
+    const lastLine = processedLines[processedLines.length - 1];
+    if (
+      lastLine &&
+      (lastLine.startsWith("<tr>") || lastLine.startsWith("<thead>"))
+    ) {
+      processedLines.push("</tbody></table>");
+    }
   }
 
   html = processedLines.join("\n");
@@ -533,14 +615,21 @@ const processInlineMarkdown = (text: string): string => {
     '<a href="$2" target="_blank" rel="noopener">$1</a>',
   );
 
+  // Images: ![alt](url)
+  result = result.replace(
+    /!\[([^\]]*)\]\(([^)]+)\)/g,
+    '<img src="$2" alt="$1" loading="lazy" />',
+  );
+
   return result;
 };
 
 const CodeBlockComponent = ({
   node: { textContent },
+  extension,
 }: {
   node: { textContent: string };
-  extension: any;
+  extension: { options: { HTMLAttributes?: Record<string, string> } };
 }) => {
   const { t } = useTranslation();
   const [insertState, setInsertState] = useState<"idle" | "success">("idle");
@@ -565,6 +654,22 @@ const CodeBlockComponent = ({
       console.error("Failed to copy code:", e);
     }
   }, [textContent]);
+
+  const language =
+    extension.options?.HTMLAttributes?.class?.match(/language-(\w+)/)?.[1] ||
+    "";
+
+  const highlightedCode = useCallback(() => {
+    if (!textContent) return "";
+    try {
+      if (language && hljs.getLanguage(language)) {
+        return hljs.highlight(textContent.trim(), { language }).value;
+      }
+      return hljs.highlightAuto(textContent.trim()).value;
+    } catch {
+      return escapeHtml(textContent.trim());
+    }
+  }, [textContent, language]);
 
   return (
     <NodeViewWrapper className="code-block-wrapper relative group my-2">
@@ -601,7 +706,10 @@ const CodeBlockComponent = ({
         </Tooltip>
       </div>
       <pre className="bg-(--gray-3) p-3 rounded-md overflow-x-auto text-sm font-mono border border-(--gray-4)">
-        <NodeViewContent as={"code" as any} />
+        <code
+          className={`hljs ${language ? `language-${language}` : ""}`}
+          dangerouslySetInnerHTML={{ __html: highlightedCode() }}
+        />
       </pre>
     </NodeViewWrapper>
   );
