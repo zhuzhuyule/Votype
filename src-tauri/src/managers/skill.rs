@@ -1,6 +1,6 @@
 use crate::settings::{Skill, SkillOutputMode, SkillSource, SkillType};
 use log::{debug, error};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
@@ -16,6 +16,18 @@ struct SkillFrontmatter {
     output_mode: SkillOutputMode,
     model_id: Option<String>,
     icon: Option<String>,
+}
+
+/// Template for creating new skills
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillTemplate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub instructions: String,
+    pub aliases: Option<String>,
+    pub icon: Option<String>,
+    pub output_mode: SkillOutputMode,
 }
 
 pub struct SkillManager {
@@ -46,18 +58,24 @@ impl SkillManager {
     /// Find the file path for a skill by its ID
     /// Searches both user/ and imported/ directories
     pub fn find_skill_file_path(&self, skill_id: &str) -> Option<PathBuf> {
+        debug!("find_skill_file_path: looking for skill_id={}", skill_id);
         // Search in both subdirectories
         for subdir in ["user", "imported"] {
-            if let Some(path) = self.search_skill_in_dir(&self.base_dir.join(subdir), skill_id) {
+            let dir = self.base_dir.join(subdir);
+            debug!("find_skill_file_path: searching in {:?}", dir);
+            if let Some(path) = self.search_skill_in_dir(&dir, skill_id) {
+                debug!("find_skill_file_path: FOUND at {:?}", path);
                 return Some(path);
             }
         }
+        debug!("find_skill_file_path: NOT FOUND for skill_id={}", skill_id);
         None
     }
 
     /// Search for a skill file in a specific directory
     fn search_skill_in_dir(&self, dir: &Path, skill_id: &str) -> Option<PathBuf> {
         if !dir.exists() || !dir.is_dir() {
+            debug!("search_skill_in_dir: directory does not exist: {:?}", dir);
             return None;
         }
 
@@ -80,6 +98,10 @@ impl SkillManager {
                                             "ext_{}",
                                             fm.name.to_lowercase().replace(" ", "_")
                                         );
+                                        debug!(
+                                            "search_skill_in_dir: folder {:?} has id={}",
+                                            md_file, id
+                                        );
                                         if id == skill_id {
                                             return Some(md_file);
                                         }
@@ -92,13 +114,34 @@ impl SkillManager {
 
                 // Check for single .md file
                 if entry_path.is_file() && entry_path.extension().map_or(false, |ext| ext == "md") {
-                    if let Some(name) = entry_path.file_stem() {
-                        let id = format!(
-                            "ext_{}",
-                            name.to_string_lossy().to_lowercase().replace(" ", "_")
-                        );
-                        if id == skill_id {
-                            return Some(entry_path);
+                    // Read the file and parse frontmatter to get the actual name
+                    if let Ok(content) = fs::read_to_string(&entry_path) {
+                        if let Some(frontmatter_str) = Self::extract_frontmatter(&content) {
+                            if let Ok(fm) =
+                                serde_yaml::from_str::<SkillFrontmatter>(frontmatter_str)
+                            {
+                                let id =
+                                    format!("ext_{}", fm.name.to_lowercase().replace(" ", "_"));
+                                debug!(
+                                    "search_skill_in_dir: file {:?} has name='{}' -> id={}",
+                                    entry_path, fm.name, id
+                                );
+                                if id == skill_id {
+                                    return Some(entry_path);
+                                }
+                            }
+                        } else {
+                            // Fallback: use filename as id (for files without frontmatter)
+                            if let Some(name) = entry_path.file_stem() {
+                                let id = format!(
+                                    "ext_{}",
+                                    name.to_string_lossy().to_lowercase().replace(" ", "_")
+                                );
+                                debug!("search_skill_in_dir: file {:?} (no frontmatter) filename -> id={}", entry_path, id);
+                                if id == skill_id {
+                                    return Some(entry_path);
+                                }
+                            }
                         }
                     }
                 }
@@ -112,6 +155,134 @@ impl SkillManager {
         let mut skill = self.parse_skill_file(file_path, source)?;
         skill.file_path = Some(file_path.to_path_buf());
         Some(skill)
+    }
+
+    /// Migrate prompts from settings to files
+    /// Returns the number of migrated prompts
+    pub fn migrate_prompts_to_files(&self, prompts: &[Skill]) -> usize {
+        let mut migrated = 0;
+        let user_dir = self.base_dir.join("user");
+
+        for prompt in prompts {
+            // Skip builtin skills - they should stay as defaults
+            if prompt.source == SkillSource::Builtin && !prompt.customized {
+                continue;
+            }
+
+            // Generate safe filename
+            let safe_name = prompt
+                .name
+                .chars()
+                .filter(|c| {
+                    c.is_alphanumeric()
+                        || *c == ' '
+                        || *c == '-'
+                        || *c == '_'
+                        || *c == '中'
+                        || *c == '英'
+                        || *c > '\u{4E00}'
+                })
+                .collect::<String>()
+                .trim()
+                .replace(' ', "_");
+
+            let filename = if safe_name.is_empty() {
+                format!("skill_{}.md", prompt.id.chars().take(8).collect::<String>())
+            } else {
+                format!("{}.md", safe_name)
+            };
+
+            let file_path = user_dir.join(&filename);
+
+            // Don't overwrite existing files
+            if file_path.exists() {
+                debug!(
+                    "Skipping migration for {} - file already exists",
+                    prompt.name
+                );
+                continue;
+            }
+
+            // Convert to markdown file
+            if let Err(e) = self.save_skill_to_file(&Skill {
+                file_path: Some(file_path.clone()),
+                source: SkillSource::User,
+                ..prompt.clone()
+            }) {
+                error!("Failed to migrate prompt '{}': {}", prompt.name, e);
+                continue;
+            }
+
+            debug!("Migrated prompt '{}' to {:?}", prompt.name, file_path);
+            migrated += 1;
+        }
+
+        migrated
+    }
+
+    /// Get all skills from all sources (user, imported)
+    /// This is the unified loading function
+    pub fn get_all_skills(&self) -> Vec<Skill> {
+        let mut skills = Vec::new();
+
+        // Load from ~/.votype/skills/user/
+        skills.extend(self.load_from_subdir("user", SkillSource::User));
+
+        // Load from ~/.votype/skills/imported/
+        skills.extend(self.load_from_subdir("imported", SkillSource::Imported));
+
+        skills
+    }
+
+    /// Delete a skill file by its ID
+    pub fn delete_skill_file(&self, skill_id: &str) -> Result<(), String> {
+        if let Some(file_path) = self.find_skill_file_path(skill_id) {
+            fs::remove_file(&file_path)
+                .map_err(|e| format!("Failed to delete skill file: {}", e))?;
+            debug!("Deleted skill file: {:?}", file_path);
+            Ok(())
+        } else {
+            Err(format!("Skill file not found for id: {}", skill_id))
+        }
+    }
+
+    /// Create a new skill file in user directory
+    pub fn create_skill_file(&self, skill: &Skill) -> Result<Skill, String> {
+        let user_dir = self.base_dir.join("user");
+
+        // Generate safe filename from name
+        let safe_name = skill
+            .name
+            .chars()
+            .filter(|c| {
+                c.is_alphanumeric() || *c == ' ' || *c == '-' || *c == '_' || *c > '\u{4E00}'
+            })
+            .collect::<String>()
+            .trim()
+            .replace(' ', "_");
+
+        let filename = if safe_name.is_empty() {
+            format!("skill_{}.md", chrono::Utc::now().timestamp())
+        } else {
+            format!("{}.md", safe_name)
+        };
+
+        let file_path = user_dir.join(&filename);
+
+        // Check if file already exists
+        if file_path.exists() {
+            return Err(format!("Skill file already exists: {}", filename));
+        }
+
+        // Create skill with file_path and User source
+        let mut new_skill = skill.clone();
+        new_skill.file_path = Some(file_path.clone());
+        new_skill.source = SkillSource::User;
+        new_skill.id = format!("ext_{}", safe_name.to_lowercase());
+
+        self.save_skill_to_file(&new_skill)?;
+
+        Ok(new_skill)
     }
 
     pub fn load_all_external_skills(&self) -> Vec<Skill> {
@@ -263,4 +434,206 @@ impl SkillManager {
             file_path: Some(file_path.to_path_buf()), // Store file path
         })
     }
+    /// Save a skill to its file (or create new file)
+    pub fn save_skill_to_file(&self, skill: &Skill) -> Result<(), String> {
+        let file_path = if let Some(path) = &skill.file_path {
+            path.clone()
+        } else {
+            // New skill, default to user directory
+            // Sanitize filename
+            let safe_name = skill
+                .name
+                .chars()
+                .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-' || *c == '_')
+                .collect::<String>()
+                .trim()
+                .replace(" ", "_")
+                .to_lowercase();
+            let filename = format!("{}.md", safe_name);
+            self.base_dir.join("user").join(filename)
+        };
+
+        // Construct frontmatter
+        let mut frontmatter = String::from("---\n");
+        frontmatter.push_str(&format!("name: \"{}\"\n", skill.name));
+        if !skill.description.is_empty() {
+            frontmatter.push_str(&format!("description: \"{}\"\n", skill.description));
+        }
+        if let Some(aliases) = &skill.aliases {
+            frontmatter.push_str(&format!("aliases: \"{}\"\n", aliases));
+        }
+        // Save output_mode enum as lowercase string
+        let mode_str = serde_json::to_string(&skill.output_mode)
+            .map(|s| s.trim_matches('"').to_string())
+            .unwrap_or_else(|_| "chat".to_string());
+        frontmatter.push_str(&format!("output_mode: {}\n", mode_str));
+
+        if let Some(model_id) = &skill.model_id {
+            frontmatter.push_str(&format!("model_id: \"{}\"\n", model_id));
+        }
+        if let Some(icon) = &skill.icon {
+            frontmatter.push_str(&format!("icon: \"{}\"\n", icon));
+        }
+
+        // Save skill_type
+        let type_str = serde_json::to_string(&skill.skill_type)
+            .map(|s| s.trim_matches('"').to_string())
+            .unwrap_or_else(|_| "text".to_string());
+        frontmatter.push_str(&format!("skill_type: {}\n", type_str));
+
+        frontmatter.push_str("---\n\n");
+
+        let content = format!("{}{}", frontmatter, skill.instructions);
+
+        // Ensure parent directory exists
+        if let Some(parent) = file_path.parent() {
+            if !parent.exists() {
+                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            }
+        }
+
+        fs::write(&file_path, content).map_err(|e| format!("Failed to write file: {}", e))?;
+        debug!("Saved skill to {:?}", file_path);
+
+        Ok(())
+    }
+
+    /// Create a new skill from a template
+    pub fn create_skill_from_template(&self, template_id: &str) -> Result<Skill, String> {
+        let templates = get_builtin_templates();
+        let template = templates
+            .iter()
+            .find(|t| t.id == template_id)
+            .ok_or_else(|| format!("Template not found: {}", template_id))?;
+
+        let skill = Skill {
+            id: String::new(), // Will be set by create_skill_file
+            name: template.name.clone(),
+            description: template.description.clone(),
+            instructions: template.instructions.clone(),
+            model_id: None,
+            aliases: template.aliases.clone(),
+            icon: template.icon.clone(),
+            skill_type: SkillType::Text,
+            source: SkillSource::User,
+            compliance_check_enabled: false,
+            compliance_threshold: Some(20),
+            output_mode: template.output_mode.clone(),
+            enabled: true,
+            customized: false,
+            file_path: None,
+        };
+
+        self.create_skill_file(&skill)
+    }
+}
+
+/// Get all available builtin templates for creating new skills
+pub fn get_builtin_templates() -> Vec<SkillTemplate> {
+    vec![
+        SkillTemplate {
+            id: "template_polish".to_string(),
+            name: "默认润色".to_string(),
+            description: "润色和优化文本表达".to_string(),
+            instructions: r#"# ASR 文本清理与质量评估专家
+
+你是一位专注于语音识别（ASR）后处理的自然语言处理专家。
+
+## 任务
+1. 清理转录文本中的填充词（如"嗯"、"啊"）
+2. 修正拼写和标点错误
+3. 保持原文语义和风格
+
+## 输出
+直接输出润色后的文本，不要任何解释。"#
+                .to_string(),
+            aliases: Some("润色,优化,清理".to_string()),
+            icon: Some("IconWand".to_string()),
+            output_mode: SkillOutputMode::Polish,
+        },
+        SkillTemplate {
+            id: "template_translate".to_string(),
+            name: "翻译".to_string(),
+            description: "将文本翻译成目标语言".to_string(),
+            instructions: r#"# 智能翻译专家
+
+你是一位专业翻译，擅长多语言互译。
+
+## 任务
+1. 分析用户指令确定目标语言（如未指定，中文译英文、英文译中文）
+2. 执行高质量翻译
+
+## 翻译原则
+- 保持原文的语气、风格和专业术语
+- 代码、变量名、专有名词保持原样
+- 使用自然流畅的目标语言表达
+
+## 输出
+仅输出翻译结果，不要任何解释或额外内容。"#
+                .to_string(),
+            aliases: Some("翻译,译成,translate".to_string()),
+            icon: Some("IconLanguage".to_string()),
+            output_mode: SkillOutputMode::Chat,
+        },
+        SkillTemplate {
+            id: "template_summary".to_string(),
+            name: "总结".to_string(),
+            description: "总结和提炼文本要点".to_string(),
+            instructions: r#"# 文本总结专家
+
+你是一位精通信息提炼的总结专家。
+
+## 任务
+对提供的文本进行精炼总结，提取核心要点。
+
+## 总结原则
+- 保留关键信息，去除冗余内容
+- 使用简洁、逻辑清晰的语言
+- 按重要性排序列出要点
+
+## 输出格式
+**核心要点：**
+- [要点1]
+- [要点2]
+
+**简述：**
+[1-2句话概括全文主旨]"#
+                .to_string(),
+            aliases: Some("总结,概括,摘要".to_string()),
+            icon: Some("IconListDetails".to_string()),
+            output_mode: SkillOutputMode::Chat,
+        },
+        SkillTemplate {
+            id: "template_chat".to_string(),
+            name: "AI 问答".to_string(),
+            description: "智能问答和通用对话".to_string(),
+            instructions: r#"# 智能助手
+
+你是一位乐于助人的AI助手。
+
+## 任务
+根据用户的问题或请求，提供准确、有帮助的回答。
+
+## 原则
+- 回答准确、简洁
+- 如不确定，诚实说明
+- 提供实用的建议和解决方案
+
+## 输出
+直接回答用户的问题。"#
+                .to_string(),
+            aliases: Some("问问,帮我,请问".to_string()),
+            icon: Some("IconMessageSparkle".to_string()),
+            output_mode: SkillOutputMode::Chat,
+        },
+        SkillTemplate {
+            id: "template_blank".to_string(),
+            name: "空白技能".to_string(),
+            description: "创建一个空白技能".to_string(),
+            instructions: "# 新技能\n\n在这里编写你的技能指令...".to_string(),
+            aliases: None,
+            icon: Some("IconSparkles".to_string()),
+            output_mode: SkillOutputMode::Chat,
+        },
+    ]
 }

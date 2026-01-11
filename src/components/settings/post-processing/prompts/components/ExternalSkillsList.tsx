@@ -9,6 +9,7 @@ interface ExternalSkillsListProps {
   isLoading: boolean;
   onRefresh: () => void;
   onOpenFolder: () => void;
+  onEdit: (skill: LLMPrompt) => void;
 }
 
 export const ExternalSkillsList: React.FC<ExternalSkillsListProps> = ({
@@ -16,6 +17,7 @@ export const ExternalSkillsList: React.FC<ExternalSkillsListProps> = ({
   isLoading,
   onRefresh,
   onOpenFolder,
+  onEdit,
 }) => {
   const { t } = useTranslation();
 
@@ -73,7 +75,8 @@ export const ExternalSkillsList: React.FC<ExternalSkillsListProps> = ({
               key={skill.id}
               align="center"
               justify="between"
-              className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
+              className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              onClick={() => onEdit(skill)}
             >
               <Flex align="center" gap="3">
                 <IconFileText size={16} className="text-emerald-500" />

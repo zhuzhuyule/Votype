@@ -119,6 +119,7 @@ export const LLMPromptSchema = z.object({
   compliance_threshold: z.number().optional().default(20),
   output_mode: PromptOutputModeSchema.default("chat"),
   enabled: z.boolean().default(true),
+  customized: z.boolean().optional().default(false),
   // Keep legacy fields for a bit of safety during transition if any code still uses them
   prompt: z.string().optional(),
   alias: z.string().optional().nullable(),

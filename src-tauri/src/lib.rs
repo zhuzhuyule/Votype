@@ -478,7 +478,14 @@ pub fn run() {
             commands::log_to_console,
             commands::suggest_aliases,
             commands::focus_overlay,
-            commands::confirm_skill
+            commands::confirm_skill,
+            shortcut::save_external_skill,
+            shortcut::get_all_skills,
+            shortcut::create_skill,
+            shortcut::delete_skill,
+            shortcut::migrate_prompts_to_skills,
+            shortcut::get_skill_templates,
+            shortcut::create_skill_from_template
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

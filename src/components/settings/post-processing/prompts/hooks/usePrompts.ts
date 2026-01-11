@@ -60,7 +60,10 @@ export interface UsePromptsReturn {
   handleSuggestAliases: () => Promise<void>;
 }
 
-export const usePrompts = (): UsePromptsReturn => {
+export const usePrompts = (
+  externalSkills: LLMPrompt[] = [],
+  onExternalSkillSaved?: (skillId: string) => Promise<LLMPrompt | null>,
+): UsePromptsReturn => {
   const { t } = useTranslation();
   const { getSetting, updateSetting, refreshSettings, settings } =
     useSettings();
@@ -100,10 +103,39 @@ export const usePrompts = (): UsePromptsReturn => {
 
   // Derived values
   const isCreating = currentTab === "NEW";
-  const viewingPrompt = useMemo(
-    () => prompts.find((p) => p.id === currentTab) || null,
-    [prompts, currentTab],
-  );
+  const viewingPrompt = useMemo(() => {
+    console.log("[usePrompts] Calculating viewingPrompt:", {
+      currentTab,
+      externalSkillsCount: externalSkills.length,
+      externalSkillIds: externalSkills.map((s) => ({
+        id: s.id,
+        source: s.source,
+      })),
+      promptsCount: prompts.length,
+      promptIds: prompts.map((p) => ({ id: p.id, source: p.source })),
+    });
+
+    // First try to find in external skills (file-based)
+    const externalSkill = externalSkills.find((s) => s.id === currentTab);
+    if (externalSkill) {
+      console.log("[usePrompts] Found in externalSkills:", {
+        id: externalSkill.id,
+        source: externalSkill.source,
+      });
+      return externalSkill;
+    }
+    // Then try settings prompts (builtin)
+    const prompt = prompts.find((p) => p.id === currentTab);
+    if (prompt) {
+      console.log("[usePrompts] Found in prompts:", {
+        id: prompt.id,
+        source: prompt.source,
+      });
+      return prompt;
+    }
+    console.log("[usePrompts] NOT FOUND - viewingPrompt will be null");
+    return null;
+  }, [prompts, currentTab, externalSkills]);
 
   const currentAliases = useMemo(() => {
     return draftAlias
@@ -215,12 +247,24 @@ export const usePrompts = (): UsePromptsReturn => {
       lastLoadedTabRef.current = viewingPrompt.id;
     }
 
-    if (!viewingPrompt && currentTab !== "NEW" && prompts.length > 0) {
+    // Only force default tab if NOT looking at an external skill
+    // and we're not finding the current tab in any list
+    if (
+      !viewingPrompt &&
+      currentTab !== "NEW" &&
+      prompts.length > 0 &&
+      externalSkills.length === 0
+    ) {
       setCurrentTab(prompts[0].id);
-    } else if (!viewingPrompt && currentTab !== "NEW" && prompts.length === 0) {
+    } else if (
+      !viewingPrompt &&
+      currentTab !== "NEW" &&
+      prompts.length === 0 &&
+      externalSkills.length === 0
+    ) {
       setCurrentTab("NEW");
     }
-  }, [currentTab, viewingPrompt, t, prompts]);
+  }, [currentTab, viewingPrompt, t, prompts, externalSkills]);
 
   // Validation
   const validateAliases = useCallback(
@@ -232,6 +276,7 @@ export const usePrompts = (): UsePromptsReturn => {
         .map((a) => a.trim().toLowerCase())
         .filter((a) => a.length > 0);
 
+      // Check against internal prompts
       for (const prompt of prompts) {
         if (prompt.id === currentPromptId) continue;
 
@@ -331,27 +376,65 @@ export const usePrompts = (): UsePromptsReturn => {
         }
         toast.success(t("settings.postProcessing.prompts.createSuccess"));
       } else if (viewingPrompt) {
-        console.log("Saving prompt:", {
+        // Check if external skill
+        console.log("[usePrompts] Saving skill:", {
           id: viewingPrompt.id,
-          name: draftName.trim(),
-          complianceCheckEnabled: draftComplianceCheck,
-          complianceThreshold: draftComplianceThreshold,
+          source: viewingPrompt.source,
+          isExternal:
+            viewingPrompt.source === "user" ||
+            viewingPrompt.source === "imported",
         });
-        await invoke("update_post_process_prompt", {
-          id: viewingPrompt.id,
-          name: (draftName || "").trim(),
-          instructions: (draftContent || "").trim(),
-          modelId: draftModelId === "default" ? null : draftModelId,
-          aliases: (draftAlias || "").trim() || null,
-          description: (draftDescription || "").trim(),
-          icon: draftIcon,
-          complianceCheckEnabled: draftComplianceCheck,
-          complianceThreshold: Math.round(draftComplianceThreshold),
-          outputMode: draftOutputMode,
-          enabled: draftEnabled,
-        });
-        await refreshSettings();
-        toast.success(t("settings.postProcessing.prompts.updateSuccess"));
+
+        if (
+          viewingPrompt.source === "user" ||
+          viewingPrompt.source === "imported"
+        ) {
+          const updatedSkill: LLMPrompt = {
+            ...viewingPrompt,
+            name: (draftName || "").trim(),
+            instructions: (draftContent || "").trim(),
+            model_id: draftModelId === "default" ? null : draftModelId,
+            aliases: (draftAlias || "").trim() || null,
+            description: (draftDescription || "").trim(),
+            icon: draftIcon || undefined,
+            compliance_check_enabled: draftComplianceCheck,
+            compliance_threshold: Math.round(draftComplianceThreshold),
+            output_mode: draftOutputMode,
+            enabled: draftEnabled,
+            customized: true,
+          };
+
+          console.log(
+            "[usePrompts] Calling save_external_skill with:",
+            updatedSkill,
+          );
+          await invoke("save_external_skill", { skill: updatedSkill });
+          console.log("[usePrompts] save_external_skill succeeded");
+
+          // Trigger refresh of external skills list and get updated skill
+          if (onExternalSkillSaved) {
+            console.log("[usePrompts] Calling onExternalSkillSaved callback");
+            await onExternalSkillSaved(viewingPrompt.id);
+          }
+          toast.success(t("settings.postProcessing.prompts.updateSuccess"));
+        } else {
+          // Internal prompt
+          await invoke("update_post_process_prompt", {
+            id: viewingPrompt.id,
+            name: (draftName || "").trim(),
+            instructions: (draftContent || "").trim(),
+            modelId: draftModelId === "default" ? null : draftModelId,
+            aliases: (draftAlias || "").trim() || null,
+            description: (draftDescription || "").trim(),
+            icon: draftIcon,
+            complianceCheckEnabled: draftComplianceCheck,
+            complianceThreshold: Math.round(draftComplianceThreshold),
+            outputMode: draftOutputMode,
+            enabled: draftEnabled,
+          });
+          await refreshSettings();
+          toast.success(t("settings.postProcessing.prompts.updateSuccess"));
+        }
       }
     } catch (error) {
       console.error("Failed to save prompt:", error);
@@ -374,20 +457,45 @@ export const usePrompts = (): UsePromptsReturn => {
     refreshSettings,
     updateSetting,
     t,
+    onExternalSkillSaved,
   ]);
 
   const handleDelete = useCallback(async () => {
     if (!viewingPrompt) return;
     try {
-      await invoke("delete_post_process_prompt", { id: viewingPrompt.id });
-      await refreshSettings();
+      console.log("[usePrompts] Deleting skill:", {
+        id: viewingPrompt.id,
+        source: viewingPrompt.source,
+        isExternal:
+          viewingPrompt.source === "user" ||
+          viewingPrompt.source === "imported",
+      });
+
+      // Use different delete command based on source
+      if (
+        viewingPrompt.source === "user" ||
+        viewingPrompt.source === "imported"
+      ) {
+        // External skill - delete the file
+        await invoke("delete_skill", { id: viewingPrompt.id });
+        console.log("[usePrompts] delete_skill succeeded");
+        // Refresh external skills list
+        if (onExternalSkillSaved) {
+          await onExternalSkillSaved(viewingPrompt.id);
+        }
+      } else {
+        // Internal prompt - delete from settings
+        await invoke("delete_post_process_prompt", { id: viewingPrompt.id });
+        await refreshSettings();
+      }
+
       setCurrentTab(prompts.length > 1 ? prompts[0].id : "NEW");
       toast.success(t("settings.postProcessing.prompts.deleteSuccess"));
     } catch (error) {
       console.error("Failed to delete prompt:", error);
       toast.error(t("settings.postProcessing.prompts.deleteFailed"));
     }
-  }, [viewingPrompt, prompts, refreshSettings, t]);
+  }, [viewingPrompt, prompts, refreshSettings, t, onExternalSkillSaved]);
 
   const handleSetAsActive = useCallback(() => {
     if (viewingPrompt) {

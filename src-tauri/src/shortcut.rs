@@ -672,17 +672,8 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
         return Err(format!("Prompt with id '{}' not found", id));
     }
 
-    // Try to delete external file from disk
-    let skill_manager = crate::managers::skill::SkillManager::new(&app);
-    if let Some(file_path) = skill_manager.find_skill_file_path(&id) {
-        if file_path.exists() {
-            log::info!("Deleting external skill file: {:?}", file_path);
-            match std::fs::remove_file(&file_path) {
-                Ok(()) => log::info!("Successfully deleted file: {:?}", file_path),
-                Err(e) => log::warn!("Failed to delete file {:?}: {}", file_path, e),
-            }
-        }
-    }
+    // NOTE: We no longer delete external files here.
+    // External skills should be deleted using the delete_skill command instead.
 
     // Remove prompt from settings
     let original_len = settings.post_process_prompts.len();
@@ -2079,4 +2070,113 @@ pub async fn test_asr_model_inference(
     .map_err(|e| format!("ASR test failed: {}", e))?;
 
     Ok(result)
+}
+#[tauri::command]
+pub fn save_external_skill(app: AppHandle, skill: Skill) -> Result<(), String> {
+    log::info!(
+        "save_external_skill called with skill id: {}, name: {}",
+        skill.id,
+        skill.name
+    );
+
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+
+    // Since file_path is marked #[serde(skip)], it won't be sent from frontend.
+    // We need to look up the file_path by skill ID from the loaded external skills.
+    log::info!("Looking up file path for skill id: {}", skill.id);
+    let file_path = skill_manager.find_skill_file_path(&skill.id);
+    log::info!("find_skill_file_path returned: {:?}", file_path);
+
+    if file_path.is_none() {
+        log::error!("Could not find file path for skill: {}", skill.id);
+        return Err(format!("Could not find file path for skill: {}", skill.id));
+    }
+
+    // Create a new skill with the correct file_path
+    let mut skill_with_path = skill;
+    skill_with_path.file_path = file_path.clone();
+
+    log::info!("Saving skill to file: {:?}", file_path);
+    skill_manager.save_skill_to_file(&skill_with_path)?;
+    log::info!("Successfully saved skill to file");
+    Ok(())
+}
+
+/// Get all skills from all sources (user, imported)
+/// This is the unified skill loading command
+#[tauri::command]
+pub fn get_all_skills(app: AppHandle) -> Vec<Skill> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.get_all_skills()
+}
+
+/// Create a new skill file in user directory
+#[tauri::command]
+pub fn create_skill(app: AppHandle, skill: Skill) -> Result<Skill, String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.create_skill_file(&skill)
+}
+
+/// Delete a skill file by its ID
+#[tauri::command]
+pub fn delete_skill(app: AppHandle, id: String) -> Result<(), String> {
+    log::info!("delete_skill called with id: {}", id);
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let result = skill_manager.delete_skill_file(&id);
+    log::info!("delete_skill_file result: {:?}", result);
+    result
+}
+
+/// Migrate prompts from settings to skill files
+/// This command is called once during startup to migrate legacy prompts
+#[tauri::command]
+pub fn migrate_prompts_to_skills(app: AppHandle) -> Result<usize, String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let settings = settings::get_settings(&app);
+
+    // Only migrate non-builtin or customized prompts
+    let prompts_to_migrate: Vec<_> = settings
+        .post_process_prompts
+        .iter()
+        .filter(|p| p.source != settings::SkillSource::Builtin || p.customized)
+        .cloned()
+        .collect();
+
+    if prompts_to_migrate.is_empty() {
+        return Ok(0);
+    }
+
+    let migrated = skill_manager.migrate_prompts_to_files(&prompts_to_migrate);
+
+    // If migration succeeded, clear non-builtin prompts from settings
+    if migrated > 0 {
+        let mut new_settings = settings.clone();
+        new_settings
+            .post_process_prompts
+            .retain(|p| p.source == settings::SkillSource::Builtin && !p.customized);
+        settings::write_settings(&app, new_settings);
+        log::info!("Migrated {} prompts to skill files", migrated);
+    }
+
+    Ok(migrated)
+}
+
+/// Get available skill templates
+#[tauri::command]
+pub fn get_skill_templates() -> Vec<crate::managers::skill::SkillTemplate> {
+    crate::managers::skill::get_builtin_templates()
+}
+
+/// Create a new skill from a template
+#[tauri::command]
+pub fn create_skill_from_template(
+    app: AppHandle,
+    template_id: String,
+) -> Result<settings::Skill, String> {
+    log::info!(
+        "create_skill_from_template called with template_id: {}",
+        template_id
+    );
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.create_skill_from_template(&template_id)
 }
