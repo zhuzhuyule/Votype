@@ -261,24 +261,46 @@ impl SkillManager {
             .trim()
             .replace(' ', "_");
 
-        let filename = if safe_name.is_empty() {
-            format!("skill_{}.md", chrono::Utc::now().timestamp())
+        // Find a unique filename by adding suffix if needed
+        let (filename, final_name) = if safe_name.is_empty() {
+            let ts = chrono::Utc::now().timestamp();
+            (format!("skill_{}.md", ts), format!("skill_{}", ts))
         } else {
-            format!("{}.md", safe_name)
+            // Check if file exists, if so add numeric suffix
+            let base_filename = format!("{}.md", safe_name);
+            let base_path = user_dir.join(&base_filename);
+
+            if !base_path.exists() {
+                (base_filename, safe_name.clone())
+            } else {
+                // Find next available suffix
+                let mut suffix = 2;
+                loop {
+                    let new_name = format!("{}_{}", safe_name, suffix);
+                    let new_filename = format!("{}.md", new_name);
+                    let new_path = user_dir.join(&new_filename);
+                    if !new_path.exists() {
+                        break (new_filename, new_name);
+                    }
+                    suffix += 1;
+                    if suffix > 100 {
+                        return Err("Too many skills with similar names".to_string());
+                    }
+                }
+            }
         };
 
         let file_path = user_dir.join(&filename);
-
-        // Check if file already exists
-        if file_path.exists() {
-            return Err(format!("Skill file already exists: {}", filename));
-        }
 
         // Create skill with file_path and User source
         let mut new_skill = skill.clone();
         new_skill.file_path = Some(file_path.clone());
         new_skill.source = SkillSource::User;
-        new_skill.id = format!("ext_{}", safe_name.to_lowercase());
+        new_skill.id = format!("ext_{}", final_name.to_lowercase());
+        // Update name if suffix was added
+        if final_name != safe_name {
+            new_skill.name = final_name.replace('_', " ");
+        }
 
         self.save_skill_to_file(&new_skill)?;
 
