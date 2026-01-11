@@ -207,6 +207,7 @@ export const SettingsSchema = z.object({
   post_process_models: z.record(z.string()).optional().default({}),
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
+  post_process_intent_model_id: z.string().nullable().optional().default(null),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),
   selected_asr_model_id: z.string().nullable().optional(),

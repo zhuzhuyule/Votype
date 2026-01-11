@@ -366,6 +366,7 @@ pub fn run() {
             shortcut::change_post_process_use_secondary_output_setting,
             shortcut::change_post_process_use_local_candidate_when_online_asr_setting,
             shortcut::change_post_process_secondary_model_id_setting,
+            shortcut::change_post_process_intent_model_id_setting,
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
             shortcut::change_post_process_model_setting,

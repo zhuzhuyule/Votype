@@ -113,6 +113,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   post_process_use_secondary_output: false,
   post_process_use_local_candidate_when_online_asr: false,
   post_process_secondary_model_id: null,
+  post_process_intent_model_id: null,
   app_review_policies: {},
 };
 
@@ -189,6 +190,10 @@ const settingUpdaters: {
     }),
   post_process_secondary_model_id: (value) =>
     invoke("change_post_process_secondary_model_id_setting", {
+      modelId: value,
+    }),
+  post_process_intent_model_id: (value) =>
+    invoke("change_post_process_intent_model_id_setting", {
       modelId: value,
     }),
   post_process_selected_prompt_id: (value) =>

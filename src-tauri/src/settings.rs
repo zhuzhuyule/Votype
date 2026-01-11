@@ -382,6 +382,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
+    pub post_process_intent_model_id: Option<String>,
+    #[serde(default)]
     pub cached_models: Vec<CachedModel>,
     #[serde(default)]
     pub online_asr_enabled: bool,
@@ -933,6 +935,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
+        post_process_intent_model_id: None,
         cached_models: Vec::new(),
         online_asr_enabled: false,
         selected_asr_model_id: None,

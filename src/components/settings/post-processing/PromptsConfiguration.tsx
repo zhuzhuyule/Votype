@@ -29,6 +29,7 @@ import { IconPicker } from "../../shared/IconPicker";
 import { Card } from "../../ui/Card";
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingsGroup } from "../../ui/SettingsGroup";
+import { IntentModelSelection } from "./IntentModelSelection";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 import { SidebarItem } from "./SidebarItem";
 import { PromptEditor, TagInput } from "./prompts/components";
@@ -128,6 +129,7 @@ const PromptsConfiguration: React.FC = () => {
         >
           <Flex direction="column" gap="2">
             <PostProcessingToggle grouped={true} />
+            <IntentModelSelection />
           </Flex>
         </SettingsGroup>
 

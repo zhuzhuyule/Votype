@@ -1486,6 +1486,39 @@ pub fn change_post_process_secondary_model_id_setting(
 }
 
 #[tauri::command]
+pub fn change_post_process_intent_model_id_setting(
+    app: AppHandle,
+    model_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if let Some(ref id) = model_id {
+        let cached_model = settings
+            .cached_models
+            .iter()
+            .find(|cached| cached.id == *id)
+            .ok_or_else(|| "Selected model not found".to_string())?;
+
+        if cached_model.model_type != ModelType::Text {
+            return Err("Selected model is not a Text model".to_string());
+        }
+    }
+
+    settings.post_process_intent_model_id = model_id;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "post_process_intent_model_id",
+            "value": settings::get_settings(&app).post_process_intent_model_id
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn change_offline_vad_force_interval_ms_setting(
     app: AppHandle,
     value: u64,

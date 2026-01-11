@@ -2,7 +2,7 @@
 use crate::apple_intelligence;
 use crate::overlay::show_llm_processing_overlay;
 use crate::settings::{
-    AppSettings, LLMPrompt, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
+    AppSettings, LLMPrompt, ModelType, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
@@ -508,6 +508,57 @@ fn resolve_effective_model(
         .filter(|m| !m.trim().is_empty())
 }
 
+fn resolve_intent_routing_model<'a>(
+    settings: &'a AppSettings,
+    fallback_provider: &'a PostProcessProvider,
+    fallback_prompt: &LLMPrompt,
+) -> Option<(&'a PostProcessProvider, String, String)> {
+    if let Some(intent_model_id) = settings.post_process_intent_model_id.as_ref() {
+        if let Some(cached_model) = settings
+            .cached_models
+            .iter()
+            .find(|cached| cached.id == *intent_model_id)
+        {
+            if cached_model.model_type == ModelType::Text {
+                if let Some(provider) = settings.post_process_provider(&cached_model.provider_id) {
+                    let model_id = cached_model.model_id.trim().to_string();
+                    if !model_id.is_empty() {
+                        let api_key = settings
+                            .post_process_api_keys
+                            .get(&provider.id)
+                            .cloned()
+                            .unwrap_or_default();
+                        return Some((provider, model_id, api_key));
+                    }
+                } else {
+                    log::warn!(
+                        "[SkillRouter] Intent model provider not found: {}",
+                        cached_model.provider_id
+                    );
+                }
+            } else {
+                log::warn!(
+                    "[SkillRouter] Intent model is not text-capable: {}",
+                    cached_model.id
+                );
+            }
+        } else {
+            log::warn!(
+                "[SkillRouter] Intent model not found in cache: {}",
+                intent_model_id
+            );
+        }
+    }
+
+    let model = resolve_effective_model(settings, fallback_provider, fallback_prompt)?;
+    let api_key = settings
+        .post_process_api_keys
+        .get(&fallback_provider.id)
+        .cloned()
+        .unwrap_or_default();
+    Some((fallback_provider, model, api_key))
+}
+
 pub async fn execute_llm_request(
     app_handle: &AppHandle,
     settings: &AppSettings,
@@ -940,19 +991,15 @@ pub(crate) async fn maybe_post_process_transcription(
         && !transcription.trim().is_empty()
     {
         if let Some(p) = &initial_prompt_opt {
-            if let Some(m) = resolve_effective_model(settings, provider, p) {
-                let api_key = settings
-                    .post_process_api_keys
-                    .get(&provider.id)
-                    .cloned()
-                    .unwrap_or_default();
-
+            if let Some((route_provider, route_model, route_api_key)) =
+                resolve_intent_routing_model(settings, provider, p)
+            {
                 if let Some(route_response) = perform_skill_routing(
                     app_handle,
-                    api_key,
+                    route_api_key,
                     &all_prompts,
-                    provider,
-                    &m,
+                    route_provider,
+                    &route_model,
                     transcription,
                     selected_text.as_deref(),
                 )
@@ -1000,13 +1047,9 @@ pub(crate) async fn maybe_post_process_transcription(
         && !transcription.trim().is_empty()
     {
         if let Some(default_prompt) = &initial_prompt_opt {
-            if let Some(m) = resolve_effective_model(settings, provider, default_prompt) {
-                let api_key = settings
-                    .post_process_api_keys
-                    .get(&provider.id)
-                    .cloned()
-                    .unwrap_or_default();
-
+            if let Some((route_provider, route_model, route_api_key)) =
+                resolve_intent_routing_model(settings, provider, default_prompt)
+            {
                 info!("[PostProcess] Mode C: Starting parallel intent detection and polish...");
 
                 // Execute both requests in parallel
@@ -1014,10 +1057,10 @@ pub(crate) async fn maybe_post_process_transcription(
                     // Intent detection
                     perform_skill_routing(
                         app_handle,
-                        api_key.clone(),
+                        route_api_key,
                         &all_prompts,
-                        provider,
-                        &m,
+                        route_provider,
+                        &route_model,
                         transcription,
                         selected_text.as_deref(),
                     ),
