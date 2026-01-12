@@ -18,6 +18,7 @@ import {
 import {
   IconChevronDown,
   IconDeviceFloppy,
+  IconFolder,
   IconPlus,
   IconSparkles,
   IconStar,
@@ -145,53 +146,44 @@ const PromptsConfiguration: React.FC = () => {
                   align="center"
                   className="pt-5 pb-2 px-4 shrink-0"
                 >
-                  <Text size="3" weight="bold" color="gray">
-                    {t("settings.postProcessing.prompts.managementTitle")}
-                  </Text>
-                  <Flex gap="1">
+                  <Flex gap="2" align="center">
+                    <Text size="3" weight="bold" color="gray">
+                      {t("settings.postProcessing.prompts.managementTitle")}
+                    </Text>
                     <IconButton
                       variant="ghost"
                       color="gray"
                       size="1"
                       onClick={openSkillsFolder}
                       className="cursor-pointer"
-                      title={t(
-                        "settings.postProcessing.skills.openFolder",
-                        "打开技能文件夹",
-                      )}
+                      title={t("settings.postProcessing.skills.openFolder")}
                     >
-                      <IconChevronDown
-                        size={14}
-                        style={{ transform: "rotate(-90deg)" }}
-                      />
+                      <IconFolder size={14} />
                     </IconButton>
-                    {/* Template dropdown menu */}
-                    <DropdownMenu.Root>
-                      <DropdownMenu.Trigger>
-                        <IconButton
-                          variant="soft"
-                          color="gray"
-                          size="2"
-                          className="cursor-pointer"
-                          title={t("settings.postProcessing.prompts.createNew")}
-                        >
-                          <IconPlus size={16} />
-                        </IconButton>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Content variant="soft" size="2">
-                        {templates.map((template) => (
-                          <DropdownMenu.Item
-                            key={template.id}
-                            onClick={() =>
-                              handleCreateFromTemplate(template.id)
-                            }
-                          >
-                            {template.name}
-                          </DropdownMenu.Item>
-                        ))}
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Root>
                   </Flex>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <IconButton
+                        variant="soft"
+                        color="gray"
+                        size="1"
+                        className="cursor-pointer"
+                        title={t("settings.postProcessing.prompts.createNew")}
+                      >
+                        <IconPlus size={14} />
+                      </IconButton>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content variant="soft" size="2">
+                      {templates.map((template) => (
+                        <DropdownMenu.Item
+                          key={template.id}
+                          onClick={() => handleCreateFromTemplate(template.id)}
+                        >
+                          {template.name}
+                        </DropdownMenu.Item>
+                      ))}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                 </Flex>
                 <Box className="flex-1 overflow-y-auto px-2 space-y-0.5">
                   {allSkills.map((skill) => (
