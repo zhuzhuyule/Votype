@@ -569,7 +569,7 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 ## 输出
 直接输出润色后的文本，不要任何解释。"#
                 .to_string(),
-            aliases: Some("润色,优化,清理".to_string()),
+            aliases: None,
             icon: Some("IconWand".to_string()),
             output_mode: SkillOutputMode::Polish,
         },
@@ -593,7 +593,7 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 ## 输出
 仅输出翻译结果，不要任何解释或额外内容。"#
                 .to_string(),
-            aliases: Some("翻译,译成,translate".to_string()),
+            aliases: None,
             icon: Some("IconLanguage".to_string()),
             output_mode: SkillOutputMode::Chat,
         },
@@ -621,7 +621,7 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 **简述：**
 [1-2句话概括全文主旨]"#
                 .to_string(),
-            aliases: Some("总结,概括,摘要".to_string()),
+            aliases: None,
             icon: Some("IconListDetails".to_string()),
             output_mode: SkillOutputMode::Chat,
         },
@@ -644,7 +644,7 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 ## 输出
 直接回答用户的问题。"#
                 .to_string(),
-            aliases: Some("问问,帮我,请问".to_string()),
+            aliases: None,
             icon: Some("IconMessageSparkle".to_string()),
             output_mode: SkillOutputMode::Chat,
         },

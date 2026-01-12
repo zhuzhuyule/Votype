@@ -263,15 +263,25 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
             .unwrap_or_default();
 
         // Execute skill with:
-        // - transcription: original voice command (raw)
-        // - secondary_output: polished transcription (for ${output} variable)
+        // - transcription: polished text if available, otherwise raw ASR
+        // - secondary_output: raw ASR text when polished is used (for ${streaming_output})
         // - selected_text: the text user selected (for ${select} variable)
+        let polished_text = pending
+            .polish_result
+            .clone()
+            .filter(|text| !text.trim().is_empty());
+        let skill_input = polished_text.as_deref().unwrap_or(&transcription);
+        let secondary_output = if polished_text.is_some() {
+            Some(transcription.as_str())
+        } else {
+            None
+        };
         let (result, _model, _prompt_id, _err, _confidence, _reason) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
-                &transcription,
-                pending.polish_result.as_deref(), // Pass polished text as secondary output
+                skill_input,
+                secondary_output,
                 false,
                 Some(skill_id),
                 pending.app_name.clone(),
