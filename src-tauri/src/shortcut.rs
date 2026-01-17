@@ -2052,3 +2052,11 @@ pub fn create_skill_from_template(
     let skill_manager = crate::managers::skill::SkillManager::new(&app);
     skill_manager.create_skill_from_template(&template_id)
 }
+
+/// Reorder skills by saving the new order
+#[tauri::command]
+pub fn reorder_skills(app: AppHandle, order: Vec<String>) -> Result<(), String> {
+    log::info!("reorder_skills called with {} items", order.len());
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.save_order(&order)
+}

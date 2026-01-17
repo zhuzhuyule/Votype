@@ -149,5 +149,25 @@ export function useExternalSkills() {
         return null;
       }
     },
+    reorderSkills: async (order: string[]): Promise<void> => {
+      try {
+        await invoke("reorder_skills", { order });
+        // Update local state to reflect new order
+        setExternalSkills((prev) => {
+          const orderMap = new Map(order.map((id, idx) => [id, idx]));
+          return [...prev].sort((a, b) => {
+            const posA = orderMap.get(a.id);
+            const posB = orderMap.get(b.id);
+            if (posA !== undefined && posB !== undefined) return posA - posB;
+            if (posA !== undefined) return -1;
+            if (posB !== undefined) return 1;
+            return a.name.localeCompare(b.name);
+          });
+        });
+      } catch (e) {
+        console.error("Failed to reorder skills:", e);
+        toast.error("排序失败");
+      }
+    },
   };
 }

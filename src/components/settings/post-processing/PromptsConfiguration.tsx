@@ -2,6 +2,21 @@
 // Refactored to use a Sidebar Layout for better scalability and consistency with ApiSettings
 
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
   Box,
   Button,
   Dialog,
@@ -53,7 +68,18 @@ const PromptsConfiguration: React.FC = () => {
     openSkillsFolder,
     createSkillFromTemplate,
     getSkillTemplates,
+    reorderSkills,
   } = useExternalSkills();
+
+  // Drag-and-drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const {
     enabled,
@@ -186,21 +212,52 @@ const PromptsConfiguration: React.FC = () => {
                   </DropdownMenu.Root>
                 </Flex>
                 <Box className="flex-1 overflow-y-auto px-2 space-y-0.5">
-                  {allSkills.map((skill) => (
-                    <SidebarItem
-                      key={skill.id}
-                      option={{ value: skill.id, label: skill.name }}
-                      isActive={activePromptId === skill.id}
-                      isSelected={currentTab === skill.id}
-                      isVerified={false}
-                      onClick={() => setCurrentTab(skill.id)}
-                      onActivate={() => handleSetAsActive()}
-                      t={t}
-                      icon={skill.icon || "IconWand"}
-                      outputMode={skill.output_mode}
-                      aliases={skill.aliases || (skill as any).alias}
-                    />
-                  ))}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event: DragEndEvent) => {
+                      const { active, over } = event;
+                      if (over && active.id !== over.id) {
+                        const oldIndex = allSkills.findIndex(
+                          (s) => s.id === active.id,
+                        );
+                        const newIndex = allSkills.findIndex(
+                          (s) => s.id === over.id,
+                        );
+                        if (oldIndex !== -1 && newIndex !== -1) {
+                          const newOrder = arrayMove(
+                            allSkills.map((s) => s.id),
+                            oldIndex,
+                            newIndex,
+                          );
+                          reorderSkills(newOrder);
+                        }
+                      }
+                    }}
+                  >
+                    <SortableContext
+                      items={allSkills.map((s) => s.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      {allSkills.map((skill) => (
+                        <SidebarItem
+                          key={skill.id}
+                          id={skill.id}
+                          sortable
+                          option={{ value: skill.id, label: skill.name }}
+                          isActive={activePromptId === skill.id}
+                          isSelected={currentTab === skill.id}
+                          isVerified={false}
+                          onClick={() => setCurrentTab(skill.id)}
+                          onActivate={() => handleSetAsActive()}
+                          t={t}
+                          icon={skill.icon || "IconWand"}
+                          outputMode={skill.output_mode}
+                          aliases={skill.aliases || (skill as any).alias}
+                        />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                   {/* Temporary item for NEW prompt being created */}
                   {isCreating && (
                     <SidebarItem

@@ -483,7 +483,8 @@ pub fn run() {
             shortcut::create_skill,
             shortcut::delete_skill,
             shortcut::get_skill_templates,
-            shortcut::create_skill_from_template
+            shortcut::create_skill_from_template,
+            shortcut::reorder_skills
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

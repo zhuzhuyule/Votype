@@ -158,7 +158,7 @@ impl SkillManager {
     }
 
     /// Get all skills from all sources (user, imported)
-    /// This is the unified loading function
+    /// Skills are ordered according to the saved order file
     pub fn get_all_skills(&self) -> Vec<Skill> {
         let mut skills = Vec::new();
 
@@ -168,7 +168,67 @@ impl SkillManager {
         // Load from ~/.votype/skills/imported/
         skills.extend(self.load_from_subdir("imported", SkillSource::Imported));
 
+        // Apply saved ordering
+        self.apply_ordering(&mut skills);
+
         skills
+    }
+
+    /// Load the skill ordering from the order file
+    fn get_order_file_path(&self) -> PathBuf {
+        self.base_dir
+            .parent()
+            .unwrap_or(&self.base_dir)
+            .join("skills_order.json")
+    }
+
+    /// Load saved skill order
+    fn load_order(&self) -> Vec<String> {
+        let order_file = self.get_order_file_path();
+        if let Ok(content) = fs::read_to_string(&order_file) {
+            if let Ok(order) = serde_json::from_str::<Vec<String>>(&content) {
+                return order;
+            }
+        }
+        Vec::new()
+    }
+
+    /// Save skill order
+    pub fn save_order(&self, order: &[String]) -> Result<(), String> {
+        let order_file = self.get_order_file_path();
+        let content = serde_json::to_string_pretty(order)
+            .map_err(|e| format!("Failed to serialize order: {}", e))?;
+        fs::write(&order_file, content)
+            .map_err(|e| format!("Failed to write order file: {}", e))?;
+        debug!("Saved skill order to {:?}", order_file);
+        Ok(())
+    }
+
+    /// Apply saved ordering to skills list
+    fn apply_ordering(&self, skills: &mut Vec<Skill>) {
+        let order = self.load_order();
+        if order.is_empty() {
+            return;
+        }
+
+        // Create a map of skill_id -> position in the saved order
+        let order_map: std::collections::HashMap<&str, usize> = order
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (id.as_str(), i))
+            .collect();
+
+        // Sort skills: those in order come first (by position), others come after
+        skills.sort_by(|a, b| {
+            let pos_a = order_map.get(a.id.as_str());
+            let pos_b = order_map.get(b.id.as_str());
+            match (pos_a, pos_b) {
+                (Some(pa), Some(pb)) => pa.cmp(pb),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => a.name.cmp(&b.name), // Alphabetical for unordered
+            }
+        });
     }
 
     /// Delete a skill file by its ID
