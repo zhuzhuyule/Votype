@@ -35,7 +35,26 @@ export const Dashboard: React.FC = () => {
   const audioUrlCacheRef = useRef<Map<string, string | null>>(new Map());
 
   const numberFormat = useMemo(() => new Intl.NumberFormat(), []);
-  const todayYmd = useMemo(() => toLocalYmd(new Date()), []);
+
+  // Track today's date and auto-update when day changes
+  const [todayYmd, setTodayYmd] = useState(() => toLocalYmd(new Date()));
+
+  // Check for date change periodically (every minute)
+  useEffect(() => {
+    const checkDateChange = () => {
+      const newToday = toLocalYmd(new Date());
+      if (newToday !== todayYmd) {
+        setTodayYmd(newToday);
+        // If user was viewing "today", update selection to the new today
+        if (selection.type === "day" && selection.day === todayYmd) {
+          setSelection({ type: "day", day: newToday });
+        }
+      }
+    };
+
+    const interval = setInterval(checkDateChange, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [todayYmd, selection]);
 
   // Pagination state for detail list
   const [detailTotalCount, setDetailTotalCount] = useState(0);
