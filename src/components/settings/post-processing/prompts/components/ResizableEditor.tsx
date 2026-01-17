@@ -15,6 +15,7 @@ import {
   IconBold,
   IconCode,
   IconDeviceFloppy,
+  IconGripHorizontal,
   IconH1,
   IconItalic,
   IconLink,
@@ -36,9 +37,17 @@ interface ResizableEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-  tipKey: string;
+  tipKey?: string;
   className?: string;
   style?: React.CSSProperties;
+  minHeight?: number;
+  defaultHeight?: number;
+  hideTips?: boolean;
+  showToolbar?: boolean;
+  showLabel?: boolean;
+  autoHeight?: boolean;
+  maxAutoLines?: number;
+  loading?: boolean;
 }
 
 const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
@@ -129,16 +138,56 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   tipKey,
   className,
   style,
+  minHeight = 150,
+  defaultHeight = 500,
+  hideTips = false,
+  showToolbar = true,
+  showLabel = true,
+  autoHeight = false,
+  maxAutoLines = 4,
+  loading = false,
 }) => {
   const { t } = useTranslation();
-  const [height, setHeight] = useState(500);
+  const [height, setHeight] = useState(defaultHeight);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const isDragging = useRef(false);
+  const isManualResized = useRef(false);
   const startY = useRef(0);
   const startHeight = useRef(0);
   const editorRef = useRef<MarkdownEditorRef>(null);
+
+  // Auto-height logic
+  useEffect(() => {
+    if (!autoHeight || isManualResized.current || isFullscreen) return;
+
+    const textarea = document.querySelector(
+      ".markdown-editor-textarea",
+    ) as HTMLTextAreaElement;
+    if (textarea) {
+      const lineHeight = 1.6 * 13; // from MarkdownEditor.css
+      const padding = 24; // 12px top + 12px bottom
+      const minH = 1 * lineHeight + padding;
+      const maxH = maxAutoLines * lineHeight + padding;
+
+      // Use a cleaner way to measure scrollHeight without flickering
+      const currentHeight = textarea.style.height;
+      textarea.style.height = "auto";
+      const scrollH = textarea.scrollHeight;
+      textarea.style.height = currentHeight;
+
+      const newHeight = Math.min(maxH, Math.max(minH, scrollH));
+      if (Math.abs(newHeight - height) > 2) {
+        setHeight(newHeight);
+      }
+    }
+  }, [value, autoHeight, maxAutoLines, isFullscreen, height]);
+
+  // Update height if defaultHeight changes
+  useEffect(() => {
+    setHeight(defaultHeight);
+  }, [defaultHeight]);
 
   // Prevent body scroll when in fullscreen
   useEffect(() => {
@@ -159,7 +208,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
       const delta = e.clientY - startY.current;
-      const newHeight = Math.max(150, startHeight.current + delta);
+      const newHeight = Math.max(minHeight, startHeight.current + delta);
       setHeight(newHeight);
     };
 
@@ -175,10 +224,11 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, []);
+  }, [minHeight]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     isDragging.current = true;
+    isManualResized.current = true;
     startY.current = e.clientY;
     startHeight.current = height;
     document.body.style.cursor = "ns-resize";
@@ -249,38 +299,51 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
 
   return (
     <Flex direction="column" gap="2" className={className} style={style}>
-      <Flex justify="between" align="start">
-        {/* Inline Collapsible Variables - replaces the title */}
-        <CollapsibleTips tipKey={tipKey} t={t} />
-        <Flex gap="2" className="shrink-0 ml-3">
-          <Tooltip content={t("common.aiOptimize")}>
-            <IconButton
-              variant="soft"
-              color="gray"
-              size="1"
-              onClick={handleAiOptimize}
-              loading={isAiLoading}
-              style={{ cursor: "pointer" }}
-            >
-              <IconSparkles size={14} />
-            </IconButton>
-          </Tooltip>
-          <Tooltip content={t("common.fullscreen")}>
-            <IconButton
-              variant="soft"
-              color="gray"
-              size="1"
-              onClick={() => setIsFullscreen(true)}
-              style={{ cursor: "pointer" }}
-            >
-              <IconArrowsMaximize size={14} />
-            </IconButton>
-          </Tooltip>
+      {showLabel && (
+        <Flex justify="between" align="start">
+          {/* Inline Collapsible Variables - replaces the title */}
+          {!hideTips && tipKey ? (
+            <CollapsibleTips tipKey={tipKey} t={t} />
+          ) : (
+            <Text size="1" color="gray" weight="medium" className="opacity-60">
+              {label}
+            </Text>
+          )}
+          {showToolbar && (
+            <Flex gap="2" className="shrink-0 ml-3">
+              <Tooltip content={t("common.aiOptimize")}>
+                <IconButton
+                  variant="soft"
+                  color="gray"
+                  size="1"
+                  onClick={handleAiOptimize}
+                  loading={isAiLoading}
+                  style={{ cursor: "pointer" }}
+                >
+                  <IconSparkles size={14} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip content={t("common.fullscreen")}>
+                <IconButton
+                  variant="soft"
+                  color="gray"
+                  size="1"
+                  onClick={() => setIsFullscreen(true)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <IconArrowsMaximize size={14} />
+                </IconButton>
+              </Tooltip>
+            </Flex>
+          )}
         </Flex>
-      </Flex>
+      )}
 
       {/* Normal Mode Editor */}
-      <Box className="relative">
+      <Box
+        className="relative"
+        style={{ opacity: loading ? 0.6 : 1, transition: "opacity 0.2s" }}
+      >
         <MarkdownEditor
           ref={isFullscreen ? null : editorRef}
           value={value}
@@ -290,18 +353,23 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
           onKeyDown={handleKeyDown}
         />
 
-        {/* Resize Handle */}
+        {/* Resize Handle - v4 refined icon */}
         <Box
-          className="absolute bottom-0 left-1/2 w-full max-w-[200px] cursor-ns-resize flex items-center justify-center hover:bg-black/5 transition-colors rounded-b z-10"
+          className="absolute bottom-0 left-1/2  flex items-center justify-center hover:bg-(--gray-3) transition-all rounded-full z-10 px-3 py-0.5 group cursor-row-resize"
           onMouseDown={handleMouseDown}
           style={{
             touchAction: "none",
             transform: "translate(-50%, 50%)",
-            bottom: "1px",
-            opacity: 0.6,
+            bottom: "0",
+            opacity: 0.8,
+            border: "1px solid var(--gray-5)",
+            background: "var(--color-background)",
           }}
         >
-          <Box className="w-full h-1.5 bg-gray-300 rounded-full group-hover:bg-gray-500 transition-colors shadow-sm" />
+          <IconGripHorizontal
+            size={12}
+            className="text-gray-400 group-hover:text-gray-600 transition-colors"
+          />
         </Box>
       </Box>
 

@@ -29,17 +29,21 @@ import {
   Switch,
   Text,
   TextField,
+  Tooltip,
 } from "@radix-ui/themes";
 import {
   IconChevronDown,
   IconDeviceFloppy,
   IconFolder,
   IconPlus,
+  IconSparkles,
   IconStar,
   IconTrash,
 } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { IconPicker } from "../../shared/IconPicker";
 import { Card } from "../../ui/Card";
 import { Dropdown } from "../../ui/Dropdown";
@@ -47,17 +51,22 @@ import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 import { IntentModelSelection } from "./IntentModelSelection";
 import { SidebarItem } from "./SidebarItem";
-import { PromptEditor } from "./prompts/components";
+import {
+  CommandPrefixes,
+  PromptEditor,
+  ResizableEditor,
+} from "./prompts/components";
 import type { SkillTemplate } from "./prompts/hooks/useExternalSkills";
 import { useExternalSkills } from "./prompts/hooks/useExternalSkills";
 import { usePrompts } from "./prompts/hooks/usePrompts";
 
 const PromptsConfiguration: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [templates, setTemplates] = useState<SkillTemplate[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const [isDescriptionGenerating, setIsDescriptionGenerating] = useState(false);
 
   // All skills from ~/.votype/skills/ (unified source)
   const {
@@ -110,6 +119,7 @@ const PromptsConfiguration: React.FC = () => {
     handleSave,
     handleDelete,
     handleSetAsActive,
+    isSaving,
     draftComplianceCheck,
     setDraftComplianceCheck,
     draftComplianceThreshold,
@@ -397,6 +407,7 @@ const PromptsConfiguration: React.FC = () => {
                           variant="solid"
                           size="1"
                           onClick={handleSave}
+                          loading={isSaving}
                           disabled={
                             !isDirty ||
                             !(draftName || "").trim() ||
@@ -408,24 +419,6 @@ const PromptsConfiguration: React.FC = () => {
                           {t("common.save")}
                         </Button>
                       </Flex>
-                    </Flex>
-
-                    {/* Description - Always Visible as it's a core Skill attribute */}
-                    <Flex align="center" gap="2">
-                      <Text size="1" className="text-gray-400 shrink-0">
-                        {t("settings.postProcessing.prompts.description")}
-                      </Text>
-                      <TextField.Root
-                        size="1"
-                        className="flex-1 bg-transparent! border-0! shadow-none! opacity-70 focus-within:opacity-100 transition-opacity"
-                        placeholder={t(
-                          "settings.postProcessing.prompts.descriptionPlaceholder",
-                        )}
-                        value={draftDescription}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setDraftDescription(e.target.value)
-                        }
-                      />
                     </Flex>
 
                     {/* Collapsible Advanced Settings - No Card, inline flow */}
@@ -521,12 +514,102 @@ const PromptsConfiguration: React.FC = () => {
                 </Box>
 
                 {/* Editor Content - Expands with content */}
-                <Box className="px-8 py-4">
-                  <PromptEditor
-                    t={t}
-                    draftContent={draftContent}
-                    setDraftContent={setDraftContent}
-                  />
+                <Box className="px-8 py-5">
+                  <Flex direction="column" gap="5">
+                    {/* Description Section - v3 Improvements */}
+                    <Flex direction="column" gap="2">
+                      <Flex justify="between" align="center">
+                        <label className="text-xs font-semibold text-gray-500/80">
+                          {t("settings.postProcessing.prompts.description")}
+                        </label>
+
+                        {/* Magic Generator Button on the right of the title */}
+                        <Tooltip content={t("common.aiOptimize")}>
+                          <IconButton
+                            variant="soft"
+                            color="gray"
+                            size="1"
+                            loading={isDescriptionGenerating}
+                            className="cursor-pointer"
+                            onClick={async () => {
+                              if (!draftName || !draftContent) {
+                                toast.error(
+                                  "建议先填写名称和指令，以便 AI 更好地总结。",
+                                );
+                                return;
+                              }
+                              setIsDescriptionGenerating(true);
+                              try {
+                                const desc = await invoke<string>(
+                                  "generate_skill_description",
+                                  {
+                                    name: draftName,
+                                    instructions: draftContent,
+                                    locale: i18n.language,
+                                  },
+                                );
+                                setDraftDescription(desc);
+                                toast.success(
+                                  t("common.aiOptimizationSuccess"),
+                                );
+                              } catch (e) {
+                                toast.error(t("common.aiOptimizationFailed"));
+                                console.error(e);
+                              } finally {
+                                setIsDescriptionGenerating(false);
+                              }
+                            }}
+                          >
+                            <IconSparkles size={14} />
+                          </IconButton>
+                        </Tooltip>
+                      </Flex>
+
+                      <ResizableEditor
+                        value={draftDescription}
+                        onChange={setDraftDescription}
+                        label={t("settings.postProcessing.prompts.description")}
+                        placeholder={t(
+                          "settings.postProcessing.prompts.descriptionPlaceholder",
+                        )}
+                        minHeight={40}
+                        defaultHeight={40}
+                        autoHeight={true}
+                        maxAutoLines={4}
+                        loading={isDescriptionGenerating}
+                        hideTips={true}
+                        showToolbar={false}
+                        showLabel={false}
+                        className="w-full"
+                      />
+                    </Flex>
+
+                    {/* Instructions Section */}
+                    <Box>
+                      <PromptEditor
+                        t={t}
+                        draftContent={draftContent}
+                        setDraftContent={setDraftContent}
+                      />
+                    </Box>
+
+                    {/* Alias / Command Prefix Section - Added back */}
+                    <Box className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                      <CommandPrefixes
+                        t={t}
+                        prefixes={currentAliases}
+                        currentPrefixInput={currentAliasInput}
+                        setCurrentPrefixInput={setCurrentAliasInput}
+                        onAddPrefix={handleAddAlias}
+                        onRemovePrefix={handleRemoveAlias}
+                      />
+                      {aliasError && (
+                        <Text color="red" size="1" className="mt-1 block">
+                          {aliasError}
+                        </Text>
+                      )}
+                    </Box>
+                  </Flex>
                 </Box>
               </Flex>
             </Grid>

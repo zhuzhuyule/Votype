@@ -83,3 +83,85 @@ Votype 变量机制：
 
     optimized_text.ok_or_else(|| "Failed to get response from LLM".to_string())
 }
+
+#[tauri::command]
+pub async fn generate_skill_description(
+    app_handle: AppHandle,
+    name: String,
+    instructions: String,
+    locale: Option<String>,
+) -> Result<String, String> {
+    let settings = settings::get_settings(&app_handle);
+
+    let provider_id = &settings.post_process_provider_id;
+    let provider = settings
+        .post_process_providers
+        .iter()
+        .find(|p| &p.id == provider_id)
+        .ok_or_else(|| "Post-processing provider not found".to_string())?;
+
+    let model = settings
+        .post_process_models
+        .get(provider_id)
+        .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
+
+    log::info!(
+        "Generating skill description for: name={}, provider={}, model={}, locale={:?}",
+        name,
+        provider.label,
+        model,
+        locale
+    );
+
+    let is_chinese = locale
+        .as_ref()
+        .map(|l| l.starts_with("zh"))
+        .unwrap_or(false);
+
+    let language_instruction = if is_chinese {
+        "Output MUST be in Chinese (Simplified)."
+    } else {
+        "Output MUST be in English."
+    };
+
+    let system_prompt = format!(
+        r#"You are an expert AI System Architect specializing in "Skill Routing" for LLMs.
+Your task is to generate high-density Skill Descriptions for Votype to ensure precise agent routing.
+
+Generation Principles (following Claude Code best practices):
+1. **Identity & Capabilities**: Define the expert persona (e.g., "React component expert").
+2. **Trigger & Intent**: Explicitly state WHEN to activate this skill (e.g., "Activate when the user asks for optimization...").
+3. **Third-Person Perspective**: ALWAYS use "Analyzes...", "Generates...", "Refactors..." (Never "I can..." or "Helps you...").
+4. **Precision**: Use strong technical verbs and specific domain keywords.
+5. **Conciseness**: Strictly 1-3 sentences. Maximum information density.
+
+Output Rules:
+- Return ONLY the description text.
+- NO quotes, NO conversational filler, NO explanations.
+- {}
+"#,
+        language_instruction
+    );
+
+    let user_content = format!("Skill 名称：{}\nSkill 指令：\n{}", name, instructions);
+
+    let (description, _success, _confidence, _reason) = post_process::execute_llm_request(
+        &app_handle,
+        &settings,
+        provider,
+        model,
+        &user_content,
+        Some(&format!("system: {}", system_prompt)),
+        None,
+        Vec::new(),
+        None,
+        None,
+        None,
+        None,
+    )
+    .await;
+
+    description
+        .map(|d| d.trim().trim_matches('"').to_string())
+        .ok_or_else(|| "Failed to generate description from LLM".to_string())
+}

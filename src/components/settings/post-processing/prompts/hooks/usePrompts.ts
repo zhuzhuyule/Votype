@@ -54,6 +54,7 @@ export interface UsePromptsReturn {
   handleSave: () => Promise<void>;
   handleDelete: () => Promise<void>;
   handleSetAsActive: () => void;
+  isSaving: boolean;
   isSuggestingAliases: boolean;
   handleSuggestAliases: () => Promise<void>;
 }
@@ -72,6 +73,7 @@ export const usePrompts = (
   const activePromptId = getSetting("post_process_selected_prompt_id");
 
   const [currentTab, setCurrentTab] = useState<string>("NEW");
+  const [isSaving, setIsSaving] = useState(false);
 
   // Sync initial tab when settings load
   const hasInitializedTab = useRef(false);
@@ -142,7 +144,7 @@ export const usePrompts = (
   }, [draftAlias]);
 
   const isDirty = useMemo(() => {
-    if (isCreating) return true;
+    if (isCreating) return false; // NEW state shouldn't be "saveable" via this button
     if (!viewingPrompt) return false;
     return (
       draftName !== viewingPrompt.name ||
@@ -337,8 +339,6 @@ export const usePrompts = (
   );
 
   const handleSave = useCallback(async () => {
-    // All skills are file-based now, no more "isCreating" state
-    // Creation is done via createSkillFromTemplate
     if (!viewingPrompt) {
       console.log("[usePrompts] No viewingPrompt, nothing to save");
       return;
@@ -352,9 +352,11 @@ export const usePrompts = (
     const conflictError = validateAliases(draftAlias, viewingPrompt.id);
     if (conflictError) {
       setAliasError(conflictError);
+      toast.error(conflictError); // Added toast for better visibility
       return;
     }
 
+    setIsSaving(true);
     try {
       // All skills use the same save command
       const updatedSkill: LLMPrompt = {
@@ -384,6 +386,8 @@ export const usePrompts = (
     } catch (error) {
       console.error("Failed to save skill:", error);
       toast.error(t("settings.postProcessing.prompts.updateFailed"));
+    } finally {
+      setIsSaving(false);
     }
   }, [
     draftName,
@@ -510,6 +514,7 @@ export const usePrompts = (
     handleSave,
     handleDelete,
     handleSetAsActive,
+    isSaving,
     isSuggestingAliases,
     handleSuggestAliases,
   };
