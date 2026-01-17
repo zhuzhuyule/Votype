@@ -107,6 +107,12 @@ export const Dashboard: React.FC = () => {
     [getTimestampRange],
   );
 
+  // Keep a ref to the current selection for use in event listeners
+  const selectionRef = useRef(selection);
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
   // Load all entries for charts (once on mount and on history-updated)
   useEffect(() => {
     let cancelled = false;
@@ -129,8 +135,8 @@ export const Dashboard: React.FC = () => {
       try {
         unlisten = await listen("history-updated", () => {
           loadAllEntries();
-          // Also reload first page of details
-          loadDetailPage(0, selection, true);
+          // Also reload first page of details using current selection from ref
+          loadDetailPage(0, selectionRef.current, true);
         });
       } catch (e) {
         console.error("Failed to listen for history-updated:", e);
@@ -141,7 +147,7 @@ export const Dashboard: React.FC = () => {
       cancelled = true;
       if (unlisten) unlisten();
     };
-  }, []);
+  }, [loadDetailPage]);
 
   // Load first page of details when selection changes
   useEffect(() => {

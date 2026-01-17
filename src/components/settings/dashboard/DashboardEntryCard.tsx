@@ -440,7 +440,7 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
             </Flex>
           </Flex>
 
-          {hasImprovement || hasStreaming ? (
+          {hasSteps || hasImprovement || hasStreaming ? (
             <Tabs.Root
               value={activeTab}
               onValueChange={(v) => setActiveTab(v as any)}
