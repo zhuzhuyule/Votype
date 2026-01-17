@@ -214,7 +214,6 @@ export const SettingsSchema = z.object({
   selected_prompt_model_id: z.string().nullable().optional(),
   mute_while_recording: z.boolean().optional().default(false),
   append_trailing_space: z.boolean().optional().default(false),
-  sense_voice_use_itn: z.boolean().optional().default(true),
   punctuation_enabled: z.boolean().optional().default(false),
   punctuation_model: z
     .string()

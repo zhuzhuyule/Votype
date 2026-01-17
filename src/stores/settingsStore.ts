@@ -104,7 +104,6 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   online_asr_enabled: false,
   selected_asr_model_id: null,
   selected_prompt_model_id: null,
-  sense_voice_use_itn: true,
   punctuation_enabled: false,
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
   favorite_transcription_models: [],

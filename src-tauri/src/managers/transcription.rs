@@ -622,7 +622,7 @@ impl TranscriptionManager {
                         model_file.to_string_lossy().to_string(),
                         tokens.to_string_lossy().to_string(),
                         normalized_lang,
-                        settings.sense_voice_use_itn,
+                        true, // ITN always enabled (no longer configurable)
                         "cpu".to_string(),
                         4,
                         false,

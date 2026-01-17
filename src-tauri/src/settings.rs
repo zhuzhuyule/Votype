@@ -395,8 +395,6 @@ pub struct AppSettings {
     pub mute_while_recording: bool,
     #[serde(default)]
     pub append_trailing_space: bool,
-    #[serde(default = "default_sense_voice_use_itn")]
-    pub sense_voice_use_itn: bool,
     #[serde(default = "default_punctuation_enabled")]
     pub punctuation_enabled: bool,
     #[serde(default = "default_punctuation_model")]
@@ -599,10 +597,6 @@ fn default_post_process_models() -> HashMap<String, String> {
         );
     }
     map
-}
-
-fn default_sense_voice_use_itn() -> bool {
-    true
 }
 
 fn default_punctuation_enabled() -> bool {
@@ -942,7 +936,6 @@ pub fn get_default_settings() -> AppSettings {
         selected_prompt_model_id: None,
         mute_while_recording: false,
         append_trailing_space: false,
-        sense_voice_use_itn: default_sense_voice_use_itn(),
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
         favorite_transcription_models: default_favorite_transcription_models(),

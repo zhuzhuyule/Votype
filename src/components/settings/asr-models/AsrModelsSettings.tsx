@@ -163,24 +163,6 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
                 />
               </Flex>
             )}
-
-            {/* ITN toggle */}
-            <Flex justify="between" align="center" gap="3" wrap="wrap">
-              <Box>
-                <Text size="2" weight="medium">
-                  {t("settings.asrModels.pipeline.itn")}
-                </Text>
-                <Text size="1" color="gray" style={{ display: "block" }}>
-                  {t("settings.asrModels.pipeline.itnHint")}
-                </Text>
-              </Box>
-              <Switch
-                checked={settings?.sense_voice_use_itn ?? true}
-                onCheckedChange={(checked) =>
-                  updateSetting("sense_voice_use_itn", checked)
-                }
-              />
-            </Flex>
           </Flex>
         </SettingsGroup>
 
