@@ -548,6 +548,115 @@ impl HistoryManager {
         Ok(())
     }
 
+    /// Update a specific text field in a history entry (transcription_text, streaming_text, or post_processed_text)
+    /// or update a specific step result in post_process_history.
+    /// Used for user-initiated corrections to improve future transcription reference data.
+    ///
+    /// When field is "post_process_history_step", the step_index must be provided to identify which step to update.
+    pub async fn update_history_entry_text(
+        &self,
+        id: i64,
+        field: &str,
+        new_text: String,
+        step_index: Option<usize>,
+    ) -> Result<()> {
+        // Only allow updating specific fields
+        let allowed_fields = [
+            "transcription_text",
+            "streaming_text",
+            "post_processed_text",
+            "post_process_history_step",
+        ];
+        if !allowed_fields.contains(&field) {
+            return Err(anyhow::anyhow!(
+                "Invalid field: {}. Allowed: {:?}",
+                field,
+                allowed_fields
+            ));
+        }
+
+        let conn = self.get_connection()?;
+
+        // Handle each field with appropriate updates
+        if field == "transcription_text" {
+            // Update char_count along with transcription_text
+            let char_count = new_text.chars().count() as i64;
+            conn.execute(
+                "UPDATE transcription_history SET transcription_text = ?1, char_count = ?2 WHERE id = ?3",
+                params![new_text, char_count, id],
+            )?;
+        } else if field == "post_processed_text" {
+            // Update corrected_char_count along with post_processed_text
+            let corrected_char_count = new_text.chars().count() as i64;
+            conn.execute(
+                "UPDATE transcription_history SET post_processed_text = ?1, corrected_char_count = ?2 WHERE id = ?3",
+                params![new_text, corrected_char_count, id],
+            )?;
+        } else if field == "streaming_text" {
+            // For streaming_text, just update the field
+            conn.execute(
+                "UPDATE transcription_history SET streaming_text = ?1 WHERE id = ?2",
+                params![new_text, id],
+            )?;
+        } else if field == "post_process_history_step" {
+            // Update a specific step in the post_process_history JSON array
+            let step_idx = step_index.ok_or_else(|| {
+                anyhow::anyhow!("step_index is required when updating post_process_history_step")
+            })?;
+
+            // Get current history
+            let existing_history_json: Option<String> = conn
+                .query_row(
+                    "SELECT post_process_history FROM transcription_history WHERE id = ?1",
+                    params![id],
+                    |row| row.get(0),
+                )
+                .ok();
+
+            let mut history: Vec<PostProcessStep> = existing_history_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default();
+
+            if step_idx >= history.len() {
+                return Err(anyhow::anyhow!(
+                    "step_index {} out of bounds, history has {} steps",
+                    step_idx,
+                    history.len()
+                ));
+            }
+
+            // Update the specific step's result
+            history[step_idx].result = new_text.clone();
+
+            // Also update post_processed_text if this is the last step (the final result)
+            let is_last_step = step_idx == history.len() - 1;
+
+            let history_json = serde_json::to_string(&history)?;
+
+            if is_last_step {
+                let corrected_char_count = new_text.chars().count() as i64;
+                conn.execute(
+                    "UPDATE transcription_history SET post_process_history = ?1, post_processed_text = ?2, corrected_char_count = ?3 WHERE id = ?4",
+                    params![history_json, new_text, corrected_char_count, id],
+                )?;
+            } else {
+                conn.execute(
+                    "UPDATE transcription_history SET post_process_history = ?1 WHERE id = ?2",
+                    params![history_json, id],
+                )?;
+            }
+        }
+
+        debug!("Updated {} for history entry {}", field, id);
+
+        // Emit history updated event
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
+        Ok(())
+    }
+
     pub async fn update_transcription_post_processing(
         &self,
         id: i64,

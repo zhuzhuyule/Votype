@@ -70,6 +70,10 @@
   },
   "dashboard": {
     "actions": {
+      "edit": "Edit",
+      "editDescription": "Modify the transcribed text for this history entry",
+      "editPlaceholder": "Enter the modified text...",
+      "editTitle": "Edit Recognition Result",
       "openRecordings": "Recordings",
       "reprocessFailed": "AI reprocessing failed",
       "retranscribe": "Re-transcribe using audio",

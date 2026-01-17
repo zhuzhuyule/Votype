@@ -10,6 +10,7 @@ import {
 import {
   IconCopy,
   IconMicrophone,
+  IconPencil,
   IconPlayerPlay,
   IconStar,
   IconTrash,
@@ -22,6 +23,7 @@ import { DynamicIcon } from "../../shared/IconPicker";
 import { AudioPlayer } from "../../ui/AudioPlayer";
 import { Card } from "../../ui/Card";
 import type { HistoryEntry, PostProcessStep } from "./dashboardTypes";
+import { EditHistoryDialog, type EditableField } from "./EditHistoryDialog";
 
 interface DashboardEntryCardProps {
   entry: HistoryEntry;
@@ -63,6 +65,18 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
 
     const [retranscribing, setRetranscribing] = useState(false);
     const [reprocessing, setReprocessing] = useState(false);
+
+    // Edit dialog state
+    const [editDialogOpen, setEditDialogOpen] = useState(false);
+    const [editField, setEditField] =
+      useState<EditableField>("transcription_text");
+    const [editInitialText, setEditInitialText] = useState("");
+    const [editStepIndex, setEditStepIndex] = useState<number | undefined>(
+      undefined,
+    );
+    const [editStepLabel, setEditStepLabel] = useState<string | undefined>(
+      undefined,
+    );
 
     const historySteps = useMemo(() => {
       if (!entry.post_process_history) return [];
@@ -122,6 +136,44 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
       }
     };
 
+    // Open edit dialog for a specific field
+    const openEditDialog = useCallback(
+      (
+        field: EditableField,
+        text: string,
+        stepIndex?: number,
+        stepLabel?: string,
+      ) => {
+        setEditField(field);
+        setEditInitialText(text);
+        setEditStepIndex(stepIndex);
+        setEditStepLabel(stepLabel);
+        setEditDialogOpen(true);
+      },
+      [],
+    );
+
+    const handleGlobalEdit = useCallback(() => {
+      if (activeTab === "original") {
+        openEditDialog("transcription_text", entry.transcription_text);
+      } else if (activeTab === "streaming") {
+        openEditDialog("streaming_text", entry.streaming_text || "");
+      } else if (activeTab === "improved") {
+        openEditDialog("post_processed_text", entry.post_processed_text || "");
+      } else if (activeTab.startsWith("step:")) {
+        const idx = parseInt(activeTab.split(":")[1]);
+        const step = historySteps[idx];
+        if (step) {
+          openEditDialog(
+            "post_process_history_step",
+            step.result,
+            idx,
+            step.prompt_name,
+          );
+        }
+      }
+    }, [activeTab, entry, historySteps, openEditDialog]);
+
     // Load audio only when requested (on play click)
     const loadAudio = useCallback(async () => {
       if (audioUrl || isLoadingAudio) return; // Already loaded or loading
@@ -180,6 +232,8 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
       : null;
 
     const availablePrompts = settings?.post_process_prompts || [];
+
+    const activeClass = "text-logo-primary! font-medium";
 
     return (
       <Card className="px-1 py-0.5 border-mid-gray/20 border-1" shadow="none">
@@ -400,7 +454,10 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                       key={actualIdx}
                       content={`${t("common.models")}: ${step.model || "Unknown"}`}
                     >
-                      <Tabs.Trigger value={`step:${actualIdx}`}>
+                      <Tabs.Trigger
+                        value={`step:${actualIdx}`}
+                        className={`transition-all border-b-2! ${activeTab === `step:${actualIdx}` ? `${activeClass} border-logo-primary/60` : "border-b-transparent!"}`}
+                      >
                         <Flex align="center" gap="2">
                           <DynamicIcon
                             name={
@@ -424,7 +481,10 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   <Tooltip
                     content={`${t("common.models")}: ${entry.post_process_model || "Unknown"}`}
                   >
-                    <Tabs.Trigger value="improved">
+                    <Tabs.Trigger
+                      value="improved"
+                      className={`transition-all ${activeTab === "improved" ? activeClass : ""}`}
+                    >
                       <Flex align="center" gap="2">
                         <DynamicIcon name={improvedTabIcon} size={14} />
                         {improvedTabLabel}
@@ -434,26 +494,30 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                 )}
 
                 {/* 3. Original Transcription (The source of truth) */}
-                <Tabs.Trigger value="original">
+                <Tabs.Trigger
+                  value="original"
+                  className={`transition-all ${activeTab === "original" ? activeClass : ""}`}
+                >
                   {t("settings.history.content.original")}
                 </Tabs.Trigger>
 
                 {/* 4. Streaming (Realtime) - At the end as it's the most transient data */}
                 {hasStreaming && (
-                  <Tabs.Trigger value="streaming">
+                  <Tabs.Trigger
+                    value="streaming"
+                    className={`transition-all ${activeTab === "streaming" ? activeClass : ""}`}
+                  >
                     {t("settings.history.content.streaming")}
                   </Tabs.Trigger>
                 )}
               </Tabs.List>
-              <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
+              <Box className="relative group mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
                 {hasSteps &&
                   historySteps.map((step, idx) => (
                     <Tabs.Content key={idx} value={`step:${idx}`}>
-                      <Flex direction="column" gap="2">
-                        <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
-                          {step.result}
-                        </Text>
-                      </Flex>
+                      <Text className="text-text/90 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
+                        {step.result}
+                      </Text>
                     </Tabs.Content>
                   ))}
                 <Tabs.Content value="improved">
@@ -471,13 +535,43 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                     {entry.streaming_text}
                   </Text>
                 </Tabs.Content>
+                {/* Unified Edit Button for Tabs */}
+                <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <Tooltip content={t("dashboard.actions.edit")}>
+                    <IconButton
+                      variant="ghost"
+                      size="1"
+                      onClick={handleGlobalEdit}
+                      className="text-logo-primary hover:bg-logo-primary/10 cursor-pointer"
+                    >
+                      <IconPencil size={14} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </Box>
             </Tabs.Root>
           ) : (
-            <Box className="mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
+            <Box className="relative group mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
               <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
                 {entry.transcription_text}
               </Text>
+              <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                <Tooltip content={t("dashboard.actions.edit")}>
+                  <IconButton
+                    variant="ghost"
+                    size="1"
+                    onClick={() =>
+                      openEditDialog(
+                        "transcription_text",
+                        entry.transcription_text,
+                      )
+                    }
+                    className="text-logo-primary hover:bg-logo-primary/10 cursor-pointer"
+                  >
+                    <IconPencil size={14} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
           )}
 
@@ -522,6 +616,17 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
             </Box>
           ) : null}
         </Flex>
+
+        {/* Edit History Dialog */}
+        <EditHistoryDialog
+          entryId={entry.id}
+          field={editField}
+          initialText={editInitialText}
+          isOpen={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          stepIndex={editStepIndex}
+          stepLabel={editStepLabel}
+        />
       </Card>
     );
   },

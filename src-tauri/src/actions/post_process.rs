@@ -9,7 +9,7 @@ use async_openai::types::{
     ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
-use log::{debug, error, info};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;

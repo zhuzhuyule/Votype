@@ -70,6 +70,10 @@
   },
   "dashboard": {
     "actions": {
+      "edit": "编辑",
+      "editDescription": "修改此历史记录的识别文本",
+      "editPlaceholder": "输入修改后的文本...",
+      "editTitle": "编辑识别结果",
       "openRecordings": "录音目录",
       "reprocessFailed": "AI 重新处理失败",
       "retranscribe": "使用原音频重新转录",

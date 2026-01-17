@@ -88,6 +88,28 @@ pub async fn get_history_dashboard_stats(
         .map_err(|e| e.to_string())
 }
 
+/// Update a history entry's text field (transcription_text, streaming_text, post_processed_text)
+/// or a specific step in post_process_history (when field is "post_process_history_step")
+#[tauri::command]
+pub async fn update_history_entry_text(
+    app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+    field: String,
+    text: String,
+    step_index: Option<usize>,
+) -> Result<(), String> {
+    history_manager
+        .update_history_entry_text(id, &field, text, step_index)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Emit event to refresh UI
+    let _ = app.emit("history-updated", ());
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn update_history_limit(
     app: AppHandle,

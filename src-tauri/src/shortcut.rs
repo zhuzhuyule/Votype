@@ -10,8 +10,8 @@ use tauri_plugin_opener::OpenerExt;
 use crate::actions::{ActionMode, ACTION_MAP};
 use crate::settings::ShortcutBinding;
 use crate::settings::{
-    self, get_settings, CachedModel, ClipboardHandling, LLMPrompt, ModelType, OverlayPosition,
-    PasteMethod, PostProcessProvider, Skill, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
+    self, get_settings, CachedModel, ClipboardHandling, ModelType, OverlayPosition, PasteMethod,
+    PostProcessProvider, Skill, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray::{ManagedTrayIconState, TrayIconState};

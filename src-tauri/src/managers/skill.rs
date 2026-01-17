@@ -157,69 +157,6 @@ impl SkillManager {
         Some(skill)
     }
 
-    /// Migrate prompts from settings to files
-    /// Returns the number of migrated prompts
-    pub fn migrate_prompts_to_files(&self, prompts: &[Skill]) -> usize {
-        let mut migrated = 0;
-        let user_dir = self.base_dir.join("user");
-
-        for prompt in prompts {
-            // Skip builtin skills - they should stay as defaults
-            if prompt.source == SkillSource::Builtin && !prompt.customized {
-                continue;
-            }
-
-            // Generate safe filename
-            let safe_name = prompt
-                .name
-                .chars()
-                .filter(|c| {
-                    c.is_alphanumeric()
-                        || *c == ' '
-                        || *c == '-'
-                        || *c == '_'
-                        || *c == '中'
-                        || *c == '英'
-                        || *c > '\u{4E00}'
-                })
-                .collect::<String>()
-                .trim()
-                .replace(' ', "_");
-
-            let filename = if safe_name.is_empty() {
-                format!("skill_{}.md", prompt.id.chars().take(8).collect::<String>())
-            } else {
-                format!("{}.md", safe_name)
-            };
-
-            let file_path = user_dir.join(&filename);
-
-            // Don't overwrite existing files
-            if file_path.exists() {
-                debug!(
-                    "Skipping migration for {} - file already exists",
-                    prompt.name
-                );
-                continue;
-            }
-
-            // Convert to markdown file
-            if let Err(e) = self.save_skill_to_file(&Skill {
-                file_path: Some(file_path.clone()),
-                source: SkillSource::User,
-                ..prompt.clone()
-            }) {
-                error!("Failed to migrate prompt '{}': {}", prompt.name, e);
-                continue;
-            }
-
-            debug!("Migrated prompt '{}' to {:?}", prompt.name, file_path);
-            migrated += 1;
-        }
-
-        migrated
-    }
-
     /// Get all skills from all sources (user, imported)
     /// This is the unified loading function
     pub fn get_all_skills(&self) -> Vec<Skill> {

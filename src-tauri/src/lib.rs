@@ -472,6 +472,7 @@ pub fn run() {
             commands::history::update_recording_retention_period,
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
+            commands::history::update_history_entry_text,
             commands::text::optimize_text_with_llm,
             commands::log_to_console,
             commands::suggest_aliases,

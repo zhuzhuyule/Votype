@@ -1,7 +1,7 @@
 // Review Window - Independent floating window for reviewing low-confidence transcriptions
 // This module handles the creation, display, and lifecycle of the review window
 
-use crate::active_window::{fetch_cursor_position, ActiveWindowInfo};
+use crate::active_window::ActiveWindowInfo;
 use crate::settings::PromptOutputMode;
 use log::{debug, error};
 use once_cell::sync::Lazy;
@@ -95,25 +95,6 @@ fn estimate_window_height(source_text: &str, final_text: &str, width: f64) -> f6
         .max(REVIEW_WINDOW_HEIGHT)
         .min(REVIEW_WINDOW_MAX_HEIGHT);
     height
-}
-
-fn find_monitor_for_cursor(
-    monitors: &[tauri::Monitor],
-    cursor_x: i32,
-    cursor_y: i32,
-) -> Option<tauri::Monitor> {
-    for monitor in monitors {
-        let position = monitor.position();
-        let size = monitor.size();
-        let left = position.x;
-        let top = position.y;
-        let right = left + size.width as i32;
-        let bottom = top + size.height as i32;
-        if cursor_x >= left && cursor_x <= right && cursor_y >= top && cursor_y <= bottom {
-            return Some(monitor.clone());
-        }
-    }
-    monitors.first().cloned()
 }
 
 fn was_app_active_before_review() -> bool {
