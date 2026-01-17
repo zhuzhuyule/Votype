@@ -15,13 +15,12 @@ import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
   EditorContent,
-  NodeViewContent,
   NodeViewWrapper,
   ReactNodeViewRenderer,
   useEditor,
 } from "@tiptap/react";
-import hljs from "highlight.js";
 import StarterKit from "@tiptap/starter-kit";
+import hljs from "highlight.js";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CancelIcon } from "../components/icons";
@@ -34,6 +33,7 @@ interface ReviewData {
   history_id: number | null;
   reason?: string | null;
   output_mode?: "polish" | "chat";
+  skill_name?: string | null;
 }
 
 interface ReviewWindowProps {
@@ -952,10 +952,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                   weight="bold"
                   style={{ color: "var(--gray-11)" }}
                 >
-                  {t(
-                    "transcription.review.generationTitle",
-                    "AI Assistant Response",
-                  )}
+                  {initialData.skill_name ||
+                    t(
+                      "transcription.review.generationTitle",
+                      "AI Assistant Response",
+                    )}
                 </Text>
                 {initialData.source_text && (
                   <span

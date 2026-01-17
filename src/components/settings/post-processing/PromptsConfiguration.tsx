@@ -35,7 +35,6 @@ import {
   IconDeviceFloppy,
   IconFolder,
   IconPlus,
-  IconSparkles,
   IconStar,
   IconTrash,
 } from "@tabler/icons-react";
@@ -48,7 +47,7 @@ import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 import { IntentModelSelection } from "./IntentModelSelection";
 import { SidebarItem } from "./SidebarItem";
-import { PromptEditor, TagInput } from "./prompts/components";
+import { PromptEditor } from "./prompts/components";
 import type { SkillTemplate } from "./prompts/hooks/useExternalSkills";
 import { useExternalSkills } from "./prompts/hooks/useExternalSkills";
 import { usePrompts } from "./prompts/hooks/usePrompts";
@@ -253,7 +252,6 @@ const PromptsConfiguration: React.FC = () => {
                           t={t}
                           icon={skill.icon || "IconWand"}
                           outputMode={skill.output_mode}
-                          aliases={skill.aliases || (skill as any).alias}
                         />
                       ))}
                     </SortableContext>
@@ -276,7 +274,6 @@ const PromptsConfiguration: React.FC = () => {
                       t={t}
                       icon={draftIcon || "IconSparkles"}
                       outputMode={draftOutputMode}
-                      aliases={currentAliases.join(",")}
                     />
                   )}
                 </Box>
@@ -411,49 +408,6 @@ const PromptsConfiguration: React.FC = () => {
                           {t("common.save")}
                         </Button>
                       </Flex>
-                    </Flex>
-
-                    {/* Alias Input Row - Always Visible */}
-                    <Flex align="center" gap="2">
-                      <Flex align="center" gap="1" className="shrink-0">
-                        <Text size="1" className="text-gray-400">
-                          {t("settings.postProcessing.prompts.alias")}
-                        </Text>
-                        <IconButton
-                          variant="ghost"
-                          color="indigo"
-                          size="1"
-                          onClick={handleSuggestAliases}
-                          loading={isSuggestingAliases}
-                          className="cursor-pointer opacity-40 hover:opacity-100"
-                          title={t(
-                            "settings.postProcessing.prompts.suggestAliases",
-                          )}
-                        >
-                          <IconSparkles size={12} />
-                        </IconButton>
-                      </Flex>
-                      <Box className="flex-1">
-                        <TagInput
-                          tags={currentAliases}
-                          inputValue={currentAliasInput}
-                          onInputChange={setCurrentAliasInput}
-                          onAdd={handleAddAlias}
-                          onRemove={handleRemoveAlias}
-                          onKeyDown={(e: React.KeyboardEvent) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleAddAlias();
-                            }
-                          }}
-                          placeholder={t(
-                            "settings.postProcessing.prompts.aliasPlaceholder",
-                          )}
-                          emptyMessage=""
-                          error={aliasError}
-                          compact
-                        />
-                      </Box>
                     </Flex>
 
                     {/* Description - Always Visible as it's a core Skill attribute */}

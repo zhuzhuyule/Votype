@@ -1077,6 +1077,7 @@ impl ShortcutAction for TranscribeAction {
                                         history_id,
                                         reason.clone(),
                                         output_mode,
+                                        None, // No skill_name for confidence review
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);

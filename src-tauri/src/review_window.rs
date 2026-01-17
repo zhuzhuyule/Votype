@@ -25,9 +25,9 @@ struct ReviewWindowPayload {
     final_text: String,
     change_percent: u8,
     history_id: Option<i64>,
-
     reason: Option<String>,
     output_mode: PromptOutputMode,
+    skill_name: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -264,9 +264,9 @@ pub fn show_review_window(
     final_text: String,
     change_percent: u8,
     history_id: Option<i64>,
-
     reason: Option<String>,
     output_mode: PromptOutputMode,
+    skill_name: Option<String>,
 ) {
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
@@ -278,9 +278,10 @@ pub fn show_review_window(
     );
     let preview: String = final_text.chars().take(80).collect();
     log::info!(
-        "review_window payload: history_id={:?}, change_percent={}, preview=\"{}\"",
+        "review_window payload: history_id={:?}, change_percent={}, skill={:?}, preview=\"{}\"",
         history_id,
         change_percent,
+        skill_name,
         preview
     );
 
@@ -294,6 +295,7 @@ pub fn show_review_window(
         history_id,
         reason,
         output_mode,
+        skill_name,
     };
 
     {

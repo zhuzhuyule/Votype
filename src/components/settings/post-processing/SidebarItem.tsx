@@ -20,7 +20,6 @@ export interface SidebarItemProps {
   t: any;
   icon?: string;
   outputMode?: "polish" | "chat" | "silent";
-  aliases?: string | null;
   /** Enable drag-and-drop when true */
   sortable?: boolean;
   /** Unique ID for sortable context */
@@ -38,19 +37,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   t,
   icon,
   outputMode,
-  aliases: aliasStr,
   sortable = false,
   id,
 }) => {
-  // 解析别名列表
-  const aliases = React.useMemo(() => {
-    if (!aliasStr) return [];
-    return aliasStr
-      .split(/[,，]/)
-      .map((a) => a.trim())
-      .filter((a) => a.length > 0);
-  }, [aliasStr]);
-
   // Sortable setup (only active when sortable prop is true)
   const {
     attributes,
@@ -125,20 +114,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
               <IconCircleCheck size={14} className="text-green-500 shrink-0" />
             )}
           </Flex>
-          {/* 别名行（副标题）- 仅当有别名时显示 */}
-          {aliases.length > 0 && (
-            <Flex gap="1" wrap="wrap" className="min-w-0 mt-0.5">
-              {aliases.map((a, idx) => (
-                <span
-                  key={idx}
-                  className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 leading-none truncate max-w-20"
-                  title={a}
-                >
-                  {a}
-                </span>
-              ))}
-            </Flex>
-          )}
         </Flex>
       </Flex>
 

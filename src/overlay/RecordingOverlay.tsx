@@ -379,11 +379,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           {!showRealtimeText && state !== "recording" && !skillConfirmation && (
             <Flex direction="column" className="status-text" align="center">
               {!showErrorText && (
-                <Text>
-                  {chainedPromptName
-                    ? `${t("overlay.status.llm")}：${chainedPromptName}`
-                    : statusTextMap[state]}
-                </Text>
+                <Text>{chainedPromptName || statusTextMap[state]}</Text>
               )}
               {showErrorText && (
                 <Text style={{ color: "var(--ruby-9)", fontWeight: "bold" }}>

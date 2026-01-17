@@ -62,9 +62,15 @@ pub struct SkillRouteResponse {
 /// Build the system prompt for skill routing
 fn build_skill_routing_prompt(prompts: &[LLMPrompt], has_selected_text: bool) -> String {
     let mut skill_list = String::new();
+    let mut enabled_skill_names: Vec<String> = Vec::new();
+
     for prompt in prompts {
         // Skip disabled skills
         if !prompt.enabled {
+            info!(
+                "[SkillRouter] Skipping disabled skill: {} (id={})",
+                prompt.name, prompt.id
+            );
             continue;
         }
 
@@ -85,7 +91,15 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt], has_selected_text: bool) ->
             "- id: \"{}\", name: \"{}\"{}, description: \"{}\"\n",
             prompt.id, prompt.name, aliases_info, description
         ));
+
+        enabled_skill_names.push(format!("{} ({})", prompt.name, prompt.id));
     }
+
+    info!(
+        "[SkillRouter] Building prompt with {} enabled skills: [{}]",
+        enabled_skill_names.len(),
+        enabled_skill_names.join(", ")
+    );
 
     let selected_text_note = if has_selected_text {
         r#"
@@ -131,11 +145,15 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt], has_selected_text: bool) ->
 ## 输出格式
 严格返回 JSON，不要有任何其他内容：
 {{
-  "skill_id": "选择的skill_id或default",
+  "skill_id": "必须从上方可用 Skills 列表中复制完整的 id 值，或返回 default",
   "confidence": 0-100的整数,
   "input_source": "select|output|extract",
   "extracted_content": "如果input_source是extract，这里填提取的内容；否则为null"
-}}"#,
+}}
+
+## 重要提示
+- **skill_id 必须精确匹配**：从上方"可用 Skills"列表中复制完整的 id（如 "ext_总结选中内容"），不要截断或修改
+- 如果不确定，返回 "default""#,
         skill_list = skill_list,
         selected_text_note = selected_text_note
     )
@@ -189,6 +207,12 @@ async fn perform_skill_routing(
     };
 
     let has_selected_text = selected_text.map(|s| !s.trim().is_empty()).unwrap_or(false);
+
+    info!(
+        "[SkillRouter] perform_skill_routing called with: model={}, transcription_len={}, has_selected_text={}, prompts_count={}",
+        model, transcription.len(), has_selected_text, prompts.len()
+    );
+
     let routing_prompt = build_skill_routing_prompt(prompts, has_selected_text);
 
     let mut messages = Vec::new();
@@ -249,12 +273,27 @@ async fn perform_skill_routing(
         }
     };
 
-    // Confidence threshold: Only route if LLM is fairly certain (> 70%)
-    if route.skill_id == "default" || route.confidence.unwrap_or(0) < 70 {
+    // Apply confidence coefficient adjustment based on context
+    // With selected text: boost confidence by 15% (user intent is clearer with context)
+    let raw_confidence = route.confidence.unwrap_or(0);
+    let adjusted_confidence = if has_selected_text {
+        ((raw_confidence as f32) * 1.15).min(100.0) as i32
+    } else {
+        raw_confidence
+    };
+
+    info!(
+        "[SkillRouter] Confidence: raw={}, adjusted={} (selected_text={})",
+        raw_confidence, adjusted_confidence, has_selected_text
+    );
+
+    // Confidence threshold: Route if adjusted confidence is fairly high (≥ 70%)
+    // User can reject via confirmation dialog if incorrect
+    if route.skill_id == "default" || adjusted_confidence < 70 {
         if route.skill_id != "default" {
             info!(
-                "[SkillRouter] Low confidence routing ignored: {} (conf: {:?})",
-                route.skill_id, route.confidence
+                "[SkillRouter] Low confidence routing ignored: {} (raw: {}, adjusted: {})",
+                route.skill_id, raw_confidence, adjusted_confidence
             );
         } else {
             info!("[SkillRouter] LLM returned 'default' - no skill match");
@@ -262,8 +301,8 @@ async fn perform_skill_routing(
         None
     } else {
         info!(
-            "[SkillRouter] Routed to skill: {} (Confidence: {:?}, InputSource: {:?})",
-            route.skill_id, route.confidence, route.input_source
+            "[SkillRouter] Routed to skill: {} (Confidence: {} -> {}, InputSource: {:?})",
+            route.skill_id, raw_confidence, adjusted_confidence, route.input_source
         );
         Some(route)
     }
@@ -754,63 +793,8 @@ pub async fn execute_llm_request(
     (None, false, None, None)
 }
 
-/// Finds the best prefix match from candidates at the START of text.
-/// Returns (matched_candidate, matched_char_count_in_original) if found.
-///
-/// Matching logic:
-/// 1. Normalize alias: keep only alphanumeric chars, convert to lowercase
-/// 2. Normalize ASR text: take first ~15 chars, keep only alphanumeric, convert to lowercase
-/// 3. If normalized text starts with normalized alias, it's a match
-fn find_prefix_match(text: &str, candidates: &[String]) -> Option<(String, usize)> {
-    // Helper to normalize text: keep only alphanumeric characters (including CJK)
-    fn normalize(s: &str) -> String {
-        s.chars()
-            .filter(|c| c.is_alphanumeric())
-            .flat_map(|c| c.to_lowercase())
-            .collect()
-    }
-
-    // Extract first ~15 chars from original text for prefix matching
-    let prefix_chars: String = text.chars().take(15).collect();
-    let normalized_prefix = normalize(&prefix_chars);
-
-    let mut best_match: Option<(String, usize)> = None;
-    let mut best_normalized_len = 0;
-
-    for candidate in candidates {
-        let normalized_candidate = normalize(candidate);
-        if normalized_candidate.is_empty() {
-            continue;
-        }
-
-        // Check if normalized prefix starts with normalized candidate
-        if normalized_prefix.starts_with(&normalized_candidate) {
-            // Calculate how many original chars were consumed
-            let mut consumed_normalized = 0;
-            let mut original_char_count = 0;
-
-            for c in text.chars() {
-                if consumed_normalized >= normalized_candidate.chars().count() {
-                    break;
-                }
-                original_char_count += 1;
-
-                // Only count alphanumeric chars
-                if c.is_alphanumeric() {
-                    consumed_normalized += 1;
-                }
-            }
-
-            // Prefer longer alias matches
-            if normalized_candidate.chars().count() > best_normalized_len {
-                best_normalized_len = normalized_candidate.chars().count();
-                best_match = Some((candidate.clone(), original_char_count));
-            }
-        }
-    }
-
-    best_match
-}
+// NOTE: find_prefix_match function removed - alias matching is no longer used
+// Intent detection via LLM is the sole mechanism for non-default skill selection
 
 fn resolve_prompt_from_text(
     text: &str,
@@ -818,54 +802,17 @@ fn resolve_prompt_from_text(
     default_prompt: Option<&LLMPrompt>,
     override_prompt_id: Option<&str>,
 ) -> (Option<LLMPrompt>, String, bool) {
-    let content_original_trimmed = text.trim();
-    if content_original_trimmed.is_empty() {
-        if let Some(override_id) = override_prompt_id {
-            if let Some(p) = prompts.iter().find(|p| p.id == override_id) {
-                return (Some(p.clone()), text.to_string(), false);
-            }
-        }
-        return (default_prompt.cloned(), text.to_string(), false);
-    }
+    // Simplified: no more alias matching
+    // Intent detection via LLM is the primary mechanism for skill selection
 
-    // 1. Try PREFIX matching only - alias must be at the START of text
-    for p in prompts {
-        // Skip disabled skills
-        if !p.enabled {
-            continue;
-        }
-
-        let mut triggers = Vec::new();
-        if let Some(alias_str) = &p.aliases {
-            triggers.extend(
-                alias_str
-                    .split(&[',', '，'][..])
-                    .map(|s| s.trim().to_string()),
-            );
-        }
-        triggers.push(p.name.clone());
-
-        // Only match if text STARTS with the alias
-        if let Some((_, char_count)) = find_prefix_match(content_original_trimmed, &triggers) {
-            // Convert char count to byte offset for UTF-8 safe slicing
-            let byte_offset = content_original_trimmed
-                .char_indices()
-                .nth(char_count)
-                .map(|(i, _)| i)
-                .unwrap_or(content_original_trimmed.len());
-
-            // Strip the command/alias from the beginning
-            let final_content = content_original_trimmed[byte_offset..]
-                .trim_start_matches(|c: char| {
-                    c.is_whitespace() || c.is_ascii_punctuation() || "，。！？、".contains(c)
-                })
-                .to_string();
-
-            return (Some(p.clone()), final_content, true);
+    // 1. If override_prompt_id specified, use that prompt
+    if let Some(override_id) = override_prompt_id {
+        if let Some(p) = prompts.iter().find(|p| p.id == override_id) {
+            return (Some(p.clone()), text.to_string(), true);
         }
     }
 
-    // 2. Fallback: Use full text and default prompt (polish mode)
+    // 2. Return default prompt with full original text
     (default_prompt.cloned(), text.to_string(), false)
 }
 
@@ -1037,20 +984,36 @@ pub(crate) async fn maybe_post_process_transcription(
         }
     }
 
-    // Mode C: Selected text - do parallel LLM routing and polish, require user confirmation
+    // Intent Detection Mode: Parallel LLM routing and polish for all normal transcriptions
     // Both requests run simultaneously using tokio::join!
+    // Confidence is boosted 15% when there's selected text (applied in perform_skill_routing)
     // Note: Some LLM providers may not support concurrent requests, so we handle failures gracefully
-    if has_selected_text
-        && !skill_mode
+
+    // DEBUG: Log condition checks
+    info!(
+        "[PostProcess] Intent detection conditions: skill_mode={}, is_explicit={}, override_prompt_id={:?}, transcription_empty={}",
+        skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty()
+    );
+
+    if !skill_mode
         && !is_explicit
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
     {
+        info!("[PostProcess] Entering intent detection mode (all conditions passed)");
+
+        // Switch overlay to LLM processing state and notify UI
+        crate::overlay::show_llm_processing_overlay(app_handle);
+        app_handle.emit("post-process-status", "正在润色中...").ok();
+
         if let Some(default_prompt) = &initial_prompt_opt {
             if let Some((route_provider, route_model, route_api_key)) =
                 resolve_intent_routing_model(settings, provider, default_prompt)
             {
-                info!("[PostProcess] Mode C: Starting parallel intent detection and polish...");
+                info!(
+                    "[PostProcess] Starting parallel intent detection and polish - provider={}, model={}, selected_text={}",
+                    route_provider.label, route_model, has_selected_text
+                );
 
                 // Execute both requests in parallel
                 let (intent_result, polish_result) = tokio::join!(
@@ -1093,7 +1056,49 @@ pub(crate) async fn maybe_post_process_transcription(
                 if let Some(route_response) = intent_result {
                     let skill_id = &route_response.skill_id;
 
+                    info!(
+                        "[PostProcess] Intent matched! skill_id={}, input_source={:?}, extracted_content={:?}",
+                        skill_id, route_response.input_source, route_response.extracted_content
+                    );
+
                     if let Some(routed_prompt) = all_prompts.iter().find(|p| &p.id == skill_id) {
+                        info!(
+                            "[PostProcess] Found matching prompt: name={}, output_mode={:?}, enabled={}",
+                            routed_prompt.name, routed_prompt.output_mode, routed_prompt.enabled
+                        );
+
+                        // Check if this is the default skill - if so, skip confirmation and use polish result
+                        // Compare with: 1) user-selected default prompt, 2) current default_prompt used for polish
+                        let is_default_skill = settings
+                            .post_process_selected_prompt_id
+                            .as_ref()
+                            .map(|default_id| default_id == skill_id)
+                            .unwrap_or(false)
+                            || default_prompt.id == *skill_id;
+
+                        info!(
+                            "[PostProcess] Default skill check: is_default={}, selected_prompt_id={:?}, skill_id={}, default_prompt_id={}",
+                            is_default_skill, settings.post_process_selected_prompt_id, skill_id, default_prompt.id
+                        );
+
+                        if is_default_skill {
+                            info!(
+                                "[PostProcess] Matched skill is the default skill, skipping confirmation and using polish result"
+                            );
+                            // Use polish result directly without confirmation
+                            if let Some(polished) = polish_result {
+                                return (
+                                    Some(polished),
+                                    None,
+                                    Some(routed_prompt.id.clone()),
+                                    false,
+                                    None,
+                                    None,
+                                );
+                            }
+                            // If polish failed, fall through to standard processing
+                        }
+
                         // [DEBUG] Log selected text content before showing confirmation
                         match &selected_text {
                             Some(text) if !text.trim().is_empty() => {
@@ -1118,8 +1123,8 @@ pub(crate) async fn maybe_post_process_transcription(
                         }
 
                         info!(
-                            "[PostProcess] Selected text mode - found skill \"{}\", polish_available: {}, requesting confirmation",
-                            routed_prompt.name, polish_ok
+                            "[PostProcess] Skill matched: \"{}\" (id={}), polish_available={}, will emit skill-confirmation event",
+                            routed_prompt.name, skill_id, polish_ok
                         );
 
                         // Save pending confirmation state with cached polish result (may be None if failed)
@@ -1183,9 +1188,20 @@ pub(crate) async fn maybe_post_process_transcription(
                 }
 
                 // No skill matched - use the polish result directly if available
+                // IMPORTANT: Return the default_prompt.id so caller can get correct output_mode
                 if let Some(polished) = polish_result {
-                    info!("[PostProcess] Selected text mode - no skill matched, using parallel polish result");
-                    return (Some(polished), None, None, false, None, None);
+                    info!(
+                        "[PostProcess] No skill matched, using parallel polish result with default prompt: {} (id={})",
+                        default_prompt.name, default_prompt.id
+                    );
+                    return (
+                        Some(polished),
+                        None,
+                        Some(default_prompt.id.clone()),
+                        false,
+                        None,
+                        None,
+                    );
                 }
 
                 // Both failed or no match + polish failed - fall through to standard processing

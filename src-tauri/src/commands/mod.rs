@@ -254,6 +254,43 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         // User confirmed - execute the skill
         log::info!("[SkillConfirmation] User accepted skill: {}", skill_id);
 
+        // First, save the polish result to history (polish always runs in parallel)
+        if let Some(polish_result) = &pending.polish_result {
+            if let Some(history_id) = pending.history_id {
+                use crate::managers::history::HistoryManager;
+                use std::sync::Arc;
+
+                if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
+                    // Get default prompt info for history
+                    let default_prompt = settings
+                        .post_process_prompts
+                        .iter()
+                        .find(|p| Some(&p.id) == settings.post_process_selected_prompt_id.as_ref())
+                        .or_else(|| settings.post_process_prompts.first());
+
+                    if let Some(prompt) = default_prompt {
+                        let _ = hm
+                            .update_transcription_post_processing(
+                                history_id,
+                                polish_result.clone(),
+                                prompt.instructions.clone(),
+                                prompt.name.clone(),
+                                Some(prompt.id.clone()),
+                                settings
+                                    .post_process_models
+                                    .get(&settings.post_process_provider_id)
+                                    .cloned(),
+                            )
+                            .await;
+                        log::info!(
+                            "[SkillConfirmation] Saved polish result to history entry {}",
+                            history_id
+                        );
+                    }
+                }
+            }
+        }
+
         // Get skill's output_mode to determine how to display result
         let output_mode = settings
             .post_process_prompts
@@ -276,14 +313,27 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         } else {
             None
         };
-        let (result, _model, _prompt_id, _err, _confidence, _reason) =
+
+        // Switch overlay to LLM processing state and notify UI about the specific skill
+        crate::overlay::show_llm_processing_overlay(&app);
+        use tauri::Emitter;
+        if let Some(skill_prompt) = settings
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == skill_id)
+        {
+            app.emit("post-process-status", format!("{}...", skill_prompt.name))
+                .ok();
+        }
+
+        let (result, model, prompt_id, _err, _confidence, _reason) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
                 skill_input,
                 secondary_output,
                 false,
-                Some(skill_id),
+                Some(skill_id.clone()),
                 pending.app_name.clone(),
                 pending.window_title.clone(),
                 None,
@@ -294,6 +344,38 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
             )
             .await;
 
+        // Save skill result to history
+        if let Some(skill_result) = &result {
+            if let Some(history_id) = pending.history_id {
+                use crate::managers::history::HistoryManager;
+                use std::sync::Arc;
+
+                if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
+                    let skill_prompt = settings
+                        .post_process_prompts
+                        .iter()
+                        .find(|p| p.id == skill_id);
+
+                    if let Some(prompt) = skill_prompt {
+                        let _ = hm
+                            .update_transcription_post_processing(
+                                history_id,
+                                skill_result.clone(),
+                                prompt.instructions.clone(),
+                                prompt.name.clone(),
+                                prompt_id.clone(),
+                                model.clone(),
+                            )
+                            .await;
+                        log::info!(
+                            "[SkillConfirmation] Saved skill result to history entry {}",
+                            history_id
+                        );
+                    }
+                }
+            }
+        }
+
         // Handle result based on output_mode
         if let Some(text) = result {
             match output_mode {
@@ -303,6 +385,8 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     let source_text = pending
                         .selected_text
                         .unwrap_or_else(|| transcription.clone());
+                    // Get skill name for display in Review Window
+                    let skill_name = pending.skill_name.clone();
                     crate::review_window::show_review_window(
                         &app_for_cleanup,
                         source_text,
@@ -311,6 +395,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                         pending.history_id,
                         None,
                         output_mode,
+                        skill_name,
                     );
                 }
                 crate::settings::SkillOutputMode::Polish => {
@@ -330,7 +415,46 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
 
         // Check if we have a cached polish result from parallel request
         if let Some(cached_result) = pending.polish_result {
-            log::info!("[SkillConfirmation] Using cached polish result");
+            log::info!(
+                "[SkillConfirmation] Using cached polish result (len: {})",
+                cached_result.len()
+            );
+
+            // Save polish result to history
+            if let Some(history_id) = pending.history_id {
+                use crate::managers::history::HistoryManager;
+                use std::sync::Arc;
+
+                if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
+                    // Get default prompt info for history
+                    let default_prompt = settings
+                        .post_process_prompts
+                        .iter()
+                        .find(|p| Some(&p.id) == settings.post_process_selected_prompt_id.as_ref())
+                        .or_else(|| settings.post_process_prompts.first());
+
+                    if let Some(prompt) = default_prompt {
+                        let _ = hm
+                            .update_transcription_post_processing(
+                                history_id,
+                                cached_result.clone(),
+                                prompt.instructions.clone(),
+                                prompt.name.clone(),
+                                Some(prompt.id.clone()),
+                                settings
+                                    .post_process_models
+                                    .get(&settings.post_process_provider_id)
+                                    .cloned(),
+                            )
+                            .await;
+                        log::info!(
+                            "[SkillConfirmation] Saved polish result to history entry {}",
+                            history_id
+                        );
+                    }
+                }
+            }
+
             crate::clipboard::paste(cached_result, app)?;
         } else {
             // Fallback: execute default polish (should not happen with parallel requests)
