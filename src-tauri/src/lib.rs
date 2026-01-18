@@ -81,6 +81,8 @@ fn build_console_filter() -> env_filter::Filter {
     builder.filter_module("reqwest", log::LevelFilter::Info);
     builder.filter_module("hyper", log::LevelFilter::Info);
     builder.filter_module("hyper_util", log::LevelFilter::Info);
+    // Suppress ERROR logs from updater plugin in dev mode (endpoint not available)
+    builder.filter_module("tauri_plugin_updater", log::LevelFilter::Warn);
 
     builder.build()
 }
@@ -138,6 +140,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
     app_handle.manage(post_processing_manager.clone());
+    let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
+    app_handle.manage(prompt_manager.clone());
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));

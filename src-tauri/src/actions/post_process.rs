@@ -1,5 +1,6 @@
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::apple_intelligence;
+use crate::managers::prompt::{self, PromptManager};
 use crate::overlay::show_llm_processing_overlay;
 use crate::settings::{
     AppSettings, LLMPrompt, ModelType, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
@@ -60,7 +61,11 @@ pub struct SkillRouteResponse {
 }
 
 /// Build the system prompt for skill routing
-fn build_skill_routing_prompt(prompts: &[LLMPrompt], has_selected_text: bool) -> String {
+fn build_skill_routing_prompt(
+    template: &str,
+    prompts: &[LLMPrompt],
+    has_selected_text: bool,
+) -> String {
     let mut skill_list = String::new();
     let mut enabled_skill_names: Vec<String> = Vec::new();
 
@@ -110,67 +115,14 @@ fn build_skill_routing_prompt(prompts: &[LLMPrompt], has_selected_text: bool) ->
         ""
     };
 
-    format!(
-        r#"你是一个智能意图识别助手。根据用户的语音转录文本，判断应该使用哪个 Skill 来处理，并决定输入数据的来源。
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("SKILL_LIST", skill_list);
+    vars.insert("SELECTED_TEXT_NOTE", selected_text_note.to_string());
 
-## 可用 Skills
-{skill_list}{selected_text_note}
-
-## 任务
-分析用户输入的语音转录文本，判断用户的真实意图，选择最匹配的 Skill，并决定输入数据的来源。
-
-## 判断原则（按优先级排序）
-1. **优先返回 "default"**：如果用户只是在：
-   - 正常说话、陈述事实
-   - 记录笔记、写文档
-   - 写代码、技术讨论
-   - 没有明确指令，只是在"想事情"或"自言自语"
-   → 必须返回 "default"
-
-2. **仅在有明确动作意图时路由**：
-   - 用户使用了祈使句（如"帮我..."、"请..."、"翻译..."）
-   - 用户提出了明确问题（如"...是什么？"、"...怎么做？"）
-   - 用户请求了具体操作（如"总结一下..."、"优化这段..."）
-   → 且该请求与某个 Skill 的描述/别名高度匹配时，才返回该 Skill ID
-
-3. **宁可误判为 default，也不要误判为其他 Skill**
-
-## 输入来源决策 (input_source)
-- **"select"**: 用户指令针对选中内容（如"翻译这个"、"帮我检查一下"），且有选中文本时
-- **"output"**: 使用完整的语音识别内容作为输入
-- **"extract"**: 用户语音中包含指令和实际内容，需要提取内容部分
-  - 例如："帮我翻译一下今天天气不错" → 需要提取 "今天天气不错"
-  - 例如："写一封邮件给张三，感谢他的帮助" → 需要提取 "给张三，感谢他的帮助"
-
-## 输出格式
-严格返回 JSON，不要有任何其他内容：
-{{
-  "skill_id": "必须从上方可用 Skills 列表中复制完整的 id 值，或返回 default",
-  "confidence": 0-100的整数,
-  "input_source": "select|output|extract",
-  "extracted_content": "如果input_source是extract，这里填提取的内容；否则为null"
-}}
-
-## 重要提示
-- **skill_id 必须精确匹配**：从上方"可用 Skills"列表中复制完整的 id（如 "ext_总结选中内容"），不要截断或修改
-- 如果不确定，返回 "default""#,
-        skill_list = skill_list,
-        selected_text_note = selected_text_note
-    )
+    prompt::substitute_variables(template, &vars)
 }
 
-/// Build the system prompt for alias suggestion
-fn build_alias_suggestion_prompt() -> String {
-    "你是一个触发词提取专家。请根据用户提供的功能描述，提取 2-3 个最适合作为语音指令触发词的短语（别名）。\n\
-     要求：\n\
-     1. 极其简洁（通常 2-4 个字，中文优先）。\n\
-     2. 必须是动词或名词短语，能够代表核心操作。\n\
-     3. 返回格式仅为逗号分隔的列表，不要有任何解释、引言或分点。\n\
-     例如：\n\
-     输入：将选中的文本翻译成英文或中文\n\
-     输出：翻译,转译,translate"
-        .to_string()
-}
+// build_alias_suggestion_prompt removed - replaced by file-based prompt
 
 /// Parse the skill routing response from LLM
 fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
@@ -213,7 +165,15 @@ async fn perform_skill_routing(
         model, transcription.len(), has_selected_text, prompts.len()
     );
 
-    let routing_prompt = build_skill_routing_prompt(prompts, has_selected_text);
+    let prompt_manager = _app_handle.state::<Arc<PromptManager>>();
+    let template = match prompt_manager.get_prompt(_app_handle, "system_skill_routing") {
+        Ok(t) => t,
+        Err(e) => {
+            log::warn!("[SkillRouter] Failed to load prompt: {}", e);
+            return None;
+        }
+    };
+    let routing_prompt = build_skill_routing_prompt(&template, prompts, has_selected_text);
 
     let mut messages = Vec::new();
 
@@ -396,7 +356,10 @@ pub(crate) async fn suggest_aliases(
         .filter(|id| !id.is_empty())
         .unwrap_or_else(|| settings.selected_model.clone());
 
-    let sys_prompt = build_alias_suggestion_prompt();
+    let prompt_manager = app_handle.state::<Arc<PromptManager>>();
+    let sys_prompt = prompt_manager
+        .get_prompt(app_handle, "system_alias_suggestion")
+        .map_err(|e| format!("Failed to load system prompt: {}", e))?;
 
     let mut messages = Vec::new();
     messages.push(ChatCompletionRequestMessage::System(
