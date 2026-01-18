@@ -869,10 +869,13 @@
           "fields": {
             "apiKey": "API Key",
             "baseUrl": "Base URL",
+            "baseUrlHint": "OpenAI compatible mode, usually ends with /v1",
             "modelsEndpoint": "Models Endpoint",
             "modelsEndpointPlaceholder": "/models",
             "name": "Provider Name",
-            "namePlaceholder": "My Provider"
+            "namePlaceholder": "My Provider",
+            "v1AutoAppended": "/v1 was automatically appended",
+            "v1MissingWarning": "URL may be missing version path (e.g. /v1)"
           },
           "resetUrl": "Reset URL",
           "testConnection": "Test Connection",

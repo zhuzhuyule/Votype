@@ -891,10 +891,13 @@
           "fields": {
             "apiKey": "API 密钥",
             "baseUrl": "基础 URL",
+            "baseUrlHint": "OpenAI 兼容模式，通常以 /v1 结尾",
             "modelsEndpoint": "模型接口路径",
             "modelsEndpointPlaceholder": "/models",
             "name": "提供商名称",
-            "namePlaceholder": "我的提供商"
+            "namePlaceholder": "我的提供商",
+            "v1AutoAppended": "已自动追加 /v1",
+            "v1MissingWarning": "URL 可能缺少版本路径 (如 /v1)"
           },
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",

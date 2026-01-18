@@ -278,6 +278,9 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 placeholder="https://api.openai.com/v1"
                 className="w-full"
               />
+              <Text size="1" color="gray" className="opacity-70">
+                {t("settings.postProcessing.api.providers.fields.baseUrlHint")}
+              </Text>
             </Flex>
 
             {/* API Key */}
@@ -317,7 +320,33 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       toast.error("API Key is required");
                       return;
                     }
-                    await state.handleBaseUrlChange(localBaseUrl);
+
+                    // 规范化 URL（仅去除尾部斜杠）
+                    const normalizedUrl = localBaseUrl
+                      .trim()
+                      .replace(/\/+$/, "");
+
+                    // 智能检测是否缺少版本路径
+                    const isSpecialProtocol =
+                      normalizedUrl.startsWith("apple-intelligence://") ||
+                      normalizedUrl.startsWith("ollama://");
+                    const hasVersionPath = /\/v\d+$/.test(normalizedUrl);
+
+                    // 如果不是特殊协议且缺少版本路径，显示警告提示
+                    if (
+                      normalizedUrl &&
+                      !isSpecialProtocol &&
+                      !hasVersionPath
+                    ) {
+                      toast.warning(
+                        t(
+                          "settings.postProcessing.api.providers.fields.v1MissingWarning",
+                        ),
+                        { duration: 5000 },
+                      );
+                    }
+
+                    await state.handleBaseUrlChange(normalizedUrl);
                     await state.handleApiKeyChange(localApiKey);
                     const success = await state.testConnection();
                     if (success) {
