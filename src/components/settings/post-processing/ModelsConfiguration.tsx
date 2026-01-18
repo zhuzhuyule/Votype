@@ -100,12 +100,14 @@ export const ModelsConfiguration: React.FC = () => {
   }, [pendingModelType]);
 
   useEffect(() => {
+    // 手动输入模式下不自动设置默认值
+    if (isManualModelEntry) return;
+
     if (availableModels.length === 0) {
-      if (!isManualModelEntry) setPendingModelId(null);
+      setPendingModelId(null);
       return;
     }
     setPendingModelId((current) => {
-      if (isManualModelEntry && current) return current;
       if (current && availableModels.some((o) => o.value === current))
         return current;
       return availableModels[0].value;
