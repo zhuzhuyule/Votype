@@ -22,15 +22,20 @@ import { VolumeSlider } from "../VolumeSlider";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { audioFeedbackEnabled } = useSettings();
+  const { audioFeedbackEnabled, expertMode } = useSettings();
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
       {/* Starting Up */}
       <SettingsGroup title={t("settings.advanced.groups.startup")}>
-        <StartHidden descriptionMode="inline" grouped={true} />
         <AutostartToggle descriptionMode="inline" grouped={true} />
         <ShowOverlay descriptionMode="inline" grouped={true} />
-        <UpdateChecksToggle descriptionMode="inline" grouped={true} />
+        {/* Expert only */}
+        {expertMode && (
+          <>
+            <StartHidden descriptionMode="inline" grouped={true} />
+            <UpdateChecksToggle descriptionMode="inline" grouped={true} />
+          </>
+        )}
       </SettingsGroup>
 
       {/* Transcription Settings */}
@@ -42,8 +47,13 @@ export const GeneralSettings: React.FC = () => {
       <SettingsGroup title={t("settings.general.groups.recording")}>
         <MicrophoneSelector descriptionMode="inline" grouped={true} />
         <PushToTalk descriptionMode="inline" grouped={true} />
-        <AlwaysOnMicrophone descriptionMode="inline" grouped={true} />
-        <MuteWhileRecording descriptionMode="inline" grouped={true} />
+        {/* Expert only */}
+        {expertMode && (
+          <>
+            <AlwaysOnMicrophone descriptionMode="inline" grouped={true} />
+            <MuteWhileRecording descriptionMode="inline" grouped={true} />
+          </>
+        )}
       </SettingsGroup>
 
       {/* Text Input/Output */}

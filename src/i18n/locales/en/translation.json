@@ -1132,6 +1132,8 @@
     "advanced": "Advanced",
     "appProfiles": "App Profiles",
     "dashboard": "Dashboard",
+    "expertMode": "Expert Mode",
+    "expertModeHint": "Show advanced settings options",
     "general": "General",
     "models": "AI Models",
     "prompts": "Prompts",

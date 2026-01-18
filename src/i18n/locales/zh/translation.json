@@ -1152,6 +1152,8 @@
     "asrModels": "语音模型",
     "dashboard": "概览",
     "debug": "调试",
+    "expertMode": "专家模式",
+    "expertModeHint": "启用后显示高级设置选项",
     "general": "通用",
     "history": "历史记录",
     "models": "模型",

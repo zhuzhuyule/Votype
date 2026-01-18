@@ -1,4 +1,4 @@
-import { Box, Flex, Text } from "@radix-ui/themes";
+import { Box, Flex, Switch, Text, Tooltip } from "@radix-ui/themes";
 import {
   IconAdjustments,
   IconBrain,
@@ -7,9 +7,11 @@ import {
   IconLayoutDashboard,
   IconSettings,
   IconSparkles,
+  IconTool,
 } from "@tabler/icons-react";
 import React, { lazy, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { useSettings } from "../hooks/useSettings";
 import VotypeHand from "./icons/VotypeHand";
 // 使用懒加载导入所有设置组件，减少初始 bundle 大小
 const Dashboard = lazy(() =>
@@ -225,12 +227,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSectionChange,
 }) => {
   const { t } = useTranslation();
+  const { expertMode, updateSetting } = useSettings();
 
   const sections = Object.entries(SECTIONS_CONFIG).map(([id, config]) => ({
     id,
     ...config,
     label: t(config.labelKey),
   }));
+
+  const handleExpertModeToggle = useCallback(
+    (checked: boolean) => {
+      updateSetting("expert_mode", checked);
+    },
+    [updateSetting],
+  );
 
   return (
     <Flex
@@ -266,6 +276,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
           ))}
         </Flex>
+      </Flex>
+
+      {/* Expert Mode Toggle */}
+      <Flex
+        align="center"
+        justify="between"
+        px="4"
+        py="3"
+        className="border-t border-[var(--gray-4)]"
+      >
+        <Tooltip content={t("sidebar.expertModeHint")}>
+          <Flex align="center" gap="2" className="cursor-help">
+            <IconTool size={16} className="text-[var(--gray-9)]" />
+            <Text size="1" color="gray">
+              {t("sidebar.expertMode")}
+            </Text>
+          </Flex>
+        </Tooltip>
+        <Switch
+          size="1"
+          checked={expertMode}
+          onCheckedChange={handleExpertModeToggle}
+        />
       </Flex>
     </Flex>
   );

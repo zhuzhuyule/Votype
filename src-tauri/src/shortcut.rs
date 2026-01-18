@@ -370,6 +370,23 @@ pub fn change_update_checks_setting(app: AppHandle, enabled: bool) -> Result<(),
 }
 
 #[tauri::command]
+pub fn change_expert_mode_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.expert_mode = enabled;
+    settings::write_settings(&app, settings);
+
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "expert_mode",
+            "value": enabled
+        }),
+    );
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn change_onboarding_completed_setting(app: AppHandle, completed: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.onboarding_completed = completed;

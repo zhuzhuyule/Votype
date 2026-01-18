@@ -422,6 +422,9 @@ pub struct AppSettings {
     pub post_process_context_enabled: bool,
     #[serde(default = "default_post_process_context_limit")]
     pub post_process_context_limit: u8,
+    /// Expert mode enables advanced settings visibility
+    #[serde(default)]
+    pub expert_mode: bool,
 }
 
 fn default_model() -> String {
@@ -948,6 +951,7 @@ pub fn get_default_settings() -> AppSettings {
         app_to_profile: HashMap::new(),
         post_process_context_enabled: default_post_process_context_enabled(),
         post_process_context_limit: default_post_process_context_limit(),
+        expert_mode: false,
     }
 }
 

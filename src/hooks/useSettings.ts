@@ -10,6 +10,7 @@ interface UseSettingsReturn {
   audioDevices: AudioDevice[];
   outputDevices: AudioDevice[];
   audioFeedbackEnabled: boolean;
+  expertMode: boolean;
   postProcessModelOptions: Record<string, string[]>;
 
   // Actions
@@ -81,6 +82,7 @@ export const useSettings = (): UseSettingsReturn => {
     audioDevices: store.audioDevices,
     outputDevices: store.outputDevices,
     audioFeedbackEnabled: store.settings?.audio_feedback || false,
+    expertMode: store.settings?.expert_mode || false,
     postProcessModelOptions: store.postProcessModelOptions,
     updateSetting: store.updateSetting,
     resetSetting: store.resetSetting,

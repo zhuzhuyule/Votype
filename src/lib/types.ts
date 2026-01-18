@@ -232,6 +232,7 @@ export const SettingsSchema = z.object({
   app_to_profile: z.record(z.string(), z.string()).optional().default({}),
   post_process_context_enabled: z.boolean().optional().default(false),
   post_process_context_limit: z.number().min(1).max(10).optional().default(3),
+  expert_mode: z.boolean().optional().default(false),
 });
 
 export const BindingResponseSchema = z.object({

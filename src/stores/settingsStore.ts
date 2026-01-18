@@ -114,6 +114,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   post_process_secondary_model_id: null,
   post_process_intent_model_id: null,
   app_review_policies: {},
+  expert_mode: false,
 };
 
 const DEFAULT_AUDIO_DEVICE: AudioDevice = {
@@ -218,6 +219,8 @@ const settingUpdaters: {
     invoke("set_app_review_policies", { policies: value }),
   app_profiles: (value) => invoke("set_app_profiles", { profiles: value }),
   app_to_profile: (value) => invoke("set_app_to_profile", { mapping: value }),
+  expert_mode: (value) =>
+    invoke("change_expert_mode_setting", { enabled: value }),
 };
 
 export const useSettingsStore = create<SettingsStore>()(
