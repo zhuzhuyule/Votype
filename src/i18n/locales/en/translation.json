@@ -1178,11 +1178,14 @@
       "import": "Import",
       "scope": {
         "custom": "Specific Apps",
+        "deselectAll": "Deselect All",
         "editDescription": "Edit scope for \"{{original}}\" → \"{{corrected}}\"",
         "editTitle": "Correction Scope",
         "global": "Global",
         "multiple": "{{count}} apps",
         "none": "No apps",
+        "other": "Other Apps",
+        "selectAll": "Select All",
         "source": "Source App ({{app}})"
       }
     }

@@ -14,8 +14,9 @@ pub async fn get_vocabulary_corrections(
 
     if app_name.is_some() {
         // Get corrections for specific app (plus global ones)
+        let scopes = vec![app_name.unwrap()];
         vocab_manager
-            .get_corrections_for_app(app_name.as_deref())
+            .get_corrections_for_app(&scopes)
             .map_err(|e| e.to_string())
     } else {
         // Get all corrections (for management UI)

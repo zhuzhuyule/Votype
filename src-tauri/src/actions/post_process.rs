@@ -1362,13 +1362,56 @@ pub(crate) async fn maybe_post_process_transcription(
             // 2. Inject vocabulary corrections as separate context block (lower priority than hot_words)
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 use crate::managers::vocabulary::VocabularyManager;
+
+                // Determine active scopes (App Name + Matching Rules)
+                let mut active_scopes = Vec::new();
+                if let Some(app) = &app_name {
+                    active_scopes.push(app.clone());
+
+                    // Check against App Profiles for rule matches
+                    if let Some(window) = &window_title {
+                        if let Some(profile) = settings.app_profiles.iter().find(|p| p.name == *app)
+                        {
+                            for rule in &profile.rules {
+                                let is_match = match rule.match_type {
+                                    crate::settings::TitleMatchType::Text => {
+                                        window.contains(&rule.pattern)
+                                    }
+                                    crate::settings::TitleMatchType::Regex => {
+                                        if let Ok(re) = regex::Regex::new(&rule.pattern) {
+                                            re.is_match(window)
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                };
+
+                                if is_match {
+                                    // Use convention: "AppName##RuleID"
+                                    active_scopes.push(format!("{}##{}", app, rule.id));
+                                    debug!("[PostProcess] Active Rule Match: {}##{}", app, rule.id);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // If app is not in App Profiles (not a "known app"), it counts as "Other"
+                if let Some(app) = &app_name {
+                    if !settings.app_profiles.iter().any(|p| p.name == *app) {
+                        active_scopes.push("__OTHER__".to_string());
+                    }
+                }
+
                 let vocab_manager = VocabularyManager::new(hm.db_path.clone());
-                if let Ok(corrections) = vocab_manager.get_corrections_for_app(app_name.as_deref()) {
+                if let Ok(corrections) = vocab_manager.get_corrections_for_app(&active_scopes) {
                     if !corrections.is_empty() {
                         let corrections_text = corrections
                             .iter()
                             .take(20)
-                            .map(|c| format!("- \"{}\" → \"{}\"", c.original_text, c.corrected_text))
+                            .map(|c| {
+                                format!("- \"{}\" → \"{}\"", c.original_text, c.corrected_text)
+                            })
                             .collect::<Vec<_>>()
                             .join("\n");
 

@@ -624,10 +624,7 @@ impl HistoryManager {
             }
         } else {
             // For regular field updates, get the field value directly
-            let query = format!(
-                "SELECT {} FROM transcription_history WHERE id = ?1",
-                field
-            );
+            let query = format!("SELECT {} FROM transcription_history WHERE id = ?1", field);
             conn.query_row(&query, params![id], |row| row.get(0)).ok()
         };
 

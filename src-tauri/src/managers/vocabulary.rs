@@ -266,20 +266,20 @@ impl VocabularyManager {
             );
         } else {
             info!(
-            "[Vocabulary] Correction count incremented: \"{}\" → \"{}\" (app: {:?})",
-            diff.original, diff.corrected, app_name
-        );
+                "[Vocabulary] Correction count incremented: \"{}\" → \"{}\" (app: {:?})",
+                diff.original, diff.corrected, app_name
+            );
         }
 
         Ok(())
     }
 
-    /// Get corrections applicable for the given app
-    /// Returns both app-specific corrections and global corrections
+    /// Get corrections applicable for the given app and active rules
+    /// Returns both app-specific corrections (matching any scope) and global corrections
     /// Ordered by correction_count (most common first)
     pub fn get_corrections_for_app(
         &self,
-        app_name: Option<&str>,
+        active_scopes: &[String],
     ) -> Result<Vec<VocabularyCorrection>> {
         let conn = self.get_connection()?;
 
@@ -309,16 +309,22 @@ impl VocabularyManager {
             let correction = row?;
             // Filter logic:
             // 1. If global, include it
-            // 2. If app_name matches source app (legacy behavior), include it
-            // 3. If target_apps contains the app, include it
+            // 2. If app_name is in active_scopes (source app match), include it
+            // 3. If target_apps contains any of the active_scopes, include it
             let should_include = correction.is_global
-                || (app_name.is_some() && correction.app_name.as_deref() == app_name)
-                || (app_name.is_some() && correction.target_apps.as_ref().map_or(false, |apps| {
-                    // Simple text check for now, can be upgraded to proper JSON parsing if needed
-                    // Using format!("\"{}\"", name) to match JSON string elements roughly
-                    apps.contains(&format!("\"{}\"", app_name.unwrap_or("")))
+                || (correction
+                    .app_name
+                    .as_ref()
+                    .map_or(false, |name| active_scopes.contains(name)))
+                || (correction.target_apps.as_ref().map_or(false, |apps_json| {
+                    // Try parsing as JSON array
+                    if let Ok(targets) = serde_json::from_str::<Vec<String>>(apps_json) {
+                        targets.iter().any(|t| active_scopes.contains(t))
+                    } else {
+                        false
+                    }
                 }));
-            
+
             if should_include {
                 corrections.push(correction);
             }
@@ -363,7 +369,10 @@ impl VocabularyManager {
     /// Delete a correction by ID
     pub fn delete_correction(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
-        conn.execute("DELETE FROM vocabulary_corrections WHERE id = ?1", params![id])?;
+        conn.execute(
+            "DELETE FROM vocabulary_corrections WHERE id = ?1",
+            params![id],
+        )?;
         info!("[Vocabulary] Deleted correction id={}", id);
         Ok(())
     }
@@ -371,7 +380,12 @@ impl VocabularyManager {
     /// Set the scope for a correction
     /// is_global: true if it applies everywhere
     /// target_apps: JSON array of app names if it applies to specific apps (only used if is_global is false)
-    pub fn update_scope(&self, id: i64, is_global: bool, target_apps: Option<String>) -> Result<()> {
+    pub fn update_scope(
+        &self,
+        id: i64,
+        is_global: bool,
+        target_apps: Option<String>,
+    ) -> Result<()> {
         let conn = self.get_connection()?;
         conn.execute(
             "UPDATE vocabulary_corrections SET is_global = ?1, target_apps = ?2 WHERE id = ?3",

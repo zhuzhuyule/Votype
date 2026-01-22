@@ -1196,11 +1196,14 @@
       "import": "导入",
       "scope": {
         "custom": "指定应用",
+        "deselectAll": "取消全选",
         "editDescription": "编辑生效范围：\"{{original}}\" → \"{{corrected}}\"",
         "editTitle": "生效范围",
         "global": "全局生效",
         "multiple": "{{count}} 个应用",
         "none": "无应用",
+        "other": "其他应用",
+        "selectAll": "全选",
         "source": "仅来源应用 ({{app}})"
       }
     }

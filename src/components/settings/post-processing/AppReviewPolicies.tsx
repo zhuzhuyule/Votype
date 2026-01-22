@@ -29,6 +29,7 @@ import {
 } from "../../../lib/types";
 import { IconPicker } from "../../shared/IconPicker";
 import { Card } from "../../ui/Card";
+import { useSkills } from "./prompts/hooks/useSkills";
 
 // dnd-kit imports
 import {
@@ -426,13 +427,14 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
 export const AppProfilesManager: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateSetting } = useSettings();
+  const { skills } = useSkills();
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [suggestedApps, setSuggestedApps] = useState<string[]>([]);
 
   const profiles = settings?.app_profiles || [];
   const appToProfile = settings?.app_to_profile || {};
-  const prompts = settings?.post_process_prompts || [];
+  const prompts = skills;
 
   const sensors = useSensors(
     useSensor(PointerSensor),

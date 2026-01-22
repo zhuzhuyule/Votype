@@ -890,7 +890,7 @@ impl ShortcutAction for TranscribeAction {
                                         if let Some(p) = profile {
                                             // Find all matching rules
                                             let mut matched_rules = Vec::new();
-                                            
+
                                             for rule in &p.rules {
                                                 let matched = match rule.match_type {
                                                     crate::settings::TitleMatchType::Text => info
