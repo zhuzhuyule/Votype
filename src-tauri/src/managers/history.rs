@@ -82,6 +82,27 @@ static MIGRATIONS: &[M] = &[
     M::up("DROP TABLE IF EXISTS global_stats;"),
     // Migration 12: Add post_process_history column for chained prompts
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_history TEXT;"),
+    // Migration 13: Add vocabulary_corrections table for user edit learning
+    // Records small vocabulary corrections made by users when editing history entries
+    // Used to automatically inject correction hints into LLM prompts
+    M::up(
+        "CREATE TABLE IF NOT EXISTS vocabulary_corrections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_text TEXT NOT NULL,
+            corrected_text TEXT NOT NULL,
+            app_name TEXT,
+            correction_count INTEGER DEFAULT 1,
+            first_seen_at INTEGER NOT NULL,
+            last_seen_at INTEGER NOT NULL,
+            is_global BOOLEAN DEFAULT 0,
+            UNIQUE(original_text, corrected_text, app_name)
+        );
+         CREATE INDEX IF NOT EXISTS idx_vc_app_name ON vocabulary_corrections(app_name);
+         CREATE INDEX IF NOT EXISTS idx_vc_global ON vocabulary_corrections(is_global);",
+    ),
+    // Migration 14: Add target_apps column for multi-app scoping
+    // Stores a JSON array of app names that this correction applies to (when is_global=0)
+    M::up("ALTER TABLE vocabulary_corrections ADD COLUMN target_apps TEXT;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -163,7 +184,7 @@ pub struct PaginatedHistoryResult {
 pub struct HistoryManager {
     app_handle: AppHandle,
     recordings_dir: PathBuf,
-    db_path: PathBuf,
+    pub db_path: PathBuf,
 }
 
 impl HistoryManager {
@@ -553,13 +574,17 @@ impl HistoryManager {
     /// Used for user-initiated corrections to improve future transcription reference data.
     ///
     /// When field is "post_process_history_step", the step_index must be provided to identify which step to update.
+    /// The app_name is used to scope vocabulary corrections to specific applications.
     pub async fn update_history_entry_text(
         &self,
         id: i64,
         field: &str,
         new_text: String,
         step_index: Option<usize>,
+        app_name: Option<String>,
     ) -> Result<()> {
+        use crate::managers::vocabulary::VocabularyManager;
+
         // Only allow updating specific fields
         let allowed_fields = [
             "transcription_text",
@@ -576,6 +601,54 @@ impl HistoryManager {
         }
 
         let conn = self.get_connection()?;
+
+        // Get original text for vocabulary correction analysis
+        let original_text: Option<String> = if field == "post_process_history_step" {
+            // For step updates, get the specific step's result
+            if let Some(step_idx) = step_index {
+                let existing_history_json: Option<String> = conn
+                    .query_row(
+                        "SELECT post_process_history FROM transcription_history WHERE id = ?1",
+                        params![id],
+                        |row| row.get(0),
+                    )
+                    .ok();
+
+                existing_history_json.and_then(|s| {
+                    serde_json::from_str::<Vec<PostProcessStep>>(&s)
+                        .ok()
+                        .and_then(|history| history.get(step_idx).map(|step| step.result.clone()))
+                })
+            } else {
+                None
+            }
+        } else {
+            // For regular field updates, get the field value directly
+            let query = format!(
+                "SELECT {} FROM transcription_history WHERE id = ?1",
+                field
+            );
+            conn.query_row(&query, params![id], |row| row.get(0)).ok()
+        };
+
+        // Analyze diff and record vocabulary corrections
+        if let Some(original) = &original_text {
+            let diffs = VocabularyManager::analyze_edit_diff(original, &new_text);
+            if !diffs.is_empty() {
+                let vocab_manager = VocabularyManager::new(self.db_path.clone());
+                for diff in &diffs {
+                    if let Err(e) = vocab_manager.record_correction(diff, app_name.as_deref()) {
+                        error!("Failed to record vocabulary correction: {}", e);
+                    }
+                }
+                info!(
+                    "[History] Recorded {} vocabulary corrections for entry {} field {}",
+                    diffs.len(),
+                    id,
+                    field
+                );
+            }
+        }
 
         // Handle each field with appropriate updates
         if field == "transcription_text" {

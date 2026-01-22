@@ -626,6 +626,7 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
           onOpenChange={setEditDialogOpen}
           stepIndex={editStepIndex}
           stepLabel={editStepLabel}
+          appName={entry.app_name || undefined}
         />
       </Card>
     );

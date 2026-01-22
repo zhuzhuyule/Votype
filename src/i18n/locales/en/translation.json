@@ -66,7 +66,14 @@
     "useInput": "Use \"{{input}}\"",
     "useThisProvider": "Use this Provider",
     "variables": "Available Variables",
-    "yes": "Yes"
+    "yes": "Yes",
+    "refresh": "Refresh",
+    "time": {
+      "justNow": "Just now",
+      "minutesAgo": "{{count}} min ago",
+      "hoursAgo": "{{count}} hr ago",
+      "daysAgo": "{{count}} days ago"
+    }
   },
   "dashboard": {
     "actions": {
@@ -457,6 +464,26 @@
         "placeholder": "Add a word",
         "remove": "Remove {{word}}",
         "title": "Custom Words"
+      },
+      "vocabularyCorrections": {
+        "allApps": "All apps",
+        "delete": "Delete this correction",
+        "description": "Vocabulary corrections learned from your edit history",
+        "empty": "No learned corrections yet",
+        "global": "Global",
+        "removeGlobal": "Remove global",
+        "scope": "Scope",
+        "setGlobal": "Set as global",
+        "title": "Vocabulary Dictionary"
+      },
+      "scope": {
+        "custom": "Specific Apps",
+        "editDescription": "Edit scope for \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "Correction Scope",
+        "global": "Global",
+        "multiple": "{{count}} apps",
+        "none": "No apps",
+        "source": "Source App ({{app}})"
       },
       "groups": {
         "dataManagement": "Data Management",
@@ -1125,6 +1152,39 @@
         "description": "Adjust the volume of audio feedback sounds",
         "title": "Volume"
       }
+    },
+    "vocabulary": {
+      "actions": "Actions",
+      "corrections": {
+        "allApps": "All apps",
+        "correction": "Correction",
+        "count": "Count",
+        "description": "Automatically learned from your edit history",
+        "empty": "No learned corrections yet",
+        "global": "Global",
+        "source": "Source",
+        "sourceUnavailable": "Source unavailable",
+        "scope": "Scope",
+        "title": "Corrections"
+      },
+      "export": "Export",
+      "hotWords": {
+        "description": "Add words that are often misheard. The system will auto-correct.",
+        "empty": "No hot words yet",
+        "placeholder": "Add a word...",
+        "title": "Hot Words",
+        "word": "Word"
+      },
+      "import": "Import",
+      "scope": {
+        "custom": "Specific Apps",
+        "editDescription": "Edit scope for \"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "Correction Scope",
+        "global": "Global",
+        "multiple": "{{count}} apps",
+        "none": "No apps",
+        "source": "Source App ({{app}})"
+      }
     }
   },
   "sidebar": {
@@ -1137,7 +1197,8 @@
     "general": "General",
     "models": "AI Models",
     "prompts": "Prompts",
-    "shortcuts": "Shortcuts"
+    "shortcuts": "Shortcuts",
+    "vocabulary": "Vocabulary"
   },
   "soundPicker": {
     "custom": "Custom",

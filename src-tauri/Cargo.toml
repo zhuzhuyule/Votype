@@ -74,7 +74,7 @@ sherpa-rs-sys = "0.6.8"
 bzip2 = "0.6.1"
 regex = "1"
 serde_yaml = "0.9"
-
+similar = "2.6"
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
 

@@ -3,7 +3,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { SettingsGroup } from "../../ui/SettingsGroup";
-import { CustomWords } from "../CustomWords";
 import { HistoryLimit } from "../HistoryLimit";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
@@ -21,26 +20,16 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
-      {/* Transcription Optimization */}
-      <SettingsGroup
-        title={t("settings.advanced.groups.transcriptionOptimization")}
-      >
-        <CustomWords descriptionMode="inline" grouped />
-        {/* Expert only options */}
-        {expertMode && (
-          <>
-            <TranslateToEnglish descriptionMode="inline" grouped={true} />
-            <AppProfilesContextSettings
-              descriptionMode="inline"
-              grouped={true}
-            />
-            <ModelUnloadTimeoutSetting
-              descriptionMode="inline"
-              grouped={true}
-            />
-          </>
-        )}
-      </SettingsGroup>
+      {/* Transcription Optimization - Expert only */}
+      {expertMode && (
+        <SettingsGroup
+          title={t("settings.advanced.groups.transcriptionOptimization")}
+        >
+          <TranslateToEnglish descriptionMode="inline" grouped={true} />
+          <AppProfilesContextSettings descriptionMode="inline" grouped={true} />
+          <ModelUnloadTimeoutSetting descriptionMode="inline" grouped={true} />
+        </SettingsGroup>
+      )}
 
       {/* Data Management - Expert only */}
       {expertMode && (

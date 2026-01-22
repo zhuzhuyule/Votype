@@ -3,6 +3,7 @@ pub mod history;
 pub mod models;
 pub mod text;
 pub mod transcription;
+pub mod vocabulary;
 
 use crate::{active_window, settings, utils::cancel_current_operation};
 use tauri::{AppHandle, Manager};
@@ -261,14 +262,19 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 use std::sync::Arc;
 
                 if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
-                    // Get default prompt info for history
-                    let default_prompt = settings
+                    // Get polish prompt info for history: priority override_prompt_id > selected_prompt > first
+                    let polish_prompt_id = pending
+                        .override_prompt_id
+                        .as_deref()
+                        .or(settings.post_process_selected_prompt_id.as_deref());
+
+                    let polish_prompt = settings
                         .post_process_prompts
                         .iter()
-                        .find(|p| Some(&p.id) == settings.post_process_selected_prompt_id.as_ref())
+                        .find(|p| polish_prompt_id == Some(p.id.as_str()))
                         .or_else(|| settings.post_process_prompts.first());
 
-                    if let Some(prompt) = default_prompt {
+                    if let Some(prompt) = polish_prompt {
                         let _ = hm
                             .update_transcription_post_processing(
                                 history_id,
@@ -426,14 +432,19 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 use std::sync::Arc;
 
                 if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
-                    // Get default prompt info for history
-                    let default_prompt = settings
+                    // Get polish prompt info for history: priority override_prompt_id > selected_prompt > first
+                    let polish_prompt_id = pending
+                        .override_prompt_id
+                        .as_deref()
+                        .or(settings.post_process_selected_prompt_id.as_deref());
+
+                    let polish_prompt = settings
                         .post_process_prompts
                         .iter()
-                        .find(|p| Some(&p.id) == settings.post_process_selected_prompt_id.as_ref())
+                        .find(|p| polish_prompt_id == Some(p.id.as_str()))
                         .or_else(|| settings.post_process_prompts.first());
 
-                    if let Some(prompt) = default_prompt {
+                    if let Some(prompt) = polish_prompt {
                         let _ = hm
                             .update_transcription_post_processing(
                                 history_id,
@@ -466,7 +477,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     &transcription,
                     None,
                     false,
-                    None, // Use default prompt
+                    pending.override_prompt_id, // Use the stored override prompt
                     pending.app_name,
                     pending.window_title,
                     None,

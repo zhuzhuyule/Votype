@@ -10,7 +10,7 @@ use async_openai::types::{
     ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
-use log::{error, info};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
@@ -886,6 +886,11 @@ pub(crate) async fn maybe_post_process_transcription(
         override_prompt_id.as_deref(),
     );
 
+    // Notify UI immediately about the specific prompt being used if it's an override (app/rule specific)
+    if let (Some(p), true) = (&initial_prompt_opt, override_prompt_id.is_some()) {
+        app_handle.emit("post-process-status", p.name.clone()).ok();
+    }
+
     // --- Smart Routing Phase ---
     // Only perform LLM-based routing if skill_mode is enabled (dedicated shortcut pressed - Mode B)
     // For selected text (Mode C), we need user confirmation before executing skills
@@ -1106,8 +1111,9 @@ pub(crate) async fn maybe_post_process_transcription(
                                     skill_name: Some(routed_prompt.name.clone()),
                                     transcription: Some(transcription.to_string()),
                                     selected_text: selected_text.clone(),
-                                    app_name: None,
-                                    window_title: None,
+                                    override_prompt_id: override_prompt_id.clone(),
+                                    app_name: app_name.clone(),
+                                    window_title: window_title.clone(),
                                     history_id,
                                     process_id: active_pid,
                                     polish_result: polish_result.clone(), // May be None if parallel polish failed!
@@ -1334,6 +1340,7 @@ pub(crate) async fn maybe_post_process_transcription(
                     skills_info.push(format!("- **{}**", p.name));
                 }
             }
+
             hot_words.sort();
             hot_words.dedup();
 
@@ -1352,7 +1359,34 @@ pub(crate) async fn maybe_post_process_transcription(
                 }
             }
 
-            // 2. Inject Semantic Skills block (NEW)
+            // 2. Inject vocabulary corrections as separate context block (lower priority than hot_words)
+            if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+                use crate::managers::vocabulary::VocabularyManager;
+                let vocab_manager = VocabularyManager::new(hm.db_path.clone());
+                if let Ok(corrections) = vocab_manager.get_corrections_for_app(app_name.as_deref()) {
+                    if !corrections.is_empty() {
+                        let corrections_text = corrections
+                            .iter()
+                            .take(20)
+                            .map(|c| format!("- \"{}\" → \"{}\"", c.original_text, c.corrected_text))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+
+                        input_data_parts.push(format!(
+                            "以下是用户曾做过的词汇修正，请在适当时参考（仅在上下文相关时应用）：\n{}",
+                            corrections_text
+                        ));
+
+                        debug!(
+                            "[PostProcess] Injected {} vocabulary corrections for app {:?}",
+                            corrections.len().min(20),
+                            app_name
+                        );
+                    }
+                }
+            }
+
+            // 3. Inject Semantic Skills block
             if !skills_info.is_empty() {
                 let skills_block = format!(
                     "## 可用技能\n\n用户可能正在尝试执行以下某种操作（技能）。请分析用户输入（raw_input）的意图，并根据最匹配的技能进行处理：\n\n{}",

@@ -23,6 +23,8 @@ interface EditHistoryDialogProps {
   stepIndex?: number;
   /** Optional label for the step (e.g., prompt name) */
   stepLabel?: string;
+  /** App name for scoping vocabulary corrections */
+  appName?: string;
 }
 
 export const EditHistoryDialog: React.FC<EditHistoryDialogProps> = ({
@@ -34,6 +36,7 @@ export const EditHistoryDialog: React.FC<EditHistoryDialogProps> = ({
   onSaved,
   stepIndex,
   stepLabel,
+  appName,
 }) => {
   const { t } = useTranslation();
   const [text, setText] = useState(initialText);
@@ -59,6 +62,7 @@ export const EditHistoryDialog: React.FC<EditHistoryDialogProps> = ({
         field,
         text,
         stepIndex: field === "post_process_history_step" ? stepIndex : null,
+        appName: appName || null,
       });
       onOpenChange(false);
       onSaved?.();
@@ -68,7 +72,7 @@ export const EditHistoryDialog: React.FC<EditHistoryDialogProps> = ({
     } finally {
       setSaving(false);
     }
-  }, [entryId, field, text, saving, onOpenChange, onSaved, stepIndex]);
+  }, [entryId, field, text, saving, onOpenChange, onSaved, stepIndex, appName]);
 
   const fieldLabel =
     field === "transcription_text"

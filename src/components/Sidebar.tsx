@@ -1,5 +1,6 @@
 import { Box, Flex, Switch, Text, Tooltip } from "@radix-ui/themes";
 import {
+  IconAbc,
   IconAdjustments,
   IconBrain,
   IconInfoCircle,
@@ -54,6 +55,11 @@ const AppProfilesSettings = lazy(() =>
     default: m.AppProfilesSettings,
   })),
 );
+const VocabularySettings = lazy(() =>
+  import("./settings/VocabularySettings").then((m) => ({
+    default: m.VocabularySettings,
+  })),
+);
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
@@ -92,7 +98,7 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.advanced",
     icon: IconAdjustments,
     component: AdvancedSettings,
-    enabled: () => true,
+    enabled: (expertMode: boolean) => expertMode,
     shortcutKey: "3",
   },
   models: {
@@ -123,12 +129,19 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "7",
   },
+  vocabulary: {
+    labelKey: "sidebar.vocabulary",
+    icon: IconAbc,
+    component: VocabularySettings,
+    enabled: () => true,
+    shortcutKey: "8",
+  },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoCircle,
     component: AboutSettings,
     enabled: () => true,
-    shortcutKey: "8",
+    shortcutKey: "9",
   },
 } as const satisfies Record<string, SectionConfig>;
 
@@ -141,6 +154,7 @@ export const SECTION_ORDER: SidebarSection[] = [
   "prompts",
   "shortcuts",
   "appProfiles",
+  "vocabulary",
   "about",
 ];
 
@@ -181,8 +195,8 @@ const SidebarItem: React.FC<{
       aria-selected={isActive}
       className={`w-full cursor-pointer rounded-xl transition-all duration-200 group ${
         isActive
-          ? "bg-[var(--accent-a3)] shadow-sm border border-[var(--accent-a4)]"
-          : "hover:bg-[var(--gray-a3)] opacity-70 hover:opacity-100 border border-transparent"
+          ? "bg-(--accent-a3) shadow-sm border border-(--accent-a4)"
+          : "hover:bg-(--gray-a3) opacity-70 hover:opacity-100 border border-transparent"
       }`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
@@ -200,9 +214,7 @@ const SidebarItem: React.FC<{
         <Text
           size="2"
           weight={isActive ? "bold" : "medium"}
-          className={
-            isActive ? "text-[var(--accent-11)]" : "text-[var(--gray-11)]"
-          }
+          className={isActive ? "text-(--accent-11)" : "text-(--gray-11)"}
         >
           {section.label}
         </Text>
@@ -212,8 +224,8 @@ const SidebarItem: React.FC<{
         justify="center"
         className={`w-5 h-5 rounded-md border text-[10px] font-mono transition-colors ${
           isActive
-            ? "bg-[var(--accent-9)] border-transparent text-white shadow-sm"
-            : "bg-[var(--gray-2)] border-[var(--gray-5)] text-[var(--gray-9)]"
+            ? "bg-(--accent-9) border-transparent text-white shadow-sm"
+            : "bg-(--gray-2) border-(--gray-5) text-(--gray-9)"
         }`}
       >
         {section.shortcutKey}
@@ -229,11 +241,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const { expertMode, updateSetting } = useSettings();
 
-  const sections = Object.entries(SECTIONS_CONFIG).map(([id, config]) => ({
-    id,
-    ...config,
-    label: t(config.labelKey),
-  }));
+  const sections = Object.entries(SECTIONS_CONFIG)
+    .filter(([_, config]) => config.enabled(expertMode))
+    .map(([id, config]) => ({
+      id,
+      ...config,
+      label: t(config.labelKey),
+    }));
 
   const handleExpertModeToggle = useCallback(
     (checked: boolean) => {
@@ -245,7 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <Flex
       direction="column"
-      className="w-56 h-full border-r border-[var(--gray-5)] bg-[var(--gray-1)] select-none"
+      className="w-56 h-full border-r border-(--gray-5) bg-(--gray-1) select-none"
     >
       {/* Logo Area */}
       <Flex align="center" justify="center" className="pt-5">
@@ -254,9 +268,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Divider with center dot */}
       <Flex align="center" justify="center" className="relative mx-8 mb-5 mt-1">
-        <Box className="absolute inset-x-0 h-px bg-[var(--gray-3)]" />
-        <Box className="relative z-10 px-2 bg-[var(--gray-1)]">
-          <Box className="w-1.5 h-1.5 rounded-full bg-[var(--gray-3)]" />
+        <Box className="absolute inset-x-0 h-px bg-(--gray-3)" />
+        <Box className="relative z-10 px-2 bg-(--gray-1)">
+          <Box className="w-1.5 h-1.5 rounded-full bg-(--gray-3)" />
         </Box>
       </Flex>
 
@@ -284,11 +298,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
         justify="between"
         px="4"
         py="3"
-        className="border-t border-[var(--gray-4)]"
+        className="border-t border-(--gray-4)"
       >
         <Tooltip content={t("sidebar.expertModeHint")}>
           <Flex align="center" gap="2" className="cursor-help">
-            <IconTool size={16} className="text-[var(--gray-9)]" />
+            <IconTool size={16} className="text-(--gray-9)" />
             <Text size="1" color="gray">
               {t("sidebar.expertMode")}
             </Text>

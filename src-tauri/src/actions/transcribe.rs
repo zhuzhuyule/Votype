@@ -874,9 +874,12 @@ impl ShortcutAction for TranscribeAction {
                                 let (app_profile, matched_rule) = active_window_snapshot_for_review
                                     .as_ref()
                                     .map(|info| {
-                                        // Find profile for this app
-                                        let profile_id =
-                                            settings_clone.app_to_profile.get(&info.app_name);
+                                        // Find profile for this app (case-insensitive)
+                                        let profile_id = settings_clone
+                                            .app_to_profile
+                                            .iter()
+                                            .find(|(k, _)| k.eq_ignore_ascii_case(&info.app_name))
+                                            .map(|(_, v)| v);
                                         let profile = profile_id.and_then(|pid| {
                                             settings_clone
                                                 .app_profiles
@@ -885,7 +888,9 @@ impl ShortcutAction for TranscribeAction {
                                         });
 
                                         if let Some(p) = profile {
-                                            // Check sub-rules first
+                                            // Find all matching rules
+                                            let mut matched_rules = Vec::new();
+                                            
                                             for rule in &p.rules {
                                                 let matched = match rule.match_type {
                                                     crate::settings::TitleMatchType::Text => info
@@ -899,11 +904,21 @@ impl ShortcutAction for TranscribeAction {
                                                     }
                                                 };
                                                 if matched {
-                                                    return (Some(p), Some(rule));
+                                                    matched_rules.push(rule);
                                                 }
                                             }
-                                            // No rule matched, use profile defaults
-                                            (Some(p), None)
+
+                                            // Select the best match (longest pattern length wins)
+                                            // This allows specific rules (e.g. "Matt M") to override generic ones (e.g. "Slack")
+                                            if let Some(best_rule) = matched_rules
+                                                .into_iter()
+                                                .max_by_key(|r| r.pattern.chars().count())
+                                            {
+                                                (Some(p), Some(best_rule))
+                                            } else {
+                                                // No rule matched, use profile defaults
+                                                (Some(p), None)
+                                            }
                                         } else {
                                             (None, None)
                                         }

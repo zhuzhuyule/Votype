@@ -90,6 +90,7 @@ pub async fn get_history_dashboard_stats(
 
 /// Update a history entry's text field (transcription_text, streaming_text, post_processed_text)
 /// or a specific step in post_process_history (when field is "post_process_history_step")
+/// The app_name is used to scope vocabulary corrections to specific applications.
 #[tauri::command]
 pub async fn update_history_entry_text(
     app: AppHandle,
@@ -98,9 +99,10 @@ pub async fn update_history_entry_text(
     field: String,
     text: String,
     step_index: Option<usize>,
+    app_name: Option<String>,
 ) -> Result<(), String> {
     history_manager
-        .update_history_entry_text(id, &field, text, step_index)
+        .update_history_entry_text(id, &field, text, step_index, app_name)
         .await
         .map_err(|e| e.to_string())?;
 

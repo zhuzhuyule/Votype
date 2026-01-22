@@ -66,7 +66,14 @@
     "useInput": "使用 \"{{input}}\"",
     "useThisProvider": "启用此提供商",
     "variables": "可用变量",
-    "yes": "是"
+    "yes": "是",
+    "refresh": "刷新",
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前"
+    }
   },
   "dashboard": {
     "actions": {
@@ -479,6 +486,26 @@
         "placeholder": "添加词汇",
         "remove": "删除 {{word}}",
         "title": "自定义词汇"
+      },
+      "vocabularyCorrections": {
+        "allApps": "所有应用",
+        "delete": "删除此纠错",
+        "description": "系统从您的历史编辑中学习到的词汇纠错",
+        "empty": "暂无学习到的纠错记录",
+        "global": "全局",
+        "removeGlobal": "取消全局",
+        "scope": "生效范围",
+        "setGlobal": "设为全局",
+        "title": "纠错词典"
+      },
+      "scope": {
+        "custom": "指定应用",
+        "editDescription": "编辑生效范围：\"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "生效范围",
+        "global": "全局生效",
+        "multiple": "{{count}} 个应用",
+        "none": "无应用",
+        "source": "仅来源应用 ({{app}})"
       },
       "groups": {
         "dataManagement": "数据管理",
@@ -1143,6 +1170,39 @@
         "description": "调整音频反馈的音量",
         "title": "音量"
       }
+    },
+    "vocabulary": {
+      "actions": "操作",
+      "corrections": {
+        "allApps": "所有应用",
+        "correction": "纠错",
+        "count": "次数",
+        "description": "从您的编辑历史中自动学习",
+        "empty": "暂无学习到的纠错记录",
+        "global": "全局",
+        "source": "来源",
+        "sourceUnavailable": "来源不可用",
+        "scope": "生效范围",
+        "title": "纠错词典"
+      },
+      "export": "导出",
+      "hotWords": {
+        "description": "添加经常被误听的词汇，系统将自动修正",
+        "empty": "暂无热词",
+        "placeholder": "添加词汇...",
+        "title": "热词",
+        "word": "词汇"
+      },
+      "import": "导入",
+      "scope": {
+        "custom": "指定应用",
+        "editDescription": "编辑生效范围：\"{{original}}\" → \"{{corrected}}\"",
+        "editTitle": "生效范围",
+        "global": "全局生效",
+        "multiple": "{{count}} 个应用",
+        "none": "无应用",
+        "source": "仅来源应用 ({{app}})"
+      }
     }
   },
   "sidebar": {
@@ -1159,7 +1219,8 @@
     "models": "模型",
     "postProcessing": "后处理",
     "prompts": "提示词",
-    "shortcuts": "快捷键"
+    "shortcuts": "快捷键",
+    "vocabulary": "词汇管理"
   },
   "soundPicker": {
     "custom": "自定义",
