@@ -265,7 +265,43 @@ export const Dashboard: React.FC = () => {
     return map;
   }, [selectedEntries]);
 
-  const summary = useMemo(() => {
+  // Calculate previous period entries for trend comparison
+  const previousPeriodEntries = useMemo(() => {
+    if (selection.type === "preset" && selection.preset === "all") {
+      return []; // No comparison for "all time"
+    }
+
+    const getDay = (entry: HistoryEntry) =>
+      toLocalYmd(new Date(entry.timestamp * 1000));
+
+    if (selection.type === "day") {
+      // Compare with previous day
+      const currentDate = new Date(selection.day + "T00:00:00");
+      const prevDate = new Date(currentDate);
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevDay = toLocalYmd(prevDate);
+      return allEntries.filter((e) => getDay(e) === prevDay);
+    }
+
+    // For preset ranges, compare with previous period of same length
+    const days =
+      selection.preset === "7d" ? 7 : selection.preset === "30d" ? 30 : 40;
+    const now = new Date();
+    const periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - days);
+    const prevPeriodStart = new Date(periodStart);
+    prevPeriodStart.setDate(prevPeriodStart.getDate() - days);
+    const prevPeriodEnd = new Date(periodStart);
+    prevPeriodEnd.setDate(prevPeriodEnd.getDate() - 1);
+
+    return allEntries.filter((e) => {
+      const entryDate = new Date(e.timestamp * 1000);
+      return entryDate >= prevPeriodStart && entryDate <= prevPeriodEnd;
+    });
+  }, [allEntries, selection]);
+
+  // Helper to calculate summary from entries
+  const calculateSummary = useCallback((entries: HistoryEntry[]) => {
     let entryCount = 0;
     let durationMs = 0;
     let charCount = 0;
@@ -275,7 +311,7 @@ export const Dashboard: React.FC = () => {
     let llmHits = 0;
     const appCounts = new Map<string, number>();
 
-    for (const entry of selectedEntries) {
+    for (const entry of entries) {
       entryCount += 1;
       durationMs += entry.duration_ms ?? 0;
       transcriptionMs += entry.transcription_ms ?? 0;
@@ -317,7 +353,37 @@ export const Dashboard: React.FC = () => {
       charsPerMinute,
       topApps,
     };
-  }, [selectedEntries]);
+  }, []);
+
+  const summary = useMemo(
+    () => calculateSummary(selectedEntries),
+    [calculateSummary, selectedEntries],
+  );
+
+  const previousSummary = useMemo(
+    () => calculateSummary(previousPeriodEntries),
+    [calculateSummary, previousPeriodEntries],
+  );
+
+  // Calculate trend percentages
+  const trends = useMemo(() => {
+    const calcTrend = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    // Don't show trends for "all time" selection
+    if (selection.type === "preset" && selection.preset === "all") {
+      return null;
+    }
+
+    return {
+      entryCount: calcTrend(summary.entryCount, previousSummary.entryCount),
+      durationMs: calcTrend(summary.durationMs, previousSummary.durationMs),
+      charCount: calcTrend(summary.charCount, previousSummary.charCount),
+      llmCalls: calcTrend(summary.llmCalls, previousSummary.llmCalls),
+    };
+  }, [summary, previousSummary, selection]);
 
   const getAudioUrl = useCallback(async (fileName: string) => {
     try {
@@ -391,6 +457,7 @@ export const Dashboard: React.FC = () => {
       </Heading>
       <DashboardSummaryCards
         summary={summary}
+        trends={trends}
         numberFormat={numberFormat}
         formatDurationMs={formatDurationMs}
       />

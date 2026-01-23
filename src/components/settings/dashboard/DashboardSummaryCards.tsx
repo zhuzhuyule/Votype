@@ -17,11 +17,37 @@ interface DashboardSummary {
   topApps: [string, number][];
 }
 
+interface DashboardTrends {
+  entryCount: number;
+  durationMs: number;
+  charCount: number;
+  llmCalls: number;
+}
+
 interface DashboardSummaryCardsProps {
   summary: DashboardSummary;
+  trends: DashboardTrends | null;
   numberFormat: Intl.NumberFormat;
   formatDurationMs: (durationMs: number) => string;
 }
+
+// Trend indicator component
+const TrendIndicator: React.FC<{ value: number; className?: string }> = ({
+  value,
+  className = "",
+}) => {
+  if (value === 0) return null;
+
+  const isPositive = value > 0;
+  const color = isPositive ? "text-emerald-500" : "text-red-400";
+  const arrow = isPositive ? "↑" : "↓";
+
+  return (
+    <Text size="1" className={`${color} font-medium tabular-nums ${className}`}>
+      {arrow} {Math.abs(value)}%
+    </Text>
+  );
+};
 
 // Stylized Microphone Icon
 const MicrophoneIcon: React.FC<{ color: string }> = ({ color }) => (
@@ -342,7 +368,7 @@ const PremiumCard: React.FC<{
   pattern: React.ReactNode;
 }> = ({ children, gradientFrom, gradientTo, pattern }) => (
   <Card
-    className="relative overflow-hidden p-1! py-0.5! transition-all duration-300 hover:translate-y-[-1px]"
+    className="relative overflow-hidden p-1! py-0.5! transition-all duration-300 hover:translate-y-[-2px] hover:shadow-md cursor-default"
     shadow="sm"
     style={{
       background: `linear-gradient(145deg, ${gradientFrom} 0%, ${gradientTo} 100%)`,
@@ -359,6 +385,7 @@ const PremiumCard: React.FC<{
 
 export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
   summary,
+  trends,
   numberFormat,
   formatDurationMs,
 }) => {
@@ -372,14 +399,17 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         gradientTo="var(--accent-3)"
         pattern={<MicrophoneIcon color="var(--accent-9)" />}
       >
-        <Text
-          size="1"
-          weight="medium"
-          className="uppercase tracking-wider opacity-50"
-        >
-          {t("dashboard.summary.recording.title")}
-        </Text>
-        <Heading size="7" weight="bold" className="tracking-tight">
+        <Flex justify="between" align="center">
+          <Text
+            size="1"
+            weight="medium"
+            className="uppercase tracking-wider opacity-50"
+          >
+            {t("dashboard.summary.recording.title")}
+          </Text>
+          {trends && <TrendIndicator value={trends.durationMs} />}
+        </Flex>
+        <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
           {formatDurationMs(summary.durationMs)}
         </Heading>
         <Text size="2" className="opacity-60">
@@ -395,14 +425,17 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         gradientTo="rgba(59, 130, 246, 0.12)"
         pattern={<TextIcon color="#3b82f6" />}
       >
-        <Text
-          size="1"
-          weight="medium"
-          className="uppercase tracking-wider opacity-50"
-        >
-          {t("dashboard.summary.transcription.title")}
-        </Text>
-        <Heading size="7" weight="bold" className="tracking-tight">
+        <Flex justify="between" align="center">
+          <Text
+            size="1"
+            weight="medium"
+            className="uppercase tracking-wider opacity-50"
+          >
+            {t("dashboard.summary.transcription.title")}
+          </Text>
+          {trends && <TrendIndicator value={trends.charCount} />}
+        </Flex>
+        <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
           {numberFormat.format(summary.charCount)}
         </Heading>
         <Text size="2" className="opacity-60">
@@ -418,14 +451,17 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         gradientTo="rgba(147, 51, 234, 0.12)"
         pattern={<CpuIcon color="#9333ea" />}
       >
-        <Text
-          size="1"
-          weight="medium"
-          className="uppercase tracking-wider opacity-50"
-        >
-          {t("dashboard.summary.llm.title")}
-        </Text>
-        <Heading size="7" weight="bold" className="tracking-tight">
+        <Flex justify="between" align="center">
+          <Text
+            size="1"
+            weight="medium"
+            className="uppercase tracking-wider opacity-50"
+          >
+            {t("dashboard.summary.llm.title")}
+          </Text>
+          {trends && <TrendIndicator value={trends.llmCalls} />}
+        </Flex>
+        <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
           {numberFormat.format(summary.llmCalls)}
         </Heading>
         <Text size="2" className="opacity-60">

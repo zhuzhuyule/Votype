@@ -226,9 +226,99 @@ export const VirtualDetailsList: React.FC<VirtualDetailsListProps> = ({
       }
     >
       {dayGroups.length === 0 ? (
-        <Text size="2" color="gray">
-          {t("dashboard.details.empty")}
-        </Text>
+        <Flex
+          direction="column"
+          align="center"
+          justify="center"
+          gap="4"
+          className="py-16"
+        >
+          {/* Empty state illustration */}
+          <Box className="opacity-20">
+            <svg
+              width="120"
+              height="120"
+              viewBox="0 0 120 120"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Microphone body */}
+              <rect
+                x="40"
+                y="20"
+                width="40"
+                height="55"
+                rx="20"
+                stroke="currentColor"
+                strokeWidth="3"
+                fill="none"
+              />
+              {/* Microphone grille */}
+              <line
+                x1="48"
+                y1="35"
+                x2="72"
+                y2="35"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line
+                x1="48"
+                y1="45"
+                x2="72"
+                y2="45"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line
+                x1="48"
+                y1="55"
+                x2="72"
+                y2="55"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              {/* Stand arc */}
+              <path
+                d="M28 75 Q28 95 60 95 Q92 95 92 75"
+                stroke="currentColor"
+                strokeWidth="3"
+                fill="none"
+              />
+              {/* Stand */}
+              <line
+                x1="60"
+                y1="95"
+                x2="60"
+                y2="105"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+              <line
+                x1="45"
+                y1="105"
+                x2="75"
+                y2="105"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            </svg>
+          </Box>
+          <Text size="3" color="gray" weight="medium">
+            {t("dashboard.details.empty")}
+          </Text>
+          <Text
+            size="2"
+            color="gray"
+            className="opacity-60 text-center max-w-xs"
+          >
+            {t("dashboard.details.emptyHint")}
+          </Text>
+        </Flex>
       ) : (
         <ScrollArea
           type="auto"
@@ -241,9 +331,9 @@ export const VirtualDetailsList: React.FC<VirtualDetailsListProps> = ({
             {dayGroups.map(
               ([dayId, { label, isRecent, entries: dayEntries }]) => (
                 <Box key={dayId} className="mb-4">
-                  {/* Day header - solid opaque background with bottom rounded corners */}
+                  {/* Day header - glass effect with backdrop blur */}
                   <Box
-                    className="bg-[var(--accent-3)] px-4 py-2 mb-3 sticky top-0 z-10 -mx-2.5"
+                    className="bg-[var(--accent-3)]/90 backdrop-blur-sm px-4 py-2 mb-3 sticky top-0 z-10 -mx-2.5 border-b border-[var(--accent-4)]"
                     style={{ borderRadius: "var(--radius-4)" }}
                   >
                     <Flex justify="between" align="center">

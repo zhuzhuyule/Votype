@@ -105,6 +105,7 @@
       "audioRemoved": "Recording removed",
       "count": "{{count}} entries",
       "empty": "No data",
+      "emptyHint": "Use the shortcut key to start your first transcription",
       "loadMore": "Load more",
       "meta": {
         "chars": "{{value}} chars"

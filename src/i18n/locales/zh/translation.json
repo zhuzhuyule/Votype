@@ -105,6 +105,7 @@
       "audioRemoved": "录音已移除",
       "count": "共 {{count}} 条",
       "empty": "暂无数据",
+      "emptyHint": "使用快捷键开始您的第一次语音转录",
       "loadMore": "加载更多",
       "meta": {
         "chars": "{{value}} 字"

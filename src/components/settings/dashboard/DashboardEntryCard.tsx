@@ -236,7 +236,10 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     const activeClass = "text-logo-primary! font-medium";
 
     return (
-      <Card className="px-1 py-0.5 border-mid-gray/20 border-1" shadow="none">
+      <Card
+        className="group/card px-1 py-0.5 border-mid-gray/20 border-1 hover:border-mid-gray/40 transition-colors"
+        shadow="none"
+      >
         <Flex direction="column" className="p-4">
           <Flex justify="between" align="center" className="pb-3">
             <Flex gap="2" align="center" className="flex-wrap">
@@ -326,7 +329,10 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
               ) : null}
             </Flex>
 
-            <Flex align="center" className="flex gap-4">
+            <Flex
+              align="center"
+              className="flex gap-2 opacity-0 group-hover/card:opacity-100 transition-opacity duration-200"
+            >
               {retranscribing || reprocessing ? (
                 <Text size="1" color="gray" className="animate-pulse mr-2">
                   {t("common.loading")}
@@ -413,14 +419,14 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   variant="ghost"
                   size="2"
                   onClick={() => onToggleSaved(entry.id)}
-                  className={`transition-colors ${
+                  className={`transition-all duration-200 active:scale-125 ${
                     entry.saved
                       ? "text-orange-400 hover:text-orange-500 hover:bg-orange-400/10"
                       : "text-text/60 hover:text-orange-400 hover:bg-orange-400/10"
                   }`}
                 >
                   <IconStar
-                    className="w-4 h-4"
+                    className={`w-4 h-4 transition-transform duration-200 ${entry.saved ? "scale-110" : ""}`}
                     fill={entry.saved ? "currentColor" : "none"}
                   />
                 </IconButton>

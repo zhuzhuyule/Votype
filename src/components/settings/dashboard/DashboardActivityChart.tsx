@@ -64,7 +64,15 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
         </SegmentedControl.Root>
       }
     >
-      <Flex gap="2" align="end" className="h-16 mt-2">
+      <Flex gap="1" align="end" className="h-24 mt-2 relative">
+        {/* Y-axis hint */}
+        <Text
+          size="1"
+          className="absolute -left-1 top-0 opacity-30 select-none"
+        >
+          max
+        </Text>
+
         {bars.map((b) => (
           <Tooltip
             key={b.day}
@@ -82,21 +90,22 @@ export const DashboardActivityChart: React.FC<DashboardActivityChartProps> = ({
           >
             <button
               type="button"
-              className="flex-1 rounded-sm transition-all hover:border-2 hover:border-logo-primary!"
+              className="flex-1 rounded-sm transition-all duration-200 hover:ring-2 hover:ring-logo-primary/60 hover:ring-offset-1 focus:outline-none focus:ring-2 focus:ring-logo-primary cursor-pointer"
               style={{
-                height: `${Math.max(4, b.heightPct)}%`,
+                height: `${Math.max(6, b.heightPct)}%`,
                 backgroundColor: b.selected
                   ? "var(--accent-9)"
                   : "var(--gray-a6)",
-                opacity: b.entries === 0 ? 0.2 : 0.9,
-                cursor: "pointer",
-                transform: b.isToday ? "translateY(-2px)" : undefined,
+                opacity: b.entries === 0 ? 0.25 : 1,
+                transform: b.isToday ? "translateY(-3px)" : undefined,
                 boxShadow: b.isToday
-                  ? "0 6px 16px rgba(0,0,0,0.08)"
-                  : undefined,
-                border: "2px solid transparent",
+                  ? "0 6px 16px rgba(0,0,0,0.1)"
+                  : b.selected
+                    ? "0 2px 8px rgba(0,0,0,0.06)"
+                    : undefined,
               }}
               onClick={() => onSelectDay(b.day)}
+              aria-label={`${b.day}: ${b.entries} entries`}
             />
           </Tooltip>
         ))}
