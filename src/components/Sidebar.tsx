@@ -3,6 +3,7 @@ import {
   IconAbc,
   IconAdjustments,
   IconBrain,
+  IconChartBar,
   IconInfoCircle,
   IconKeyboard,
   IconLayoutDashboard,
@@ -60,6 +61,11 @@ const VocabularySettings = lazy(() =>
     default: m.VocabularySettings,
   })),
 );
+const SummaryPage = lazy(() =>
+  import("./settings/summary/SummaryPage").then((m) => ({
+    default: m.SummaryPage,
+  })),
+);
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
 
@@ -86,6 +92,13 @@ export const SECTIONS_CONFIG = {
     component: Dashboard,
     enabled: () => true,
     shortcutKey: "1",
+  },
+  summary: {
+    labelKey: "sidebar.summary",
+    icon: IconChartBar,
+    component: SummaryPage,
+    enabled: () => true,
+    shortcutKey: "s",
   },
   general: {
     labelKey: "sidebar.general",
@@ -148,6 +161,7 @@ export const SECTIONS_CONFIG = {
 // Canonical section order
 export const SECTION_ORDER: SidebarSection[] = [
   "dashboard",
+  "summary",
   "general",
   "advanced",
   "models",

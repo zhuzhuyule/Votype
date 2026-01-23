@@ -11,18 +11,11 @@
     "title": "应用语言"
   },
   "common": {
-    "active": "使用中",
     "add": "添加",
     "addNewOption": "添加新选项",
-    "aiOptimizationFailed": "AI 优化失败，请检查配置",
-    "aiOptimizationSuccess": "AI 优化成功",
-    "aiOptimize": "AI 润色",
     "authorize": "授权",
-    "bold": "加粗",
     "cancel": "取消",
     "close": "关闭",
-    "code": "行内代码",
-    "confirm": "确认",
     "copied": "已复制",
     "copy": "复制",
     "create": "创建",
@@ -32,15 +25,8 @@
     "done": "完成",
     "edit": "编辑",
     "enabled": "已启用",
-    "exitFullscreen": "还原窗口",
     "filterOptions": "筛选选项...",
-    "fullscreen": "全屏模式",
     "granted": "已授权",
-    "h1": "一级标题",
-    "id": "ID",
-    "italic": "斜体",
-    "link": "插入链接",
-    "list": "无序列表",
     "loading": "加载中...",
     "models": "模型",
     "next": "下一步",
@@ -52,7 +38,6 @@
     "on": "开",
     "open": "打开",
     "optional": "可选",
-    "quote": "引用",
     "remove": "移除",
     "requesting": "请求中...",
     "required": "必需",
@@ -64,23 +49,10 @@
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
-    "useThisProvider": "启用此提供商",
-    "variables": "可用变量",
-    "yes": "是",
-    "refresh": "刷新",
-    "time": {
-      "justNow": "刚刚",
-      "minutesAgo": "{{count}} 分钟前",
-      "hoursAgo": "{{count}} 小时前",
-      "daysAgo": "{{count}} 天前"
-    }
+    "yes": "是"
   },
   "dashboard": {
     "actions": {
-      "edit": "编辑",
-      "editDescription": "修改此历史记录的识别文本",
-      "editPlaceholder": "输入修改后的文本...",
-      "editTitle": "编辑识别结果",
       "openRecordings": "录音目录",
       "reprocessFailed": "AI 重新处理失败",
       "retranscribe": "使用原音频重新转录",
@@ -105,7 +77,6 @@
       "audioRemoved": "录音已移除",
       "count": "共 {{count}} 条",
       "empty": "暂无数据",
-      "emptyHint": "使用快捷键开始您的第一次语音转录",
       "loadMore": "加载更多",
       "meta": {
         "chars": "{{value}} 字"
@@ -152,6 +123,17 @@
       }
     },
     "title": "概览"
+  },
+  "transcription": {
+    "review": {
+      "title": "审阅转录",
+      "confidence": "置信度",
+      "description": "转录可能包含错误，请审阅并在需要时编辑。",
+      "placeholder": "在此编辑转录内容...",
+      "hint": "⌘/Ctrl + Enter 确认, Escape 取消",
+      "confirm": "确认并插入",
+      "insert": "插入"
+    }
   },
   "errors": {
     "loadDirectory": "加载目录时出错: {{error}}"
@@ -422,16 +404,11 @@
       "llmRequestFailed": "LLM 请求失败，请检查网络/API",
       "transcriptionFailedSaved": "转录失败（已保存）"
     },
-    "skillConfirmation": {
-      "confirmUse": "处理选中内容？",
-      "detectedSelection": "是否使用 ",
-      "prompt": "使用此技能？"
-    },
     "status": {
       "llm": "后处理中…",
       "recording": "录音中…",
-      "review": "审阅中…",
-      "transcribing": "转录中…"
+      "transcribing": "转录中…",
+      "review": "审阅中…"
     }
   },
   "settings": {
@@ -488,32 +465,12 @@
         "remove": "删除 {{word}}",
         "title": "自定义词汇"
       },
-      "vocabularyCorrections": {
-        "allApps": "所有应用",
-        "delete": "删除此纠错",
-        "description": "系统从您的历史编辑中学习到的词汇纠错",
-        "empty": "暂无学习到的纠错记录",
-        "global": "全局",
-        "removeGlobal": "取消全局",
-        "scope": "生效范围",
-        "setGlobal": "设为全局",
-        "title": "纠错词典"
-      },
-      "scope": {
-        "custom": "指定应用",
-        "editDescription": "编辑生效范围：\"{{original}}\" → \"{{corrected}}\"",
-        "editTitle": "生效范围",
-        "global": "全局生效",
-        "multiple": "{{count}} 个应用",
-        "none": "无应用",
-        "source": "仅来源应用 ({{app}})"
-      },
       "groups": {
-        "dataManagement": "数据管理",
-        "debug": "调试选项",
-        "inputOutput": "输入与输出",
         "startup": "启动与行为",
-        "transcriptionOptimization": "转录优化"
+        "inputOutput": "输入与输出",
+        "transcriptionOptimization": "转录优化",
+        "dataManagement": "数据管理",
+        "debug": "调试选项"
       },
       "modelUnload": {
         "description": "当模型在指定时间内未使用时自动释放 GPU/CPU 内存",
@@ -566,9 +523,6 @@
       "title": "高级",
       "translateToEnglish": {
         "description": "在转录过程中自动将其他语言的语音翻译为英语。",
-        "descriptionNoModel": "请选择一个本地模型后再开启翻译。",
-        "descriptionNonWhisper": "仅 Whisper 系列支持翻译。当前模型：{{model}}",
-        "descriptionUnknownModel": "无法识别当前模型能力，请选择已下载的模型后再开启翻译。",
         "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
         "label": "翻译为英语"
       }
@@ -771,11 +725,7 @@
       "language": {
         "auto": "自动",
         "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
-        "descriptionNoModel": "请先选择一个本地模型再设置语言。",
-        "descriptionSenseVoice": "SenseVoice 在模型加载时应用语言，修改后请重新选择该模型以生效。",
-        "descriptionUnknownModel": "当前模型未知，暂时无法手动设置语言。",
         "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
-        "descriptionUnsupportedEngine": "仅 Whisper 或 SenseVoice 模型支持手动设置语言。",
         "noResults": "未找到语言",
         "searchPlaceholder": "搜索语言...",
         "title": "语言"
@@ -789,10 +739,6 @@
           "cancel": {
             "description": "取消当前录制。",
             "name": "取消"
-          },
-          "invoke_skill": {
-            "description": "以 Skill 模式开始录音，启用智能意图识别路由。",
-            "name": "调用 Skill"
           },
           "open_settings": {
             "description": "打开设置窗口。",
@@ -823,7 +769,6 @@
     },
     "history": {
       "content": {
-        "chained": "链式处理",
         "improved": "优化后",
         "original": "语音识别结果",
         "streaming": "实时识别结果"
@@ -880,15 +825,7 @@
           }
         },
         "provider": {
-          "builtin": "内置",
-          "builtinTooltip": "系统内置提供商,无法删除",
-          "deleteAction": "删除提供商",
-          "deleteConfirmation": "确定要删除提供商“{{name}}”吗？此操作无法撤销。",
-          "deleteTitle": "删除提供商",
           "description": "选择一个兼容 OpenAI 的提供商。",
-          "editName": "编辑提供商名称",
-          "namePlaceholder": "提供商名称",
-          "newProvider": "新建提供商",
           "title": "提供商"
         },
         "providers": {
@@ -917,15 +854,11 @@
             "title": "暂无提供商"
           },
           "fields": {
-            "apiKey": "API 密钥",
             "baseUrl": "基础 URL",
-            "baseUrlHint": "OpenAI 兼容模式，通常以 /v1 结尾",
             "modelsEndpoint": "模型接口路径",
             "modelsEndpointPlaceholder": "/models",
             "name": "提供商名称",
-            "namePlaceholder": "我的提供商",
-            "v1AutoAppended": "已自动追加 /v1",
-            "v1MissingWarning": "URL 可能缺少版本路径 (如 /v1)"
+            "namePlaceholder": "我的提供商"
           },
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",
@@ -934,70 +867,6 @@
           "title": "提供商"
         },
         "title": "API（兼容 OpenAI）"
-      },
-      "intentModel": {
-        "defaultOption": "使用默认模型",
-        "description": "用于技能意图识别的模型。保持默认会跟随当前润色模型。",
-        "placeholder": "选择意图模型",
-        "title": "意图分析模型"
-      },
-      "appRules": {
-        "activeProfiles": "当前有 {{count}} 条规则",
-        "addApp": "添加应用",
-        "addRuleHead": "手动添加规则",
-        "addTitlePattern": "添加标题过滤",
-        "assignedApps": "关联应用",
-        "assignedAppsDescription": "下方列出的应用程序将使用此配置方案的设置。",
-        "capture": "探测窗口",
-        "captureTitle": "捕获标题",
-        "context": {
-          "description": "通过向大模型发送当前应用的近期转录历史来提高识别准确度。",
-          "enabled": "上下文参考",
-          "limit": "历史深度",
-          "limitDesc": "{{count}} 条消息 (范围: 1-30)",
-          "title": "上下文感知后处理"
-        },
-        "createPromptHint": "创建您的第一个配置方案以开始使用",
-        "default": "默认",
-        "fromHistory": "从历史记录添加",
-        "newProfileName": "新方案名称...",
-        "noAppsAssigned": "该方案下暂未绑定应用。",
-        "noProfiles": "暂无应用规则",
-        "noProfilesShort": "点击配置方案",
-        "policy": {
-          "always": "始终审阅",
-          "auto": "自动审阅",
-          "label": "审阅策略",
-          "never": "直接插入"
-        },
-        "policyDesc": {
-          "always": "该方案下的应用始终弹出审阅窗口。",
-          "auto": "根据文本变化幅度自动触发（超过阈值时触发）。",
-          "never": "该方案下的应用永不弹出审阅窗口。"
-        },
-        "policyHeader": "审阅触发策略",
-        "profilesDescription": "创建多个配置方案，分别为不同的应用组单独应用处理逻辑或提示词。",
-        "profilesTitle": "应用配置方案",
-        "promptDescription": "为该配置方案选择一个自定义提示词来优化转录结果。",
-        "promptHeader": "覆盖全局提示词 (Prompt)",
-        "selectPrompt": "从侧边栏选择一个配置方案进行编辑",
-        "shortcuts": {
-          "description": "您可以使用快捷键快速切换配置或管理规则。",
-          "dialog": "确认或关闭弹窗",
-          "dialogKeys": "Enter / Esc",
-          "nav": "在各个设置页之间导航",
-          "navKeys": "⌘ + 1-8",
-          "title": "快捷键与用法"
-        },
-        "testMatch": "测试匹配",
-        "title": "应用特定规则",
-        "titlePattern": "标题匹配 (正则)"
-      },
-      "confidenceCheck": {
-        "description": "调整已启用审查功能的提示词的触发灵敏度。数值越高，审查窗口弹出的频率越低。",
-        "threshold": "灵敏度阈值",
-        "thresholdHint": "高于此分数的风险值将触发审查窗口。",
-        "title": "自动审查灵敏度"
       },
       "disabledNotice": "后期处理当前已禁用。启用后即可进行配置。",
       "fusion": {
@@ -1034,7 +903,7 @@
             "label": "其他"
           },
           "text": {
-            "hint": "文本润色",
+            "hint": "文本润色与格式化",
             "label": "文本"
           }
         },
@@ -1065,7 +934,13 @@
       },
       "prompts": {
         "activeSet": "已设为默认提示词",
-        "advancedSettings": "高级设置",
+        "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
+        "aliasLabel": "别名 / 触发词",
+        "aliasPlaceholder": "例如：翻译，翻译英语",
+        "cancel": "取消",
+        "commandPrefixDescription": "设置后说出 [前缀][提示词别名] 即可动态触发提示词（支持多前缀，用\",\"分隔）",
+        "commandPrefixPlaceholder": "例如：帮我,请",
+        "commandPrefixTitle": "语音指令前缀",
         "createFirst": "点击上方的「创建新提示词」来创建您的第一个后期处理提示词。",
         "createNew": "创建新提示词",
         "createPrompt": "创建提示词",
@@ -1077,38 +952,19 @@
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
-        "resetToDefault": "恢复默认",
-        "resetConfirm": {
-          "description": "这将把技能恢复到原始内置内容，您的自定义修改将会丢失。",
-          "title": "恢复默认设置"
-        },
-        "resetSuccess": "技能已恢复默认",
-        "resetFailed": "恢复默认失败",
-        "description": "描述（用于智能识别）",
-        "descriptionPlaceholder": "简要描述此 Skill 的用途，帮助系统识别何时应使用它",
         "editPrompt": "编辑提示词",
-        "enabledToggle": "启用/禁用此技能",
-        "enableReview": "启用审查触发",
-        "generationDescription": "基于识别文本作为提示生成新内容（例如翻译、摘要）。",
-        "globalConfigTitle": "全局配置",
-        "jsonHint": "注意：若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅决策窗口。",
-        "managementTitle": "提示词列表",
         "newPromptName": "新提示词",
+        "noAliases": "暂无别名",
+        "noPrefixes": "暂无指令前缀",
         "noPrompts": "没有可用的提示词",
-        "outputMode": {
-          "chat": "AI 问答",
-          "label": "输出模式",
-          "polish": "文本润色"
-        },
+        "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
-        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：请根据 ${context} 背景，修正以下文本中的专业术语：${output}",
+        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
         "promptLabel": "提示词名称",
         "promptLabelPlaceholder": "输入提示词名称",
-        "promptTip": "提示：系统会自动将输入数据作为独立消息发送给 AI，您只需在提示词中引用变量名即可：<br/><b>输入变量（自动追加）：</b><br/><code>${output}</code>：识别出的最终文本。<br/><code>${raw_input}</code>：完整的原始转录文本。<br/><code>${select}</code>：录音结束时当前选中的文本内容。<br/><code>${streaming_output}</code>：实时转录中间文本（与 output 协作可提高准确性）。<br/><code>${hot_words}</code>：您定义的个人词库/热词。<br/><code>${context}</code>：当前窗口的历史上下文记录。<br/><b>元数据变量（直接替换）：</b><br/><code>${prompt}</code>：当前提示词方案的名称。<br/><br/><b>Fallback 机制：</b>如果提示词中未引用 output/raw_input/select，系统会自动在末尾追加转录内容，因此可以直接编写纯任务描述。<br/><br/><b>注意：</b>若提示词要求 AI 输出包含 text 和 confidence 字段的 JSON 结构，系统将自动弹出审阅窗口。",
-        "refinementDescription": "自动纠正和格式化识别的文本。",
-        "reviewThreshold": "审核阈值",
+        "promptTip": "提示：<br/>使用 <code>${output}</code> 引用转录文本。<br/>使用 <code>${streaming_output}</code> 引用实时转录文本（仅作参考，可能为空）。",
         "selectedPrompt": {
-          "description": "系统会自动将您引用的变量（如 <code>${output}</code>, <code>${select}</code> 等）作为独立消息发送给 AI。如果未引用任何输入变量，系统会自动追加转录内容。",
+          "description": "选择用于优化转录的模板或创建新模板。在提示词文本中使用 ${output} 来引用捕获的转录。",
           "title": "已选提示词"
         },
         "selectPrompt": "选择提示词",
@@ -1117,27 +973,13 @@
         "title": "提示词",
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
-        "updateSuccess": "提示词更新成功",
-        "varContextDesc": "当前活动窗口的历史聊天记录信息。",
-        "varHotWordsDesc": "您在「高级设置」中定义的个人词库/热词。",
-        "varOutputDesc": "识别出的最终文本结果。",
-        "varPromptDesc": "当前正在使用的提示词方案的显示名称。",
-        "varRawInputDesc": "完整的原始转录文本。",
-        "varSelectDesc": "录音结束时当前选中的文本内容。",
-        "varStreamingDesc": "实时转录过程中的中间文本串。"
+        "updateSuccess": "提示词更新成功"
       },
-      "skills": {
-        "advancedSkills": "高级 Skills",
-        "createHint": "在 ~/.votype/skills/ 中创建 .md 文件以添加自定义 Skills",
-        "enabledInFile": "此 Skill 始终启用（在文件中配置）",
-        "helpText": "在 skills 文件夹中创建带有 YAML frontmatter 的 .md 文件，它们将被自动加载并可供使用。",
-        "noExternalSkills": "未找到外部 Skills",
-        "openFolder": "打开文件夹",
-        "quickCommands": "快捷指令",
-        "refresh": "刷新",
-        "sourceBuiltin": "内置",
-        "sourceFile": "文件",
-        "sourceUser": "用户"
+      "confidenceCheck": {
+        "title": "置信度检测",
+        "description": "当 LLM 报告低置信度时，提示用户审阅转录结果",
+        "threshold": "置信度阈值",
+        "thresholdHint": "低于此分数的转录将提示用户审阅"
       },
       "title": "后期处理"
     },
@@ -1166,71 +1008,66 @@
         "description": "调整音频反馈的音量",
         "title": "音量"
       }
-    },
-    "vocabulary": {
-      "actions": "操作",
-      "corrections": {
-        "allApps": "所有应用",
-        "correction": "纠错",
-        "count": "次数",
-        "description": "从您的编辑历史中自动学习",
-        "empty": "暂无学习到的纠错记录",
-        "global": "全局",
-        "source": "来源",
-        "sourceUnavailable": "来源不可用",
-        "scope": "生效范围",
-        "title": "纠错词典"
-      },
-      "export": "导出",
-      "hotWords": {
-        "description": "添加经常被误听的词汇，系统将自动修正",
-        "empty": "暂无热词",
-        "placeholder": "添加词汇...",
-        "title": "热词",
-        "word": "词汇"
-      },
-      "import": "导入",
-      "scope": {
-        "custom": "指定应用",
-        "deselectAll": "取消全选",
-        "editDescription": "编辑生效范围：\"{{original}}\" → \"{{corrected}}\"",
-        "editTitle": "生效范围",
-        "global": "全局生效",
-        "multiple": "{{count}} 个应用",
-        "none": "无应用",
-        "other": "其他应用",
-        "selectAll": "全选",
-        "source": "仅来源应用 ({{app}})"
-      },
-      "deleteConfirm": {
-        "title": "确认删除",
-        "correctionMessage": "确定要删除这条纠错规则吗？此操作无法撤销。",
-        "hotwordMessage": "确定要移除这个热词吗？"
-      }
     }
   },
   "sidebar": {
     "about": "关于",
     "advanced": "高级",
-    "appProfiles": "应用方案",
     "asrModels": "语音模型",
     "dashboard": "概览",
     "debug": "调试",
-    "expertMode": "专家模式",
-    "expertModeHint": "启用后显示高级设置选项",
     "general": "通用",
     "history": "历史记录",
     "models": "模型",
     "postProcessing": "后处理",
     "prompts": "提示词",
     "shortcuts": "快捷键",
-    "vocabulary": "词汇管理"
+    "summary": "统计总结"
   },
   "soundPicker": {
     "custom": "自定义",
     "marimba": "马林巴琴",
     "pop": "流行",
     "preview": "预览"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "时间范围",
+      "day": "今日",
+      "week": "本周",
+      "month": "本月"
+    },
+    "stats": {
+      "entries": "记录数",
+      "chars": "字符数",
+      "duration": "时长",
+      "aiCalls": "AI调用",
+      "noApps": "暂无应用数据",
+      "appDistribution": "应用分布",
+      "timeDistribution": "时间分布"
+    },
+    "timeline": {
+      "title": "历史记录",
+      "days": "按天",
+      "weeks": "按周",
+      "months": "按月",
+      "empty": "暂无统计记录"
+    },
+    "actions": {
+      "export": "导出"
+    },
+    "aiAnalysis": {
+      "title": "AI分析",
+      "generate": "生成分析",
+      "generating": "生成中...",
+      "communicationStyle": "沟通风格",
+      "reflection": "反思与建议",
+      "empty": "点击「生成分析」获取AI驱动的沟通模式洞察。",
+      "updateProfile": "更新画像"
+    },
+    "userProfile": {
+      "currentStyle": "当前风格画像"
+    }
   },
   "theme": {
     "accentColor": {
@@ -1263,10 +1100,6 @@
       "tomato": "番茄红",
       "violet": "紫罗兰",
       "yellow": "黄色"
-    },
-    "compactMode": {
-      "description": "将描述显示为问号提示",
-      "title": "简洁模式"
     },
     "cornerRadius": {
       "capsule": "胶囊",
@@ -1305,26 +1138,10 @@
       "systemDesc": "与系统主题保持一致",
       "title": "主题模式"
     },
+    "compactMode": {
+      "title": "简洁模式",
+      "description": "将描述显示为问号提示"
+    },
     "title": "主题"
-  },
-  "transcription": {
-    "review": {
-      "aiResponse": "AI 回复",
-      "change": "变化幅度",
-      "confidence": "置信度",
-      "confirm": "确认并插入",
-      "description": "转录可能包含错误，请审阅并在需要时编辑。",
-      "final": "最终结果",
-      "generationTitle": "AI 助手回复",
-      "highlightHint": "高亮词为大模型优化后的变动",
-      "hint": "⌘/Ctrl + Enter 确认, Escape 取消",
-      "insert": "插入",
-      "insertCode": "插入代码",
-      "insertStabilityHint": "快捷键：{{shortcut}}\n如果插入不稳定，可暂时关闭该功能。",
-      "instruction": "指令",
-      "placeholder": "在此编辑转录内容...",
-      "source": "实时转写",
-      "title": "审阅转录"
-    }
   }
 }

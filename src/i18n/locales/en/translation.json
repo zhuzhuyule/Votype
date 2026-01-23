@@ -1197,6 +1197,7 @@
     "models": "AI Models",
     "prompts": "Prompts",
     "shortcuts": "Shortcuts",
+    "summary": "Summary",
     "vocabulary": "Vocabulary"
   },
   "soundPicker": {
@@ -1204,6 +1205,45 @@
     "marimba": "Marimba",
     "pop": "Pop",
     "preview": "Preview"
+  },
+  "summary": {
+    "periodSelector": {
+      "title": "Time Range",
+      "day": "Today",
+      "week": "Week",
+      "month": "Month"
+    },
+    "stats": {
+      "entries": "Entries",
+      "chars": "Characters",
+      "duration": "Duration",
+      "aiCalls": "AI Calls",
+      "noApps": "No app data",
+      "appDistribution": "App Distribution",
+      "timeDistribution": "Time Distribution"
+    },
+    "timeline": {
+      "title": "History",
+      "days": "Days",
+      "weeks": "Weeks",
+      "months": "Months",
+      "empty": "No summaries yet"
+    },
+    "actions": {
+      "export": "Export"
+    },
+    "aiAnalysis": {
+      "title": "AI Analysis",
+      "generate": "Generate Analysis",
+      "generating": "Generating...",
+      "communicationStyle": "Communication Style",
+      "reflection": "Reflection & Suggestions",
+      "empty": "Click 'Generate Analysis' to get AI-powered insights about your communication patterns.",
+      "updateProfile": "Update Profile"
+    },
+    "userProfile": {
+      "currentStyle": "Current Style Profile"
+    }
   },
   "theme": {
     "accentColor": {
