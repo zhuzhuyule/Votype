@@ -395,14 +395,6 @@ pub fn change_onboarding_completed_setting(app: AppHandle, completed: bool) -> R
 }
 
 #[tauri::command]
-pub fn update_custom_words(app: AppHandle, words: Vec<String>) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.custom_words = words;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
 pub fn change_word_correction_threshold_setting(
     app: AppHandle,
     threshold: f64,
