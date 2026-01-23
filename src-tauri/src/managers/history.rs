@@ -157,6 +157,41 @@ static MIGRATIONS: &[M] = &[
         CREATE INDEX IF NOT EXISTS idx_hotwords_category ON hotwords(category);
         CREATE INDEX IF NOT EXISTS idx_hotwords_use_count ON hotwords(use_count DESC);",
     ),
+    // Migration 18: Add summaries table for caching period summaries
+    M::up(
+        "CREATE TABLE IF NOT EXISTS summaries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            period_type TEXT NOT NULL,
+            period_start INTEGER NOT NULL,
+            period_end INTEGER NOT NULL,
+            stats TEXT NOT NULL,
+            ai_summary TEXT,
+            ai_reflection TEXT,
+            ai_generated_at INTEGER,
+            ai_model_used TEXT,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(period_type, period_start, period_end)
+        );
+        CREATE INDEX IF NOT EXISTS idx_summaries_period ON summaries(period_type, period_start);",
+    ),
+    // Migration 19: Add user_profile table for communication style tracking
+    M::up(
+        "CREATE TABLE IF NOT EXISTS user_profile (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            vocabulary_stats TEXT,
+            expression_stats TEXT,
+            app_usage_stats TEXT,
+            time_pattern_stats TEXT,
+            communication_style TEXT,
+            tone_preference TEXT,
+            style_prompt TEXT,
+            feedback_style TEXT DEFAULT 'encouraging',
+            last_analyzed_at INTEGER,
+            updated_at INTEGER NOT NULL
+        );
+        INSERT OR IGNORE INTO user_profile (id, updated_at) VALUES (1, strftime('%s', 'now'));",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
