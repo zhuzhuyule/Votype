@@ -1179,7 +1179,6 @@ pub(crate) async fn maybe_post_process_transcription(
         let has_select_ref = prompt_template.contains("select");
         let has_raw_input_ref = prompt_template.contains("raw_input");
         let has_streaming_ref = prompt_template.contains("streaming_output");
-        let has_hot_words_ref = prompt_template.contains("hot_words");
         let has_context_ref = prompt_template.contains("context");
         let has_app_name_ref = prompt_template.contains("app_name");
         let has_window_title_ref = prompt_template.contains("window_title");
@@ -1244,26 +1243,10 @@ pub(crate) async fn maybe_post_process_transcription(
             processed_prompt = processed_prompt.replace("${time}", &time_str);
         }
 
-        // Inject hot words and skills - logic depends on whether we had an explicit match
-        if is_explicit {
-            // Case A: Explicit match (override_prompt_id specified). Keep context clean, only inject user custom words.
-            if has_hot_words_ref && !settings.custom_words.is_empty() {
-                let hot_words_list = settings
-                    .custom_words
-                    .iter()
-                    .map(|w| format!("- {}", w))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                if processed_prompt.contains("${hot_words}") {
-                    processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
-                } else {
-                    input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_list));
-                }
-            }
-        } else {
-            // Case B: Fallback (unrecognized intent). Inject EVERYTHING to guide the LLM.
-            let mut hot_words = settings.custom_words.clone();
+        // Inject hot words and skills - only for non-explicit (fallback) matches
+        if !is_explicit {
+            // Case B: Fallback (unrecognized intent). Inject skills info to guide the LLM.
+            let mut hot_words: Vec<String> = Vec::new();
             let mut skills_info = Vec::new();
 
             for p in &settings.post_process_prompts {
@@ -1594,23 +1577,6 @@ pub(crate) async fn post_process_text_with_prompt(
     if let Some(streaming) = streaming_transcription {
         if !streaming.is_empty() {
             input_data_parts.push(format!("```streaming_output\n{}\n```", streaming));
-        }
-    }
-
-    // For manual prompt processing, this is ALWAYS explicit. Use only custom words.
-    if !settings.custom_words.is_empty() {
-        let hot_words_list = settings
-            .custom_words
-            .iter()
-            .map(|w| format!("- {}", w))
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        if processed_prompt.contains("${hot_words}") {
-            processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_list);
-        } else {
-            // Add hot words to input data block
-            input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_list));
         }
     }
 

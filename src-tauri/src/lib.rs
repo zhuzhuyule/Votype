@@ -388,7 +388,6 @@ pub fn run() {
             shortcut::select_asr_model,
             shortcut::select_post_process_model,
             shortcut::set_post_process_selected_prompt,
-            shortcut::update_custom_words,
             shortcut::get_external_skills,
             shortcut::open_skills_folder,
             shortcut::refresh_external_skills,

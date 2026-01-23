@@ -1,4 +1,3 @@
-use crate::audio_toolkit::apply_custom_words;
 use crate::managers::model::{EngineType, ModelManager};
 use crate::online_asr::{OnlineAsrClient, OnlineAsrStatusEvent};
 use crate::settings::{get_settings, ModelUnloadTimeout};
@@ -1724,17 +1723,7 @@ impl TranscriptionManager {
                         return match handle.join() {
                             Ok(Ok(text)) => {
                                 self.emit_online_asr_status("completed", None);
-                                let all_custom_words = Self::get_all_custom_words(&settings);
-                                let corrected = if !all_custom_words.is_empty() {
-                                    apply_custom_words(
-                                        &text,
-                                        &all_custom_words,
-                                        settings.word_correction_threshold,
-                                    )
-                                } else {
-                                    text
-                                };
-                                Ok(corrected.trim().to_string())
+                                Ok(text.trim().to_string())
                             }
                             Ok(Err(err)) => {
                                 let detail = err.to_string();
@@ -1856,18 +1845,6 @@ impl TranscriptionManager {
             }
         };
 
-        let all_custom_words = Self::get_all_custom_words(&settings);
-        // Apply word correction if custom words are configured
-        let corrected_result = if !all_custom_words.is_empty() {
-            apply_custom_words(
-                &result.text,
-                &all_custom_words,
-                settings.word_correction_threshold,
-            )
-        } else {
-            result.text
-        };
-
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
             " (translated)"
@@ -1880,7 +1857,7 @@ impl TranscriptionManager {
             translation_note
         );
 
-        let mut final_result = corrected_result.trim().to_string();
+        let mut final_result = result.text.trim().to_string();
 
         if settings.punctuation_enabled && !final_result.is_empty() {
             let punct_model_id = settings.punctuation_model.trim();
@@ -2040,24 +2017,13 @@ impl TranscriptionManager {
             }
         };
 
-        let all_custom_words = Self::get_all_custom_words(&settings);
-        let corrected_result = if !all_custom_words.is_empty() {
-            apply_custom_words(
-                &result.text,
-                &all_custom_words,
-                settings.word_correction_threshold,
-            )
-        } else {
-            result.text
-        };
-
         let et = std::time::Instant::now();
         info!(
             "Local-only transcription completed in {}ms",
             (et - st).as_millis()
         );
 
-        let mut final_result = corrected_result.trim().to_string();
+        let mut final_result = result.text.trim().to_string();
 
         if settings.punctuation_enabled && !final_result.is_empty() {
             let punct_model_id = settings.punctuation_model.trim();
@@ -2136,16 +2102,6 @@ impl TranscriptionManager {
                 detail,
             },
         );
-    }
-
-    fn get_all_custom_words(settings: &crate::settings::AppSettings) -> Vec<String> {
-        let mut words = settings.custom_words.clone();
-        for p in &settings.post_process_prompts {
-            words.push(p.name.clone());
-        }
-        words.sort();
-        words.dedup();
-        words
     }
 }
 
