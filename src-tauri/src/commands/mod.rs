@@ -1,5 +1,6 @@
 pub mod audio;
 pub mod history;
+pub mod hotword;
 pub mod models;
 pub mod text;
 pub mod transcription;
