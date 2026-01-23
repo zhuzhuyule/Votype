@@ -26,8 +26,6 @@ export interface UsePromptsReturn {
   setDraftContent: (value: string) => void;
   draftDescription: string;
   setDraftDescription: (value: string) => void;
-  draftAlias: string;
-  setDraftAlias: (value: string) => void;
   draftModelId: string | null;
   setDraftModelId: (value: string | null) => void;
   draftIcon: string | null;
@@ -38,25 +36,16 @@ export interface UsePromptsReturn {
   setDraftComplianceThreshold: (value: number) => void;
   draftOutputMode: PromptOutputMode;
   setDraftOutputMode: (value: PromptOutputMode) => void;
-  currentAliases: string[];
-  currentAliasInput: string;
-  setCurrentAliasInput: (value: string) => void;
-  aliasError: string | null;
-  setAliasError: (error: string | null) => void;
 
   // Computed
   isDirty: boolean;
   textModels: { value: string; label: string }[];
 
   // Actions
-  handleAddAlias: () => void;
-  handleRemoveAlias: (alias: string) => void;
   handleSave: () => Promise<void>;
   handleDelete: () => Promise<void>;
   handleSetAsActive: () => void;
   isSaving: boolean;
-  isSuggestingAliases: boolean;
-  handleSuggestAliases: () => Promise<void>;
 }
 
 export const usePrompts = (
@@ -88,7 +77,6 @@ export const usePrompts = (
   const [draftName, setDraftName] = useState("");
   const [draftContent, setDraftContent] = useState("");
   const [draftDescription, setDraftDescription] = useState("");
-  const [draftAlias, setDraftAlias] = useState("");
   const [draftModelId, setDraftModelId] = useState<string | null>(null);
   const [draftIcon, setDraftIcon] = useState<string | null>(null);
   const [draftComplianceCheck, setDraftComplianceCheck] = useState(false);
@@ -96,9 +84,6 @@ export const usePrompts = (
 
   const [draftOutputMode, setDraftOutputMode] =
     useState<PromptOutputMode>("polish");
-  const [aliasError, setAliasError] = useState<string | null>(null);
-  const [currentAliasInput, setCurrentAliasInput] = useState("");
-  const [isSuggestingAliases, setIsSuggestingAliases] = useState(false);
 
   // Derived values
   const isCreating = currentTab === "NEW";
@@ -136,13 +121,6 @@ export const usePrompts = (
     return null;
   }, [prompts, currentTab, externalSkills]);
 
-  const currentAliases = useMemo(() => {
-    return draftAlias
-      .split(/[,，]/)
-      .map((a) => a.trim())
-      .filter((a) => a.length > 0);
-  }, [draftAlias]);
-
   const isDirty = useMemo(() => {
     if (isCreating) return false; // NEW state shouldn't be "saveable" via this button
     if (!viewingPrompt) return false;
@@ -151,7 +129,6 @@ export const usePrompts = (
       draftContent !==
         (viewingPrompt.instructions || viewingPrompt.prompt || "") ||
       draftDescription !== (viewingPrompt.description || "") ||
-      draftAlias !== (viewingPrompt.aliases || viewingPrompt.alias || "") ||
       (draftModelId || null) !== (viewingPrompt.model_id || null) ||
       (draftIcon || null) !== (viewingPrompt.icon || null) ||
       draftComplianceCheck !==
@@ -165,7 +142,6 @@ export const usePrompts = (
     draftName,
     draftContent,
     draftDescription,
-    draftAlias,
     draftModelId,
     draftIcon,
     draftComplianceCheck,
@@ -214,14 +190,11 @@ export const usePrompts = (
         setDraftName(t("settings.postProcessing.prompts.newPromptName"));
         setDraftContent("");
         setDraftDescription("");
-        setDraftAlias("");
         setDraftModelId(null);
         setDraftIcon(null);
         setDraftComplianceCheck(false);
-
         setDraftComplianceThreshold(20);
         setDraftOutputMode("polish");
-        setAliasError(null);
         lastLoadedTabRef.current = "NEW";
       }
       return;
@@ -231,14 +204,11 @@ export const usePrompts = (
       setDraftName(viewingPrompt.name || "");
       setDraftContent(viewingPrompt.instructions || viewingPrompt.prompt || "");
       setDraftDescription(viewingPrompt.description || "");
-      setDraftAlias(viewingPrompt.aliases || viewingPrompt.alias || "");
       setDraftModelId(viewingPrompt.model_id || null);
       setDraftIcon(viewingPrompt.icon || null);
       setDraftComplianceCheck(viewingPrompt.compliance_check_enabled || false);
-
       setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
       setDraftOutputMode(viewingPrompt.output_mode || "polish");
-      setAliasError(null);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
 
@@ -261,83 +231,7 @@ export const usePrompts = (
     }
   }, [currentTab, viewingPrompt, t, prompts, externalSkills]);
 
-  // Validation
-  const validateAliases = useCallback(
-    (inputAliases: string, currentPromptId: string | "NEW"): string | null => {
-      if (!inputAliases.trim()) return null;
-
-      const newAliases = inputAliases
-        .split(/[,，]/)
-        .map((a) => a.trim().toLowerCase())
-        .filter((a) => a.length > 0);
-
-      // Check against internal prompts
-      for (const prompt of prompts) {
-        if (prompt.id === currentPromptId) continue;
-
-        const existingAliases = (prompt.aliases || "")
-          .split(/[,，]/)
-          .map((a) => a.trim().toLowerCase())
-          .filter((a) => a.length > 0);
-
-        const existingName = prompt.name.trim().toLowerCase();
-        if (existingName) {
-          existingAliases.push(existingName);
-        }
-
-        for (const newAlias of newAliases) {
-          if (existingAliases.includes(newAlias)) {
-            return t("settings.postProcessing.prompts.aliasDuplicate", {
-              alias: newAlias,
-              promptName: prompt.name,
-            });
-          }
-        }
-      }
-      return null;
-    },
-    [prompts, t],
-  );
-
   // Actions
-  const handleAddAlias = useCallback(() => {
-    const val = currentAliasInput.trim();
-    if (!val) return;
-
-    if (currentAliases.some((a) => a.toLowerCase() === val.toLowerCase())) {
-      setCurrentAliasInput("");
-      return;
-    }
-
-    const error = validateAliases(
-      val,
-      isCreating ? "NEW" : viewingPrompt?.id || "",
-    );
-    if (error) {
-      setAliasError(error);
-      return;
-    }
-
-    const newAliasList = [...currentAliases, val];
-    setDraftAlias(newAliasList.join(","));
-    setCurrentAliasInput("");
-    setAliasError(null);
-  }, [
-    currentAliasInput,
-    currentAliases,
-    isCreating,
-    validateAliases,
-    viewingPrompt?.id,
-  ]);
-
-  const handleRemoveAlias = useCallback(
-    (aliasToRemove: string) => {
-      const newAliases = currentAliases.filter((a) => a !== aliasToRemove);
-      setDraftAlias(newAliases.join(","));
-    },
-    [currentAliases],
-  );
-
   const handleSave = useCallback(async () => {
     if (!viewingPrompt) {
       console.log("[usePrompts] No viewingPrompt, nothing to save");
@@ -349,13 +243,6 @@ export const usePrompts = (
       return;
     }
 
-    const conflictError = validateAliases(draftAlias, viewingPrompt.id);
-    if (conflictError) {
-      setAliasError(conflictError);
-      toast.error(conflictError); // Added toast for better visibility
-      return;
-    }
-
     setIsSaving(true);
     try {
       // All skills use the same save command
@@ -364,7 +251,6 @@ export const usePrompts = (
         name: draftName.trim(),
         instructions: draftContent.trim(),
         model_id: draftModelId === "default" ? null : draftModelId,
-        aliases: draftAlias.trim() || null,
         description: draftDescription.trim(),
         icon: draftIcon || undefined,
         compliance_check_enabled: draftComplianceCheck,
@@ -392,14 +278,12 @@ export const usePrompts = (
   }, [
     draftName,
     draftContent,
-    draftAlias,
     draftModelId,
     draftIcon,
     draftComplianceCheck,
     draftComplianceThreshold,
     draftOutputMode,
     draftDescription,
-    validateAliases,
     viewingPrompt,
     t,
     onExternalSkillSaved,
@@ -440,42 +324,6 @@ export const usePrompts = (
     }
   }, [viewingPrompt, updateSetting, t]);
 
-  const handleSuggestAliases = useCallback(async () => {
-    if (!draftDescription.trim()) {
-      toast.error(t("settings.postProcessing.prompts.descriptionRequired"));
-      return;
-    }
-
-    setIsSuggestingAliases(true);
-    try {
-      const suggested = await invoke<string[]>("suggest_aliases", {
-        description: draftDescription.trim(),
-      });
-
-      if (suggested && suggested.length > 0) {
-        // Merge with existing aliases, keeping uniqueness
-        const existingSet = new Set(currentAliases.map((a) => a.toLowerCase()));
-        const newAliases = [...currentAliases];
-
-        suggested.forEach((alias) => {
-          if (!existingSet.has(alias.toLowerCase())) {
-            newAliases.push(alias);
-          }
-        });
-
-        setDraftAlias(newAliases.join(","));
-        toast.success(t("settings.postProcessing.prompts.suggestSuccess"));
-      } else {
-        toast.info(t("settings.postProcessing.prompts.noSuggestions"));
-      }
-    } catch (error) {
-      console.error("Failed to suggest aliases:", error);
-      toast.error(t("settings.postProcessing.prompts.suggestFailed"));
-    } finally {
-      setIsSuggestingAliases(false);
-    }
-  }, [draftDescription, currentAliases, setDraftAlias, t]);
-
   return {
     enabled,
     prompts,
@@ -490,8 +338,6 @@ export const usePrompts = (
     setDraftContent,
     draftDescription,
     setDraftDescription,
-    draftAlias,
-    setDraftAlias,
     draftModelId,
     setDraftModelId,
     draftIcon,
@@ -502,20 +348,11 @@ export const usePrompts = (
     setDraftComplianceThreshold,
     draftOutputMode,
     setDraftOutputMode,
-    currentAliases,
-    currentAliasInput,
-    setCurrentAliasInput,
-    aliasError,
-    setAliasError,
     isDirty,
     textModels,
-    handleAddAlias,
-    handleRemoveAlias,
     handleSave,
     handleDelete,
     handleSetAsActive,
     isSaving,
-    isSuggestingAliases,
-    handleSuggestAliases,
   };
 };

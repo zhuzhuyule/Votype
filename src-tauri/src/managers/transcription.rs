@@ -1857,7 +1857,7 @@ impl TranscriptionManager {
         };
 
         let all_custom_words = Self::get_all_custom_words(&settings);
-        // Apply word correction if custom words or prompt aliases are configured
+        // Apply word correction if custom words are configured
         let corrected_result = if !all_custom_words.is_empty() {
             apply_custom_words(
                 &result.text,
@@ -2142,14 +2142,6 @@ impl TranscriptionManager {
         let mut words = settings.custom_words.clone();
         for p in &settings.post_process_prompts {
             words.push(p.name.clone());
-            if let Some(alias_str) = &p.aliases {
-                words.extend(
-                    alias_str
-                        .split(&[',', '，'][..])
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty()),
-                );
-            }
         }
         words.sort();
         words.dedup();

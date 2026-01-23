@@ -51,11 +51,7 @@ import { SettingsGroup } from "../../ui/SettingsGroup";
 import { PostProcessingToggle } from "../PostProcessingToggle";
 import { IntentModelSelection } from "./IntentModelSelection";
 import { SidebarItem } from "./SidebarItem";
-import {
-  CommandPrefixes,
-  PromptEditor,
-  ResizableEditor,
-} from "./prompts/components";
+import { PromptEditor, ResizableEditor } from "./prompts/components";
 import type { SkillTemplate } from "./prompts/hooks/useExternalSkills";
 import { useExternalSkills } from "./prompts/hooks/useExternalSkills";
 import { usePrompts } from "./prompts/hooks/usePrompts";
@@ -107,15 +103,8 @@ const PromptsConfiguration: React.FC = () => {
     setDraftModelId,
     draftIcon,
     setDraftIcon,
-    currentAliases,
-    currentAliasInput,
-    setCurrentAliasInput,
-    aliasError,
-    setAliasError,
     isDirty,
     textModels,
-    handleAddAlias,
-    handleRemoveAlias,
     handleSave,
     handleDelete,
     handleSetAsActive,
@@ -127,8 +116,6 @@ const PromptsConfiguration: React.FC = () => {
 
     draftOutputMode,
     setDraftOutputMode,
-    isSuggestingAliases,
-    handleSuggestAliases,
   } = usePrompts(fileSkills, async (skillId: string) => {
     // After saving an external skill, refresh the list
     await refreshSkills();
@@ -591,23 +578,6 @@ const PromptsConfiguration: React.FC = () => {
                         draftContent={draftContent}
                         setDraftContent={setDraftContent}
                       />
-                    </Box>
-
-                    {/* Alias / Command Prefix Section - Added back */}
-                    <Box className="pt-2 border-t border-gray-100 dark:border-gray-800">
-                      <CommandPrefixes
-                        t={t}
-                        prefixes={currentAliases}
-                        currentPrefixInput={currentAliasInput}
-                        setCurrentPrefixInput={setCurrentAliasInput}
-                        onAddPrefix={handleAddAlias}
-                        onRemovePrefix={handleRemoveAlias}
-                      />
-                      {aliasError && (
-                        <Text color="red" size="1" className="mt-1 block">
-                          {aliasError}
-                        </Text>
-                      )}
                     </Box>
                   </Flex>
                 </Box>

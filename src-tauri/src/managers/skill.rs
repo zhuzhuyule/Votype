@@ -9,7 +9,6 @@ use tauri::Manager;
 struct SkillFrontmatter {
     name: String,
     description: Option<String>,
-    aliases: Option<String>,
     #[serde(default)]
     skill_type: SkillType,
     #[serde(default)]
@@ -25,7 +24,6 @@ pub struct SkillTemplate {
     pub name: String,
     pub description: String,
     pub instructions: String,
-    pub aliases: Option<String>,
     pub icon: Option<String>,
     pub output_mode: SkillOutputMode,
 }
@@ -404,7 +402,6 @@ impl SkillManager {
                 description: String::new(),
                 instructions: instructions.to_string(),
                 model_id: None,
-                aliases: None,
                 icon: None,
                 skill_type: SkillType::Text,
                 source,
@@ -441,7 +438,6 @@ impl SkillManager {
             description: fm.description.unwrap_or_default(),
             instructions: instructions.to_string(),
             model_id: fm.model_id,
-            aliases: fm.aliases,
             icon: fm.icon,
             skill_type: fm.skill_type,
             source,
@@ -477,9 +473,6 @@ impl SkillManager {
         frontmatter.push_str(&format!("name: \"{}\"\n", skill.name));
         if !skill.description.is_empty() {
             frontmatter.push_str(&format!("description: \"{}\"\n", skill.description));
-        }
-        if let Some(aliases) = &skill.aliases {
-            frontmatter.push_str(&format!("aliases: \"{}\"\n", aliases));
         }
         // Save output_mode enum as lowercase string
         let mode_str = serde_json::to_string(&skill.output_mode)
@@ -531,7 +524,6 @@ impl SkillManager {
             description: template.description.clone(),
             instructions: template.instructions.clone(),
             model_id: None,
-            aliases: template.aliases.clone(),
             icon: template.icon.clone(),
             skill_type: SkillType::Text,
             source: SkillSource::User,
@@ -566,7 +558,6 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 ## 输出
 直接输出润色后的文本，不要任何解释。"#
                 .to_string(),
-            aliases: None,
             icon: Some("IconWand".to_string()),
             output_mode: SkillOutputMode::Polish,
         },
@@ -590,7 +581,6 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 ## 输出
 仅输出翻译结果，不要任何解释或额外内容。"#
                 .to_string(),
-            aliases: None,
             icon: Some("IconLanguage".to_string()),
             output_mode: SkillOutputMode::Chat,
         },
@@ -618,7 +608,6 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 **简述：**
 [1-2句话概括全文主旨]"#
                 .to_string(),
-            aliases: None,
             icon: Some("IconListDetails".to_string()),
             output_mode: SkillOutputMode::Chat,
         },
@@ -641,7 +630,6 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
 ## 输出
 直接回答用户的问题。"#
                 .to_string(),
-            aliases: None,
             icon: Some("IconMessageSparkle".to_string()),
             output_mode: SkillOutputMode::Chat,
         },
@@ -650,7 +638,6 @@ pub fn get_builtin_templates() -> Vec<SkillTemplate> {
             name: "空白技能".to_string(),
             description: "创建一个空白技能".to_string(),
             instructions: "# 新技能\n\n在这里编写你的技能指令...".to_string(),
-            aliases: None,
             icon: Some("IconSparkles".to_string()),
             output_mode: SkillOutputMode::Chat,
         },

@@ -821,8 +821,8 @@ pub async fn ai_generate_skill(
    - polish mode: Return JSON format {{"text": "...", "confidence": 0-100, "reason": "..."}}
    - chat mode: Return processed text content directly
 4. Use Markdown format with variable placeholders:
-   - ${{output}}: Final recognized text (command prefix and aliases removed)
-   - ${{raw_input}}: Complete original transcription text (including command prefix and aliases)
+   - ${{output}}: Final recognized text
+   - ${{raw_input}}: Complete original transcription text
    - ${{select}}: Selected text content
    - ${{streaming_output}}: Intermediate text during real-time transcription
    - ${{hot_words}}: Custom vocabulary/hot words

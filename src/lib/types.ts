@@ -111,7 +111,6 @@ export const LLMPromptSchema = z.object({
   description: z.string().optional().default(""),
   instructions: z.string(),
   model_id: z.string().optional().nullable(),
-  aliases: z.string().optional().nullable(),
   icon: z.string().optional().nullable(),
   skill_type: SkillTypeSchema.default("text"),
   source: SkillSourceSchema.default("builtin"),
@@ -120,9 +119,8 @@ export const LLMPromptSchema = z.object({
   output_mode: PromptOutputModeSchema.default("chat"),
   enabled: z.boolean().default(true),
   customized: z.boolean().optional().default(false),
-  // Keep legacy fields for a bit of safety during transition if any code still uses them
+  // Keep legacy field for a bit of safety during transition if any code still uses it
   prompt: z.string().optional(),
-  alias: z.string().optional().nullable(),
 });
 
 export type LLMPrompt = z.infer<typeof LLMPromptSchema>;

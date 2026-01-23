@@ -188,11 +188,6 @@ pub fn log_to_console(msg: String, level: Option<String>) {
     log::log!(log_level, "[Frontend] {}", msg);
 }
 
-#[tauri::command]
-pub async fn suggest_aliases(app: AppHandle, description: String) -> Result<Vec<String>, String> {
-    crate::actions::post_process::suggest_aliases(&app, &description).await
-}
-
 /// Request focus for overlay window so it can receive keyboard input
 /// Called from frontend after skill confirmation UI is rendered
 #[tauri::command]
