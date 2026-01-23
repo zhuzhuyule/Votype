@@ -29,6 +29,7 @@ const SkillTemplatesArraySchema = z.array(SkillTemplateSchema);
 
 export function useExternalSkills() {
   const [externalSkills, setExternalSkills] = useState<LLMPrompt[]>([]);
+  const [builtinSkills, setBuiltinSkills] = useState<LLMPrompt[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,17 +37,29 @@ export function useExternalSkills() {
     setIsLoading(true);
     setError(null);
     try {
-      // Use the new unified command
-      const skills = await invoke("get_all_skills");
-      const parsed = ExternalSkillsArraySchema.safeParse(skills);
-      if (parsed.success) {
-        setExternalSkills(parsed.data);
+      // Load both user skills and built-in skills
+      const [userSkills, builtins] = await Promise.all([
+        invoke("get_all_skills"),
+        invoke("get_builtin_skills"),
+      ]);
+
+      const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
+      const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtins);
+
+      if (parsedUser.success) {
+        setExternalSkills(parsedUser.data);
       } else {
-        console.error("Failed to parse external skills:", parsed.error);
-        setError("Failed to parse external skills");
+        console.error("Failed to parse user skills:", parsedUser.error);
+        setError("Failed to parse user skills");
+      }
+
+      if (parsedBuiltin.success) {
+        setBuiltinSkills(parsedBuiltin.data);
+      } else {
+        console.error("Failed to parse builtin skills:", parsedBuiltin.error);
       }
     } catch (e) {
-      console.error("Failed to load external skills:", e);
+      console.error("Failed to load skills:", e);
       setError(String(e));
     } finally {
       setIsLoading(false);
@@ -56,14 +69,23 @@ export function useExternalSkills() {
   const refreshExternalSkills = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Use the new unified command
-      const skills = await invoke("get_all_skills");
-      const parsed = ExternalSkillsArraySchema.safeParse(skills);
-      if (parsed.success) {
-        setExternalSkills(parsed.data);
+      // Load both user skills and built-in skills
+      const [userSkills, builtins] = await Promise.all([
+        invoke("get_all_skills"),
+        invoke("get_builtin_skills"),
+      ]);
+
+      const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
+      const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtins);
+
+      if (parsedUser.success) {
+        setExternalSkills(parsedUser.data);
+      }
+      if (parsedBuiltin.success) {
+        setBuiltinSkills(parsedBuiltin.data);
       }
     } catch (e) {
-      console.error("Failed to refresh external skills:", e);
+      console.error("Failed to refresh skills:", e);
     } finally {
       setIsLoading(false);
     }
@@ -84,12 +106,29 @@ export function useExternalSkills() {
 
   return {
     externalSkills,
+    builtinSkills,
     isLoading,
     error,
     refreshExternalSkills,
     openSkillsFolder,
     saveExternalSkill: async (skill: LLMPrompt) => {
       await invoke("save_external_skill", { skill });
+    },
+    getDefaultSkillContent: async (
+      skillId: string,
+    ): Promise<LLMPrompt | null> => {
+      try {
+        const result = await invoke<LLMPrompt | null>(
+          "get_default_skill_content",
+          {
+            skillId,
+          },
+        );
+        return result;
+      } catch (e) {
+        console.error("Failed to get default skill content:", e);
+        return null;
+      }
     },
     createSkill: async (skillData: Partial<LLMPrompt>): Promise<LLMPrompt> => {
       // Create a minimal skill object with defaults

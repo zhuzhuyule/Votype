@@ -1076,6 +1076,13 @@
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
+        "resetToDefault": "恢复默认",
+        "resetConfirm": {
+          "description": "这将把技能恢复到原始内置内容，您的自定义修改将会丢失。",
+          "title": "恢复默认设置"
+        },
+        "resetSuccess": "技能已恢复默认",
+        "resetFailed": "恢复默认失败",
         "description": "描述（用于智能识别）",
         "descriptionPlaceholder": "简要描述此 Skill 的用途，帮助系统识别何时应使用它",
         "editPrompt": "编辑提示词",

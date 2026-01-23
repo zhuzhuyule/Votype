@@ -36,6 +36,7 @@ import {
   IconDeviceFloppy,
   IconFolder,
   IconPlus,
+  IconRefresh,
   IconSparkles,
   IconStar,
   IconTrash,
@@ -59,20 +60,24 @@ import { usePrompts } from "./prompts/hooks/usePrompts";
 const PromptsConfiguration: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [templates, setTemplates] = useState<SkillTemplate[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [isDescriptionGenerating, setIsDescriptionGenerating] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // All skills from ~/.votype/skills/ (unified source)
   const {
     externalSkills: fileSkills,
+    builtinSkills,
     isLoading: isLoadingSkills,
     refreshExternalSkills: refreshSkills,
     openSkillsFolder,
     createSkillFromTemplate,
     getSkillTemplates,
     reorderSkills,
+    getDefaultSkillContent,
   } = useExternalSkills();
 
   // Drag-and-drop sensors
@@ -124,8 +129,8 @@ const PromptsConfiguration: React.FC = () => {
     return updated || null;
   });
 
-  // All skills now come from file system only - no more merging with settings
-  const allSkills = fileSkills;
+  // Merge built-in skills with user skills (built-in first)
+  const allSkills = [...builtinSkills, ...fileSkills];
 
   // Load templates on mount
   React.useEffect(() => {
@@ -138,6 +143,36 @@ const PromptsConfiguration: React.FC = () => {
     const newSkill = await createSkillFromTemplate(templateId);
     if (newSkill) {
       setCurrentTab(newSkill.id);
+    }
+  };
+
+  // Handle resetting a built-in skill to its default
+  const handleResetToDefault = async () => {
+    if (!viewingPrompt || viewingPrompt.source !== "builtin") return;
+
+    setIsResetting(true);
+    try {
+      const defaultContent = await getDefaultSkillContent(viewingPrompt.id);
+      if (defaultContent) {
+        // Reset drafts to the default values
+        setDraftName(defaultContent.name);
+        setDraftContent(defaultContent.instructions);
+        setDraftDescription(defaultContent.description);
+        setDraftIcon(defaultContent.icon ?? null);
+        setDraftModelId(defaultContent.model_id ?? null);
+        setDraftOutputMode(defaultContent.output_mode);
+        setDraftComplianceCheck(defaultContent.compliance_check_enabled);
+        setDraftComplianceThreshold(defaultContent.compliance_threshold);
+        toast.success(t("settings.postProcessing.prompts.resetSuccess"));
+      } else {
+        toast.error(t("settings.postProcessing.prompts.resetFailed"));
+      }
+    } catch (e) {
+      console.error("Failed to reset skill:", e);
+      toast.error(t("settings.postProcessing.prompts.resetFailed"));
+    } finally {
+      setIsResetting(false);
+      setShowResetConfirm(false);
     }
   };
 
@@ -243,6 +278,7 @@ const PromptsConfiguration: React.FC = () => {
                           option={{ value: skill.id, label: skill.name }}
                           isActive={activePromptId === skill.id}
                           isSelected={currentTab === skill.id}
+                          isBuiltin={skill.source === "builtin"}
                           isVerified={false}
                           onClick={() => setCurrentTab(skill.id)}
                           onActivate={() => handleSetAsActive()}
@@ -322,33 +358,34 @@ const PromptsConfiguration: React.FC = () => {
                           />
                         </IconButton>
 
-                        {!isCreating && prompts.length > 1 && (
+                        {/* Reset button for built-in skills */}
+                        {!isCreating && viewingPrompt?.source === "builtin" && (
                           <Dialog.Root
-                            open={showDeleteConfirm}
-                            onOpenChange={setShowDeleteConfirm}
+                            open={showResetConfirm}
+                            onOpenChange={setShowResetConfirm}
                           >
                             <Dialog.Trigger>
                               <IconButton
                                 variant="ghost"
-                                color="red"
+                                color="gray"
                                 size="1"
                                 className="cursor-pointer"
                                 title={t(
-                                  "settings.postProcessing.prompts.deletePrompt",
+                                  "settings.postProcessing.prompts.resetToDefault",
                                 )}
                               >
-                                <IconTrash size={16} />
+                                <IconRefresh size={16} />
                               </IconButton>
                             </Dialog.Trigger>
                             <Dialog.Content maxWidth="450px">
                               <Dialog.Title>
                                 {t(
-                                  "settings.postProcessing.prompts.deleteConfirm.title",
+                                  "settings.postProcessing.prompts.resetConfirm.title",
                                 )}
                               </Dialog.Title>
                               <Dialog.Description size="2" mb="4">
                                 {t(
-                                  "settings.postProcessing.prompts.deleteConfirm.description",
+                                  "settings.postProcessing.prompts.resetConfirm.description",
                                 )}
                               </Dialog.Description>
                               <Flex gap="3" mt="4" justify="end">
@@ -361,22 +398,77 @@ const PromptsConfiguration: React.FC = () => {
                                     {t("common.cancel")}
                                   </Button>
                                 </Dialog.Close>
-                                <Dialog.Close>
-                                  <Button
-                                    color="red"
-                                    className="cursor-pointer"
-                                    onClick={() => {
-                                      handleDelete();
-                                      setShowDeleteConfirm(false);
-                                    }}
-                                  >
-                                    {t("common.delete")}
-                                  </Button>
-                                </Dialog.Close>
+                                <Button
+                                  color="blue"
+                                  className="cursor-pointer"
+                                  loading={isResetting}
+                                  onClick={handleResetToDefault}
+                                >
+                                  {t("common.reset")}
+                                </Button>
                               </Flex>
                             </Dialog.Content>
                           </Dialog.Root>
                         )}
+
+                        {/* Delete button for user skills */}
+                        {!isCreating &&
+                          prompts.length > 1 &&
+                          viewingPrompt?.source !== "builtin" && (
+                            <Dialog.Root
+                              open={showDeleteConfirm}
+                              onOpenChange={setShowDeleteConfirm}
+                            >
+                              <Dialog.Trigger>
+                                <IconButton
+                                  variant="ghost"
+                                  color="red"
+                                  size="1"
+                                  className="cursor-pointer"
+                                  title={t(
+                                    "settings.postProcessing.prompts.deletePrompt",
+                                  )}
+                                >
+                                  <IconTrash size={16} />
+                                </IconButton>
+                              </Dialog.Trigger>
+                              <Dialog.Content maxWidth="450px">
+                                <Dialog.Title>
+                                  {t(
+                                    "settings.postProcessing.prompts.deleteConfirm.title",
+                                  )}
+                                </Dialog.Title>
+                                <Dialog.Description size="2" mb="4">
+                                  {t(
+                                    "settings.postProcessing.prompts.deleteConfirm.description",
+                                  )}
+                                </Dialog.Description>
+                                <Flex gap="3" mt="4" justify="end">
+                                  <Dialog.Close>
+                                    <Button
+                                      variant="soft"
+                                      color="gray"
+                                      className="cursor-pointer"
+                                    >
+                                      {t("common.cancel")}
+                                    </Button>
+                                  </Dialog.Close>
+                                  <Dialog.Close>
+                                    <Button
+                                      color="red"
+                                      className="cursor-pointer"
+                                      onClick={() => {
+                                        handleDelete();
+                                        setShowDeleteConfirm(false);
+                                      }}
+                                    >
+                                      {t("common.delete")}
+                                    </Button>
+                                  </Dialog.Close>
+                                </Flex>
+                              </Dialog.Content>
+                            </Dialog.Root>
+                          )}
 
                         {!isCreating && currentTab !== activePromptId && (
                           <Button

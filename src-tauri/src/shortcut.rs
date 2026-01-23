@@ -2077,3 +2077,25 @@ pub fn reorder_skills(app: AppHandle, order: Vec<String>) -> Result<(), String> 
     let skill_manager = crate::managers::skill::SkillManager::new(&app);
     skill_manager.save_order(&order)
 }
+
+/// Get built-in skills from settings
+#[tauri::command]
+pub fn get_builtin_skills(app: AppHandle) -> Vec<Skill> {
+    let settings = settings::get_settings(&app);
+    settings
+        .post_process_prompts
+        .into_iter()
+        .filter(|s| matches!(s.source, settings::SkillSource::Builtin))
+        .collect()
+}
+
+/// Get the default (built-in) content for a skill by its ID
+/// Returns None if the skill is not a built-in skill
+#[tauri::command]
+pub fn get_default_skill_content(app: AppHandle, skill_id: String) -> Option<Skill> {
+    let settings = settings::get_settings(&app);
+    settings
+        .post_process_prompts
+        .into_iter()
+        .find(|s| s.id == skill_id && matches!(s.source, settings::SkillSource::Builtin))
+}

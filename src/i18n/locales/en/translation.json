@@ -1053,6 +1053,13 @@
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
         "deleteSuccess": "Prompt deleted successfully",
+        "resetToDefault": "Reset to Default",
+        "resetConfirm": {
+          "description": "This will restore the skill to its original built-in content. Any customizations will be lost.",
+          "title": "Reset to Default"
+        },
+        "resetSuccess": "Skill reset to default",
+        "resetFailed": "Failed to reset skill",
         "description": "Description (for smart routing)",
         "descriptionPlaceholder": "Briefly describe what this Skill does and when it should be triggered",
         "editPrompt": "Edit Prompt",
