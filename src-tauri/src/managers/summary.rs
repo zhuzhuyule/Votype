@@ -432,3 +432,110 @@ pub struct AnalysisEntry {
     pub app_name: Option<String>,
     pub char_count: Option<i64>,
 }
+
+impl SummaryManager {
+    /// Get a summary by its ID
+    pub fn get_summary_by_id(&self, summary_id: i64) -> Result<Summary> {
+        let conn = self.get_connection()?;
+
+        conn.query_row(
+            "SELECT id, period_type, period_start, period_end, stats, ai_summary, ai_reflection,
+                    ai_generated_at, ai_model_used, created_at, updated_at
+             FROM summaries WHERE id = ?1",
+            params![summary_id],
+            |row| {
+                let stats_json: String = row.get(4)?;
+                let stats: SummaryStats =
+                    serde_json::from_str(&stats_json).unwrap_or_else(|_| SummaryStats {
+                        entry_count: 0,
+                        total_duration_ms: 0,
+                        total_chars: 0,
+                        llm_calls: 0,
+                        by_app: std::collections::HashMap::new(),
+                        by_hour: vec![0; 24],
+                        top_skills: Vec::new(),
+                    });
+                Ok(Summary {
+                    id: row.get(0)?,
+                    period_type: row.get(1)?,
+                    period_start: row.get(2)?,
+                    period_end: row.get(3)?,
+                    stats,
+                    ai_summary: row.get(5)?,
+                    ai_reflection: row.get(6)?,
+                    ai_generated_at: row.get(7)?,
+                    ai_model_used: row.get(8)?,
+                    created_at: row.get(9)?,
+                    updated_at: row.get(10)?,
+                })
+            },
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to get summary: {}", e))
+    }
+
+    /// Prepare content for AI analysis of a summary
+    /// Returns the analysis prompt and the entries used for analysis
+    pub fn prepare_analysis_content(
+        &self,
+        summary_id: i64,
+        feedback_style: &str,
+    ) -> Result<(String, Summary, Vec<AnalysisEntry>)> {
+        // Get the summary
+        let summary = self.get_summary_by_id(summary_id)?;
+
+        // Get entries for analysis (limit to 50 most recent)
+        let entries =
+            self.get_entries_for_analysis(summary.period_start, summary.period_end, 50)?;
+
+        // Build analysis prompt
+        let feedback_instruction = match feedback_style {
+            "neutral" => "Be objective and factual.",
+            "encouraging" => {
+                "Be supportive and highlight positive patterns while gently noting areas for improvement."
+            }
+            "direct" => "Be direct and specific about both strengths and areas needing work.",
+            _ => "Be supportive and helpful.",
+        };
+
+        let app_names: Vec<&String> = summary.stats.by_app.keys().take(5).collect();
+        let sample_transcriptions: Vec<String> = entries
+            .iter()
+            .take(10)
+            .map(|e| format!("- {}", e.transcription_text))
+            .collect();
+
+        let prompt = format!(
+            r#"Analyze this user's voice transcription data and provide insights.
+
+Statistics for the period:
+- Total entries: {}
+- Total characters: {}
+- Total duration: {} minutes
+- AI polish calls: {}
+- Most used apps: {:?}
+- Most used skills: {:?}
+
+Sample transcriptions (most recent):
+{}
+
+Based on this data:
+1. Describe their communication style in 2-3 sentences
+2. Note any patterns in vocabulary or expression
+3. Provide 1-2 actionable suggestions for improvement
+
+Feedback style: {}
+
+Respond in the user's language (based on the transcription content)."#,
+            summary.stats.entry_count,
+            summary.stats.total_chars,
+            summary.stats.total_duration_ms / 60000,
+            summary.stats.llm_calls,
+            app_names,
+            summary.stats.top_skills,
+            sample_transcriptions.join("\n"),
+            feedback_instruction
+        );
+
+        Ok((prompt, summary, entries))
+    }
+}

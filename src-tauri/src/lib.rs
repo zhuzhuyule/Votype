@@ -451,6 +451,7 @@ pub fn run() {
             commands::summary::get_user_profile,
             commands::summary::update_feedback_style,
             commands::summary::update_style_prompt,
+            commands::summary::generate_summary_ai_analysis,
             commands::log_to_console
         ])
         .run(tauri::generate_context!())

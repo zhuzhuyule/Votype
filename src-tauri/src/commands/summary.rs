@@ -1,6 +1,13 @@
+use crate::llm_client;
 use crate::managers::summary::{Summary, SummaryManager, SummaryStats, UserProfile};
+use crate::settings;
+use async_openai::types::{
+    ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
+    CreateChatCompletionRequestArgs,
+};
+use log::{error, info};
 use std::sync::Arc;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[tauri::command]
 pub async fn get_summary_stats(
@@ -61,5 +68,110 @@ pub async fn update_style_prompt(
 ) -> Result<(), String> {
     summary_manager
         .update_style_prompt(&style_prompt)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn generate_summary_ai_analysis(
+    app: AppHandle,
+    summary_manager: State<'_, Arc<SummaryManager>>,
+    summary_id: i64,
+    feedback_style: String,
+) -> Result<Summary, String> {
+    // Get settings to access LLM configuration
+    let app_settings = settings::get_settings(&app);
+
+    // Get the active provider
+    let provider = app_settings
+        .active_post_process_provider()
+        .ok_or_else(|| "No active post-process provider configured".to_string())?
+        .clone();
+
+    // Get API key for the provider
+    let api_key = app_settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    if api_key.is_empty() {
+        return Err(format!(
+            "No API key configured for provider: {}",
+            provider.label
+        ));
+    }
+
+    // Get the model to use (prefer selected model, fall back to provider default)
+    let model = app_settings
+        .selected_prompt_model_id
+        .as_ref()
+        .and_then(|id| {
+            app_settings
+                .cached_models
+                .iter()
+                .find(|m| m.id == *id && m.provider_id == provider.id)
+        })
+        .map(|m| m.model_id.clone())
+        .or_else(|| app_settings.post_process_models.get(&provider.id).cloned())
+        .ok_or_else(|| "No model configured for AI analysis".to_string())?;
+
+    // Prepare the analysis content
+    let (prompt, _summary, _entries) = summary_manager
+        .prepare_analysis_content(summary_id, &feedback_style)
+        .map_err(|e| e.to_string())?;
+
+    info!(
+        "Generating AI analysis for summary {} using model {} on provider {}",
+        summary_id, model, provider.id
+    );
+
+    // Create the LLM client
+    let client = llm_client::create_client(&provider, api_key)?;
+
+    // Build the request
+    let user_msg = ChatCompletionRequestUserMessageArgs::default()
+        .content(prompt)
+        .build()
+        .map_err(|e| format!("Failed to build user message: {}", e))?;
+
+    let messages: Vec<ChatCompletionRequestMessage> =
+        vec![ChatCompletionRequestMessage::User(user_msg)];
+
+    let request = CreateChatCompletionRequestArgs::default()
+        .model(model.clone())
+        .messages(messages)
+        .build()
+        .map_err(|e| format!("Failed to build request: {}", e))?;
+
+    // Make the LLM call
+    let response = client
+        .chat()
+        .create(request)
+        .await
+        .map_err(|e| format!("LLM request failed: {}", e))?;
+
+    let ai_summary = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+        .ok_or_else(|| "No response content from LLM".to_string())?;
+
+    info!(
+        "AI analysis generated for summary {}: {}...",
+        summary_id,
+        ai_summary.chars().take(50).collect::<String>()
+    );
+
+    // Update the summary with AI content
+    summary_manager
+        .update_summary_ai_content(summary_id, Some(ai_summary), None, Some(model))
+        .map_err(|e| {
+            error!("Failed to update summary AI content: {}", e);
+            e.to_string()
+        })?;
+
+    // Return updated summary
+    summary_manager
+        .get_summary_by_id(summary_id)
         .map_err(|e| e.to_string())
 }
