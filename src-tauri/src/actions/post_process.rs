@@ -1,9 +1,11 @@
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::apple_intelligence;
 use crate::managers::prompt::{self, PromptManager};
+use crate::managers::HotwordManager;
 use crate::overlay::show_llm_processing_overlay;
 use crate::settings::{
-    AppSettings, LLMPrompt, ModelType, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID,
+    AppSettings, HotwordScenario, LLMPrompt, ModelType, PostProcessProvider,
+    APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
@@ -404,6 +406,29 @@ fn parse_response_with_confidence(content: &str) -> (String, Option<u8>, Option<
 
     // No confidence marker found, return cleaned text with no score
     (cleaned, None, None)
+}
+
+/// Detect usage scenario from app name
+fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenario> {
+    let work_apps = [
+        "Code", "VSCode", "Cursor", "Terminal", "iTerm", "Slack", "Notion", "Figma", "Xcode",
+        "IntelliJ",
+    ];
+    let casual_apps = ["WeChat", "Messages", "Telegram", "WhatsApp", "Discord"];
+
+    if let Some(name) = app_name {
+        for app in work_apps {
+            if name.contains(app) {
+                return Some(HotwordScenario::Work);
+            }
+        }
+        for app in casual_apps {
+            if name.contains(app) {
+                return Some(HotwordScenario::Casual);
+            }
+        }
+    }
+    None // Both scenarios apply
 }
 
 fn resolve_effective_model(
@@ -1335,7 +1360,28 @@ pub(crate) async fn maybe_post_process_transcription(
                 }
             }
 
-            // 3. Inject Semantic Skills block
+            // 3. Inject structured hotwords from new system
+            if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+                let hotword_manager = HotwordManager::new(hm.db_path.clone());
+
+                // Determine scenario from app context
+                let scenario = detect_scenario(&app_name);
+
+                // Use Work as default if no specific scenario detected
+                let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
+
+                if let Ok(injection) = hotword_manager.build_llm_injection(effective_scenario, 25) {
+                    if !injection.is_empty() {
+                        input_data_parts.push(injection);
+                        debug!(
+                            "[PostProcess] Injected structured hotwords for scenario {:?}",
+                            effective_scenario
+                        );
+                    }
+                }
+            }
+
+            // 4. Inject Semantic Skills block
             if !skills_info.is_empty() {
                 let skills_block = format!(
                     "## 可用技能\n\n用户可能正在尝试执行以下某种操作（技能）。请分析用户输入（raw_input）的意图，并根据最匹配的技能进行处理：\n\n{}",
