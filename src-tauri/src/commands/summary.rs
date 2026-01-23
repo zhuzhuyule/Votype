@@ -5,6 +5,7 @@ use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
     CreateChatCompletionRequestArgs,
 };
+use chrono::TimeZone;
 use log::{error, info};
 use std::sync::Arc;
 use tauri::{AppHandle, State};
@@ -174,4 +175,87 @@ pub async fn generate_summary_ai_analysis(
     summary_manager
         .get_summary_by_id(summary_id)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn export_summary(
+    summary_manager: State<'_, Arc<SummaryManager>>,
+    summary_id: i64,
+    format: String, // "markdown" or "json"
+) -> Result<String, String> {
+    // Get the summary
+    let summary = summary_manager
+        .get_summary_by_id(summary_id)
+        .map_err(|e| e.to_string())?;
+
+    match format.as_str() {
+        "json" => serde_json::to_string_pretty(&summary).map_err(|e| e.to_string()),
+        "markdown" | _ => Ok(format_summary_as_markdown(&summary)),
+    }
+}
+
+fn format_summary_as_markdown(summary: &Summary) -> String {
+    let start_date = chrono::Utc
+        .timestamp_opt(summary.period_start, 0)
+        .single()
+        .map(|dt| dt.format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+    let end_date = chrono::Utc
+        .timestamp_opt(summary.period_end, 0)
+        .single()
+        .map(|dt| dt.format("%Y-%m-%d").to_string())
+        .unwrap_or_else(|| "Unknown".to_string());
+
+    let mut md = format!(
+        "# Summary Report\n\n**Period:** {} to {}\n**Type:** {}\n\n",
+        start_date, end_date, summary.period_type
+    );
+
+    md.push_str("## Statistics\n\n");
+    md.push_str(&format!("- **Entries:** {}\n", summary.stats.entry_count));
+    md.push_str(&format!(
+        "- **Total Characters:** {}\n",
+        summary.stats.total_chars
+    ));
+    md.push_str(&format!(
+        "- **Total Duration:** {} minutes\n",
+        summary.stats.total_duration_ms / 60000
+    ));
+    md.push_str(&format!(
+        "- **AI Polish Calls:** {}\n\n",
+        summary.stats.llm_calls
+    ));
+
+    if !summary.stats.by_app.is_empty() {
+        md.push_str("### App Distribution\n\n");
+        for (app, stats) in &summary.stats.by_app {
+            md.push_str(&format!(
+                "- **{}:** {} entries, {} chars\n",
+                app, stats.count, stats.chars
+            ));
+        }
+        md.push_str("\n");
+    }
+
+    if !summary.stats.top_skills.is_empty() {
+        md.push_str("### Top Skills Used\n\n");
+        for skill in &summary.stats.top_skills {
+            md.push_str(&format!("- {}\n", skill));
+        }
+        md.push_str("\n");
+    }
+
+    if let Some(ref ai_summary) = summary.ai_summary {
+        md.push_str("## AI Analysis\n\n");
+        md.push_str(ai_summary);
+        md.push_str("\n\n");
+    }
+
+    if let Some(ref reflection) = summary.ai_reflection {
+        md.push_str("## Reflection\n\n");
+        md.push_str(reflection);
+        md.push_str("\n");
+    }
+
+    md
 }
