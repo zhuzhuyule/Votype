@@ -579,14 +579,22 @@ export const HotwordSettings: React.FC = () => {
     category: HotwordCategory,
     scenarios: HotwordScenario[],
   ) => {
-    const updatedHotword = await invoke<Hotword>("update_hotword", {
-      id,
-      target,
-      originals,
-      category,
-      scenarios,
-    });
-    setHotwords((prev) => prev.map((h) => (h.id === id ? updatedHotword : h)));
+    try {
+      const updatedHotword = await invoke<Hotword>("update_hotword", {
+        id,
+        target,
+        originals,
+        category,
+        scenarios,
+      });
+      if (updatedHotword) {
+        setHotwords((prev) =>
+          prev.map((h) => (h && h.id === id ? updatedHotword : h)),
+        );
+      }
+    } catch (e) {
+      console.error(`[HotwordSettings] Failed to edit hotword ${id}:`, e);
+    }
   };
 
   // Delete handler
@@ -595,7 +603,7 @@ export const HotwordSettings: React.FC = () => {
 
     try {
       await invoke("delete_hotword", { id: deleteId });
-      setHotwords((prev) => prev.filter((h) => h.id !== deleteId));
+      setHotwords((prev) => prev.filter((h) => h && h.id !== deleteId));
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(deleteId);
@@ -701,13 +709,20 @@ export const HotwordSettings: React.FC = () => {
   };
 
   const handleBatchDelete = async () => {
+    const deletedIds: Set<number> = new Set();
+
     for (const id of selectedIds) {
       try {
         await invoke("delete_hotword", { id });
-        setHotwords((prev) => prev.filter((h) => h.id !== id));
+        deletedIds.add(id);
       } catch (e) {
         console.error(`[HotwordSettings] Failed to delete hotword ${id}:`, e);
       }
+    }
+
+    // Single state update
+    if (deletedIds.size > 0) {
+      setHotwords((prev) => prev.filter((h) => h && !deletedIds.has(h.id)));
     }
     clearSelection();
   };
