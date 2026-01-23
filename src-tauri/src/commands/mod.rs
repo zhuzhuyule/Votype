@@ -2,6 +2,7 @@ pub mod audio;
 pub mod history;
 pub mod hotword;
 pub mod models;
+pub mod summary;
 pub mod text;
 pub mod transcription;
 pub mod vocabulary;
