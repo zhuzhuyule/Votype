@@ -139,6 +139,24 @@ static MIGRATIONS: &[M] = &[
          ALTER TABLE vocabulary_corrections ADD COLUMN target_apps TEXT;
          CREATE INDEX IF NOT EXISTS idx_vc_corrected ON vocabulary_corrections(corrected_text);",
     ),
+    // Migration 17: Add hotwords table for categorized vocabulary
+    M::up(
+        "CREATE TABLE IF NOT EXISTS hotwords (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            target TEXT NOT NULL UNIQUE,
+            originals TEXT NOT NULL DEFAULT '[]',
+            category TEXT NOT NULL DEFAULT 'term',
+            scenarios TEXT NOT NULL DEFAULT '[\"work\",\"casual\"]',
+            confidence REAL NOT NULL DEFAULT 0.5,
+            user_override BOOLEAN NOT NULL DEFAULT 0,
+            use_count INTEGER NOT NULL DEFAULT 0,
+            last_used_at INTEGER,
+            false_positive_count INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_hotwords_category ON hotwords(category);
+        CREATE INDEX IF NOT EXISTS idx_hotwords_use_count ON hotwords(use_count DESC);",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
