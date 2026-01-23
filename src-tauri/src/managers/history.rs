@@ -584,7 +584,50 @@ impl HistoryManager {
             )
             .unwrap_or(0);
 
-        // Only update text and char count, leave prompt/model session info untouched
+        // Fetch original text for diff analysis
+        // We prioritize post_processed_text if it exists, otherwise transcription_text
+        let original_text_opt: Option<String> = conn.query_row(
+            "SELECT COALESCE(post_processed_text, transcription_text) FROM transcription_history WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        ).ok();
+
+        // Also fetch app_name for scoping corrections
+        let app_name: Option<String> = conn
+            .query_row(
+                "SELECT app_name FROM transcription_history WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .ok();
+
+        // Perform correction learning if we have original text
+        if let Some(original) = original_text_opt {
+            use crate::managers::vocabulary::VocabularyManager;
+            let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
+            if !diffs.is_empty() {
+                let vocab_manager = VocabularyManager::new(self.db_path.clone());
+
+                let is_global = app_name.is_none();
+                let target_apps = app_name
+                    .as_ref()
+                    .map(|app| serde_json::to_string(&vec![app]).unwrap());
+
+                for diff in &diffs {
+                    if let Err(e) =
+                        vocab_manager.record_correction(diff, is_global, target_apps.clone())
+                    {
+                        error!("Failed to record vocabulary correction: {}", e);
+                    }
+                }
+                info!(
+                    "[History] Recorded {} vocabulary corrections from review window for entry {}",
+                    diffs.len(),
+                    id
+                );
+            }
+        }
+
         conn.execute(
             "UPDATE transcription_history SET 
                 post_processed_text = ?1, 

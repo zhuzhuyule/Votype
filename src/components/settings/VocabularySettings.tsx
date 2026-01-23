@@ -520,7 +520,7 @@ export const VocabularySettings: React.FC = () => {
           </SegmentedControl.Item>
         </SegmentedControl.Root>
       </Flex>
-      <Card className="max-w-5xl w-full mx-auto p-0 overflow-hidden flex flex-col h-[calc(100vh-120px)]">
+      <Card className="max-w-5xl w-full mx-auto p-0 flex flex-col">
         {/* Corrections Tab Content */}
         {activeTab === "corrections" && (
           <Flex direction="column" className="h-full animate-fade-in-up">
@@ -548,7 +548,7 @@ export const VocabularySettings: React.FC = () => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+            <div className="flex-1 p-6 bg-gray-50/50">
               {/* Corrections table */}
               {loadingCorrections ? (
                 <Text size="2" color="gray" className="py-8 text-center">
@@ -720,7 +720,7 @@ export const VocabularySettings: React.FC = () => {
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+            <div className="flex-1 p-6 bg-gray-50/50">
               {/* Hot words table */}
               {customWords.length > 0 ? (
                 <Table.Root variant="surface">

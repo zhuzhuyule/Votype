@@ -12,7 +12,6 @@ export interface SkillTemplate {
   name: string;
   description: string;
   instructions: string;
-  aliases: string | null;
   icon: string | null;
   output_mode: string;
 }
@@ -22,7 +21,6 @@ const SkillTemplateSchema = z.object({
   name: z.string(),
   description: z.string(),
   instructions: z.string(),
-  aliases: z.string().nullable(),
   icon: z.string().nullable(),
   output_mode: z.string(),
 });
@@ -101,7 +99,6 @@ export function useExternalSkills() {
         description: skillData.description || "",
         instructions: skillData.instructions || "",
         model_id: skillData.model_id ?? null,
-        aliases: skillData.aliases ?? null,
         icon: skillData.icon ?? null,
         skill_type: skillData.skill_type || "text",
         source: "user",

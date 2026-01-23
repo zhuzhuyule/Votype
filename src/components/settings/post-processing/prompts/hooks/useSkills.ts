@@ -71,7 +71,6 @@ export function useSkills(): UseSkillsReturn {
           description: skillData.description || "",
           instructions: skillData.instructions || "",
           model_id: skillData.model_id || null,
-          aliases: skillData.aliases || null,
           icon: skillData.icon || null,
           skill_type: skillData.skill_type || "text",
           source: "user",

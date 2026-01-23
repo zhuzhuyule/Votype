@@ -56,31 +56,6 @@ export const EditHistoryDialog: React.FC<EditHistoryDialogProps> = ({
     setSaving(true);
     setError(null);
 
-    // Auto-learn corrections
-    try {
-      const { extractCorrections } = await import(
-        "../../../lib/correctionUtils"
-      );
-      const corrections = extractCorrections(initialText, text);
-      if (corrections.length > 0) {
-        console.log(
-          "[EditHistoryDialog] Auto-learning corrections:",
-          corrections,
-        );
-        for (const c of corrections) {
-          invoke("record_vocabulary_correction", {
-            original_text: c.original,
-            corrected_text: c.corrected,
-            app_name: appName || null,
-          }).catch((err) =>
-            console.warn("Failed to learn correction:", c, err),
-          );
-        }
-      }
-    } catch (e) {
-      console.warn("Error in correction learning:", e);
-    }
-
     try {
       await invoke("update_history_entry_text", {
         id: entryId,
@@ -97,17 +72,7 @@ export const EditHistoryDialog: React.FC<EditHistoryDialogProps> = ({
     } finally {
       setSaving(false);
     }
-  }, [
-    entryId,
-    field,
-    text,
-    saving,
-    onOpenChange,
-    onSaved,
-    stepIndex,
-    appName,
-    initialText,
-  ]);
+  }, [entryId, field, text, saving, onOpenChange, onSaved, stepIndex, appName]);
 
   const fieldLabel =
     field === "transcription_text"

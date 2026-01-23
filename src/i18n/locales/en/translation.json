@@ -1170,6 +1170,11 @@
         "other": "Other Apps",
         "selectAll": "Select All",
         "source": "Source App ({{app}})"
+      },
+      "deleteConfirm": {
+        "title": "Confirm Deletion",
+        "correctionMessage": "Are you sure you want to delete this correction rule? This action cannot be undone.",
+        "hotwordMessage": "Are you sure you want to remove this hot word?"
       }
     }
   },

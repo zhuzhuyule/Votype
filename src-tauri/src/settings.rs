@@ -53,8 +53,6 @@ pub struct Skill {
     #[serde(alias = "prompt")]
     pub instructions: String,
     pub model_id: Option<String>,
-    #[serde(alias = "alias")]
-    pub aliases: Option<String>,
     pub icon: Option<String>,
     #[serde(default)]
     pub skill_type: SkillType,
@@ -641,30 +639,12 @@ fn default_post_process_context_limit() -> u8 {
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
     vec![
         LLMPrompt {
-            id: "default_improve_transcriptions".to_string(),
-            name: "Improve Transcriptions".to_string(),
-            description: "Clean and improve transcription text. Basic text cleaning.".to_string(),
-            instructions: "Clean this transcript:\n1. Fix spelling, capitalization, and punctuation errors\n2. Convert number words to digits (twenty-five → 25, ten percent → 10%, five dollars → $5)\n3. Replace spoken punctuation with symbols (period → ., comma → ,, question mark → ?)\n4. Remove filler words (um, uh, like as filler)\n5. Keep the language in the original version (if it was french, keep it in french for example)\n\n用户自定义参考词汇（如果 ASR 识别出的词发音或拼写和 these 词相近，请优先修正为这些词）：\n${hot_words}\n\nPreserve exact meaning and word order. Do not paraphrase or reorder content.\n\nReturn only the cleaned transcript.\n\nTranscript:\n${output}".to_string(),
-
-            model_id: None,
-            aliases: None,
-            icon: Some("IconWand".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
-            output_mode: Default::default(),
-            enabled: true,
-            customized: false,
-            file_path: None,
-        },
-        LLMPrompt {
             id: "system_default_correction".to_string(),
             name: "默认润色".to_string(),
-            description: "润色和优化文本表达。当用户说\"润色\"、\"优化\"、\"清理\"时使用。这是默认 Skill。".to_string(),
-            instructions: "# ASR 文本清理与质量评估专家\n\n你是一位专注于语音识别（ASR）后处理的自然语言处理专家，擅长对转录文本进行高保真清理、语言润色与质量评估。你的工作严格遵循两阶段流程，确保输出文本在保持原始语义和表达习惯的前提下，达到出版级可读性与准确性。\n\n## 背景说明\n\n系统将提供以下输入变量供你参考：\n- `${output}`：语音转录的最终文本（已去除命令前缀和别名），作为主要处理依据。\n- `${streaming_output}`：实时转录过程中产生的中间文本，用于辅助上下文理解与歧义消解。\n\n> **注意**：你应优先以 `${output}` 为主，必要时结合 `${streaming_output}` 提升识别鲁棒性，尤其在处理中英混杂、专业术语或同音词场景时。\n\n## 任务流程\n\n### 阶段一：文本清理与润色\n\n基于输入文本，执行以下操作，生成自然、清晰、结构完整的最终文本：\n\n- **保留原始语言混合习惯**  \n  不翻译英文内容，维持用户原有的中英混用风格（如“这个 bug 很 critical”）。\n\n- **修正基础语言问题**  \n  - 删除无意义的填充词（如孤立的“嗯”、“啊”、“呃”）。\n  - 消除不合理叠词（如“你好啊啊” → “你好啊”）。\n  - 修正明显语病、重复、拼写错误及标点缺失；在缺失处合理补全中文标点。\n\n- **规范格式细节**  \n  中文与英文/数字之间必须保留一个空格，例如：  \n  `第1个question是xxx` → `第 1 个 question 是 xxx`\n\n- **优化长句可读性**  \n  对超过 40 字且逻辑复杂的句子，在语义自然断点处插入换行符（`\\n`），提升阅读流畅度。\n\n- **语义保真原则**  \n  所有修改必须基于上下文，不得改变原意或引入主观解读。\n\n### 阶段二：质量评估（仅基于阶段一输出）\n\n仅针对阶段一生成的最终文本，进行整体质量判断：\n\n检查是否存在以下问题（无需逐字标注，仅用于综合评分）：\n- 含糊、无意义或疑似乱码的词语\n- 语法错误或语句不通顺\n- 明显的 ASR 误识别（如同音字、近音词错误）\n- 语句片段化或逻辑不完整\n- 英文拼写异常或识别错误\n\n## 输出规范\n\n严格按以下 JSON 格式输出，**禁止任何额外文本、解释 or Markdown**：\n\n```json\n{\n  \"text\": \"阶段一生成的最终清理文本\",\n  \"confidence\": 0-100 的整数,\n  \"reason\": \"若存在明显问题，用一句话描述；否则为空字符串\"\n}\n```\n\n### 评分规则\n- `confidence`：对最终文本整体准确率的置信度估计（0–100 整数）。\n- `reason`：**仅当文本仍存在显著问题时填写**，且必须聚焦于最终文本本身的问题，不得提及修改过程、原始输入或推理逻辑。\n- 若文本通顺、准确、无歧义，则 `reason` 必须为 `\"\"`。".to_string(),
+            description: "润色和优化文本表达。这是默认 Skill。".to_string(),
+            instructions: include_str!("../resources/skills/system_default_correction.md")
+                .to_string(),
             model_id: None,
-            aliases: Some("润色,优化,清理".to_string()),
             icon: Some("IconShieldCheck".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
@@ -678,15 +658,11 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
         LLMPrompt {
             id: "system_default_ai_chat".to_string(),
             name: "AI 问答".to_string(),
-            description: "智能问答和通用对话。当用户提问或寻求帮助时使用。".to_string(),
-            instructions: r#"你是一个有帮助的 AI 助手。请直接回答用户的问题或请求。
-
-用户输入：
-${output}
-
-请用自然、简洁的语言回答。如果用户的问题不清楚，请尽量根据上下文理解其意图并给出有帮助的回复。"#.to_string(),
+            description:
+                "解释选中内容或回答问题。当用户说\"这是什么\"、\"帮我解释\"、\"帮我查询\"时触发。"
+                    .to_string(),
+            instructions: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
             model_id: None,
-            aliases: Some("问问,帮我,帮我写,请问".to_string()),
             icon: Some("IconMessageSparkle".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
@@ -701,28 +677,11 @@ ${output}
         LLMPrompt {
             id: "system_preset_translate".to_string(),
             name: "翻译".to_string(),
-            description: "将文本翻译成目标语言。当用户说\"翻译\"、\"译成\"、\"translate\"时使用。".to_string(),
-            instructions: r#"# 智能翻译专家
-
-你是一位专业翻译，擅长多语言互译。
-
-## 输入
-- `${output}`：需要翻译的文本
-- `${raw_input}`：用户原始指令（可能包含目标语言信息）
-
-## 任务
-1. 分析用户指令确定目标语言（如未指定，中文译英文、英文译中文）
-2. 执行高质量翻译
-
-## 翻译原则
-- 保持原文的语气、风格和专业术语
-- 代码、变量名、专有名词保持原样
-- 使用自然流畅的目标语言表达
-
-## 输出
-仅输出翻译结果，不要任何解释或额外内容。"#.to_string(),
+            description: "将文本翻译成目标语言。当用户说\"翻译\"、\"译成\"、\"translate\"时使用。"
+                .to_string(),
+            instructions: include_str!("../resources/skills/system_preset_translate.md")
+                .to_string(),
             model_id: None,
-            aliases: Some("翻译,译成,translate,翻成".to_string()),
             icon: Some("IconLanguage".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
@@ -737,34 +696,10 @@ ${output}
         LLMPrompt {
             id: "system_preset_summary".to_string(),
             name: "总结".to_string(),
-            description: "总结和提炼文本要点。当用户说\"总结\"、\"概括\"、\"摘要\"时使用。".to_string(),
-            instructions: r#"# 文本总结专家
-
-你是一位精通信息提炼的总结专家。
-
-## 输入
-- `${select}`：需要总结的文本（选中内容）
-- `${output}`：用户的额外指令
-
-## 任务
-对提供的文本进行精炼总结，提取核心要点。
-
-## 总结原则
-- 保留关键信息，去除冗余内容
-- 使用简洁、逻辑清晰的语言
-- 按重要性排序列出要点
-- 保持客观中立，不添加个人观点
-
-## 输出格式
-**核心要点：**
-- [要点1]
-- [要点2]
-- [要点3]
-
-**简述：**
-[1-2句话概括全文主旨]"#.to_string(),
+            description: "总结和提炼文本要点。当用户说\"总结\"、\"概括\"、\"摘要\"时使用。"
+                .to_string(),
+            instructions: include_str!("../resources/skills/system_preset_summary.md").to_string(),
             model_id: None,
-            aliases: Some("总结,概括,摘要,summarize".to_string()),
             icon: Some("IconListDetails".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
@@ -774,7 +709,7 @@ ${output}
             enabled: true,
             customized: false,
             file_path: None,
-        }
+        },
     ]
 }
 

@@ -1193,6 +1193,11 @@
         "other": "其他应用",
         "selectAll": "全选",
         "source": "仅来源应用 ({{app}})"
+      },
+      "deleteConfirm": {
+        "title": "确认删除",
+        "correctionMessage": "确定要删除这条纠错规则吗？此操作无法撤销。",
+        "hotwordMessage": "确定要移除这个热词吗？"
       }
     }
   },

@@ -85,16 +85,9 @@ fn build_skill_routing_prompt(
             prompt.description.clone()
         };
 
-        // Include aliases if available for better matching
-        let aliases_info = if let Some(aliases) = &prompt.aliases {
-            format!(", aliases: \"{}\"", aliases)
-        } else {
-            String::new()
-        };
-
         skill_list.push_str(&format!(
-            "- id: \"{}\", name: \"{}\"{}, description: \"{}\"\n",
-            prompt.id, prompt.name, aliases_info, description
+            "- id: \"{}\", name: \"{}\", description: \"{}\"\n",
+            prompt.id, prompt.name, description
         ));
 
         enabled_skill_names.push(format!("{} ({})", prompt.name, prompt.id));
@@ -121,8 +114,6 @@ fn build_skill_routing_prompt(
 
     prompt::substitute_variables(template, &vars)
 }
-
-// build_alias_suggestion_prompt removed - replaced by file-based prompt
 
 /// Parse the skill routing response from LLM
 fn parse_skill_route_response(content: &str) -> Option<SkillRouteResponse> {
@@ -330,78 +321,6 @@ async fn execute_default_polish(
         text.len()
     );
     Some(text)
-}
-
-pub(crate) async fn suggest_aliases(
-    app_handle: &AppHandle,
-    description: &str,
-) -> Result<Vec<String>, String> {
-    let settings = crate::settings::get_settings(app_handle);
-    let provider = settings
-        .active_post_process_provider()
-        .ok_or_else(|| "No active post-process provider".to_string())?;
-
-    let api_key = settings
-        .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
-
-    let client = crate::llm_client::create_client(provider, api_key)
-        .map_err(|e| format!("Failed to create LLM client: {}", e))?;
-
-    let model = settings
-        .selected_prompt_model_id
-        .clone()
-        .filter(|id| !id.is_empty())
-        .unwrap_or_else(|| settings.selected_model.clone());
-
-    let prompt_manager = app_handle.state::<Arc<PromptManager>>();
-    let sys_prompt = prompt_manager
-        .get_prompt(app_handle, "system_alias_suggestion")
-        .map_err(|e| format!("Failed to load system prompt: {}", e))?;
-
-    let mut messages = Vec::new();
-    messages.push(ChatCompletionRequestMessage::System(
-        ChatCompletionRequestSystemMessageArgs::default()
-            .content(sys_prompt)
-            .build()
-            .map_err(|e| e.to_string())?,
-    ));
-
-    messages.push(ChatCompletionRequestMessage::User(
-        ChatCompletionRequestUserMessageArgs::default()
-            .content(description.to_string())
-            .build()
-            .map_err(|e| e.to_string())?,
-    ));
-
-    let req = CreateChatCompletionRequestArgs::default()
-        .model(model)
-        .messages(messages)
-        .temperature(0.3)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let response = client
-        .chat()
-        .create(req)
-        .await
-        .map_err(|e| format!("LLM request failed: {}", e))?;
-
-    let content = response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())
-        .ok_or_else(|| "Empty response from LLM".to_string())?;
-
-    let aliases: Vec<String> = content
-        .split(&[',', '，'][..])
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    Ok(aliases)
 }
 
 fn extract_json_block(content: &str) -> Option<String> {
@@ -756,18 +675,12 @@ pub async fn execute_llm_request(
     (None, false, None, None)
 }
 
-// NOTE: find_prefix_match function removed - alias matching is no longer used
-// Intent detection via LLM is the sole mechanism for non-default skill selection
-
 fn resolve_prompt_from_text(
     text: &str,
     prompts: &[LLMPrompt],
     default_prompt: Option<&LLMPrompt>,
     override_prompt_id: Option<&str>,
 ) -> (Option<LLMPrompt>, String, bool) {
-    // Simplified: no more alias matching
-    // Intent detection via LLM is the primary mechanism for skill selection
-
     // 1. If override_prompt_id specified, use that prompt
     if let Some(override_id) = override_prompt_id {
         if let Some(p) = prompts.iter().find(|p| p.id == override_id) {
@@ -1250,12 +1163,12 @@ pub(crate) async fn maybe_post_process_transcription(
         // Build structured input data message - only include variables referenced in prompt
         let mut input_data_parts: Vec<String> = Vec::new();
 
-        // Add output (transcription content without prefix/alias) - only if referenced
+        // Add output (transcription content) - only if referenced
         if has_output_ref && !transcription_content.is_empty() {
             input_data_parts.push(format!("```output\n{}\n```", transcription_content));
         }
 
-        // Add raw_input (full original transcription including prefix/alias) - only if referenced
+        // Add raw_input (full original transcription) - only if referenced
         if has_raw_input_ref
             && !transcription_original.is_empty()
             && transcription_original != transcription_content
@@ -1308,7 +1221,7 @@ pub(crate) async fn maybe_post_process_transcription(
 
         // Inject hot words and skills - logic depends on whether we had an explicit match
         if is_explicit {
-            // Case A: Explicitly matched an alias. Keep context clean, only inject user custom words.
+            // Case A: Explicit match (override_prompt_id specified). Keep context clean, only inject user custom words.
             if has_hot_words_ref && !settings.custom_words.is_empty() {
                 let hot_words_list = settings
                     .custom_words
@@ -1329,19 +1242,9 @@ pub(crate) async fn maybe_post_process_transcription(
             let mut skills_info = Vec::new();
 
             for p in &settings.post_process_prompts {
-                // For hot_words variable: add names and aliases for fuzzy matching
+                // For hot_words variable: add names for fuzzy matching
                 hot_words.push(p.name.clone());
-                if let Some(alias_str) = &p.aliases {
-                    let aliases: Vec<String> = alias_str
-                        .split(&[',', '，'][..])
-                        .map(|s| s.trim().to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                    hot_words.extend(aliases.clone());
-                    skills_info.push(format!("- **{}**: (别名: {})", p.name, aliases.join(", ")));
-                } else {
-                    skills_info.push(format!("- **{}**", p.name));
-                }
+                skills_info.push(format!("- **{}**", p.name));
             }
 
             hot_words.sort();
@@ -1543,10 +1446,8 @@ pub(crate) async fn maybe_post_process_transcription(
 
             if let Some(next_prompt) = next_prompt_opt {
                 // Only chain if:
-                // 1. We matched a DIFFERENT prompt through an EXPLICIT alias/prefix
+                // 1. We matched a DIFFERENT prompt through an EXPLICIT override
                 // 2. The first prompt was the DEFAULT prompt (non-explicit match)
-                // This ensures chain calls only happen after ASR -> polish -> result matches alias
-                // NOT after translation -> result happens to start with alias
                 if is_explicit_match
                     && was_default_prompt
                     && chain_depth == 1
@@ -1579,8 +1480,8 @@ pub(crate) async fn maybe_post_process_transcription(
                         }
                     }
 
-                    // For the next iteration, the intermediate result text (without the prefix)
-                    // becomes the new transcription content.
+                    // For the next iteration, the intermediate result text becomes
+                    // the new transcription content.
                     current_prompt = next_prompt;
                     current_input_content = next_content;
                     // The full intermediate text becomes the new raw input for referencing.

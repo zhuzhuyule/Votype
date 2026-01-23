@@ -1,4 +1,4 @@
-// TagInput - Reusable tag input component for aliases and prefixes
+// TagInput - Reusable tag input component
 
 import { Badge, Flex, Text, TextField } from "@radix-ui/themes";
 import { IconPlus, IconX } from "@tabler/icons-react";
