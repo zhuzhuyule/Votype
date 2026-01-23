@@ -1,12 +1,18 @@
 import {
   Box,
   Button,
+  DropdownMenu,
   Flex,
   Heading,
   SegmentedControl,
   Text,
 } from "@radix-ui/themes";
-import { IconDownload, IconSparkles } from "@tabler/icons-react";
+import {
+  IconCode,
+  IconDownload,
+  IconFileText,
+  IconSparkles,
+} from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -74,6 +80,7 @@ export const SummaryPage: React.FC = () => {
     loading,
     generating,
     loadSummary,
+    exportSummary,
   } = useSummary();
 
   const [periodType, setPeriodType] = useState<PeriodType>("day");
@@ -148,10 +155,32 @@ export const SummaryPage: React.FC = () => {
           <Flex justify="between" align="center">
             <Heading size="5">{selection.label}</Heading>
             <Flex gap="2">
-              <Button variant="soft" size="2">
-                <IconDownload size={16} />
-                {t("summary.actions.export")}
-              </Button>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <Button variant="soft" size="2">
+                    <IconDownload size={16} />
+                    {t("summary.actions.export")}
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item
+                    onClick={() =>
+                      summary && exportSummary(summary.id, "markdown")
+                    }
+                    disabled={!summary}
+                  >
+                    <IconFileText size={14} />
+                    {t("summary.export.markdown")}
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onClick={() => summary && exportSummary(summary.id, "json")}
+                    disabled={!summary}
+                  >
+                    <IconCode size={14} />
+                    {t("summary.export.json")}
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             </Flex>
           </Flex>
 

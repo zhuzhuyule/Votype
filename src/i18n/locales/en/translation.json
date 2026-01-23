@@ -1232,6 +1232,10 @@
     "actions": {
       "export": "Export"
     },
+    "export": {
+      "markdown": "Export as Markdown",
+      "json": "Export as JSON"
+    },
     "aiAnalysis": {
       "title": "AI Analysis",
       "generate": "Generate Analysis",

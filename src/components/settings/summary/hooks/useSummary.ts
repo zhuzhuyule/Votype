@@ -96,6 +96,33 @@ export function useSummary() {
     [loadUserProfile],
   );
 
+  const exportSummary = useCallback(
+    async (summaryId: number, format: "markdown" | "json") => {
+      try {
+        const content = await invoke<string>("export_summary", {
+          summaryId,
+          format,
+        });
+
+        // Create blob and trigger download
+        const blob = new Blob([content], {
+          type: format === "json" ? "application/json" : "text/markdown",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `summary-${summaryId}.${format === "json" ? "json" : "md"}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Failed to export summary:", error);
+      }
+    },
+    [],
+  );
+
   return {
     stats,
     summary,
@@ -109,5 +136,6 @@ export function useSummary() {
     loadUserProfile,
     updateFeedbackStyle,
     updateStylePrompt,
+    exportSummary,
   };
 }
