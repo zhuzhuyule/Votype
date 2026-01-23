@@ -617,7 +617,7 @@ impl HistoryManager {
         field: &str,
         new_text: String,
         step_index: Option<usize>,
-        _app_name: Option<String>,
+        app_name: Option<String>,
     ) -> Result<()> {
         use crate::managers::vocabulary::VocabularyManager;
 
@@ -669,8 +669,16 @@ impl HistoryManager {
             let diffs = VocabularyManager::analyze_edit_diff(original, &new_text);
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
+
+                let is_global = app_name.is_none();
+                let target_apps = app_name
+                    .as_ref()
+                    .map(|app| serde_json::to_string(&vec![app]).unwrap());
+
                 for diff in &diffs {
-                    if let Err(e) = vocab_manager.record_correction(diff) {
+                    if let Err(e) =
+                        vocab_manager.record_correction(diff, is_global, target_apps.clone())
+                    {
                         error!("Failed to record vocabulary correction: {}", e);
                     }
                 }

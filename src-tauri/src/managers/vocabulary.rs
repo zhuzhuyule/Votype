@@ -236,7 +236,13 @@ impl VocabularyManager {
 
     /// Record a vocabulary correction to the database
     /// If the same correction already exists, increment its count
-    pub fn record_correction(&self, diff: &WordDiff) -> Result<()> {
+    /// scope_hint params are only used if creating a NEW record and no precedent exists.
+    pub fn record_correction(
+        &self,
+        diff: &WordDiff,
+        is_global_hint: bool,
+        target_apps_hint: Option<String>,
+    ) -> Result<()> {
         if diff.original.is_empty() && diff.corrected.is_empty() {
             return Ok(());
         }
@@ -246,15 +252,25 @@ impl VocabularyManager {
 
         // 1. Try to inherit scope from existing corrections for the same target word
         // This ensures that "Skill -> SKIIL" and "Skil -> SKIIL" share the same scope settings
-        let (inherited_is_global, inherited_target_apps): (bool, Option<String>) = conn
-            .query_row(
+        let (existing_is_global, existing_target_apps): (Option<bool>, Option<Option<String>>) =
+            conn.query_row(
                 "SELECT is_global, target_apps FROM vocabulary_corrections 
                  WHERE corrected_text = ?1 
                  ORDER BY last_seen_at DESC LIMIT 1",
                 params![diff.corrected],
-                |row| Ok((row.get(0)?, row.get(1)?)),
+                |row| Ok((Some(row.get(0)?), Some(row.get(1)?))),
             )
-            .unwrap_or((true, None)); // Default to global if no precedent
+            .unwrap_or((None, None));
+
+        // Determine scope to use:
+        // - If exists in DB, MUST use existing scope (ignore hints)
+        // - If new, use hints
+        let (final_is_global, final_target_apps) =
+            if let (Some(g), Some(t)) = (existing_is_global, existing_target_apps) {
+                (g, t)
+            } else {
+                (is_global_hint, target_apps_hint)
+            };
 
         // 2. Try to update existing record first
         let updated = conn.execute(
@@ -265,16 +281,16 @@ impl VocabularyManager {
         )?;
 
         if updated == 0 {
-            // 3. Insert new record with inherited scope
+            // 3. Insert new record with determined scope
             conn.execute(
                 "INSERT INTO vocabulary_corrections 
                  (original_text, corrected_text, correction_count, first_seen_at, last_seen_at, is_global, target_apps)
                  VALUES (?1, ?2, 1, ?3, ?3, ?4, ?5)",
-                params![diff.original, diff.corrected, now, inherited_is_global, inherited_target_apps],
+                params![diff.original, diff.corrected, now, final_is_global, final_target_apps],
             )?;
             info!(
                 "[Vocabulary] New correction recorded: \"{}\" → \"{}\" (global={}, apps={:?})",
-                diff.original, diff.corrected, inherited_is_global, inherited_target_apps
+                diff.original, diff.corrected, final_is_global, final_target_apps
             );
         } else {
             info!(

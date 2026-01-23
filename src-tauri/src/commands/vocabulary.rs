@@ -51,3 +51,29 @@ pub async fn update_vocabulary_correction_scope(
         .update_scope_by_target(&corrected_text, is_global, target_apps)
         .map_err(|e| e.to_string())
 }
+/// Record a new vocabulary correction manually (e.g. from review dialog)
+#[tauri::command]
+pub async fn record_vocabulary_correction(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    original_text: String,
+    corrected_text: String,
+    app_name: Option<String>,
+) -> Result<(), String> {
+    let vocab_manager = VocabularyManager::new(history_manager.db_path.clone());
+
+    // We construct a Diff object manually
+    let diff = crate::managers::vocabulary::WordDiff {
+        original: original_text,
+        corrected: corrected_text,
+    };
+
+    // For manual recording, if app_name is provided, use it as scope hint.
+    // If not, default to global.
+    let is_global = app_name.is_none();
+    let target_apps = app_name.map(|app| serde_json::to_string(&vec![app]).unwrap());
+
+    vocab_manager
+        .record_correction(&diff, is_global, target_apps)
+        .map_err(|e| e.to_string())
+}

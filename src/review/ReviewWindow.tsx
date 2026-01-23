@@ -835,6 +835,42 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     if (isSubmitting || !currentText.trim()) return;
 
     setIsSubmitting(true);
+
+    // Auto-learn corrections for non-chat modes (i.e. normal transcription or polish)
+    if (initialData.output_mode !== "chat") {
+      try {
+        // Import dynamically or assume it's available via import at top
+        // Since we can't easily add top-level imports in replace_file_content if we targeting a block,
+        // we should ideally add the import statement at the top.
+        // BUT, extractCorrections is a pure function. Let's assume we added the import or use a dynamic import/require if needed?
+        // No, standard practice is to add import at top. I will add the import in a separate step or assume I did.
+        // Actually, I can use the same trick: I'll add the import in a separate replace call or just assume I will do it.
+        // Wait, I am in a tool call. I can do multiple edits? No, replace_file_content is single block.
+        // I will trust I'll add the import.
+
+        const { extractCorrections } = await import("../lib/correctionUtils");
+
+        const originalText = initialData.final_text;
+        const corrections = extractCorrections(originalText, currentText);
+
+        if (corrections.length > 0) {
+          console.log("[ReviewWindow] Auto-learning corrections:", corrections);
+          for (const c of corrections) {
+            // Ignore errors
+            invoke("record_vocabulary_correction", {
+              original_text: c.original,
+              corrected_text: c.corrected,
+              app_name: null,
+            }).catch((err) =>
+              console.warn("Failed to learn correction:", c, err),
+            );
+          }
+        }
+      } catch (e) {
+        console.warn("Error in correction learning:", e);
+      }
+    }
+
     try {
       await invoke("confirm_reviewed_transcription", {
         text: currentText.trim(),
@@ -846,7 +882,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
+  }, [
+    getEditorText,
+    initialData.history_id,
+    initialData.output_mode,
+    initialData.final_text,
+    onClose,
+    isSubmitting,
+  ]);
 
   // Keep refs updated
   useEffect(() => {

@@ -2,6 +2,7 @@
 // Combines custom words (hot words) and vocabulary corrections
 
 import {
+  AlertDialog,
   Badge,
   Button,
   DropdownMenu,
@@ -251,6 +252,13 @@ export const VocabularySettings: React.FC = () => {
   const [newWord, setNewWord] = useState("");
   const customWords: string[] = getSetting("custom_words") || [];
 
+  // Delete Confirmation State
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteType, setDeleteType] = useState<"correction" | "hotword" | null>(
+    null,
+  );
+  const [hotwordToDelete, setHotwordToDelete] = useState<string | null>(null);
+
   // Try to derive known apps from various sources (profiles + history if possible)
   // For now we use profiles as a base list of "known" apps
   const appProfiles: any[] = getSetting("app_profiles") || [];
@@ -358,11 +366,20 @@ export const VocabularySettings: React.FC = () => {
     }
   };
 
-  const handleRemoveWord = (wordToRemove: string) => {
-    updateSetting(
-      "custom_words",
-      customWords.filter((word) => word !== wordToRemove),
-    );
+  const confirmRemoveHotword = (wordToRemove: string) => {
+    setHotwordToDelete(wordToRemove);
+    setDeleteType("hotword");
+  };
+
+  const executeRemoveHotword = () => {
+    if (hotwordToDelete) {
+      updateSetting(
+        "custom_words",
+        customWords.filter((word) => word !== hotwordToDelete),
+      );
+    }
+    setHotwordToDelete(null);
+    setDeleteType(null);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -372,15 +389,31 @@ export const VocabularySettings: React.FC = () => {
     }
   };
 
-  // Corrections handlers
-  const handleDeleteCorrection = useCallback(async (id: number) => {
+  // Correction Delete handlers
+  const promptDeleteCorrection = (id: number) => {
+    setDeleteId(id);
+    setDeleteType("correction");
+  };
+
+  const executeDeleteCorrection = async () => {
+    if (deleteId === null) return;
     try {
-      await invoke("delete_vocabulary_correction", { id });
-      setCorrections((prev) => prev.filter((c) => c.id !== id));
+      await invoke("delete_vocabulary_correction", { id: deleteId });
+      setCorrections((prev) => prev.filter((c) => c.id !== deleteId));
     } catch (e) {
       console.error("[VocabularySettings] Delete failed:", e);
+    } finally {
+      setDeleteId(null);
+      setDeleteType(null);
     }
-  }, []);
+  };
+
+  // Generic cancel
+  const cancelDelete = () => {
+    setDeleteId(null);
+    setHotwordToDelete(null);
+    setDeleteType(null);
+  };
 
   const handleUpdateScope = useCallback(
     async (
@@ -465,18 +498,6 @@ export const VocabularySettings: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const formatRelativeTime = (timestamp: number) => {
-    // ... same logic
-    const now = Date.now() / 1000;
-    const diff = now - timestamp;
-    if (diff < 60) return t("common.time.justNow");
-    if (diff < 3600)
-      return t("common.time.minutesAgo", { count: Math.floor(diff / 60) });
-    if (diff < 86400)
-      return t("common.time.hoursAgo", { count: Math.floor(diff / 3600) });
-    return t("common.time.daysAgo", { count: Math.floor(diff / 86400) });
-  };
-
   return (
     <>
       <Flex justify="center" className="pb-6">
@@ -504,7 +525,7 @@ export const VocabularySettings: React.FC = () => {
         {activeTab === "corrections" && (
           <Flex direction="column" className="h-full animate-fade-in-up">
             {/* Fixed Header */}
-            <div className="p-6 pb-4 border-b border-gray-100 flex-shrink-0 bg-white z-10">
+            <div className="p-6 pb-4 border-b border-gray-100 shrink-0 bg-white z-10">
               <Flex justify="between" align="center">
                 <Text size="2" color="gray">
                   {t("settings.vocabulary.corrections.description")}
@@ -537,20 +558,38 @@ export const VocabularySettings: React.FC = () => {
                 <Table.Root variant="surface">
                   <Table.Header className="sticky top-0 bg-white z-20 shadow-sm">
                     <Table.Row>
-                      <Table.ColumnHeaderCell width="35%">
+                      <Table.ColumnHeaderCell
+                        className="whitespace-nowrap"
+                        width="35%"
+                      >
                         {t("settings.vocabulary.corrections.correction")}{" "}
                         (Target)
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="25%">
+                      <Table.ColumnHeaderCell
+                        className="whitespace-nowrap"
+                        width="25%"
+                      >
                         Triggers
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="15%" align="center">
+                      <Table.ColumnHeaderCell
+                        className="whitespace-nowrap"
+                        width="15%"
+                        align="center"
+                      >
                         {t("settings.vocabulary.corrections.count")}
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="20%" align="center">
+                      <Table.ColumnHeaderCell
+                        className="whitespace-nowrap"
+                        width="20%"
+                        align="center"
+                      >
                         {t("settings.vocabulary.corrections.scope")}
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="5%" align="right">
+                      <Table.ColumnHeaderCell
+                        className="whitespace-nowrap"
+                        width="5%"
+                        align="right"
+                      >
                         {t("settings.vocabulary.actions")}
                       </Table.ColumnHeaderCell>
                     </Table.Row>
@@ -562,7 +601,8 @@ export const VocabularySettings: React.FC = () => {
                           <Text
                             size="2"
                             weight="bold"
-                            className="font-mono text-green-600"
+                            className="font-mono text-green-600 truncate block"
+                            title={c.corrected_text}
                           >
                             {c.corrected_text}
                           </Text>
@@ -612,7 +652,7 @@ export const VocabularySettings: React.FC = () => {
                             variant="ghost"
                             size="1"
                             color="red"
-                            onClick={() => handleDeleteCorrection(c.id)}
+                            onClick={() => promptDeleteCorrection(c.id)}
                             title="Delete this variant"
                           >
                             <IconTrash size={14} />
@@ -635,7 +675,7 @@ export const VocabularySettings: React.FC = () => {
         {activeTab === "hotwords" && (
           <Flex direction="column" className="h-full animate-fade-in-up">
             {/* Fixed Header */}
-            <div className="p-6 pb-4 border-b border-gray-100 flex-shrink-0 bg-white z-10">
+            <div className="p-6 pb-4 border-b border-gray-100 shrink-0 bg-white z-10">
               <Flex direction="column" gap="4">
                 <Text size="2" color="gray">
                   {t("settings.vocabulary.hotWords.description")}
@@ -686,10 +726,14 @@ export const VocabularySettings: React.FC = () => {
                 <Table.Root variant="surface">
                   <Table.Header className="sticky top-0 bg-white z-20 shadow-sm">
                     <Table.Row>
-                      <Table.ColumnHeaderCell>
+                      <Table.ColumnHeaderCell className="whitespace-nowrap">
                         {t("settings.vocabulary.hotWords.word")}
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="80px" align="right">
+                      <Table.ColumnHeaderCell
+                        className="whitespace-nowrap"
+                        width="80px"
+                        align="right"
+                      >
                         {t("settings.vocabulary.actions")}
                       </Table.ColumnHeaderCell>
                     </Table.Row>
@@ -707,7 +751,7 @@ export const VocabularySettings: React.FC = () => {
                             variant="ghost"
                             size="1"
                             color="red"
-                            onClick={() => handleRemoveWord(word)}
+                            onClick={() => confirmRemoveHotword(word)}
                             disabled={isUpdating("custom_words")}
                           >
                             <IconTrash size={14} />
@@ -726,6 +770,46 @@ export const VocabularySettings: React.FC = () => {
           </Flex>
         )}
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog.Root open={!!deleteType} onOpenChange={cancelDelete}>
+        <AlertDialog.Content maxWidth="450px">
+          <AlertDialog.Title>
+            {t("settings.vocabulary.deleteConfirm.title", "Confirm Deletion")}
+          </AlertDialog.Title>
+          <AlertDialog.Description size="2">
+            {deleteType === "correction"
+              ? t(
+                  "settings.vocabulary.deleteConfirm.correctionMessage",
+                  "Are you sure you want to delete this correction rule? This action cannot be undone.",
+                )
+              : t(
+                  "settings.vocabulary.deleteConfirm.hotwordMessage",
+                  "Are you sure you want to remove this hot word?",
+                )}
+          </AlertDialog.Description>
+          <Flex gap="3" mt="4" justify="end">
+            <AlertDialog.Cancel>
+              <Button variant="soft" color="gray" onClick={cancelDelete}>
+                {t("common.cancel")}
+              </Button>
+            </AlertDialog.Cancel>
+            <AlertDialog.Action>
+              <Button
+                variant="solid"
+                color="red"
+                onClick={
+                  deleteType === "correction"
+                    ? executeDeleteCorrection
+                    : executeRemoveHotword
+                }
+              >
+                {t("common.delete")}
+              </Button>
+            </AlertDialog.Action>
+          </Flex>
+        </AlertDialog.Content>
+      </AlertDialog.Root>
     </>
   );
 };

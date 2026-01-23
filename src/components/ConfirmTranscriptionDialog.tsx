@@ -12,6 +12,8 @@ export interface TranscriptionReviewData {
   history_id: number | null;
 }
 
+import { extractCorrections } from "../lib/correctionUtils";
+
 interface ConfirmTranscriptionDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,6 +38,33 @@ export const ConfirmTranscriptionDialog: React.FC<
     if (!reviewData || isSubmitting) return;
 
     setIsSubmitting(true);
+
+    // Auto-learn corrections
+    try {
+      const corrections = extractCorrections(reviewData.text, editedText);
+      // Fire and forget recording corrections
+      // We invoke sequentially to avoid race conditions or db locks, though parallel is fine too
+      if (corrections.length > 0) {
+        console.log("Auto-learning corrections:", corrections);
+        for (const c of corrections) {
+          // Ignore errors for individual corrections to ensure confirmation proceeds
+          // For manual corrections in review, we default to global (null appName)
+          // unless we want to support triggering app context later.
+          // Current requirement: "Effective for full sentence or triggering app"
+          // Since we don't have triggering app info in this dialog props easily yet, null (Global) is the safest default
+          invoke("record_vocabulary_correction", {
+            original_text: c.original,
+            corrected_text: c.corrected,
+            app_name: null,
+          }).catch((err) =>
+            console.warn("Failed to learn correction:", c, err),
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Error in correction learning:", e);
+    }
+
     try {
       await invoke("confirm_reviewed_transcription", {
         text: editedText.trim(),
@@ -67,6 +96,8 @@ export const ConfirmTranscriptionDialog: React.FC<
       setIsSubmitting(false);
     }
   }, [onClose, isSubmitting, editedText, reviewData?.history_id]);
+
+  // ... rest of the file (key handlers, render)
 
   // Handle keyboard shortcuts
   useEffect(() => {
