@@ -580,18 +580,15 @@ export const HotwordSettings: React.FC = () => {
     scenarios: HotwordScenario[],
   ) => {
     try {
-      const updatedHotword = await invoke<Hotword>("update_hotword", {
+      await invoke<Hotword>("update_hotword", {
         id,
         target,
         originals,
         category,
         scenarios,
       });
-      if (updatedHotword) {
-        setHotwords((prev) =>
-          prev.map((h) => (h && h.id === id ? updatedHotword : h)),
-        );
-      }
+      // Reload all hotwords to ensure consistent state
+      await loadHotwords();
     } catch (e) {
       console.error(`[HotwordSettings] Failed to edit hotword ${id}:`, e);
     }
@@ -643,88 +640,59 @@ export const HotwordSettings: React.FC = () => {
 
   // Batch action handlers
   const handleBatchChangeCategory = async (newCategory: HotwordCategory) => {
-    const updates: Map<number, Hotword> = new Map();
-
     for (const id of selectedIds) {
       const hotword = hotwords.find((h) => h && h.id === id);
       if (hotword && hotword.category !== newCategory) {
         try {
-          const updated = await invoke<Hotword>("update_hotword", {
+          await invoke<Hotword>("update_hotword", {
             id,
             target: hotword.target,
             originals: hotword.originals,
             category: newCategory,
             scenarios: hotword.scenarios,
           });
-          if (updated) {
-            updates.set(id, updated);
-          }
         } catch (e) {
           console.error(`[HotwordSettings] Failed to update hotword ${id}:`, e);
         }
       }
     }
-
-    // Single state update with all changes
-    if (updates.size > 0) {
-      setHotwords((prev) =>
-        prev.map((h) => (h && updates.has(h.id) ? updates.get(h.id)! : h)),
-      );
-    }
     clearSelection();
+    await loadHotwords();
   };
 
   const handleBatchChangeScenarios = async (
     newScenarios: HotwordScenario[],
   ) => {
-    const updates: Map<number, Hotword> = new Map();
-
     for (const id of selectedIds) {
       const hotword = hotwords.find((h) => h && h.id === id);
       if (hotword) {
         try {
-          const updated = await invoke<Hotword>("update_hotword", {
+          await invoke<Hotword>("update_hotword", {
             id,
             target: hotword.target,
             originals: hotword.originals,
             category: hotword.category,
             scenarios: newScenarios,
           });
-          if (updated) {
-            updates.set(id, updated);
-          }
         } catch (e) {
           console.error(`[HotwordSettings] Failed to update hotword ${id}:`, e);
         }
       }
     }
-
-    // Single state update with all changes
-    if (updates.size > 0) {
-      setHotwords((prev) =>
-        prev.map((h) => (h && updates.has(h.id) ? updates.get(h.id)! : h)),
-      );
-    }
     clearSelection();
+    await loadHotwords();
   };
 
   const handleBatchDelete = async () => {
-    const deletedIds: Set<number> = new Set();
-
     for (const id of selectedIds) {
       try {
         await invoke("delete_hotword", { id });
-        deletedIds.add(id);
       } catch (e) {
         console.error(`[HotwordSettings] Failed to delete hotword ${id}:`, e);
       }
     }
-
-    // Single state update
-    if (deletedIds.size > 0) {
-      setHotwords((prev) => prev.filter((h) => h && !deletedIds.has(h.id)));
-    }
     clearSelection();
+    await loadHotwords();
   };
 
   // Export handler
