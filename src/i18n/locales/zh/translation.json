@@ -422,8 +422,8 @@
       "transcriptionFailedSaved": "转录失败（已保存）"
     },
     "skillConfirmation": {
-      "confirmUse": " 此技能处理？",
-      "detectedSelection": "检测到选中内容，是否使用 ",
+      "confirmUse": "处理选中内容？",
+      "detectedSelection": "是否使用 ",
       "prompt": "使用此技能？"
     },
     "status": {

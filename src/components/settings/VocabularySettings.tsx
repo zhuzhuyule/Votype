@@ -11,7 +11,6 @@ import {
   Table,
   Text,
   TextField,
-  Tooltip,
 } from "@radix-ui/themes";
 import {
   IconAbc,
@@ -34,7 +33,6 @@ interface VocabularyCorrection {
   id: number;
   original_text: string;
   corrected_text: string;
-  app_name: string | null;
   correction_count: number;
   first_seen_at: number;
   last_seen_at: number;
@@ -50,6 +48,7 @@ const VocabularyScopeEditor: React.FC<{
   correction: VocabularyCorrection;
   onUpdate: (
     id: number,
+    correctedText: string,
     isGlobal: boolean,
     targetApps: string | null,
   ) => Promise<void>;
@@ -101,8 +100,7 @@ const VocabularyScopeEditor: React.FC<{
         return [];
       }
     }
-    // If not is_global and no target_apps, it means "source app only"
-    return correction.app_name ? [correction.app_name] : [];
+    return [];
   };
 
   const selectedScopes = getSelectedScopes();
@@ -114,10 +112,20 @@ const VocabularyScopeEditor: React.FC<{
   const handleToggleAll = async () => {
     if (isAllSelected) {
       // Deselect all
-      await onUpdate(correction.id, false, JSON.stringify([]));
+      await onUpdate(
+        correction.id,
+        correction.corrected_text,
+        false,
+        JSON.stringify([]),
+      );
     } else {
       // Select all
-      await onUpdate(correction.id, false, JSON.stringify(allScopeValues));
+      await onUpdate(
+        correction.id,
+        correction.corrected_text,
+        false,
+        JSON.stringify(allScopeValues),
+      );
     }
   };
 
@@ -131,18 +139,17 @@ const VocabularyScopeEditor: React.FC<{
       newScopes = selectedScopes.filter((s) => s !== scope);
     }
     // If scopes become empty, keep as empty array (none)
-    await onUpdate(correction.id, false, JSON.stringify(newScopes));
+    await onUpdate(
+      correction.id,
+      correction.corrected_text,
+      false,
+      JSON.stringify(newScopes),
+    );
   };
 
   const getLabel = () => {
     if (isAllSelected) return t("settings.vocabulary.scope.global");
     if (selectedScopes.length === 0) {
-      // Legacy behavior: empty target_apps with app_name means source app only
-      if (correction.app_name && !correction.target_apps) {
-        return t("settings.vocabulary.scope.source", {
-          app: correction.app_name,
-        });
-      }
       return t("settings.vocabulary.scope.none");
     }
     if (selectedScopes.length === 1) {
@@ -253,6 +260,40 @@ export const VocabularySettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState("corrections"); // Default to corrections
   const [loadingCorrections, setLoadingCorrections] = useState(true);
 
+  // Group corrections by target word (case-insensitive)
+  const groupedCorrections = React.useMemo(() => {
+    const groups = new Map<
+      string,
+      VocabularyCorrection & { triggers: string[] }
+    >();
+
+    corrections.forEach((c) => {
+      const key = c.corrected_text.toLowerCase();
+      const existing = groups.get(key);
+
+      if (existing) {
+        // Merge logic
+        existing.correction_count += c.correction_count;
+        existing.last_seen_at = Math.max(existing.last_seen_at, c.last_seen_at);
+        // Add trigger if unique
+        if (!existing.triggers.includes(c.original_text)) {
+          existing.triggers.push(c.original_text);
+        }
+        // If the current one is global or has explicit target apps, prefer that config
+        if (c.target_apps && !existing.target_apps) {
+          existing.target_apps = c.target_apps;
+          existing.is_global = c.is_global;
+        }
+      } else {
+        groups.set(key, { ...c, triggers: [c.original_text] });
+      }
+    });
+
+    return Array.from(groups.values()).sort(
+      (a, b) => b.last_seen_at - a.last_seen_at,
+    );
+  }, [corrections]);
+
   // Aggregate all known apps from profiles and existing corrections
   const knownApps = React.useMemo(() => {
     const apps = new Set<string>();
@@ -264,7 +305,6 @@ export const VocabularySettings: React.FC = () => {
 
     // 2. Add apps from existing corrections (skip rule-format strings containing ##)
     corrections.forEach((c) => {
-      if (c.app_name) apps.add(c.app_name);
       if (c.target_apps) {
         try {
           const targets = JSON.parse(c.target_apps);
@@ -343,16 +383,22 @@ export const VocabularySettings: React.FC = () => {
   }, []);
 
   const handleUpdateScope = useCallback(
-    async (id: number, isGlobal: boolean, targetApps: string | null) => {
+    async (
+      id: number,
+      correctedText: string,
+      isGlobal: boolean,
+      targetApps: string | null,
+    ) => {
       try {
         await invoke("update_vocabulary_correction_scope", {
-          id,
+          correctedText,
           isGlobal,
           targetApps,
         });
         setCorrections((prev) =>
           prev.map((c) =>
-            c.id === id
+            // Update all records with matching corrected_text (case-insensitive) to reflect the new scope
+            c.corrected_text.toLowerCase() === correctedText.toLowerCase()
               ? {
                   ...c,
                   is_global: isGlobal,
@@ -420,6 +466,7 @@ export const VocabularySettings: React.FC = () => {
   };
 
   const formatRelativeTime = (timestamp: number) => {
+    // ... same logic
     const now = Date.now() / 1000;
     const diff = now - timestamp;
     if (diff < 60) return t("common.time.justNow");
@@ -453,10 +500,11 @@ export const VocabularySettings: React.FC = () => {
         </SegmentedControl.Root>
       </Flex>
       <Card className="max-w-5xl w-full mx-auto p-0 overflow-hidden flex flex-col h-[calc(100vh-120px)]">
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* Corrections Tab Content (Now First) */}
-          {activeTab === "corrections" && (
-            <Flex direction="column" gap="4" className="animate-fade-in-up">
+        {/* Corrections Tab Content */}
+        {activeTab === "corrections" && (
+          <Flex direction="column" className="h-full animate-fade-in-up">
+            {/* Fixed Header */}
+            <div className="p-6 pb-4 border-b border-gray-100 flex-shrink-0 bg-white z-10">
               <Flex justify="between" align="center">
                 <Text size="2" color="gray">
                   {t("settings.vocabulary.corrections.description")}
@@ -476,59 +524,67 @@ export const VocabularySettings: React.FC = () => {
                   </Button>
                 </Flex>
               </Flex>
+            </div>
 
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
               {/* Corrections table */}
               {loadingCorrections ? (
                 <Text size="2" color="gray" className="py-8 text-center">
                   {t("common.loading")}
                 </Text>
-              ) : corrections.length > 0 ? (
+              ) : groupedCorrections.length > 0 ? (
                 <Table.Root variant="surface">
-                  <Table.Header>
+                  <Table.Header className="sticky top-0 bg-white z-20 shadow-sm">
                     <Table.Row>
-                      <Table.ColumnHeaderCell>
-                        {t("settings.vocabulary.corrections.correction")}
+                      <Table.ColumnHeaderCell width="35%">
+                        {t("settings.vocabulary.corrections.correction")}{" "}
+                        (Target)
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell>
-                        {t("settings.vocabulary.corrections.source")}
+                      <Table.ColumnHeaderCell width="25%">
+                        Triggers
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="60px" align="center">
+                      <Table.ColumnHeaderCell width="15%" align="center">
                         {t("settings.vocabulary.corrections.count")}
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="120px" align="center">
+                      <Table.ColumnHeaderCell width="20%" align="center">
                         {t("settings.vocabulary.corrections.scope")}
                       </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell width="60px" align="right">
+                      <Table.ColumnHeaderCell width="5%" align="right">
                         {t("settings.vocabulary.actions")}
                       </Table.ColumnHeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {corrections.map((c) => (
+                    {groupedCorrections.map((c) => (
                       <Table.Row key={c.id}>
                         <Table.Cell>
-                          <Flex align="center" gap="2">
-                            <Text
-                              size="2"
-                              className="font-mono text-red-500 line-through"
-                            >
-                              {c.original_text}
-                            </Text>
-                            <Text size="2" color="gray">
-                              →
-                            </Text>
-                            <Text size="2" className="font-mono text-green-500">
-                              {c.corrected_text}
-                            </Text>
-                          </Flex>
+                          <Text
+                            size="2"
+                            weight="bold"
+                            className="font-mono text-green-600"
+                          >
+                            {c.corrected_text}
+                          </Text>
                         </Table.Cell>
                         <Table.Cell>
-                          <Tooltip content={formatRelativeTime(c.last_seen_at)}>
-                            <Text size="1" color="gray">
-                              {c.app_name ||
-                                t("settings.vocabulary.corrections.allApps")}
-                            </Text>
-                          </Tooltip>
+                          <Flex wrap="wrap" gap="1">
+                            {c.triggers.slice(0, 5).map((trigger, i) => (
+                              <Badge
+                                key={i}
+                                size="1"
+                                color="gray"
+                                variant="soft"
+                              >
+                                {trigger}
+                              </Badge>
+                            ))}
+                            {c.triggers.length > 5 && (
+                              <Badge size="1" color="gray" variant="soft">
+                                +{c.triggers.length - 5}
+                              </Badge>
+                            )}
+                          </Flex>
                         </Table.Cell>
                         <Table.Cell align="center">
                           <Badge size="1" color="gray">
@@ -557,6 +613,7 @@ export const VocabularySettings: React.FC = () => {
                             size="1"
                             color="red"
                             onClick={() => handleDeleteCorrection(c.id)}
+                            title="Delete this variant"
                           >
                             <IconTrash size={14} />
                           </IconButton>
@@ -570,56 +627,64 @@ export const VocabularySettings: React.FC = () => {
                   {t("settings.vocabulary.corrections.empty")}
                 </Text>
               )}
-            </Flex>
-          )}
+            </div>
+          </Flex>
+        )}
 
-          {/* Hot Words Tab Content */}
-          {activeTab === "hotwords" && (
-            <Flex direction="column" gap="4" className="animate-fade-in-up">
-              <Text size="2" color="gray">
-                {t("settings.vocabulary.hotWords.description")}
-              </Text>
+        {/* Hot Words Tab Content */}
+        {activeTab === "hotwords" && (
+          <Flex direction="column" className="h-full animate-fade-in-up">
+            {/* Fixed Header */}
+            <div className="p-6 pb-4 border-b border-gray-100 flex-shrink-0 bg-white z-10">
+              <Flex direction="column" gap="4">
+                <Text size="2" color="gray">
+                  {t("settings.vocabulary.hotWords.description")}
+                </Text>
 
-              {/* Add word + Export/Import */}
-              <Flex gap="2" align="center" wrap="wrap">
-                <TextField.Root
-                  value={newWord}
-                  onChange={(e) => setNewWord(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder={t("settings.vocabulary.hotWords.placeholder")}
-                  disabled={isUpdating("custom_words")}
-                  className="flex-1 min-w-[200px]"
-                />
-                <Button
-                  onClick={handleAddWord}
-                  disabled={
-                    !newWord.trim() ||
-                    newWord.includes(" ") ||
-                    newWord.trim().length > 50 ||
-                    isUpdating("custom_words")
-                  }
-                >
-                  <IconPlus size={14} />
-                  {t("common.add")}
-                </Button>
-                <Button variant="soft" onClick={handleImportHotWords}>
-                  <IconUpload size={14} />
-                  {t("settings.vocabulary.import")}
-                </Button>
-                <Button
-                  variant="soft"
-                  onClick={handleExportHotWords}
-                  disabled={customWords.length === 0}
-                >
-                  <IconDownload size={14} />
-                  {t("settings.vocabulary.export")}
-                </Button>
+                {/* Add word + Export/Import */}
+                <Flex gap="2" align="center" wrap="wrap">
+                  <TextField.Root
+                    value={newWord}
+                    onChange={(e) => setNewWord(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder={t("settings.vocabulary.hotWords.placeholder")}
+                    disabled={isUpdating("custom_words")}
+                    className="flex-1 min-w-[200px]"
+                  />
+                  <Button
+                    onClick={handleAddWord}
+                    disabled={
+                      !newWord.trim() ||
+                      newWord.includes(" ") ||
+                      newWord.trim().length > 50 ||
+                      isUpdating("custom_words")
+                    }
+                  >
+                    <IconPlus size={14} />
+                    {t("common.add")}
+                  </Button>
+                  <Button variant="soft" onClick={handleImportHotWords}>
+                    <IconUpload size={14} />
+                    {t("settings.vocabulary.import")}
+                  </Button>
+                  <Button
+                    variant="soft"
+                    onClick={handleExportHotWords}
+                    disabled={customWords.length === 0}
+                  >
+                    <IconDownload size={14} />
+                    {t("settings.vocabulary.export")}
+                  </Button>
+                </Flex>
               </Flex>
+            </div>
 
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
               {/* Hot words table */}
               {customWords.length > 0 ? (
                 <Table.Root variant="surface">
-                  <Table.Header>
+                  <Table.Header className="sticky top-0 bg-white z-20 shadow-sm">
                     <Table.Row>
                       <Table.ColumnHeaderCell>
                         {t("settings.vocabulary.hotWords.word")}
@@ -657,9 +722,9 @@ export const VocabularySettings: React.FC = () => {
                   {t("settings.vocabulary.hotWords.empty")}
                 </Text>
               )}
-            </Flex>
-          )}
-        </div>
+            </div>
+          </Flex>
+        )}
       </Card>
     </>
   );

@@ -1,16 +1,15 @@
 // ReviewWindow - Independent window for reviewing low-confidence transcriptions
 // This provides a floating window UI for editing and inserting transcribed text
 
-import { Box, Button, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Text, Tooltip } from "@radix-ui/themes";
 import {
   IconCheck,
   IconClipboard,
   IconCopy,
-  IconMessageCircle,
   IconTextPlus,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
-import { Mark } from "@tiptap/core";
+import { Extension, Mark } from "@tiptap/core";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
@@ -21,7 +20,7 @@ import {
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import hljs from "highlight.js";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CancelIcon } from "../components/icons";
 import "./ReviewWindow.css";
@@ -680,7 +679,7 @@ const CodeBlockComponent = ({
             variant="soft"
             color={copyState === "success" ? "green" : "gray"}
             onClick={handleCopy}
-            className="cursor-pointer shadow-sm backdrop-blur-sm !px-1.5"
+            className="cursor-pointer shadow-sm backdrop-blur-sm px-1.5!"
           >
             {copyState === "success" ? (
               <IconCheck size={14} />
@@ -695,7 +694,7 @@ const CodeBlockComponent = ({
             variant="soft"
             color={insertState === "success" ? "green" : "gray"}
             onClick={handleInsert}
-            className="cursor-pointer shadow-sm backdrop-blur-sm !px-1.5"
+            className="cursor-pointer shadow-sm backdrop-blur-sm px-1.5!"
           >
             {insertState === "success" ? (
               <IconCheck size={14} />
@@ -731,6 +730,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     navigator.platform.toLowerCase().includes("mac");
   const insertShortcut = isMac ? "⌘⏎" : "Ctrl⏎";
 
+  // Use refs to access latest callbacks inside Tiptap extension
+  const insertRef = useRef<() => void>(() => {});
+  const cancelRef = useRef<() => void>(() => {});
+
   const editor = useEditor(
     {
       extensions: [
@@ -748,6 +751,25 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             "transcription.review.placeholder",
             "Edit transcription...",
           ),
+        }),
+        Extension.create({
+          name: "shortcuts",
+          addKeyboardShortcuts() {
+            return {
+              "Mod-Enter": () => {
+                insertRef.current();
+                return true;
+              },
+              Tab: () => {
+                insertRef.current();
+                return true;
+              },
+              Escape: () => {
+                cancelRef.current();
+                return true;
+              },
+            };
+          },
         }),
       ],
       content:
@@ -826,6 +848,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
   }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
 
+  // Keep refs updated
+  useEffect(() => {
+    insertRef.current = handleInsert;
+  }, [handleInsert]);
+
   const handleCancel = useCallback(() => {
     if (isSubmitting) return;
 
@@ -845,22 +872,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     })();
   }, [onClose, isSubmitting, initialData.history_id, getEditorText]);
 
-  // Handle keyboard shortcuts
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      // Tab or Cmd/Ctrl+Enter to insert
-      if (e.key === "Tab" || ((e.metaKey || e.ctrlKey) && e.key === "Enter")) {
-        e.preventDefault();
-        handleInsert();
-      }
-      // Escape to cancel
-      if (e.key === "Escape") {
-        e.preventDefault();
-        handleCancel();
-      }
-    },
-    [handleInsert, handleCancel],
-  );
+  // Keep refs updated
+  useEffect(() => {
+    cancelRef.current = handleCancel;
+  }, [handleCancel]);
 
   const getChangeColor = (changePercent: number): string => {
     if (changePercent >= 85) return "var(--ruby-9)";
@@ -880,10 +895,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   return (
     <div className="w-screen h-screen flex items-center justify-center p-0 box-border overflow-hidden bg-transparent">
-      <div
-        className="w-full h-full flex flex-col bg-[var(--color-panel-solid)] relative border border-[var(--gray-5)] rounded-[12px] shadow-[var(--shadow-5)] overflow-hidden"
-        style={{ animation: "slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
-      >
+      <div className="review-window-container">
         <div
           className="cursor-grab select-none"
           onPointerDown={(e) => {
@@ -896,94 +908,67 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           }}
         >
           {initialData.output_mode !== "chat" && (
-            <Flex
-              justify="between"
-              align="center"
-              className="px-3.5 py-3 border-b border-[var(--gray-4)] bg-[var(--gray-2)] select-none cursor-grab"
-            >
-              <Flex align="center" gap="2">
+            <div className="review-header">
+              <div className="review-change-badge">
                 <Box
-                  className="w-2 h-2 rounded-full"
+                  className="review-status-dot"
                   style={{
                     backgroundColor: getChangeColor(initialData.change_percent),
+                    color: getChangeColor(initialData.change_percent),
                   }}
                 />
-                <Text
-                  size="1"
-                  weight="bold"
-                  style={{ color: "var(--gray-11)" }}
-                >
-                  {t("transcription.review.change", "Change")}:{" "}
-                  {initialData.change_percent}%
-                </Text>
-                <span
-                  className="review-tooltip review-tooltip-bottom review-change-tip"
-                  data-tooltip={t(
-                    "transcription.review.highlightHint",
-                    "Highlighted words indicate LLM edits.",
-                  )}
-                >
-                  ?
+                <span className="change-label">
+                  {t("transcription.review.change", "Change")}
                 </span>
-              </Flex>
+                <span
+                  className={`change-value ${
+                    initialData.change_percent < 50
+                      ? "change-low"
+                      : initialData.change_percent < 85
+                        ? "change-medium"
+                        : "change-high"
+                  }`}
+                >
+                  {initialData.change_percent}%
+                </span>
+              </div>
               <div
                 className="review-tooltip review-tooltip-bottom"
-                data-tooltip="按 ESC 也可关闭"
+                data-tooltip="ESC"
               >
                 <div
-                  className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
+                  className="review-close-button review-close-btn"
                   onClick={handleCancel}
                 >
                   <CancelIcon />
                 </div>
               </div>
-            </Flex>
+            </div>
           )}
 
           {initialData.output_mode === "chat" && (
-            <Flex
-              justify="between"
-              align="center"
-              className="px-3.5 py-3 border-b border-[var(--gray-4)] bg-[var(--gray-2)] select-none cursor-grab"
-            >
-              <Flex align="center" gap="2">
-                <Text
-                  size="1"
-                  weight="bold"
-                  style={{ color: "var(--gray-11)" }}
-                >
-                  {initialData.skill_name ||
-                    t(
-                      "transcription.review.generationTitle",
-                      "AI Assistant Response",
-                    )}
-                </Text>
-                {initialData.source_text && (
-                  <span
-                    className="review-tooltip review-tooltip-bottom review-tooltip-wide review-change-tip"
-                    data-tooltip={initialData.source_text}
-                  >
-                    <IconMessageCircle size={14} />
-                  </span>
-                )}
-              </Flex>
+            <div className="review-header">
+              <div className="review-skill-name">
+                {initialData.skill_name ||
+                  t("transcription.review.generationTitle", "AI Assistant")}
+              </div>
               <div
                 className="review-tooltip review-tooltip-bottom"
-                data-tooltip="Close (ESC)"
+                data-tooltip="ESC"
               >
                 <div
-                  className="review-close-button w-6 h-6 flex items-center justify-center rounded-[6px] cursor-pointer text-[var(--gray-10)] transition-all duration-200 hover:bg-[var(--gray-4)] hover:text-[var(--gray-12)]"
+                  className="review-close-button review-close-btn"
                   onClick={handleCancel}
                 >
                   <CancelIcon />
                 </div>
               </div>
-            </Flex>
+            </div>
           )}
         </div>
 
-        {/* Editable textarea */}
-        <div className="flex-1 p-3 flex flex-col min-h-0 gap-2">
+        {/* Editable content area */}
+        <div className="review-content-area">
           {/* Source section - only show for polish mode */}
           {initialData.output_mode !== "chat" && (
             <div className="review-section">
@@ -1007,70 +992,50 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 {t("transcription.review.final", "Final output")}
               </Text>
             )}
-            <EditorContent
-              editor={editor}
-              onKeyDown={handleKeyDown}
-              className="flex-1 min-h-0"
-            />
+            <EditorContent editor={editor} className="flex-1 min-h-0" />
           </div>
         </div>
 
         {/* Footer with hint and insert button */}
-        <Flex
-          justify="between"
-          align="center"
-          className="px-3.5 py-2.5 border-t border-[var(--gray-4)] bg-[var(--gray-1)]"
-        >
+        <div className="review-footer">
           <div className="review-footer-left">
             {initialData.reason?.trim() ? (
-              <Text size="1" className="text-[var(--gray-10)] text-[11px]">
-                {initialData.reason}
-              </Text>
+              <span className="reason-text">{initialData.reason}</span>
             ) : null}
           </div>
-          <Flex align="center" gap="2" className="review-footer-actions">
+          <div className="review-footer-actions">
             {initialData.output_mode === "chat" && (
-              <Button
-                variant="soft"
-                size="1"
+              <button
+                className="review-btn-secondary"
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(getEditorText());
-                    // Optional: Show toast or feedback
                   } catch (err) {
                     console.error("Failed to copy text: ", err);
                   }
                 }}
                 disabled={isSubmitting || !getEditorText().trim()}
-                className="review-copy-button"
               >
-                <IconCopy size={12} />
+                <IconCopy size={14} />
                 {t("common.copy", "Copy")}
-              </Button>
+              </button>
             )}
             <div
               className="review-tooltip review-tooltip-top"
-              data-tooltip={t(
-                "transcription.review.insertStabilityHint",
-                `快捷键：${insertShortcut}\n如果插入不稳定，可暂时关闭该功能。`,
-              )}
+              data-tooltip={`${insertShortcut}`}
             >
-              <Button
-                variant="classic"
-                size="1"
+              <button
+                className="review-btn-primary"
                 onClick={handleInsert}
                 disabled={isSubmitting || !getEditorText().trim()}
                 data-tauri-drag-region="false"
-                className="review-insert-button"
               >
-                <Flex align="center" gap="1">
-                  {t("transcription.review.insert", "Insert")}
-                  <IconTextPlus size={14} />
-                </Flex>
-              </Button>
+                {t("transcription.review.insert", "Insert")}
+                <IconTextPlus size={16} />
+              </button>
             </div>
-          </Flex>
-        </Flex>
+          </div>
+        </div>
       </div>
     </div>
   );

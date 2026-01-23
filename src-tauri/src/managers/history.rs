@@ -103,6 +103,42 @@ static MIGRATIONS: &[M] = &[
     // Migration 14: Add target_apps column for multi-app scoping
     // Stores a JSON array of app names that this correction applies to (when is_global=0)
     M::up("ALTER TABLE vocabulary_corrections ADD COLUMN target_apps TEXT;"),
+    // Migration 15: Refactor vocabulary_corrections to be app-agnostic (global only)
+    // 1. Create new table without app-specific columns
+    // 2. Aggregate existing data by (original_text, corrected_text)
+    // 3. Replace old table
+    M::up(
+        "CREATE TABLE vocabulary_corrections_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_text TEXT NOT NULL,
+            corrected_text TEXT NOT NULL,
+            correction_count INTEGER DEFAULT 1,
+            first_seen_at INTEGER NOT NULL,
+            last_seen_at INTEGER NOT NULL,
+            UNIQUE(original_text, corrected_text)
+        );
+
+        INSERT INTO vocabulary_corrections_new (original_text, corrected_text, correction_count, first_seen_at, last_seen_at)
+        SELECT 
+            original_text, 
+            corrected_text, 
+            SUM(correction_count), 
+            MIN(first_seen_at), 
+            MAX(last_seen_at)
+        FROM vocabulary_corrections
+        GROUP BY original_text, corrected_text;
+
+        DROP TABLE vocabulary_corrections;
+        ALTER TABLE vocabulary_corrections_new RENAME TO vocabulary_corrections;",
+    ),
+    // Migration 16: Restore scope columns (is_global, target_apps) but bound to corrected_text concept
+    // 1. Add columns back
+    // 2. Add index on corrected_text for efficient bulk updates/inheritance
+    M::up(
+        "ALTER TABLE vocabulary_corrections ADD COLUMN is_global BOOLEAN NOT NULL DEFAULT 1;
+         ALTER TABLE vocabulary_corrections ADD COLUMN target_apps TEXT;
+         CREATE INDEX IF NOT EXISTS idx_vc_corrected ON vocabulary_corrections(corrected_text);",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -581,7 +617,7 @@ impl HistoryManager {
         field: &str,
         new_text: String,
         step_index: Option<usize>,
-        app_name: Option<String>,
+        _app_name: Option<String>,
     ) -> Result<()> {
         use crate::managers::vocabulary::VocabularyManager;
 
@@ -634,7 +670,7 @@ impl HistoryManager {
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
                 for diff in &diffs {
-                    if let Err(e) = vocab_manager.record_correction(diff, app_name.as_deref()) {
+                    if let Err(e) = vocab_manager.record_correction(diff) {
                         error!("Failed to record vocabulary correction: {}", e);
                     }
                 }

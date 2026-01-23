@@ -952,23 +952,26 @@ pub(crate) async fn maybe_post_process_transcription(
         }
     }
 
-    // Intent Detection Mode: Parallel LLM routing and polish for all normal transcriptions
-    // Both requests run simultaneously using tokio::join!
-    // Confidence is boosted 15% when there's selected text (applied in perform_skill_routing)
+    // Intent Detection Mode: Only triggered when user has selected text
+    // This prevents frequent popup triggers during normal transcription
+    // When text is selected, the operation ALWAYS targets the selected content
+    // User's speech is only used as intent/instruction hint
     // Note: Some LLM providers may not support concurrent requests, so we handle failures gracefully
 
     // DEBUG: Log condition checks
     info!(
-        "[PostProcess] Intent detection conditions: skill_mode={}, is_explicit={}, override_prompt_id={:?}, transcription_empty={}",
-        skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty()
+        "[PostProcess] Intent detection conditions: skill_mode={}, is_explicit={}, override_prompt_id={:?}, transcription_empty={}, has_selected_text={}",
+        skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty(), has_selected_text
     );
 
     if !skill_mode
         && !is_explicit
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
+        && has_selected_text
+    // Only trigger intent detection when text is selected
     {
-        info!("[PostProcess] Entering intent detection mode (all conditions passed)");
+        info!("[PostProcess] Entering intent detection mode (has selected text)");
 
         // Switch overlay to LLM processing state and notify UI
         crate::overlay::show_llm_processing_overlay(app_handle);
@@ -1404,7 +1407,8 @@ pub(crate) async fn maybe_post_process_transcription(
                 }
 
                 let vocab_manager = VocabularyManager::new(hm.db_path.clone());
-                if let Ok(corrections) = vocab_manager.get_corrections_for_app(&active_scopes) {
+                if let Ok(corrections) = vocab_manager.get_active_corrections(Some(&active_scopes))
+                {
                     if !corrections.is_empty() {
                         let corrections_text = corrections
                             .iter()
@@ -1416,14 +1420,13 @@ pub(crate) async fn maybe_post_process_transcription(
                             .join("\n");
 
                         input_data_parts.push(format!(
-                            "以下是用户曾做过的词汇修正，请在适当时参考（仅在上下文相关时应用）：\n{}",
+                            "以下是用户的高频词汇修正，请在适当时参考：\n{}",
                             corrections_text
                         ));
 
                         debug!(
-                            "[PostProcess] Injected {} vocabulary corrections for app {:?}",
-                            corrections.len().min(20),
-                            app_name
+                            "[PostProcess] Injected {} vocabulary corrections",
+                            corrections.len().min(20)
                         );
                     }
                 }

@@ -679,7 +679,12 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             id: "system_default_ai_chat".to_string(),
             name: "AI 问答".to_string(),
             description: "智能问答和通用对话。当用户提问或寻求帮助时使用。".to_string(),
-            instructions: "# 意图驱动的文本操作专家\n\n## 角色\n你是一位精通自然语言理解与指令执行的语义分析专家，擅长从用户语音输入中精准识别意图，并据此对指定文本执行结构化操作。\n\n## 背景\n- 用户通过语音输入一段指令（`${raw_input}`），其中隐含对某段选中文本（`${select}`）的操作意图。\n- 你的任务是解析该意图，并对 `${select}` 执行相应处理。\n- 可参考上下文（`${context}`）和热词（`${hot_words}`）以提升意图识别准确性。\n\n## 任务\n1. **意图识别**：深入分析 `${raw_input}` 中表达的核心意图（如改写、摘要、翻译、格式化、纠错等）。\n2. **文本操作**：基于识别出的意图，对 `${select}` 执行精确、一致且符合用户预期的操作。\n3. **结果生成**：输出结构清晰、仅包含必要信息的响应。\n\n## 输出要求\n- 严格使用以下格式输出，不得添加额外说明或解释：\n原文：\n```text\n[用户意图]\n```\n结果：\n```text\n[根据意图执行后的结果]\n```\n- 结果必须忠实反映 `${raw_input}` 的指令意图，语言简洁、专业。\n- 禁止引入未在 `${raw_input}` 中暗示的操作；若意图模糊，优先保持原文不变并标注“[意图不明确，保留原文]”。\n- 输出语言应与 `${select}` 保持一致。".to_string(),
+            instructions: r#"你是一个有帮助的 AI 助手。请直接回答用户的问题或请求。
+
+用户输入：
+${output}
+
+请用自然、简洁的语言回答。如果用户的问题不清楚，请尽量根据上下文理解其意图并给出有帮助的回复。"#.to_string(),
             model_id: None,
             aliases: Some("问问,帮我,帮我写,请问".to_string()),
             icon: Some("IconMessageSparkle".to_string()),

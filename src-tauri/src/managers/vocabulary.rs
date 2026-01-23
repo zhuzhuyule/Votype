@@ -22,7 +22,6 @@ pub struct VocabularyCorrection {
     pub id: i64,
     pub original_text: String,
     pub corrected_text: String,
-    pub app_name: Option<String>,
     pub correction_count: i64,
     pub first_seen_at: i64,
     pub last_seen_at: i64,
@@ -237,7 +236,7 @@ impl VocabularyManager {
 
     /// Record a vocabulary correction to the database
     /// If the same correction already exists, increment its count
-    pub fn record_correction(&self, diff: &WordDiff, app_name: Option<&str>) -> Result<()> {
+    pub fn record_correction(&self, diff: &WordDiff) -> Result<()> {
         if diff.original.is_empty() && diff.corrected.is_empty() {
             return Ok(());
         }
@@ -245,57 +244,70 @@ impl VocabularyManager {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
 
-        // Try to update existing record first
+        // 1. Try to inherit scope from existing corrections for the same target word
+        // This ensures that "Skill -> SKIIL" and "Skil -> SKIIL" share the same scope settings
+        let (inherited_is_global, inherited_target_apps): (bool, Option<String>) = conn
+            .query_row(
+                "SELECT is_global, target_apps FROM vocabulary_corrections 
+                 WHERE corrected_text = ?1 
+                 ORDER BY last_seen_at DESC LIMIT 1",
+                params![diff.corrected],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap_or((true, None)); // Default to global if no precedent
+
+        // 2. Try to update existing record first
         let updated = conn.execute(
             "UPDATE vocabulary_corrections 
              SET correction_count = correction_count + 1, last_seen_at = ?1
-             WHERE original_text = ?2 AND corrected_text = ?3 AND app_name IS ?4",
-            params![now, diff.original, diff.corrected, app_name],
+             WHERE original_text = ?2 AND corrected_text = ?3",
+            params![now, diff.original, diff.corrected],
         )?;
 
         if updated == 0 {
-            // Insert new record
+            // 3. Insert new record with inherited scope
             conn.execute(
-                "INSERT INTO vocabulary_corrections (original_text, corrected_text, app_name, correction_count, first_seen_at, last_seen_at, is_global)
-                 VALUES (?1, ?2, ?3, 1, ?4, ?4, 0)",
-                params![diff.original, diff.corrected, app_name, now],
+                "INSERT INTO vocabulary_corrections 
+                 (original_text, corrected_text, correction_count, first_seen_at, last_seen_at, is_global, target_apps)
+                 VALUES (?1, ?2, 1, ?3, ?3, ?4, ?5)",
+                params![diff.original, diff.corrected, now, inherited_is_global, inherited_target_apps],
             )?;
             info!(
-                "[Vocabulary] New correction recorded: \"{}\" → \"{}\" (app: {:?})",
-                diff.original, diff.corrected, app_name
+                "[Vocabulary] New correction recorded: \"{}\" → \"{}\" (global={}, apps={:?})",
+                diff.original, diff.corrected, inherited_is_global, inherited_target_apps
             );
         } else {
             info!(
-                "[Vocabulary] Correction count incremented: \"{}\" → \"{}\" (app: {:?})",
-                diff.original, diff.corrected, app_name
+                "[Vocabulary] Correction count incremented: \"{}\" → \"{}\"",
+                diff.original, diff.corrected
             );
         }
 
         Ok(())
     }
 
-    /// Get corrections applicable for the given app and active rules
-    /// Returns both app-specific corrections (matching any scope) and global corrections
-    /// Ordered by correction_count (most common first)
-    pub fn get_corrections_for_app(
+    /// Get active corrections (ordered by frequency)
+    /// Returns corrections that should be applied to transcription
+    /// Filtered by active scopes if provided (if None, checking global only is not typically useful, usually we pass scopes)
+    pub fn get_active_corrections(
         &self,
-        active_scopes: &[String],
+        active_scopes: Option<&[String]>,
     ) -> Result<Vec<VocabularyCorrection>> {
         let conn = self.get_connection()?;
 
         let mut stmt = conn.prepare(
-            "SELECT id, original_text, corrected_text, app_name, correction_count, 
+            "SELECT id, original_text, corrected_text, correction_count, 
                     first_seen_at, last_seen_at, is_global, target_apps
              FROM vocabulary_corrections
              ORDER BY correction_count DESC, last_seen_at DESC",
         )?;
 
+        // Reuse the logic to map rows
         let rows = stmt.query_map([], |row| {
             Ok(VocabularyCorrection {
                 id: row.get("id")?,
                 original_text: row.get("original_text")?,
                 corrected_text: row.get("corrected_text")?,
-                app_name: row.get("app_name")?,
                 correction_count: row.get("correction_count")?,
                 first_seen_at: row.get("first_seen_at")?,
                 last_seen_at: row.get("last_seen_at")?,
@@ -307,23 +319,23 @@ impl VocabularyManager {
         let mut corrections = Vec::new();
         for row in rows {
             let correction = row?;
+
             // Filter logic:
             // 1. If global, include it
-            // 2. If app_name is in active_scopes (source app match), include it
-            // 3. If target_apps contains any of the active_scopes, include it
-            let should_include = correction.is_global
-                || (correction
-                    .app_name
-                    .as_ref()
-                    .map_or(false, |name| active_scopes.contains(name)))
-                || (correction.target_apps.as_ref().map_or(false, |apps_json| {
-                    // Try parsing as JSON array
-                    if let Ok(targets) = serde_json::from_str::<Vec<String>>(apps_json) {
-                        targets.iter().any(|t| active_scopes.contains(t))
-                    } else {
-                        false
-                    }
-                }));
+            // 2. If active_scopes is provided and matches target_apps json array
+            let should_include = correction.is_global || {
+                if let Some(scopes) = active_scopes {
+                    correction.target_apps.as_ref().map_or(false, |apps_json| {
+                        if let Ok(targets) = serde_json::from_str::<Vec<String>>(apps_json) {
+                            targets.iter().any(|t| scopes.contains(t))
+                        } else {
+                            false
+                        }
+                    })
+                } else {
+                    false
+                }
+            };
 
             if should_include {
                 corrections.push(correction);
@@ -335,35 +347,71 @@ impl VocabularyManager {
 
     /// Get all corrections (for management UI)
     pub fn get_all_corrections(&self) -> Result<Vec<VocabularyCorrection>> {
-        let conn = self.get_connection()?;
+        self.get_active_corrections(None).map(|mut list| {
+            // Re-fetch everything because get_active_corrections filters.
+            // Actually simpler to just run query again or make get_active_corrections return all if scopes is None?
+            // Implementation logic in get_active_corrections returns NONE if scopes is None and not global.
+            // Let's copy the query logic for get_all_corrections to be safe and clear.
 
-        let mut stmt = conn.prepare(
-            "SELECT id, original_text, corrected_text, app_name, correction_count, 
-                    first_seen_at, last_seen_at, is_global, target_apps
-             FROM vocabulary_corrections
-             ORDER BY last_seen_at DESC",
+            let conn_res = self.get_connection();
+            if conn_res.is_err() {
+                return Vec::new();
+            }
+            let conn = conn_res.unwrap();
+
+            let mut stmt = conn
+                .prepare(
+                    "SELECT id, original_text, corrected_text, correction_count, 
+                first_seen_at, last_seen_at, is_global, target_apps
+                FROM vocabulary_corrections
+                ORDER BY last_seen_at DESC",
+                )
+                .unwrap();
+
+            let rows = stmt
+                .query_map([], |row| {
+                    Ok(VocabularyCorrection {
+                        id: row.get("id")?,
+                        original_text: row.get("original_text")?,
+                        corrected_text: row.get("corrected_text")?,
+                        correction_count: row.get("correction_count")?,
+                        first_seen_at: row.get("first_seen_at")?,
+                        last_seen_at: row.get("last_seen_at")?,
+                        is_global: row.get("is_global")?,
+                        target_apps: row.get("target_apps")?,
+                    })
+                })
+                .unwrap();
+
+            let mut all = Vec::new();
+            for r in rows {
+                all.push(r.unwrap());
+            }
+            all
+        })
+    }
+
+    /// Update scope for ALL corrections that share the same target word
+    pub fn update_scope_by_target(
+        &self,
+        corrected_text: &str,
+        is_global: bool,
+        target_apps: Option<String>,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+        // Update all records with the same corrected_text (case-insensitive)
+        let updated = conn.execute(
+            "UPDATE vocabulary_corrections 
+             SET is_global = ?1, target_apps = ?2 
+             WHERE LOWER(corrected_text) = LOWER(?3)",
+            params![is_global, target_apps, corrected_text],
         )?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok(VocabularyCorrection {
-                id: row.get("id")?,
-                original_text: row.get("original_text")?,
-                corrected_text: row.get("corrected_text")?,
-                app_name: row.get("app_name")?,
-                correction_count: row.get("correction_count")?,
-                first_seen_at: row.get("first_seen_at")?,
-                last_seen_at: row.get("last_seen_at")?,
-                is_global: row.get("is_global")?,
-                target_apps: row.get("target_apps")?,
-            })
-        })?;
-
-        let mut corrections = Vec::new();
-        for row in rows {
-            corrections.push(row?);
-        }
-
-        Ok(corrections)
+        info!(
+            "[Vocabulary] Updated scope for {} corrections targeting \"{}\": global={}, apps={:?}",
+            updated, corrected_text, is_global, target_apps
+        );
+        Ok(())
     }
 
     /// Delete a correction by ID
@@ -374,27 +422,6 @@ impl VocabularyManager {
             params![id],
         )?;
         info!("[Vocabulary] Deleted correction id={}", id);
-        Ok(())
-    }
-
-    /// Set the scope for a correction
-    /// is_global: true if it applies everywhere
-    /// target_apps: JSON array of app names if it applies to specific apps (only used if is_global is false)
-    pub fn update_scope(
-        &self,
-        id: i64,
-        is_global: bool,
-        target_apps: Option<String>,
-    ) -> Result<()> {
-        let conn = self.get_connection()?;
-        conn.execute(
-            "UPDATE vocabulary_corrections SET is_global = ?1, target_apps = ?2 WHERE id = ?3",
-            params![is_global, target_apps, id],
-        )?;
-        info!(
-            "[Vocabulary] Updated scope for correction id={}: global={}, apps={:?}",
-            id, is_global, target_apps
-        );
         Ok(())
     }
 }

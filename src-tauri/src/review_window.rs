@@ -13,11 +13,12 @@ use std::sync::{
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-const REVIEW_WINDOW_WIDTH: f64 = 520.0;
+const REVIEW_WINDOW_WIDTH: f64 = 540.0;
 const REVIEW_WINDOW_MIN_WIDTH: f64 = 480.0;
-const REVIEW_WINDOW_MAX_WIDTH: f64 = 920.0;
-const REVIEW_WINDOW_HEIGHT: f64 = 320.0;
-const REVIEW_WINDOW_MAX_HEIGHT: f64 = 820.0;
+const REVIEW_WINDOW_MAX_WIDTH: f64 = 1080.0;
+const REVIEW_WINDOW_HEIGHT: f64 = 480.0;
+const REVIEW_WINDOW_MIN_HEIGHT: f64 = 420.0;
+const REVIEW_WINDOW_MAX_HEIGHT: f64 = 920.0;
 
 #[derive(Clone, serde::Serialize)]
 struct ReviewWindowPayload {
@@ -85,14 +86,15 @@ fn estimate_window_width(source_text: &str, final_text: &str) -> f64 {
 }
 
 fn estimate_window_height(source_text: &str, final_text: &str, width: f64) -> f64 {
-    let line_chars = (width / 9.5).floor().max(18.0) as usize;
+    let line_chars = (width / 10.5).floor().max(18.0) as usize;
     let source_lines = estimate_line_count(source_text, line_chars);
     let final_lines = estimate_line_count(final_text, line_chars);
     let content_lines = source_lines + final_lines;
-    let content_height = content_lines as f64 * 20.0;
-    let chrome_height = 180.0;
+    // Increased line height estimation due to 16px font
+    let content_height = content_lines as f64 * 28.0;
+    let chrome_height = 140.0; // Compacted Header + Footer
     let height = (chrome_height + content_height)
-        .max(REVIEW_WINDOW_HEIGHT)
+        .max(REVIEW_WINDOW_MIN_HEIGHT)
         .min(REVIEW_WINDOW_MAX_HEIGHT);
     height
 }

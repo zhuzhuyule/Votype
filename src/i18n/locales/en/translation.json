@@ -401,8 +401,8 @@
       "transcriptionFailedSaved": "Transcription failed (saved)"
     },
     "skillConfirmation": {
-      "confirmUse": "to deal?",
-      "detectedSelection": "Detected selection, use this skill ",
+      "confirmUse": "on selection?",
+      "detectedSelection": "Use ",
       "prompt": "Use this skill?"
     },
     "status": {
