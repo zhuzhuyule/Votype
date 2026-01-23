@@ -502,20 +502,18 @@ export const HotwordSettings: React.FC = () => {
   }, [loadHotwords]);
 
   // Filter hotwords by category
-  const filteredHotwords =
-    filter === "all" ? hotwords : hotwords.filter((h) => h.category === filter);
+  const filteredHotwords = React.useMemo(
+    () =>
+      filter === "all"
+        ? hotwords
+        : hotwords.filter((h) => h.category === filter),
+    [filter, hotwords],
+  );
 
-  // Clear selection when filter changes or when selected items are no longer in filtered view
+  // Clear selection when filter changes
   useEffect(() => {
-    const filteredIds = new Set(filteredHotwords.map((h) => h.id));
-    setSelectedIds((prev) => {
-      const validIds = new Set([...prev].filter((id) => filteredIds.has(id)));
-      if (validIds.size !== prev.size) {
-        return validIds;
-      }
-      return prev;
-    });
-  }, [filteredHotwords]);
+    setSelectedIds(new Set());
+  }, [filter]);
 
   // Group hotwords by category for display
   const groupedHotwords = React.useMemo(() => {
