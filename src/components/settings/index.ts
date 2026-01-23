@@ -13,7 +13,6 @@ export { ShortcutsSettings } from "./shortcuts/ShortcutsSettings";
 export { AlwaysOnMicrophone } from "./AlwaysOnMicrophone";
 export { AudioFeedback } from "./AudioFeedback";
 export { ClamshellMicrophoneSelector } from "./ClamshellMicrophoneSelector";
-export { CustomWords } from "./CustomWords";
 export { MicrophoneSelector } from "./MicrophoneSelector";
 export { OutputDeviceSelector } from "./OutputDeviceSelector";
 export { PostProcessingToggle } from "./PostProcessingToggle";
