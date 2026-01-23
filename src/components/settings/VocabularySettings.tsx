@@ -11,17 +11,14 @@ import {
   SegmentedControl,
   Table,
   Text,
-  TextField,
 } from "@radix-ui/themes";
 import {
   IconAbc,
   IconApps,
   IconDownload,
   IconLetterCase,
-  IconPlus,
   IconRefresh,
   IconTrash,
-  IconUpload,
   IconWorld,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
@@ -29,6 +26,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { Card } from "../ui/Card";
+import { HotwordSettings } from "./HotwordSettings";
 
 interface VocabularyCorrection {
   id: number;
@@ -248,16 +246,10 @@ const VocabularyScopeEditor: React.FC<{
 
 export const VocabularySettings: React.FC = () => {
   const { t } = useTranslation();
-  const { getSetting, updateSetting, isUpdating } = useSettings();
-  const [newWord, setNewWord] = useState("");
-  const customWords: string[] = getSetting("custom_words") || [];
+  const { getSetting } = useSettings();
 
-  // Delete Confirmation State
+  // Delete Confirmation State for corrections
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [deleteType, setDeleteType] = useState<"correction" | "hotword" | null>(
-    null,
-  );
-  const [hotwordToDelete, setHotwordToDelete] = useState<string | null>(null);
 
   // Try to derive known apps from various sources (profiles + history if possible)
   // For now we use profiles as a base list of "known" apps
@@ -351,48 +343,9 @@ export const VocabularySettings: React.FC = () => {
     loadCorrections();
   }, [loadCorrections]);
 
-  // Hot words handlers
-  const handleAddWord = () => {
-    const trimmedWord = newWord.trim();
-    const sanitizedWord = trimmedWord.replace(/[<>"'&]/g, "");
-    if (
-      sanitizedWord &&
-      !sanitizedWord.includes(" ") &&
-      sanitizedWord.length <= 50 &&
-      !customWords.includes(sanitizedWord)
-    ) {
-      updateSetting("custom_words", [...customWords, sanitizedWord]);
-      setNewWord("");
-    }
-  };
-
-  const confirmRemoveHotword = (wordToRemove: string) => {
-    setHotwordToDelete(wordToRemove);
-    setDeleteType("hotword");
-  };
-
-  const executeRemoveHotword = () => {
-    if (hotwordToDelete) {
-      updateSetting(
-        "custom_words",
-        customWords.filter((word) => word !== hotwordToDelete),
-      );
-    }
-    setHotwordToDelete(null);
-    setDeleteType(null);
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleAddWord();
-    }
-  };
-
   // Correction Delete handlers
   const promptDeleteCorrection = (id: number) => {
     setDeleteId(id);
-    setDeleteType("correction");
   };
 
   const executeDeleteCorrection = async () => {
@@ -404,15 +357,11 @@ export const VocabularySettings: React.FC = () => {
       console.error("[VocabularySettings] Delete failed:", e);
     } finally {
       setDeleteId(null);
-      setDeleteType(null);
     }
   };
 
-  // Generic cancel
   const cancelDelete = () => {
     setDeleteId(null);
-    setHotwordToDelete(null);
-    setDeleteType(null);
   };
 
   const handleUpdateScope = useCallback(
@@ -446,46 +395,6 @@ export const VocabularySettings: React.FC = () => {
     },
     [],
   );
-
-  // Export/Import handlers
-  const handleExportHotWords = () => {
-    const data = JSON.stringify(customWords, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "hot_words.json";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportHotWords = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      try {
-        const text = await file.text();
-        const imported = JSON.parse(text);
-        if (Array.isArray(imported)) {
-          const validWords = imported.filter(
-            (w) =>
-              typeof w === "string" &&
-              w.trim() &&
-              !w.includes(" ") &&
-              w.length <= 50,
-          );
-          const merged = [...new Set([...customWords, ...validWords])];
-          updateSetting("custom_words", merged);
-        }
-      } catch (err) {
-        console.error("[VocabularySettings] Import failed:", err);
-      }
-    };
-    input.click();
-  };
 
   const handleExportCorrections = () => {
     const data = JSON.stringify(corrections, null, 2);
@@ -672,121 +581,20 @@ export const VocabularySettings: React.FC = () => {
         )}
 
         {/* Hot Words Tab Content */}
-        {activeTab === "hotwords" && (
-          <Flex direction="column" className="h-full animate-fade-in-up">
-            {/* Fixed Header */}
-            <div className="p-6 pb-4 border-b border-gray-100 shrink-0 bg-white z-10">
-              <Flex direction="column" gap="4">
-                <Text size="2" color="gray">
-                  {t("settings.vocabulary.hotWords.description")}
-                </Text>
-
-                {/* Add word + Export/Import */}
-                <Flex gap="2" align="center" wrap="wrap">
-                  <TextField.Root
-                    value={newWord}
-                    onChange={(e) => setNewWord(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    placeholder={t("settings.vocabulary.hotWords.placeholder")}
-                    disabled={isUpdating("custom_words")}
-                    className="flex-1 min-w-[200px]"
-                  />
-                  <Button
-                    onClick={handleAddWord}
-                    disabled={
-                      !newWord.trim() ||
-                      newWord.includes(" ") ||
-                      newWord.trim().length > 50 ||
-                      isUpdating("custom_words")
-                    }
-                  >
-                    <IconPlus size={14} />
-                    {t("common.add")}
-                  </Button>
-                  <Button variant="soft" onClick={handleImportHotWords}>
-                    <IconUpload size={14} />
-                    {t("settings.vocabulary.import")}
-                  </Button>
-                  <Button
-                    variant="soft"
-                    onClick={handleExportHotWords}
-                    disabled={customWords.length === 0}
-                  >
-                    <IconDownload size={14} />
-                    {t("settings.vocabulary.export")}
-                  </Button>
-                </Flex>
-              </Flex>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="flex-1 p-6 bg-gray-50/50">
-              {/* Hot words table */}
-              {customWords.length > 0 ? (
-                <Table.Root variant="surface">
-                  <Table.Header className="sticky top-0 bg-white z-20 shadow-sm">
-                    <Table.Row>
-                      <Table.ColumnHeaderCell className="whitespace-nowrap">
-                        {t("settings.vocabulary.hotWords.word")}
-                      </Table.ColumnHeaderCell>
-                      <Table.ColumnHeaderCell
-                        className="whitespace-nowrap"
-                        width="80px"
-                        align="right"
-                      >
-                        {t("settings.vocabulary.actions")}
-                      </Table.ColumnHeaderCell>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {customWords.map((word) => (
-                      <Table.Row key={word}>
-                        <Table.Cell>
-                          <Text size="2" className="font-mono">
-                            {word}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell align="right">
-                          <IconButton
-                            variant="ghost"
-                            size="1"
-                            color="red"
-                            onClick={() => confirmRemoveHotword(word)}
-                            disabled={isUpdating("custom_words")}
-                          >
-                            <IconTrash size={14} />
-                          </IconButton>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Root>
-              ) : (
-                <Text size="2" color="gray" className="py-8 text-center">
-                  {t("settings.vocabulary.hotWords.empty")}
-                </Text>
-              )}
-            </div>
-          </Flex>
-        )}
+        {activeTab === "hotwords" && <HotwordSettings />}
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog.Root open={!!deleteType} onOpenChange={cancelDelete}>
+      <AlertDialog.Root open={deleteId !== null} onOpenChange={cancelDelete}>
         <AlertDialog.Content maxWidth="450px">
           <AlertDialog.Title>
             {t("settings.vocabulary.deleteConfirm.title", "Confirm Deletion")}
           </AlertDialog.Title>
           <AlertDialog.Description size="2">
-            {deleteType === "correction"
-              ? t(
-                  "settings.vocabulary.deleteConfirm.correctionMessage",
-                  "Are you sure you want to delete this correction rule? This action cannot be undone.",
-                )
-              : t(
-                  "settings.vocabulary.deleteConfirm.hotwordMessage",
-                  "Are you sure you want to remove this hot word?",
-                )}
+            {t(
+              "settings.vocabulary.deleteConfirm.correctionMessage",
+              "Are you sure you want to delete this correction rule? This action cannot be undone.",
+            )}
           </AlertDialog.Description>
           <Flex gap="3" mt="4" justify="end">
             <AlertDialog.Cancel>
@@ -798,11 +606,7 @@ export const VocabularySettings: React.FC = () => {
               <Button
                 variant="solid"
                 color="red"
-                onClick={
-                  deleteType === "correction"
-                    ? executeDeleteCorrection
-                    : executeRemoveHotword
-                }
+                onClick={executeDeleteCorrection}
               >
                 {t("common.delete")}
               </Button>
