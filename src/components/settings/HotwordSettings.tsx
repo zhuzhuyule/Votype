@@ -6,6 +6,7 @@ import {
   Button,
   Checkbox,
   Dialog,
+  DropdownMenu,
   Flex,
   IconButton,
   RadioGroup,
@@ -16,11 +17,14 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
+  IconCategory,
+  IconChevronDown,
   IconDownload,
   IconPencil,
   IconPlus,
   IconTrash,
   IconUpload,
+  IconWorld,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useState } from "react";
@@ -478,6 +482,7 @@ export const HotwordSettings: React.FC = () => {
   const [batchDialogOpen, setBatchDialogOpen] = useState(false);
   const [editingHotword, setEditingHotword] = useState<Hotword | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   // Load hotwords
   const loadHotwords = useCallback(async () => {
@@ -579,11 +584,94 @@ export const HotwordSettings: React.FC = () => {
     try {
       await invoke("delete_hotword", { id: deleteId });
       setHotwords((prev) => prev.filter((h) => h.id !== deleteId));
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deleteId);
+        return next;
+      });
     } catch (e) {
       console.error("[HotwordSettings] Failed to delete hotword:", e);
     } finally {
       setDeleteId(null);
     }
+  };
+
+  // Selection handlers
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredHotwords.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredHotwords.map((h) => h.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // Batch action handlers
+  const handleBatchChangeCategory = async (category: HotwordCategory) => {
+    for (const id of selectedIds) {
+      const hotword = hotwords.find((h) => h.id === id);
+      if (hotword && hotword.category !== category) {
+        try {
+          const updated = await invoke<Hotword>("update_hotword", {
+            id,
+            target: hotword.target,
+            originals: hotword.originals,
+            category,
+            scenarios: hotword.scenarios,
+          });
+          setHotwords((prev) => prev.map((h) => (h.id === id ? updated : h)));
+        } catch (e) {
+          console.error(`[HotwordSettings] Failed to update hotword ${id}:`, e);
+        }
+      }
+    }
+    clearSelection();
+  };
+
+  const handleBatchChangeScenarios = async (scenarios: HotwordScenario[]) => {
+    for (const id of selectedIds) {
+      const hotword = hotwords.find((h) => h.id === id);
+      if (hotword) {
+        try {
+          const updated = await invoke<Hotword>("update_hotword", {
+            id,
+            target: hotword.target,
+            originals: hotword.originals,
+            category: hotword.category,
+            scenarios,
+          });
+          setHotwords((prev) => prev.map((h) => (h.id === id ? updated : h)));
+        } catch (e) {
+          console.error(`[HotwordSettings] Failed to update hotword ${id}:`, e);
+        }
+      }
+    }
+    clearSelection();
+  };
+
+  const handleBatchDelete = async () => {
+    for (const id of selectedIds) {
+      try {
+        await invoke("delete_hotword", { id });
+        setHotwords((prev) => prev.filter((h) => h.id !== id));
+      } catch (e) {
+        console.error(`[HotwordSettings] Failed to delete hotword ${id}:`, e);
+      }
+    }
+    clearSelection();
   };
 
   // Export handler
@@ -670,7 +758,7 @@ export const HotwordSettings: React.FC = () => {
     return (
       <React.Fragment key={category}>
         <Table.Row>
-          <Table.Cell colSpan={5} className="bg-gray-50/80">
+          <Table.Cell colSpan={6} className="bg-gray-50/80">
             <Text size="2" weight="medium">
               {CATEGORY_ICONS[category]} {CATEGORY_LABELS[category]} (
               {items.length})
@@ -678,7 +766,16 @@ export const HotwordSettings: React.FC = () => {
           </Table.Cell>
         </Table.Row>
         {items.map((h) => (
-          <Table.Row key={h.id}>
+          <Table.Row
+            key={h.id}
+            className={selectedIds.has(h.id) ? "bg-blue-50" : ""}
+          >
+            <Table.Cell width="40px">
+              <Checkbox
+                checked={selectedIds.has(h.id)}
+                onCheckedChange={() => toggleSelect(h.id)}
+              />
+            </Table.Cell>
             <Table.Cell>
               <Text size="2" weight="bold" className="font-mono">
                 {h.target}
@@ -775,29 +872,105 @@ export const HotwordSettings: React.FC = () => {
                 </SegmentedControl.Root>
               </Flex>
 
-              {/* Action buttons */}
-              <Flex gap="2" justify="end">
-                <Button variant="soft" onClick={() => setBatchDialogOpen(true)}>
-                  <IconPlus size={14} />
-                  批量添加
-                </Button>
-                <Button onClick={() => setAddDialogOpen(true)}>
-                  <IconPlus size={14} />
-                  添加
-                </Button>
-                <Button variant="soft" onClick={handleImport}>
-                  <IconUpload size={14} />
-                  导入
-                </Button>
-                <Button
-                  variant="soft"
-                  onClick={handleExport}
-                  disabled={hotwords.length === 0}
-                >
-                  <IconDownload size={14} />
-                  导出
-                </Button>
-              </Flex>
+              {/* Action buttons or batch actions */}
+              {selectedIds.size > 0 ? (
+                <Flex gap="2" justify="between" align="center">
+                  <Text size="2" color="gray">
+                    已选择 {selectedIds.size} 项
+                  </Text>
+                  <Flex gap="2">
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger>
+                        <Button variant="soft">
+                          <IconCategory size={14} />
+                          修改类别
+                          <IconChevronDown size={14} />
+                        </Button>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Content>
+                        {(
+                          Object.entries(CATEGORY_LABELS) as [
+                            HotwordCategory,
+                            string,
+                          ][]
+                        ).map(([key, label]) => (
+                          <DropdownMenu.Item
+                            key={key}
+                            onClick={() => handleBatchChangeCategory(key)}
+                          >
+                            {CATEGORY_ICONS[key]} {label}
+                          </DropdownMenu.Item>
+                        ))}
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Root>
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger>
+                        <Button variant="soft">
+                          <IconWorld size={14} />
+                          修改场景
+                          <IconChevronDown size={14} />
+                        </Button>
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Content>
+                        <DropdownMenu.Item
+                          onClick={() => handleBatchChangeScenarios(["work"])}
+                        >
+                          仅工作
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          onClick={() => handleBatchChangeScenarios(["casual"])}
+                        >
+                          仅日常
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          onClick={() =>
+                            handleBatchChangeScenarios(["work", "casual"])
+                          }
+                        >
+                          工作 + 日常
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Root>
+                    <Button
+                      variant="soft"
+                      color="red"
+                      onClick={handleBatchDelete}
+                    >
+                      <IconTrash size={14} />
+                      删除
+                    </Button>
+                    <Button variant="ghost" onClick={clearSelection}>
+                      取消选择
+                    </Button>
+                  </Flex>
+                </Flex>
+              ) : (
+                <Flex gap="2" justify="end">
+                  <Button
+                    variant="soft"
+                    onClick={() => setBatchDialogOpen(true)}
+                  >
+                    <IconPlus size={14} />
+                    批量添加
+                  </Button>
+                  <Button onClick={() => setAddDialogOpen(true)}>
+                    <IconPlus size={14} />
+                    添加
+                  </Button>
+                  <Button variant="soft" onClick={handleImport}>
+                    <IconUpload size={14} />
+                    导入
+                  </Button>
+                  <Button
+                    variant="soft"
+                    onClick={handleExport}
+                    disabled={hotwords.length === 0}
+                  >
+                    <IconDownload size={14} />
+                    导出
+                  </Button>
+                </Flex>
+              )}
             </Flex>
           </div>
 
@@ -811,16 +984,25 @@ export const HotwordSettings: React.FC = () => {
               <Table.Root variant="surface">
                 <Table.Header className="sticky top-0 bg-white z-20 shadow-sm">
                   <Table.Row>
-                    <Table.ColumnHeaderCell width="25%">
+                    <Table.ColumnHeaderCell width="40px">
+                      <Checkbox
+                        checked={
+                          filteredHotwords.length > 0 &&
+                          selectedIds.size === filteredHotwords.length
+                        }
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell width="22%">
                       目标词
                     </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="30%">
+                    <Table.ColumnHeaderCell width="28%">
                       原始变体
                     </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="20%">
+                    <Table.ColumnHeaderCell width="18%">
                       场景
                     </Table.ColumnHeaderCell>
-                    <Table.ColumnHeaderCell width="15%" align="center">
+                    <Table.ColumnHeaderCell width="12%" align="center">
                       使用次数
                     </Table.ColumnHeaderCell>
                     <Table.ColumnHeaderCell width="10%" align="right">
@@ -836,7 +1018,16 @@ export const HotwordSettings: React.FC = () => {
                       )
                     : // Show flat list for filtered category
                       filteredHotwords.map((h) => (
-                        <Table.Row key={h.id}>
+                        <Table.Row
+                          key={h.id}
+                          className={selectedIds.has(h.id) ? "bg-blue-50" : ""}
+                        >
+                          <Table.Cell width="40px">
+                            <Checkbox
+                              checked={selectedIds.has(h.id)}
+                              onCheckedChange={() => toggleSelect(h.id)}
+                            />
+                          </Table.Cell>
                           <Table.Cell>
                             <Text size="2" weight="bold" className="font-mono">
                               {h.target}
