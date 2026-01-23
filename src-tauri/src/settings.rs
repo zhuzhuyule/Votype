@@ -42,6 +42,54 @@ pub enum SkillSource {
     External { path: String },
 }
 
+/// Hotword category for semantic classification
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum HotwordCategory {
+    /// Person names (colleagues, friends, public figures)
+    #[default]
+    Person,
+    /// Technical terms, industry vocabulary
+    Term,
+    /// Product/brand names, company names
+    Brand,
+    /// Abbreviations like API, SDK, CEO
+    Abbreviation,
+}
+
+/// Usage scenario for hotwords
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum HotwordScenario {
+    /// Work context (meetings, documents, code)
+    Work,
+    /// Casual conversation (chat, memos)
+    Casual,
+}
+
+/// Hotword entry with classification metadata
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Hotword {
+    pub id: i64,
+    /// Possible misrecognized forms (can be multiple)
+    pub originals: Vec<String>,
+    /// Target correct form
+    pub target: String,
+    /// Semantic category
+    pub category: HotwordCategory,
+    /// Usage scenarios (can be multiple)
+    pub scenarios: Vec<HotwordScenario>,
+    /// Auto-inference confidence (0.0-1.0)
+    pub confidence: f64,
+    /// Whether user manually overrode the category
+    pub user_override: bool,
+    /// Usage statistics
+    pub use_count: i64,
+    pub last_used_at: Option<i64>,
+    pub false_positive_count: i64,
+    pub created_at: i64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
     pub id: String,
