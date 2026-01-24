@@ -1,4 +1,5 @@
 use crate::llm_client;
+use crate::managers::prompt::PromptManager;
 use crate::managers::summary::{Summary, SummaryManager, SummaryStats, UserProfile};
 use crate::settings;
 use async_openai::types::{
@@ -76,8 +77,10 @@ pub async fn update_style_prompt(
 pub async fn generate_summary_ai_analysis(
     app: AppHandle,
     summary_manager: State<'_, Arc<SummaryManager>>,
+    prompt_manager: State<'_, Arc<PromptManager>>,
     summary_id: i64,
     feedback_style: String,
+    selected_model: Option<String>,
 ) -> Result<Summary, String> {
     // Get settings to access LLM configuration
     let app_settings = settings::get_settings(&app);
@@ -102,24 +105,36 @@ pub async fn generate_summary_ai_analysis(
         ));
     }
 
-    // Get the model to use (prefer selected model, fall back to provider default)
-    let model = app_settings
-        .selected_prompt_model_id
-        .as_ref()
-        .and_then(|id| {
+    // Get the model to use: user-selected > settings default > provider default
+    let model = selected_model
+        .filter(|m| !m.is_empty())
+        .or_else(|| {
             app_settings
-                .cached_models
-                .iter()
-                .find(|m| m.id == *id && m.provider_id == provider.id)
+                .selected_prompt_model_id
+                .as_ref()
+                .and_then(|id| {
+                    app_settings
+                        .cached_models
+                        .iter()
+                        .find(|m| m.id == *id && m.provider_id == provider.id)
+                })
+                .map(|m| m.model_id.clone())
         })
-        .map(|m| m.model_id.clone())
         .or_else(|| app_settings.post_process_models.get(&provider.id).cloned())
         .ok_or_else(|| "No model configured for AI analysis".to_string())?;
 
-    // Prepare the analysis content
-    let (prompt, _summary, _entries) = summary_manager
-        .prepare_analysis_content(summary_id, &feedback_style)
+    // Load the prompt template from external file
+    let prompt_template = prompt_manager
+        .get_prompt(&app, "system_summary_analysis")
+        .map_err(|e| format!("Failed to load summary analysis prompt: {}", e))?;
+
+    // Prepare the analysis data
+    let analysis_data = summary_manager
+        .prepare_analysis_data(summary_id, &feedback_style)
         .map_err(|e| e.to_string())?;
+
+    // Fill the prompt template with data
+    let prompt = analysis_data.fill_prompt(&prompt_template);
 
     info!(
         "Generating AI analysis for summary {} using model {} on provider {}",

@@ -123,6 +123,29 @@ export function useSummary() {
     [],
   );
 
+  const generateAiAnalysis = useCallback(
+    async (summaryId: number, selectedModel?: string | null) => {
+      setGenerating(true);
+      try {
+        // Get current feedback style from user profile, default to "balanced"
+        const feedbackStyle = userProfile?.feedback_style || "balanced";
+        const result = await invoke<Summary>("generate_summary_ai_analysis", {
+          summaryId,
+          feedbackStyle,
+          selectedModel: selectedModel || null,
+        });
+        setSummary(result);
+        await loadSummaryList();
+      } catch (error) {
+        console.error("Failed to generate AI analysis:", error);
+        throw error;
+      } finally {
+        setGenerating(false);
+      }
+    },
+    [loadSummaryList, userProfile],
+  );
+
   return {
     stats,
     summary,
@@ -137,5 +160,6 @@ export function useSummary() {
     updateFeedbackStyle,
     updateStylePrompt,
     exportSummary,
+    generateAiAnalysis,
   };
 }

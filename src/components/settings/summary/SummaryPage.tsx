@@ -5,16 +5,20 @@ import {
   Flex,
   Heading,
   SegmentedControl,
+  Select,
   Text,
 } from "@radix-ui/themes";
 import {
+  IconChevronLeft,
+  IconChevronRight,
   IconCode,
   IconDownload,
   IconFileText,
   IconSparkles,
 } from "@tabler/icons-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useSettings } from "../../../hooks/useSettings";
 import {
   SummaryAppDistribution,
   SummaryHourlyChart,
@@ -22,7 +26,12 @@ import {
 } from "./SummaryStats";
 import { SummaryTimeline } from "./SummaryTimeline";
 import { useSummary } from "./hooks/useSummary";
-import type { PeriodSelection, PeriodType, Summary } from "./summaryTypes";
+import {
+  parseAiAnalysis,
+  type PeriodSelection,
+  type PeriodType,
+  type Summary,
+} from "./summaryTypes";
 
 function getPeriodSelection(
   type: PeriodType,
@@ -36,26 +45,46 @@ function getPeriodSelection(
 
   switch (type) {
     case "day": {
+      // Start: 00:00:00 of today
       const start = new Date(now);
       start.setHours(0, 0, 0, 0);
+      // End: 23:59:59 of today (normalized for consistent lookup)
+      const end = new Date(now);
+      end.setHours(23, 59, 59, 999);
       startTs = Math.floor(start.getTime() / 1000);
-      endTs = Math.floor(now.getTime() / 1000);
+      endTs = Math.floor(end.getTime() / 1000);
       label = "Today";
       break;
     }
     case "week": {
+      // Start: 00:00:00 of Sunday (start of week)
       const start = new Date(now);
       start.setDate(start.getDate() - start.getDay());
       start.setHours(0, 0, 0, 0);
+      // End: 23:59:59 of Saturday (end of week)
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
       startTs = Math.floor(start.getTime() / 1000);
-      endTs = Math.floor(now.getTime() / 1000);
+      endTs = Math.floor(end.getTime() / 1000);
       label = "This Week";
       break;
     }
     case "month": {
+      // Start: 00:00:00 of first day of month
       const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      // End: 23:59:59 of last day of month
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
       startTs = Math.floor(start.getTime() / 1000);
-      endTs = Math.floor(now.getTime() / 1000);
+      endTs = Math.floor(end.getTime() / 1000);
       label = "This Month";
       break;
     }
@@ -81,6 +110,7 @@ export const SummaryPage: React.FC = () => {
     generating,
     loadSummary,
     exportSummary,
+    generateAiAnalysis,
   } = useSummary();
 
   const [periodType, setPeriodType] = useState<PeriodType>("day");
@@ -99,6 +129,152 @@ export const SummaryPage: React.FC = () => {
     setSelection(getPeriodSelection(type));
   }, []);
 
+  // Navigate to previous period
+  const handlePrevPeriod = useCallback(() => {
+    setSelection((prev) => {
+      const startDate = new Date(prev.startTs * 1000);
+      let newStart: Date;
+      let newEnd: Date;
+      let label: string;
+
+      switch (prev.type) {
+        case "day": {
+          newStart = new Date(startDate);
+          newStart.setDate(newStart.getDate() - 1);
+          newStart.setHours(0, 0, 0, 0);
+          newEnd = new Date(newStart);
+          newEnd.setHours(23, 59, 59, 999);
+          label = newStart.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            weekday: "short",
+          });
+          break;
+        }
+        case "week": {
+          newStart = new Date(startDate);
+          newStart.setDate(newStart.getDate() - 7);
+          newStart.setHours(0, 0, 0, 0);
+          newEnd = new Date(newStart);
+          newEnd.setDate(newEnd.getDate() + 6);
+          newEnd.setHours(23, 59, 59, 999);
+          label = `${newStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${newEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+          break;
+        }
+        case "month": {
+          newStart = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth() - 1,
+            1,
+          );
+          newEnd = new Date(
+            newStart.getFullYear(),
+            newStart.getMonth() + 1,
+            0,
+            23,
+            59,
+            59,
+            999,
+          );
+          label = newStart.toLocaleDateString(undefined, {
+            month: "long",
+            year: "numeric",
+          });
+          break;
+        }
+        default:
+          return prev;
+      }
+
+      return {
+        type: prev.type,
+        startTs: Math.floor(newStart.getTime() / 1000),
+        endTs: Math.floor(newEnd.getTime() / 1000),
+        label,
+      };
+    });
+  }, []);
+
+  // Navigate to next period
+  const handleNextPeriod = useCallback(() => {
+    setSelection((prev) => {
+      const startDate = new Date(prev.startTs * 1000);
+      const now = new Date();
+      let newStart: Date;
+      let newEnd: Date;
+      let label: string;
+
+      switch (prev.type) {
+        case "day": {
+          newStart = new Date(startDate);
+          newStart.setDate(newStart.getDate() + 1);
+          // Don't go beyond today
+          if (newStart > now) return prev;
+          newStart.setHours(0, 0, 0, 0);
+          newEnd = new Date(newStart);
+          newEnd.setHours(23, 59, 59, 999);
+          label = newStart.toLocaleDateString(undefined, {
+            month: "short",
+            day: "numeric",
+            weekday: "short",
+          });
+          break;
+        }
+        case "week": {
+          newStart = new Date(startDate);
+          newStart.setDate(newStart.getDate() + 7);
+          // Don't go beyond current week
+          if (newStart > now) return prev;
+          newStart.setHours(0, 0, 0, 0);
+          newEnd = new Date(newStart);
+          newEnd.setDate(newEnd.getDate() + 6);
+          newEnd.setHours(23, 59, 59, 999);
+          label = `${newStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${newEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+          break;
+        }
+        case "month": {
+          newStart = new Date(
+            startDate.getFullYear(),
+            startDate.getMonth() + 1,
+            1,
+          );
+          // Don't go beyond current month
+          if (newStart > now) return prev;
+          newEnd = new Date(
+            newStart.getFullYear(),
+            newStart.getMonth() + 1,
+            0,
+            23,
+            59,
+            59,
+            999,
+          );
+          label = newStart.toLocaleDateString(undefined, {
+            month: "long",
+            year: "numeric",
+          });
+          break;
+        }
+        default:
+          return prev;
+      }
+
+      return {
+        type: prev.type,
+        startTs: Math.floor(newStart.getTime() / 1000),
+        endTs: Math.floor(newEnd.getTime() / 1000),
+        label,
+      };
+    });
+  }, []);
+
+  // Check if we can go to next period (not beyond current)
+  const canGoNext = useCallback(() => {
+    const now = new Date();
+    const currentStart = getPeriodSelection(selection.type);
+    return selection.startTs < currentStart.startTs;
+  }, [selection]);
+
   const handleSelectSummary = useCallback((summary: Summary) => {
     setSelection({
       type: summary.period_type as PeriodType,
@@ -107,6 +283,48 @@ export const SummaryPage: React.FC = () => {
       label: summary.period_type,
     });
   }, []);
+
+  // Model selection for AI analysis
+  const { settings, postProcessModelOptions, fetchPostProcessModels } =
+    useSettings();
+
+  const activeProvider = useMemo(() => {
+    const providerId = settings?.post_process_provider_id;
+    return settings?.post_process_providers?.find((p) => p.id === providerId);
+  }, [settings]);
+
+  const currentModel = useMemo(() => {
+    if (!activeProvider) return "";
+    return settings?.post_process_models?.[activeProvider.id] ?? "";
+  }, [activeProvider, settings?.post_process_models]);
+
+  const [selectedModel, setSelectedModel] = useState<string>("");
+
+  // Update selected model when current model changes
+  useEffect(() => {
+    if (currentModel && !selectedModel) {
+      setSelectedModel(currentModel);
+    }
+  }, [currentModel, selectedModel]);
+
+  // Fetch models on mount
+  useEffect(() => {
+    if (activeProvider && activeProvider.id !== "apple_intelligence") {
+      fetchPostProcessModels(activeProvider.id).catch(console.error);
+    }
+  }, [activeProvider, fetchPostProcessModels]);
+
+  const modelOptions = useMemo(() => {
+    if (!activeProvider) return [];
+    const models = postProcessModelOptions[activeProvider.id] || [];
+    const allModels = [...new Set([...models, currentModel].filter(Boolean))];
+    return allModels.map((model) => ({ value: model, label: model }));
+  }, [activeProvider, postProcessModelOptions, currentModel]);
+
+  const handleGenerateAnalysis = useCallback(() => {
+    if (!summary) return;
+    generateAiAnalysis(summary.id, selectedModel || null);
+  }, [summary, selectedModel, generateAiAnalysis]);
 
   return (
     <Box className="w-full max-w-6xl mx-auto">
@@ -153,7 +371,20 @@ export const SummaryPage: React.FC = () => {
         <Box className="flex-1 space-y-6">
           {/* Header */}
           <Flex justify="between" align="center">
-            <Heading size="5">{selection.label}</Heading>
+            <Flex align="center" gap="2">
+              <Button variant="ghost" size="1" onClick={handlePrevPeriod}>
+                <IconChevronLeft size={18} />
+              </Button>
+              <Heading size="5">{selection.label}</Heading>
+              <Button
+                variant="ghost"
+                size="1"
+                onClick={handleNextPeriod}
+                disabled={!canGoNext()}
+              >
+                <IconChevronRight size={18} />
+              </Button>
+            </Flex>
             <Flex gap="2">
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
@@ -206,47 +437,133 @@ export const SummaryPage: React.FC = () => {
                   {t("summary.aiAnalysis.title")}
                 </Text>
               </Flex>
-              <Button variant="soft" size="2" disabled={generating}>
-                <IconSparkles size={16} />
-                {generating
-                  ? t("summary.aiAnalysis.generating")
-                  : t("summary.aiAnalysis.generate")}
-              </Button>
+              <Flex align="center" gap="2">
+                {modelOptions.length > 0 && (
+                  <Select.Root
+                    value={selectedModel}
+                    onValueChange={setSelectedModel}
+                    disabled={generating}
+                  >
+                    <Select.Trigger
+                      placeholder={t("summary.aiAnalysis.selectModel")}
+                    />
+                    <Select.Content>
+                      {modelOptions.map((option) => (
+                        <Select.Item key={option.value} value={option.value}>
+                          {option.label}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                )}
+                <Button
+                  variant="soft"
+                  size="2"
+                  disabled={generating || !summary}
+                  onClick={handleGenerateAnalysis}
+                >
+                  <IconSparkles size={16} />
+                  {generating
+                    ? t("summary.aiAnalysis.generating")
+                    : t("summary.aiAnalysis.generate")}
+                </Button>
+              </Flex>
             </Flex>
 
-            {summary?.ai_summary ? (
-              <Box className="space-y-4">
-                <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
-                  <Text size="2" weight="medium" mb="2" className="block">
-                    {t("summary.aiAnalysis.communicationStyle")}
-                  </Text>
-                  <Text size="2" color="gray">
-                    {summary.ai_summary}
-                  </Text>
-                </Box>
+            {/* Analysis Content */}
+            {(() => {
+              const analysis = parseAiAnalysis(summary?.ai_summary ?? null);
+              if (analysis?.summary) {
+                return (
+                  <Box className="space-y-4">
+                    {/* Activity Summary */}
+                    {analysis.summary && (
+                      <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
+                        <Text size="2" weight="medium" mb="2" className="block">
+                          {analysis.summary.title}
+                        </Text>
+                        {analysis.summary.content && (
+                          <Text size="2" color="gray">
+                            {analysis.summary.content}
+                          </Text>
+                        )}
+                      </Box>
+                    )}
 
-                {summary.ai_reflection && (
+                    {/* Specific Activities */}
+                    {analysis.activities?.items &&
+                      analysis.activities.items.length > 0 && (
+                        <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block"
+                          >
+                            {analysis.activities.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.activities.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Highlights */}
+                    {analysis.highlights?.items &&
+                      analysis.highlights.items.length > 0 && (
+                        <Box className="bg-(--accent-a2) rounded-md p-4 border border-(--accent-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--accent-11)"
+                          >
+                            {analysis.highlights.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.highlights.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Model used info */}
+                    {summary?.ai_model_used && (
+                      <Text size="1" color="gray">
+                        {t("summary.aiAnalysis.modelUsed")}:{" "}
+                        {summary.ai_model_used}
+                      </Text>
+                    )}
+                  </Box>
+                );
+              } else if (summary?.ai_summary) {
+                // Fallback: display raw text if JSON parsing fails
+                return (
                   <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
-                    <Text size="2" weight="medium" mb="2" className="block">
-                      {t("summary.aiAnalysis.reflection")}
-                    </Text>
-                    <Text size="2" color="gray">
-                      {summary.ai_reflection}
+                    <Text size="2" color="gray" className="whitespace-pre-wrap">
+                      {summary.ai_summary}
                     </Text>
                   </Box>
-                )}
-
-                <Flex justify="end" gap="2">
-                  <Button variant="ghost" size="1">
-                    {t("summary.aiAnalysis.updateProfile")}
-                  </Button>
-                </Flex>
-              </Box>
-            ) : (
-              <Text size="2" color="gray">
-                {t("summary.aiAnalysis.empty")}
-              </Text>
-            )}
+                );
+              } else {
+                return (
+                  <Text size="2" color="gray">
+                    {t("summary.aiAnalysis.empty")}
+                  </Text>
+                );
+              }
+            })()}
           </Box>
 
           {/* User Profile Quick View */}

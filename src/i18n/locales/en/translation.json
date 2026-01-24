@@ -1238,11 +1238,16 @@
     },
     "aiAnalysis": {
       "title": "AI Analysis",
-      "generate": "Generate Analysis",
+      "generate": "Generate",
       "generating": "Generating...",
+      "view": "View",
+      "selectModel": "Select Model",
+      "provider": "Provider",
+      "modelUsed": "Model used",
+      "clickToGenerate": "Click to generate AI analysis of your activities",
       "communicationStyle": "Communication Style",
       "reflection": "Reflection & Suggestions",
-      "empty": "Click 'Generate Analysis' to get AI-powered insights about your communication patterns.",
+      "empty": "Click 'Generate' to get AI-powered insights about your activities.",
       "updateProfile": "Update Profile"
     },
     "userProfile": {

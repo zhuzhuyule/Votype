@@ -87,3 +87,10 @@ The application adopts a hybrid architecture:
 - **Format:** Standard best practices.
 - **Summary:** Use a single, concise sentence in the imperative mood to describe the update. Do not use trailing punctuation.
 - **Description:** Add a detailed description only if necessary to explain complex changes.
+
+## AI Prompt Rules
+
+- **External Files:** All AI prompts must be stored in external files at `src-tauri/resources/prompts/*.md`, NOT hardcoded in Rust code.
+- **Runtime Loading:** Prompts are loaded at runtime using `PromptManager`, which first checks the user's data directory for customizations, then falls back to built-in resources.
+- **Template Variables:** Use `${variable_name}` syntax for dynamic values in prompts.
+- **User Customization:** Users can override built-in prompts by placing modified files in their app data directory.

@@ -46,7 +46,59 @@ export interface AnalysisEntry {
   transcription_text: string;
   post_processed_text: string | null;
   app_name: string | null;
-  char_count: number | null;
+  effective_text: string;
+}
+
+/** Structured AI analysis result */
+export interface AiAnalysisSection {
+  title: string;
+  content?: string;
+  items?: string[];
+}
+
+export interface AiAnalysisResult {
+  summary: AiAnalysisSection;
+  activities: AiAnalysisSection;
+  highlights: AiAnalysisSection;
+}
+
+/** Legacy format for backwards compatibility */
+interface LegacyAiAnalysisResult {
+  style?: AiAnalysisSection;
+  patterns?: AiAnalysisSection;
+  suggestions?: AiAnalysisSection;
+}
+
+/** Parse AI summary JSON, returns null if parsing fails */
+export function parseAiAnalysis(
+  aiSummary: string | null,
+): AiAnalysisResult | null {
+  if (!aiSummary) return null;
+  try {
+    // Extract JSON from markdown code block if present
+    const jsonMatch = aiSummary.match(/```json\s*([\s\S]*?)\s*```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : aiSummary;
+    const parsed = JSON.parse(jsonStr) as AiAnalysisResult &
+      LegacyAiAnalysisResult;
+
+    // Handle new format
+    if (parsed.summary && parsed.activities && parsed.highlights) {
+      return parsed;
+    }
+
+    // Convert legacy format to new format
+    if (parsed.style || parsed.patterns || parsed.suggestions) {
+      return {
+        summary: parsed.style || { title: "沟通风格", content: "" },
+        activities: parsed.patterns || { title: "表达特征", items: [] },
+        highlights: parsed.suggestions || { title: "改进建议", items: [] },
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export type PeriodType = "day" | "week" | "month" | "custom";
