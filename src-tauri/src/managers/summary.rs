@@ -626,7 +626,9 @@ impl SummaryManager {
         )
         .map_err(|e| anyhow::anyhow!("Failed to get summary: {}", e))
     }
+}
 
+impl SummaryManager {
     /// Prepare data for AI analysis of a summary
     /// Returns the summary, entries, and template variables for prompt rendering
     pub fn prepare_analysis_data(

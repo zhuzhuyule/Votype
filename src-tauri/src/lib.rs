@@ -142,7 +142,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         .app_data_dir()
         .expect("Failed to get app data dir");
     let db_path = app_data_dir.join("history.db");
-    let summary_manager = Arc::new(SummaryManager::new(db_path));
+    let summary_manager = Arc::new(SummaryManager::new(db_path.clone()));
 
     // Add managers to Tauri's managed state
     app_handle.manage(recording_manager.clone());
@@ -151,6 +151,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(history_manager.clone());
     app_handle.manage(post_processing_manager.clone());
     app_handle.manage(summary_manager.clone());
+    let hotword_manager = Arc::new(managers::HotwordManager::new(db_path.clone()));
+    app_handle.manage(hotword_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
     app_handle.manage(prompt_manager.clone());
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(

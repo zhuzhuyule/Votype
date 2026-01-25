@@ -1,13 +1,14 @@
 use crate::llm_client;
 use crate::managers::prompt::PromptManager;
 use crate::managers::summary::{Summary, SummaryManager, SummaryStats, UserProfile};
-use crate::settings;
+use crate::settings::{self, HotwordCategory, HotwordScenario};
 use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
     CreateChatCompletionRequestArgs,
 };
 use chrono::TimeZone;
 use log::{error, info};
+use serde::Deserialize;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, State};
 
@@ -147,82 +148,108 @@ pub async fn generate_summary_ai_analysis(
         prompt_template.len()
     );
 
-    // Prepare the enhanced analysis data with rich entries
-    let analysis_data = summary_manager
-        .prepare_analysis_data_enhanced(summary_id, &feedback_style)
-        .map_err(|e| e.to_string())?;
+    // Clone Arcs for the background task
+    let summary_manager_clone = (*summary_manager).clone();
+    let hotword_manager_clone = app
+        .try_state::<Arc<crate::managers::HotwordManager>>()
+        .map(|s| s.inner().clone());
+    let prompt_template = prompt_template.clone();
+    let model = model.clone();
+    let provider = provider.clone();
+    let api_key = api_key.clone();
 
-    // Fill the prompt template with data
-    let prompt = analysis_data.fill_prompt(&prompt_template);
+    // Spawn a detached task to ensure completion even if frontend disconnects
+    let handle = tauri::async_runtime::spawn(async move {
+        // Fill the prompt template with data
+        // We prepare data inside the task to keeping it self-contained,
+        // though we could also pass it in if prepared outside.
+        // Re-fetching summary inside to ensure fresh state isn't strictly necessary
+        // if we trust the passed args, but safe.
+        // Actually, we need to prepare analysis data here or pass it in.
+        // Currently prepare_analysis_data_enhanced is on summary_manager.
 
-    // Save prompt to debug file for inspection
-    if let Ok(debug_dir) = app.path().app_data_dir() {
-        let debug_file = debug_dir.join("debug_summary_prompt.md");
-        if let Err(e) = std::fs::write(&debug_file, &prompt) {
-            log::warn!("Failed to write debug prompt file: {}", e);
+        // Let's prepare data here to avoid passing huge strings across task boundary if possible,
+        // though passing AnalysisData is fine.
+        // For simplicity, let's call prepare again or move the logic here.
+        // Wait, 'analysis_data' was prepared OUTSIDE in current code.
+        // To avoid double calculation, let's move prepare logic inside
+        // OR pass analysis_data (which is cloneable).
+
+        let analysis_data = summary_manager_clone
+            .prepare_analysis_data_enhanced(summary_id, &feedback_style)
+            .map_err(|e| e.to_string())?;
+
+        let prompt = analysis_data.fill_prompt(&prompt_template);
+
+        info!(
+            "Generating AI analysis for summary {} using model {} on provider {}",
+            summary_id, model, provider.id
+        );
+
+        // Create the LLM client
+        let client = llm_client::create_client(&provider, api_key)?;
+
+        // Build the request
+        let user_msg = ChatCompletionRequestUserMessageArgs::default()
+            .content(prompt.clone())
+            .build()
+            .map_err(|e| format!("Failed to build user message: {}", e))?;
+
+        let messages: Vec<ChatCompletionRequestMessage> =
+            vec![ChatCompletionRequestMessage::User(user_msg)];
+
+        let request = CreateChatCompletionRequestArgs::default()
+            .model(model.clone())
+            .messages(messages)
+            .build()
+            .map_err(|e| format!("Failed to build request: {}", e))?;
+
+        // Make the LLM call
+        let response = client
+            .chat()
+            .create(request)
+            .await
+            .map_err(|e| format!("LLM request failed: {}", e))?;
+
+        let ai_summary = response
+            .choices
+            .first()
+            .and_then(|c| c.message.content.clone())
+            .ok_or_else(|| "No response content from LLM".to_string())?;
+
+        info!(
+            "AI analysis generated for summary {}: {}...",
+            summary_id,
+            ai_summary.chars().take(50).collect::<String>()
+        );
+
+        // Parse and extract vocabulary
+        if let Some(hotword_manager) = hotword_manager_clone {
+            extract_and_save_vocabulary(&ai_summary, &hotword_manager).await;
         } else {
-            info!(
-                "Saved full prompt to debug file: {:?} ({} chars)",
-                debug_file,
-                prompt.len()
-            );
+            log::warn!("HotwordManager not available for vocabulary extraction");
         }
-    }
 
-    info!(
-        "Generating AI analysis for summary {} using model {} on provider {}",
-        summary_id, model, provider.id
-    );
+        // Update the summary with AI content
+        summary_manager_clone
+            .update_summary_ai_content(summary_id, Some(ai_summary.clone()), None, Some(model))
+            .map_err(|e| {
+                error!("Failed to update summary AI content: {}", e);
+                e.to_string()
+            })?;
 
-    // Create the LLM client
-    let client = llm_client::create_client(&provider, api_key)?;
+        // Return updated summary
+        summary_manager_clone
+            .get_summary_by_id(summary_id)
+            .map_err(|e| e.to_string())
+    });
 
-    // Build the request
-    let user_msg = ChatCompletionRequestUserMessageArgs::default()
-        .content(prompt)
-        .build()
-        .map_err(|e| format!("Failed to build user message: {}", e))?;
-
-    let messages: Vec<ChatCompletionRequestMessage> =
-        vec![ChatCompletionRequestMessage::User(user_msg)];
-
-    let request = CreateChatCompletionRequestArgs::default()
-        .model(model.clone())
-        .messages(messages)
-        .build()
-        .map_err(|e| format!("Failed to build request: {}", e))?;
-
-    // Make the LLM call
-    let response = client
-        .chat()
-        .create(request)
+    // Wait for the background task
+    // If the frontend cancels (drops) this future, 'handle' is dropped,
+    // but tokio tasks are detached by default so it will continue running.
+    handle
         .await
-        .map_err(|e| format!("LLM request failed: {}", e))?;
-
-    let ai_summary = response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())
-        .ok_or_else(|| "No response content from LLM".to_string())?;
-
-    info!(
-        "AI analysis generated for summary {}: {}...",
-        summary_id,
-        ai_summary.chars().take(50).collect::<String>()
-    );
-
-    // Update the summary with AI content
-    summary_manager
-        .update_summary_ai_content(summary_id, Some(ai_summary), None, Some(model))
-        .map_err(|e| {
-            error!("Failed to update summary AI content: {}", e);
-            e.to_string()
-        })?;
-
-    // Return updated summary
-    summary_manager
-        .get_summary_by_id(summary_id)
-        .map_err(|e| e.to_string())
+        .map_err(|e| format!("Task join error: {}", e))?
 }
 
 #[tauri::command]
@@ -307,4 +334,119 @@ fn format_summary_as_markdown(summary: &Summary) -> String {
     }
 
     md
+}
+
+#[derive(Deserialize)]
+struct VocabularySection {
+    items: Option<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+struct AiAnalysisResponse {
+    vocabulary_extracted: Option<VocabularySection>,
+}
+
+async fn extract_and_save_vocabulary(
+    json_text: &str,
+    hotword_manager: &crate::managers::HotwordManager,
+) {
+    // 1. Extract JSON from markdown code block
+    let json_str = if let Some(start) = json_text.find("```json") {
+        if let Some(end_offset) = json_text[start + 7..].find("```") {
+            &json_text[start + 7..start + 7 + end_offset]
+        } else {
+            json_text
+        }
+    } else {
+        json_text
+    };
+
+    // 2. Parse JSON
+    let response: Result<AiAnalysisResponse, _> = serde_json::from_str(json_str);
+
+    if let Ok(response) = response {
+        if let Some(vocab_section) = response.vocabulary_extracted {
+            if let Some(items) = vocab_section.items {
+                if items.is_empty() {
+                    return;
+                }
+
+                info!("Found {} extracted vocabulary items", items.len());
+                let mut added_count = 0;
+
+                for item in items {
+                    // Item format expected: "Term (Category)" or just "Term"
+                    let (target, category_str) = if let Some(start_paren) = item.find('(') {
+                        if let Some(end_paren) = item.find(')') {
+                            let term = item[..start_paren].trim().to_string();
+                            let cat = item[start_paren + 1..end_paren].trim();
+                            (term, Some(cat))
+                        } else {
+                            (item.trim().to_string(), None)
+                        }
+                    } else {
+                        (item.trim().to_string(), None)
+                    };
+
+                    if target.is_empty() {
+                        continue;
+                    }
+
+                    // Map string category to enum
+                    let category = match category_str {
+                        Some(s)
+                            if s.eq_ignore_ascii_case("Project")
+                                || s.contains("项目")
+                                || s.eq_ignore_ascii_case("Product")
+                                || s.contains("产品") =>
+                        {
+                            Some(HotwordCategory::Term) // Map projects to Term for now
+                        }
+                        Some(s) if s.eq_ignore_ascii_case("Person") || s.contains("人名") => {
+                            Some(HotwordCategory::Person)
+                        }
+                        Some(s) if s.eq_ignore_ascii_case("Organization") || s.contains("组织") =>
+                        {
+                            Some(HotwordCategory::Term) // Map orgs to Term
+                        }
+                        Some(s) if s.eq_ignore_ascii_case("Term") || s.contains("术语") => {
+                            Some(HotwordCategory::Term)
+                        }
+                        Some(s) if s.eq_ignore_ascii_case("Abbreviation") || s.contains("缩写") => {
+                            Some(HotwordCategory::Abbreviation)
+                        }
+                        Some(s) if s.eq_ignore_ascii_case("Brand") || s.contains("品牌") => {
+                            Some(HotwordCategory::Brand)
+                        }
+                        _ => None, // Let manager infer or default
+                    };
+
+                    // Add to manager (automatically handles duplicates)
+                    match hotword_manager.add(
+                        target.clone(),
+                        vec![], // originals
+                        category,
+                        Some(vec![HotwordScenario::Work]), // Default to work scenario
+                    ) {
+                        Ok(_) => added_count += 1,
+                        Err(e) => {
+                            // Ignore unique constraint errors
+                            if !e.to_string().contains("UNIQUE constraint") {
+                                log::warn!("Failed to add extracted hotword '{}': {}", target, e);
+                            }
+                        }
+                    }
+                }
+
+                if added_count > 0 {
+                    info!(
+                        "Successfully added {} new hotwords from AI analysis",
+                        added_count
+                    );
+                }
+            }
+        }
+    } else {
+        log::warn!("Failed to parse vocabulary JSON from AI response");
+    }
 }
