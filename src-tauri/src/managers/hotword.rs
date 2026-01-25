@@ -240,6 +240,7 @@ impl HotwordManager {
     }
 
     /// Increment use count for a hotword
+    #[allow(dead_code)]
     pub fn increment_use(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();

@@ -1,4 +1,3 @@
-use sherpa_rs_sys;
 use std::os::raw::c_char;
 
 extern "C" {

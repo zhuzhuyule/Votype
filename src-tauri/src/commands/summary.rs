@@ -9,7 +9,7 @@ use async_openai::types::{
 use chrono::TimeZone;
 use log::{error, info};
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
 
 #[tauri::command]
 pub async fn get_summary_stats(
@@ -123,18 +123,51 @@ pub async fn generate_summary_ai_analysis(
         .or_else(|| app_settings.post_process_models.get(&provider.id).cloned())
         .ok_or_else(|| "No model configured for AI analysis".to_string())?;
 
-    // Load the prompt template from external file
+    // Load the prompt template based on period type
+    // First get the summary to determine period_type
+    let summary_for_period = summary_manager
+        .get_summary_by_id(summary_id)
+        .map_err(|e| e.to_string())?;
+
+    let prompt_id = match summary_for_period.period_type.as_str() {
+        "day" => "system_summary_day",
+        "week" => "system_summary_week",
+        "month" => "system_summary_month",
+        _ => "system_summary_analysis", // fallback to generic
+    };
+
     let prompt_template = prompt_manager
-        .get_prompt(&app, "system_summary_analysis")
+        .get_prompt(&app, prompt_id)
         .map_err(|e| format!("Failed to load summary analysis prompt: {}", e))?;
 
-    // Prepare the analysis data
+    info!(
+        "Loaded prompt template '{}' for period_type '{}' ({} chars)",
+        prompt_id,
+        summary_for_period.period_type,
+        prompt_template.len()
+    );
+
+    // Prepare the enhanced analysis data with rich entries
     let analysis_data = summary_manager
-        .prepare_analysis_data(summary_id, &feedback_style)
+        .prepare_analysis_data_enhanced(summary_id, &feedback_style)
         .map_err(|e| e.to_string())?;
 
     // Fill the prompt template with data
     let prompt = analysis_data.fill_prompt(&prompt_template);
+
+    // Save prompt to debug file for inspection
+    if let Ok(debug_dir) = app.path().app_data_dir() {
+        let debug_file = debug_dir.join("debug_summary_prompt.md");
+        if let Err(e) = std::fs::write(&debug_file, &prompt) {
+            log::warn!("Failed to write debug prompt file: {}", e);
+        } else {
+            info!(
+                "Saved full prompt to debug file: {:?} ({} chars)",
+                debug_file,
+                prompt.len()
+            );
+        }
+    }
 
     info!(
         "Generating AI analysis for summary {} using model {} on provider {}",
@@ -205,7 +238,8 @@ pub async fn export_summary(
 
     match format.as_str() {
         "json" => serde_json::to_string_pretty(&summary).map_err(|e| e.to_string()),
-        "markdown" | _ => Ok(format_summary_as_markdown(&summary)),
+        "markdown" => Ok(format_summary_as_markdown(&summary)),
+        _ => Ok(format_summary_as_markdown(&summary)),
     }
 }
 
@@ -249,7 +283,7 @@ fn format_summary_as_markdown(summary: &Summary) -> String {
                 app, stats.count, stats.chars
             ));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     if !summary.stats.top_skills.is_empty() {
@@ -257,7 +291,7 @@ fn format_summary_as_markdown(summary: &Summary) -> String {
         for skill in &summary.stats.top_skills {
             md.push_str(&format!("- {}\n", skill));
         }
-        md.push_str("\n");
+        md.push('\n');
     }
 
     if let Some(ref ai_summary) = summary.ai_summary {
@@ -269,7 +303,7 @@ fn format_summary_as_markdown(summary: &Summary) -> String {
     if let Some(ref reflection) = summary.ai_reflection {
         md.push_str("## Reflection\n\n");
         md.push_str(reflection);
-        md.push_str("\n");
+        md.push('\n');
     }
 
     md

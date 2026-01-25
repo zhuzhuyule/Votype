@@ -56,10 +56,34 @@ export interface AiAnalysisSection {
   items?: string[];
 }
 
+/** Focus assessment for daily reports */
+export interface FocusAssessment {
+  title: string;
+  score: number; // 0-10
+  comment: string;
+}
+
 export interface AiAnalysisResult {
+  // Core fields (all reports)
   summary: AiAnalysisSection;
   activities: AiAnalysisSection;
   highlights: AiAnalysisSection;
+
+  // Extended fields
+  work_focus?: AiAnalysisSection;
+  communication_patterns?: AiAnalysisSection;
+  insights?: AiAnalysisSection;
+
+  // Day-specific fields
+  todos_extracted?: AiAnalysisSection;
+  focus_assessment?: FocusAssessment;
+
+  // Week-specific fields
+  patterns?: AiAnalysisSection;
+  next_week?: AiAnalysisSection;
+
+  // Month-specific fields
+  trends?: AiAnalysisSection;
 }
 
 /** Legacy format for backwards compatibility */
@@ -81,9 +105,25 @@ export function parseAiAnalysis(
     const parsed = JSON.parse(jsonStr) as AiAnalysisResult &
       LegacyAiAnalysisResult;
 
-    // Handle new format
-    if (parsed.summary && parsed.activities && parsed.highlights) {
-      return parsed;
+    // Handle new format (requires at least summary)
+    if (parsed.summary) {
+      return {
+        summary: parsed.summary,
+        activities: parsed.activities || { title: "具体活动", items: [] },
+        highlights: parsed.highlights || { title: "亮点", items: [] },
+        // Extended fields
+        work_focus: parsed.work_focus,
+        communication_patterns: parsed.communication_patterns,
+        insights: parsed.insights,
+        // Day-specific
+        todos_extracted: parsed.todos_extracted,
+        focus_assessment: parsed.focus_assessment,
+        // Week-specific
+        patterns: parsed.patterns,
+        next_week: parsed.next_week,
+        // Month-specific
+        trends: parsed.trends,
+      };
     }
 
     // Convert legacy format to new format

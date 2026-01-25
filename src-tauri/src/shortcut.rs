@@ -647,16 +647,14 @@ pub fn add_custom_provider(
         label: label.trim().to_string(),
         base_url: base_url.trim().trim_end_matches('/').to_string(),
         allow_base_url_edit: true,
-        models_endpoint: models_endpoint
-            .map(|endpoint| {
-                let trimmed = endpoint.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            })
-            .flatten(),
+        models_endpoint: models_endpoint.and_then(|endpoint| {
+            let trimmed = endpoint.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        }),
     };
 
     settings
@@ -717,7 +715,7 @@ pub fn reset_skill_to_file_version(app: AppHandle, skill_id: String) -> Result<(
     // Load from file
     let file_skill = skill_manager
         .load_skill_from_path(&file_path, source)
-        .ok_or_else(|| format!("Failed to load skill from file"))?;
+        .ok_or_else(|| "Failed to load skill from file".to_string())?;
 
     // Update settings
     let mut settings = settings::get_settings(&app);
@@ -776,7 +774,7 @@ pub async fn ai_generate_skill(
         .cloned()
         .unwrap_or_default();
 
-    let client = create_client(&provider, api_key).map_err(|e| e.to_string())?;
+    let client = create_client(provider, api_key).map_err(|e| e.to_string())?;
 
     // Get model ID
     let model_id = settings
@@ -978,7 +976,7 @@ pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(),
     if settings.post_process_provider_id == provider_id {
         settings.post_process_provider_id = settings
             .post_process_providers
-            .get(0)
+            .first()
             .map(|provider| provider.id.clone())
             .unwrap_or_else(|| "openai".to_string());
     }

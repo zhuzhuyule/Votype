@@ -538,6 +538,201 @@ export const SummaryPage: React.FC = () => {
                         </Box>
                       )}
 
+                    {/* Work Focus - New extended field */}
+                    {analysis.work_focus?.items &&
+                      analysis.work_focus.items.length > 0 && (
+                        <Box className="bg-(--blue-a2) rounded-md p-4 border border-(--blue-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--blue-11)"
+                          >
+                            {analysis.work_focus.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.work_focus.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Communication Patterns - New extended field */}
+                    {analysis.communication_patterns?.items &&
+                      analysis.communication_patterns.items.length > 0 && (
+                        <Box className="bg-(--purple-a2) rounded-md p-4 border border-(--purple-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--purple-11)"
+                          >
+                            {analysis.communication_patterns.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.communication_patterns.items.map(
+                              (item, i) => (
+                                <li key={i}>
+                                  <Text size="2" color="gray">
+                                    {item}
+                                  </Text>
+                                </li>
+                              ),
+                            )}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Insights - New extended field */}
+                    {analysis.insights?.items &&
+                      analysis.insights.items.length > 0 && (
+                        <Box className="bg-(--green-a2) rounded-md p-4 border border-(--green-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--green-11)"
+                          >
+                            {analysis.insights.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.insights.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Day-specific: Todos Extracted */}
+                    {analysis.todos_extracted?.items &&
+                      analysis.todos_extracted.items.length > 0 && (
+                        <Box className="bg-(--orange-a2) rounded-md p-4 border border-(--orange-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--orange-11)"
+                          >
+                            {analysis.todos_extracted.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.todos_extracted.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Day-specific: Focus Assessment */}
+                    {analysis.focus_assessment && (
+                      <Box className="bg-(--cyan-a2) rounded-md p-4 border border-(--cyan-a4)">
+                        <Flex justify="between" align="center" mb="2">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            className="text-(--cyan-11)"
+                          >
+                            {analysis.focus_assessment.title}
+                          </Text>
+                          <Text
+                            size="3"
+                            weight="bold"
+                            className="text-(--cyan-11)"
+                          >
+                            {analysis.focus_assessment.score}/10
+                          </Text>
+                        </Flex>
+                        <Text size="2" color="gray">
+                          {analysis.focus_assessment.comment}
+                        </Text>
+                      </Box>
+                    )}
+
+                    {/* Week-specific: Patterns */}
+                    {analysis.patterns?.items &&
+                      analysis.patterns.items.length > 0 && (
+                        <Box className="bg-(--violet-a2) rounded-md p-4 border border-(--violet-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--violet-11)"
+                          >
+                            {analysis.patterns.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.patterns.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Week-specific: Next Week Suggestions */}
+                    {analysis.next_week?.items &&
+                      analysis.next_week.items.length > 0 && (
+                        <Box className="bg-(--amber-a2) rounded-md p-4 border border-(--amber-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--amber-11)"
+                          >
+                            {analysis.next_week.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.next_week.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
+                    {/* Month-specific: Trends */}
+                    {analysis.trends?.items &&
+                      analysis.trends.items.length > 0 && (
+                        <Box className="bg-(--teal-a2) rounded-md p-4 border border-(--teal-a4)">
+                          <Text
+                            size="2"
+                            weight="medium"
+                            mb="2"
+                            className="block text-(--teal-11)"
+                          >
+                            {analysis.trends.title}
+                          </Text>
+                          <ul className="list-disc list-inside space-y-1">
+                            {analysis.trends.items.map((item, i) => (
+                              <li key={i}>
+                                <Text size="2" color="gray">
+                                  {item}
+                                </Text>
+                              </li>
+                            ))}
+                          </ul>
+                        </Box>
+                      )}
+
                     {/* Model used info */}
                     {summary?.ai_model_used && (
                       <Text size="1" color="gray">

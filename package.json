@@ -1,10 +1,26 @@
 {
+  "name": "votype",
+  "private": true,
+  "version": "0.6.8",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build --debug",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "format": "prettier --write . && cd src-tauri && cargo fmt",
+    "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
+    "format:frontend": "prettier --write .",
+    "format:backend": "cd src-tauri && cargo fmt",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write",
+    "src-tauri/**/*.rs": "bash -c 'cd src-tauri && cargo fmt'"
+  },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
     "@iconify/react": "^6.0.2",
-    "@radix-ui/react-icons": "^1.3.2",
     "@radix-ui/themes": "^3.2.1",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/vite": "^4.1.16",
@@ -20,14 +36,9 @@
     "@tauri-apps/plugin-sql": "~2.3.1",
     "@tauri-apps/plugin-store": "~2.4.1",
     "@tauri-apps/plugin-updater": "~2.9.0",
-    "@tiptap/extension-code-block": "^3.14.0",
     "@tiptap/extension-placeholder": "^3.14.0",
     "@tiptap/react": "^3.14.0",
     "@tiptap/starter-kit": "^3.14.0",
-    "@types/highlight.js": "^10.1.0",
-    "baseline-browser-mapping": "^2.9.15",
-    "caniuse-lite": "^1.0.30001764",
-    "highlight.js": "^11.11.1",
     "i18next": "^25.6.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -49,25 +60,5 @@
     "prettier": "^3.6.2",
     "typescript": "~5.6.3",
     "vite": "^6.4.1"
-  },
-  "license": "MIT",
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write",
-    "src-tauri/**/*.rs": "bash -c 'cd src-tauri && cargo fmt'"
-  },
-  "name": "Votype",
-  "private": true,
-  "scripts": {
-    "build": "tsc && vite build --debug",
-    "dev": "vite",
-    "format": "prettier --write . && cd src-tauri && cargo fmt",
-    "format:backend": "cd src-tauri && cargo fmt",
-    "format:check": "prettier --check . && cd src-tauri && cargo fmt -- --check",
-    "format:frontend": "prettier --write .",
-    "prepare": "husky",
-    "preview": "vite preview",
-    "tauri": "tauri"
-  },
-  "type": "module",
-  "version": "0.6.8"
+  }
 }

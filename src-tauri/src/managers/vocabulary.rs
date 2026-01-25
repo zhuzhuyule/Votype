@@ -363,7 +363,7 @@ impl VocabularyManager {
 
     /// Get all corrections (for management UI)
     pub fn get_all_corrections(&self) -> Result<Vec<VocabularyCorrection>> {
-        self.get_active_corrections(None).map(|mut list| {
+        self.get_active_corrections(None).map(|_list| {
             // Re-fetch everything because get_active_corrections filters.
             // Actually simpler to just run query again or make get_active_corrections return all if scopes is None?
             // Implementation logic in get_active_corrections returns NONE if scopes is None and not global.

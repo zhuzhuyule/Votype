@@ -129,9 +129,7 @@ pub fn get_cursor_position() -> Result<active_window::CursorPosition, String> {
 
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) -> Result<(), String> {
-    crate::utils::show_or_create_main_window(&app, Some("dashboard"))
-        .map(|_| ())
-        .map_err(|e| e)
+    crate::utils::show_or_create_main_window(&app, Some("dashboard")).map(|_| ())
 }
 
 #[tauri::command]

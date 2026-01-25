@@ -10,4 +10,3 @@ pub mod transcription;
 pub mod vocabulary;
 
 pub use hotword::HotwordManager;
-pub use summary::SummaryManager;

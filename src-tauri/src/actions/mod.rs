@@ -102,7 +102,7 @@ impl ShortcutAction for PasteFirstEntryAction {
                 // Use post_processed_text if available, otherwise use transcription_text
                 let text_to_paste = entry
                     .post_processed_text
-                    .or_else(|| Some(entry.transcription_text))
+                    .or(Some(entry.transcription_text))
                     .unwrap_or_default();
 
                 if text_to_paste.is_empty() {

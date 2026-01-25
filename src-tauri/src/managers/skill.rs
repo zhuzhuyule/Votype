@@ -111,7 +111,7 @@ impl SkillManager {
                 }
 
                 // Check for single .md file
-                if entry_path.is_file() && entry_path.extension().map_or(false, |ext| ext == "md") {
+                if entry_path.is_file() && entry_path.extension().is_some_and(|ext| ext == "md") {
                     // Read the file and parse frontmatter to get the actual name
                     if let Ok(content) = fs::read_to_string(&entry_path) {
                         if let Some(frontmatter_str) = Self::extract_frontmatter(&content) {
@@ -203,7 +203,7 @@ impl SkillManager {
     }
 
     /// Apply saved ordering to skills list
-    fn apply_ordering(&self, skills: &mut Vec<Skill>) {
+    fn apply_ordering(&self, skills: &mut [Skill]) {
         let order = self.load_order();
         if order.is_empty() {
             return;
@@ -330,7 +330,7 @@ impl SkillManager {
                         skills.push(skill);
                     }
                 } else if entry_path.is_file()
-                    && entry_path.extension().map_or(false, |ext| ext == "md")
+                    && entry_path.extension().is_some_and(|ext| ext == "md")
                 {
                     if let Some(skill) = self.parse_skill_file(&entry_path, source.clone()) {
                         skills.push(skill);
@@ -529,7 +529,7 @@ impl SkillManager {
             source: SkillSource::User,
             compliance_check_enabled: false,
             compliance_threshold: Some(20),
-            output_mode: template.output_mode.clone(),
+            output_mode: template.output_mode,
             enabled: true,
             customized: false,
             file_path: None,

@@ -173,9 +173,10 @@ pub enum OverlayPosition {
     FollowCursor,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelUnloadTimeout {
+    #[default]
     Never,
     Immediately,
     Min2,
@@ -197,9 +198,10 @@ pub enum PasteMethod {
     CtrlShiftV,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ClipboardHandling {
+    #[default]
     DontModify,
     CopyToClipboard,
 }
@@ -281,12 +283,6 @@ pub struct AppProfile {
     pub rules: Vec<TitleRule>,
 }
 
-impl Default for ModelUnloadTimeout {
-    fn default() -> Self {
-        ModelUnloadTimeout::Never
-    }
-}
-
 impl Default for PasteMethod {
     fn default() -> Self {
         // Default to CtrlV for macOS and Windows, Direct for Linux
@@ -294,12 +290,6 @@ impl Default for PasteMethod {
         return PasteMethod::Direct;
         #[cfg(not(target_os = "linux"))]
         return PasteMethod::CtrlV;
-    }
-}
-
-impl Default for ClipboardHandling {
-    fn default() -> Self {
-        ClipboardHandling::DontModify
     }
 }
 
@@ -344,11 +334,11 @@ impl SoundTheme {
         }
     }
 
-    pub fn to_start_path(&self) -> String {
+    pub fn to_start_path(self) -> String {
         format!("resources/{}_start.wav", self.as_str())
     }
 
-    pub fn to_stop_path(&self) -> String {
+    pub fn to_stop_path(self) -> String {
         format!("resources/{}_stop.wav", self.as_str())
     }
 }
@@ -981,7 +971,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                 for (key, value) in default_settings.bindings {
                     if !settings.bindings.contains_key(&key) {
                         debug!("Adding missing binding: {}", key);
-                        settings.bindings.insert(key, value);
+                        settings.bindings.entry(key).or_insert(value);
                         updated = true;
                     }
                 }
@@ -998,7 +988,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
                 // Backup the original settings before overwriting
                 if let Ok(backup_json) = serde_json::to_string_pretty(&settings_value) {
-                    if let Some(app_data_dir) = app.path().app_data_dir().ok() {
+                    if let Ok(app_data_dir) = app.path().app_data_dir() {
                         let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
                         let backup_path =
                             app_data_dir.join(format!("settings_backup_{}.json", timestamp));

@@ -82,6 +82,8 @@ fn build_console_filter() -> env_filter::Filter {
     builder.filter_module("reqwest", log::LevelFilter::Info);
     builder.filter_module("hyper", log::LevelFilter::Info);
     builder.filter_module("hyper_util", log::LevelFilter::Info);
+    // Suppress ERROR logs from updater plugin in dev mode (endpoint not available)
+    builder.filter_module("tauri_plugin_updater", log::LevelFilter::Warn);
 
     builder.build()
 }
@@ -93,6 +95,27 @@ struct ShortcutToggleStates {
 }
 
 type ManagedToggleState = Mutex<ShortcutToggleStates>;
+
+/// State for pending skill confirmation when selected text is present
+#[derive(Default, Clone)]
+pub struct PendingSkillConfirmation {
+    pub skill_id: Option<String>,
+    pub skill_name: Option<String>,
+    pub transcription: Option<String>,
+    pub selected_text: Option<String>,
+    pub override_prompt_id: Option<String>,
+    pub app_name: Option<String>,
+    pub window_title: Option<String>,
+    pub history_id: Option<i64>,
+    /// Process ID of the original window for focus restoration
+    pub process_id: Option<u64>,
+    /// Cached polish result from parallel request
+    pub polish_result: Option<String>,
+    /// Whether the confirmation UI is visible in the frontend
+    pub is_ui_visible: bool,
+}
+
+pub type ManagedPendingSkillConfirmation = Mutex<PendingSkillConfirmation>;
 
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Initialize the input state (Enigo will be lazily initialized on first use)
@@ -111,30 +134,35 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));
-    let db_path = app_handle
+    let post_processing_manager = Arc::new(managers::post_processing::PostProcessingManager::new());
+
+    // Initialize summary manager with the same db_path as history
+    let app_data_dir = app_handle
         .path()
         .app_data_dir()
-        .expect("Failed to get app data directory")
-        .join("history.db");
+        .expect("Failed to get app data dir");
+    let db_path = app_data_dir.join("history.db");
     let summary_manager = Arc::new(SummaryManager::new(db_path));
-    let post_processing_manager = Arc::new(managers::post_processing::PostProcessingManager::new());
 
     // Add managers to Tauri's managed state
     app_handle.manage(recording_manager.clone());
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
-    app_handle.manage(summary_manager.clone());
     app_handle.manage(post_processing_manager.clone());
+    app_handle.manage(summary_manager.clone());
+    let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
+    app_handle.manage(prompt_manager.clone());
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));
+    app_handle.manage(Mutex::new(PendingSkillConfirmation::default()));
 
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
 
     #[cfg(unix)]
-    let signals = Signals::new(&[SIGUSR2]).unwrap();
+    let signals = Signals::new([SIGUSR2]).unwrap();
     // Set up SIGUSR2 signal handler for toggling transcription
     #[cfg(unix)]
     signal_handle::setup_signal_handler(app_handle.clone(), signals);
@@ -196,7 +224,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Get the autostart manager and configure based on user setting
     let autostart_manager = app_handle.autolaunch();
-    let settings = settings::get_settings(&app_handle);
+    let settings = settings::get_settings(app_handle);
 
     if settings.autostart_enabled {
         // Enable autostart if user has opted in
@@ -286,7 +314,7 @@ pub fn run() {
         ))
         .manage(Mutex::new(ShortcutToggleStates::default()))
         .setup(move |app| {
-            let settings = settings::get_settings(&app.handle());
+            let settings = settings::get_settings(app.handle());
             let file_log_level: log::Level = settings.log_level.clone().into();
             // Store the file log level in the atomic for the filter to use
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
@@ -326,7 +354,7 @@ pub fn run() {
             tauri::WindowEvent::ThemeChanged(theme) => {
                 log::info!("Theme changed to: {:?}", theme);
                 // Update tray icon to match new theme, maintaining idle state
-                utils::change_tray_icon(&window.app_handle(), utils::TrayIconState::Idle);
+                utils::change_tray_icon(window.app_handle(), utils::TrayIconState::Idle);
             }
             _ => {}
         })
@@ -340,6 +368,7 @@ pub fn run() {
             shortcut::change_start_hidden_setting,
             shortcut::change_autostart_setting,
             shortcut::change_update_checks_setting,
+            shortcut::change_expert_mode_setting,
             shortcut::change_onboarding_completed_setting,
             shortcut::change_translate_to_english_setting,
             shortcut::change_selected_language_setting,
@@ -353,6 +382,7 @@ pub fn run() {
             shortcut::change_post_process_use_secondary_output_setting,
             shortcut::change_post_process_use_local_candidate_when_online_asr_setting,
             shortcut::change_post_process_secondary_model_id_setting,
+            shortcut::change_post_process_intent_model_id_setting,
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
             shortcut::change_post_process_model_setting,
@@ -367,30 +397,41 @@ pub fn run() {
             shortcut::toggle_online_asr,
             shortcut::select_asr_model,
             shortcut::select_post_process_model,
-            shortcut::add_post_process_prompt,
-            shortcut::update_post_process_prompt,
-            shortcut::delete_post_process_prompt,
             shortcut::set_post_process_selected_prompt,
-            shortcut::set_command_prefixes,
-            shortcut::update_custom_words,
+            shortcut::get_external_skills,
+            shortcut::open_skills_folder,
+            shortcut::refresh_external_skills,
+            shortcut::reset_skill_to_file_version,
+            shortcut::open_skill_source_file,
+            shortcut::ai_generate_skill,
+            shortcut::check_skill_id_conflict,
             shortcut::suspend_binding,
             shortcut::resume_binding,
             shortcut::change_mute_while_recording_setting,
             shortcut::change_append_trailing_space_setting,
             shortcut::change_offline_vad_force_interval_ms_setting,
             shortcut::change_offline_vad_force_window_seconds_setting,
+            shortcut::change_post_process_context_enabled_setting,
+            shortcut::change_post_process_context_limit_setting,
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,
             shortcut::change_confidence_check_setting,
             shortcut::change_confidence_threshold_setting,
+            shortcut::upsert_app_profile,
+            shortcut::remove_app_profile,
+            shortcut::assign_app_to_profile,
+            shortcut::set_app_profiles,
+            shortcut::set_app_to_profile,
             shortcut::confirm_reviewed_transcription,
             shortcut::cancel_transcription_review,
             review_window::review_window_ready,
+            review_window::review_window_content_ready,
             shortcut::test_post_process_model_inference,
             shortcut::test_asr_model_inference,
             trigger_update_check,
             commands::cancel_operation,
+            commands::get_app_settings,
             commands::get_app_dir_path,
             commands::get_log_dir_path,
             commands::set_log_level,
@@ -403,6 +444,7 @@ pub fn run() {
             commands::show_main_window,
             commands::get_first_history_entry,
             commands::paste_text_to_active_window,
+            commands::paste_to_previous_window,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,
@@ -445,6 +487,17 @@ pub fn run() {
             commands::history::update_recording_retention_period,
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
+            commands::history::update_history_entry_text,
+            commands::vocabulary::get_vocabulary_corrections,
+            commands::vocabulary::delete_vocabulary_correction,
+            commands::vocabulary::update_vocabulary_correction_scope,
+            commands::vocabulary::record_vocabulary_correction,
+            commands::hotword::get_hotwords,
+            commands::hotword::add_hotword,
+            commands::hotword::update_hotword,
+            commands::hotword::delete_hotword,
+            commands::hotword::infer_hotword_category,
+            commands::hotword::increment_hotword_false_positive,
             commands::summary::get_summary_stats,
             commands::summary::get_or_create_summary,
             commands::summary::get_summary_list,
@@ -453,7 +506,20 @@ pub fn run() {
             commands::summary::update_style_prompt,
             commands::summary::generate_summary_ai_analysis,
             commands::summary::export_summary,
-            commands::log_to_console
+            commands::text::optimize_text_with_llm,
+            commands::text::generate_skill_description,
+            commands::log_to_console,
+            commands::focus_overlay,
+            commands::confirm_skill,
+            shortcut::save_external_skill,
+            shortcut::get_all_skills,
+            shortcut::create_skill,
+            shortcut::delete_skill,
+            shortcut::get_skill_templates,
+            shortcut::create_skill_from_template,
+            shortcut::reorder_skills,
+            shortcut::get_builtin_skills,
+            shortcut::get_default_skill_content
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
