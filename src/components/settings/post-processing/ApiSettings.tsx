@@ -316,10 +316,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 <Button
                   variant="solid"
                   onClick={async () => {
-                    if (!localApiKey) {
-                      toast.error("API Key is required");
-                      return;
-                    }
+                    // 允许空 API Key
+                    // if (!localApiKey) {
+                    //   toast.error("API Key is required");
+                    //   return;
+                    // }
 
                     // 规范化 URL（仅去除尾部斜杠）
                     const normalizedUrl = localBaseUrl
@@ -361,7 +362,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       );
                     }
                   }}
-                  disabled={isFetchingModels || !localApiKey}
+                  disabled={isFetchingModels}
                 >
                   {isFetchingModels ? (
                     t("common.loading")

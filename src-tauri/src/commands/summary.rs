@@ -99,13 +99,6 @@ pub async fn generate_summary_ai_analysis(
         .cloned()
         .unwrap_or_default();
 
-    if api_key.is_empty() {
-        return Err(format!(
-            "No API key configured for provider: {}",
-            provider.label
-        ));
-    }
-
     // Get the model to use: user-selected > settings default > provider default
     let model = selected_model
         .filter(|m| !m.is_empty())

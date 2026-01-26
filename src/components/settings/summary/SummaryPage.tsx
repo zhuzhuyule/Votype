@@ -316,10 +316,25 @@ export const SummaryPage: React.FC = () => {
 
   const modelOptions = useMemo(() => {
     if (!activeProvider) return [];
-    const models = postProcessModelOptions[activeProvider.id] || [];
-    const allModels = [...new Set([...models, currentModel].filter(Boolean))];
+
+    // Use cached models instead of fetching all available models
+    const cachedModels = settings?.cached_models || [];
+    const providerCachedModels = cachedModels
+      .filter((m) => m.provider_id === activeProvider.id)
+      // Only include text generation models (capability "text-generation" or generic)
+      // Assuming all cached models in this context are usable for summary if user added them
+      .map((m) => m.model_id);
+
+    // Ensure current model is in the list
+    const allModels = [
+      ...new Set([...providerCachedModels, currentModel].filter(Boolean)),
+    ];
+
+    // If no models found, maybe fallback to showing nothing or a hint?
+    // User requested "all text type models we added", which aligns with cached_models.
+
     return allModels.map((model) => ({ value: model, label: model }));
-  }, [activeProvider, postProcessModelOptions, currentModel]);
+  }, [activeProvider, settings?.cached_models, currentModel]);
 
   const handleGenerateAnalysis = useCallback(() => {
     if (!summary) return;

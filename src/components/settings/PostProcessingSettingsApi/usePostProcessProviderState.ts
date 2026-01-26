@@ -109,24 +109,6 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         previousId: viewingProviderId,
       });
 
-      // Clean up empty custom providers when switching away
-      const previousApiKey =
-        settings?.post_process_api_keys?.[viewingProviderId] ?? "";
-      const isBuiltin = BUILTIN_PROVIDER_IDS.includes(viewingProviderId);
-
-      if (
-        !isBuiltin &&
-        !previousApiKey.trim() &&
-        viewingProviderId !== providerId
-      ) {
-        // The previous provider has no API key and is not builtin - remove it
-        console.log(
-          "[DEBUG] Removing empty custom provider:",
-          viewingProviderId,
-        );
-        void removeCustomProvider(viewingProviderId);
-      }
-
       setViewingProviderId(providerId);
     },
     [viewingProviderId, settings?.post_process_api_keys, removeCustomProvider],

@@ -616,11 +616,13 @@ pub async fn fetch_post_process_models(
     );
 
     // Skip fetching if no API key for providers that typically need one
-    if api_key.trim().is_empty() && provider.id != "custom" {
-        return Err(format!(
-            "API key is required for {}. Please add an API key to list available models.",
-            provider.label
-        ));
+    // But allow empty explicit custom providers or "custom-*" IDs
+    if api_key.trim().is_empty() && provider.id != "custom" && !provider.id.starts_with("custom-") {
+        // Log warning but don't error, as some local proxies might not need keys
+        log::warn!(
+            "Fetching models with empty API key for provider {}",
+            provider.id
+        );
     }
 
     // TODO: In the future, we can use async-openai's models API:
