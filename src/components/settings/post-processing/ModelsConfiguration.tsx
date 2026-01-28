@@ -1,15 +1,16 @@
 import {
+  Badge,
   Box,
   Button,
   Dialog,
   Flex,
   Grid,
-  RadioCards,
-  SegmentedControl,
+  Tabs,
   Text,
   TextArea,
   TextField,
 } from "@radix-ui/themes";
+import { IconChevronDown, IconSettings } from "@tabler/icons-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -76,10 +77,44 @@ export const ModelsConfiguration: React.FC = () => {
   );
 
   const availableModels = useMemo(() => {
-    return providerState.modelOptions.filter(
-      (option) => option.value && !configuredIds.has(option.value),
-    );
-  }, [providerState.modelOptions, configuredIds]);
+    // Map options to include Badges for existing models
+    return providerState.modelOptions.map((option) => {
+      const existing = cachedModels.filter((m) => m.model_id === option.value);
+
+      // If no existing, just return simple option
+      if (existing.length === 0) {
+        return {
+          value: option.value,
+          label: option.value,
+          searchValue: option.value,
+        };
+      }
+
+      // Render rich label with tags
+      return {
+        value: option.value,
+        label: (
+          <Flex
+            align="center"
+            gap="2"
+            style={{ width: "100%", overflow: "hidden" }}
+          >
+            <Text truncate style={{ flexShrink: 0 }}>
+              {option.value}
+            </Text>
+            <Flex gap="1" wrap="wrap" style={{ overflow: "hidden" }}>
+              {existing.map((m) => (
+                <Badge key={m.id} color="gray" variant="soft" radius="full">
+                  {m.custom_label || "Added"}
+                </Badge>
+              ))}
+            </Flex>
+          </Flex>
+        ),
+        searchValue: option.value, // Search by model ID
+      };
+    });
+  }, [providerState.modelOptions, cachedModels]);
 
   const localizedModelTypeOptions = useMemo(
     () =>
@@ -102,20 +137,45 @@ export const ModelsConfiguration: React.FC = () => {
     if (pendingModelType !== "other") setCustomTypeLabel("");
   }, [pendingModelType]);
 
+  // Smart Deduplication & Initialization Effect
   useEffect(() => {
-    // 手动输入模式下不自动设置默认值
     if (isManualModelEntry) return;
 
-    if (availableModels.length === 0) {
-      setPendingModelId(null);
+    if (!pendingModelId) {
+      if (availableModels.length > 0 && !pendingModelId) {
+        setPendingModelId(availableModels[0].value);
+      }
       return;
     }
-    setPendingModelId((current) => {
-      if (current && availableModels.some((o) => o.value === current))
-        return current;
-      return availableModels[0].value;
-    });
-  }, [availableModels, isManualModelEntry]);
+
+    // Smart Alias Logic
+    // If model already exists, suggest a unique alias
+    const existing = cachedModels.filter((m) => m.model_id === pendingModelId);
+    if (existing.length > 0) {
+      // Find a unique name based on the model ID or the last alias
+      // We prefer to base it on the model_id to keep it clean, or the last user alias?
+      // User request: "Smart deduplication... subsequent added items should automatically take '123'"
+
+      // Simple strategy: Start with ModelID (or last alias base) and increment
+      const baseName = pendingModelId;
+
+      let counter = 1;
+      let candidate = `${baseName} ${counter}`;
+
+      // Check uniqueness against ALL cached models custom_labels and names
+      const layoutNames = new Set(
+        cachedModels.map((m) => m.custom_label || m.model_id),
+      );
+
+      while (layoutNames.has(candidate)) {
+        counter++;
+        candidate = `${baseName} ${counter}`;
+      }
+      setCustomTypeLabel(candidate);
+    } else {
+      setCustomTypeLabel(""); // Reset if new
+    }
+  }, [pendingModelId, isManualModelEntry, cachedModels, availableModels]);
 
   const handleAddModel = async () => {
     if (!pendingModelId || !providerState.selectedProviderId) return;
@@ -138,10 +198,20 @@ export const ModelsConfiguration: React.FC = () => {
         if (typeof extra_params !== "object" || extra_params === null) {
           throw new Error("Must be a JSON object");
         }
+
+        // If object is empty, set to undefined
+        if (Object.keys(extra_params).length === 0) {
+          extra_params = undefined;
+        }
       } catch (e) {
         // If fixing fails, try the original one last time before giving up
         try {
           extra_params = JSON.parse(extraParamsStr);
+          if (typeof extra_params === "object" && extra_params !== null) {
+            if (Object.keys(extra_params).length === 0) {
+              extra_params = undefined;
+            }
+          }
         } catch (e2) {
           toast.error(
             t(
@@ -200,124 +270,192 @@ export const ModelsConfiguration: React.FC = () => {
         </SettingsGroup>
       </Grid>
       <Dialog.Root open={isModelPickerOpen} onOpenChange={setIsModelPickerOpen}>
-        <Dialog.Content maxWidth="450px">
+        <Dialog.Content maxWidth="500px">
           <Dialog.Title>
             {t("settings.postProcessing.models.selectModel.title")}
           </Dialog.Title>
-          <Dialog.Description>
+          <Dialog.Description size="2" mb="4" color="gray">
             {t("settings.postProcessing.models.selectModel.description")}
           </Dialog.Description>
 
-          <Flex direction="column" gap="4" mt="4">
-            <SegmentedControl.Root
+          <Flex direction="column" gap="5">
+            {/* Input Method Tabs */}
+            <Tabs.Root
               defaultValue="select"
-              onValueChange={(value) => {
-                setIsManualModelEntry(value === "custom");
-                if (value === "select")
+              value={isManualModelEntry ? "custom" : "select"}
+              onValueChange={(val) => {
+                setIsManualModelEntry(val === "custom");
+                if (val === "select")
                   setPendingModelId(availableModels[0]?.value || null);
                 else setPendingModelId("");
               }}
             >
-              <SegmentedControl.Item value="select">
-                {t(
-                  "settings.postProcessing.models.selectModel.segmented.selectModel",
-                )}
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="custom">
-                {t(
-                  "settings.postProcessing.models.selectModel.segmented.customModel",
-                )}
-              </SegmentedControl.Item>
-            </SegmentedControl.Root>
-            {isManualModelEntry ? (
-              <TextField.Root
-                placeholder={t(
-                  "settings.postProcessing.models.selectModel.customModelPlaceholder",
-                )}
-                value={pendingModelId || ""}
-                onChange={(e) => setPendingModelId(e.target.value)}
-              />
-            ) : (
-              <Dropdown
-                options={availableModels}
-                selectedValue={pendingModelId || undefined}
-                onSelect={setPendingModelId}
-                placeholder={
-                  availableModels.length === 0
-                    ? t(
-                        "settings.postProcessing.models.selectModel.placeholderEmpty",
-                      )
-                    : t(
-                        "settings.postProcessing.models.selectModel.placeholder",
-                      )
-                }
-                className="w-full"
-                enableFilter={true}
-              />
-            )}
+              <Tabs.List className="w-full grid grid-cols-2 mb-4">
+                <Tabs.Trigger value="select">
+                  {t(
+                    "settings.postProcessing.models.selectModel.segmented.selectModel",
+                  )}
+                </Tabs.Trigger>
+                <Tabs.Trigger value="custom">
+                  {t(
+                    "settings.postProcessing.models.selectModel.segmented.customModel",
+                  )}
+                </Tabs.Trigger>
+              </Tabs.List>
+
+              <Tabs.Content value="select">
+                <Box className="space-y-4">
+                  <Box>
+                    <Text size="2" mb="2" weight="medium" color="gray">
+                      {t(
+                        "settings.postProcessing.models.selectModel.selectLabel",
+                        "Available Models",
+                      )}
+                    </Text>
+                    <Dropdown
+                      options={availableModels}
+                      selectedValue={pendingModelId || undefined}
+                      onSelect={setPendingModelId}
+                      placeholder={
+                        availableModels.length === 0
+                          ? t(
+                              "settings.postProcessing.models.selectModel.placeholderEmpty",
+                            )
+                          : t(
+                              "settings.postProcessing.models.selectModel.placeholder",
+                            )
+                      }
+                      className="w-full"
+                      enableFilter={true}
+                    />
+                  </Box>
+                </Box>
+              </Tabs.Content>
+
+              <Tabs.Content value="custom">
+                <Box className="space-y-4">
+                  <Box>
+                    <Text size="2" mb="2" weight="medium" color="gray">
+                      {t(
+                        "settings.postProcessing.models.selectModel.manualLabel",
+                        "Model ID / Name",
+                      )}
+                    </Text>
+                    <TextField.Root
+                      placeholder={t(
+                        "settings.postProcessing.models.selectModel.customModelPlaceholder",
+                      )}
+                      value={pendingModelId || ""}
+                      onChange={(e) => setPendingModelId(e.target.value)}
+                    />
+                  </Box>
+                </Box>
+              </Tabs.Content>
+            </Tabs.Root>
+
+            {/* Model Type - Always visible but styled better */}
             <Box>
-              <Text size="2" weight="medium" mb="2">
+              <Text size="2" weight="medium" mb="2" color="gray">
                 {t("settings.postProcessing.models.selectModel.usageTypeTitle")}
               </Text>
-              <RadioCards.Root
-                columns="3"
-                value={pendingModelType}
-                onValueChange={(v) => setPendingModelType(v as ModelType)}
-              >
-                {localizedModelTypeOptions.map((o) => (
-                  <RadioCards.Item key={o.value} value={o.value}>
-                    <Flex direction="column">
+              <Grid columns="3" gap="2">
+                {localizedModelTypeOptions.map((o) => {
+                  const isSelected = pendingModelType === o.value;
+                  return (
+                    <Box
+                      key={o.value}
+                      onClick={() => setPendingModelType(o.value as ModelType)}
+                      className={`
+                        cursor-pointer rounded-lg border p-3 transition-colors text-center
+                        ${
+                          isSelected
+                            ? "bg-(--accent-3) border-(--accent-8)"
+                            : "bg-(--gray-2) border-transparent hover:bg-(--gray-4)"
+                        }
+                      `}
+                    >
+                      <Flex direction="column" align="center" gap="1">
+                        {/* Icons could be mapped here if imports available, for now text */}
+                        <Text
+                          size="2"
+                          weight={isSelected ? "bold" : "medium"}
+                          color={isSelected ? "blue" : undefined}
+                        >
+                          {o.label}
+                        </Text>
+                        <Text
+                          size="1"
+                          color="gray"
+                          style={{ lineHeight: "1.2" }}
+                        >
+                          {o.hint}
+                        </Text>
+                      </Flex>
+                    </Box>
+                  );
+                })}
+              </Grid>
+            </Box>
+
+            {/* Advanced Settings (Collapsible) */}
+            <Box>
+              <details className="group">
+                <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors select-none py-2">
+                  <IconSettings size={16} />
+                  {t(
+                    "settings.postProcessing.models.selectModel.advancedOptions",
+                    "Advanced Configuration",
+                  )}
+                  <IconChevronDown
+                    size={14}
+                    className="group-open:rotate-180 transition-transform"
+                  />
+                </summary>
+                <Box className="pt-2 pl-2 border-l-2 border-(--gray-4) space-y-4 ml-2 mt-1">
+                  {/* Model Nickname */}
+                  <Box>
+                    <Text size="2" weight="medium" mb="1" as="div">
+                      {t(
+                        "settings.postProcessing.models.selectModel.customLabel",
+                      )}
+                    </Text>
+                    <TextField.Root
+                      placeholder={t(
+                        "settings.postProcessing.models.selectModel.customLabelPlaceholder",
+                      )}
+                      value={customTypeLabel}
+                      onChange={(e) => setCustomTypeLabel(e.target.value)}
+                    />
+                  </Box>
+
+                  {/* Extra Params (JSON) */}
+                  <Box>
+                    <Flex justify="between" align="baseline" mb="1">
                       <Text size="2" weight="medium">
-                        {o.label}
+                        {t(
+                          "settings.postProcessing.models.selectModel.extraParams",
+                        )}
                       </Text>
                       <Text size="1" color="gray">
-                        {o.hint}
+                        JSON
                       </Text>
                     </Flex>
-                  </RadioCards.Item>
-                ))}
-              </RadioCards.Root>
+                    <TextArea
+                      placeholder='e.g. {"extended_thinking": true}'
+                      value={extraParamsStr}
+                      onChange={(e) => setExtraParamsStr(e.target.value)}
+                      className="font-mono text-xs bg-(--gray-2)"
+                      rows={3}
+                    />
+                    <Text size="1" color="gray" mt="1">
+                      Supports simplified format like &#123;key: "value"&#125;
+                    </Text>
+                  </Box>
+                </Box>
+              </details>
             </Box>
-            {/* Extra Params (JSON) */}
-            <Box>
-              <Text size="2" weight="medium" mb="1" as="div">
-                {t(
-                  "settings.postProcessing.models.selectModel.extraParams",
-                  "额外请求参数 (JSON)",
-                )}
-              </Text>
-              <TextArea
-                placeholder='例如: {"extended_thinking": true}'
-                value={extraParamsStr}
-                onChange={(e) => setExtraParamsStr(e.target.value)}
-                style={{
-                  height: "80px",
-                  fontSize: "12px",
-                  fontFamily: "monospace",
-                }}
-              />
-              <Text size="1" color="gray" mt="1">
-                支持简写格式如 &#123;key: "value"&#125;，添加时将自动纠正。
-              </Text>
-            </Box>
-            {/* Model Nickname / Alias */}
-            <Box>
-              <Text size="2" weight="medium" mb="1" as="div">
-                {t(
-                  "settings.postProcessing.models.selectModel.customLabel",
-                  "模型昵称 / 别名 (可选)",
-                )}
-              </Text>
-              <TextField.Root
-                placeholder={t(
-                  "settings.postProcessing.models.selectModel.customLabelPlaceholder",
-                  "例如: 我的 DeepSeek, 高速翻译模型",
-                )}
-                value={customTypeLabel}
-                onChange={(e) => setCustomTypeLabel(e.target.value)}
-              />
-            </Box>
-            <Flex justify="end" gap="3" mt="5">
+
+            <Flex justify="end" gap="3" mt="2">
               <Dialog.Close>
                 <Button variant="soft" color="gray">
                   {t("common.cancel")}
@@ -326,11 +464,7 @@ export const ModelsConfiguration: React.FC = () => {
               <Button
                 variant="solid"
                 onClick={handleAddModel}
-                disabled={
-                  !pendingModelId ||
-                  isUpdating("cached_model_add") ||
-                  (pendingModelType === "other" && !customTypeLabel.trim())
-                }
+                disabled={!pendingModelId || isUpdating("cached_model_add")}
               >
                 {t("common.add")}
               </Button>

@@ -50,6 +50,7 @@ pub async fn optimize_text_with_llm(
         &settings,
         provider,
         model,
+        None,
         &processed_prompt,
         Some(&format!("system: {}", system_prompt)), // Use input_data_message for system context
         None,                                        // No fallback needed
@@ -120,6 +121,7 @@ pub async fn generate_skill_description(
         &settings,
         provider,
         model,
+        None,
         &user_content,
         Some(&format!("system: {}", system_prompt)),
         None,

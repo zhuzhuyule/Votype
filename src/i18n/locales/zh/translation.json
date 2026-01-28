@@ -908,16 +908,21 @@
           }
         },
         "selectModel": {
+          "advancedOptions": "高级配置",
+          "customLabel": "模型别名 / 标签 (可选)",
           "customLabelPlaceholder": "输入标签...",
           "customLabelTitle": "自定义标签",
           "customModelPlaceholder": "输入模型 ID...",
           "description": "选择要添加的模型，或手动输入模型 ID。",
+          "extraParams": "额外请求参数",
+          "manualLabel": "模型 ID / 名称",
           "placeholder": "选择模型...",
           "placeholderEmpty": "暂无可用模型",
           "segmented": {
             "customModel": "自定义",
             "selectModel": "选择"
           },
+          "selectLabel": "可用模型",
           "title": "选择模型",
           "usageTypeTitle": "用途类型"
         },

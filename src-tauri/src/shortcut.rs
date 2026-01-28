@@ -1870,6 +1870,7 @@ pub async fn test_post_process_model_inference(
     app: AppHandle,
     provider_id: String,
     model: String,
+    cached_model_id: Option<String>,
     input: Option<String>,
 ) -> Result<String, String> {
     let settings = settings::get_settings(&app);
@@ -1891,36 +1892,150 @@ pub async fn test_post_process_model_inference(
         provider_id, model
     );
 
-    let client = crate::llm_client::create_client(provider, api_key)?;
-
-    let messages = vec![
-        async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
+    let messages: Vec<async_openai::types::ChatCompletionRequestMessage> = vec![
+        async_openai::types::ChatCompletionRequestUserMessageArgs::default()
             .content(input.unwrap_or_else(|| "Please return OK".to_string()))
             .build()
             .map_err(|e| format!("Failed to build message: {}", e))?
             .into(),
     ];
 
-    let request = async_openai::types::CreateChatCompletionRequestArgs::default()
-        .model(model)
-        .messages(messages)
-        .max_tokens(50_u16)
+    // Match the normal post-process flow (manual HTTP + extra params merge).
+    let cached_model = cached_model_id.and_then(|id| {
+        settings
+            .cached_models
+            .iter()
+            .find(|m| m.id == id && m.provider_id == provider.id)
+    });
+    let cached_model = cached_model.or_else(|| {
+        settings
+            .cached_models
+            .iter()
+            .find(|m| m.model_id == model && m.provider_id == provider.id)
+    });
+    let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
+
+    let messages_json: Vec<serde_json::Value> = messages
+        .into_iter()
+        .filter_map(|m| serde_json::to_value(m).ok())
+        .collect();
+
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages_json,
+        "max_tokens": 50,
+    });
+
+    if let Some(extras) = extra_params {
+        if let Some(obj) = body.as_object_mut() {
+            for (k, v) in extras {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+    }
+
+    match serde_json::to_string_pretty(&body) {
+        Ok(body_str) => log::info!(
+            "test_post_process_model_inference request body: {}",
+            body_str
+        ),
+        Err(e) => log::warn!("Failed to serialize test request body: {}", e),
+    }
+
+    let base_url = provider.base_url.trim_end_matches('/');
+    let url = format!("{}/chat/completions", base_url);
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
+            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
+    );
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        reqwest::header::HeaderValue::from_static("application/json"),
+    );
+
+    if provider.id == "anthropic" {
+        headers.insert(
+            "anthropic-version",
+            reqwest::header::HeaderValue::from_static("2023-06-01"),
+        );
+    }
+
+    let http_client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(60))
         .build()
-        .map_err(|e| format!("Failed to build request: {}", e))?;
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
-    let response = client
-        .chat()
-        .create(request)
+    let resp = http_client
+        .post(url)
+        .json(&body)
+        .send()
         .await
-        .map_err(|e| format!("Inference failed: {}", e))?;
+        .map_err(|e| format!("Inference failed: HTTP error: {}", e))?;
 
-    let content = response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())
-        .unwrap_or_else(|| "No content returned".to_string());
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let error_text = resp.text().await.unwrap_or_default();
+        return Err(format!("Inference failed: upstream_error: {}", error_text));
+    }
+
+    let json_resp = resp
+        .json::<serde_json::Value>()
+        .await
+        .map_err(|e| format!("Inference failed: JSON parse error: {}", e))?;
+
+    let content = json_resp["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or_default()
+        .to_string();
 
     Ok(content)
+}
+
+fn format_openai_error(err: &async_openai::error::OpenAIError) -> String {
+    match err {
+        async_openai::error::OpenAIError::ApiError(api) => {
+            log::error!(
+                "OpenAI API error: type={:?} code={:?} param={:?} message={}",
+                api.r#type,
+                api.code,
+                api.param,
+                api.message
+            );
+            api.to_string()
+        }
+        async_openai::error::OpenAIError::JSONDeserialize(e, content) => {
+            log::error!(
+                "OpenAI response JSON deserialize error: {} content={}",
+                e,
+                content
+            );
+            format!("JSON deserialize error: {} (content: {})", e, content)
+        }
+        async_openai::error::OpenAIError::Reqwest(e) => {
+            log::error!("OpenAI HTTP error: {}", e);
+            format!("HTTP error: {}", e)
+        }
+        async_openai::error::OpenAIError::InvalidArgument(e) => {
+            log::error!("OpenAI invalid argument: {}", e);
+            format!("Invalid argument: {}", e)
+        }
+        async_openai::error::OpenAIError::FileSaveError(e) => {
+            log::error!("OpenAI file save error: {}", e);
+            format!("File save error: {}", e)
+        }
+        async_openai::error::OpenAIError::FileReadError(e) => {
+            log::error!("OpenAI file read error: {}", e);
+            format!("File read error: {}", e)
+        }
+        async_openai::error::OpenAIError::StreamError(e) => {
+            log::error!("OpenAI stream error: {}", e);
+            format!("Stream error: {}", e)
+        }
+    }
 }
 
 /// Test ASR model inference by sending a generated test audio

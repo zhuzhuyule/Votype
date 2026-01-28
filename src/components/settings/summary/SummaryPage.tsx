@@ -1,11 +1,11 @@
 import {
+  Badge,
   Box,
   Button,
   DropdownMenu,
   Flex,
   Heading,
   SegmentedControl,
-  Select,
   Text,
 } from "@radix-ui/themes";
 import {
@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { Dropdown } from "../../ui/Dropdown";
 import { SummaryCalendar } from "./SummaryCalendar";
 import {
   SummaryAppDistribution,
@@ -331,25 +332,50 @@ export const SummaryPage: React.FC = () => {
     // Return all cached text generation models from all providers
     const cachedModels = settings?.cached_models || [];
 
-    // Explicitly include the "text generation" capability check if possible,
-    // but for now we trust cached_models are mostly valid.
-    // If we want to filter by type, we can check model_type="text".
-    // Checking types.ts: ModelTypeSchema = "text", "asr", "other".
+    // Filter for text models
     const textModels = cachedModels.filter(
       (m) => m.model_type === "text" || m.model_type === "other",
     );
 
-    const allModels = textModels.map((m) => m.model_id);
+    // Map to Dropdown options
+    let options = textModels.map((m) => ({
+      value: m.model_id,
+      label: m.custom_label ? (
+        <Flex gap="2" align="center">
+          <Text>{m.model_id}</Text>
+          <Badge color="gray" variant="soft" radius="full">
+            {m.custom_label}
+          </Badge>
+        </Flex>
+      ) : (
+        m.model_id
+      ),
+      searchValue: m.custom_label
+        ? `${m.model_id} ${m.custom_label}`
+        : m.model_id,
+    }));
 
-    // Ensure current model is in the list if not already
-    if (currentModel && !allModels.includes(currentModel)) {
-      allModels.push(currentModel);
+    // Ensure current model is in the list (fallback if not in cache)
+    if (currentModel && !options.some((o) => o.value === currentModel)) {
+      options.push({
+        value: currentModel,
+        label: currentModel,
+        searchValue: currentModel,
+      });
     }
 
-    // Deduplicate
-    const uniqueModels = [...new Set(allModels.filter(Boolean))];
+    // Deduplicate by value (legacy behavior, though duplicate IDs with diff aliases might be an issue,
+    // for now we stick to unique Model IDs for valid selection)
+    const uniqueOptions = [];
+    const seen = new Set();
+    for (const opt of options) {
+      if (!seen.has(opt.value)) {
+        seen.add(opt.value);
+        uniqueOptions.push(opt);
+      }
+    }
 
-    return uniqueModels.map((model) => ({ value: model, label: model }));
+    return uniqueOptions;
   }, [settings?.cached_models, currentModel]);
 
   const handleGenerateAnalysis = useCallback(() => {
@@ -595,22 +621,15 @@ export const SummaryPage: React.FC = () => {
               </Flex>
               <Flex align="center" gap="2">
                 {modelOptions.length > 0 && (
-                  <Select.Root
-                    value={selectedModel}
-                    onValueChange={handleModelChange}
+                  <Dropdown
+                    options={modelOptions}
+                    selectedValue={selectedModel}
+                    onSelect={handleModelChange}
+                    className="w-[180px]"
+                    placeholder={t("summary.aiAnalysis.selectModel")}
                     disabled={generating}
-                  >
-                    <Select.Trigger
-                      placeholder={t("summary.aiAnalysis.selectModel")}
-                    />
-                    <Select.Content>
-                      {modelOptions.map((option) => (
-                        <Select.Item key={option.value} value={option.value}>
-                          {option.label}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
+                    enableFilter={true}
+                  />
                 )}
                 <Button
                   variant="soft"

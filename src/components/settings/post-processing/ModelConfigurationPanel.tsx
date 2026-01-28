@@ -141,22 +141,25 @@ const renderModelSection = ({
                           ))}
 
                         <Box className="flex-1 min-w-0">
-                          <Text
-                            size="2"
-                            weight={isSelected ? "medium" : "regular"}
-                            className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
-                          >
-                            {model.custom_label || model.model_id}
-                          </Text>
-                          {model.custom_label && (
+                          <Flex align="center" gap="2" wrap="wrap">
                             <Text
-                              size="1"
-                              color="gray"
-                              className="truncate block opacity-70"
+                              size="2"
+                              weight={isSelected ? "medium" : "regular"}
+                              className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
                             >
                               {model.model_id}
                             </Text>
-                          )}
+                            {model.custom_label && (
+                              <Badge
+                                size="1"
+                                color="gray"
+                                variant="soft"
+                                radius="full"
+                              >
+                                {model.custom_label}
+                              </Badge>
+                            )}
+                          </Flex>
                         </Box>
                         {model.is_thinking_model && (
                           <Badge
@@ -201,19 +204,23 @@ const renderModelSection = ({
                                     {
                                       providerId: model.provider_id,
                                       model: model.model_id,
+                                      cachedModelId: model.id,
                                       input: "OK", // Simple input for text models
                                     },
                                   );
                               toast.dismiss(toastId);
                               // Show success with result for ASR (transcription), simple success for text
+                              const modelLabel =
+                                model.custom_label?.trim() ||
+                                model.name?.trim() ||
+                                model.model_id;
+                              const successPrefix = t(
+                                "settings.postProcessing.api.providers.testSuccess",
+                              );
                               const successMessage =
                                 isAsrModel && result
-                                  ? t(
-                                      "settings.postProcessing.api.providers.testSuccess",
-                                    ) + `: "${result}"`
-                                  : t(
-                                      "settings.postProcessing.api.providers.testSuccess",
-                                    );
+                                  ? `${successPrefix}（${modelLabel}）: "${result}"`
+                                  : `${successPrefix}（${modelLabel}）`;
                               toast.success(successMessage, {
                                 duration: 5000,
                                 closeButton: true,

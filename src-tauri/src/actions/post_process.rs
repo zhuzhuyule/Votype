@@ -506,6 +506,7 @@ pub async fn execute_llm_request(
     settings: &AppSettings,
     provider: &PostProcessProvider,
     model: &str,
+    cached_model_id: Option<&str>,
     prompt_content: &str,
     input_data_message: Option<&str>,
     fallback_message: Option<&str>,
@@ -587,7 +588,7 @@ pub async fn execute_llm_request(
         .cloned()
         .unwrap_or_default();
 
-    let client = match crate::llm_client::create_client(provider, api_key.clone()) {
+    let _client = match crate::llm_client::create_client(provider, api_key.clone()) {
         Ok(client) => client,
         Err(e) => {
             error!("Failed to create LLM client: {}", e);
@@ -665,10 +666,18 @@ pub async fn execute_llm_request(
     }
 
     // Resolve CachedModel to get extra_params and is_thinking_model
-    let cached_model = settings
-        .cached_models
-        .iter()
-        .find(|m| m.model_id == model && m.provider_id == provider.id);
+    let cached_model = cached_model_id.and_then(|id| {
+        settings
+            .cached_models
+            .iter()
+            .find(|m| m.id == id && m.provider_id == provider.id)
+    });
+    let cached_model = cached_model.or_else(|| {
+        settings
+            .cached_models
+            .iter()
+            .find(|m| m.model_id == model && m.provider_id == provider.id)
+    });
     let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
 
     // Build the request body JSON
@@ -1507,11 +1516,16 @@ pub(crate) async fn maybe_post_process_transcription(
             None
         };
 
+        let cached_model_id = prompt
+            .model_id
+            .as_deref()
+            .or(settings.selected_prompt_model_id.as_deref());
         let (result, err, confidence, reason) = execute_llm_request(
             app_handle,
             settings,
             provider,
             &model,
+            cached_model_id,
             &processed_prompt,
             input_data_message.as_deref(),
             fallback_message.as_deref(),
@@ -1658,11 +1672,16 @@ pub(crate) async fn post_process_text_with_prompt(
     };
 
     // For manual prompt processing, don't enable confidence checking
+    let cached_model_id = prompt
+        .model_id
+        .as_deref()
+        .or(settings.selected_prompt_model_id.as_deref());
     let (result, err, confidence, reason) = execute_llm_request(
         app_handle,
         settings,
         provider,
         &model,
+        cached_model_id,
         &processed_prompt,
         input_data_message.as_deref(),
         None,       // No fallback for manual prompts

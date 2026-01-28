@@ -13,7 +13,8 @@ import { useTranslation } from "react-i18next";
 
 export interface DropdownOption {
   value: string;
-  label: string;
+  label: React.ReactNode;
+  searchValue?: string; // Used for filtering if label is a component
   disabled?: boolean;
 }
 
@@ -27,12 +28,12 @@ export interface DropdownProps {
   onRefresh?: () => void;
   ariaLabel?: string;
   ariaLabelledBy?: string;
-  enableFilter?: boolean; // 是否启用过滤功能
+  enableFilter?: boolean; // Whether to enable filtering functionality
 }
 
-// Popover trigger button 样式（与 Select.Trigger 保持一致）
+// Popover trigger button styles (consistent with Select.Trigger)
 const triggerClasses =
-  "flex items-center justify-between min-h-[32px] w-full min-w-[200px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-1.5 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed";
+  "flex items-center justify-between min-h-[40px] w-full min-w-[200px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-2 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const Dropdown: React.FC<DropdownProps> = ({
   options,
@@ -51,18 +52,22 @@ export const Dropdown: React.FC<DropdownProps> = ({
   const [filterText, setFilterText] = useState("");
   const [open, setOpen] = useState(false);
 
-  // 过滤选项
+  // Filter options
   const filteredOptions = useMemo(() => {
     if (!enableFilter || !filterText.trim()) {
       return options;
     }
 
     const lowerFilter = filterText.toLowerCase();
-    return options.filter(
-      (option) =>
-        option.label.toLowerCase().includes(lowerFilter) ||
-        option.value.toLowerCase().includes(lowerFilter),
-    );
+    return options.filter((option) => {
+      const searchContent =
+        option.searchValue ||
+        (typeof option.label === "string" ? option.label : option.value);
+      return (
+        searchContent.toLowerCase().includes(lowerFilter) ||
+        option.value.toLowerCase().includes(lowerFilter)
+      );
+    });
   }, [options, enableFilter, filterText]);
 
   const handleOpenChange = useCallback(
@@ -117,7 +122,11 @@ export const Dropdown: React.FC<DropdownProps> = ({
         </Popover.Trigger>
         <Popover.Content
           size="1"
-          style={{ minWidth: 280, padding: 0 }}
+          style={{
+            minWidth: "var(--radix-popover-trigger-width)",
+            width: "auto",
+            padding: 0,
+          }}
           side="bottom"
           align="start"
         >
@@ -140,7 +149,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
           <ScrollArea
             type="auto"
             scrollbars="vertical"
-            style={{ maxHeight: 240 }}
+            style={{ maxHeight: 350 }}
           >
             <Box className="py-1">
               {filteredOptions.length === 0 ? (
