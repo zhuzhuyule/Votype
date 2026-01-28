@@ -814,15 +814,26 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   useEffect(() => {
     if (!editor) return;
-    setTimeout(() => {
+    let disposed = false;
+    const focusTimer = window.setTimeout(() => {
+      if (disposed || editor.isDestroyed) return;
       editor.commands.focus("end");
     }, 50);
 
     // Notify Rust that content is rendered and window can be shown
     // This ensures no flicker - window only becomes visible after content is ready
-    invoke("review_window_content_ready").catch((e) => {
-      console.error("Failed to notify content ready:", e);
-    });
+    const readyTimer = window.setTimeout(() => {
+      if (disposed) return;
+      invoke("review_window_content_ready").catch((e) => {
+        console.error("Failed to notify content ready:", e);
+      });
+    }, 0);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(focusTimer);
+      window.clearTimeout(readyTimer);
+    };
   }, [editor]);
 
   const getEditorText = useCallback(() => {

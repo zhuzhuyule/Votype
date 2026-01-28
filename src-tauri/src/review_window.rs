@@ -39,6 +39,7 @@ struct ReviewWindowHidePayload {
 static REVIEW_WINDOW_READY: AtomicBool = AtomicBool::new(false);
 static REVIEW_WINDOW_FORCED_ACTIVATION: AtomicBool = AtomicBool::new(false);
 static REVIEW_WINDOW_FOCUS_TOKEN: AtomicU64 = AtomicU64::new(0);
+static REVIEW_WINDOW_ACTIVE: AtomicBool = AtomicBool::new(false);
 static HIDDEN_WINDOWS_BEFORE_REVIEW: Lazy<Mutex<HashSet<String>>> =
     Lazy::new(|| Mutex::new(HashSet::new()));
 static PENDING_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
@@ -50,7 +51,11 @@ fn emit_review_payload(app_handle: &AppHandle, payload: ReviewWindowPayload) -> 
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         let emit_result = review_window.emit("review-window-show", payload);
         debug!("review_window.emit() result: {:?}", emit_result);
-        return emit_result.is_ok();
+        if emit_result.is_ok() {
+            REVIEW_WINDOW_ACTIVE.store(true, Ordering::SeqCst);
+            return true;
+        }
+        return false;
     }
 
     error!("review_window not found! Window may not have been created.");
@@ -270,6 +275,7 @@ pub fn show_review_window(
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
 ) {
+    REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
     ensure_app_active_for_review(app_handle, had_visible_windows);
@@ -337,6 +343,7 @@ pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
         let _ = review_window.emit("review-window-hide", ReviewWindowHidePayload { history_id });
         let _ = review_window.hide();
     }
+    REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst);
     schedule_hide_windows(app_handle.clone());
     maybe_restore_activation_policy(app_handle);
@@ -373,6 +380,11 @@ pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn review_window_content_ready(app: AppHandle) -> Result<(), String> {
     log::info!("review_window_content_ready received");
+
+    if !REVIEW_WINDOW_ACTIVE.load(Ordering::SeqCst) {
+        log::info!("review_window_content_ready ignored (no active payload)");
+        return Ok(());
+    }
 
     if let Some(review_window) = app.get_webview_window("review_window") {
         let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
