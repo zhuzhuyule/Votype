@@ -19,7 +19,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
-import { toLocalYmd } from "../dashboard/dashboardUtils";
 import { SummaryCalendar } from "./SummaryCalendar";
 import {
   SummaryAppDistribution,
@@ -33,6 +32,14 @@ import {
   type PeriodType,
   type Summary,
 } from "./summaryTypes";
+
+// Helper for local YMD (moved from SummaryCalendar or duplicated)
+const toLocalYmd = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 function getPeriodSelection(
   type: PeriodType,
@@ -286,8 +293,13 @@ export const SummaryPage: React.FC = () => {
   }, []);
 
   // Model selection for AI analysis
-  const { settings, postProcessModelOptions, fetchPostProcessModels } =
-    useSettings();
+  const {
+    settings,
+    postProcessModelOptions,
+    fetchPostProcessModels,
+    updatePostProcessModel,
+    setPostProcessProvider,
+  } = useSettings();
 
   const activeProvider = useMemo(() => {
     const providerId = settings?.post_process_provider_id;
@@ -316,26 +328,29 @@ export const SummaryPage: React.FC = () => {
   }, [activeProvider, fetchPostProcessModels]);
 
   const modelOptions = useMemo(() => {
-    if (!activeProvider) return [];
-
-    // Use cached models instead of fetching all available models
+    // Return all cached text generation models from all providers
     const cachedModels = settings?.cached_models || [];
-    const providerCachedModels = cachedModels
-      .filter((m) => m.provider_id === activeProvider.id)
-      // Only include text generation models (capability "text-generation" or generic)
-      // Assuming all cached models in this context are usable for summary if user added them
-      .map((m) => m.model_id);
 
-    // Ensure current model is in the list
-    const allModels = [
-      ...new Set([...providerCachedModels, currentModel].filter(Boolean)),
-    ];
+    // Explicitly include the "text generation" capability check if possible,
+    // but for now we trust cached_models are mostly valid.
+    // If we want to filter by type, we can check model_type="text".
+    // Checking types.ts: ModelTypeSchema = "text", "asr", "other".
+    const textModels = cachedModels.filter(
+      (m) => m.model_type === "text" || m.model_type === "other",
+    );
 
-    // If no models found, maybe fallback to showing nothing or a hint?
-    // User requested "all text type models we added", which aligns with cached_models.
+    const allModels = textModels.map((m) => m.model_id);
 
-    return allModels.map((model) => ({ value: model, label: model }));
-  }, [activeProvider, settings?.cached_models, currentModel]);
+    // Ensure current model is in the list if not already
+    if (currentModel && !allModels.includes(currentModel)) {
+      allModels.push(currentModel);
+    }
+
+    // Deduplicate
+    const uniqueModels = [...new Set(allModels.filter(Boolean))];
+
+    return uniqueModels.map((model) => ({ value: model, label: model }));
+  }, [settings?.cached_models, currentModel]);
 
   const handleGenerateAnalysis = useCallback(() => {
     if (!summary) return;
@@ -385,6 +400,35 @@ export const SummaryPage: React.FC = () => {
       }),
     });
   }, []);
+
+  const handleModelChange = useCallback(
+    async (val: string) => {
+      setSelectedModel(val);
+
+      // Find which provider owns this model
+      const cachedModels = settings?.cached_models || [];
+      const targetModel = cachedModels.find((m) => m.model_id === val);
+
+      if (targetModel) {
+        // Switch provider if needed
+        if (settings?.post_process_provider_id !== targetModel.provider_id) {
+          await setPostProcessProvider(targetModel.provider_id);
+        }
+        // Update model for that provider
+        await updatePostProcessModel(targetModel.provider_id, val);
+      } else if (activeProvider) {
+        // Fallback: update for current provider if model not found in cache (e.g. manually entered or generic)
+        await updatePostProcessModel(activeProvider.id, val);
+      }
+    },
+    [
+      settings?.cached_models,
+      settings?.post_process_provider_id,
+      activeProvider,
+      setPostProcessProvider,
+      updatePostProcessModel,
+    ],
+  );
 
   return (
     <Box className="w-full max-w-6xl mx-auto">
@@ -553,7 +597,7 @@ export const SummaryPage: React.FC = () => {
                 {modelOptions.length > 0 && (
                   <Select.Root
                     value={selectedModel}
-                    onValueChange={setSelectedModel}
+                    onValueChange={handleModelChange}
                     disabled={generating}
                   >
                     <Select.Trigger
