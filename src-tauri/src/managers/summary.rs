@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct AppStats {
+    pub count: i64,
+    pub chars: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SummaryStats {
     pub entry_count: i64,
     pub total_duration_ms: i64,
@@ -16,9 +22,11 @@ pub struct SummaryStats {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AppStats {
-    pub count: i64,
-    pub chars: i64,
+pub struct AiAnalysisEntry {
+    pub timestamp: i64,
+    pub model: String,
+    pub summary: String,
+    pub reflection: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,6 +40,7 @@ pub struct Summary {
     pub ai_reflection: Option<String>,
     pub ai_generated_at: Option<i64>,
     pub ai_model_used: Option<String>,
+    pub ai_history: Option<Vec<AiAnalysisEntry>>, // Parsed JSON array of AiAnalysisEntry
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -239,7 +248,7 @@ impl SummaryManager {
         let existing: Option<Summary> = conn
             .query_row(
                 "SELECT id, period_type, period_start, period_end, stats, ai_summary, ai_reflection,
-                    ai_generated_at, ai_model_used, created_at, updated_at
+                    ai_generated_at, ai_model_used, created_at, updated_at, ai_history
              FROM summaries WHERE period_type = ?1 AND period_start = ?2
              ORDER BY id DESC LIMIT 1",
                 params![period_type, start_ts],
@@ -267,6 +276,9 @@ impl SummaryManager {
                         ai_model_used: row.get(8)?,
                         created_at: row.get(9)?,
                         updated_at: row.get(10)?,
+                        ai_history: row
+                            .get::<_, Option<String>>(11)?
+                            .and_then(|json| serde_json::from_str(&json).ok()),
                     })
                 },
             )
@@ -302,12 +314,13 @@ impl SummaryManager {
             ai_reflection: None,
             ai_generated_at: None,
             ai_model_used: None,
+            ai_history: None,
             created_at: now,
             updated_at: now,
         })
     }
 
-    /// Update AI-generated content for a summary
+    /// Update AI-generated content for a summary and append to history
     pub fn update_summary_ai_content(
         &self,
         summary_id: i64,
@@ -318,15 +331,54 @@ impl SummaryManager {
         let conn = self.get_connection()?;
         let now = chrono::Utc::now().timestamp();
 
+        // 1. Fetch existing AI history
+        let existing_history_json: Option<String> = conn
+            .query_row(
+                "SELECT ai_history FROM summaries WHERE id = ?1",
+                params![summary_id],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+
+        let mut ai_history: Vec<AiAnalysisEntry> = existing_history_json
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default();
+
+        // 2. Create new entry if we have content
+        if let (Some(summary), Some(model)) = (&ai_summary, &model_used) {
+            let reflection = ai_reflection.clone().unwrap_or_default();
+            let new_entry = AiAnalysisEntry {
+                timestamp: now,
+                model: model.clone(),
+                summary: summary.clone(),
+                reflection,
+            };
+            ai_history.push(new_entry);
+        }
+
+        let new_history_json = serde_json::to_string(&ai_history)?;
+
+        // 3. Update database
         conn.execute(
             "UPDATE summaries SET ai_summary = ?1, ai_reflection = ?2, ai_model_used = ?3,
-             ai_generated_at = ?4, updated_at = ?5 WHERE id = ?6",
-            params![ai_summary, ai_reflection, model_used, now, now, summary_id],
+             ai_generated_at = ?4, ai_history = ?5, updated_at = ?6 WHERE id = ?7",
+            params![
+                ai_summary,
+                ai_reflection,
+                model_used,
+                now,
+                new_history_json,
+                now,
+                summary_id
+            ],
         )?;
 
         info!(
-            "Updated AI content for summary {}: model={:?}",
-            summary_id, model_used
+            "Updated AI content and history for summary {}: model={:?}, history_len={}",
+            summary_id,
+            model_used,
+            ai_history.len()
         );
 
         Ok(())
@@ -360,7 +412,7 @@ impl SummaryManager {
 
         let mut stmt = conn.prepare(
             "SELECT id, period_type, period_start, period_end, stats, ai_summary, ai_reflection,
-                    ai_generated_at, ai_model_used, created_at, updated_at
+                    ai_generated_at, ai_model_used, created_at, updated_at, ai_history
              FROM summaries ORDER BY period_start DESC LIMIT 50",
         )?;
 
@@ -388,6 +440,9 @@ impl SummaryManager {
                 ai_model_used: row.get(8)?,
                 created_at: row.get(9)?,
                 updated_at: row.get(10)?,
+                ai_history: row
+                    .get::<_, Option<String>>(11)?
+                    .and_then(|json| serde_json::from_str(&json).ok()),
             })
         })?;
 
@@ -596,7 +651,7 @@ impl SummaryManager {
 
         conn.query_row(
             "SELECT id, period_type, period_start, period_end, stats, ai_summary, ai_reflection,
-                    ai_generated_at, ai_model_used, created_at, updated_at
+                    ai_generated_at, ai_model_used, created_at, updated_at, ai_history
              FROM summaries WHERE id = ?1",
             params![summary_id],
             |row| {
@@ -623,6 +678,9 @@ impl SummaryManager {
                     ai_model_used: row.get(8)?,
                     created_at: row.get(9)?,
                     updated_at: row.get(10)?,
+                    ai_history: row
+                        .get::<_, Option<String>>(11)?
+                        .and_then(|json| serde_json::from_str(&json).ok()),
                 })
             },
         )

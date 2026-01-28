@@ -192,6 +192,8 @@ static MIGRATIONS: &[M] = &[
         );
         INSERT OR IGNORE INTO user_profile (id, updated_at) VALUES (1, strftime('%s', 'now'));",
     ),
+    // Migration 20: Add ai_history column to summaries table for storing multiple analysis versions
+    M::up("ALTER TABLE summaries ADD COLUMN ai_history TEXT;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

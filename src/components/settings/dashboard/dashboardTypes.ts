@@ -56,6 +56,13 @@ export interface SummaryStats {
   top_skills: string[];
 }
 
+export interface AiAnalysisEntry {
+  timestamp: number;
+  model: string;
+  summary: string;
+  reflection: string;
+}
+
 export interface Summary {
   id: number;
   period_type: string;
@@ -66,6 +73,7 @@ export interface Summary {
   ai_reflection?: string | null;
   ai_generated_at?: number | null;
   ai_model_used?: string | null;
+  ai_history?: AiAnalysisEntry[]; // History of AI analysis
   created_at: number;
   updated_at: number;
 }

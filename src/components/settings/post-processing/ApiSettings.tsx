@@ -56,8 +56,8 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   ];
   const isSelectedBuiltin = builtinProviders.includes(state.selectedProviderId);
   const selectedProviderLabel =
-    state.providerOptions.find((p) => p.value === state.selectedProviderId)
-      ?.label || "";
+    (state.providerOptions.find((p) => p.value === state.selectedProviderId)
+      ?.label as string) || "";
 
   // Update local state when provider changes
   useEffect(() => {
@@ -68,7 +68,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
       (p) => p.value === state.selectedProviderId,
     );
     if (option) {
-      setEditingName(option.label);
+      setEditingName(option.label as string);
     }
   }, [
     state.baseUrl,
