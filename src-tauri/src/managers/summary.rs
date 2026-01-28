@@ -491,6 +491,7 @@ impl SummaryManager {
 
     /// Get entries for a time range (for LLM analysis)
     /// Returns entries with effective_text computed (polish > ASR, ignoring skills)
+    #[allow(dead_code)]
     pub fn get_entries_for_analysis(
         &self,
         start_ts: i64,
@@ -540,6 +541,7 @@ impl SummaryManager {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AnalysisEntry {
     pub id: i64,
@@ -631,6 +633,7 @@ impl SummaryManager {
 impl SummaryManager {
     /// Prepare data for AI analysis of a summary
     /// Returns the summary, entries, and template variables for prompt rendering
+    #[allow(dead_code)]
     pub fn prepare_analysis_data(
         &self,
         summary_id: i64,
@@ -718,6 +721,7 @@ impl SummaryManager {
 }
 
 /// Data prepared for AI analysis, used to fill prompt template variables
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct AnalysisData {
     pub summary: Summary,
@@ -737,6 +741,7 @@ pub struct AnalysisData {
 
 impl AnalysisData {
     /// Fill template variables in a prompt string
+    #[allow(dead_code)]
     pub fn fill_prompt(&self, template: &str) -> String {
         template
             .replace(
@@ -758,10 +763,13 @@ impl AnalysisData {
 }
 
 /// Enhanced analysis data with rich entries and pre-analysis for period-specific prompts
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct EnhancedAnalysisData {
     pub summary: Summary,
+    #[allow(dead_code)]
     pub rich_entries: Vec<RichAnalysisEntry>,
+    #[allow(dead_code)]
     pub pre_analysis: PreAnalysis,
 
     // Formatted template variables
@@ -775,6 +783,7 @@ pub struct EnhancedAnalysisData {
 
 impl EnhancedAnalysisData {
     /// Fill template variables in a prompt string (for period-specific prompts)
+    #[allow(dead_code)]
     pub fn fill_prompt(&self, template: &str) -> String {
         template
             // Period labels

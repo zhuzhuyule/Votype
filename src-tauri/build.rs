@@ -57,10 +57,8 @@ fn build_apple_intelligence_bridge() {
     let has_foundation_models = framework_path.exists();
 
     let source_file = if has_foundation_models {
-        println!("cargo:warning=Building with Apple Intelligence support.");
         REAL_SWIFT_FILE
     } else {
-        println!("cargo:warning=Apple Intelligence SDK not found. Building with stubs.");
         STUB_SWIFT_FILE
     };
 

@@ -1977,7 +1977,7 @@ pub async fn test_post_process_model_inference(
         .map_err(|e| format!("Inference failed: HTTP error: {}", e))?;
 
     if !resp.status().is_success() {
-        let status = resp.status();
+        let _status = resp.status();
         let error_text = resp.text().await.unwrap_or_default();
         return Err(format!("Inference failed: upstream_error: {}", error_text));
     }
@@ -1993,49 +1993,6 @@ pub async fn test_post_process_model_inference(
         .to_string();
 
     Ok(content)
-}
-
-fn format_openai_error(err: &async_openai::error::OpenAIError) -> String {
-    match err {
-        async_openai::error::OpenAIError::ApiError(api) => {
-            log::error!(
-                "OpenAI API error: type={:?} code={:?} param={:?} message={}",
-                api.r#type,
-                api.code,
-                api.param,
-                api.message
-            );
-            api.to_string()
-        }
-        async_openai::error::OpenAIError::JSONDeserialize(e, content) => {
-            log::error!(
-                "OpenAI response JSON deserialize error: {} content={}",
-                e,
-                content
-            );
-            format!("JSON deserialize error: {} (content: {})", e, content)
-        }
-        async_openai::error::OpenAIError::Reqwest(e) => {
-            log::error!("OpenAI HTTP error: {}", e);
-            format!("HTTP error: {}", e)
-        }
-        async_openai::error::OpenAIError::InvalidArgument(e) => {
-            log::error!("OpenAI invalid argument: {}", e);
-            format!("Invalid argument: {}", e)
-        }
-        async_openai::error::OpenAIError::FileSaveError(e) => {
-            log::error!("OpenAI file save error: {}", e);
-            format!("File save error: {}", e)
-        }
-        async_openai::error::OpenAIError::FileReadError(e) => {
-            log::error!("OpenAI file read error: {}", e);
-            format!("File read error: {}", e)
-        }
-        async_openai::error::OpenAIError::StreamError(e) => {
-            log::error!("OpenAI stream error: {}", e);
-            format!("Stream error: {}", e)
-        }
-    }
 }
 
 /// Test ASR model inference by sending a generated test audio
