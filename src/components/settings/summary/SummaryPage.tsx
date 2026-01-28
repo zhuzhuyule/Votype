@@ -40,9 +40,9 @@ function getPeriodSelection(
   customEnd?: number,
 ): PeriodSelection {
   const now = new Date();
-  let startTs: number;
-  let endTs: number;
-  let label: string;
+  let startTs = 0;
+  let endTs = 0;
+  let label = "";
 
   switch (type) {
     case "day": {

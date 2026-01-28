@@ -141,7 +141,7 @@ export function parseAiAnalysis(
   }
 }
 
-export type PeriodType = "day" | "week" | "month" | "custom";
+export type PeriodType = "day" | "week" | "month" | "year" | "custom";
 
 export type FeedbackStyle = "neutral" | "encouraging" | "direct";
 

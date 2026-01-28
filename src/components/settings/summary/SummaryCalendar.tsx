@@ -4,7 +4,7 @@ import {
   IconChevronRight,
   IconSparkles,
 } from "@tabler/icons-react";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card } from "../../ui/Card";
 import { toLocalYmd } from "../dashboard/dashboardUtils";
@@ -28,52 +28,90 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const isMonthMode = periodType === "month";
+  const isWeekMode = periodType === "week";
+  const isDayMode = periodType === "day";
+
   // Determine initial view date from selection
   const currentSelected = useMemo(
     () => new Date(selection.startTs * 1000),
     [selection],
   );
 
-  // View state (Month being viewed)
+  // View state (Month or Year being viewed)
+  // For Day/Week mode: tracks start of Month
+  // For Year/Month mode: tracks start of Year
   const [viewDate, setViewDate] = useState(() => {
     const d = new Date(currentSelected);
     d.setDate(1);
+    // Align to Jan if month mode (showing months grid)
+    if (isMonthMode) {
+      d.setMonth(0);
+    }
     return d;
   });
+
+  // Sync view when mode changes
+  useEffect(() => {
+    if (isMonthMode) {
+      setViewDate((d) => {
+        const newD = new Date(d);
+        newD.setMonth(0);
+        newD.setDate(1);
+        return newD;
+      });
+    } else {
+      // Switch to Day/Week mode -> Ensure we are viewing the selected month?
+      // Maybe better to respect current selection month
+      setViewDate((d) => {
+        const newD = new Date(d);
+        // Current selected might be drastically different?
+        // Rely on `currentSelected` if we want reset?
+        // But usually we just stay on current browsing view if possible.
+        return newD;
+      });
+    }
+  }, [periodType, isMonthMode]);
 
   const viewMonth = viewDate.getMonth();
   const viewYear = viewDate.getFullYear();
 
-  // Sync view when selection changes significantly (e.g. Month changed externally)
-  // But be careful not to jump around if user is browsing
-  // For now, let's keep manual navigation dominant unless mode switches.
-
   // Navigation handlers
-  const prevMonth = () => {
-    setViewDate(new Date(viewYear, viewMonth - 1, 1));
-    if (periodType === "month") {
-      // Logic for implicit selection could go here
-      const newDate = new Date(viewYear, viewMonth - 1, 1);
-      onSelectDate(toLocalYmd(newDate));
+  const handlePrev = () => {
+    if (isMonthMode) {
+      // Prev Year
+      setViewDate(new Date(viewYear - 1, 0, 1));
+    } else {
+      // Prev Month
+      setViewDate(new Date(viewYear, viewMonth - 1, 1));
     }
   };
 
-  const nextMonth = () => {
-    setViewDate(new Date(viewYear, viewMonth + 1, 1));
-    if (periodType === "month") {
-      const newDate = new Date(viewYear, viewMonth + 1, 1);
-      onSelectDate(toLocalYmd(newDate));
+  const handleNext = () => {
+    if (isMonthMode) {
+      // Next Year
+      setViewDate(new Date(viewYear + 1, 0, 1));
+    } else {
+      // Next Month
+      setViewDate(new Date(viewYear, viewMonth + 1, 1));
     }
   };
 
   const jumpToToday = () => {
     const now = new Date();
-    setViewDate(new Date(now.getFullYear(), now.getMonth(), 1));
-    onSelectDate(toLocalYmd(now));
+    if (isMonthMode) {
+      setViewDate(new Date(now.getFullYear(), 0, 1));
+      onSelectDate(toLocalYmd(now));
+    } else {
+      setViewDate(new Date(now.getFullYear(), now.getMonth(), 1));
+      onSelectDate(toLocalYmd(now));
+    }
   };
 
-  // Calendar generation logic
+  // --- DAY GRID LOGIC (Day View) ---
   const calendarData = useMemo(() => {
+    if (!isDayMode) return [];
+
     const firstDayOfMonth = new Date(viewYear, viewMonth, 1);
     const lastDayOfMonth = new Date(viewYear, viewMonth + 1, 0);
     const startDayOfWeek = firstDayOfMonth.getDay(); // 0=Sun
@@ -115,45 +153,156 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
     }
 
     return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
-  }, [viewYear, viewMonth]);
+  }, [viewYear, viewMonth, isDayMode]);
 
-  // Helper to check if a day falls within the selected period (Week/Month)
+  // --- MONTH GRID LOGIC (Year/Month View) ---
+  const yearData = useMemo(() => {
+    if (!isMonthMode) return [];
+
+    const monthStatus = new Map<number, boolean>();
+    statusMap.forEach((val, key) => {
+      if (val.hasSummary) {
+        const d = new Date(key);
+        if (d.getFullYear() === viewYear) {
+          monthStatus.set(d.getMonth(), true);
+        }
+      }
+    });
+
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(viewYear, i, 1);
+      months.push({
+        name: d.toLocaleDateString(undefined, { month: "short" }),
+        fullDate: d,
+        monthIndex: i,
+        hasSummary: monthStatus.get(i) || false,
+      });
+    }
+    return months;
+  }, [viewYear, isMonthMode, statusMap]);
+
+  // --- WEEK LIST LOGIC (Week View) ---
+  const weekData = useMemo(() => {
+    if (!isWeekMode) return [];
+
+    // Find distinct weeks for this month
+    // We go from first day of month, back to Sunday
+    // Then iterate forward week by week until we are past end of month
+
+    const weeks = [];
+
+    const startOfMonth = new Date(viewYear, viewMonth, 1);
+    const endOfMonth = new Date(viewYear, viewMonth + 1, 0); // Last day
+
+    // Start iterating from the Sunday of the first week
+    const iter = new Date(startOfMonth);
+    iter.setDate(iter.getDate() - iter.getDay());
+    iter.setHours(0, 0, 0, 0);
+
+    // Safety break to prevent infinite loops if logic fails
+    let safety = 0;
+    while (iter <= endOfMonth && safety < 10) {
+      const weekStart = new Date(iter);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      // Check if any day in this week has summary
+      let hasSummary = false;
+      const checkIter = new Date(weekStart);
+      while (checkIter <= weekEnd) {
+        const ymd = toLocalYmd(checkIter);
+        if (statusMap.get(ymd)?.hasSummary) {
+          hasSummary = true;
+          break;
+        }
+        checkIter.setDate(checkIter.getDate() + 1);
+      }
+
+      // Label format: "Jan 1 - Jan 7"
+      const label = `${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+
+      weeks.push({
+        start: weekStart,
+        end: weekEnd,
+        startTs: weekStart.getTime() / 1000,
+        endTs: weekEnd.getTime() / 1000,
+        label,
+        hasSummary,
+      });
+
+      // Move to next week
+      iter.setDate(iter.getDate() + 7);
+      safety++;
+    }
+
+    return weeks;
+  }, [viewYear, viewMonth, isWeekMode, statusMap]);
+
+  // Helper to check highlights
   const isInSelectionRange = (
     itemYear: number,
     itemMonth: number,
     itemDay: number,
   ) => {
     if (periodType === "day") return false;
-
-    // Compare day start time vs selection range
     const d = new Date(itemYear, itemMonth, itemDay);
     const ts = d.getTime() / 1000;
-    // Add 12 hours to avoid timezone edge cases around midnight if simple comparison?
-    // Actually selection.startTs / endTs are usually set to 00:00 and 23:59 local.
-    // Let's use simple logic:
-    // If ts >= startTs and ts <= endTs - roughly
-    // Note: selection.endTs is inclusive (23:59:59)
-
-    // Let's align to midnight
-    // We construct date using local year/month/day
-    // selection.startTs should effectively be start of day
-
-    // Only consider checking "range" if we have valid range
     return ts >= selection.startTs && ts < selection.endTs;
+  };
+
+  const isMonthInSelectionRange = (monthDate: Date) => {
+    const startOfMonth = new Date(
+      monthDate.getFullYear(),
+      monthDate.getMonth(),
+      1,
+    );
+    const endOfMonth = new Date(
+      monthDate.getFullYear(),
+      monthDate.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    const startTs = startOfMonth.getTime() / 1000;
+    const endTs = endOfMonth.getTime() / 1000;
+
+    return startTs <= selection.endTs && endTs >= selection.startTs;
+  };
+
+  const isWeekSelected = (wStartTs: number, wEndTs: number) => {
+    // Check exact match for week selection
+    // Or overlap? Usually exact match for "Select Week"
+    // floating point comparison safety? We used floor/integers mostly.
+    return (
+      Math.abs(wStartTs - selection.startTs) < 100 &&
+      Math.abs(wEndTs - selection.endTs) < 100
+    );
   };
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  return (
-    <Card className="p-4" shadow="sm">
-      {/* Header: Month Year + Nav */}
+  // --- RENDER ---
+
+  const renderHeader = () => {
+    let title = "";
+    if (isMonthMode) {
+      title = viewYear.toString();
+    } else {
+      title = viewDate.toLocaleDateString(undefined, {
+        month: "long",
+        year: "numeric",
+      });
+    }
+
+    return (
       <Flex justify="between" align="center" mb="4">
         <Flex align="center" gap="2">
           <Text weight="bold" size="3">
-            {viewDate.toLocaleDateString(undefined, {
-              month: "long",
-              year: "numeric",
-            })}
+            {title}
           </Text>
           <Button
             variant="ghost"
@@ -168,7 +317,7 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
           <IconButton
             variant="ghost"
             color="gray"
-            onClick={prevMonth}
+            onClick={handlePrev}
             className="cursor-pointer"
           >
             <IconChevronLeft size={16} />
@@ -176,13 +325,111 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
           <IconButton
             variant="ghost"
             color="gray"
-            onClick={nextMonth}
+            onClick={handleNext}
             className="cursor-pointer"
           >
             <IconChevronRight size={16} />
           </IconButton>
         </Flex>
       </Flex>
+    );
+  };
+
+  if (isMonthMode) {
+    // --- MONTH VIEW (Grid of Months) ---
+    return (
+      <Card className="p-4" shadow="sm">
+        {renderHeader()}
+        <Grid columns="3" gap="2" className="text-center">
+          {yearData.map((m) => {
+            const isSelected = isMonthInSelectionRange(m.fullDate);
+            // In Year Mode, we select the WHOLE YEAR usually.
+            // So if we are viewing the selected year, isSelected is true for all.
+
+            const now = new Date();
+            const isThisMonth =
+              now.getMonth() === m.monthIndex && now.getFullYear() === viewYear;
+
+            const isFuture = m.fullDate.getTime() > now.getTime();
+            // Actually fullDate is 1st of month. If 1st is in future...
+            // More accurately: if current month < view month (in future year or later month same year)
+            // If viewYear > nowYear => All future.
+            // If viewYear == nowYear => months > nowMonth are future.
+            const isStrictFuture =
+              viewYear > now.getFullYear() ||
+              (viewYear === now.getFullYear() && m.monthIndex > now.getMonth());
+
+            return (
+              <Box key={m.monthIndex} className="relative group p-1">
+                <button
+                  type="button"
+                  disabled={isStrictFuture}
+                  onClick={() => onSelectDate(toLocalYmd(m.fullDate))}
+                  className={`
+                                    w-full py-2 rounded-md text-sm relative transition-all duration-200 border box-border
+                                    ${isStrictFuture ? "opacity-20 cursor-not-allowed" : "cursor-pointer hover:bg-(--gray-3)"}
+                                    ${isSelected ? "bg-(--accent-3) text-(--accent-11)" : "border-transparent"}
+                                    ${isThisMonth && !isSelected ? "border border-(--accent-9)" : ""}
+                                `}
+                >
+                  {m.name}
+                  {m.hasSummary && (
+                    <div className="absolute top-1 right-1">
+                      <IconSparkles size={8} className="text-(--accent-9)" />
+                    </div>
+                  )}
+                </button>
+              </Box>
+            );
+          })}
+        </Grid>
+      </Card>
+    );
+  }
+
+  if (isWeekMode) {
+    // --- WEEK VIEW (List) ---
+    return (
+      <Card className="p-4" shadow="sm">
+        {renderHeader()}
+        <Flex direction="column" gap="2">
+          {weekData.map((w, idx) => {
+            const isSelected = isWeekSelected(w.startTs, w.endTs);
+            const now = new Date();
+            // Check if "This Week"?
+            // ...
+
+            const isStrictFuture = w.start.getTime() > now.getTime();
+
+            return (
+              <Box key={idx} className="relative group">
+                <button
+                  type="button"
+                  disabled={isStrictFuture}
+                  onClick={() => onSelectDate(toLocalYmd(w.start))}
+                  className={`
+                                    w-full py-3 px-4 rounded-md text-sm relative transition-all duration-200 border box-border flex justify-between items-center
+                                    ${isStrictFuture ? "opacity-20 cursor-not-allowed" : "cursor-pointer hover:bg-(--gray-3)"}
+                                    ${isSelected ? "bg-(--accent-3) text-(--accent-11)" : "border-transparent bg-(--gray-2)"}
+                                `}
+                >
+                  <Text>{w.label}</Text>
+                  {w.hasSummary && (
+                    <IconSparkles size={14} className="text-(--accent-9)" />
+                  )}
+                </button>
+              </Box>
+            );
+          })}
+        </Flex>
+      </Card>
+    );
+  }
+
+  // --- MONTH VIEW ---
+  return (
+    <Card className="p-4" shadow="sm">
+      {renderHeader()}
 
       {/* Grid */}
       <Grid columns="7" gap="1" className="text-center">
@@ -228,6 +475,10 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
                 onClick={() => {
                   onSelectDate(ymd);
                   if (!item.isCurrentMonth) {
+                    // Switch view to that month without changing mode
+                    // But if periodType="week", and we click previous month day...
+                    // "Week Mode" should allow spanning months.
+                    // viewDate update is mostly visual.
                     setViewDate(new Date(item.year, item.month, 1));
                   }
                 }}
