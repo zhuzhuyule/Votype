@@ -40,3 +40,32 @@ export interface PaginatedHistoryResult {
   offset: number;
   limit: number;
 }
+
+export interface AppStats {
+  count: number;
+  chars: number;
+}
+
+export interface SummaryStats {
+  entry_count: number;
+  total_duration_ms: number;
+  total_chars: number;
+  llm_calls: number;
+  by_app: Record<string, AppStats>;
+  by_hour: number[];
+  top_skills: string[];
+}
+
+export interface Summary {
+  id: number;
+  period_type: string;
+  period_start: number;
+  period_end: number;
+  stats: SummaryStats;
+  ai_summary?: string | null;
+  ai_reflection?: string | null;
+  ai_generated_at?: number | null;
+  ai_model_used?: string | null;
+  created_at: number;
+  updated_at: number;
+}

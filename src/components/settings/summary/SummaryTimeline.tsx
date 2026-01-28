@@ -75,59 +75,44 @@ export const SummaryTimeline: React.FC<SummaryTimelineProps> = ({
 
       {/* Days */}
       {groupedSummaries.day.length > 0 && (
-        <Box>
-          <Text size="1" color="gray" mb="2" className="block uppercase">
-            {t("summary.timeline.days")}
-          </Text>
-          <Flex direction="column" gap="1">
-            {groupedSummaries.day.slice(0, 7).map((summary) => (
-              <TimelineItem
-                key={summary.id}
-                summary={summary}
-                selected={isSelected(summary)}
-                onClick={() => onSelectSummary(summary)}
-              />
-            ))}
-          </Flex>
-        </Box>
+        <Flex direction="column" gap="1">
+          {groupedSummaries.day.slice(0, 7).map((summary) => (
+            <TimelineItem
+              key={summary.id}
+              summary={summary}
+              selected={isSelected(summary)}
+              onClick={() => onSelectSummary(summary)}
+            />
+          ))}
+        </Flex>
       )}
 
       {/* Weeks */}
       {groupedSummaries.week.length > 0 && (
-        <Box>
-          <Text size="1" color="gray" mb="2" className="block uppercase">
-            {t("summary.timeline.weeks")}
-          </Text>
-          <Flex direction="column" gap="1">
-            {groupedSummaries.week.slice(0, 4).map((summary) => (
-              <TimelineItem
-                key={summary.id}
-                summary={summary}
-                selected={isSelected(summary)}
-                onClick={() => onSelectSummary(summary)}
-              />
-            ))}
-          </Flex>
-        </Box>
+        <Flex direction="column" gap="1">
+          {groupedSummaries.week.slice(0, 4).map((summary) => (
+            <TimelineItem
+              key={summary.id}
+              summary={summary}
+              selected={isSelected(summary)}
+              onClick={() => onSelectSummary(summary)}
+            />
+          ))}
+        </Flex>
       )}
 
       {/* Months */}
       {groupedSummaries.month.length > 0 && (
-        <Box>
-          <Text size="1" color="gray" mb="2" className="block uppercase">
-            {t("summary.timeline.months")}
-          </Text>
-          <Flex direction="column" gap="1">
-            {groupedSummaries.month.slice(0, 3).map((summary) => (
-              <TimelineItem
-                key={summary.id}
-                summary={summary}
-                selected={isSelected(summary)}
-                onClick={() => onSelectSummary(summary)}
-              />
-            ))}
-          </Flex>
-        </Box>
+        <Flex direction="column" gap="1">
+          {groupedSummaries.month.slice(0, 3).map((summary) => (
+            <TimelineItem
+              key={summary.id}
+              summary={summary}
+              selected={isSelected(summary)}
+              onClick={() => onSelectSummary(summary)}
+            />
+          ))}
+        </Flex>
       )}
 
       {summaryList.length === 0 && (

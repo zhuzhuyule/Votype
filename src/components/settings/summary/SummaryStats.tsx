@@ -57,7 +57,7 @@ export const SummaryStatsCards: React.FC<SummaryStatsProps> = ({
 }) => {
   const { t } = useTranslation();
 
-  if (loading || !stats) {
+  if (loading && !stats) {
     return (
       <Grid columns="4" gap="4">
         {[1, 2, 3, 4].map((i) => (
@@ -70,8 +70,14 @@ export const SummaryStatsCards: React.FC<SummaryStatsProps> = ({
     );
   }
 
+  if (!stats) return null;
+
   return (
-    <Grid columns="4" gap="4">
+    <Grid
+      columns="4"
+      gap="4"
+      className={loading ? "opacity-50 pointer-events-none" : ""}
+    >
       <StatCard
         icon={<IconHash size={16} />}
         label={t("summary.stats.entries")}
@@ -106,7 +112,7 @@ export const SummaryAppDistribution: React.FC<SummaryStatsProps> = ({
     if (!stats) return [];
     return Object.entries(stats.by_app)
       .sort(([, a], [, b]) => b.count - a.count)
-      .slice(0, 5);
+      .slice(0, 4);
   }, [stats]);
 
   const maxCount = useMemo(() => {
@@ -114,11 +120,13 @@ export const SummaryAppDistribution: React.FC<SummaryStatsProps> = ({
     return Math.max(...sortedApps.map(([, s]) => s.count));
   }, [sortedApps]);
 
-  if (loading || !stats) {
+  if (loading && !stats) {
     return (
       <Box className="bg-(--gray-2) rounded-lg p-4 border border-(--gray-4) animate-pulse h-40" />
     );
   }
+
+  if (!stats) return null;
 
   if (sortedApps.length === 0) {
     return (
@@ -131,7 +139,9 @@ export const SummaryAppDistribution: React.FC<SummaryStatsProps> = ({
   }
 
   return (
-    <Box className="bg-(--gray-2) rounded-lg p-4 border border-(--gray-4)">
+    <Box
+      className={`bg-(--gray-2) rounded-lg p-4 border border-(--gray-4) ${loading ? "opacity-50" : ""}`}
+    >
       <Text size="2" weight="medium" mb="3" className="block">
         {t("summary.stats.appDistribution")}
       </Text>
@@ -168,14 +178,18 @@ export const SummaryHourlyChart: React.FC<SummaryStatsProps> = ({
     return Math.max(1, ...stats.by_hour);
   }, [stats]);
 
-  if (loading || !stats) {
+  if (loading && !stats) {
     return (
       <Box className="bg-(--gray-2) rounded-lg p-4 border border-(--gray-4) animate-pulse h-40" />
     );
   }
 
+  if (!stats) return null;
+
   return (
-    <Box className="bg-(--gray-2) rounded-lg p-4 border border-(--gray-4)">
+    <Box
+      className={`bg-(--gray-2) rounded-lg p-4 border border-(--gray-4) ${loading ? "opacity-50" : ""}`}
+    >
       <Text size="2" weight="medium" mb="3" className="block">
         {t("summary.stats.timeDistribution")}
       </Text>

@@ -19,12 +19,13 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { toLocalYmd } from "../dashboard/dashboardUtils";
+import { SummaryCalendar } from "./SummaryCalendar";
 import {
   SummaryAppDistribution,
   SummaryHourlyChart,
   SummaryStatsCards,
 } from "./SummaryStats";
-import { SummaryTimeline } from "./SummaryTimeline";
 import { useSummary } from "./hooks/useSummary";
 import {
   parseAiAnalysis,
@@ -341,13 +342,57 @@ export const SummaryPage: React.FC = () => {
     generateAiAnalysis(summary.id, selectedModel || null);
   }, [summary, selectedModel, generateAiAnalysis]);
 
+  // Prepare status map for calendar
+  const calendarStatusMap = useMemo(() => {
+    const map = new Map<string, { hasData: boolean; hasSummary: boolean }>();
+    summaryList.forEach((s) => {
+      // Only consider days for calendar dots for now
+      if (s.period_type === "day") {
+        const date = new Date(s.period_start * 1000);
+        const ymd = toLocalYmd(date);
+        const current = map.get(ymd) || { hasData: false, hasSummary: false };
+        // If a summary exists, it has data + summary
+        current.hasData = true;
+        current.hasSummary = !!s.ai_summary;
+        map.set(ymd, current);
+      }
+    });
+    return map;
+  }, [summaryList]);
+
+  const selectedDateYmd = useMemo(() => {
+    if (selection.type === "day") {
+      return toLocalYmd(new Date(selection.startTs * 1000));
+    }
+    return "";
+  }, [selection]);
+
+  const handleCalendarSelect = useCallback((dateStr: string) => {
+    const start = new Date(dateStr);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(dateStr);
+    end.setHours(23, 59, 59, 999);
+
+    setPeriodType("day");
+    setSelection({
+      type: "day",
+      startTs: Math.floor(start.getTime() / 1000),
+      endTs: Math.floor(end.getTime() / 1000),
+      label: start.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        weekday: "short",
+      }),
+    });
+  }, []);
+
   return (
     <Box className="w-full max-w-6xl mx-auto">
       <Flex gap="6">
         {/* Sidebar */}
-        <Box className="w-56 shrink-0">
+        <Box className="w-80 shrink-0 space-y-6">
           {/* Period Selector */}
-          <Box mb="6">
+          <Box>
             <Text
               size="2"
               weight="medium"
@@ -359,7 +404,13 @@ export const SummaryPage: React.FC = () => {
             </Text>
             <SegmentedControl.Root
               value={periodType}
-              onValueChange={handlePeriodChange}
+              onValueChange={(val) => {
+                const type = val as PeriodType;
+                setPeriodType(type);
+                // If switching to Month, select current view month?
+                // Logic will be handled in Calendar or here?
+                // For now just switch type.
+              }}
               size="1"
             >
               <SegmentedControl.Item value="day">
@@ -374,11 +425,57 @@ export const SummaryPage: React.FC = () => {
             </SegmentedControl.Root>
           </Box>
 
-          {/* Timeline */}
-          <SummaryTimeline
-            summaryList={summaryList}
-            currentSelection={selection}
-            onSelectSummary={handleSelectSummary}
+          {/* Calendar */}
+          <SummaryCalendar
+            selectedDate={selectedDateYmd}
+            onSelectDate={(date) => {
+              // If in day mode, simple select
+              if (periodType === "day") {
+                handleCalendarSelect(date);
+              } else if (periodType === "week") {
+                // Calculate week range for the clicked date
+                const d = new Date(date); // YYYY-MM-DD local
+                const start = new Date(d);
+                start.setDate(start.getDate() - start.getDay()); // Sunday
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(start);
+                end.setDate(end.getDate() + 6); // Saturday
+                end.setHours(23, 59, 59, 999);
+
+                setSelection({
+                  type: "week",
+                  startTs: Math.floor(start.getTime() / 1000),
+                  endTs: Math.floor(end.getTime() / 1000),
+                  label: `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${end.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`,
+                });
+              } else if (periodType === "month") {
+                // If in month mode, select the month containing this date
+                const d = new Date(date);
+                const start = new Date(d.getFullYear(), d.getMonth(), 1);
+                const end = new Date(
+                  d.getFullYear(),
+                  d.getMonth() + 1,
+                  0,
+                  23,
+                  59,
+                  59,
+                  999,
+                );
+
+                setSelection({
+                  type: "month",
+                  startTs: Math.floor(start.getTime() / 1000),
+                  endTs: Math.floor(end.getTime() / 1000),
+                  label: start.toLocaleDateString(undefined, {
+                    month: "long",
+                    year: "numeric",
+                  }),
+                });
+              }
+            }}
+            statusMap={calendarStatusMap}
+            periodType={periodType}
+            selection={selection}
           />
         </Box>
 
