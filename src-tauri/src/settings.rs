@@ -161,6 +161,13 @@ pub struct CachedModel {
     pub added_at: String,
     #[serde(default)]
     pub custom_label: Option<String>,
+    /// 是否为 Thinking 模式（深度推理）模型
+    #[serde(default)]
+    pub is_thinking_model: bool,
+    /// 额外的请求参数（JSON 格式，会合并到 LLM 请求体中）
+    /// 例如: {"extended_thinking": true, "thinking_budget_tokens": 10000}
+    #[serde(default)]
+    pub extra_params: Option<HashMap<String, serde_json::Value>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]

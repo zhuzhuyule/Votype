@@ -146,18 +146,26 @@ const renderModelSection = ({
                             weight={isSelected ? "medium" : "regular"}
                             className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
                           >
-                            {model.name}
+                            {model.custom_label || model.model_id}
                           </Text>
+                          {model.custom_label && (
+                            <Text
+                              size="1"
+                              color="gray"
+                              className="truncate block opacity-70"
+                            >
+                              {model.model_id}
+                            </Text>
+                          )}
                         </Box>
-
-                        {model.custom_label && (
+                        {model.is_thinking_model && (
                           <Badge
                             size="1"
                             variant="soft"
-                            color="indigo"
-                            className="ml-2"
+                            color="purple"
+                            className="ml-1"
                           >
-                            {model.custom_label}
+                            💭 Thinking
                           </Badge>
                         )}
                       </Flex>

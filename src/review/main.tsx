@@ -77,6 +77,12 @@ const ReviewApp: React.FC = () => {
     let unlistenHide: (() => void) | null = null;
 
     const setupListeners = async () => {
+      // Ensure window is hidden during reload/mount to avoid white flash
+      try {
+        await getCurrentWindow().hide();
+      } catch (error) {
+        console.warn("Failed to hide review window on mount:", error);
+      }
       // Listen for show event from Rust
       unlistenShow = await listen<ReviewData>("review-window-show", (event) => {
         setReviewData(event.payload);

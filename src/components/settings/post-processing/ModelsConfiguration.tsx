@@ -7,10 +7,12 @@ import {
   RadioCards,
   SegmentedControl,
   Text,
+  TextArea,
   TextField,
 } from "@radix-ui/themes";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel, ModelType } from "../../../lib/types";
@@ -65,6 +67,7 @@ export const ModelsConfiguration: React.FC = () => {
   const [pendingModelType, setPendingModelType] = useState<ModelType>("text");
   const [customTypeLabel, setCustomTypeLabel] = useState("");
   const [isManualModelEntry, setIsManualModelEntry] = useState(false);
+  const [extraParamsStr, setExtraParamsStr] = useState("");
 
   const cachedModels = settings?.cached_models ?? [];
   const configuredIds = useMemo(
@@ -116,6 +119,41 @@ export const ModelsConfiguration: React.FC = () => {
 
   const handleAddModel = async () => {
     if (!pendingModelId || !providerState.selectedProviderId) return;
+
+    let extra_params = undefined;
+    if (extraParamsStr.trim()) {
+      try {
+        // Simple attempt to fix "loose" JSON (e.g. {key: "value"} or single quotes)
+        let fixedJson = extraParamsStr.trim();
+        if (fixedJson.startsWith("{") && fixedJson.endsWith("}")) {
+          fixedJson = fixedJson
+            // Fix unquoted keys
+            .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+            // Fix single quotes to double quotes (naive check)
+            .replace(/'/g, '"')
+            // Remove trailing commas
+            .replace(/,\s*([}\]])/g, "$1");
+        }
+        extra_params = JSON.parse(fixedJson);
+        if (typeof extra_params !== "object" || extra_params === null) {
+          throw new Error("Must be a JSON object");
+        }
+      } catch (e) {
+        // If fixing fails, try the original one last time before giving up
+        try {
+          extra_params = JSON.parse(extraParamsStr);
+        } catch (e2) {
+          toast.error(
+            t(
+              "settings.postProcessing.models.selectModel.invalidJson",
+              "无效的 JSON 格式",
+            ),
+          );
+          return;
+        }
+      }
+    }
+
     const newModel: CachedModel = {
       id: buildCacheId(pendingModelId, providerState.selectedProviderId),
       name: pendingModelId,
@@ -124,13 +162,17 @@ export const ModelsConfiguration: React.FC = () => {
       model_id: pendingModelId,
       added_at: new Date().toISOString(),
       custom_label: customTypeLabel.trim() || undefined,
+      is_thinking_model:
+        extra_params?.["extended_thinking"] === true ||
+        extra_params?.["thinking"] === true,
+      extra_params,
     };
     await addCachedModel(newModel);
     setIsModelPickerOpen(false);
-    setPendingModelId(null);
-    setPendingModelType("text");
+    setPendingModelId("");
     setCustomTypeLabel("");
     setIsManualModelEntry(false);
+    setExtraParamsStr("");
   };
 
   return (
@@ -236,22 +278,45 @@ export const ModelsConfiguration: React.FC = () => {
                 ))}
               </RadioCards.Root>
             </Box>
-            {pendingModelType === "other" && (
-              <Box>
-                <Text size="2" weight="medium" mb="1">
-                  {t(
-                    "settings.postProcessing.models.selectModel.customLabelTitle",
-                  )}
-                </Text>
-                <TextField.Root
-                  placeholder={t(
-                    "settings.postProcessing.models.selectModel.customLabelPlaceholder",
-                  )}
-                  value={customTypeLabel}
-                  onChange={(e) => setCustomTypeLabel(e.target.value)}
-                />
-              </Box>
-            )}
+            {/* Extra Params (JSON) */}
+            <Box>
+              <Text size="2" weight="medium" mb="1" as="div">
+                {t(
+                  "settings.postProcessing.models.selectModel.extraParams",
+                  "额外请求参数 (JSON)",
+                )}
+              </Text>
+              <TextArea
+                placeholder='例如: {"extended_thinking": true}'
+                value={extraParamsStr}
+                onChange={(e) => setExtraParamsStr(e.target.value)}
+                style={{
+                  height: "80px",
+                  fontSize: "12px",
+                  fontFamily: "monospace",
+                }}
+              />
+              <Text size="1" color="gray" mt="1">
+                支持简写格式如 &#123;key: "value"&#125;，添加时将自动纠正。
+              </Text>
+            </Box>
+            {/* Model Nickname / Alias */}
+            <Box>
+              <Text size="2" weight="medium" mb="1" as="div">
+                {t(
+                  "settings.postProcessing.models.selectModel.customLabel",
+                  "模型昵称 / 别名 (可选)",
+                )}
+              </Text>
+              <TextField.Root
+                placeholder={t(
+                  "settings.postProcessing.models.selectModel.customLabelPlaceholder",
+                  "例如: 我的 DeepSeek, 高速翻译模型",
+                )}
+                value={customTypeLabel}
+                onChange={(e) => setCustomTypeLabel(e.target.value)}
+              />
+            </Box>
             <Flex justify="end" gap="3" mt="5">
               <Dialog.Close>
                 <Button variant="soft" color="gray">

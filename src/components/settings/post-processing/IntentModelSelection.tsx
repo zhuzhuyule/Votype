@@ -25,7 +25,9 @@ export const IntentModelSelection: React.FC = () => {
     },
     ...textModels.map((model) => ({
       value: model.id,
-      label: `${model.name} (${model.provider_id})`,
+      label: model.custom_label
+        ? `${model.custom_label} (${model.model_id})`
+        : `${model.model_id} (${model.provider_id})`,
     })),
   ];
 

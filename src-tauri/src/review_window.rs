@@ -44,6 +44,8 @@ static HIDDEN_WINDOWS_BEFORE_REVIEW: Lazy<Mutex<HashSet<String>>> =
     Lazy::new(|| Mutex::new(HashSet::new()));
 static PENDING_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
+static LAST_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
+    Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
 static LAST_ACTIVE_WINDOW: Lazy<Mutex<Option<ActiveWindowInfo>>> = Lazy::new(|| Mutex::new(None));
 
@@ -311,6 +313,10 @@ pub fn show_review_window(
         *pending = Some(payload.clone());
     }
     {
+        let mut last_payload = LAST_REVIEW_PAYLOAD.lock().unwrap();
+        *last_payload = Some(payload.clone());
+    }
+    {
         let mut last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
         *last_id = history_id;
     }
@@ -327,10 +333,7 @@ pub fn show_review_window(
         // Emit event to frontend to start rendering content
         // The actual show() will be called when frontend reports content ready
         if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
-            if emit_review_payload(app_handle, payload) {
-                let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
-                *pending = None;
-            }
+            let _ = emit_review_payload(app_handle, payload);
         }
 
         schedule_hide_windows(app_handle.clone());
@@ -344,6 +347,14 @@ pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
         let _ = review_window.hide();
     }
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
+    {
+        let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
+        *pending = None;
+    }
+    {
+        let mut last_payload = LAST_REVIEW_PAYLOAD.lock().unwrap();
+        *last_payload = None;
+    }
     REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst);
     schedule_hide_windows(app_handle.clone());
     maybe_restore_activation_policy(app_handle);
@@ -356,20 +367,14 @@ pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
     REVIEW_WINDOW_READY.store(true, Ordering::SeqCst);
     log::info!("review_window_ready received");
 
-    let payload = {
-        let pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
-        pending.clone()
-    };
-
-    if let Some(payload) = payload {
-        log::info!(
-            "review_window_ready replaying payload: history_id={:?}, change_percent={}",
-            payload.history_id,
-            payload.change_percent
-        );
-        if emit_review_payload(&app, payload) {
-            let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
-            *pending = None;
+    if REVIEW_WINDOW_ACTIVE.load(Ordering::SeqCst) {
+        if let Some(payload) = LAST_REVIEW_PAYLOAD.lock().unwrap().clone() {
+            log::info!(
+                "review_window_ready replaying payload: history_id={:?}, change_percent={}",
+                payload.history_id,
+                payload.change_percent
+            );
+            let _ = emit_review_payload(&app, payload);
         }
     }
 

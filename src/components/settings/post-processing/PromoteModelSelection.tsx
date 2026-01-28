@@ -18,7 +18,9 @@ export const PromoteModelSelection: React.FC = () => {
 
   const options = textModels.map((model) => ({
     value: model.id,
-    label: `${model.name} (${model.provider_id})`,
+    label: model.custom_label
+      ? `${model.custom_label} (${model.model_id})`
+      : `${model.model_id} (${model.provider_id})`,
   }));
 
   const selectedModelId = settings?.selected_prompt_model_id ?? undefined;

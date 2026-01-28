@@ -587,7 +587,7 @@ pub async fn execute_llm_request(
         .cloned()
         .unwrap_or_default();
 
-    let client = match crate::llm_client::create_client(provider, api_key) {
+    let client = match crate::llm_client::create_client(provider, api_key.clone()) {
         Ok(client) => client,
         Err(e) => {
             error!("Failed to create LLM client: {}", e);
@@ -664,36 +664,110 @@ pub async fn execute_llm_request(
         return (None, false, None, None);
     }
 
-    let req = CreateChatCompletionRequestArgs::default()
-        .model(model.to_string())
-        .messages(messages)
-        .build()
-        .ok();
+    // Resolve CachedModel to get extra_params and is_thinking_model
+    let cached_model = settings
+        .cached_models
+        .iter()
+        .find(|m| m.model_id == model && m.provider_id == provider.id);
+    let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
 
-    if let Some(req) = req {
-        match client.chat().create(req).await {
-            Ok(resp) => {
-                let content = resp
-                    .choices
-                    .first()
-                    .and_then(|c| c.message.content.clone())
-                    .unwrap_or_default();
+    // Build the request body JSON
+    let messages_json: Vec<serde_json::Value> = messages
+        .into_iter()
+        .filter_map(|m| serde_json::to_value(m).ok())
+        .collect();
 
-                let (text, confidence, reason) = parse_response_with_confidence(&content);
-                return (Some(text), false, confidence, reason);
-            }
-            Err(err) => {
-                error!("LLM request failed: {:?}", err);
-                let _ = app_handle.emit(
-                    "overlay-error",
-                    serde_json::json!({ "code": "llm_request_failed" }),
-                );
-                return (None, true, None, None);
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages_json,
+    });
+
+    // Merge extra params if provided
+    if let Some(extras) = extra_params {
+        if let Some(obj) = body.as_object_mut() {
+            for (k, v) in extras {
+                obj.insert(k.clone(), v.clone());
             }
         }
     }
 
-    (None, false, None, None)
+    // Manual HTTP request to allow arbitrary parameters and handle response flexibly
+    let base_url = provider.base_url.trim_end_matches('/');
+    let url = format!("{}/chat/completions", base_url);
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
+            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
+    );
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        reqwest::header::HeaderValue::from_static("application/json"),
+    );
+
+    if provider.id == "anthropic" {
+        headers.insert(
+            "anthropic-version",
+            reqwest::header::HeaderValue::from_static("2023-06-01"),
+        );
+    }
+    let http_client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(60)) // Increase timeout for Thinking models
+        .build();
+
+    match http_client {
+        Ok(client) => {
+            match client.post(url).json(&body).send().await {
+                Ok(resp) => {
+                    if resp.status().is_success() {
+                        match resp.json::<serde_json::Value>().await {
+                            Ok(json_resp) => {
+                                // Extract content from OpenAI-compatible response
+                                let content = json_resp["choices"][0]["message"]["content"]
+                                    .as_str()
+                                    .unwrap_or_default()
+                                    .to_string();
+
+                                // Could also check json_resp["choices"][0]["message"]["reasoning_content"] here
+                                // for thinking mode models that return it separately
+                                let reasoning = json_resp["choices"][0]["message"]
+                                    ["reasoning_content"]
+                                    .as_str();
+                                if let Some(r) = reasoning {
+                                    info!("[LLM] Received reasoning content (len={})", r.len());
+                                }
+
+                                let (text, confidence, reason) =
+                                    parse_response_with_confidence(&content);
+                                return (Some(text), false, confidence, reason);
+                            }
+                            Err(e) => {
+                                error!("Failed to parse LLM JSON response: {:?}", e);
+                            }
+                        }
+                    } else {
+                        let status = resp.status();
+                        let error_text = resp.text().await.unwrap_or_default();
+                        error!("LLM request failed with status {}: {}", status, error_text);
+                    }
+                }
+                Err(err) => {
+                    error!("LLM request network error: {:?}", err);
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to create HTTP client: {}", e);
+        }
+    }
+
+    let _ = app_handle.emit(
+        "overlay-error",
+        serde_json::json!({ "code": "llm_request_failed" }),
+    );
+    (None, true, None, None)
 }
 
 fn resolve_prompt_from_text(
