@@ -1721,9 +1721,44 @@ impl TranscriptionManager {
                         });
 
                         return match handle.join() {
-                            Ok(Ok(text)) => {
+                            Ok(Ok(mut text)) => {
+                                text = text.trim().to_string();
+
+                                // Fallback punctuation: If online result is long enough but lacks punctuation,
+                                // try to restore it using the local punctuation model.
+                                if settings.punctuation_enabled && text.chars().count() > 10 {
+                                    let has_punctuation =
+                                        text.chars().any(|c| ".,?!;。，？！；".contains(c));
+                                    if !has_punctuation {
+                                        let punct_model_id = settings.punctuation_model.trim();
+                                        if !punct_model_id.is_empty() {
+                                            let is_downloaded = self
+                                                .model_manager
+                                                .get_model_info(punct_model_id)
+                                                .is_some_and(|m| m.is_downloaded);
+
+                                            if is_downloaded {
+                                                match self.apply_punctuation_multiline(
+                                                    punct_model_id,
+                                                    &text,
+                                                ) {
+                                                    Ok(punctuated) => {
+                                                        if !punctuated.trim().is_empty() {
+                                                            info!("Applied fallback punctuation to online result");
+                                                            text = punctuated;
+                                                        }
+                                                    }
+                                                    Err(e) => {
+                                                        warn!("Fallback punctuation failed: {}", e);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 self.emit_online_asr_status("completed", None);
-                                Ok(text.trim().to_string())
+                                Ok(text)
                             }
                             Ok(Err(err)) => {
                                 let detail = err.to_string();

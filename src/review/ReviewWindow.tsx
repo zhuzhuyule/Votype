@@ -945,15 +945,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 </span>
               </div>
               <div
-                className="review-tooltip review-tooltip-bottom"
-                data-tooltip="ESC"
+                className="review-close-button review-close-btn"
+                onClick={handleCancel}
               >
-                <div
-                  className="review-close-button review-close-btn"
-                  onClick={handleCancel}
-                >
-                  <CancelIcon />
-                </div>
+                <CancelIcon />
               </div>
             </div>
           )}
@@ -965,15 +960,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                   t("transcription.review.generationTitle", "AI Assistant")}
               </div>
               <div
-                className="review-tooltip review-tooltip-bottom"
-                data-tooltip="ESC"
+                className="review-close-button review-close-btn"
+                onClick={handleCancel}
               >
-                <div
-                  className="review-close-button review-close-btn"
-                  onClick={handleCancel}
-                >
-                  <CancelIcon />
-                </div>
+                <CancelIcon />
               </div>
             </div>
           )}
@@ -1032,20 +1022,17 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 {t("common.copy", "Copy")}
               </button>
             )}
-            <div
-              className="review-tooltip review-tooltip-top"
-              data-tooltip={`${insertShortcut}`}
+            <button
+              className="review-btn-primary"
+              onClick={handleInsert}
+              disabled={isSubmitting || !getEditorText().trim()}
+              data-tauri-drag-region="false"
             >
-              <button
-                className="review-btn-primary"
-                onClick={handleInsert}
-                disabled={isSubmitting || !getEditorText().trim()}
-                data-tauri-drag-region="false"
-              >
-                {t("transcription.review.insert", "Insert")}
-                <IconTextPlus size={16} />
-              </button>
-            </div>
+              {t("transcription.review.insert", "Insert")}{" "}
+              <span className="opacity-60 ml-1 font-normal">
+                {insertShortcut}
+              </span>
+            </button>
           </div>
         </div>
       </div>

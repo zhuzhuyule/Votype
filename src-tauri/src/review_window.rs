@@ -206,16 +206,53 @@ fn maybe_restore_activation_policy(app_handle: &AppHandle) {
     }
 }
 
-fn position_window_on_primary_monitor(window: &tauri::WebviewWindow, width: f64, height: f64) {
-    // Always center on the primary monitor, regardless of cursor position
-    if let Some(monitor) = window.primary_monitor().ok().flatten() {
+fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
+    use crate::active_window::fetch_cursor_position;
+
+    let mut target_monitor = None;
+
+    // 1. Try to find the monitor containing the cursor
+    if let Ok(cursor) = fetch_cursor_position() {
+        if let Ok(available_monitors) = window.available_monitors() {
+            for monitor in available_monitors {
+                let scale = monitor.scale_factor();
+                // Enigo returns logical coordinates (points), so we must compare against logical monitor bounds
+                let logical_pos = monitor.position().to_logical::<f64>(scale);
+                let logical_size = monitor.size().to_logical::<f64>(scale);
+
+                let x_start = logical_pos.x;
+                let y_start = logical_pos.y;
+                let x_end = x_start + logical_size.width;
+                let y_end = y_start + logical_size.height;
+
+                let cx = cursor.x as f64;
+                let cy = cursor.y as f64;
+
+                if cx >= x_start && cx < x_end && cy >= y_start && cy < y_end {
+                    target_monitor = Some(monitor);
+                    break;
+                }
+            }
+        }
+    }
+
+    // 2. Fallback to primary monitor if not found
+    if target_monitor.is_none() {
+        target_monitor = window.primary_monitor().ok().flatten();
+    }
+
+    // 3. Position the window
+    if let Some(monitor) = target_monitor {
         let scale = monitor.scale_factor();
         let position = monitor.position();
         let monitor_size = monitor.size();
         let monitor_width = monitor_size.width as f64 / scale;
         let monitor_height = monitor_size.height as f64 / scale;
+
+        // Calculate centered position relative to the monitor's top-left
         let x = (monitor_width - width) / 2.0 + position.x as f64 / scale;
         let y = (monitor_height - height) / 2.0 + position.y as f64 / scale;
+
         let _ = window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
     }
 }
@@ -328,7 +365,7 @@ pub fn show_review_window(
         let width = estimate_window_width(&source_for_layout, &final_for_layout);
         let height = estimate_window_height(&source_for_layout, &final_for_layout, width);
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
-        position_window_on_primary_monitor(&review_window, width, height);
+        position_window_near_cursor(&review_window, width, height);
 
         // Emit event to frontend to start rendering content
         // The actual show() will be called when frontend reports content ready
