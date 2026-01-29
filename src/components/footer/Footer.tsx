@@ -1,4 +1,8 @@
-import { Flex, Text } from "@radix-ui/themes";
+import { Flex, Text, Tooltip } from "@radix-ui/themes";
+import {
+  IconLayoutSidebarLeftCollapse,
+  IconLayoutSidebarRightCollapse,
+} from "@tabler/icons-react";
 import { getVersion } from "@tauri-apps/api/app";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -7,7 +11,15 @@ import ModelSelector from "../model-selector";
 import UpdateChecker from "../update-checker";
 import { ThemeSelector } from "./ThemeSelector";
 
-const Footer: React.FC = () => {
+interface FooterProps {
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}
+
+const Footer: React.FC<FooterProps> = ({
+  sidebarCollapsed,
+  onToggleSidebar,
+}) => {
   const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
@@ -36,6 +48,22 @@ const Footer: React.FC = () => {
         className="text-xs px-4 pb-3 text-text/60"
       >
         <Flex align="center" gap="4">
+          <Tooltip
+            content={
+              sidebarCollapsed ? t("common.expand") : t("common.collapse")
+            }
+          >
+            <button
+              onClick={onToggleSidebar}
+              className="cursor-pointer text-(--gray-11) hover:text-(--gray-12) transition-colors p-1"
+            >
+              {sidebarCollapsed ? (
+                <IconLayoutSidebarRightCollapse size={16} />
+              ) : (
+                <IconLayoutSidebarLeftCollapse size={16} />
+              )}
+            </button>
+          </Tooltip>
           <ModelSelector />
         </Flex>
 

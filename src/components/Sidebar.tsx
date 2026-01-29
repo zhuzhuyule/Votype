@@ -2,19 +2,21 @@ import { Box, Flex, Switch, Text, Tooltip } from "@radix-ui/themes";
 import {
   IconAbc,
   IconAdjustments,
+  IconApps,
   IconBrain,
   IconChartBar,
   IconInfoCircle,
   IconKeyboard,
   IconLayoutDashboard,
+  IconSchool,
   IconSettings,
   IconSparkles,
-  IconTool,
 } from "@tabler/icons-react";
 import React, { lazy, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../hooks/useSettings";
 import VotypeHand from "./icons/VotypeHand";
+
 // 使用懒加载导入所有设置组件，减少初始 bundle 大小
 const Dashboard = lazy(() =>
   import("./settings/dashboard/Dashboard").then((m) => ({
@@ -137,7 +139,7 @@ export const SECTIONS_CONFIG = {
   },
   appProfiles: {
     labelKey: "sidebar.appProfiles",
-    icon: IconSettings,
+    icon: IconApps,
     component: AppProfilesSettings,
     enabled: () => true,
     shortcutKey: "7",
@@ -181,7 +183,8 @@ const SidebarItem: React.FC<{
   section: SectionConfig & { id: string; label: string };
   isActive: boolean;
   onClick: () => void;
-}> = ({ section, isActive, onClick }) => {
+  collapsed: boolean;
+}> = ({ section, isActive, onClick, collapsed }) => {
   const Icon = section.icon;
 
   const handleClick = useCallback(() => {
@@ -201,23 +204,28 @@ const SidebarItem: React.FC<{
   return (
     <Flex
       align="center"
-      justify="between"
-      px="3"
+      justify={collapsed ? "center" : "between"}
+      px={collapsed ? "0" : "3"}
       py="2"
       role="button"
       tabIndex={0}
       aria-selected={isActive}
-      className={`w-full cursor-pointer rounded-xl transition-all duration-200 group ${
+      className={`w-full cursor-pointer rounded-xl transition-all duration-200 group relative ${
         isActive
           ? "bg-(--accent-a3) shadow-sm border border-(--accent-a4)"
           : "hover:bg-(--gray-a3) opacity-70 hover:opacity-100 border border-transparent"
-      }`}
+      } ${collapsed ? "h-10 w-10 mx-auto" : ""}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
     >
-      <Flex gap="3" align="center">
+      <Flex
+        gap="3"
+        align="center"
+        justify={collapsed ? "center" : "start"}
+        className={collapsed ? "w-full justify-center" : "w-full"}
+      >
         <Box
-          className={`transition-transform duration-200 ${isActive ? "scale-110" : "group-hover:scale-105"}`}
+          className={`transition-transform duration-200 flex items-center justify-center ${isActive ? "scale-110" : "group-hover:scale-105"}`}
         >
           <Icon
             size={20}
@@ -225,32 +233,37 @@ const SidebarItem: React.FC<{
             color={isActive ? "var(--accent-9)" : "currentColor"}
           />
         </Box>
-        <Text
-          size="2"
-          weight={isActive ? "bold" : "medium"}
-          className={isActive ? "text-(--accent-11)" : "text-(--gray-11)"}
+        {!collapsed && (
+          <Text
+            size="2"
+            weight={isActive ? "bold" : "medium"}
+            className={isActive ? "text-(--accent-11)" : "text-(--gray-11)"}
+          >
+            {section.label}
+          </Text>
+        )}
+      </Flex>
+      {!collapsed && (
+        <Flex
+          align="center"
+          justify="center"
+          className={`w-5 h-5 rounded-md border text-[10px] font-mono transition-colors ${
+            isActive
+              ? "bg-(--accent-9) border-transparent text-white shadow-sm"
+              : "bg-(--gray-2) border-(--gray-5) text-(--gray-9)"
+          }`}
         >
-          {section.label}
-        </Text>
-      </Flex>
-      <Flex
-        align="center"
-        justify="center"
-        className={`w-5 h-5 rounded-md border text-[10px] font-mono transition-colors ${
-          isActive
-            ? "bg-(--accent-9) border-transparent text-white shadow-sm"
-            : "bg-(--gray-2) border-(--gray-5) text-(--gray-9)"
-        }`}
-      >
-        {section.shortcutKey}
-      </Flex>
+          {section.shortcutKey}
+        </Flex>
+      )}
     </Flex>
   );
 };
 
-export const Sidebar: React.FC<SidebarProps> = ({
+export const Sidebar: React.FC<SidebarProps & { collapsed: boolean }> = ({
   activeSection,
   onSectionChange,
+  collapsed,
 }) => {
   const { t } = useTranslation();
   const { expertMode, updateSetting } = useSettings();
@@ -273,15 +286,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <Flex
       direction="column"
-      className="w-56 h-full border-r border-(--gray-5) bg-(--gray-1) select-none"
+      className={`${collapsed ? "w-[72px]" : "w-56"} h-full border-r border-(--gray-5) bg-(--gray-1) select-none transition-all duration-300 ease-in-out`}
     >
       {/* Logo Area */}
-      <Flex align="center" justify="center" className="pt-5">
-        <VotypeHand size={30} />
+      {/* Logo Area */}
+      <Flex align="center" justify="center" className="pt-5 pb-1 min-h-[60px]">
+        {collapsed ? (
+          <img
+            src="/src/assets/logo.png"
+            alt="App Logo"
+            className="w-8 h-8 object-contain drop-shadow-sm"
+          />
+        ) : (
+          <VotypeHand size={30} />
+        )}
       </Flex>
 
       {/* Divider with center dot */}
-      <Flex align="center" justify="center" className="relative mx-8 mb-5 mt-1">
+      <Flex
+        align="center"
+        justify="center"
+        className={`relative mb-5 mt-2 transition-all duration-300 ${collapsed ? "opacity-0" : "opacity-100 mx-8"}`}
+      >
         <Box className="absolute inset-x-0 h-px bg-(--gray-3)" />
         <Box className="relative z-10 px-2 bg-(--gray-1)">
           <Box className="w-1.5 h-1.5 rounded-full bg-(--gray-3)" />
@@ -291,42 +317,72 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <Flex
         direction="column"
         gap="5"
-        px="3"
-        className="flex-1 overflow-y-auto"
+        px="2"
+        className="flex-1 overflow-y-auto overflow-x-hidden"
       >
         <Flex direction="column" gap="1">
           {sections.map((section) => (
-            <SidebarItem
+            <Tooltip
               key={section.id}
-              section={section}
-              isActive={activeSection === section.id}
-              onClick={() => onSectionChange(section.id as SidebarSection)}
-            />
+              content={collapsed ? section.label : ""}
+              side="right"
+            >
+              <div className="w-full">
+                <SidebarItem
+                  section={section}
+                  isActive={activeSection === section.id}
+                  onClick={() => onSectionChange(section.id as SidebarSection)}
+                  collapsed={collapsed}
+                />
+              </div>
+            </Tooltip>
           ))}
         </Flex>
       </Flex>
 
       {/* Expert Mode Toggle */}
       <Flex
-        align="center"
-        justify="between"
-        px="4"
-        py="3"
-        className="border-t border-(--gray-4)"
+        direction="column"
+        gap="2"
+        className={`border-t border-(--gray-4) transition-all duration-300 ${collapsed ? "px-2 py-4" : "px-4 py-3"}`}
       >
-        <Tooltip content={t("sidebar.expertModeHint")}>
-          <Flex align="center" gap="2" className="cursor-help">
-            <IconTool size={16} className="text-(--gray-9)" />
-            <Text size="1" color="gray">
-              {t("sidebar.expertMode")}
-            </Text>
-          </Flex>
-        </Tooltip>
-        <Switch
-          size="1"
-          checked={expertMode}
-          onCheckedChange={handleExpertModeToggle}
-        />
+        <Flex
+          align="center"
+          justify={collapsed ? "center" : "between"}
+          className="w-full"
+        >
+          {!collapsed && (
+            <Tooltip content={t("sidebar.expertModeHint")}>
+              <Flex align="center" gap="2" className="cursor-help">
+                <IconSchool size={16} className="text-(--gray-9)" />
+                <Text size="1" color="gray">
+                  {t("sidebar.expertMode")}
+                </Text>
+              </Flex>
+            </Tooltip>
+          )}
+
+          {collapsed ? (
+            <Tooltip
+              content={`${t("sidebar.expertMode")} (${expertMode ? "On" : "Off"})`}
+              side="right"
+            >
+              <div>
+                <Switch
+                  size="1"
+                  checked={expertMode}
+                  onCheckedChange={handleExpertModeToggle}
+                />
+              </div>
+            </Tooltip>
+          ) : (
+            <Switch
+              size="1"
+              checked={expertMode}
+              onCheckedChange={handleExpertModeToggle}
+            />
+          )}
+        </Flex>
       </Flex>
     </Flex>
   );

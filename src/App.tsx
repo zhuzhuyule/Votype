@@ -2,6 +2,7 @@ import { Flex, ScrollArea, Spinner } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Toaster } from "sonner";
 import "./App.css";
 import Onboarding from "./components/onboarding";
@@ -66,6 +67,25 @@ function App() {
 
   // 延迟加载非关键组件
   const [showNonCritical, setShowNonCritical] = useState(false);
+  const { t } = useTranslation();
+
+  // Sidebar collapsed state
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar-collapsed");
+    if (saved) {
+      setSidebarCollapsed(JSON.parse(saved));
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => {
+      const newState = !prev;
+      localStorage.setItem("sidebar-collapsed", JSON.stringify(newState));
+      return newState;
+    });
+  };
 
   useEffect(() => {
     // 延迟 500ms 加载非关键组件，让主界面先渲染
@@ -192,11 +212,13 @@ function App() {
           <Flex className="h-screen flex flex-col">
             <Toaster />
             {/* Main content area that takes remaining space */}
-            <Flex className="flex-1 flex overflow-hidden">
+            <Flex className="flex-1 flex overflow-hidden relative">
               <Sidebar
                 activeSection={currentSection}
                 onSectionChange={setCurrentSection}
+                collapsed={sidebarCollapsed}
               />
+
               {/* Scrollable content area with ScrollArea */}
               <Flex flexGrow="1" direction="column" overflow="hidden">
                 <ScrollArea
@@ -225,7 +247,10 @@ function App() {
             {/* Fixed footer at bottom */}
             {showNonCritical && (
               <Suspense fallback={null}>
-                <Footer />
+                <Footer
+                  sidebarCollapsed={sidebarCollapsed}
+                  onToggleSidebar={toggleSidebar}
+                />
               </Suspense>
             )}
           </Flex>
