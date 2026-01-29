@@ -182,64 +182,6 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
     return months;
   }, [viewYear, isMonthMode, statusMap]);
 
-  // --- WEEK LIST LOGIC (Week View) ---
-  const weekData = useMemo(() => {
-    if (!isWeekMode) return [];
-
-    // Find distinct weeks for this month
-    // We go from first day of month, back to Sunday
-    // Then iterate forward week by week until we are past end of month
-
-    const weeks = [];
-
-    const startOfMonth = new Date(viewYear, viewMonth, 1);
-    const endOfMonth = new Date(viewYear, viewMonth + 1, 0); // Last day
-
-    // Start iterating from the Sunday of the first week
-    const iter = new Date(startOfMonth);
-    iter.setDate(iter.getDate() - iter.getDay());
-    iter.setHours(0, 0, 0, 0);
-
-    // Safety break to prevent infinite loops if logic fails
-    let safety = 0;
-    while (iter <= endOfMonth && safety < 10) {
-      const weekStart = new Date(iter);
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-
-      // Check if any day in this week has summary
-      let hasSummary = false;
-      const checkIter = new Date(weekStart);
-      while (checkIter <= weekEnd) {
-        const ymd = toLocalYmd(checkIter);
-        if (statusMap.get(ymd)?.hasSummary) {
-          hasSummary = true;
-          break;
-        }
-        checkIter.setDate(checkIter.getDate() + 1);
-      }
-
-      // Label format: "Jan 1 - Jan 7"
-      const label = `${weekStart.toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-
-      weeks.push({
-        start: weekStart,
-        end: weekEnd,
-        startTs: weekStart.getTime() / 1000,
-        endTs: weekEnd.getTime() / 1000,
-        label,
-        hasSummary,
-      });
-
-      // Move to next week
-      iter.setDate(iter.getDate() + 7);
-      safety++;
-    }
-
-    return weeks;
-  }, [viewYear, viewMonth, isWeekMode, statusMap]);
-
   // Helper to check highlights
   const isInSelectionRange = (
     itemYear: number,
@@ -271,16 +213,6 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
     const endTs = endOfMonth.getTime() / 1000;
 
     return startTs <= selection.endTs && endTs >= selection.startTs;
-  };
-
-  const isWeekSelected = (wStartTs: number, wEndTs: number) => {
-    // Check exact match for week selection
-    // Or overlap? Usually exact match for "Select Week"
-    // floating point comparison safety? We used floor/integers mostly.
-    return (
-      Math.abs(wStartTs - selection.startTs) < 100 &&
-      Math.abs(wEndTs - selection.endTs) < 100
-    );
   };
 
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -383,45 +315,6 @@ export const SummaryCalendar: React.FC<SummaryCalendarProps> = ({
             );
           })}
         </Grid>
-      </Card>
-    );
-  }
-
-  if (isWeekMode) {
-    // --- WEEK VIEW (List) ---
-    return (
-      <Card className="p-4" shadow="sm">
-        {renderHeader()}
-        <Flex direction="column" gap="2">
-          {weekData.map((w, idx) => {
-            const isSelected = isWeekSelected(w.startTs, w.endTs);
-            const now = new Date();
-            // Check if "This Week"?
-            // ...
-
-            const isStrictFuture = w.start.getTime() > now.getTime();
-
-            return (
-              <Box key={idx} className="relative group">
-                <button
-                  type="button"
-                  disabled={isStrictFuture}
-                  onClick={() => onSelectDate(toLocalYmd(w.start))}
-                  className={`
-                                    w-full py-3 px-4 rounded-md text-sm relative transition-all duration-200 border box-border flex justify-between items-center
-                                    ${isStrictFuture ? "opacity-20 cursor-not-allowed" : "cursor-pointer hover:bg-(--gray-3)"}
-                                    ${isSelected ? "bg-(--accent-3) text-(--accent-11)" : "border-transparent bg-(--gray-2)"}
-                                `}
-                >
-                  <Text>{w.label}</Text>
-                  {w.hasSummary && (
-                    <IconSparkles size={14} className="text-(--accent-9)" />
-                  )}
-                </button>
-              </Box>
-            );
-          })}
-        </Flex>
       </Card>
     );
   }

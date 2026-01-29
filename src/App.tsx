@@ -121,7 +121,8 @@ function App() {
         "navigate-to-settings",
         (event: { payload: string }) => {
           // Navigate to the specified settings section
-
+          // If the payload is 'dashboard' (default open), avoid resetting if we're already on a view
+          if (event.payload === "dashboard") return;
           setCurrentSection(event.payload as SidebarSection);
         },
       );

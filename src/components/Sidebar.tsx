@@ -237,7 +237,7 @@ const SidebarItem: React.FC<{
           <Text
             size="2"
             weight={isActive ? "bold" : "medium"}
-            className={isActive ? "text-(--accent-11)" : "text-(--gray-11)"}
+            className={`${isActive ? "text-(--accent-11)" : "text-(--gray-11)"} whitespace-nowrap overflow-hidden text-ellipsis`}
           >
             {section.label}
           </Text>
@@ -321,22 +321,30 @@ export const Sidebar: React.FC<SidebarProps & { collapsed: boolean }> = ({
         className="flex-1 overflow-y-auto overflow-x-hidden"
       >
         <Flex direction="column" gap="1">
-          {sections.map((section) => (
-            <Tooltip
-              key={section.id}
-              content={collapsed ? section.label : ""}
-              side="right"
-            >
-              <div className="w-full">
-                <SidebarItem
-                  section={section}
-                  isActive={activeSection === section.id}
-                  onClick={() => onSectionChange(section.id as SidebarSection)}
-                  collapsed={collapsed}
-                />
-              </div>
-            </Tooltip>
-          ))}
+          {sections.map((section) =>
+            collapsed ? (
+              <Tooltip key={section.id} content={section.label} side="right">
+                <div className="w-full">
+                  <SidebarItem
+                    section={section}
+                    isActive={activeSection === section.id}
+                    onClick={() =>
+                      onSectionChange(section.id as SidebarSection)
+                    }
+                    collapsed={collapsed}
+                  />
+                </div>
+              </Tooltip>
+            ) : (
+              <SidebarItem
+                key={section.id}
+                section={section}
+                isActive={activeSection === section.id}
+                onClick={() => onSectionChange(section.id as SidebarSection)}
+                collapsed={collapsed}
+              />
+            ),
+          )}
         </Flex>
       </Flex>
 

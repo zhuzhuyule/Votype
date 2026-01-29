@@ -1,10 +1,10 @@
+import { Box, Button, Flex, Text, type ButtonProps } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   checkAccessibilityPermission,
   requestAccessibilityPermission,
 } from "tauri-plugin-macos-permissions-api";
-import { Box, Button, Flex, Text, type ButtonProps } from "@radix-ui/themes";
 
 // Define permission state type
 type PermissionState = "request" | "verify" | "granted";
@@ -18,6 +18,7 @@ interface ButtonConfig {
 const AccessibilityPermissions: React.FC = () => {
   const { t } = useTranslation();
   const [hasAccessibility, setHasAccessibility] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [permissionState, setPermissionState] =
     useState<PermissionState>("request");
 
@@ -52,12 +53,13 @@ const AccessibilityPermissions: React.FC = () => {
       const hasPermissions: boolean = await checkAccessibilityPermission();
       setHasAccessibility(hasPermissions);
       setPermissionState(hasPermissions ? "granted" : "request");
+      setIsLoading(false);
     };
 
     initialSetup();
   }, []);
 
-  if (hasAccessibility) {
+  if (isLoading || hasAccessibility) {
     return null;
   }
 
@@ -80,13 +82,16 @@ const AccessibilityPermissions: React.FC = () => {
   }
 
   return (
-    <Flex p="4" className="w-full rounded-lg border border-mid-gray">
-      <Flex justify="between" align="center" gap="2">
+    <Flex
+      p="4"
+      className="w-full rounded-lg border border-(--gray-4) bg-(--gray-2)"
+    >
+      <Flex justify="between" align="center" gap="4" className="w-full">
         <Box>
-          <Text size="2" weight="medium">
+          <Text size="2" weight="medium" as="div">
             {t("accessibility.permissionsRequired")}
           </Text>
-          <Text size="1" className="text-text/60">
+          <Text size="1" color="gray" as="div">
             {t("accessibility.permissionsDescription")}
           </Text>
         </Box>
@@ -94,7 +99,7 @@ const AccessibilityPermissions: React.FC = () => {
           onClick={handleButtonClick}
           variant={config.variant}
           size="1"
-          className="min-h-10"
+          className="cursor-pointer shrink-0"
         >
           {config.text}
         </Button>

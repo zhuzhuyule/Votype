@@ -23,6 +23,7 @@ import hljs from "highlight.js";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CancelIcon } from "../components/icons";
+import { log } from "../lib/utils/logging";
 import "./ReviewWindow.css";
 
 interface ReviewData {
@@ -201,6 +202,7 @@ const computeDiffAnnotations = (
   source: string,
   target: string,
 ): DiffAnnotations => {
+  const start = performance.now();
   const sourceTokens = tokenizeWithIndices(source).map((token) => ({
     value: token.value,
     normalized: normalizeToken(token.value),
@@ -284,6 +286,16 @@ const computeDiffAnnotations = (
     sourceStatuses[pending.index] = "delete";
   }
 
+  const durationMs = Math.round(performance.now() - start);
+  void log("[ReviewWindow] computeDiffAnnotations", {
+    sourceChars: source.length,
+    targetChars: target.length,
+    sourceTokens: sourceLen,
+    targetTokens: targetLen,
+    dpCells: (sourceLen + 1) * (targetLen + 1),
+    durationMs,
+  });
+
   return { sourceStatuses, targetLevels };
 };
 
@@ -331,17 +343,28 @@ const buildTargetHtml = (
 };
 
 const buildDiffViews = (source: string, target: string) => {
+  const start = performance.now();
   const { sourceStatuses, targetLevels } = computeDiffAnnotations(
     source,
     target,
   );
-  return {
+  const result = {
     sourceHtml: buildSourceHtml(source, sourceStatuses),
     targetHtml: buildTargetHtml(target, targetLevels),
   };
+  const durationMs = Math.round(performance.now() - start);
+  void log("[ReviewWindow] buildDiffViews", {
+    sourceChars: source.length,
+    targetChars: target.length,
+    sourceHtmlChars: result.sourceHtml.length,
+    targetHtmlChars: result.targetHtml.length,
+    durationMs,
+  });
+  return result;
 };
 
 const simpleMarkdownToHtml = (text: string): string => {
+  const start = performance.now();
   // Use unique placeholders that won't conflict with markdown syntax
   const PLACEHOLDER_PREFIX = "\x00CB"; // Code Block
   const PLACEHOLDER_SUFFIX = "\x00";
@@ -590,6 +613,15 @@ const simpleMarkdownToHtml = (text: string): string => {
   // Clean up empty paragraphs
   html = html.replace(/<p><\/p>/g, "");
 
+  const durationMs = Math.round(performance.now() - start);
+  void log("[ReviewWindow] simpleMarkdownToHtml", {
+    textChars: text.length,
+    codeBlocks: codeBlocks.length,
+    inlineCodes: inlineCodes.length,
+    htmlChars: html.length,
+    durationMs,
+  });
+
   return html;
 };
 
@@ -719,6 +751,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
+  const renderStartRef = useRef<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sourceHtml, setSourceHtml] = useState(() => {
     if (initialData.output_mode === "chat") return "";
@@ -787,10 +820,28 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   );
 
   useEffect(() => {
+    renderStartRef.current = performance.now();
+    void log("[ReviewWindow] render_start", {
+      sourceChars: initialData.source_text.length,
+      targetChars: initialData.final_text.length,
+      outputMode: initialData.output_mode ?? "polish",
+      changePercent: initialData.change_percent,
+      historyId: initialData.history_id,
+    });
+  }, [
+    initialData.source_text,
+    initialData.final_text,
+    initialData.output_mode,
+    initialData.change_percent,
+    initialData.history_id,
+  ]);
+
+  useEffect(() => {
     if (!editor) return;
 
     let content = "";
     let nextSourceHtml = "";
+    const buildStart = performance.now();
 
     if (initialData.output_mode === "chat") {
       content = simpleMarkdownToHtml(initialData.final_text.trim());
@@ -803,7 +854,21 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       nextSourceHtml = views.sourceHtml;
     }
 
+    const buildDurationMs = Math.round(performance.now() - buildStart);
+    void log("[ReviewWindow] content_build_done", {
+      outputMode: initialData.output_mode ?? "polish",
+      buildDurationMs,
+      targetHtmlChars: content.length,
+      sourceHtmlChars: nextSourceHtml.length,
+    });
+
+    const setStart = performance.now();
     editor.commands.setContent(content, { emitUpdate: false });
+    const setDurationMs = Math.round(performance.now() - setStart);
+    void log("[ReviewWindow] editor_set_content_done", {
+      setDurationMs,
+      targetHtmlChars: content.length,
+    });
     setSourceHtml(nextSourceHtml);
   }, [
     editor,
@@ -824,6 +889,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     // This ensures no flicker - window only becomes visible after content is ready
     const readyTimer = window.setTimeout(() => {
       if (disposed) return;
+      const renderStart = renderStartRef.current;
+      const renderDurationMs = renderStart
+        ? Math.round(performance.now() - renderStart)
+        : null;
+      void log("[ReviewWindow] content_ready", {
+        renderDurationMs,
+        outputMode: initialData.output_mode ?? "polish",
+      });
       invoke("review_window_content_ready").catch((e) => {
         console.error("Failed to notify content ready:", e);
       });

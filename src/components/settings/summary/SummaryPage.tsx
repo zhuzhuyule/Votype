@@ -4,6 +4,7 @@ import {
   Button,
   DropdownMenu,
   Flex,
+  Grid,
   Heading,
   SegmentedControl,
   Tabs,
@@ -599,18 +600,23 @@ export const SummaryPage: React.FC = () => {
             </Flex>
           </Flex>
 
-          {/* Stats Cards */}
-          <SummaryStatsCards stats={stats} loading={loading} />
+          {/* Stats & Charts Grid */}
+          <Grid
+            columns="4"
+            gap="4"
+            className={loading ? "opacity-50 pointer-events-none" : ""}
+          >
+            {/* Stats Cards (4 items) */}
+            <SummaryStatsCards stats={stats} loading={loading} />
 
-          {/* Charts Row */}
-          <Flex gap="4">
-            <Box className="flex-1">
+            {/* Charts Row (2 items, span 2 each) */}
+            <Box className="col-span-2 h-full">
               <SummaryAppDistribution stats={stats} loading={loading} />
             </Box>
-            <Box className="flex-1">
+            <Box className="col-span-2 h-full">
               <SummaryHourlyChart stats={stats} loading={loading} />
             </Box>
-          </Flex>
+          </Grid>
 
           {/* AI Analysis Section */}
         </Box>
