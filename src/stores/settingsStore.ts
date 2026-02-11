@@ -173,6 +173,10 @@ const settingUpdaters: {
     invoke("change_paste_method_setting", { method: value }),
   clipboard_handling: (value) =>
     invoke("change_clipboard_handling_setting", { handling: value }),
+  auto_submit: (value) =>
+    invoke("change_auto_submit_setting", { enabled: value }),
+  auto_submit_key: (value) =>
+    invoke("change_auto_submit_key_setting", { key: value }),
   history_limit: (value) => invoke("update_history_limit", { limit: value }),
   post_process_enabled: (value) =>
     invoke("change_post_process_enabled_setting", { enabled: value }),

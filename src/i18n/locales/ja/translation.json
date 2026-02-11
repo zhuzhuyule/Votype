@@ -400,6 +400,17 @@
         "description": "ウィンドウを開かずにシステムトレイに起動。",
         "label": "非表示で起動"
       },
+      "autoSubmit": {
+        "title": "自動送信",
+        "description": "テキスト挿入後に選択したキーの組み合わせを自動的に送信します。macOSではCmd+Enter、Windows/LinuxではSuper+Enterが適用されます。",
+        "options": {
+          "off": "オフ",
+          "enter": "Enter",
+          "cmdEnter": "Cmd+Enter",
+          "superEnter": "Super+Enter",
+          "ctrlEnter": "Ctrl+Enter"
+        }
+      },
       "title": "詳細設定",
       "translateToEnglish": {
         "description": "文字起こし中に他の言語から英語に自動的に翻訳。",

@@ -11,8 +11,8 @@ use crate::actions::{ActionMode, ACTION_MAP};
 use crate::managers::audio::AudioRecordingManager;
 use crate::settings::ShortcutBinding;
 use crate::settings::{
-    self, get_settings, CachedModel, ClipboardHandling, ModelType, OverlayPosition, PasteMethod,
-    PostProcessProvider, Skill, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
+    self, get_settings, AutoSubmitKey, CachedModel, ClipboardHandling, ModelType, OverlayPosition,
+    PasteMethod, PostProcessProvider, Skill, SoundTheme, APPLE_INTELLIGENCE_DEFAULT_MODEL_ID,
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray::{ManagedTrayIconState, TrayIconState};
@@ -440,6 +440,31 @@ pub fn change_clipboard_handling_setting(app: AppHandle, handling: String) -> Re
         }
     };
     settings.clipboard_handling = parsed;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_auto_submit_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.auto_submit = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_auto_submit_key_setting(app: AppHandle, key: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let parsed = match key.as_str() {
+        "enter" => AutoSubmitKey::Enter,
+        "ctrl_enter" => AutoSubmitKey::CtrlEnter,
+        "cmd_enter" => AutoSubmitKey::CmdEnter,
+        other => {
+            warn!("Invalid auto submit key '{}', defaulting to enter", other);
+            AutoSubmitKey::Enter
+        }
+    };
+    settings.auto_submit_key = parsed;
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -1708,6 +1733,10 @@ pub fn suspend_binding(app: AppHandle, id: String) -> Result<(), String> {
 #[tauri::command]
 pub fn resume_binding(app: AppHandle, id: String) -> Result<(), String> {
     if let Some(b) = settings::get_bindings(&app).get(&id).cloned() {
+        // Always try to unregister first – the shortcut may still be
+        // registered if suspend_binding was skipped or failed silently.
+        // Ignore errors here since the shortcut might not be registered.
+        let _ = unregister_shortcut(&app, b.clone());
         if let Err(e) = register_shortcut(&app, b) {
             error!("resume_binding error for id '{}': {}", id, e);
             return Err(e);

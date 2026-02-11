@@ -54,6 +54,9 @@ export const ClipboardHandlingSchema = z.enum([
 ]);
 export type ClipboardHandling = z.infer<typeof ClipboardHandlingSchema>;
 
+export const AutoSubmitKeySchema = z.enum(["enter", "ctrl_enter", "cmd_enter"]);
+export type AutoSubmitKey = z.infer<typeof AutoSubmitKeySchema>;
+
 export const LogLevelSchema = z.number().int().min(1).max(5).default(2);
 export type LogLevelValue = z.infer<typeof LogLevelSchema>;
 
@@ -189,6 +192,8 @@ export const SettingsSchema = z.object({
     RecordingRetentionPeriodSchema.optional().default("preserve_limit"),
   paste_method: PasteMethodSchema.optional().default("ctrl_v"),
   clipboard_handling: ClipboardHandlingSchema.optional().default("dont_modify"),
+  auto_submit: z.boolean().optional().default(false),
+  auto_submit_key: AutoSubmitKeySchema.optional().default("enter"),
   post_process_enabled: z.boolean().optional().default(false),
   post_process_use_secondary_output: z.boolean().optional().default(false),
   post_process_use_local_candidate_when_online_asr: z

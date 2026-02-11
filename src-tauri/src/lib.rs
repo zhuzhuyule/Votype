@@ -164,6 +164,11 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     )));
     app_handle.manage(Mutex::new(PendingSkillConfirmation::default()));
 
+    // Initialize the TranscriptionCoordinator before shortcuts so shortcut
+    // handlers can find it in state when processing transcribe actions.
+    let coordinator = transcription_coordinator::TranscriptionCoordinator::new(app_handle.clone());
+    app_handle.manage(coordinator);
+
     // Initialize the shortcuts
     shortcut::init_shortcuts(app_handle);
 
@@ -264,37 +269,39 @@ pub fn run() {
     // when the variable is unset
     let console_filter = build_console_filter();
 
-    let mut builder = tauri::Builder::default().plugin(
-        LogBuilder::new()
-            .level(log::LevelFilter::Trace) // Set to most verbose level globally
-            .max_file_size(500_000)
-            .rotation_strategy(RotationStrategy::KeepOne)
-            .clear_targets()
-            .targets([
-                // Console output respects RUST_LOG environment variable OR dynamic console level
-                Target::new(TargetKind::Stdout).filter({
-                    let console_filter = console_filter.clone();
-                    move |metadata| {
-                        // Check RUST_LOG filter first
-                        if console_filter.enabled(metadata) {
-                            return true;
+    let mut builder = tauri::Builder::default()
+        .plugin(
+            LogBuilder::new()
+                .level(log::LevelFilter::Trace) // Set to most verbose level globally
+                .max_file_size(500_000)
+                .rotation_strategy(RotationStrategy::KeepOne)
+                .clear_targets()
+                .targets([
+                    // Console output respects RUST_LOG environment variable OR dynamic console level
+                    Target::new(TargetKind::Stdout).filter({
+                        let console_filter = console_filter.clone();
+                        move |metadata| {
+                            // Check RUST_LOG filter first
+                            if console_filter.enabled(metadata) {
+                                return true;
+                            }
+                            // Fallback to dynamic console level
+                            let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
+                            metadata.level() <= level_filter_from_u8(console_level)
                         }
-                        // Fallback to dynamic console level
-                        let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
-                        metadata.level() <= level_filter_from_u8(console_level)
-                    }
-                }),
-                // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
-                Target::new(TargetKind::LogDir {
-                    file_name: Some("votype".into()),
-                })
-                .filter(|metadata| {
-                    let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
-                    metadata.level() <= level_filter_from_u8(file_level)
-                }),
-            ])
-            .build(),
-    );
+                    }),
+                    // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("votype".into()),
+                    })
+                    .filter(|metadata| {
+                        let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
+                        metadata.level() <= level_filter_from_u8(file_level)
+                    }),
+                ])
+                .build(),
+        )
+        .plugin(tauri_plugin_dialog::init());
 
     #[cfg(target_os = "macos")]
     {
@@ -384,6 +391,8 @@ pub fn run() {
             shortcut::change_word_correction_threshold_setting,
             shortcut::change_paste_method_setting,
             shortcut::change_clipboard_handling_setting,
+            shortcut::change_auto_submit_setting,
+            shortcut::change_auto_submit_key_setting,
             shortcut::change_post_process_enabled_setting,
             shortcut::change_post_process_use_secondary_output_setting,
             shortcut::change_post_process_use_local_candidate_when_online_asr_setting,
@@ -538,11 +547,7 @@ pub fn run() {
             shortcut::get_all_skills,
             shortcut::create_skill,
             shortcut::delete_skill,
-            shortcut::get_skill_templates,
-            shortcut::create_skill_from_template,
-            shortcut::reorder_skills,
-            shortcut::get_builtin_skills,
-            shortcut::get_default_skill_content
+            shortcut::get_skill_templates
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

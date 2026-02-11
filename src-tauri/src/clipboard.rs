@@ -1,7 +1,8 @@
 use crate::input::{self, EnigoState};
-use crate::settings::{get_settings, ClipboardHandling, PasteMethod};
-use enigo::Enigo;
+use crate::settings::{get_settings, AutoSubmitKey, ClipboardHandling, PasteMethod};
+use enigo::{Direction, Enigo, Key, Keyboard};
 use log::info;
+use std::time::Duration;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
@@ -167,6 +168,11 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         PasteMethod::ShiftInsert => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
     }
 
+    if should_send_auto_submit(settings.auto_submit, paste_method) {
+        std::thread::sleep(Duration::from_millis(50));
+        send_return_key(enigo, settings.auto_submit_key)?;
+    }
+
     // After pasting, optionally copy to clipboard based on settings
     if settings.clipboard_handling == ClipboardHandling::CopyToClipboard {
         let clipboard = app_handle.clipboard();
@@ -258,6 +264,53 @@ fn get_selected_text_via_clipboard(app_handle: &AppHandle) -> Result<String, Str
     Ok(selected_text)
 }
 
+fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), String> {
+    match key_type {
+        AutoSubmitKey::Enter => {
+            enigo
+                .key(Key::Return, Direction::Press)
+                .map_err(|e| format!("Failed to press Return key: {}", e))?;
+            enigo
+                .key(Key::Return, Direction::Release)
+                .map_err(|e| format!("Failed to release Return key: {}", e))?;
+        }
+        AutoSubmitKey::CtrlEnter => {
+            enigo
+                .key(Key::Control, Direction::Press)
+                .map_err(|e| format!("Failed to press Control key: {}", e))?;
+            enigo
+                .key(Key::Return, Direction::Press)
+                .map_err(|e| format!("Failed to press Return key: {}", e))?;
+            enigo
+                .key(Key::Return, Direction::Release)
+                .map_err(|e| format!("Failed to release Return key: {}", e))?;
+            enigo
+                .key(Key::Control, Direction::Release)
+                .map_err(|e| format!("Failed to release Control key: {}", e))?;
+        }
+        AutoSubmitKey::CmdEnter => {
+            enigo
+                .key(Key::Meta, Direction::Press)
+                .map_err(|e| format!("Failed to press Meta/Cmd key: {}", e))?;
+            enigo
+                .key(Key::Return, Direction::Press)
+                .map_err(|e| format!("Failed to press Return key: {}", e))?;
+            enigo
+                .key(Key::Return, Direction::Release)
+                .map_err(|e| format!("Failed to release Return key: {}", e))?;
+            enigo
+                .key(Key::Meta, Direction::Release)
+                .map_err(|e| format!("Failed to release Meta/Cmd key: {}", e))?;
+        }
+    }
+
+    Ok(())
+}
+
+fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool {
+    auto_submit && paste_method != PasteMethod::None
+}
+
 /// Get selected text using macOS Accessibility API (AXSelectedText).
 /// This is more efficient as it doesn't affect the clipboard.
 #[cfg(target_os = "macos")]
@@ -319,5 +372,34 @@ fn get_selected_text_via_accessibility() -> Result<String, String> {
         let text = cf_text.to_string();
 
         Ok(text)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn auto_submit_requires_setting_enabled() {
+        assert!(!should_send_auto_submit(false, PasteMethod::CtrlV));
+        assert!(!should_send_auto_submit(false, PasteMethod::Direct));
+    }
+
+    #[test]
+    fn auto_submit_skips_none_paste_method() {
+        assert!(!should_send_auto_submit(true, PasteMethod::None));
+    }
+
+    #[test]
+    fn auto_submit_runs_for_active_paste_methods() {
+        assert!(should_send_auto_submit(true, PasteMethod::CtrlV));
+        assert!(should_send_auto_submit(true, PasteMethod::Direct));
+        assert!(should_send_auto_submit(true, PasteMethod::CtrlShiftV));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn auto_submit_runs_for_active_paste_methods_shift_insert() {
+        assert!(should_send_auto_submit(true, PasteMethod::ShiftInsert));
     }
 }
