@@ -227,3 +227,39 @@ pub fn paste_text_direct(enigo: &mut Enigo, text: &str) -> Result<(), String> {
 
     Ok(())
 }
+
+/// Executes an external script to perform the paste operation.
+/// The script is passed the text to paste as its first argument.
+pub fn paste_text_external(
+    _enigo: &mut enigo::Enigo,
+    text: &str,
+    script_path: &str,
+    _app_handle: &tauri::AppHandle,
+) -> Result<(), String> {
+    use std::process::Command;
+
+    if script_path.is_empty() {
+        return Err("External script path is empty".to_string());
+    }
+
+    log::info!(
+        "Executing external paste script: {} with text length {}",
+        script_path,
+        text.len()
+    );
+
+    let output = Command::new(script_path)
+        .arg(text)
+        .output()
+        .map_err(|e| format!("Failed to execute external script: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "External script failed with status {}: {}",
+            output.status, stderr
+        ));
+    }
+
+    Ok(())
+}

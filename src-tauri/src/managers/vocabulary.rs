@@ -515,6 +515,7 @@ impl VocabularyManager {
     }
 
     /// Get correction candidates with optional status filter
+    #[allow(dead_code)]
     pub fn get_correction_candidates(
         &self,
         status_filter: Option<&str>,
@@ -563,6 +564,7 @@ impl VocabularyManager {
     }
 
     /// Get statistics about correction candidates
+    #[allow(dead_code)]
     pub fn get_candidate_stats(&self) -> Result<CandidateStats> {
         let conn = self.get_connection()?;
 
@@ -590,6 +592,7 @@ impl VocabularyManager {
 
 /// Represents a correction candidate in the candidates pool
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CorrectionCandidate {
     pub id: i64,
     pub original_text: String,
@@ -606,6 +609,7 @@ pub struct CorrectionCandidate {
 
 /// Statistics about correction candidates
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CandidateStats {
     pub total: i64,
     pub promoted: i64,

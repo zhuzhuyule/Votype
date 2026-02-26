@@ -10,6 +10,7 @@ mod transcribe;
 // Shortcut Action Trait
 // Shortcut Action Mode
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[allow(dead_code)]
 pub enum ActionMode {
     Stateless, // Fire on Release, no start/stop distinction (e.g. Paste, Settings)
     Stateful,  // Has active state, uses user settings for Toggle vs PTT (e.g. Transcribe)
@@ -19,6 +20,7 @@ pub enum ActionMode {
 pub trait ShortcutAction: Send + Sync {
     fn start(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str);
     fn stop(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str);
+    #[allow(dead_code)]
     fn mode(&self) -> ActionMode {
         ActionMode::Stateless
     }

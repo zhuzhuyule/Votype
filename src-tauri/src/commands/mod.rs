@@ -405,9 +405,12 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     log::info!("[SkillConfirmation] Polish mode - pasting result");
                     crate::clipboard::paste(text, app)?;
                 }
-                crate::settings::SkillOutputMode::Silent => {
-                    // Silent mode: do nothing visible
-                    log::info!("[SkillConfirmation] Silent mode - no output");
+                crate::settings::SkillOutputMode::Silent
+                | crate::settings::SkillOutputMode::Replace
+                | crate::settings::SkillOutputMode::Append
+                | crate::settings::SkillOutputMode::Overlay => {
+                    // Silent or not-yet-implemented-in-this-branch modes: do nothing visible
+                    log::info!("[SkillConfirmation] Mode {:?} - no output", output_mode);
                 }
             }
         }

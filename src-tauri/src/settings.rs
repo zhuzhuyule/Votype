@@ -1,5 +1,6 @@
 use log::{debug, warn};
 use serde::{Deserialize, Serialize};
+use specta::Type;
 use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
@@ -7,7 +8,7 @@ use tauri_plugin_store::StoreExt;
 
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct ShortcutBinding {
     pub id: String,
     pub name: String,
@@ -17,7 +18,7 @@ pub struct ShortcutBinding {
 }
 
 /// Skill type determines execution behavior
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum SkillType {
     /// Text processing skill (polish, translate, etc.)
@@ -25,10 +26,59 @@ pub enum SkillType {
     Text,
     /// Action skill (open folder, query weather, etc.)
     Action,
+    /// For compatibility with main branch
+    Prompt,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum SkillOutputMode {
+    /// Polish mode: ASR result -> AI refinement -> Insert. UI shows Diff.
+    Polish,
+    /// Chat mode: ASR result -> AI Q&A -> Preview. UI shows Markdown.
+    Chat,
+    /// Silent mode: No UI output (for Action skills)
+    Silent,
+    // Variants for main branch compatibility
+    Replace,
+    Append,
+    Overlay,
+}
+
+impl Default for SkillOutputMode {
+    fn default() -> Self {
+        SkillOutputMode::Chat
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for Skill {
+    fn default() -> Self {
+        Self {
+            id: "".to_string(),
+            name: "".to_string(),
+            description: "".to_string(),
+            instructions: "".to_string(),
+            prompt: "".to_string(),
+            model_id: None,
+            icon: None,
+            skill_type: SkillType::default(),
+            source: SkillSource::default(),
+            compliance_check_enabled: false,
+            compliance_threshold: None,
+            output_mode: SkillOutputMode::default(),
+            enabled: true,
+            customized: false,
+            file_path: None,
+        }
+    }
 }
 
 /// Skill source indicates where the skill was loaded from
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum SkillSource {
     /// Built-in skill shipped with the app
@@ -43,7 +93,7 @@ pub enum SkillSource {
 }
 
 /// Hotword category for semantic classification
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum HotwordCategory {
     /// Person names (colleagues, friends, public figures)
@@ -58,7 +108,7 @@ pub enum HotwordCategory {
 }
 
 /// Usage scenario for hotwords
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum HotwordScenario {
     /// Work context (meetings, documents, code)
@@ -68,7 +118,7 @@ pub enum HotwordScenario {
 }
 
 /// Hotword entry with classification metadata
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct Hotword {
     pub id: i64,
     /// Possible misrecognized forms (can be multiple)
@@ -90,16 +140,18 @@ pub struct Hotword {
     pub created_at: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Backward compatibility: LLMPrompt is now an alias for Skill
+pub type LLMPrompt = Skill;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Skill {
     pub id: String,
     pub name: String,
     /// Description for LLM intent recognition (Agent Skills compatible)
     #[serde(default)]
     pub description: String,
-    /// Instructions (SKILL.md body content)
-    #[serde(alias = "prompt")]
     pub instructions: String,
+    pub prompt: String,
     pub model_id: Option<String>,
     pub icon: Option<String>,
     #[serde(default)]
@@ -125,14 +177,7 @@ pub struct Skill {
     pub file_path: Option<std::path::PathBuf>,
 }
 
-fn default_true() -> bool {
-    true
-}
-
-/// Backward compatibility: LLMPrompt is now an alias for Skill
-pub type LLMPrompt = Skill;
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct PostProcessProvider {
     pub id: String,
     pub label: String,
@@ -143,7 +188,7 @@ pub struct PostProcessProvider {
     pub models_endpoint: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum ModelType {
     Text,
@@ -151,7 +196,7 @@ pub enum ModelType {
     Other,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct CachedModel {
     pub id: String,
     pub name: String,
@@ -170,7 +215,7 @@ pub struct CachedModel {
     pub extra_params: Option<HashMap<String, serde_json::Value>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum OverlayPosition {
     None,
@@ -180,7 +225,7 @@ pub enum OverlayPosition {
     FollowCursor,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelUnloadTimeout {
     #[default]
@@ -194,18 +239,18 @@ pub enum ModelUnloadTimeout {
     Sec5, // Debug mode only
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum PasteMethod {
     CtrlV,
     Direct,
     None,
-    #[cfg(not(target_os = "macos"))]
     ShiftInsert,
     CtrlShiftV,
+    ExternalScript,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ClipboardHandling {
     #[default]
@@ -213,7 +258,7 @@ pub enum ClipboardHandling {
     CopyToClipboard,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoSubmitKey {
     #[default]
@@ -222,7 +267,7 @@ pub enum AutoSubmitKey {
     CmdEnter,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordingRetentionPeriod {
     Never,
@@ -232,7 +277,7 @@ pub enum RecordingRetentionPeriod {
     Months3,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AppReviewPolicy {
     /// Use global confidence threshold (default)
@@ -243,7 +288,25 @@ pub enum AppReviewPolicy {
     Never,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum KeyboardImplementation {
+    Tauri,
+    HandyKeys,
+}
+
+impl Default for KeyboardImplementation {
+    fn default() -> Self {
+        // Default to HandyKeys only on macOS where it's well-tested.
+        // Windows and Linux use Tauri by default (handy-keys not sufficiently tested yet).
+        #[cfg(target_os = "macos")]
+        return KeyboardImplementation::HandyKeys;
+        #[cfg(not(target_os = "macos"))]
+        return KeyboardImplementation::Tauri;
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum TitleMatchType {
     /// Simple text contains matching
@@ -258,26 +321,9 @@ impl Default for TitleMatchType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum SkillOutputMode {
-    /// Polish mode: ASR result -> AI refinement -> Insert. UI shows Diff.
-    Polish,
-    /// Chat mode: ASR result -> AI Q&A -> Preview. UI shows Markdown.
-    Chat,
-    /// Silent mode: No UI output (for Action skills)
-    Silent,
-}
-
 pub type PromptOutputMode = SkillOutputMode;
 
-impl Default for SkillOutputMode {
-    fn default() -> Self {
-        SkillOutputMode::Chat
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct TitleRule {
     pub id: String,
     pub pattern: String,
@@ -287,7 +333,7 @@ pub struct TitleRule {
     pub prompt_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppProfile {
     pub id: String,
     pub name: String,
@@ -333,7 +379,7 @@ impl ModelUnloadTimeout {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum SoundTheme {
     Marimba,
@@ -359,8 +405,29 @@ impl SoundTheme {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum TypingTool {
+    Auto,
+    Wtype,
+    Kwtype,
+    Dotool,
+    Ydotool,
+    Xdotool,
+}
+
+impl Default for TypingTool {
+    fn default() -> Self {
+        TypingTool::Auto
+    }
+}
+
+fn default_show_tray_icon() -> bool {
+    true
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
     pub bindings: HashMap<String, ShortcutBinding>,
     #[serde(default = "default_app_language")]
@@ -398,6 +465,7 @@ pub struct AppSettings {
     #[serde(default = "default_debug_mode")]
     pub debug_mode: bool,
     #[serde(default = "default_log_level")]
+    #[specta(type = String)]
     pub log_level: LogLevel,
     #[serde(default)]
     pub model_unload_timeout: ModelUnloadTimeout,
@@ -433,6 +501,8 @@ pub struct AppSettings {
     pub post_process_models: HashMap<String, String>,
     #[serde(default = "default_post_process_prompts")]
     pub post_process_prompts: Vec<LLMPrompt>,
+    #[serde(default)]
+    pub custom_words: Vec<String>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
@@ -479,6 +549,18 @@ pub struct AppSettings {
     /// Expert mode enables advanced settings visibility
     #[serde(default)]
     pub expert_mode: bool,
+    #[serde(default)]
+    pub experimental_enabled: bool,
+    #[serde(default)]
+    pub keyboard_implementation: KeyboardImplementation,
+    #[serde(default = "default_show_tray_icon")]
+    pub show_tray_icon: bool,
+    #[serde(default = "default_paste_delay_ms")]
+    pub paste_delay_ms: u64,
+    #[serde(default)]
+    pub typing_tool: TypingTool,
+    #[serde(default)]
+    pub external_script_path: Option<String>,
 }
 
 fn default_model() -> String {
@@ -708,6 +790,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             description: "润色和优化文本表达。这是默认 Skill。".to_string(),
             instructions: include_str!("../resources/skills/system_default_correction.md")
                 .to_string(),
+            prompt: include_str!("../resources/skills/system_default_correction.md").to_string(),
             model_id: None,
             icon: Some("IconShieldCheck".to_string()),
             skill_type: SkillType::Text,
@@ -726,6 +809,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
                 "解释选中内容或回答问题。当用户说\"这是什么\"、\"帮我解释\"、\"帮我查询\"时触发。"
                     .to_string(),
             instructions: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
+            prompt: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
             model_id: None,
             icon: Some("IconMessageSparkle".to_string()),
             skill_type: SkillType::Text,
@@ -743,6 +827,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             name: "翻译".to_string(),
             description: "将文本翻译成目标语言。当用户说\"翻译\"、\"译成\"、\"translate\"时使用。"
                 .to_string(),
+            prompt: include_str!("../resources/skills/system_preset_translate.md").to_string(),
             instructions: include_str!("../resources/skills/system_preset_translate.md")
                 .to_string(),
             model_id: None,
@@ -763,6 +848,7 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             description: "总结和提炼文本要点。当用户说\"总结\"、\"概括\"、\"摘要\"时使用。"
                 .to_string(),
             instructions: include_str!("../resources/skills/system_preset_summary.md").to_string(),
+            prompt: include_str!("../resources/skills/system_preset_summary.md").to_string(),
             model_id: None,
             icon: Some("IconListDetails".to_string()),
             skill_type: SkillType::Text,
@@ -976,7 +1062,14 @@ pub fn get_default_settings() -> AppSettings {
         app_to_profile: HashMap::new(),
         post_process_context_enabled: default_post_process_context_enabled(),
         post_process_context_limit: default_post_process_context_limit(),
+        custom_words: Vec::new(),
         expert_mode: false,
+        experimental_enabled: false,
+        keyboard_implementation: KeyboardImplementation::default(),
+        show_tray_icon: default_show_tray_icon(),
+        paste_delay_ms: default_paste_delay_ms(),
+        typing_tool: TypingTool::default(),
+        external_script_path: None,
     }
 }
 

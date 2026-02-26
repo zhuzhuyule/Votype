@@ -162,6 +162,11 @@ export const formatKeyCombination = (
   combination: string = "",
   osType: OSType = "macos",
 ): string => {
+  if (combination.startsWith("double_")) {
+    const key = combination.replace("double_", "");
+    const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+    return `Double ${capitalizedKey}`;
+  }
   // Simply return the combination as-is since getKeyName already provides
   // the correct platform-specific key names
   return combination.replace(/ ?\+ ?/g, " + ");

@@ -1,4 +1,5 @@
 use crate::settings;
+use log::{error, info};
 use std::sync::Mutex;
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -221,4 +222,13 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState) {
     let tray = app.state::<TrayIcon>();
     let _ = tray.set_menu(Some(menu));
     let _ = tray.set_icon_as_template(true);
+}
+
+pub fn set_tray_visibility(app: &AppHandle, visible: bool) {
+    let tray = app.state::<TrayIcon>();
+    if let Err(e) = tray.set_visible(visible) {
+        error!("Failed to set tray visibility: {}", e);
+    } else {
+        info!("Tray visibility set to: {}", visible);
+    }
 }

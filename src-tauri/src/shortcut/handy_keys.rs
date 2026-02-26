@@ -81,7 +81,9 @@ pub struct FrontendKeyEvent {
     pub key: Option<String>,
     /// Whether this is a key down event
     pub is_key_down: bool,
-    /// The full hotkey string (e.g., "option+space")
+    /// Whether this event is part of a double-tap
+    pub is_double_tap: bool,
+    /// The full hotkey string (e.g., "option+space" or "double_shift")
     pub hotkey_string: String,
 }
 
@@ -311,15 +313,20 @@ impl HandyKeysState {
             };
 
             if let Some(key_event) = event {
+                let key_str = key_event.key.map(|k| k.to_string().to_lowercase());
+
                 // Convert to frontend-friendly format
+                let hotkey_string = key_event
+                    .as_hotkey()
+                    .map(|h| h.to_handy_string())
+                    .unwrap_or_default();
+
                 let frontend_event = FrontendKeyEvent {
                     modifiers: modifiers_to_strings(key_event.modifiers),
-                    key: key_event.key.map(|k| k.to_string().to_lowercase()),
+                    key: key_str,
                     is_key_down: key_event.is_key_down,
-                    hotkey_string: key_event
-                        .as_hotkey()
-                        .map(|h| h.to_handy_string())
-                        .unwrap_or_default(),
+                    is_double_tap: false,
+                    hotkey_string,
                 };
 
                 // Emit to frontend

@@ -78,6 +78,8 @@ serde_yaml = "0.9"
 similar = "2.6"
 pinyin = "0.10"
 tauri-plugin-dialog = "2.6.0"
+specta = { version = "=2.0.0-rc.22", features = ["serde", "serde_json", "derive", "function"] }
+
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
 

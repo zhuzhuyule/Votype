@@ -723,6 +723,7 @@ impl HistoryManager {
         Ok(id)
     }
 
+    #[allow(dead_code)]
     pub async fn update_reviewed_text(&self, id: i64, post_processed_text: String) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;

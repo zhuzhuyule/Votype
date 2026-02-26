@@ -18,7 +18,10 @@ mod settings;
 mod sherpa;
 mod shortcut;
 mod signal_handle;
+#[cfg(test)]
+mod test_handy;
 pub mod transcription_coordinator;
+pub use transcription_coordinator::TranscriptionCoordinator;
 mod tray;
 mod utils;
 
@@ -91,11 +94,13 @@ fn build_console_filter() -> env_filter::Filter {
 }
 
 #[derive(Default)]
+#[allow(dead_code)]
 struct ShortcutToggleStates {
     // Map: shortcut_binding_id -> is_active
     active_toggles: HashMap<String, bool>,
 }
 
+#[allow(dead_code)]
 type ManagedToggleState = Mutex<ShortcutToggleStates>;
 
 /// State for pending skill confirmation when selected text is present
@@ -375,6 +380,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             shortcut::change_binding,
             shortcut::reset_binding,
+            shortcut::suspend_binding,
+            shortcut::resume_binding,
             shortcut::change_ptt_setting,
             shortcut::change_audio_feedback_setting,
             shortcut::change_audio_feedback_volume_setting,
@@ -394,6 +401,13 @@ pub fn run() {
             shortcut::change_clipboard_handling_setting,
             shortcut::change_auto_submit_setting,
             shortcut::change_auto_submit_key_setting,
+            shortcut::change_mute_while_recording_setting,
+            shortcut::change_append_trailing_space_setting,
+            shortcut::change_show_tray_icon_setting,
+            shortcut::change_show_overlay_setting,
+            shortcut::change_experimental_enabled_setting,
+            shortcut::change_keyboard_implementation_setting,
+            shortcut::get_keyboard_implementation,
             shortcut::change_post_process_enabled_setting,
             shortcut::change_post_process_use_secondary_output_setting,
             shortcut::change_post_process_use_local_candidate_when_online_asr_setting,
@@ -402,6 +416,8 @@ pub fn run() {
             shortcut::change_post_process_base_url_setting,
             shortcut::change_post_process_api_key_setting,
             shortcut::change_post_process_model_setting,
+            shortcut::change_post_process_context_enabled_setting,
+            shortcut::change_post_process_context_limit_setting,
             shortcut::set_post_process_provider,
             shortcut::fetch_post_process_models,
             shortcut::add_custom_provider,
@@ -414,26 +430,29 @@ pub fn run() {
             shortcut::select_asr_model,
             shortcut::select_post_process_model,
             shortcut::set_post_process_selected_prompt,
+            shortcut::get_all_skills,
+            shortcut::get_builtin_skills,
             shortcut::get_external_skills,
-            shortcut::open_skills_folder,
+            shortcut::get_skill_templates,
+            shortcut::get_default_skill_content,
+            shortcut::create_skill,
+            shortcut::create_skill_from_template,
+            shortcut::delete_skill,
+            shortcut::save_external_skill,
+            shortcut::reorder_skills,
             shortcut::refresh_external_skills,
+            shortcut::open_skills_folder,
             shortcut::reset_skill_to_file_version,
             shortcut::open_skill_source_file,
             shortcut::ai_generate_skill,
             shortcut::check_skill_id_conflict,
-            shortcut::suspend_binding,
-            shortcut::resume_binding,
-            shortcut::change_mute_while_recording_setting,
-            shortcut::change_append_trailing_space_setting,
-            shortcut::change_offline_vad_force_interval_ms_setting,
-            shortcut::change_offline_vad_force_window_seconds_setting,
-            shortcut::change_post_process_context_enabled_setting,
-            shortcut::change_post_process_context_limit_setting,
-            shortcut::change_punctuation_enabled_setting,
-            shortcut::change_punctuation_model_setting,
             shortcut::change_favorite_transcription_models_setting,
             shortcut::change_confidence_check_setting,
             shortcut::change_confidence_threshold_setting,
+            shortcut::change_punctuation_enabled_setting,
+            shortcut::change_punctuation_model_setting,
+            shortcut::change_offline_vad_force_interval_ms_setting,
+            shortcut::change_offline_vad_force_window_seconds_setting,
             shortcut::upsert_app_profile,
             shortcut::remove_app_profile,
             shortcut::assign_app_to_profile,
@@ -441,13 +460,15 @@ pub fn run() {
             shortcut::set_app_to_profile,
             shortcut::confirm_reviewed_transcription,
             shortcut::cancel_transcription_review,
-            review_window::review_window_ready,
-            review_window::review_window_content_ready,
             shortcut::test_post_process_model_inference,
             shortcut::test_asr_model_inference,
+            shortcut::handy_keys::start_handy_keys_recording,
+            shortcut::handy_keys::stop_handy_keys_recording,
+            review_window::review_window_ready,
+            review_window::review_window_content_ready,
             trigger_update_check,
-            commands::cancel_operation,
             commands::get_app_settings,
+            commands::cancel_operation,
             commands::get_app_dir_path,
             commands::get_log_dir_path,
             commands::set_log_level,
@@ -461,11 +482,14 @@ pub fn run() {
             commands::get_first_history_entry,
             commands::paste_text_to_active_window,
             commands::paste_to_previous_window,
+            commands::log_to_console,
+            commands::focus_overlay,
+            commands::confirm_skill,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,
             commands::models::add_model_from_url,
-            commands::models::remove_custom_model, // Add this
+            commands::models::remove_custom_model,
             commands::models::delete_model,
             commands::models::cancel_download,
             commands::models::set_active_model,
@@ -488,8 +512,6 @@ pub fn run() {
             commands::audio::set_clamshell_microphone,
             commands::audio::get_clamshell_microphone,
             commands::audio::is_recording,
-            helpers::clamshell::is_clamshell,
-            helpers::clamshell::is_laptop,
             commands::transcription::set_model_unload_timeout,
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
@@ -541,14 +563,8 @@ pub fn run() {
             commands::summary::export_summary,
             commands::text::optimize_text_with_llm,
             commands::text::generate_skill_description,
-            commands::log_to_console,
-            commands::focus_overlay,
-            commands::confirm_skill,
-            shortcut::save_external_skill,
-            shortcut::get_all_skills,
-            shortcut::create_skill,
-            shortcut::delete_skill,
-            shortcut::get_skill_templates
+            helpers::clamshell::is_clamshell,
+            helpers::clamshell::is_laptop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

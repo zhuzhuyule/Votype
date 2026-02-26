@@ -164,8 +164,12 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         PasteMethod::Direct => input::paste_text_direct(enigo, &text)?,
         PasteMethod::CtrlV => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
         PasteMethod::CtrlShiftV => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
-        #[cfg(not(target_os = "macos"))]
         PasteMethod::ShiftInsert => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
+        PasteMethod::ExternalScript => {
+            log::info!("PasteMethod::ExternalScript selected - using external script");
+            let script_path = settings.external_script_path.as_deref().unwrap_or_default();
+            input::paste_text_external(enigo, &text, script_path, &app_handle)?;
+        }
     }
 
     if should_send_auto_submit(settings.auto_submit, paste_method) {

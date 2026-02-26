@@ -32,6 +32,7 @@ struct ReviewWindowPayload {
 }
 
 #[derive(Clone, serde::Serialize)]
+#[allow(dead_code)]
 struct ReviewWindowHidePayload {
     history_id: Option<i64>,
 }
@@ -187,6 +188,7 @@ fn ensure_app_active_for_review(app_handle: &AppHandle, had_visible_windows: boo
     }
 }
 
+#[allow(dead_code)]
 fn maybe_restore_activation_policy(app_handle: &AppHandle) {
     #[cfg(target_os = "macos")]
     {
@@ -378,6 +380,7 @@ pub fn show_review_window(
 }
 
 /// Hides the review window
+#[allow(dead_code)]
 pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         let _ = review_window.emit("review-window-hide", ReviewWindowHidePayload { history_id });
@@ -441,6 +444,7 @@ pub fn review_window_content_ready(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn get_last_review_history_id() -> Option<i64> {
     let last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
     *last_id

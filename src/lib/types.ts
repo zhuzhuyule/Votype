@@ -240,6 +240,11 @@ export const SettingsSchema = z.object({
   post_process_context_enabled: z.boolean().optional().default(false),
   post_process_context_limit: z.number().min(1).max(10).optional().default(3),
   expert_mode: z.boolean().optional().default(false),
+  keyboard_implementation: z
+    .enum(["tauri", "handy_keys"])
+    .optional()
+    .default("tauri"),
+  show_tray_icon: z.boolean().optional().default(true),
 });
 
 export const BindingResponseSchema = z.object({
