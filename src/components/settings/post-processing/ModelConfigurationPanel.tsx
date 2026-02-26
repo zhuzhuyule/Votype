@@ -196,14 +196,14 @@ const renderModelSection = ({
                                     "test_asr_model_inference",
                                     {
                                       providerId: model.provider_id,
-                                      model: model.model_id,
+                                      modelId: model.model_id,
                                     },
                                   )
                                 : await invoke<string>(
                                     "test_post_process_model_inference",
                                     {
                                       providerId: model.provider_id,
-                                      model: model.model_id,
+                                      modelId: model.model_id,
                                       cachedModelId: model.id,
                                       input: "OK", // Simple input for text models
                                     },
