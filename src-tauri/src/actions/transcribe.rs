@@ -850,8 +850,8 @@ impl ShortcutAction for TranscribeAction {
                             let mut final_text = transcription_clone.clone();
                             let mut post_process_prompt_text = String::new();
                             let mut post_process_prompt_name = String::new();
-                            let mut post_process_prompt_id = None;
-                            let used_model;
+                            let mut post_process_prompt_id: Option<String> = None;
+                            let mut used_model: Option<String> = None;
                             let mut error_shown = false;
 
                             // 1. Try Chinese variant conversion first
@@ -980,14 +980,18 @@ impl ShortcutAction for TranscribeAction {
                                     return;
                                 }
 
-                                error_shown = err;
-                                used_model = model;
+                                error_shown = error_shown || err;
+                                if model.is_some() {
+                                    used_model = model;
+                                }
 
                                 if let Some(text) = processed_text.as_ref() {
                                     final_text = text.clone();
                                 }
 
-                                post_process_prompt_id = prompt_id;
+                                if prompt_id.is_some() {
+                                    post_process_prompt_id = prompt_id;
+                                }
 
                                 // Capture the prompt content for history
                                 if let Some(pid) = &post_process_prompt_id {
