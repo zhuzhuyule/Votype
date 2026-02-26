@@ -194,6 +194,103 @@ static MIGRATIONS: &[M] = &[
     ),
     // Migration 20: Add ai_history column to summaries table for storing multiple analysis versions
     M::up("ALTER TABLE summaries ADD COLUMN ai_history TEXT;"),
+    // Migration 21: Add todo_feedback table for user-confirmed todo status
+    M::up(
+        "CREATE TABLE IF NOT EXISTS todo_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            summary_id INTEGER NOT NULL,
+            todo_id TEXT NOT NULL,
+            todo_text TEXT NOT NULL,
+            status TEXT NOT NULL,
+            confirmed_at INTEGER,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(summary_id, todo_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_todo_feedback_summary ON todo_feedback(summary_id);
+        CREATE INDEX IF NOT EXISTS idx_todo_feedback_status ON todo_feedback(status);",
+    ),
+    // Migration 22: Add vocabulary_buffer table for AI-extracted vocabulary with metadata
+    // Three-tier management: extraction buffer → candidate pool → hotword library
+    // Buffer stores ALL extracted vocabulary with rich metadata for user review
+    M::up(
+        "CREATE TABLE IF NOT EXISTS vocabulary_buffer (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            word TEXT NOT NULL,
+            normalized_word TEXT NOT NULL,
+            category TEXT NOT NULL,
+            confidence INTEGER NOT NULL,
+            frequency_count INTEGER NOT NULL DEFAULT 1,
+            frequency_type TEXT NOT NULL,
+            possible_typo BOOLEAN NOT NULL DEFAULT 0,
+            similar_suggestions TEXT,
+            context_sample TEXT,
+            source_summary_id INTEGER,
+            extraction_date TEXT NOT NULL,
+            cumulative_count INTEGER NOT NULL DEFAULT 1,
+            days_appeared INTEGER NOT NULL DEFAULT 1,
+            user_decision TEXT,
+            promoted_at INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(normalized_word)
+        );
+        CREATE INDEX IF NOT EXISTS idx_vocab_buffer_confidence ON vocabulary_buffer(confidence DESC);
+        CREATE INDEX IF NOT EXISTS idx_vocab_buffer_frequency ON vocabulary_buffer(cumulative_count DESC);
+        CREATE INDEX IF NOT EXISTS idx_vocab_buffer_category ON vocabulary_buffer(category);
+        CREATE INDEX IF NOT EXISTS idx_vocab_buffer_decision ON vocabulary_buffer(user_decision);
+        CREATE INDEX IF NOT EXISTS idx_vocab_buffer_typo ON vocabulary_buffer(possible_typo);",
+    ),
+    // Migration 23: Add daily_vocabulary table for date-based vocabulary management
+    // Each day has an independent vocabulary list that users can manually edit
+    // This table stores daily extracted vocabulary, which can be aggregated into candidates
+    M::up(
+        "CREATE TABLE IF NOT EXISTS daily_vocabulary (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            word TEXT NOT NULL,
+            context_type TEXT,
+            frequency INTEGER DEFAULT 1,
+            source TEXT DEFAULT 'ai_extracted',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            UNIQUE(date, word)
+        );
+        CREATE INDEX IF NOT EXISTS idx_daily_vocabulary_date ON daily_vocabulary(date);
+        CREATE INDEX IF NOT EXISTS idx_daily_vocabulary_word ON daily_vocabulary(word);
+        CREATE INDEX IF NOT EXISTS idx_daily_vocabulary_context_type ON daily_vocabulary(context_type);",
+    ),
+    // Migration 24: Extend hotwords table for hotword library enhancements
+    // Add fields to track promotion statistics and context types
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN context_type TEXT;
+        ALTER TABLE hotwords ADD COLUMN total_occurrences INTEGER DEFAULT 0;
+        ALTER TABLE hotwords ADD COLUMN days_count INTEGER DEFAULT 0;
+        ALTER TABLE hotwords ADD COLUMN promotion_type TEXT DEFAULT 'manual';
+        ALTER TABLE hotwords ADD COLUMN promoted_at INTEGER;
+        ALTER TABLE hotwords ADD COLUMN promoted_from_date TEXT;",
+    ),
+    // Migration 25: Add correction_candidates table for phonetic filtering of corrections
+    // Stores ALL edit diffs with phonetic similarity analysis results
+    // 用于过滤语义修改，只保留发音相似的 ASR 误识别修正
+    M::up(
+        "CREATE TABLE IF NOT EXISTS correction_candidates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            original_text TEXT NOT NULL,
+            corrected_text TEXT NOT NULL,
+            phonetic_score REAL NOT NULL,
+            original_phonetic TEXT,
+            corrected_phonetic TEXT,
+            text_type TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            occurrence_count INTEGER NOT NULL DEFAULT 1,
+            created_at INTEGER NOT NULL,
+            last_seen_at INTEGER NOT NULL,
+            UNIQUE(original_text, corrected_text)
+        );
+        CREATE INDEX IF NOT EXISTS idx_cc_status ON correction_candidates(status);
+        CREATE INDEX IF NOT EXISTS idx_cc_score ON correction_candidates(phonetic_score);
+        CREATE INDEX IF NOT EXISTS idx_cc_last_seen ON correction_candidates(last_seen_at DESC);",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

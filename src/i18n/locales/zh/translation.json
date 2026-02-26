@@ -1074,7 +1074,8 @@
     "prompts": "提示词",
     "shortcuts": "快捷键",
     "summary": "统计总结",
-    "vocabulary": "词汇表"
+    "vocabulary": "词汇表",
+    "dailyVocabulary": "每日词汇"
   },
   "soundPicker": {
     "custom": "自定义",

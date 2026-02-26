@@ -64,6 +64,11 @@ export interface AiAnalysisSection {
   items?: string[];
 }
 
+export interface VocabularySection {
+  title: string;
+  items: string[];
+}
+
 /** Focus assessment for daily reports */
 export interface FocusAssessment {
   title: string;
@@ -83,7 +88,7 @@ export interface AiAnalysisResult {
   insights?: AiAnalysisSection;
 
   // Day-specific fields
-  todos_extracted?: AiAnalysisSection;
+  vocabulary_extracted?: VocabularySection;
   focus_assessment?: FocusAssessment;
 
   // Week-specific fields
@@ -115,6 +120,36 @@ export function parseAiAnalysis(
 
     // Handle new format (requires at least summary)
     if (parsed.summary) {
+      const vocabularySection = parsed.vocabulary_extracted;
+      let normalizedVocabulary: VocabularySection | undefined;
+      if (vocabularySection && Array.isArray(vocabularySection.items)) {
+        // Handle both string array and object array formats
+        const normalizedItems = vocabularySection.items
+          .map((item: unknown) => {
+            if (typeof item === "string") {
+              return item;
+            } else if (
+              typeof item === "object" &&
+              item !== null &&
+              "word" in item
+            ) {
+              // Extract 'word' field from object
+              return (item as { word: string }).word;
+            }
+            return null;
+          })
+          .filter(
+            (item): item is string => item !== null && item.trim() !== "",
+          );
+
+        if (normalizedItems.length > 0) {
+          normalizedVocabulary = {
+            title: vocabularySection.title || "词汇提取",
+            items: normalizedItems,
+          };
+        }
+      }
+
       return {
         summary: parsed.summary,
         activities: parsed.activities || { title: "具体活动", items: [] },
@@ -124,7 +159,7 @@ export function parseAiAnalysis(
         communication_patterns: parsed.communication_patterns,
         insights: parsed.insights,
         // Day-specific
-        todos_extracted: parsed.todos_extracted,
+        vocabulary_extracted: normalizedVocabulary,
         focus_assessment: parsed.focus_assessment,
         // Week-specific
         patterns: parsed.patterns,

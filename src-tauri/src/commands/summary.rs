@@ -1,7 +1,7 @@
 use crate::llm_client;
 use crate::managers::prompt::PromptManager;
 use crate::managers::summary::{Summary, SummaryManager, SummaryStats, UserProfile};
-use crate::settings::{self, HotwordCategory, HotwordScenario};
+use crate::settings;
 use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
     CreateChatCompletionRequestArgs,
@@ -75,6 +75,20 @@ pub async fn update_style_prompt(
 }
 
 #[tauri::command]
+pub async fn delete_summary_ai_history_entry(
+    summary_manager: State<'_, Arc<SummaryManager>>,
+    summary_id: i64,
+    timestamp: i64,
+) -> Result<Summary, String> {
+    summary_manager
+        .delete_summary_ai_history_entry(summary_id, timestamp)
+        .map_err(|e| e.to_string())?;
+    summary_manager
+        .get_summary_by_id(summary_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn generate_summary_ai_analysis(
     app: AppHandle,
     summary_manager: State<'_, Arc<SummaryManager>>,
@@ -82,6 +96,8 @@ pub async fn generate_summary_ai_analysis(
     summary_id: i64,
     feedback_style: String,
     selected_model: Option<String>,
+    split_requests: Option<bool>,
+    parallel_requests: Option<bool>,
 ) -> Result<Summary, String> {
     // Get settings to access LLM configuration
     let app_settings = settings::get_settings(&app);
@@ -123,6 +139,9 @@ pub async fn generate_summary_ai_analysis(
         .get_summary_by_id(summary_id)
         .map_err(|e| e.to_string())?;
 
+    let split_requests = split_requests.unwrap_or(false);
+    let parallel_requests = parallel_requests.unwrap_or(false);
+
     let prompt_id = match summary_for_period.period_type.as_str() {
         "day" => "system_summary_day",
         "week" => "system_summary_week",
@@ -130,23 +149,19 @@ pub async fn generate_summary_ai_analysis(
         _ => "system_summary_analysis", // fallback to generic
     };
 
-    let prompt_template = prompt_manager
-        .get_prompt(&app, prompt_id)
-        .map_err(|e| format!("Failed to load summary analysis prompt: {}", e))?;
-
-    info!(
-        "Loaded prompt template '{}' for period_type '{}' ({} chars)",
-        prompt_id,
-        summary_for_period.period_type,
-        prompt_template.len()
-    );
-
     // Clone Arcs for the background task
     let summary_manager_clone = (*summary_manager).clone();
-    let hotword_manager_clone = app
-        .try_state::<Arc<crate::managers::HotwordManager>>()
-        .map(|s| s.inner().clone());
-    let prompt_template = prompt_template.clone();
+    let prompt_template = if split_requests {
+        None
+    } else {
+        Some(
+            prompt_manager
+                .get_prompt(&app, prompt_id)
+                .map_err(|e| format!("Failed to load summary analysis prompt: {}", e))?,
+        )
+    };
+
+    let prompt_manager_clone = (*prompt_manager).clone();
     let model = model.clone();
     let provider = provider.clone();
     let api_key = api_key.clone();
@@ -172,43 +187,275 @@ pub async fn generate_summary_ai_analysis(
             .prepare_analysis_data_enhanced(summary_id, &feedback_style)
             .map_err(|e| e.to_string())?;
 
-        let prompt = analysis_data.fill_prompt(&prompt_template);
+        let call_llm = |prompt: String,
+                        provider: settings::PostProcessProvider,
+                        api_key: String,
+                        model: String| async move {
+            let client = llm_client::create_client(&provider, api_key)?;
+            let user_msg = ChatCompletionRequestUserMessageArgs::default()
+                .content(prompt)
+                .build()
+                .map_err(|e| format!("Failed to build user message: {}", e))?;
 
-        info!(
-            "Generating AI analysis for summary {} using model {} on provider {}",
-            summary_id, model, provider.id
-        );
+            let messages: Vec<ChatCompletionRequestMessage> =
+                vec![ChatCompletionRequestMessage::User(user_msg)];
 
-        // Create the LLM client
-        let client = llm_client::create_client(&provider, api_key)?;
+            let request = CreateChatCompletionRequestArgs::default()
+                .model(model)
+                .messages(messages)
+                .build()
+                .map_err(|e| format!("Failed to build request: {}", e))?;
 
-        // Build the request
-        let user_msg = ChatCompletionRequestUserMessageArgs::default()
-            .content(prompt.clone())
-            .build()
-            .map_err(|e| format!("Failed to build user message: {}", e))?;
+            let response = client
+                .chat()
+                .create(request)
+                .await
+                .map_err(|e| format!("LLM request failed: {}", e))?;
 
-        let messages: Vec<ChatCompletionRequestMessage> =
-            vec![ChatCompletionRequestMessage::User(user_msg)];
+            response
+                .choices
+                .first()
+                .and_then(|c| c.message.content.clone())
+                .ok_or_else(|| "No response content from LLM".to_string())
+        };
 
-        let request = CreateChatCompletionRequestArgs::default()
-            .model(model.clone())
-            .messages(messages)
-            .build()
-            .map_err(|e| format!("Failed to build request: {}", e))?;
+        let ai_summary = if split_requests {
+            let parts: Vec<(&str, &str)> = match summary_for_period.period_type.as_str() {
+                "day" => vec![
+                    ("summary", "system_summary_day_summary"),
+                    ("activities", "system_summary_day_activities"),
+                    ("highlights", "system_summary_day_highlights"),
+                    ("work_focus", "system_summary_day_work_themes"),
+                    ("focus_assessment", "system_summary_day_focus"),
+                    ("vocabulary_extracted", "system_summary_day_vocab"),
+                    ("patterns_insights", "system_summary_day_patterns_insights"),
+                    (
+                        "comparison_analysis",
+                        "system_summary_day_comparison_analysis",
+                    ),
+                    ("profile_update", "system_summary_day_profile_update"),
+                ],
+                "week" => vec![
+                    ("summary", "system_summary_week_summary"),
+                    ("work_focus", "system_summary_week_work_focus"),
+                    ("activities", "system_summary_week_activities"),
+                    ("patterns", "system_summary_week_patterns"),
+                    ("highlights", "system_summary_week_highlights"),
+                    ("vocabulary_extracted", "system_summary_week_vocab"),
+                    ("next_week", "system_summary_week_next_week"),
+                ],
+                "month" => vec![
+                    ("summary", "system_summary_month_summary"),
+                    ("work_focus", "system_summary_month_work_focus"),
+                    ("trends", "system_summary_month_trends"),
+                    ("highlights", "system_summary_month_highlights"),
+                    (
+                        "communication_patterns",
+                        "system_summary_month_communication",
+                    ),
+                    ("insights", "system_summary_month_insights"),
+                    ("vocabulary_extracted", "system_summary_month_vocab"),
+                ],
+                _ => vec![("summary", prompt_id)],
+            };
 
-        // Make the LLM call
-        let response = client
-            .chat()
-            .create(request)
-            .await
-            .map_err(|e| format!("LLM request failed: {}", e))?;
+            let mut combined = serde_json::Map::new();
+            let mut errors: Vec<String> = Vec::new();
 
-        let ai_summary = response
-            .choices
-            .first()
-            .and_then(|c| c.message.content.clone())
-            .ok_or_else(|| "No response content from LLM".to_string())?;
+            fn extract_json_block(content: &str) -> &str {
+                if let Some(start) = content.find("```json") {
+                    let rest = &content[start + 7..];
+                    if let Some(end) = rest.find("```") {
+                        return rest[..end].trim();
+                    }
+                }
+                if let Some(start) = content.find("```") {
+                    let rest = &content[start + 3..];
+                    if let Some(end) = rest.find("```") {
+                        return rest[..end].trim();
+                    }
+                }
+                content.trim()
+            }
+
+            if parallel_requests {
+                use futures_util::future::join_all;
+                let futures = parts.into_iter().map(|(key, pid)| {
+                    let prompt_manager_clone = prompt_manager_clone.clone();
+                    let app = app.clone();
+                    let analysis_data = analysis_data.clone();
+                    let provider = provider.clone();
+                    let api_key = api_key.clone();
+                    let model = model.clone();
+                    async move {
+                        let template = prompt_manager_clone
+                            .get_prompt(&app, pid)
+                            .map_err(|e| {
+                                format!("Failed to load summary analysis prompt: {}", e)
+                            })?;
+                        let prompt = analysis_data.fill_prompt(&template);
+                        info!(
+                            "Generating AI analysis part '{}' for summary {} using model {} on provider {}",
+                            key, summary_id, model, provider.id
+                        );
+                        let content = call_llm(prompt, provider, api_key, model).await?;
+                        Ok::<(String, String), String>((key.to_string(), content))
+                    }
+                });
+
+                let results = join_all(futures).await;
+                for result in results {
+                    match result {
+                        Ok((key, content)) => {
+                            info!(
+                                "[AI分析] 维度 '{}' 返回内容长度: {} bytes",
+                                key,
+                                content.len()
+                            );
+                            let cleaned = extract_json_block(&content);
+                            match serde_json::from_str::<serde_json::Value>(cleaned) {
+                                Ok(value) => {
+                                    if let Some(obj) = value.as_object() {
+                                        info!(
+                                            "[AI分析] 维度 '{}' 解析为对象，包含字段: {:?}",
+                                            key,
+                                            obj.keys().collect::<Vec<_>>()
+                                        );
+                                        for (k, v) in obj {
+                                            combined.insert(k.clone(), v.clone());
+                                            info!(
+                                                "[AI分析] 合并字段: {} (类型: {})",
+                                                k,
+                                                if v.is_object() {
+                                                    "object"
+                                                } else if v.is_array() {
+                                                    "array"
+                                                } else {
+                                                    "other"
+                                                }
+                                            );
+                                        }
+                                    } else {
+                                        info!(
+                                            "[AI分析] 维度 '{}' 解析为非对象，作为字符串保存",
+                                            key
+                                        );
+                                        combined.insert(
+                                            key.to_string(),
+                                            serde_json::Value::String(content),
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("[AI分析] 维度 '{}' JSON解析失败: {}", key, e);
+                                    combined.insert(
+                                        key.to_string(),
+                                        serde_json::Value::String(content),
+                                    );
+                                    errors.push(format!("{}: invalid json", key));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("[AI分析] 维度生成失败: {}", e);
+                            errors.push(e);
+                        }
+                    }
+                }
+            } else {
+                for (key, pid) in parts {
+                    let template = prompt_manager_clone
+                        .get_prompt(&app, pid)
+                        .map_err(|e| format!("Failed to load summary analysis prompt: {}", e))?;
+                    let prompt = analysis_data.fill_prompt(&template);
+                    info!(
+                        "Generating AI analysis part '{}' for summary {} using model {} on provider {}",
+                        key, summary_id, model, provider.id
+                    );
+
+                    match call_llm(prompt, provider.clone(), api_key.clone(), model.clone()).await {
+                        Ok(content) => {
+                            info!(
+                                "[AI分析] 维度 '{}' 返回内容长度: {} bytes",
+                                key,
+                                content.len()
+                            );
+                            let cleaned = extract_json_block(&content);
+                            match serde_json::from_str::<serde_json::Value>(cleaned) {
+                                Ok(value) => {
+                                    if let Some(obj) = value.as_object() {
+                                        info!(
+                                            "[AI分析] 维度 '{}' 解析为对象，包含字段: {:?}",
+                                            key,
+                                            obj.keys().collect::<Vec<_>>()
+                                        );
+                                        for (k, v) in obj {
+                                            combined.insert(k.clone(), v.clone());
+                                            info!(
+                                                "[AI分析] 合并字段: {} (类型: {})",
+                                                k,
+                                                if v.is_object() {
+                                                    "object"
+                                                } else if v.is_array() {
+                                                    "array"
+                                                } else {
+                                                    "other"
+                                                }
+                                            );
+                                        }
+                                    } else {
+                                        info!(
+                                            "[AI分析] 维度 '{}' 解析为非对象，作为字符串保存",
+                                            key
+                                        );
+                                        combined.insert(
+                                            key.to_string(),
+                                            serde_json::Value::String(content),
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("[AI分析] 维度 '{}' JSON解析失败: {}", key, e);
+                                    combined.insert(
+                                        key.to_string(),
+                                        serde_json::Value::String(content),
+                                    );
+                                    errors.push(format!("{}: invalid json", key));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("[AI分析] 维度 '{}' 生成失败: {}", key, e);
+                            errors.push(format!("{}: {}", key, e));
+                        }
+                    }
+                }
+            }
+
+            if !errors.is_empty() {
+                combined.insert(
+                    "__errors".to_string(),
+                    serde_json::Value::Array(
+                        errors.into_iter().map(serde_json::Value::String).collect(),
+                    ),
+                );
+            }
+
+            info!(
+                "[AI分析] 拆分模式完成，最终合并的字段: {:?}",
+                combined.keys().collect::<Vec<_>>()
+            );
+            serde_json::Value::Object(combined).to_string()
+        } else {
+            let prompt_template = prompt_template
+                .ok_or_else(|| "Prompt template missing for combined analysis".to_string())?;
+            let prompt = analysis_data.fill_prompt(&prompt_template);
+            info!(
+                "Generating AI analysis for summary {} using model {} on provider {}",
+                summary_id, model, provider.id
+            );
+            call_llm(prompt, provider, api_key, model.clone()).await?
+        };
 
         info!(
             "AI analysis generated for summary {}: {}...",
@@ -217,11 +464,24 @@ pub async fn generate_summary_ai_analysis(
         );
 
         // Parse and extract vocabulary
-        if let Some(hotword_manager) = hotword_manager_clone {
-            extract_and_save_vocabulary(&ai_summary, &hotword_manager).await;
-        } else {
-            log::warn!("HotwordManager not available for vocabulary extraction");
-        }
+        let daily_vocab_manager_clone = app
+            .try_state::<Arc<crate::managers::DailyVocabularyManager>>()
+            .map(|s| s.inner().clone());
+
+        // Get the date from summary period_end (format: YYYY-MM-DD)
+        let summary_date = chrono::Utc
+            .timestamp_opt(summary_for_period.period_end, 0)
+            .single()
+            .map(|dt| dt.format("%Y-%m-%d").to_string())
+            .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string());
+
+        extract_and_save_vocabulary(
+            &ai_summary,
+            summary_id,
+            &summary_date,
+            daily_vocab_manager_clone.as_ref().map(|v| &**v),
+        )
+        .await;
 
         // Update the summary with AI content
         summary_manager_clone
@@ -330,8 +590,30 @@ fn format_summary_as_markdown(summary: &Summary) -> String {
 }
 
 #[derive(Deserialize)]
+#[allow(dead_code)]
+struct VocabularyItem {
+    word: String,
+    category: Option<String>,
+    confidence: Option<i32>,
+    frequency_count: Option<i32>,
+    frequency_type: Option<String>,
+    possible_typo: Option<bool>,
+    similar_suggestions: Option<Vec<String>>,
+    context_sample: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum VocabularyItems {
+    Strings(Vec<String>),
+    Objects(Vec<VocabularyItem>),
+}
+
+#[derive(Deserialize)]
 struct VocabularySection {
-    items: Option<Vec<String>>,
+    #[allow(dead_code)]
+    title: Option<String>,
+    items: Option<VocabularyItems>,
 }
 
 #[derive(Deserialize)]
@@ -341,8 +623,21 @@ struct AiAnalysisResponse {
 
 async fn extract_and_save_vocabulary(
     json_text: &str,
-    hotword_manager: &crate::managers::HotwordManager,
+    _summary_id: i64,
+    date: &str,
+    daily_vocab_manager: Option<&crate::managers::DailyVocabularyManager>,
 ) {
+    let Some(daily_vocab_manager) = daily_vocab_manager else {
+        log::warn!("DailyVocabularyManager not available for vocabulary extraction");
+        return;
+    };
+
+    info!("[词汇提取] 开始处理，目标日期: {}", date);
+    info!(
+        "[词汇提取] JSON 文本前 200 字符: {}",
+        &json_text.chars().take(200).collect::<String>()
+    );
+
     // 1. Extract JSON from markdown code block
     let json_str = if let Some(start) = json_text.find("```json") {
         if let Some(end_offset) = json_text[start + 7..].find("```") {
@@ -358,88 +653,139 @@ async fn extract_and_save_vocabulary(
     let response: Result<AiAnalysisResponse, _> = serde_json::from_str(json_str);
 
     if let Ok(response) = response {
+        info!("[词汇提取] JSON 解析成功");
         if let Some(vocab_section) = response.vocabulary_extracted {
+            info!("[词汇提取] 找到 vocabulary_extracted 字段");
             if let Some(items) = vocab_section.items {
-                if items.is_empty() {
-                    return;
-                }
+                // Store vocabulary to daily_vocabulary table
+                let mut daily_words: Vec<(String, Option<String>, i32)> = Vec::new();
+                let mut skipped_count = 0;
 
-                info!("Found {} extracted vocabulary items", items.len());
-                let mut added_count = 0;
+                match items {
+                    VocabularyItems::Strings(strings) => {
+                        info!("[词汇提取] 字符串数组格式，找到 {} 个词汇", strings.len());
+                        if strings.is_empty() {
+                            info!("[词汇提取] 字符串数组为空");
+                            return;
+                        }
 
-                for item in items {
-                    // Item format expected: "Term (Category)" or just "Term"
-                    let (target, category_str) = if let Some(start_paren) = item.find('(') {
-                        if let Some(end_paren) = item.find(')') {
-                            let term = item[..start_paren].trim().to_string();
-                            let cat = item[start_paren + 1..end_paren].trim();
-                            (term, Some(cat))
-                        } else {
-                            (item.trim().to_string(), None)
-                        }
-                    } else {
-                        (item.trim().to_string(), None)
-                    };
+                        // Parse string format: extract word and type from "Word (类型)" format
+                        for word_str in &strings {
+                            let trimmed = word_str.trim();
+                            if trimmed.is_empty() {
+                                continue;
+                            }
 
-                    if target.is_empty() {
-                        continue;
-                    }
+                            // Try to extract word and type from "Word (类型)" format
+                            let (word, context_type) = if let Some(open_paren) = trimmed.rfind('(')
+                            {
+                                if let Some(close_paren) = trimmed.rfind(')') {
+                                    if open_paren < close_paren && close_paren == trimmed.len() - 1
+                                    {
+                                        let word = trimmed[..open_paren].trim();
+                                        let type_hint = trimmed[open_paren + 1..close_paren].trim();
 
-                    // Map string category to enum
-                    let category = match category_str {
-                        Some(s)
-                            if s.eq_ignore_ascii_case("Project")
-                                || s.contains("项目")
-                                || s.eq_ignore_ascii_case("Product")
-                                || s.contains("产品") =>
-                        {
-                            Some(HotwordCategory::Term) // Map projects to Term for now
-                        }
-                        Some(s) if s.eq_ignore_ascii_case("Person") || s.contains("人名") => {
-                            Some(HotwordCategory::Person)
-                        }
-                        Some(s) if s.eq_ignore_ascii_case("Organization") || s.contains("组织") =>
-                        {
-                            Some(HotwordCategory::Term) // Map orgs to Term
-                        }
-                        Some(s) if s.eq_ignore_ascii_case("Term") || s.contains("术语") => {
-                            Some(HotwordCategory::Term)
-                        }
-                        Some(s) if s.eq_ignore_ascii_case("Abbreviation") || s.contains("缩写") => {
-                            Some(HotwordCategory::Abbreviation)
-                        }
-                        Some(s) if s.eq_ignore_ascii_case("Brand") || s.contains("品牌") => {
-                            Some(HotwordCategory::Brand)
-                        }
-                        _ => None, // Let manager infer or default
-                    };
+                                        // Map Chinese type hints to context_type
+                                        let context_type = match type_hint {
+                                            "项目" | "模块" | "功能" => {
+                                                Some("work".to_string())
+                                            }
+                                            "人名" | "同事" => Some("people".to_string()),
+                                            "技术" | "术语" | "概念" => {
+                                                Some("learning".to_string())
+                                            }
+                                            "工具" | "软件" | "应用" => {
+                                                Some("work".to_string())
+                                            }
+                                            "品牌" | "产品" => Some("work".to_string()),
+                                            _ => Some("other".to_string()),
+                                        };
 
-                    // Add to manager (automatically handles duplicates)
-                    match hotword_manager.add(
-                        target.clone(),
-                        vec![], // originals
-                        category,
-                        Some(vec![HotwordScenario::Work]), // Default to work scenario
-                    ) {
-                        Ok(_) => added_count += 1,
-                        Err(e) => {
-                            // Ignore unique constraint errors
-                            if !e.to_string().contains("UNIQUE constraint") {
-                                log::warn!("Failed to add extracted hotword '{}': {}", target, e);
+                                        info!(
+                                            "[词汇提取] 解析: '{}' -> 词汇='{}', 类型={:?}",
+                                            trimmed, word, context_type
+                                        );
+                                        (word.to_string(), context_type)
+                                    } else {
+                                        (trimmed.to_string(), Some("other".to_string()))
+                                    }
+                                } else {
+                                    (trimmed.to_string(), Some("other".to_string()))
+                                }
+                            } else {
+                                (trimmed.to_string(), Some("other".to_string()))
+                            };
+
+                            if !word.is_empty() {
+                                daily_words.push((word, context_type, 1));
                             }
                         }
                     }
+                    VocabularyItems::Objects(objects) => {
+                        info!("[词汇提取] 对象数组格式，找到 {} 个词汇项目", objects.len());
+                        if objects.is_empty() {
+                            info!("[词汇提取] 对象数组为空");
+                            return;
+                        }
+
+                        for item in &objects {
+                            let word = item.word.trim();
+                            if word.is_empty() {
+                                continue;
+                            }
+
+                            let confidence = item.confidence.unwrap_or(50);
+
+                            // Skip very low confidence items (< 50)
+                            if confidence < 50 {
+                                skipped_count += 1;
+                                log::debug!(
+                                    "Skipping very low confidence word '{}' (confidence: {})",
+                                    word,
+                                    confidence
+                                );
+                                continue;
+                            }
+
+                            // Map AI category to context_type
+                            // AI returns: Term, Person, Brand, Project, Abbreviation, Other
+                            // We map to: work, life, learning, entertainment, people, location, other
+                            let context_type = item.category.as_deref().and_then(|cat| match cat {
+                                "Person" => Some("people".to_string()),
+                                "Term" | "Abbreviation" => Some("learning".to_string()),
+                                "Brand" | "Project" => Some("work".to_string()),
+                                "Other" => Some("other".to_string()),
+                                _ => Some("other".to_string()),
+                            });
+                            let frequency = item.frequency_count.unwrap_or(1);
+
+                            daily_words.push((word.to_string(), context_type, frequency));
+                        }
+                    }
                 }
 
-                if added_count > 0 {
-                    info!(
-                        "Successfully added {} new hotwords from AI analysis",
-                        added_count
-                    );
+                if !daily_words.is_empty() {
+                    match daily_vocab_manager.store_daily_vocabulary(date, daily_words.clone()) {
+                        Ok(()) => {
+                            info!(
+                                "Successfully stored {} vocabulary items to daily_vocabulary for {} ({} skipped)",
+                                daily_words.len(), date, skipped_count
+                            );
+                        }
+                        Err(e) => {
+                            log::error!("Failed to store daily vocabulary: {}", e);
+                        }
+                    }
+                } else {
+                    info!("[词汇提取] daily_words 为空，没有可保存的词汇");
                 }
+            } else {
+                info!("[词汇提取] vocabulary_extracted.items 为 None");
             }
+        } else {
+            info!("[词汇提取] 未找到 vocabulary_extracted 字段");
         }
     } else {
-        log::warn!("Failed to parse vocabulary JSON from AI response");
+        log::error!("[词汇提取] JSON 解析失败: {:?}", response.err());
     }
 }

@@ -384,6 +384,59 @@ impl SummaryManager {
         Ok(())
     }
 
+    /// Delete a specific AI analysis history entry by timestamp
+    pub fn delete_summary_ai_history_entry(&self, summary_id: i64, timestamp: i64) -> Result<()> {
+        let conn = self.get_connection()?;
+        let now = chrono::Utc::now().timestamp();
+
+        let existing_history_json: Option<String> = conn
+            .query_row(
+                "SELECT ai_history FROM summaries WHERE id = ?1",
+                params![summary_id],
+                |row| row.get(0),
+            )
+            .ok()
+            .flatten();
+
+        let mut ai_history: Vec<AiAnalysisEntry> = existing_history_json
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default();
+
+        let original_len = ai_history.len();
+        ai_history.retain(|entry| entry.timestamp != timestamp);
+
+        if ai_history.len() == original_len && timestamp != 0 {
+            return Ok(());
+        }
+
+        let new_history_json = serde_json::to_string(&ai_history)?;
+
+        let (ai_summary, ai_model_used, ai_generated_at) = if let Some(last) = ai_history.last() {
+            (
+                Some(last.summary.clone()),
+                Some(last.model.clone()),
+                Some(last.timestamp),
+            )
+        } else {
+            (None, None, None)
+        };
+
+        conn.execute(
+            "UPDATE summaries SET ai_summary = ?1, ai_model_used = ?2, ai_generated_at = ?3,
+             ai_history = ?4, updated_at = ?5 WHERE id = ?6",
+            params![
+                ai_summary,
+                ai_model_used,
+                ai_generated_at,
+                new_history_json,
+                now,
+                summary_id
+            ],
+        )?;
+
+        Ok(())
+    }
+
     /// Clean up duplicate summaries, keeping only the most recent one for each period
     pub fn cleanup_duplicate_summaries(&self) -> Result<usize> {
         let conn = self.get_connection()?;

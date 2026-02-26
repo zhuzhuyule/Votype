@@ -7,7 +7,6 @@ import {
   Grid,
   Heading,
   SegmentedControl,
-  Tabs,
   Text,
 } from "@radix-ui/themes";
 import {
@@ -16,12 +15,11 @@ import {
   IconCode,
   IconDownload,
   IconFileText,
-  IconSparkles,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
-import { Dropdown } from "../../ui/Dropdown";
+import { AiAnalysisSection } from "./AiAnalysisSection";
 import { SummaryCalendar } from "./SummaryCalendar";
 import {
   SummaryAppDistribution,
@@ -30,7 +28,6 @@ import {
 } from "./SummaryStats";
 import { useSummary } from "./hooks/useSummary";
 import {
-  parseAiAnalysis,
   type PeriodSelection,
   type PeriodType,
   type Summary,
@@ -120,6 +117,7 @@ export const SummaryPage: React.FC = () => {
     loading,
     generating,
     loadSummary,
+    deleteSummaryHistoryEntry,
     exportSummary,
     generateAiAnalysis,
   } = useSummary();
@@ -390,11 +388,6 @@ export const SummaryPage: React.FC = () => {
     return uniqueOptions;
   }, [settings?.cached_models, currentModel]);
 
-  const handleGenerateAnalysis = useCallback(() => {
-    if (!summary) return;
-    generateAiAnalysis(summary.id, selectedModel || null);
-  }, [summary, selectedModel, generateAiAnalysis]);
-
   // Prepare status map for calendar
   const calendarStatusMap = useMemo(() => {
     const map = new Map<string, { hasData: boolean; hasSummary: boolean }>();
@@ -623,390 +616,16 @@ export const SummaryPage: React.FC = () => {
       </Flex>
 
       {/* Bottom Section: AI Analysis & User Profile */}
-      <Flex direction="column" gap="6" mt="6">
-        <Box className="bg-(--gray-2) rounded-lg p-6 border border-(--gray-4)">
-          <Flex justify="between" align="center" mb="4">
-            <Flex align="center" gap="2">
-              <IconSparkles size={20} className="text-(--accent-9)" />
-              <Text size="3" weight="medium">
-                {t("summary.aiAnalysis.title")}
-              </Text>
-            </Flex>
-            <Flex align="center" gap="2">
-              {/* History Tabs */}
-              <Tabs.Root
-                value={
-                  selectedHistoryTimestamp
-                    ? String(selectedHistoryTimestamp)
-                    : "latest"
-                }
-                onValueChange={(val) => {
-                  if (val === "latest") {
-                    setSelectedHistoryTimestamp(null);
-                  } else {
-                    setSelectedHistoryTimestamp(Number(val));
-                  }
-                }}
-              >
-                <Tabs.List size="2">
-                  <Tabs.Trigger value="latest">
-                    {t("common.latest")}
-                  </Tabs.Trigger>
-                  {(summary?.ai_history || [])
-                    .slice()
-                    .reverse()
-                    .map((entry) => (
-                      <Tabs.Trigger
-                        key={entry.timestamp}
-                        value={String(entry.timestamp)}
-                      >
-                        {new Date(entry.timestamp * 1000).toLocaleTimeString(
-                          undefined,
-                          { hour: "2-digit", minute: "2-digit" },
-                        )}
-                        {/* Only show model if it differs from latest/others? Or always? Keeping it simple for now, maybe just time to save space */}
-                        {/* <span className="ml-2 text-[10px] opacity-60">{entry.model}</span>  -- Too crowded? */}
-                      </Tabs.Trigger>
-                    ))}
-                </Tabs.List>
-              </Tabs.Root>
-
-              {modelOptions.length > 0 && (
-                <Dropdown
-                  options={modelOptions}
-                  selectedValue={selectedModel}
-                  onSelect={handleModelChange}
-                  className="w-[180px]"
-                  placeholder={t("summary.aiAnalysis.selectModel")}
-                  disabled={generating}
-                  enableFilter={true}
-                />
-              )}
-              <Button
-                variant="soft"
-                size="2"
-                disabled={generating || !summary}
-                onClick={handleGenerateAnalysis}
-              >
-                <IconSparkles size={16} />
-                {generating
-                  ? t("summary.aiAnalysis.generating")
-                  : t("summary.aiAnalysis.generate")}
-              </Button>
-            </Flex>
-          </Flex>
-
-          {/* Analysis Content */}
-          {(() => {
-            // Determine display content based on history selection
-            const getDisplayContent = () => {
-              if (selectedHistoryTimestamp && summary?.ai_history) {
-                const entry = summary.ai_history.find(
-                  (e) => e.timestamp === selectedHistoryTimestamp,
-                );
-                if (entry) {
-                  return entry.summary;
-                }
-              }
-              return summary?.ai_summary ?? null;
-            };
-
-            const analysis = parseAiAnalysis(getDisplayContent());
-            if (analysis?.summary) {
-              return (
-                <Box className="space-y-4">
-                  {/* Activity Summary */}
-                  {analysis.summary && (
-                    <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
-                      <Text size="2" weight="medium" mb="2" className="block">
-                        {analysis.summary.title}
-                      </Text>
-                      {analysis.summary.content && (
-                        <Text size="2" color="gray">
-                          {analysis.summary.content}
-                        </Text>
-                      )}
-                    </Box>
-                  )}
-
-                  {/* Specific Activities */}
-                  {analysis.activities?.items &&
-                    analysis.activities.items.length > 0 && (
-                      <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
-                        <Text size="2" weight="medium" mb="2" className="block">
-                          {analysis.activities.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.activities.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Highlights */}
-                  {analysis.highlights?.items &&
-                    analysis.highlights.items.length > 0 && (
-                      <Box className="bg-(--accent-a2) rounded-md p-4 border border-(--accent-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--accent-11)"
-                        >
-                          {analysis.highlights.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.highlights.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Work Focus - New extended field */}
-                  {analysis.work_focus?.items &&
-                    analysis.work_focus.items.length > 0 && (
-                      <Box className="bg-(--blue-a2) rounded-md p-4 border border-(--blue-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--blue-11)"
-                        >
-                          {analysis.work_focus.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.work_focus.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Communication Patterns - New extended field */}
-                  {analysis.communication_patterns?.items &&
-                    analysis.communication_patterns.items.length > 0 && (
-                      <Box className="bg-(--purple-a2) rounded-md p-4 border border-(--purple-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--purple-11)"
-                        >
-                          {analysis.communication_patterns.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.communication_patterns.items.map(
-                            (item, i) => (
-                              <li key={i}>
-                                <Text size="2" color="gray">
-                                  {item}
-                                </Text>
-                              </li>
-                            ),
-                          )}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Insights - New extended field */}
-                  {analysis.insights?.items &&
-                    analysis.insights.items.length > 0 && (
-                      <Box className="bg-(--green-a2) rounded-md p-4 border border-(--green-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--green-11)"
-                        >
-                          {analysis.insights.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.insights.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Day-specific: Todos Extracted */}
-                  {analysis.todos_extracted?.items &&
-                    analysis.todos_extracted.items.length > 0 && (
-                      <Box className="bg-(--orange-a2) rounded-md p-4 border border-(--orange-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--orange-11)"
-                        >
-                          {analysis.todos_extracted.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.todos_extracted.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Day-specific: Focus Assessment */}
-                  {analysis.focus_assessment && (
-                    <Box className="bg-(--cyan-a2) rounded-md p-4 border border-(--cyan-a4)">
-                      <Flex justify="between" align="center" mb="2">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          className="text-(--cyan-11)"
-                        >
-                          {analysis.focus_assessment.title}
-                        </Text>
-                        <Text
-                          size="3"
-                          weight="bold"
-                          className="text-(--cyan-11)"
-                        >
-                          {analysis.focus_assessment.score}/10
-                        </Text>
-                      </Flex>
-                      <Text size="2" color="gray">
-                        {analysis.focus_assessment.comment}
-                      </Text>
-                    </Box>
-                  )}
-
-                  {/* Week-specific: Patterns */}
-                  {analysis.patterns?.items &&
-                    analysis.patterns.items.length > 0 && (
-                      <Box className="bg-(--violet-a2) rounded-md p-4 border border-(--violet-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--violet-11)"
-                        >
-                          {analysis.patterns.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.patterns.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Week-specific: Next Week Suggestions */}
-                  {analysis.next_week?.items &&
-                    analysis.next_week.items.length > 0 && (
-                      <Box className="bg-(--amber-a2) rounded-md p-4 border border-(--amber-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--amber-11)"
-                        >
-                          {analysis.next_week.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.next_week.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Month-specific: Trends */}
-                  {analysis.trends?.items &&
-                    analysis.trends.items.length > 0 && (
-                      <Box className="bg-(--teal-a2) rounded-md p-4 border border-(--teal-a4)">
-                        <Text
-                          size="2"
-                          weight="medium"
-                          mb="2"
-                          className="block text-(--teal-11)"
-                        >
-                          {analysis.trends.title}
-                        </Text>
-                        <ul className="list-disc list-inside space-y-1">
-                          {analysis.trends.items.map((item, i) => (
-                            <li key={i}>
-                              <Text size="2" color="gray">
-                                {item}
-                              </Text>
-                            </li>
-                          ))}
-                        </ul>
-                      </Box>
-                    )}
-
-                  {/* Model used info */}
-                  {summary?.ai_model_used && (
-                    <Text size="1" color="gray">
-                      {t("summary.aiAnalysis.modelUsed")}:{" "}
-                      {summary.ai_model_used}
-                    </Text>
-                  )}
-                </Box>
-              );
-            } else if (summary?.ai_summary) {
-              // Fallback: display raw text if JSON parsing fails
-              return (
-                <Box className="bg-(--gray-1) rounded-md p-4 border border-(--gray-3)">
-                  <Text size="2" color="gray" className="whitespace-pre-wrap">
-                    {summary.ai_summary}
-                  </Text>
-                </Box>
-              );
-            } else {
-              return (
-                <Text size="2" color="gray">
-                  {t("summary.aiAnalysis.empty")}
-                </Text>
-              );
-            }
-          })()}
-        </Box>
-
-        {/* User Profile Quick View */}
-        {userProfile?.style_prompt && (
-          <Box className="bg-(--accent-a2) rounded-lg p-4 border border-(--accent-a4)">
-            <Text size="2" weight="medium" mb="2" className="block">
-              {t("summary.userProfile.currentStyle")}
-            </Text>
-            <Text size="2" className="italic">
-              {userProfile.style_prompt}
-            </Text>
-          </Box>
-        )}
-      </Flex>
+      <AiAnalysisSection
+        summary={summary}
+        userProfile={userProfile}
+        generating={generating}
+        generateAiAnalysis={generateAiAnalysis}
+        deleteSummaryHistoryEntry={deleteSummaryHistoryEntry}
+        modelOptions={modelOptions}
+        selectedModel={selectedModel}
+        onModelChange={handleModelChange}
+      />
     </Box>
   );
 };

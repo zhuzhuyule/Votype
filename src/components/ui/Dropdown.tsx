@@ -29,11 +29,12 @@ export interface DropdownProps {
   ariaLabel?: string;
   ariaLabelledBy?: string;
   enableFilter?: boolean; // Whether to enable filtering functionality
+  style?: React.CSSProperties;
 }
 
 // Popover trigger button styles (consistent with Select.Trigger)
 const triggerClasses =
-  "flex items-center justify-between min-h-[40px] w-full min-w-[200px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-2 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed";
+  "flex items-center justify-between min-h-[32px] w-full min-w-[200px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-2 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const Dropdown: React.FC<DropdownProps> = ({
   options,
@@ -46,6 +47,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   ariaLabel,
   ariaLabelledBy,
   enableFilter = false,
+  style,
 }) => {
   const { t } = useTranslation();
   const defaultPlaceholder = t("common.selectOption");
@@ -113,6 +115,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
             disabled={disabled}
             aria-label={ariaLabel}
             aria-labelledby={ariaLabelledBy}
+            style={style}
           >
             <span className="truncate text-left flex-1">
               {selectedLabel || placeholder || defaultPlaceholder}
@@ -229,6 +232,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
         placeholder={placeholder || defaultPlaceholder}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
+        style={style}
       />
 
       <Select.Content

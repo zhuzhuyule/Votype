@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod daily_vocabulary;
 pub mod history;
 pub mod hotword;
 pub mod models;

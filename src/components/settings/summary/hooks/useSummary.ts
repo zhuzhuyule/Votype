@@ -124,7 +124,12 @@ export function useSummary() {
   );
 
   const generateAiAnalysis = useCallback(
-    async (summaryId: number, selectedModel?: string | null) => {
+    async (
+      summaryId: number,
+      selectedModel?: string | null,
+      splitRequests?: boolean,
+      parallelRequests?: boolean,
+    ) => {
       setGenerating(true);
       try {
         // Get current feedback style from user profile, default to "balanced"
@@ -133,6 +138,8 @@ export function useSummary() {
           summaryId,
           feedbackStyle,
           selectedModel: selectedModel || null,
+          splitRequests: splitRequests ?? false,
+          parallelRequests: parallelRequests ?? false,
         });
         setSummary(result);
         await loadSummaryList();
@@ -144,6 +151,25 @@ export function useSummary() {
       }
     },
     [loadSummaryList, userProfile],
+  );
+
+  const deleteSummaryHistoryEntry = useCallback(
+    async (summaryId: number, timestamp: number) => {
+      try {
+        const result = await invoke<Summary>(
+          "delete_summary_ai_history_entry",
+          {
+            summaryId,
+            timestamp,
+          },
+        );
+        setSummary(result);
+        await loadSummaryList();
+      } catch (error) {
+        console.error("Failed to delete AI analysis history entry:", error);
+      }
+    },
+    [loadSummaryList],
   );
 
   return {
@@ -159,6 +185,7 @@ export function useSummary() {
     loadUserProfile,
     updateFeedbackStyle,
     updateStylePrompt,
+    deleteSummaryHistoryEntry,
     exportSummary,
     generateAiAnalysis,
   };

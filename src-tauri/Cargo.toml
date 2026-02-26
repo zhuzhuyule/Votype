@@ -75,6 +75,7 @@ bzip2 = "0.6.1"
 regex = "1"
 serde_yaml = "0.9"
 similar = "2.6"
+pinyin = "0.10"
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
 

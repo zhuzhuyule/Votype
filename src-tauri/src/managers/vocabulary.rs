@@ -3,7 +3,10 @@
 //! Tracks vocabulary corrections made by users when editing history entries.
 //! These corrections are used to improve future transcriptions by injecting
 //! correction hints into LLM prompts.
+//!
+//! 重要：只有发音相似的修正才会被记录，语义修改会被过滤掉。
 
+use crate::phonetic_similarity::{calculate_phonetic_similarity, PhoneticSimilarity};
 use anyhow::Result;
 use chrono::Utc;
 use log::info;
@@ -237,6 +240,9 @@ impl VocabularyManager {
     /// Record a vocabulary correction to the database
     /// If the same correction already exists, increment its count
     /// scope_hint params are only used if creating a NEW record and no precedent exists.
+    ///
+    /// 重要：会先进行发音相似度检查，只有发音相似的修正才会被记录。
+    /// 这样可以过滤掉用户的语义修改，只保留 ASR 误识别的修正。
     pub fn record_correction(
         &self,
         diff: &WordDiff,
@@ -246,6 +252,27 @@ impl VocabularyManager {
         if diff.original.is_empty() && diff.corrected.is_empty() {
             return Ok(());
         }
+
+        // 发音相似度检查：只记录发音相似的修正
+        let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
+
+        if !similarity.is_phonetically_similar {
+            info!(
+                "[Vocabulary] Semantic change detected, skipping: \"{}\" → \"{}\" (score: {:.2}, type: {:?})",
+                diff.original, diff.corrected, similarity.score, similarity.text_type
+            );
+            // 记录到候选池但不晋升（用于统计和调试）
+            self.record_candidate(&diff, &similarity)?;
+            return Ok(());
+        }
+
+        info!(
+            "[Vocabulary] Phonetically similar correction: \"{}\" → \"{}\" (score: {:.2})",
+            diff.original, diff.corrected, similarity.score
+        );
+
+        // 记录到候选池（已通过）
+        self.record_candidate(&diff, &similarity)?;
 
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
@@ -440,6 +467,150 @@ impl VocabularyManager {
         info!("[Vocabulary] Deleted correction id={}", id);
         Ok(())
     }
+
+    /// Record a correction candidate to the candidates pool
+    /// This is called for ALL edit diffs, regardless of whether they pass phonetic filtering
+    fn record_candidate(&self, diff: &WordDiff, similarity: &PhoneticSimilarity) -> Result<()> {
+        let conn = self.get_connection()?;
+        let now = Utc::now().timestamp();
+
+        let status = if similarity.is_phonetically_similar {
+            "promoted"
+        } else {
+            "rejected"
+        };
+
+        // Try to update existing candidate first
+        let updated = conn.execute(
+            "UPDATE correction_candidates 
+             SET occurrence_count = occurrence_count + 1, 
+                 last_seen_at = ?1,
+                 status = ?2,
+                 phonetic_score = ?3
+             WHERE original_text = ?4 AND corrected_text = ?5",
+            params![now, status, similarity.score, diff.original, diff.corrected],
+        )?;
+
+        if updated == 0 {
+            // Insert new candidate
+            conn.execute(
+                "INSERT INTO correction_candidates 
+                 (original_text, corrected_text, phonetic_score, original_phonetic, corrected_phonetic, 
+                  text_type, status, occurrence_count, created_at, last_seen_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?8)",
+                params![
+                    diff.original,
+                    diff.corrected,
+                    similarity.score,
+                    similarity.original_phonetic,
+                    similarity.corrected_phonetic,
+                    format!("{:?}", similarity.text_type),
+                    status,
+                    now
+                ],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Get correction candidates with optional status filter
+    pub fn get_correction_candidates(
+        &self,
+        status_filter: Option<&str>,
+    ) -> Result<Vec<CorrectionCandidate>> {
+        let conn = self.get_connection()?;
+
+        let query = if let Some(status) = status_filter {
+            format!(
+                "SELECT id, original_text, corrected_text, phonetic_score, original_phonetic, 
+                        corrected_phonetic, text_type, status, occurrence_count, created_at, last_seen_at
+                 FROM correction_candidates
+                 WHERE status = '{}'
+                 ORDER BY last_seen_at DESC",
+                status
+            )
+        } else {
+            "SELECT id, original_text, corrected_text, phonetic_score, original_phonetic, 
+                    corrected_phonetic, text_type, status, occurrence_count, created_at, last_seen_at
+             FROM correction_candidates
+             ORDER BY last_seen_at DESC".to_string()
+        };
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map([], |row| {
+            Ok(CorrectionCandidate {
+                id: row.get("id")?,
+                original_text: row.get("original_text")?,
+                corrected_text: row.get("corrected_text")?,
+                phonetic_score: row.get("phonetic_score")?,
+                original_phonetic: row.get("original_phonetic")?,
+                corrected_phonetic: row.get("corrected_phonetic")?,
+                text_type: row.get("text_type")?,
+                status: row.get("status")?,
+                occurrence_count: row.get("occurrence_count")?,
+                created_at: row.get("created_at")?,
+                last_seen_at: row.get("last_seen_at")?,
+            })
+        })?;
+
+        let mut candidates = Vec::new();
+        for row in rows {
+            candidates.push(row?);
+        }
+
+        Ok(candidates)
+    }
+
+    /// Get statistics about correction candidates
+    pub fn get_candidate_stats(&self) -> Result<CandidateStats> {
+        let conn = self.get_connection()?;
+
+        let stats = conn.query_row(
+            "SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'promoted' THEN 1 ELSE 0 END) as promoted,
+                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+                AVG(phonetic_score) as avg_score
+             FROM correction_candidates",
+            [],
+            |row| {
+                Ok(CandidateStats {
+                    total: row.get("total")?,
+                    promoted: row.get("promoted")?,
+                    rejected: row.get("rejected")?,
+                    avg_score: row.get::<_, Option<f64>>("avg_score")?.unwrap_or(0.0),
+                })
+            },
+        )?;
+
+        Ok(stats)
+    }
+}
+
+/// Represents a correction candidate in the candidates pool
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CorrectionCandidate {
+    pub id: i64,
+    pub original_text: String,
+    pub corrected_text: String,
+    pub phonetic_score: f64,
+    pub original_phonetic: Option<String>,
+    pub corrected_phonetic: Option<String>,
+    pub text_type: String,
+    pub status: String, // "promoted", "rejected", "pending"
+    pub occurrence_count: i64,
+    pub created_at: i64,
+    pub last_seen_at: i64,
+}
+
+/// Statistics about correction candidates
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CandidateStats {
+    pub total: i64,
+    pub promoted: i64,
+    pub rejected: i64,
+    pub avg_score: f64,
 }
 
 #[cfg(test)]

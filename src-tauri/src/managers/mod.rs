@@ -1,4 +1,5 @@
 pub mod audio;
+pub mod daily_vocabulary;
 pub mod history;
 pub mod hotword;
 pub mod model;
@@ -9,4 +10,5 @@ pub mod summary;
 pub mod transcription;
 pub mod vocabulary;
 
+pub use daily_vocabulary::DailyVocabularyManager;
 pub use hotword::HotwordManager;
