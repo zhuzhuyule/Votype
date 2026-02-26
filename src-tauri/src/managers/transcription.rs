@@ -1,3 +1,4 @@
+use crate::audio_toolkit::filter_transcription_output;
 use crate::managers::model::{EngineType, ModelManager};
 use crate::online_asr::{OnlineAsrClient, OnlineAsrStatusEvent};
 use crate::settings::{get_settings, ModelUnloadTimeout};
@@ -1880,6 +1881,9 @@ impl TranscriptionManager {
             }
         };
 
+        // Filter out filler words and hallucinations
+        let filtered_result = filter_transcription_output(&result.text);
+
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
             " (translated)"
@@ -1892,7 +1896,7 @@ impl TranscriptionManager {
             translation_note
         );
 
-        let mut final_result = result.text.trim().to_string();
+        let mut final_result = filtered_result.trim().to_string();
 
         if settings.punctuation_enabled && !final_result.is_empty() {
             let punct_model_id = settings.punctuation_model.trim();
