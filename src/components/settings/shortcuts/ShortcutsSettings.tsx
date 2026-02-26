@@ -21,6 +21,11 @@ export const ShortcutsSettings: React.FC = () => {
           grouped={true}
         />
         <VotypeShortcut
+          shortcutId="transcribe_with_post_process"
+          descriptionMode="inline"
+          grouped={true}
+        />
+        <VotypeShortcut
           shortcutId="invoke_skill"
           descriptionMode="inline"
           grouped={true}

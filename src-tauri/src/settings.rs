@@ -828,6 +828,15 @@ pub fn get_default_settings() -> AppSettings {
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     let default_shortcut = "alt+space";
 
+    #[cfg(target_os = "windows")]
+    let default_post_process_shortcut = "ctrl+shift+space";
+    #[cfg(target_os = "macos")]
+    let default_post_process_shortcut = "option+shift+space";
+    #[cfg(target_os = "linux")]
+    let default_post_process_shortcut = "ctrl+shift+space";
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    let default_post_process_shortcut = "alt+shift+space";
+
     let mut bindings = HashMap::new();
     bindings.insert(
         "transcribe".to_string(),
@@ -837,6 +846,17 @@ pub fn get_default_settings() -> AppSettings {
             description: "Converts your speech into text.".to_string(),
             default_binding: default_shortcut.to_string(),
             current_binding: default_shortcut.to_string(),
+        },
+    );
+    bindings.insert(
+        "transcribe_with_post_process".to_string(),
+        ShortcutBinding {
+            id: "transcribe_with_post_process".to_string(),
+            name: "Transcribe with Post-Processing".to_string(),
+            description: "Converts your speech into text and applies AI post-processing."
+                .to_string(),
+            default_binding: default_post_process_shortcut.to_string(),
+            current_binding: default_post_process_shortcut.to_string(),
         },
     );
     bindings.insert(
