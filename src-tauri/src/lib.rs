@@ -270,6 +270,7 @@ pub fn run() {
     let console_filter = build_console_filter();
 
     let mut builder = tauri::Builder::default()
+        .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(
             LogBuilder::new()
                 .level(log::LevelFilter::Trace) // Set to most verbose level globally
