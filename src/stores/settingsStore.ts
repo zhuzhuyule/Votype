@@ -690,8 +690,8 @@ export const useSettingsStore = create<SettingsStore>()(
       setUpdating(updateKey, true);
       try {
         await invoke("update_cached_model_capability", {
-          modelId,
-          capability: modelType,
+          id: modelId,
+          modelType: modelType,
         });
         await refreshSettings();
       } catch (error) {
@@ -706,7 +706,7 @@ export const useSettingsStore = create<SettingsStore>()(
       const { setUpdating, refreshSettings } = get();
       setUpdating(updateKey, true);
       try {
-        await invoke("remove_cached_model", { modelId });
+        await invoke("remove_cached_model", { id: modelId });
         await refreshSettings();
       } catch (error) {
         console.error("Failed to remove cached model:", error);
