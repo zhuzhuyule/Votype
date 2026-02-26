@@ -855,14 +855,18 @@ impl ShortcutAction for TranscribeAction {
                             let mut error_shown = false;
 
                             // 1. Try Chinese variant conversion first
+                            let mut chinese_converted_text = transcription_clone.clone();
                             if let Some(converted_text) =
                                 maybe_convert_chinese_variant(&settings_clone, &transcription_clone)
                                     .await
                             {
-                                final_text = converted_text;
+                                final_text = converted_text.clone();
+                                chinese_converted_text = converted_text;
                                 used_model = Some("OpenCC".to_string());
-                            } else {
-                                // 2. If not Chinese conversion, try LLM post-processing
+                            }
+
+                            // 2. Apply LLM post-processing if enabled
+                            {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
                                     let mut secondary = secondary_result_for_post
@@ -951,7 +955,7 @@ impl ShortcutAction for TranscribeAction {
                                 ) = maybe_post_process_transcription(
                                     &ah_clone,
                                     &settings_clone,
-                                    &transcription_clone,
+                                    &chinese_converted_text,
                                     secondary.as_deref(),
                                     true,
                                     override_prompt_id,

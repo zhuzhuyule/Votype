@@ -737,7 +737,10 @@ pub async fn execute_llm_request(
                                 let content = json_resp["choices"][0]["message"]["content"]
                                     .as_str()
                                     .unwrap_or_default()
-                                    .to_string();
+                                    .replace('\u{200B}', "") // Zero-Width Space
+                                    .replace('\u{200C}', "") // Zero-Width Non-Joiner
+                                    .replace('\u{200D}', "") // Zero-Width Joiner
+                                    .replace('\u{FEFF}', ""); // Byte Order Mark / Zero-Width No-Break Space
 
                                 // Could also check json_resp["choices"][0]["message"]["reasoning_content"] here
                                 // for thinking mode models that return it separately
