@@ -8,6 +8,7 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::actions::{ActionMode, ACTION_MAP};
+use crate::managers::audio::AudioRecordingManager;
 use crate::settings::ShortcutBinding;
 use crate::settings::{
     self, get_settings, CachedModel, ClipboardHandling, ModelType, OverlayPosition, PasteMethod,
@@ -15,8 +16,8 @@ use crate::settings::{
     APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray::{ManagedTrayIconState, TrayIconState};
-use crate::ManagedToggleState;
 use chrono::Utc;
+use std::sync::Arc;
 
 pub fn init_shortcuts(app: &AppHandle) {
     let default_bindings = settings::get_default_settings().bindings;
@@ -1785,44 +1786,43 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
                             }
                         }
                         ActionMode::Stateful => {
-                            // Stateful actions (Transcribe)
-                            // Handle PTT vs Toggle based on user settings
-                            if settings.push_to_talk {
-                                if event.state == ShortcutState::Pressed {
-                                    action.start(ah, &binding_id_for_closure, &shortcut_string);
-                                } else if event.state == ShortcutState::Released {
-                                    action.stop(ah, &binding_id_for_closure, &shortcut_string);
-                                }
-                            } else {
-                                // Toggle logic
-                                if event.state == ShortcutState::Pressed {
-                                    let toggle_state_manager = ah.state::<ManagedToggleState>();
-                                    let mut states = toggle_state_manager
-                                        .lock()
-                                        .expect("Failed to lock toggle state manager");
-
-                                    let is_currently_active = states
-                                        .active_toggles
-                                        .entry(binding_id_for_closure.clone())
-                                        .or_insert(false);
-
-                                    if *is_currently_active {
-                                        action.stop(
-                                            ah,
+                                // Stateful actions (Transcribe)
+                                // Funnel transcribe actions through the coordinator to avoid races
+                                if crate::transcription_coordinator::is_transcribe_binding(
+                                    &binding_id_for_closure,
+                                ) {
+                                    if let Some(coordinator) =
+                                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                                    {
+                                        coordinator.send_input(
                                             &binding_id_for_closure,
                                             &shortcut_string,
+                                            event.state == ShortcutState::Pressed,
+                                            settings.push_to_talk,
                                         );
-                                        *is_currently_active = false;
                                     } else {
-                                        action.start(
-                                            ah,
-                                            &binding_id_for_closure,
-                                            &shortcut_string,
-                                        );
-                                        *is_currently_active = true;
+                                        warn!("TranscriptionCoordinator missing from state");
+                                    }
+                                } else if settings.push_to_talk {
+                                    if event.state == ShortcutState::Pressed {
+                                        action.start(ah, &binding_id_for_closure, &shortcut_string);
+                                    } else if event.state == ShortcutState::Released {
+                                        action.stop(ah, &binding_id_for_closure, &shortcut_string);
+                                    }
+                                } else if event.state == ShortcutState::Pressed {
+                                    // Toggle logic for non-transcribe stateful actions
+                                    let is_active = ah
+                                        .app_handle()
+                                        .try_state::<Arc<AudioRecordingManager>>()
+                                        .map(|rm| rm.is_recording())
+                                        .unwrap_or(false);
+
+                                    if is_active {
+                                        action.stop(ah, &binding_id_for_closure, &shortcut_string);
+                                    } else {
+                                        action.start(ah, &binding_id_for_closure, &shortcut_string);
                                     }
                                 }
-                            }
                         }
                     }
                 } else {

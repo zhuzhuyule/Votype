@@ -522,6 +522,12 @@ impl ShortcutAction for TranscribeAction {
                     );
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
+
+                    if let Some(coordinator) =
+                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                    {
+                        coordinator.notify_processing_finished();
+                    }
                     return;
                 }
 
@@ -1161,6 +1167,14 @@ impl ShortcutAction for TranscribeAction {
                         ah.run_on_main_thread(move || {
                             utils::hide_recording_overlay(&ah_clone);
                             change_tray_icon(&ah_clone, TrayIconState::Idle);
+
+                            // Notify coordinator that processing is finished
+                            if let Some(coordinator) = ah_clone
+                                .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                            {
+                                coordinator.notify_processing_finished();
+                            }
+
                             if let Err(e) = utils::paste(transcription_clone, ah_clone) {
                                 error!("Failed to paste transcription: {}", e);
                             }
@@ -1232,11 +1246,22 @@ impl ShortcutAction for TranscribeAction {
                     sleep(Duration::from_millis(2500)).await;
                     utils::hide_recording_overlay(&ah);
                     change_tray_icon(&ah, TrayIconState::Idle);
+
+                    if let Some(coordinator) =
+                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                    {
+                        coordinator.notify_processing_finished();
+                    }
                 }
             } else {
                 debug!("No samples retrieved from recording stop");
                 utils::hide_recording_overlay(&ah);
                 change_tray_icon(&ah, TrayIconState::Idle);
+                if let Some(coordinator) =
+                    ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                {
+                    coordinator.notify_processing_finished();
+                }
             }
         });
 

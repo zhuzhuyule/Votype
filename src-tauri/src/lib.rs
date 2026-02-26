@@ -18,6 +18,7 @@ mod settings;
 mod sherpa;
 mod shortcut;
 mod signal_handle;
+pub mod transcription_coordinator;
 mod tray;
 mod utils;
 
