@@ -833,6 +833,9 @@ impl ShortcutAction for TranscribeAction {
                                 );
                         utils::hide_recording_overlay(&ah);
                         change_tray_icon(&ah, TrayIconState::Idle);
+                        if let Some(coordinator) = ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
+                            coordinator.notify_processing_finished();
+                        }
                         return;
                     }
 
@@ -976,6 +979,9 @@ impl ShortcutAction for TranscribeAction {
                                 // Check if pending skill confirmation - skip all subsequent processing
                                 if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
                                     info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
+                                    if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
+                                        coordinator.notify_processing_finished();
+                                    }
                                     // Don't hide overlay, don't paste - wait for user confirmation via confirm_skill
                                     return;
                                 }
@@ -1111,6 +1117,9 @@ impl ShortcutAction for TranscribeAction {
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);
                                     change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                    if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
+                                        coordinator.notify_processing_finished();
+                                    }
                                     return;
                                 }
                             }
@@ -1141,6 +1150,9 @@ impl ShortcutAction for TranscribeAction {
                                 );
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
+                                    coordinator.notify_processing_finished();
+                                }
                                 return;
                             }
 
@@ -1158,6 +1170,10 @@ impl ShortcutAction for TranscribeAction {
                                             utils::hide_recording_overlay(&ah_delayed);
                                             change_tray_icon(&ah_delayed, TrayIconState::Idle);
                                         });
+                                    }
+
+                                    if let Some(coordinator) = ah_clone_inner.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
+                                        coordinator.notify_processing_finished();
                                     }
 
                                     if let Err(e) = utils::paste(final_text, ah_clone_inner) {
