@@ -211,7 +211,7 @@ const settingUpdaters: {
   punctuation_model: (value) =>
     invoke("change_punctuation_model_setting", { modelId: value }),
   favorite_transcription_models: (value) =>
-    invoke("change_favorite_transcription_models_setting", { modelIds: value }),
+    invoke("change_favorite_transcription_models_setting", { models: value }),
   offline_vad_force_interval_ms: (value) =>
     invoke("change_offline_vad_force_interval_ms_setting", { value }),
   offline_vad_force_window_seconds: (value) =>
