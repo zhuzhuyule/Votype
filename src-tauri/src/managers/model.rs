@@ -18,8 +18,10 @@ use tauri::{AppHandle, Emitter, Manager};
 pub enum EngineType {
     Whisper,
     Parakeet,
-    SherpaOnnx,
-    SherpaOnnxPunctuation,
+    Moonshine,
+    MoonshineStreaming,
+    SenseVoice,
+    Paraformer,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,15 +201,6 @@ impl ModelManager {
         })
     }
 
-    fn infer_engine_type_from_name(name: &str) -> EngineType {
-        let lower = name.to_lowercase();
-        if lower.contains("punct") || lower.contains("punctuation") {
-            EngineType::SherpaOnnxPunctuation
-        } else {
-            EngineType::SherpaOnnx
-        }
-    }
-
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create models directory in app data
         let models_dir = app_handle
@@ -374,7 +367,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Zipformer2Ctc,
@@ -400,7 +393,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -427,7 +420,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -453,7 +446,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -479,7 +472,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -505,7 +498,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -531,7 +524,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -559,7 +552,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -585,7 +578,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -614,7 +607,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnxPunctuation,
+                engine_type: EngineType::Paraformer,
                 sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.95,
@@ -637,7 +630,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnxPunctuation,
+                engine_type: EngineType::Paraformer,
                 sherpa: None,
                 accuracy_score: 0.88,
                 speed_score: 0.70,
@@ -661,7 +654,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::SenseVoice,
@@ -688,7 +681,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -714,7 +707,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -741,7 +734,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -850,7 +843,7 @@ impl ModelManager {
             url: url.clone(),
             size_mb: 0,
             is_directory,
-            engine_type: Self::infer_engine_type_from_name(&base_name),
+            engine_type: EngineType::Paraformer,
             sherpa: Self::infer_sherpa_spec_from_name(&base_name),
             accuracy_score: 0.8,
             speed_score: 0.8,

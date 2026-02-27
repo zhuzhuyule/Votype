@@ -1,20 +1,29 @@
 use crate::audio_toolkit::filter_transcription_output;
+use crate::audio_toolkit::text::apply_custom_words;
 use crate::managers::model::{EngineType, ModelManager};
-use crate::online_asr::{OnlineAsrClient, OnlineAsrStatusEvent};
 use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
 use log::{debug, error, info, warn};
 use serde::Serialize;
-
+use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter};
 use transcribe_rs::{
     engines::{
+        moonshine::{
+            ModelVariant, MoonshineEngine, MoonshineModelParams, MoonshineStreamingEngine,
+            StreamingModelParams,
+        },
+        paraformer::{ParaformerEngine, ParaformerModelParams},
         parakeet::{
             ParakeetEngine, ParakeetInferenceParams, ParakeetModelParams, TimestampGranularity,
+        },
+        sense_voice::{
+            Language as SenseVoiceLanguage, SenseVoiceEngine, SenseVoiceInferenceParams,
+            SenseVoiceModelParams,
         },
         whisper::{WhisperEngine, WhisperInferenceParams},
     },
@@ -32,6 +41,10 @@ pub struct ModelStateEvent {
 enum LoadedEngine {
     Whisper(WhisperEngine),
     Parakeet(ParakeetEngine),
+    Moonshine(MoonshineEngine),
+    MoonshineStreaming(MoonshineStreamingEngine),
+    SenseVoice(SenseVoiceEngine),
+    Paraformer(ParaformerEngine),
 }
 
 #[derive(Clone)]
@@ -129,8 +142,16 @@ impl TranscriptionManager {
         Ok(manager)
     }
 
+    /// Lock the engine mutex, recovering from poison if a previous transcription panicked.
+    fn lock_engine(&self) -> MutexGuard<'_, Option<LoadedEngine>> {
+        self.engine.lock().unwrap_or_else(|poisoned| {
+            warn!("Engine mutex was poisoned by a previous panic, recovering");
+            poisoned.into_inner()
+        })
+    }
+
     pub fn is_model_loaded(&self) -> bool {
-        let engine = self.engine.lock().unwrap();
+        let engine = self.lock_engine();
         engine.is_some()
     }
 
@@ -139,11 +160,15 @@ impl TranscriptionManager {
         debug!("Starting to unload model");
 
         {
-            let mut engine = self.engine.lock().unwrap();
+            let mut engine = self.lock_engine();
             if let Some(ref mut loaded_engine) = *engine {
                 match loaded_engine {
-                    LoadedEngine::Whisper(ref mut whisper) => whisper.unload_model(),
-                    LoadedEngine::Parakeet(ref mut parakeet) => parakeet.unload_model(),
+                    LoadedEngine::Whisper(ref mut e) => e.unload_model(),
+                    LoadedEngine::Parakeet(ref mut e) => e.unload_model(),
+                    LoadedEngine::Moonshine(ref mut e) => e.unload_model(),
+                    LoadedEngine::MoonshineStreaming(ref mut e) => e.unload_model(),
+                    LoadedEngine::SenseVoice(ref mut e) => e.unload_model(),
+                    LoadedEngine::Paraformer(ref mut e) => e.unload_model(),
                 }
             }
             *engine = None; // Drop the engine to free memory
@@ -170,6 +195,19 @@ impl TranscriptionManager {
             unload_duration.as_millis()
         );
         Ok(())
+    }
+
+    /// Unloads the model immediately if the setting is enabled and the model is loaded
+    pub fn maybe_unload_immediately(&self, context: &str) {
+        let settings = get_settings(&self.app_handle);
+        if settings.model_unload_timeout == ModelUnloadTimeout::Immediately
+            && self.is_model_loaded()
+        {
+            info!("Immediately unloading model after {}", context);
+            if let Err(e) = self.unload_model() {
+                warn!("Failed to immediately unload model: {}", e);
+            }
+        }
     }
 
     pub fn load_model(&self, model_id: &str) -> Result<()> {
@@ -247,16 +285,96 @@ impl TranscriptionManager {
                     })?;
                 LoadedEngine::Parakeet(engine)
             }
-            EngineType::SherpaOnnx | EngineType::SherpaOnnxPunctuation => {
-                return Err(anyhow::anyhow!(
-                    "Sherpa models are no longer supported. Please use Whisper or Parakeet instead.",
-                ));
+            EngineType::Moonshine => {
+                let mut engine = MoonshineEngine::new();
+                engine
+                    .load_model_with_params(
+                        &model_path,
+                        MoonshineModelParams::variant(ModelVariant::Base),
+                    )
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to load moonshine model {}: {}", model_id, e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::Moonshine(engine)
+            }
+            EngineType::MoonshineStreaming => {
+                let mut engine = MoonshineStreamingEngine::new();
+                engine
+                    .load_model_with_params(&model_path, StreamingModelParams::default())
+                    .map_err(|e| {
+                        let error_msg = format!(
+                            "Failed to load moonshine streaming model {}: {}",
+                            model_id, e
+                        );
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::MoonshineStreaming(engine)
+            }
+            EngineType::SenseVoice => {
+                let mut engine = SenseVoiceEngine::new();
+                engine
+                    .load_model_with_params(&model_path, SenseVoiceModelParams::int8())
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to load SenseVoice model {}: {}", model_id, e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::SenseVoice(engine)
+            }
+            EngineType::Paraformer => {
+                let mut engine = ParaformerEngine::new();
+                engine
+                    .load_model_with_params(&model_path, ParaformerModelParams::default())
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to load Paraformer model {}: {}", model_id, e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::Paraformer(engine)
             }
         };
 
         // Update the current engine and model ID
         {
-            let mut engine = self.engine.lock().unwrap();
+            let mut engine = self.lock_engine();
             *engine = Some(loaded_engine);
         }
         {
@@ -309,19 +427,6 @@ impl TranscriptionManager {
         current_model.clone()
     }
 
-    fn wait_for_local_engine(&self) -> Result<()> {
-        let mut is_loading = self.is_loading.lock().unwrap();
-        while *is_loading {
-            is_loading = self.loading_condvar.wait(is_loading).unwrap();
-        }
-
-        let engine_guard = self.engine.lock().unwrap();
-        if engine_guard.is_none() {
-            return Err(anyhow::anyhow!("Model is not loaded for transcription."));
-        }
-        Ok(())
-    }
-
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
         // Update last activity timestamp
         self.last_activity.store(
@@ -336,142 +441,184 @@ impl TranscriptionManager {
 
         debug!("Audio vector length: {}", audio.len());
 
-        if audio.len() == 0 {
+        if audio.is_empty() {
             debug!("Empty audio vector");
+            self.maybe_unload_immediately("empty audio");
             return Ok(String::new());
         }
 
-        // Get current settings for configuration
-        let settings = get_settings(&self.app_handle);
-
-        const ONLINE_SAMPLE_RATE: u32 = 16000;
-
-        const ONLINE_TIMEOUT: Duration = Duration::from_secs(20);
-        if settings.online_asr_enabled {
-            if let Some(asr_id) = &settings.selected_asr_model_id {
-                if let Some(cached_model) = settings
-                    .cached_models
-                    .iter()
-                    .find(|cached| &cached.id == asr_id)
-                {
-                    if let Some(provider) = settings
-                        .post_process_providers
-                        .iter()
-                        .find(|provider| provider.id == cached_model.provider_id)
-                    {
-                        let api_key = settings
-                            .post_process_api_keys
-                            .get(&provider.id)
-                            .filter(|key| !key.trim().is_empty())
-                            .cloned();
-                        println!(
-                            "Starting online ASR (provider={}, model={})",
-                            provider.label, cached_model.model_id
-                        );
-                        self.emit_online_asr_status("started", None);
-                        let provider_clone = provider.clone();
-                        let model_id = cached_model.model_id.clone();
-                        let audio_clone = audio.clone();
-                        let api_key_clone = api_key.clone();
-
-                        let handle = thread::spawn(move || {
-                            OnlineAsrClient::new(ONLINE_SAMPLE_RATE, ONLINE_TIMEOUT).transcribe(
-                                &provider_clone,
-                                api_key_clone,
-                                &model_id,
-                                &audio_clone,
-                            )
-                        });
-
-                        return match handle.join() {
-                            Ok(Ok(mut text)) => {
-                                text = text.trim().to_string();
-
-                                self.emit_online_asr_status("completed", None);
-                                Ok(text)
-                            }
-                            Ok(Err(err)) => {
-                                let detail = err.to_string();
-                                self.emit_online_asr_status("failed", Some(detail.clone()));
-                                eprintln!("Online ASR failed: {:?}", detail);
-                                Err(anyhow::anyhow!("在线 ASR 请求失败：{}", detail))
-                            }
-                            Err(err) => {
-                                let detail = format!("{:?}", err);
-                                self.emit_online_asr_status("thread_failed", Some(detail.clone()));
-                                eprintln!("Online ASR thread panicked: {:?}", detail);
-                                Err(anyhow::anyhow!("在线 ASR 线程异常：{}", detail))
-                            }
-                        };
-                    }
-                }
-            }
-        }
-
-        // Ensure local model is loaded before falling back
+        // Check if model is loaded, if not try to load it
         {
+            // If the model is loading, wait for it to complete.
             let mut is_loading = self.is_loading.lock().unwrap();
             while *is_loading {
                 is_loading = self.loading_condvar.wait(is_loading).unwrap();
             }
 
-            let engine_guard = self.engine.lock().unwrap();
+            let engine_guard = self.lock_engine();
             if engine_guard.is_none() {
                 return Err(anyhow::anyhow!("Model is not loaded for transcription."));
             }
         }
 
-        // Perform transcription with the appropriate engine
+        // Get current settings for configuration
+        let settings = get_settings(&self.app_handle);
+
+        // Perform transcription with the appropriate engine.
+        // We use catch_unwind to prevent engine panics from poisoning the mutex,
+        // which would make the app hang indefinitely on subsequent operations.
         let result = {
-            let mut engine_guard = self.engine.lock().unwrap();
-            let engine = engine_guard.as_mut().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Model failed to load after auto-load attempt. Please check your model settings."
-                )
-            })?;
+            let mut engine_guard = self.lock_engine();
 
-            match engine {
-                LoadedEngine::Whisper(whisper_engine) => {
-                    // Normalize language code for Whisper
-                    // Convert zh-Hans and zh-Hant to zh since Whisper uses ISO 639-1 codes
-                    let whisper_language = if settings.selected_language == "auto" {
-                        None
-                    } else {
-                        let normalized = if settings.selected_language == "zh-Hans"
-                            || settings.selected_language == "zh-Hant"
-                        {
-                            "zh".to_string()
-                        } else {
-                            settings.selected_language.clone()
-                        };
-                        Some(normalized)
-                    };
-
-                    let params = WhisperInferenceParams {
-                        language: whisper_language,
-                        translate: settings.translate_to_english,
-                        ..Default::default()
-                    };
-
-                    whisper_engine
-                        .transcribe_samples(audio, Some(params))
-                        .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))?
+            // Take the engine out so we own it during transcription.
+            // If the engine panics, we simply don't put it back (effectively unloading it)
+            // instead of poisoning the mutex.
+            let mut engine = match engine_guard.take() {
+                Some(e) => e,
+                None => {
+                    return Err(anyhow::anyhow!(
+                        "Model failed to load after auto-load attempt. Please check your model settings."
+                    ));
                 }
-                LoadedEngine::Parakeet(parakeet_engine) => {
-                    let params = ParakeetInferenceParams {
-                        timestamp_granularity: TimestampGranularity::Segment,
-                        ..Default::default()
-                    };
+            };
 
-                    parakeet_engine
-                        .transcribe_samples(audio, Some(params))
-                        .map_err(|e| anyhow::anyhow!("Parakeet transcription failed: {}", e))?
+            // Release the lock before transcribing — no mutex held during the engine call
+            drop(engine_guard);
+
+            let transcribe_result = catch_unwind(AssertUnwindSafe(
+                || -> Result<transcribe_rs::TranscriptionResult> {
+                    match &mut engine {
+                        LoadedEngine::Whisper(whisper_engine) => {
+                            let whisper_language = if settings.selected_language == "auto" {
+                                None
+                            } else {
+                                let normalized = if settings.selected_language == "zh-Hans"
+                                    || settings.selected_language == "zh-Hant"
+                                {
+                                    "zh".to_string()
+                                } else {
+                                    settings.selected_language.clone()
+                                };
+                                Some(normalized)
+                            };
+
+                            let params = WhisperInferenceParams {
+                                language: whisper_language,
+                                translate: settings.translate_to_english,
+                                ..Default::default()
+                            };
+
+                            whisper_engine
+                                .transcribe_samples(audio, Some(params))
+                                .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))
+                        }
+                        LoadedEngine::Parakeet(parakeet_engine) => {
+                            let params = ParakeetInferenceParams {
+                                timestamp_granularity: TimestampGranularity::Segment,
+                                ..Default::default()
+                            };
+                            parakeet_engine
+                                .transcribe_samples(audio, Some(params))
+                                .map_err(|e| {
+                                    anyhow::anyhow!("Parakeet transcription failed: {}", e)
+                                })
+                        }
+                        LoadedEngine::Moonshine(moonshine_engine) => moonshine_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| anyhow::anyhow!("Moonshine transcription failed: {}", e)),
+                        LoadedEngine::MoonshineStreaming(streaming_engine) => streaming_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| {
+                                anyhow::anyhow!("Moonshine streaming transcription failed: {}", e)
+                            }),
+                        LoadedEngine::SenseVoice(sense_voice_engine) => {
+                            let language = match settings.selected_language.as_str() {
+                                "zh" | "zh-Hans" | "zh-Hant" => SenseVoiceLanguage::Chinese,
+                                "en" => SenseVoiceLanguage::English,
+                                "ja" => SenseVoiceLanguage::Japanese,
+                                "ko" => SenseVoiceLanguage::Korean,
+                                "yue" => SenseVoiceLanguage::Cantonese,
+                                _ => SenseVoiceLanguage::Auto,
+                            };
+                            let params = SenseVoiceInferenceParams {
+                                language,
+                                use_itn: true,
+                            };
+                            sense_voice_engine
+                                .transcribe_samples(audio, Some(params))
+                                .map_err(|e| {
+                                    anyhow::anyhow!("SenseVoice transcription failed: {}", e)
+                                })
+                        }
+                        LoadedEngine::Paraformer(paraformer_engine) => paraformer_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| anyhow::anyhow!("Paraformer transcription failed: {}", e)),
+                    }
+                },
+            ));
+
+            match transcribe_result {
+                Ok(inner_result) => {
+                    // Success or normal error — put the engine back
+                    let mut engine_guard = self.lock_engine();
+                    *engine_guard = Some(engine);
+                    inner_result?
+                }
+                Err(panic_payload) => {
+                    // Engine panicked — do NOT put it back (it's in an unknown state).
+                    // The engine is dropped here, effectively unloading it.
+                    let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "unknown panic".to_string()
+                    };
+                    error!(
+                        "Transcription engine panicked: {}. Model has been unloaded.",
+                        panic_msg
+                    );
+
+                    // Clear the model ID so it will be reloaded on next attempt
+                    {
+                        let mut current_model = self
+                            .current_model_id
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner());
+                        *current_model = None;
+                    }
+
+                    let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "unloaded".to_string(),
+                            model_id: None,
+                            model_name: None,
+                            error: Some(format!("Engine panicked: {}", panic_msg)),
+                        },
+                    );
+
+                    return Err(anyhow::anyhow!(
+                        "Transcription engine panicked: {}. The model has been unloaded and will reload on next attempt.",
+                        panic_msg
+                    ));
                 }
             }
         };
 
+        // Apply word correction if custom words are configured
+        let corrected_result = if !settings.custom_words.is_empty() {
+            apply_custom_words(
+                &result.text,
+                &settings.custom_words,
+                settings.word_correction_threshold,
+            )
+        } else {
+            result.text
+        };
+
         // Filter out filler words and hallucinations
-        let filtered_result = filter_transcription_output(&result.text);
+        let filtered_result = filter_transcription_output(&corrected_result);
 
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
@@ -485,7 +632,7 @@ impl TranscriptionManager {
             translation_note
         );
 
-        let final_result = filtered_result.trim().to_string();
+        let final_result = filtered_result;
 
         if final_result.is_empty() {
             info!("Transcription result is empty");
@@ -493,116 +640,15 @@ impl TranscriptionManager {
             info!("Transcription result: {}", final_result);
         }
 
-        // Check if we should immediately unload the model after transcription
-        if settings.model_unload_timeout == ModelUnloadTimeout::Immediately {
-            info!("Immediately unloading model after transcription");
-            if let Err(e) = self.unload_model() {
-                error!("Failed to immediately unload model: {}", e);
-            }
-        }
+        self.maybe_unload_immediately("transcription");
 
         Ok(final_result)
     }
 
-    /// Like `transcribe()`, but forcibly bypasses Online ASR and uses the currently selected
-    /// local engine. This is best-effort and may trigger a local model load if needed.
+    /// Transcribe audio locally without any remote processing.
+    /// This is a simplified version that returns raw transcription text.
     pub fn transcribe_local_only(&self, audio: Vec<f32>) -> Result<String> {
-        // Update last activity timestamp
-        self.last_activity.store(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64,
-            Ordering::Relaxed,
-        );
-
-        let st = std::time::Instant::now();
-
-        debug!("Local-only audio vector length: {}", audio.len());
-
-        if audio.is_empty() {
-            return Ok(String::new());
-        }
-
-        let settings = get_settings(&self.app_handle);
-
-        // Ensure local model is loaded (Online ASR mode skips preloading).
-        if !self.is_model_loaded() {
-            self.initiate_model_load();
-        }
-        self.wait_for_local_engine()?;
-
-        let result = {
-            let mut engine_guard = self.engine.lock().unwrap();
-            let engine = engine_guard.as_mut().ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Model failed to load after auto-load attempt. Please check your model settings."
-                )
-            })?;
-
-            match engine {
-                LoadedEngine::Whisper(whisper_engine) => {
-                    let whisper_language = if settings.selected_language == "auto" {
-                        None
-                    } else {
-                        let normalized = if settings.selected_language == "zh-Hans"
-                            || settings.selected_language == "zh-Hant"
-                        {
-                            "zh".to_string()
-                        } else {
-                            settings.selected_language.clone()
-                        };
-                        Some(normalized)
-                    };
-
-                    let params = WhisperInferenceParams {
-                        language: whisper_language,
-                        translate: settings.translate_to_english,
-                        ..Default::default()
-                    };
-
-                    whisper_engine
-                        .transcribe_samples(audio, Some(params))
-                        .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))?
-                }
-                LoadedEngine::Parakeet(parakeet_engine) => {
-                    let params = ParakeetInferenceParams {
-                        timestamp_granularity: TimestampGranularity::Segment,
-                        ..Default::default()
-                    };
-
-                    parakeet_engine
-                        .transcribe_samples(audio, Some(params))
-                        .map_err(|e| anyhow::anyhow!("Parakeet transcription failed: {}", e))?
-                }
-            }
-        };
-
-        let et = std::time::Instant::now();
-        info!(
-            "Local-only transcription completed in {}ms",
-            (et - st).as_millis()
-        );
-
-        let final_result = result.text.trim().to_string();
-
-        if settings.model_unload_timeout == ModelUnloadTimeout::Immediately {
-            if let Err(e) = self.unload_model() {
-                error!("Failed to immediately unload model: {}", e);
-            }
-        }
-
-        Ok(final_result)
-    }
-
-    fn emit_online_asr_status(&self, stage: &str, detail: Option<String>) {
-        let _ = self.app_handle.emit(
-            "online-asr-status",
-            OnlineAsrStatusEvent {
-                stage: stage.to_string(),
-                detail,
-            },
-        );
+        self.transcribe(audio)
     }
 }
 

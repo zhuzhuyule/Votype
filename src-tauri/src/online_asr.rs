@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::settings::PostProcessProvider;
 use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::{multipart, Client};
