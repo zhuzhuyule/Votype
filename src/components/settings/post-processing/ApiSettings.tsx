@@ -163,7 +163,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 key={option.value}
                 option={option}
                 isSelected={state.selectedProviderId === option.value}
-                isActive={state.activeProviderId === option.value}
                 isBuiltin={builtinProviders.includes(option.value)}
                 isVerified={state.verifiedProviderIds.has(option.value)}
                 onClick={() => state.handleProviderSelect(option.value)}

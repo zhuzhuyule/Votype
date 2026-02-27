@@ -11,7 +11,6 @@ import {
   Text,
 } from "@radix-ui/themes";
 import {
-  IconCircle,
   IconCircleCheckFilled,
   IconPlayerPlay,
   IconTrash,
@@ -130,21 +129,11 @@ const renderModelSection = ({
                       }}
                     >
                       <Flex align="center" gap="3" className="flex-1 min-w-0">
-                        {allowSelection &&
-                          (isSelected ? (
-                            <IconCircleCheckFilled
-                              size={20}
-                              className="text-logo-primary"
-                            />
-                          ) : (
-                            <IconCircle size={20} />
-                          ))}
-
                         <Box className="flex-1 min-w-0">
                           <Flex align="center" gap="2" wrap="wrap">
                             <Text
                               size="2"
-                              weight={isSelected ? "medium" : "regular"}
+                              weight={isSelected ? "bold" : "medium"}
                               className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
                             >
                               {model.model_id}
@@ -157,6 +146,15 @@ const renderModelSection = ({
                                 radius="full"
                               >
                                 {model.custom_label}
+                              </Badge>
+                            )}
+                            {isSelected && (
+                              <Badge
+                                size="1"
+                                variant="solid"
+                                className="bg-(--accent-a3) text-(--accent-11) uppercase font-bold tracking-wider rounded"
+                              >
+                                {t("common.default", "默认")}
                               </Badge>
                             )}
                           </Flex>
@@ -175,8 +173,36 @@ const renderModelSection = ({
                       {/* Actions - Visible on Hover */}
                       <Flex
                         gap="3"
+                        align="center"
                         className="opacity-0 group-hover:opacity-100 transition-opacity pl-2"
                       >
+                        {allowSelection && !isSelected && (
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            className="cursor-pointer"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!isRemoving) {
+                                try {
+                                  await invoke("select_post_process_model", {
+                                    modelId: model.id,
+                                  });
+                                  await refreshSettings();
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }
+                            }}
+                          >
+                            <IconCircleCheckFilled size={14} />
+                            {t(
+                              "settings.postProcessing.models.setAsDefault",
+                              "设为默认",
+                            )}
+                          </Button>
+                        )}
                         <IconButton
                           size="1"
                           variant="ghost"

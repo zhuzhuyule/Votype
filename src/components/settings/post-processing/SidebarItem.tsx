@@ -12,7 +12,6 @@ import { DynamicIcon } from "../../shared/IconPicker";
 export interface SidebarItemProps {
   option: { value: string; label: string | React.ReactNode };
   isSelected: boolean;
-  isActive?: boolean;
   isBuiltin?: boolean;
   isVerified?: boolean;
   onClick: () => void;
@@ -29,7 +28,6 @@ export interface SidebarItemProps {
 export const SidebarItem: React.FC<SidebarItemProps> = ({
   option,
   isSelected,
-  isActive,
   isBuiltin,
   isVerified,
   onClick,
@@ -118,11 +116,6 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       </Flex>
 
       <Flex align="center" gap="2" className="shrink-0">
-        {isActive && (
-          <Box className="bg-(--accent-a3) text-(--accent-11) px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider leading-none">
-            {t("common.default")}
-          </Box>
-        )}
         {isBuiltin && (
           <Box title={t("settings.postProcessing.api.provider.builtinTooltip")}>
             <IconLock size={14} style={{ opacity: 0.5 }} />
