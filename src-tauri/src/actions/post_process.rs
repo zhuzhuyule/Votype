@@ -260,22 +260,23 @@ async fn perform_skill_routing(
 /// Execute default polish request for parallel processing.
 /// This is a simplified version that only runs the default prompt.
 /// Returns the polished text or None if failed.
-async fn execute_default_polish(
+async fn execute_default_polish<'a>(
     _app_handle: &AppHandle,
-    settings: &AppSettings,
-    provider: &PostProcessProvider,
+    settings: &'a AppSettings,
+    fallback_provider: &'a PostProcessProvider,
     default_prompt: &LLMPrompt,
     transcription: &str,
 ) -> Option<String> {
-    let model = resolve_effective_model(settings, provider, default_prompt)?;
+    let (actual_provider, model) =
+        resolve_effective_model(settings, fallback_provider, default_prompt)?;
 
     let api_key = settings
         .post_process_api_keys
-        .get(&provider.id)
+        .get(&actual_provider.id)
         .cloned()
         .unwrap_or_default();
 
-    let client = crate::llm_client::create_client(provider, api_key).ok()?;
+    let client = crate::llm_client::create_client(actual_provider, api_key).ok()?;
 
     // Build a simple prompt for polish
     let mut messages = Vec::new();
@@ -427,27 +428,38 @@ fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenario> {
     None // Both scenarios apply
 }
 
-fn resolve_effective_model(
-    settings: &AppSettings,
-    provider: &PostProcessProvider,
+fn resolve_effective_model<'a>(
+    settings: &'a AppSettings,
+    fallback_provider: &'a PostProcessProvider,
     prompt: &LLMPrompt,
-) -> Option<String> {
-    let resolve_from_id = |model_id_opt: Option<&String>| -> Option<String> {
-        model_id_opt
-            .filter(|id| !id.trim().is_empty())
-            .and_then(|id| {
-                settings
-                    .cached_models
-                    .iter()
-                    .find(|m| m.id == *id && m.provider_id == provider.id)
-            })
-            .map(|m| m.model_id.clone())
-    };
+) -> Option<(&'a PostProcessProvider, String)> {
+    let check_cached_model =
+        |model_id_opt: Option<&String>| -> Option<(&'a PostProcessProvider, String)> {
+            let id_str = model_id_opt.filter(|id| !id.trim().is_empty())?;
+            let cached = settings.cached_models.iter().find(|m| m.id == *id_str)?;
+            let provider = settings.post_process_provider(&cached.provider_id)?;
+            Some((provider, cached.model_id.clone()))
+        };
 
-    resolve_from_id(prompt.model_id.as_ref())
-        .or_else(|| resolve_from_id(settings.selected_prompt_model_id.as_ref()))
-        .or_else(|| settings.post_process_models.get(&provider.id).cloned())
-        .filter(|m| !m.trim().is_empty())
+    if let Some(res) = check_cached_model(prompt.model_id.as_ref()) {
+        if !res.1.trim().is_empty() {
+            return Some(res);
+        }
+    }
+
+    if let Some(res) = check_cached_model(settings.selected_prompt_model_id.as_ref()) {
+        if !res.1.trim().is_empty() {
+            return Some(res);
+        }
+    }
+
+    if let Some(m) = settings.post_process_models.get(&fallback_provider.id) {
+        if !m.trim().is_empty() {
+            return Some((fallback_provider, m.clone()));
+        }
+    }
+
+    None
 }
 
 fn resolve_intent_routing_model<'a>(
@@ -492,13 +504,14 @@ fn resolve_intent_routing_model<'a>(
         }
     }
 
-    let model = resolve_effective_model(settings, fallback_provider, fallback_prompt)?;
+    let (actual_provider, model) =
+        resolve_effective_model(settings, fallback_provider, fallback_prompt)?;
     let api_key = settings
         .post_process_api_keys
-        .get(&fallback_provider.id)
+        .get(&actual_provider.id)
         .cloned()
         .unwrap_or_default();
-    Some((fallback_provider, model, api_key))
+    Some((actual_provider, model, api_key))
 }
 
 pub async fn execute_llm_request(
@@ -845,7 +858,7 @@ pub(crate) async fn maybe_post_process_transcription(
         return (None, None, None, false, None, None);
     }
 
-    let provider = match settings.active_post_process_provider() {
+    let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
         None => return (None, None, None, false, None, None),
     };
@@ -927,7 +940,7 @@ pub(crate) async fn maybe_post_process_transcription(
     {
         if let Some(p) = &initial_prompt_opt {
             if let Some((route_provider, route_model, route_api_key)) =
-                resolve_intent_routing_model(settings, provider, p)
+                resolve_intent_routing_model(settings, fallback_provider, p)
             {
                 if let Some(route_response) = perform_skill_routing(
                     app_handle,
@@ -999,7 +1012,7 @@ pub(crate) async fn maybe_post_process_transcription(
 
         if let Some(default_prompt) = &initial_prompt_opt {
             if let Some((route_provider, route_model, route_api_key)) =
-                resolve_intent_routing_model(settings, provider, default_prompt)
+                resolve_intent_routing_model(settings, fallback_provider, default_prompt)
             {
                 info!(
                     "[PostProcess] Starting parallel intent detection and polish - provider={}, model={}, selected_text={}",
@@ -1022,7 +1035,7 @@ pub(crate) async fn maybe_post_process_transcription(
                     execute_default_polish(
                         app_handle,
                         settings,
-                        provider,
+                        fallback_provider,
                         default_prompt,
                         transcription,
                     )
@@ -1209,7 +1222,10 @@ pub(crate) async fn maybe_post_process_transcription(
 
     let initial_prompt = match initial_prompt_opt {
         Some(p) => p,
-        None => return (None, None, None, false, None, None),
+        None => {
+            log::warn!("[PostProcess] initial_prompt_opt is None! Cannot start post-processing chain. Aborting.");
+            return (None, None, None, false, None, None);
+        }
     };
 
     let mut current_prompt = initial_prompt;
@@ -1234,9 +1250,21 @@ pub(crate) async fn maybe_post_process_transcription(
         let transcription_content = &current_input_content;
         let transcription_original = &current_transcription;
 
-        let model = match resolve_effective_model(settings, provider, &prompt) {
-            Some(m) => m,
+        let (actual_provider, model) = match resolve_effective_model(
+            settings,
+            fallback_provider,
+            &prompt,
+        ) {
+            Some((p, m)) => {
+                log::info!(
+                    "[PostProcess] Resolved effective provider: {}, model: {}",
+                    p.id,
+                    m
+                );
+                (p, m)
+            }
             None => {
+                log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
                 return (
                     final_result,
                     last_model,
@@ -1244,7 +1272,7 @@ pub(crate) async fn maybe_post_process_transcription(
                     false,
                     last_confidence,
                     last_reason,
-                )
+                );
             }
         };
 
@@ -1526,7 +1554,7 @@ pub(crate) async fn maybe_post_process_transcription(
         let (result, err, confidence, reason) = execute_llm_request(
             app_handle,
             settings,
-            provider,
+            actual_provider,
             &model,
             cached_model_id,
             &processed_prompt,
@@ -1635,15 +1663,16 @@ pub(crate) async fn post_process_text_with_prompt(
     Option<u8>,
     Option<String>,
 ) {
-    let provider = match settings.active_post_process_provider() {
+    let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
         None => return (None, None, None, false, None, None),
     };
 
-    let model = match resolve_effective_model(settings, provider, prompt) {
-        Some(m) => m,
-        None => return (None, None, Some(prompt.id.clone()), false, None, None),
-    };
+    let (actual_provider, model) =
+        match resolve_effective_model(settings, fallback_provider, prompt) {
+            Some((p, m)) => (p, m),
+            None => return (None, None, Some(prompt.id.clone()), false, None, None),
+        };
 
     if show_overlay {
         show_llm_processing_overlay(app_handle);
@@ -1682,7 +1711,7 @@ pub(crate) async fn post_process_text_with_prompt(
     let (result, err, confidence, reason) = execute_llm_request(
         app_handle,
         settings,
-        provider,
+        actual_provider,
         &model,
         cached_model_id,
         &processed_prompt,
