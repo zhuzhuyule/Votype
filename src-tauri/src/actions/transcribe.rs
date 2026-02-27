@@ -4,15 +4,15 @@ use crate::active_window;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
-use crate::managers::model::{EngineType, ModelManager};
-use crate::managers::transcription::{SherpaPartialEvent, TranscriptionManager};
+use crate::managers::model::ModelManager;
+use crate::managers::transcription::TranscriptionManager;
 use crate::overlay::{show_recording_overlay, show_transcribing_overlay};
 use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils;
 use log::{debug, error, info};
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time::sleep;
@@ -212,7 +212,7 @@ impl ShortcutAction for TranscribeAction {
         let rm = app.state::<Arc<AudioRecordingManager>>();
         rm.set_speech_frame_sender(None);
         rm.set_online_transcription_receiver(None);
-        let mm = app.state::<Arc<ModelManager>>();
+        let _mm = app.state::<Arc<ModelManager>>();
 
         let new_id = rm.increment_transcription_id();
         debug!("Starting new transcription session with ID: {}", new_id);
@@ -225,7 +225,7 @@ impl ShortcutAction for TranscribeAction {
         // post-processing fusion input.
         let use_secondary_local_realtime =
             settings.online_asr_enabled && settings.post_process_use_secondary_output;
-        let secondary_local_model_id = if use_secondary_local_realtime {
+        let _secondary_local_model_id = if use_secondary_local_realtime {
             settings
                 .post_process_secondary_model_id
                 .clone()
@@ -234,204 +234,6 @@ impl ShortcutAction for TranscribeAction {
         } else {
             String::new()
         };
-
-        let secondary_use_sherpa_online = use_secondary_local_realtime
-            && mm
-                .get_model_info(&secondary_local_model_id)
-                .map(|m| {
-                    matches!(m.engine_type, EngineType::SherpaOnnx)
-                        && m.filename.to_lowercase().contains("streaming")
-                })
-                .unwrap_or(false);
-
-        let secondary_use_sherpa_offline = use_secondary_local_realtime
-            && !secondary_use_sherpa_online
-            && mm
-                .get_model_info(&secondary_local_model_id)
-                .map(|m| matches!(m.engine_type, EngineType::SherpaOnnx))
-                .unwrap_or(false);
-
-        let use_sherpa_online = !settings.online_asr_enabled
-            && mm
-                .get_model_info(&settings.selected_model)
-                .map(|m| {
-                    matches!(m.engine_type, EngineType::SherpaOnnx)
-                        && m.filename.to_lowercase().contains("streaming")
-                })
-                .unwrap_or(false);
-
-        // Check if we should use offline VAD streaming (for non-streaming Sherpa models)
-        let use_sherpa_offline = !settings.online_asr_enabled
-            && !use_sherpa_online
-            && mm
-                .get_model_info(&settings.selected_model)
-                .map(|m| matches!(m.engine_type, EngineType::SherpaOnnx))
-                .unwrap_or(false);
-
-        if use_sherpa_online {
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.start_sherpa_online_session()?;
-                    while let Ok(frame) = frame_rx.recv() {
-                        tm.feed_sherpa_online_session(&frame)?;
-                    }
-                    tm.finish_sherpa_online_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!("Sherpa online transcription worker failed: {}", e);
-                }
-                let _ = app_handle.emit(
-                    "sherpa-online-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        } else if secondary_use_sherpa_online {
-            // Online ASR + secondary local streaming model (realtime captions only)
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            let model_id = secondary_local_model_id.clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.load_model(&model_id)?;
-                    tm.start_sherpa_online_session()?;
-                    while let Ok(frame) = frame_rx.recv() {
-                        tm.feed_sherpa_online_session(&frame)?;
-                    }
-                    tm.finish_sherpa_online_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!("Secondary Sherpa online transcription worker failed: {}", e);
-                }
-                let _ = app_handle.emit(
-                    "sherpa-online-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        } else if use_sherpa_offline {
-            // Sherpa offline model with VAD streaming
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.start_sherpa_offline_session()?;
-
-                    // Note: the audio pipeline emits *continuous* frames; when VAD reports
-                    // non-speech it forwards a zeroed frame. Use those "silent" frames to
-                    // drive the speech->silence transition logic.
-                    loop {
-                        match frame_rx.recv_timeout(Duration::from_millis(100)) {
-                            Ok(frame) => {
-                                let is_silence = frame.iter().all(|v| v.abs() <= 1e-7);
-                                if is_silence {
-                                    tm.check_sherpa_offline_silence()?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                } else {
-                                    tm.feed_sherpa_offline_session(&frame)?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                }
-                            }
-                            Err(mpsc::RecvTimeoutError::Timeout) => {
-                                // Check for silence timeout
-                                tm.check_sherpa_offline_silence()?;
-                                tm.maybe_force_sherpa_offline_partial()?;
-                            }
-                            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                                // Channel closed, finish session
-                                break;
-                            }
-                        }
-                    }
-
-                    tm.finish_sherpa_offline_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!("Sherpa offline transcription worker failed: {}", e);
-                }
-                let _ = app_handle.emit(
-                    "sherpa-offline-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        } else if secondary_use_sherpa_offline {
-            // Online ASR + secondary local offline model with VAD streaming (realtime captions only)
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            let model_id = secondary_local_model_id.clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.load_model(&model_id)?;
-                    tm.start_sherpa_offline_session()?;
-
-                    loop {
-                        match frame_rx.recv_timeout(Duration::from_millis(100)) {
-                            Ok(frame) => {
-                                let is_silence = frame.iter().all(|v| v.abs() <= 1e-7);
-                                if is_silence {
-                                    tm.check_sherpa_offline_silence()?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                } else {
-                                    tm.feed_sherpa_offline_session(&frame)?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                }
-                            }
-                            Err(mpsc::RecvTimeoutError::Timeout) => {
-                                tm.check_sherpa_offline_silence()?;
-                                tm.maybe_force_sherpa_offline_partial()?;
-                            }
-                            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                                break;
-                            }
-                        }
-                    }
-
-                    tm.finish_sherpa_offline_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!(
-                        "Secondary Sherpa offline transcription worker failed: {}",
-                        e
-                    );
-                }
-                let _ = app_handle.emit(
-                    "sherpa-offline-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        }
 
         let mut recording_started = false;
         if is_always_on {
@@ -460,16 +262,6 @@ impl ShortcutAction for TranscribeAction {
             } else {
                 debug!("Failed to start recording");
             }
-        }
-
-        if !recording_started
-            && (use_sherpa_online
-                || use_sherpa_offline
-                || secondary_use_sherpa_online
-                || secondary_use_sherpa_offline)
-        {
-            rm.set_speech_frame_sender(None);
-            rm.set_online_transcription_receiver(None);
         }
 
         if recording_started {
@@ -575,14 +367,8 @@ impl ShortcutAction for TranscribeAction {
                 }
 
                 let transcription_time = Instant::now();
-                let had_streaming_worker = rm.take_online_transcription_receiver().is_some();
-                let mut incremental_result: Option<String> = None;
-                if had_streaming_worker {
-                    // Cancel streaming/offline sessions so stop never waits on in-flight partial/final decode.
-                    let r1 = tm.abort_sherpa_online_session();
-                    let r2 = tm.abort_sherpa_offline_session();
-                    incremental_result = r1.or(r2);
-                }
+                // Streaming workers no longer exist without Sherpa
+                let incremental_result: Option<String> = None;
 
                 let use_parallel_online_secondary = settings.online_asr_enabled
                     && settings.post_process_enabled
@@ -742,33 +528,6 @@ impl ShortcutAction for TranscribeAction {
                         transcription_time.elapsed(),
                         transcription
                     );
-
-                    // If we canceled a streaming/offline Sherpa worker on stop, it won't
-                    // emit the final partial event. Emit a final payload here so the overlay
-                    // shows the completed text (useful for long offline VAD streaming).
-                    if tm.is_current_sherpa_offline() {
-                        let punctuated_text =
-                            settings.punctuation_enabled.then(|| transcription.clone());
-                        let _ = ah.emit(
-                            "sherpa-offline-partial",
-                            SherpaPartialEvent {
-                                text: transcription.clone(),
-                                punctuated_text,
-                                is_final: true,
-                            },
-                        );
-                    } else if tm.is_current_sherpa_online() {
-                        let punctuated_text =
-                            settings.punctuation_enabled.then(|| transcription.clone());
-                        let _ = ah.emit(
-                            "sherpa-online-partial",
-                            SherpaPartialEvent {
-                                text: transcription.clone(),
-                                punctuated_text,
-                                is_final: true,
-                            },
-                        );
-                    }
 
                     let transcription_clone = transcription.clone();
                     let samples_clone = samples.clone();

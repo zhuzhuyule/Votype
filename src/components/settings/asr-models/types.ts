@@ -2,17 +2,9 @@
 
 export type StatusFilter = "all" | "downloaded" | "favorites" | "recommended";
 
-export type ModeKey = "streaming" | "offline" | "punctuation";
+export type ModeKey = "offline";
 
-export type TypeKey =
-  | "whisper"
-  | "parakeet"
-  | "sherpa_transducer"
-  | "sherpa_paraformer"
-  | "sherpa_sense_voice"
-  | "sherpa_fire_red_asr"
-  | "punctuation"
-  | "other";
+export type TypeKey = "whisper" | "parakeet" | "other";
 
 export type LanguageKey =
   | "zh"

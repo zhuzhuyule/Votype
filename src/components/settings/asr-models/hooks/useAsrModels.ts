@@ -112,12 +112,8 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     [settings?.favorite_transcription_models],
   );
 
-  const punctuationModels = useMemo(() => {
-    return models
-      .filter((m) => m.engine_type === "SherpaOnnxPunctuation")
-      .slice()
-      .sort((a, b) => (a.size_mb ?? 0) - (b.size_mb ?? 0));
-  }, [models]);
+  // Punctuation models no longer supported without Sherpa
+  const punctuationModels: typeof models = [];
 
   const selectedPunctuationModelId =
     settings?.punctuation_model ?? "punct-zh-en-ct-transformer-2024-04-12-int8";
@@ -199,10 +195,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     if (statusFilter === "downloaded") {
       list = list.filter((m) => m.is_downloaded);
     } else if (statusFilter === "favorites") {
-      list = list.filter(
-        (m) =>
-          m.engine_type !== "SherpaOnnxPunctuation" && favoriteSet.has(m.id),
-      );
+      list = list.filter((m) => favoriteSet.has(m.id));
     } else if (statusFilter === "recommended") {
       list = list.filter((m) => RECOMMENDED_MODEL_IDS.has(m.id));
     }

@@ -751,7 +751,7 @@ fn default_punctuation_enabled() -> bool {
 }
 
 fn default_punctuation_model() -> String {
-    "punct-zh-en-ct-transformer-2024-04-12-int8".to_string()
+    "".to_string()
 }
 
 fn default_favorite_transcription_models() -> Vec<String> {

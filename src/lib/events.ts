@@ -29,12 +29,6 @@ export const MIC_LEVEL = "mic-level";
 // Transcription Events
 // =============================================================================
 
-/** Partial transcription result from online Sherpa recognizer */
-export const SHERPA_ONLINE_PARTIAL = "sherpa-online-partial";
-
-/** Partial transcription result from offline Sherpa recognizer */
-export const SHERPA_OFFLINE_PARTIAL = "sherpa-offline-partial";
-
 // =============================================================================
 // Model Events
 // =============================================================================

@@ -204,6 +204,7 @@ impl AudioRecordingManager {
         *self.online_transcription_rx.lock().unwrap() = rx;
     }
 
+    #[allow(dead_code)]
     pub fn take_online_transcription_receiver(
         &self,
     ) -> Option<mpsc::Receiver<anyhow::Result<String>>> {

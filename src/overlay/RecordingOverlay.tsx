@@ -12,11 +12,7 @@ import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
 export type OverlayState = "recording" | "transcribing" | "llm";
-type SherpaPartialEvent = {
-  text: string;
-  punctuated_text?: string;
-  is_final: boolean;
-};
+
 type OverlayErrorEvent = { code?: string; message?: string };
 
 // Skill confirmation event payload
@@ -157,45 +153,6 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         setLevels(smoothed.slice(0, 9));
       });
 
-      const handlePartial = (event: { payload: SherpaPartialEvent }) => {
-        const payload = event.payload as SherpaPartialEvent;
-        const isFinal = Boolean(payload?.is_final);
-        // Once we enter "transcribing"/"llm", the overlay should not display long text anymore.
-        // Showing any late partial/final payloads here causes confusing "flash back" to old text.
-        if (stateRef.current !== "recording") {
-          return;
-        }
-        if (finalLockedRef.current) {
-          return;
-        }
-        if (!isFinal && !allowNonFinalRef.current) {
-          return;
-        }
-
-        // Use raw text or punctuated text directly, no normalization
-        const text = (payload?.punctuated_text ?? payload?.text ?? "").trim();
-
-        setRealtimeText(text);
-        setRealtimeIsFinal(isFinal);
-
-        // After we have displayed a final result, ignore any subsequent non-final partials from
-        // background workers until a new recording starts.
-        if (isFinal) {
-          allowNonFinalRef.current = false;
-          finalLockedRef.current = true;
-        }
-      };
-
-      const unlistenSherpaOnlinePartial = await listen<SherpaPartialEvent>(
-        "sherpa-online-partial",
-        handlePartial as any,
-      );
-
-      const unlistenSherpaOfflinePartial = await listen<SherpaPartialEvent>(
-        "sherpa-offline-partial",
-        handlePartial as any,
-      );
-
       const unlistenPostProcessStatus = await listen<string>(
         "post-process-status",
         (event) => {
@@ -247,8 +204,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       return () => {
         unlistenError();
         unlistenLevel();
-        unlistenSherpaOnlinePartial();
-        unlistenSherpaOfflinePartial();
+
         unlistenPostProcessStatus();
         unlistenStateUpdate();
         unlistenSkillConfirmation();

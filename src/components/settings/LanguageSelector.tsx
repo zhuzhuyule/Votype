@@ -33,19 +33,14 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     if (!currentModelInfo) return "unknownModel";
     if (unsupportedModels.includes(currentModel)) return "unsupportedModel";
     if (currentModelInfo.engine_type === "Whisper") return "whisper";
-    if (
-      currentModelInfo.engine_type === "SherpaOnnx" &&
-      currentModelInfo.sherpa?.family === "SenseVoice"
-    ) {
-      return "sensevoice";
-    }
+    if (currentModelInfo.engine_type === "Parakeet") return "parakeet";
     return "unsupportedEngine";
   })() as
     | "noModel"
     | "unknownModel"
     | "unsupportedModel"
     | "whisper"
-    | "sensevoice"
+    | "parakeet"
     | "unsupportedEngine";
 
   const isDisabled =

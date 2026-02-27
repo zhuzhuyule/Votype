@@ -179,58 +179,6 @@
       "description": "给中英混合文本补标点和断句；Int8，体积小速度快；更新于 2024-04-12。",
       "name": "中英标点（小）"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "离线中/粤/英三语识别；体积较大；准确率良好。",
-      "name": "Sherpa 中/粤/英 Paraformer"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "流式中英识别，适合实时字幕，速度快，准确率尚可。",
-      "name": "Sherpa 中英 Paraformer"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "离线中文识别；INT8；速度快，准确率良好；更新于 2025-10-07。",
-      "name": "Sherpa 中文 Paraformer（INT8）"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "离线中文识别；体积小速度快；准确率尚可；更新于 2024-03-09。",
-      "name": "Sherpa 中文 Paraformer（小）"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "离线多语识别：中/英/日/韩/粤；Int8 量化；速度和占用中等；更新于 2025-09-09。",
-      "name": "SenseVoice 多语"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 德语"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 英语"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 西班牙语"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 法语"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。",
-      "name": "Sherpa 俄语"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "流式中文识别（Zipformer2 CTC）；体积小、速度极快（INT8）；更新于 2025-04-01。",
-      "name": "Sherpa 中文（CTC 小）"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。",
-      "name": "Sherpa 中文"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。",
-      "name": "Sherpa 中文 XL"
-    },
     "small": {
       "description": "快速且相当准确。",
       "name": "Whisper Small"
@@ -351,27 +299,6 @@
       "parakeet-tdt-0.6b-v3": {
         "description": "快速且准确",
         "name": "Parakeet V3"
-      },
-      "sherpa-zipformer-de-kroko-2025-08-06": {
-        "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-en-kroko-2025-08-06": {
-        "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-es-kroko-2025-08-06": {
-        "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-fr-kroko-2025-08-06": {
-        "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-        "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
-      },
-      "sherpa-zipformer-zh-int8-2025-06-30": {
-        "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
-      },
-      "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-        "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
       },
       "showMore": "更多模型",
       "small": {
@@ -636,10 +563,6 @@
         "other": "其他",
         "parakeet": "Parakeet",
         "punctuation": "标点",
-        "sherpa_fire_red_asr": "Sherpa FireRed ASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
       },
       "types": {

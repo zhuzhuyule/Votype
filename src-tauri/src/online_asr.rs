@@ -46,7 +46,7 @@ impl OnlineAsrClient {
             .build()
             .context("failed to build HTTP client")?;
 
-        let wav_len = wav_bytes.len();
+        let _wav_len = wav_bytes.len();
         let form = multipart::Form::new()
             .part(
                 "file",

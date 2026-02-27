@@ -15,7 +15,6 @@ mod overlay;
 pub mod phonetic_similarity;
 mod review_window;
 mod settings;
-mod sherpa;
 mod shortcut;
 mod signal_handle;
 #[cfg(test)]

@@ -195,58 +195,6 @@
       "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12.",
       "name": "Punctuation (Chinese + English)"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy.",
-      "name": "Sherpa Paraformer Zh+Yue+En"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy.",
-      "name": "Sherpa Chinese + English (Paraformer)"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07.",
-      "name": "Sherpa Paraformer Chinese (INT8)"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09.",
-      "name": "Sherpa Paraformer Chinese (Small)"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09.",
-      "name": "SenseVoice Multilingual"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa German"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa English"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa Spanish"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa French"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16.",
-      "name": "Sherpa Russian"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01.",
-      "name": "Sherpa Chinese (CTC Small)"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30.",
-      "name": "Sherpa Chinese"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30.",
-      "name": "Sherpa Chinese XL"
-    },
     "small": {
       "description": "Fast and fairly accurate.",
       "name": "Whisper Small"
@@ -658,10 +606,6 @@
         "other": "Other",
         "parakeet": "Parakeet",
         "punctuation": "Punctuation",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
       },
       "types": {

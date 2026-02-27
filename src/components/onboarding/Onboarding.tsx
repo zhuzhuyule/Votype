@@ -84,9 +84,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onModelSelected }) => {
 
   // Filter out punctuation models and separate into recommended/others
   const { recommendedModels, otherModels } = useMemo(() => {
-    const asrModels = availableModels.filter(
-      (m) => m.engine_type !== "SherpaOnnxPunctuation",
-    );
+    const asrModels = availableModels;
 
     const recommended = asrModels
       .filter((m) => RECOMMENDED_MODEL_IDS.has(m.id))

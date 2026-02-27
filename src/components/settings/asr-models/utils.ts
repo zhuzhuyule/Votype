@@ -19,11 +19,6 @@ export const parseLanguageKeys = (model: ModelInfo): LanguageKey[] => {
   const id = (model.id ?? "").toLowerCase();
   const tokenSet = new Set<LanguageKey>();
 
-  // Special case for specific model
-  if (id === "sherpa-paraformer-zh-small-2024-03-09") {
-    return ["multilingual", "zh", "en"];
-  }
-
   // Parse language tokens from ID
   const re = /(^|[-_])(zh|yue|ct|cantonese|en|ja|ko|de|es|fr|ru)(?=([-_]|$))/g;
   for (const match of id.matchAll(re)) {
@@ -44,13 +39,7 @@ export const parseLanguageKeys = (model: ModelInfo): LanguageKey[] => {
 /**
  * Get the mode key for a model (streaming, offline, or punctuation)
  */
-export const getModeKey = (m: ModelInfo): ModeKey => {
-  if (m.engine_type === "SherpaOnnxPunctuation") return "punctuation";
-  if (m.engine_type === "SherpaOnnx" && m.sherpa?.mode === "Streaming") {
-    return "streaming";
-  }
-  return "offline";
-};
+export const getModeKey = (_m: ModelInfo): ModeKey => "offline";
 
 /**
  * Get the type key for a model
@@ -58,40 +47,13 @@ export const getModeKey = (m: ModelInfo): ModeKey => {
 export const getTypeKey = (m: ModelInfo): TypeKey => {
   if (m.engine_type === "Whisper") return "whisper";
   if (m.engine_type === "Parakeet") return "parakeet";
-  if (m.engine_type === "SherpaOnnxPunctuation") return "punctuation";
-
-  if (m.engine_type === "SherpaOnnx") {
-    switch (m.sherpa?.family) {
-      case "Transducer":
-      case "Zipformer2Ctc":
-        return "sherpa_transducer";
-      case "Paraformer":
-        return "sherpa_paraformer";
-      case "SenseVoice":
-        return "sherpa_sense_voice";
-      case "FireRedAsr":
-        return "sherpa_fire_red_asr";
-      default:
-        return "other";
-    }
-  }
-
   return "other";
 };
 
 /**
  * Ordering function for mode keys
  */
-export const orderMode = (k: ModeKey): number => {
-  switch (k) {
-    case "streaming":
-      return 0;
-    case "offline":
-      return 1;
-    case "punctuation":
-      return 2;
-  }
-};
+export const orderMode = (_k: ModeKey): number => 0;
 
 /**
  * Ordering function for type keys
@@ -102,16 +64,6 @@ export const orderType = (k: TypeKey): number => {
       return 0;
     case "parakeet":
       return 1;
-    case "sherpa_transducer":
-      return 2;
-    case "sherpa_paraformer":
-      return 3;
-    case "sherpa_sense_voice":
-      return 4;
-    case "sherpa_fire_red_asr":
-      return 5;
-    case "punctuation":
-      return 6;
     case "other":
       return 99;
   }

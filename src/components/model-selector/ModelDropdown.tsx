@@ -98,16 +98,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   const getCategory = React.useCallback(
     (model: ModelInfo) => {
-      if (model.engine_type === "SherpaOnnxPunctuation")
-        return t("settings.asrModels.groups.punctuation");
-
-      const isStreaming =
-        model.engine_type === "SherpaOnnx" &&
-        model.sherpa?.mode === "Streaming";
-
-      return isStreaming
-        ? t("settings.asrModels.groups.streaming")
-        : t("settings.asrModels.groups.offline");
+      return t("settings.asrModels.groups.offline");
     },
     [t],
   );

@@ -162,58 +162,6 @@
       "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Int8; nhanh và nhỏ. Cập nhật 12/04/2024.",
       "name": "Dấu câu (Trung + Anh)"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "ASR ba ngôn ngữ ngoại tuyến (Trung/Quảng Đông/Anh); lớn; độ chính xác tốt.",
-      "name": "Sherpa Paraformer Zh+Yue+En"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "Mô hình zh+en trực tuyến. Tốt cho phụ đề thời gian thực; nhanh; độ chính xác khá.",
-      "name": "Sherpa Trung Quốc + Tiếng Anh (Paraformer)"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "ASR tiếng Trung ngoại tuyến; INT8; nhanh; độ chính xác tốt; cập nhật 07/10/2025.",
-      "name": "Sherpa Paraformer Trung Quốc (INT8)"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "ASR tiếng Trung ngoại tuyến; nhỏ và nhanh; độ chính xác khá; cập nhật 09/03/2024.",
-      "name": "Sherpa Paraformer Trung Quốc (Nhỏ)"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "Mô hình ngoại tuyến cho Tiếng Trung/Anh/Nhật/Hàn/Quảng Đông. Lượng tử hóa Int8; tốc độ và bộ nhớ trung bình. Cập nhật 09/09/2025.",
-      "name": "SenseVoice Đa ngôn ngữ"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "ASR tiếng Đức trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Đức"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "ASR tiếng Anh trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Anh"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "ASR tiếng Tây Ban Nha trực tuyến; kích thước vừa và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Tây Ban Nha"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "ASR tiếng Pháp trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Pháp"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "ASR tiếng Nga trực tuyến; siêu nhỏ và cực nhanh (INT8); độ chính xác tốt; cập nhật 16/08/2025.",
-      "name": "Sherpa Tiếng Nga"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "ASR tiếng Trung trực tuyến (Zipformer2 CTC); nhỏ và cực nhanh (INT8); cập nhật 01/04/2025.",
-      "name": "Sherpa Trung Quốc (CTC Nhỏ)"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "ASR tiếng Trung trực tuyến; nhỏ và cực nhanh (INT8); độ chính xác cao; cập nhật 30/06/2025.",
-      "name": "Sherpa Trung Quốc"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "ASR tiếng Trung trực tuyến; mô hình lớn hơn, nhanh (INT8); độ chính xác rất cao; cập nhật 30/06/2025.",
-      "name": "Sherpa Trung Quốc XL"
-    },
     "small": {
       "description": "Nhanh và khá chính xác.",
       "name": "Whisper Small"
@@ -501,10 +449,6 @@
         "other": "Khác",
         "parakeet": "Parakeet",
         "punctuation": "Dấu câu",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
       },
       "types": {
