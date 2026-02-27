@@ -195,7 +195,6 @@ const renderModelSection = ({
                                 ? await invoke<string>(
                                     "test_asr_model_inference",
                                     {
-                                      providerId: model.provider_id,
                                       modelId: model.model_id,
                                     },
                                   )

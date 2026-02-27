@@ -46,6 +46,7 @@ impl OnlineAsrClient {
             .build()
             .context("failed to build HTTP client")?;
 
+        let wav_len = wav_bytes.len();
         let form = multipart::Form::new()
             .part(
                 "file",
@@ -55,9 +56,31 @@ impl OnlineAsrClient {
             )
             .text("model", model_id.to_string());
 
+        println!("\n=== ONLINE ASR HTTP REQUEST DEV LOG ===");
+        println!("POST {}", url);
+        println!("Content-Type: multipart/form-data");
+        println!("Form part: file (recording.wav) [{} bytes]", wav_len);
+        println!("Form part: model = {}", model_id);
+        if let Some(key) = &api_key {
+            let start = key.chars().take(4).collect::<String>();
+            let end = key
+                .chars()
+                .skip(key.chars().count().saturating_sub(4))
+                .collect::<String>();
+            println!(
+                "Authorization: Bearer {}...{} (Length: {})",
+                start,
+                end,
+                key.len()
+            );
+        } else {
+            println!("Authorization: None provided");
+        }
+        println!("=======================================\n");
+
         let mut request = client.post(&url).multipart(form);
         if let Some(key) = api_key {
-            request = request.bearer_auth(key);
+            request = request.bearer_auth(key.trim());
         }
 
         let response = request
