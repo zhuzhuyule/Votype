@@ -301,10 +301,9 @@ fn run_consumer(
                     }
                 }
                 VadFrame::Noise => {
-                    // Preserve timing for streaming ASR while suppressing noise by sending zeros.
-                    if let Some(cb) = speech_cb {
-                        cb(vec![0.0; samples.len()]);
-                    }
+                    // Previously we preserved timing for Sherpa streaming ASR by sending zeros.
+                    // Now that Sherpa is removed and we're using segmented offline recognition
+                    // we completely drop noise frames, otherwise Whisper fails decoding on long zeros.
                 }
             }
         } else {

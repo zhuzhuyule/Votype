@@ -153,6 +153,22 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         setLevels(smoothed.slice(0, 9));
       });
 
+      const unlistenRealtimePartial = await listen<{ text: string }>(
+        "realtime-partial",
+        (event) => {
+          if (stateRef.current !== "recording") {
+            return;
+          }
+          if (finalLockedRef.current || !allowNonFinalRef.current) {
+            return;
+          }
+
+          const text = (event.payload.text || "").trim();
+          setRealtimeText(text);
+          setRealtimeIsFinal(false);
+        },
+      );
+
       const unlistenPostProcessStatus = await listen<string>(
         "post-process-status",
         (event) => {
@@ -205,6 +221,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         unlistenError();
         unlistenLevel();
 
+        unlistenRealtimePartial();
         unlistenPostProcessStatus();
         unlistenStateUpdate();
         unlistenSkillConfirmation();
@@ -292,7 +309,9 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       : realtimeText;
 
   const showRealtimeText =
-    realtimeDisplayText.length > 0 && state === "recording";
+    realtimeDisplayText.length > 0 &&
+    state === "recording" &&
+    !skillConfirmation;
   const showErrorText = Boolean(errorText) && state !== "recording";
 
   return (
