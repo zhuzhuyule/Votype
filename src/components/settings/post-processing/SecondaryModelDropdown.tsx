@@ -10,11 +10,7 @@ import { IconChevronDown, IconSearch } from "@tabler/icons-react";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelInfo } from "../../../lib/types";
-import { formatModelSize } from "../../../lib/utils/format";
-import {
-  getTranslatedModelDescription,
-  getTranslatedModelName,
-} from "../../../lib/utils/modelTranslation";
+import { getTranslatedModelName } from "../../../lib/utils/modelTranslation";
 
 // No recommended models for secondary without Sherpa
 export const RECOMMENDED_MODEL_IDS = new Set<string>([]);
@@ -88,7 +84,11 @@ export const SecondaryModelDropdown: React.FC<{
           ? "Paraformer"
           : familyToken === "sensevoice"
             ? "SenseVoice"
-            : familyToken.charAt(0).toUpperCase() + familyToken.slice(1);
+            : familyToken === "zipformer-ctc"
+              ? "Zipformer CTC"
+              : familyToken === "zipformer"
+                ? "Zipformer Transducer"
+                : familyToken.charAt(0).toUpperCase() + familyToken.slice(1);
 
       const sizeToken = tokens.find((tok) =>
         ["tiny", "small", "medium", "large"].includes(tok),

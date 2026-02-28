@@ -26,6 +26,8 @@ use transcribe_rs::{
             SenseVoiceModelParams,
         },
         whisper::{WhisperEngine, WhisperInferenceParams},
+        zipformer_ctc::{ZipformerCtcEngine, ZipformerCtcModelParams},
+        zipformer_transducer::{ZipformerTransducerEngine, ZipformerTransducerModelParams},
     },
     TranscriptionEngine,
 };
@@ -45,6 +47,8 @@ enum LoadedEngine {
     MoonshineStreaming(MoonshineStreamingEngine),
     SenseVoice(SenseVoiceEngine),
     Paraformer(ParaformerEngine),
+    ZipformerTransducer(ZipformerTransducerEngine),
+    ZipformerCtc(ZipformerCtcEngine),
 }
 
 #[derive(Clone)]
@@ -169,6 +173,8 @@ impl TranscriptionManager {
                     LoadedEngine::MoonshineStreaming(ref mut e) => e.unload_model(),
                     LoadedEngine::SenseVoice(ref mut e) => e.unload_model(),
                     LoadedEngine::Paraformer(ref mut e) => e.unload_model(),
+                    LoadedEngine::ZipformerTransducer(ref mut e) => e.unload_model(),
+                    LoadedEngine::ZipformerCtc(ref mut e) => e.unload_model(),
                 }
             }
             *engine = None; // Drop the engine to free memory
@@ -370,6 +376,68 @@ impl TranscriptionManager {
                     })?;
                 LoadedEngine::Paraformer(engine)
             }
+            EngineType::ZipformerTransducer => {
+                let mut engine = ZipformerTransducerEngine::new();
+                let has_int8 = std::fs::read_dir(&model_path)
+                    .map(|entries| {
+                        entries.filter_map(|e| e.ok()).any(|e| {
+                            let name = e.file_name().to_string_lossy().to_string();
+                            name.starts_with("encoder")
+                                && name.contains("int8")
+                                && name.ends_with(".onnx")
+                        })
+                    })
+                    .unwrap_or(false);
+                let params = if has_int8 {
+                    ZipformerTransducerModelParams::int8()
+                } else {
+                    ZipformerTransducerModelParams::fp32()
+                };
+                engine
+                    .load_model_with_params(&model_path, params)
+                    .map_err(|e| {
+                        let error_msg = format!(
+                            "Failed to load Zipformer Transducer model {}: {}",
+                            model_id, e
+                        );
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::ZipformerTransducer(engine)
+            }
+            EngineType::ZipformerCtc => {
+                let mut engine = ZipformerCtcEngine::new();
+                let params = if model_path.join("model.int8.onnx").exists() {
+                    ZipformerCtcModelParams::int8()
+                } else {
+                    ZipformerCtcModelParams::default()
+                };
+                engine
+                    .load_model_with_params(&model_path, params)
+                    .map_err(|e| {
+                        let error_msg =
+                            format!("Failed to load Zipformer CTC model {}: {}", model_id, e);
+                        let _ = self.app_handle.emit(
+                            "model-state-changed",
+                            ModelStateEvent {
+                                event_type: "loading_failed".to_string(),
+                                model_id: Some(model_id.to_string()),
+                                model_name: Some(model_info.name.clone()),
+                                error: Some(error_msg.clone()),
+                            },
+                        );
+                        anyhow::anyhow!(error_msg)
+                    })?;
+                LoadedEngine::ZipformerCtc(engine)
+            }
         };
 
         // Update the current engine and model ID
@@ -553,6 +621,16 @@ impl TranscriptionManager {
                         LoadedEngine::Paraformer(paraformer_engine) => paraformer_engine
                             .transcribe_samples(audio, None)
                             .map_err(|e| anyhow::anyhow!("Paraformer transcription failed: {}", e)),
+                        LoadedEngine::ZipformerTransducer(zipformer_engine) => zipformer_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| {
+                                anyhow::anyhow!("Zipformer Transducer transcription failed: {}", e)
+                            }),
+                        LoadedEngine::ZipformerCtc(zipformer_engine) => zipformer_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| {
+                                anyhow::anyhow!("Zipformer CTC transcription failed: {}", e)
+                            }),
                     }
                 },
             ));

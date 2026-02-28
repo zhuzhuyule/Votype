@@ -22,6 +22,8 @@ pub enum EngineType {
     MoonshineStreaming,
     SenseVoice,
     Paraformer,
+    ZipformerTransducer,
+    ZipformerCtc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +44,10 @@ pub enum SherpaOnnxAsrFamily {
     SenseVoice,
     /// Offline FireRedASR via encoder/decoder.
     FireRedAsr,
+    /// Zipformer Transducer.
+    ZipformerTransducer,
+    /// Zipformer CTC.
+    ZipformerCtc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,6 +197,10 @@ impl ModelManager {
             SherpaOnnxAsrFamily::Zipformer2Ctc
         } else if lower.contains("paraformer") {
             SherpaOnnxAsrFamily::Paraformer
+        } else if lower.contains("zipformer-ctc") {
+            SherpaOnnxAsrFamily::ZipformerCtc
+        } else if lower.contains("zipformer") {
+            SherpaOnnxAsrFamily::ZipformerTransducer
         } else {
             SherpaOnnxAsrFamily::Transducer
         };
@@ -743,6 +753,60 @@ impl ModelManager {
                 accuracy_score: 0.80,
                 speed_score: 0.93,
                 tags: None,
+                is_default: true,
+            },
+        );
+
+        // Zipformer Transducer: Chinese + English
+        available_models.insert(
+            "sherpa-zipformer-zh-en-small-2023-11-22".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-zh-en-small-2023-11-22".to_string(),
+                name: "Sherpa Zipformer Transducer (Small)".to_string(),
+                description: "models.sherpa-zipformer-zh-en-small-2023-11-22.description".to_string(),
+                filename: "sherpa-onnx-zipformer-zh-en-2023-11-22".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-zh-en-2023-11-22.tar.bz2".to_string()),
+                size_mb: 290,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::ZipformerTransducer,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::ZipformerTransducer,
+                    prefer_int8: true, // Use int8 parameters if possible
+                }),
+                accuracy_score: 0.88,
+                speed_score: 0.87,
+                tags: Some(vec!["zh".to_string(), "en".to_string()]),
+                is_default: true,
+            },
+        );
+
+        // Zipformer CTC: Chinese (Fast)
+        available_models.insert(
+            "sherpa-zipformer-ctc-small-zh-int8-2025-07-16".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-ctc-small-zh-int8-2025-07-16".to_string(),
+                name: "Sherpa Zipformer CTC Chinese (Small & Fast)".to_string(),
+                description: "models.sherpa-zipformer-ctc-small-zh-int8-2025-07-16.description".to_string(),
+                filename: "sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16.tar.bz2".to_string()),
+                size_mb: 48,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::ZipformerCtc,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::ZipformerCtc,
+                    prefer_int8: true,
+                }),
+                accuracy_score: 0.83,
+                speed_score: 0.98,
+                tags: Some(vec!["zh".to_string()]),
                 is_default: true,
             },
         );
