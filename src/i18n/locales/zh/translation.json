@@ -152,7 +152,14 @@
     "updateAvailable": "有可用更新: {{version}}",
     "updateAvailableShort": "有可用更新",
     "updateCheckingDisabled": "更新检查已禁用",
-    "upToDate": "已是最新版本"
+    "upToDate": "已是最新版本",
+    "postProcess": {
+      "title": "后处理",
+      "punctuation": "自动标点",
+      "translate": "翻译为英文",
+      "llm": "大模型后处理",
+      "selectModel": "选择模型..."
+    }
   },
   "models": {
     "large": {

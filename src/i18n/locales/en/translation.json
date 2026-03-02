@@ -168,7 +168,14 @@
     "updateAvailable": "Update available: {{version}}",
     "updateAvailableShort": "Update available",
     "updateCheckingDisabled": "Update Checking Disabled",
-    "upToDate": "Up to date"
+    "upToDate": "Up to date",
+    "postProcess": {
+      "title": "Post-processing",
+      "punctuation": "Auto-punctuation",
+      "translate": "Translate to English",
+      "llm": "LLM Post-process",
+      "selectModel": "Select model..."
+    }
   },
   "models": {
     "large": {

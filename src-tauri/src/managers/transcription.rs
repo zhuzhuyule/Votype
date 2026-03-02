@@ -62,6 +62,7 @@ pub struct TranscriptionManager {
     watcher_handle: Arc<Mutex<Option<thread::JoinHandle<()>>>>,
     is_loading: Arc<Mutex<bool>>,
     loading_condvar: Arc<Condvar>,
+    punct_model: Arc<Mutex<Option<transcribe_rs::punct::PunctModel>>>,
 }
 
 impl TranscriptionManager {
@@ -81,6 +82,7 @@ impl TranscriptionManager {
             watcher_handle: Arc::new(Mutex::new(None)),
             is_loading: Arc::new(Mutex::new(false)),
             loading_condvar: Arc::new(Condvar::new()),
+            punct_model: Arc::new(Mutex::new(None)),
         };
 
         // Start the idle watcher
@@ -616,71 +618,19 @@ impl TranscriptionManager {
                                     anyhow::anyhow!("SenseVoice transcription failed: {}", e)
                                 })
                         }
-                        LoadedEngine::Paraformer(paraformer_engine) => {
-                            let punct_model_dir = if settings.punctuation_enabled
-                                && !settings.punctuation_model.is_empty()
-                            {
-                                self.model_manager
-                                    .get_model_path(&settings.punctuation_model)
-                                    .ok()
-                            } else {
-                                None
-                            };
-                            let params =
-                                transcribe_rs::engines::paraformer::ParaformerInferenceParams {
-                                    auto_punctuation: settings.punctuation_enabled,
-                                    punct_model_dir,
-                                };
-                            paraformer_engine
-                                .transcribe_samples(audio, Some(params))
-                                .map_err(|e| {
-                                    anyhow::anyhow!("Paraformer transcription failed: {}", e)
-                                })
-                        }
-                        LoadedEngine::ZipformerTransducer(zipformer_engine) => {
-                            let punct_model_dir = if settings.punctuation_enabled
-                                && !settings.punctuation_model.is_empty()
-                            {
-                                self.model_manager
-                                    .get_model_path(&settings.punctuation_model)
-                                    .ok()
-                            } else {
-                                None
-                            };
-                            let params = transcribe_rs::engines::zipformer_transducer::ZipformerTransducerInferenceParams {
-                                auto_punctuation: settings.punctuation_enabled,
-                                punct_model_dir,
-                                ..Default::default()
-                            };
-                            zipformer_engine
-                                .transcribe_samples(audio, Some(params))
-                                .map_err(|e| {
-                                    anyhow::anyhow!(
-                                        "Zipformer Transducer transcription failed: {}",
-                                        e
-                                    )
-                                })
-                        }
-                        LoadedEngine::ZipformerCtc(zipformer_engine) => {
-                            let punct_model_dir = if settings.punctuation_enabled
-                                && !settings.punctuation_model.is_empty()
-                            {
-                                self.model_manager
-                                    .get_model_path(&settings.punctuation_model)
-                                    .ok()
-                            } else {
-                                None
-                            };
-                            let params = transcribe_rs::engines::zipformer_ctc::ZipformerCtcInferenceParams {
-                                auto_punctuation: settings.punctuation_enabled,
-                                punct_model_dir,
-                            };
-                            zipformer_engine
-                                .transcribe_samples(audio, Some(params))
-                                .map_err(|e| {
-                                    anyhow::anyhow!("Zipformer CTC transcription failed: {}", e)
-                                })
-                        }
+                        LoadedEngine::Paraformer(paraformer_engine) => paraformer_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| anyhow::anyhow!("Paraformer transcription failed: {}", e)),
+                        LoadedEngine::ZipformerTransducer(zipformer_engine) => zipformer_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| {
+                                anyhow::anyhow!("Zipformer Transducer transcription failed: {}", e)
+                            }),
+                        LoadedEngine::ZipformerCtc(zipformer_engine) => zipformer_engine
+                            .transcribe_samples(audio, None)
+                            .map_err(|e| {
+                                anyhow::anyhow!("Zipformer CTC transcription failed: {}", e)
+                            }),
                     }
                 },
             ));
@@ -748,7 +698,60 @@ impl TranscriptionManager {
         // Filter out filler words and hallucinations
         let filtered_result = filter_transcription_output(&corrected_result);
 
-        let final_result = filtered_result;
+        // Punctuation post-processing: when enabled, always apply the CT-Transformer
+        // punct model to format the text with proper punctuation. The user controls this
+        // via a toggle — turning it on forces re-punctuation regardless of whether the
+        // engine already produced punctuation.
+        let final_result = if settings.punctuation_enabled && !filtered_result.trim().is_empty() {
+            let punct_model_id = &settings.punctuation_model;
+            if !punct_model_id.is_empty() {
+                if let Some(model_info) = self.model_manager.get_model_info(punct_model_id) {
+                    if model_info.is_downloaded {
+                        match self.model_manager.get_model_path(punct_model_id) {
+                            Ok(model_dir) => {
+                                let mut punct_guard =
+                                    self.punct_model.lock().unwrap_or_else(|e| e.into_inner());
+                                if punct_guard.is_none() {
+                                    info!("Loading punctuation model (first use)...");
+                                    match transcribe_rs::punct::PunctModel::new(&model_dir) {
+                                        Ok(model) => {
+                                            *punct_guard = Some(model);
+                                        }
+                                        Err(e) => {
+                                            warn!("Failed to load punctuation model: {}", e);
+                                        }
+                                    }
+                                }
+                                if let Some(ref mut punct) = *punct_guard {
+                                    let punctuated = punct.add_punctuation(&filtered_result);
+                                    if punctuated != filtered_result {
+                                        info!(
+                                            "Auto-punctuation applied: [{}] -> [{}]",
+                                            filtered_result, punctuated
+                                        );
+                                    }
+                                    punctuated
+                                } else {
+                                    filtered_result
+                                }
+                            }
+                            Err(e) => {
+                                warn!("Failed to locate punctuation model directory: {}", e);
+                                filtered_result
+                            }
+                        }
+                    } else {
+                        filtered_result
+                    }
+                } else {
+                    filtered_result
+                }
+            } else {
+                filtered_result
+            }
+        } else {
+            filtered_result
+        };
 
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
