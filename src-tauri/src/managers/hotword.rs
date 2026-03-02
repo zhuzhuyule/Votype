@@ -35,7 +35,9 @@ impl HotwordManager {
     }
 
     fn get_connection(&self) -> Result<Connection> {
-        Ok(Connection::open(&self.db_path)?)
+        let conn = Connection::open(&self.db_path)?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
+        Ok(conn)
     }
 
     /// Infer the category of a hotword based on its target form.

@@ -212,12 +212,10 @@ impl ShortcutAction for TranscribeAction {
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
         // Setup channel for receiving audio frames for realtime simulation if using local model
-        let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
-        if !settings_for_load.online_asr_enabled {
-            rm.set_speech_frame_sender(Some(realtime_tx));
-        } else {
-            rm.set_speech_frame_sender(None);
-        }
+        let (_realtime_tx, _realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
+        // TODO: Support an explicit user switch to enable simulated real-time transcription (e.g., settings.realtime_transcription_enabled)
+        // Currently disabled as requested to avoid engine overload and mismatch errors for streaming models.
+        rm.set_speech_frame_sender(None);
 
         rm.set_online_transcription_receiver(None);
         let _mm = app.state::<Arc<ModelManager>>();
@@ -275,105 +273,14 @@ impl ShortcutAction for TranscribeAction {
         if recording_started {
             shortcut::register_cancel_shortcut(app);
 
+            /*
+            TODO: Re-enable the simulated realtime loop when the realtime transcription settings switch is added.
             if !settings_for_load.online_asr_enabled {
                 let tm_realtime = app.state::<Arc<TranscriptionManager>>().inner().clone();
                 let app_handle_realtime = app.clone();
-
-                std::thread::spawn(move || {
-                    let mut audio_buffer: Vec<f32> = Vec::new();
-                    let mut last_trigger_time = Instant::now();
-                    let mut trigger_interval = Duration::from_millis(1000); // Dynamic interval, start at 1s
-                    let is_inferring = Arc::new(std::sync::Mutex::new(false));
-
-                    // 15 seconds threshold for stopping realtime
-                    let max_samples = 15 * 16000;
-
-                    loop {
-                        match realtime_rx.recv() {
-                            Ok(mut frames) => {
-                                audio_buffer.append(&mut frames);
-
-                                // Check if we exceeded the length limits (15s)
-                                if audio_buffer.len() > max_samples {
-                                    debug!("Realtime transcription reached 15s limit, stopping partials.");
-                                    break;
-                                }
-
-                                let now = Instant::now();
-                                if now.duration_since(last_trigger_time) >= trigger_interval {
-                                    // Try to acquire lock to see if previous inference is still running
-                                    if let Ok(mut lock) = is_inferring.try_lock() {
-                                        *lock = true;
-                                        last_trigger_time = now;
-
-                                        let buffer_clone = audio_buffer.clone();
-                                        let tm_clone = tm_realtime.clone();
-                                        let app_clone = app_handle_realtime.clone();
-                                        let is_inferring_clone = is_inferring.clone();
-                                        let current_interval = trigger_interval;
-
-                                        std::thread::spawn(move || {
-                                            let infer_start = Instant::now();
-                                            // Perform transcription without post-processing
-                                            match tm_clone.transcribe(buffer_clone) {
-                                                Ok(text) => {
-                                                    let duration = infer_start.elapsed();
-                                                    debug!(
-                                                        "Partial transcription took {:?}",
-                                                        duration
-                                                    );
-
-                                                    // Emit to frontend
-                                                    #[derive(Clone, serde::Serialize)]
-                                                    struct RealtimePartialPayload {
-                                                        text: String,
-                                                    }
-                                                    let _ = app_clone.emit(
-                                                        "realtime-partial",
-                                                        RealtimePartialPayload { text },
-                                                    );
-
-                                                    // Dynamic degradation logic
-                                                    if duration > Duration::from_millis(1500) {
-                                                        // Inform the main loop to increase interval (we can't update it directly here without shared state,
-                                                        // but since we lock, the main loop will naturally skip frames while we are locked).
-                                                        // To properly increase it, we can keep it simple: the lock itself naturally throttles.
-                                                        // But let's just log it. The try_lock already skips queued evaluations.
-                                                    }
-                                                }
-                                                Err(e) => {
-                                                    error!(
-                                                        "Realtime partial transcription failed: {}",
-                                                        e
-                                                    );
-                                                }
-                                            }
-
-                                            // Release lock
-                                            if let Ok(mut l) = is_inferring_clone.lock() {
-                                                *l = false;
-                                            }
-                                        });
-                                    } else {
-                                        debug!("Previous realtime transcription still running, skipping this trigger.");
-                                        // Dynamic degradation: if we keep missing locks because it's too slow,
-                                        // the interval naturally stretches. We can explicitly increase trigger base here.
-                                        trigger_interval = std::cmp::max(
-                                            Duration::from_millis(2000),
-                                            trigger_interval + Duration::from_millis(500),
-                                        );
-                                    }
-                                }
-                            }
-                            Err(_) => {
-                                // Channel disconnected (recording stopped)
-                                debug!("Realtime audio receiver disconnected");
-                                break;
-                            }
-                        }
-                    }
-                });
+                // ... spawned thread to consume realtime_rx and emit "realtime-partial" ...
             }
+            */
         }
 
         debug!(
@@ -527,7 +434,7 @@ impl ShortcutAction for TranscribeAction {
                                 return None;
                             }
 
-                            match tm_for_secondary.transcribe_local_only(samples_for_secondary) {
+                            match tm_for_secondary.transcribe(samples_for_secondary) {
                                 Ok(local_text) => {
                                     if local_text.trim().is_empty() {
                                         None
@@ -605,7 +512,7 @@ impl ShortcutAction for TranscribeAction {
                         let samples_fallback = samples.clone();
                         match tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
                             tm_fallback.load_model(&model_id)?;
-                            tm_fallback.transcribe_local_only(samples_fallback)
+                            tm_fallback.transcribe(samples_fallback)
                         })
                         .await
                         {

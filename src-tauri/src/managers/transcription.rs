@@ -515,7 +515,7 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
-        // Check if model is loaded, if not try to load it
+        // Check if model is loaded
         {
             // If the model is loading, wait for it to complete.
             let mut is_loading = self.is_loading.lock().unwrap();
@@ -544,9 +544,7 @@ impl TranscriptionManager {
             let mut engine = match engine_guard.take() {
                 Some(e) => e,
                 None => {
-                    return Err(anyhow::anyhow!(
-                        "Model failed to load after auto-load attempt. Please check your model settings."
-                    ));
+                    return Err(anyhow::anyhow!("Model is not loaded for transcription."));
                 }
             };
 
@@ -618,19 +616,71 @@ impl TranscriptionManager {
                                     anyhow::anyhow!("SenseVoice transcription failed: {}", e)
                                 })
                         }
-                        LoadedEngine::Paraformer(paraformer_engine) => paraformer_engine
-                            .transcribe_samples(audio, None)
-                            .map_err(|e| anyhow::anyhow!("Paraformer transcription failed: {}", e)),
-                        LoadedEngine::ZipformerTransducer(zipformer_engine) => zipformer_engine
-                            .transcribe_samples(audio, None)
-                            .map_err(|e| {
-                                anyhow::anyhow!("Zipformer Transducer transcription failed: {}", e)
-                            }),
-                        LoadedEngine::ZipformerCtc(zipformer_engine) => zipformer_engine
-                            .transcribe_samples(audio, None)
-                            .map_err(|e| {
-                                anyhow::anyhow!("Zipformer CTC transcription failed: {}", e)
-                            }),
+                        LoadedEngine::Paraformer(paraformer_engine) => {
+                            let punct_model_dir = if settings.punctuation_enabled
+                                && !settings.punctuation_model.is_empty()
+                            {
+                                self.model_manager
+                                    .get_model_path(&settings.punctuation_model)
+                                    .ok()
+                            } else {
+                                None
+                            };
+                            let params =
+                                transcribe_rs::engines::paraformer::ParaformerInferenceParams {
+                                    auto_punctuation: settings.punctuation_enabled,
+                                    punct_model_dir,
+                                };
+                            paraformer_engine
+                                .transcribe_samples(audio, Some(params))
+                                .map_err(|e| {
+                                    anyhow::anyhow!("Paraformer transcription failed: {}", e)
+                                })
+                        }
+                        LoadedEngine::ZipformerTransducer(zipformer_engine) => {
+                            let punct_model_dir = if settings.punctuation_enabled
+                                && !settings.punctuation_model.is_empty()
+                            {
+                                self.model_manager
+                                    .get_model_path(&settings.punctuation_model)
+                                    .ok()
+                            } else {
+                                None
+                            };
+                            let params = transcribe_rs::engines::zipformer_transducer::ZipformerTransducerInferenceParams {
+                                auto_punctuation: settings.punctuation_enabled,
+                                punct_model_dir,
+                                ..Default::default()
+                            };
+                            zipformer_engine
+                                .transcribe_samples(audio, Some(params))
+                                .map_err(|e| {
+                                    anyhow::anyhow!(
+                                        "Zipformer Transducer transcription failed: {}",
+                                        e
+                                    )
+                                })
+                        }
+                        LoadedEngine::ZipformerCtc(zipformer_engine) => {
+                            let punct_model_dir = if settings.punctuation_enabled
+                                && !settings.punctuation_model.is_empty()
+                            {
+                                self.model_manager
+                                    .get_model_path(&settings.punctuation_model)
+                                    .ok()
+                            } else {
+                                None
+                            };
+                            let params = transcribe_rs::engines::zipformer_ctc::ZipformerCtcInferenceParams {
+                                auto_punctuation: settings.punctuation_enabled,
+                                punct_model_dir,
+                            };
+                            zipformer_engine
+                                .transcribe_samples(audio, Some(params))
+                                .map_err(|e| {
+                                    anyhow::anyhow!("Zipformer CTC transcription failed: {}", e)
+                                })
+                        }
                     }
                 },
             ));
@@ -698,6 +748,8 @@ impl TranscriptionManager {
         // Filter out filler words and hallucinations
         let filtered_result = filter_transcription_output(&corrected_result);
 
+        let final_result = filtered_result;
+
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
             " (translated)"
@@ -710,8 +762,6 @@ impl TranscriptionManager {
             translation_note
         );
 
-        let final_result = filtered_result;
-
         if final_result.is_empty() {
             info!("Transcription result is empty");
         } else {
@@ -721,12 +771,6 @@ impl TranscriptionManager {
         self.maybe_unload_immediately("transcription");
 
         Ok(final_result)
-    }
-
-    /// Transcribe audio locally without any remote processing.
-    /// This is a simplified version that returns raw transcription text.
-    pub fn transcribe_local_only(&self, audio: Vec<f32>) -> Result<String> {
-        self.transcribe(audio)
     }
 }
 

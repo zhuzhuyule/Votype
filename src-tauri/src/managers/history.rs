@@ -404,6 +404,7 @@ impl HistoryManager {
         info!("Initializing database at {:?}", self.db_path);
 
         let mut conn = Connection::open(&self.db_path)?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
 
         // Handle migration from tauri-plugin-sql to rusqlite_migration
         // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
@@ -497,7 +498,9 @@ impl HistoryManager {
     }
 
     fn get_connection(&self) -> Result<Connection> {
-        Ok(Connection::open(&self.db_path)?)
+        let conn = Connection::open(&self.db_path)?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
+        Ok(conn)
     }
 
     fn query_totals_since(&self, conn: &Connection, start_timestamp: i64) -> Result<HistoryTotals> {

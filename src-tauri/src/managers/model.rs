@@ -211,6 +211,30 @@ impl ModelManager {
         })
     }
 
+    fn infer_engine_type_from_name(name: &str) -> EngineType {
+        let lower = name.to_lowercase();
+        if lower.contains("whisper") || lower.contains("ggml") {
+            EngineType::Whisper
+        } else if lower.contains("parakeet") {
+            EngineType::Parakeet
+        } else if lower.contains("moonshine") && lower.contains("streaming") {
+            EngineType::MoonshineStreaming
+        } else if lower.contains("moonshine") {
+            EngineType::Moonshine
+        } else if lower.contains("sense-voice") || lower.contains("sensevoice") {
+            EngineType::SenseVoice
+        } else if lower.contains("zipformer-ctc")
+            || (lower.contains("zipformer") && lower.contains("ctc"))
+        {
+            EngineType::ZipformerCtc
+        } else if lower.contains("zipformer") {
+            EngineType::ZipformerTransducer
+        } else {
+            // Default to Paraformer for other sherpa models
+            EngineType::Paraformer
+        }
+    }
+
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create models directory in app data
         let models_dir = app_handle
@@ -317,6 +341,28 @@ impl ModelManager {
             },
         );
 
+        available_models.insert(
+            "breeze-asr".to_string(),
+            ModelInfo {
+                id: "breeze-asr".to_string(),
+                name: "Breeze ASR".to_string(),
+                description: "models.breeze-asr.description".to_string(),
+                filename: "breeze-asr-q5_k.bin".to_string(),
+                url: Some("https://blob.handy.computer/breeze-asr-q5_k.bin".to_string()),
+                size_mb: 1080,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: false,
+                engine_type: EngineType::Whisper,
+                sherpa: None,
+                accuracy_score: 0.85,
+                speed_score: 0.35,
+                tags: None,
+                is_default: true,
+            },
+        );
+
         // Add NVIDIA Parakeet models (directory-based)
         available_models.insert(
             "parakeet-tdt-0.6b-v2".to_string(),
@@ -362,6 +408,101 @@ impl ModelManager {
             },
         );
 
+        // Moonshine models
+        available_models.insert(
+            "moonshine-base".to_string(),
+            ModelInfo {
+                id: "moonshine-base".to_string(),
+                name: "Moonshine Base".to_string(),
+                description: "models.moonshine-base.description".to_string(),
+                filename: "moonshine-base".to_string(),
+                url: Some("https://blob.handy.computer/moonshine-base.tar.gz".to_string()),
+                size_mb: 58,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::Moonshine,
+                sherpa: None,
+                accuracy_score: 0.70,
+                speed_score: 0.90,
+                tags: None,
+                is_default: true,
+            },
+        );
+
+        available_models.insert(
+            "moonshine-tiny-streaming-en".to_string(),
+            ModelInfo {
+                id: "moonshine-tiny-streaming-en".to_string(),
+                name: "Moonshine V2 Tiny".to_string(),
+                description: "models.moonshine-tiny-streaming-en.description".to_string(),
+                filename: "moonshine-tiny-streaming-en".to_string(),
+                url: Some(
+                    "https://blob.handy.computer/moonshine-tiny-streaming-en.tar.gz".to_string(),
+                ),
+                size_mb: 31,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::MoonshineStreaming,
+                sherpa: None,
+                accuracy_score: 0.55,
+                speed_score: 0.95,
+                tags: None,
+                is_default: true,
+            },
+        );
+
+        available_models.insert(
+            "moonshine-small-streaming-en".to_string(),
+            ModelInfo {
+                id: "moonshine-small-streaming-en".to_string(),
+                name: "Moonshine V2 Small".to_string(),
+                description: "models.moonshine-small-streaming-en.description".to_string(),
+                filename: "moonshine-small-streaming-en".to_string(),
+                url: Some(
+                    "https://blob.handy.computer/moonshine-small-streaming-en.tar.gz".to_string(),
+                ),
+                size_mb: 100,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::MoonshineStreaming,
+                sherpa: None,
+                accuracy_score: 0.65,
+                speed_score: 0.90,
+                tags: None,
+                is_default: true,
+            },
+        );
+
+        available_models.insert(
+            "moonshine-medium-streaming-en".to_string(),
+            ModelInfo {
+                id: "moonshine-medium-streaming-en".to_string(),
+                name: "Moonshine V2 Medium".to_string(),
+                description: "models.moonshine-medium-streaming-en.description".to_string(),
+                filename: "moonshine-medium-streaming-en".to_string(),
+                url: Some(
+                    "https://blob.handy.computer/moonshine-medium-streaming-en.tar.gz".to_string(),
+                ),
+                size_mb: 192,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::MoonshineStreaming,
+                sherpa: None,
+                accuracy_score: 0.75,
+                speed_score: 0.80,
+                tags: None,
+                is_default: true,
+            },
+        );
+
         available_models.insert(
             "sherpa-zipformer-small-ctc-zh-int8-2025-04-01".to_string(),
             ModelInfo {
@@ -377,7 +518,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerCtc,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Zipformer2Ctc,
@@ -403,7 +544,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -430,7 +571,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -456,7 +597,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -482,7 +623,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -508,7 +649,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -534,7 +675,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -562,7 +703,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::ZipformerTransducer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Streaming,
                     family: SherpaOnnxAsrFamily::Transducer,
@@ -664,7 +805,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::Paraformer,
+                engine_type: EngineType::SenseVoice,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::SenseVoice,
@@ -907,7 +1048,7 @@ impl ModelManager {
             url: url.clone(),
             size_mb: 0,
             is_directory,
-            engine_type: EngineType::Paraformer,
+            engine_type: Self::infer_engine_type_from_name(&base_name),
             sherpa: Self::infer_sherpa_spec_from_name(&base_name),
             accuracy_score: 0.8,
             speed_score: 0.8,
