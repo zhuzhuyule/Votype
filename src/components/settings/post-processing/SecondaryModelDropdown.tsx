@@ -136,8 +136,19 @@ export const SecondaryModelDropdown: React.FC<{
       },
     ];
 
-    // Secondary model not supported without Sherpa
-    const candidates: typeof out = [];
+    const candidates: typeof out = models
+      .filter((m) => m.is_downloaded)
+      .map((m) => {
+        const featureTags = getFeatureTags(m);
+        return {
+          value: m.id,
+          title: getOptionTitle(m),
+          description: m.description || m.id,
+          isRecommended: RECOMMENDED_MODEL_IDS.has(m.id),
+          tag: featureTags.join(" · ") || undefined,
+          meta: m.size_mb ? `${m.size_mb}MB` : undefined,
+        };
+      });
 
     out.push(...candidates);
     return out;

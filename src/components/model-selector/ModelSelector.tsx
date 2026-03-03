@@ -471,8 +471,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     });
   }, [models, favoriteModels, currentModelId]);
 
-  // Realtime models not supported without Sherpa
-  const realtimeModelsForQuickSelector: typeof models = [];
+  const realtimeModelsForQuickSelector = useMemo(
+    () => models.filter((m) => m.is_downloaded),
+    [models],
+  );
 
   return (
     <>
