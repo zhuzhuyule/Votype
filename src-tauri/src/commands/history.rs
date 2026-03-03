@@ -193,17 +193,53 @@ pub async fn retranscribe_history_entry(
         settings.selected_model.clone()
     };
 
-    // If using local model, ensure it's loaded
-    if !settings.online_asr_enabled {
+    let start_time = std::time::Instant::now();
+    let transcription_text = if settings.online_asr_enabled {
+        // Use OnlineAsrClient for online ASR (must run in spawn_blocking
+        // because reqwest::blocking creates its own runtime internally)
+        use crate::online_asr::OnlineAsrClient;
+
+        let cached_model = settings
+            .cached_models
+            .iter()
+            .find(|m| m.id == model_id)
+            .ok_or_else(|| format!("Online ASR model not found in cached models: {}", model_id))?;
+
+        let provider = cached_model.provider_id.clone();
+        let remote_model_id = cached_model.model_id.clone();
+
+        let provider_info = settings
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == provider)
+            .ok_or_else(|| format!("Provider not found: {}", provider))?
+            .clone();
+
+        let api_key = settings.post_process_api_keys.get(&provider).cloned();
+
+        let language = settings.selected_language.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let client = OnlineAsrClient::new(16000, std::time::Duration::from_secs(120));
+            let lang = if language == "auto" {
+                None
+            } else {
+                Some(language.as_str())
+            };
+            client.transcribe(&provider_info, api_key, &remote_model_id, lang, &samples)
+        })
+        .await
+        .map_err(|e| format!("Online ASR task failed: {}", e))?
+        .map_err(|e| e.to_string())?
+    } else {
+        // Use local transcription manager
         transcription_manager
             .load_model(&model_id)
             .map_err(|e| e.to_string())?;
-    }
-
-    let start_time = std::time::Instant::now();
-    let transcription_text = transcription_manager
-        .transcribe(samples)
-        .map_err(|e| e.to_string())?;
+        transcription_manager
+            .transcribe(samples)
+            .map_err(|e| e.to_string())?
+    };
     let elapsed = start_time.elapsed().as_millis() as i64;
 
     let char_count = transcription_text.chars().count() as i64;

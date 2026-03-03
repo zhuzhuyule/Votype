@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::settings::PostProcessProvider;
 use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::{multipart, Client};
@@ -9,6 +7,7 @@ use std::time::Duration;
 
 const DEFAULT_TRANSCRIPTION_PATH: &str = "audio/transcriptions";
 
+#[allow(dead_code)]
 #[derive(Clone, Serialize)]
 pub struct OnlineAsrStatusEvent {
     pub stage: String,
@@ -33,6 +32,7 @@ impl OnlineAsrClient {
         provider: &PostProcessProvider,
         api_key: Option<String>,
         model_id: &str,
+        language: Option<&str>,
         samples: &[f32],
     ) -> Result<String> {
         let wav_bytes = encode_wav(samples, self.sample_rate)?;
@@ -42,14 +42,19 @@ impl OnlineAsrClient {
             DEFAULT_TRANSCRIPTION_PATH
         );
 
-        println!("Online ASR request: url={}, model={}", url, model_id);
+        log::info!(
+            "Online ASR request: url={}, model={}, language={:?}, audio_bytes={}",
+            url,
+            model_id,
+            language,
+            wav_bytes.len()
+        );
         let client = Client::builder()
             .timeout(self.timeout)
             .build()
             .context("failed to build HTTP client")?;
 
-        let _wav_len = wav_bytes.len();
-        let form = multipart::Form::new()
+        let mut form = multipart::Form::new()
             .part(
                 "file",
                 multipart::Part::bytes(wav_bytes)
@@ -58,7 +63,9 @@ impl OnlineAsrClient {
             )
             .text("model", model_id.to_string());
 
-        log::debug!("Online ASR request: url={}, model={}", url, model_id);
+        if let Some(lang) = language {
+            form = form.text("language", lang.to_string());
+        }
 
         let mut request = client.post(&url).multipart(form);
         if let Some(key) = api_key {
@@ -89,7 +96,7 @@ impl OnlineAsrClient {
             .get("text")
             .or_else(|| body.get("result"))
             .and_then(|value| value.as_str())
-            .ok_or_else(|| anyhow!("transcription missing text field"))?
+            .ok_or_else(|| anyhow!("transcription missing text field: {:?}", body))?
             .to_string();
 
         Ok(text)
