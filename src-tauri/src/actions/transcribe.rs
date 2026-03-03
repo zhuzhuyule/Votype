@@ -236,7 +236,7 @@ impl ShortcutAction for TranscribeAction {
                 .post_process_secondary_model_id
                 .clone()
                 .filter(|id| !id.trim().is_empty())
-                .unwrap_or_else(|| settings.selected_model.clone())
+                .unwrap_or_default()
         } else {
             String::new()
         };
@@ -465,7 +465,7 @@ impl ShortcutAction for TranscribeAction {
                         .as_ref()
                         .filter(|id| !id.trim().is_empty())
                         .cloned()
-                        .unwrap_or_else(|| settings.selected_model.clone());
+                        .unwrap_or_default();
                     let tm_for_secondary = Arc::clone(&tm);
                     let samples_for_secondary = samples.clone();
 
