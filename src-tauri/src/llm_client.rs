@@ -1,6 +1,6 @@
 use crate::settings::PostProcessProvider;
 use async_openai::{config::OpenAIConfig, Client};
-use log::debug;
+use log::{debug, info, warn};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -45,8 +45,7 @@ pub async fn fetch_models(
         format!("{}/{}", base_url, endpoint)
     };
 
-    println!("[FETCH_MODELS] Starting request to: {}", url);
-    debug!("Fetching models from: {}", url);
+    debug!("[FetchModels] {} (provider={})", url, provider.id);
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -65,34 +64,24 @@ pub async fn fetch_models(
         }
     }
 
-    let mut log_headers = headers.clone();
-    if log_headers.contains_key(AUTHORIZATION) {
-        log_headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer [REDACTED]"));
-    }
-    if log_headers.contains_key("x-api-key") {
-        log_headers.insert("x-api-key", HeaderValue::from_static("[REDACTED]"));
-    }
-    println!("[FETCH_MODELS] Request headers: {:?}", log_headers);
-
     let client = reqwest::Client::builder()
         .default_headers(headers)
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
     let response = client.get(&url).send().await.map_err(|e| {
-        println!("[FETCH_MODELS] Request failed: {}", e);
+        warn!("[FetchModels] Request failed: {}", e);
         format!("Failed to fetch models: {}", e)
     })?;
 
     let status = response.status();
-    println!("[FETCH_MODELS] Response status: {}", status);
 
     if !status.is_success() {
         let error_text = response
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        println!("[FETCH_MODELS] Error response body: {}", error_text);
+        warn!("[FetchModels] Error ({}): {}", status, error_text);
         return Err(format!(
             "Model list request failed ({}): {}",
             status, error_text
@@ -103,7 +92,6 @@ pub async fn fetch_models(
         .text()
         .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
-    println!("[FETCH_MODELS] Success response body: {}", body_text);
 
     let parsed: serde_json::Value = serde_json::from_str(&body_text)
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
@@ -124,7 +112,7 @@ pub async fn fetch_models(
         }
     }
 
-    println!("[FETCH_MODELS] Found {} models", models.len());
+    info!("[FetchModels] Found {} models", models.len());
 
     Ok(models)
 }
@@ -185,7 +173,7 @@ pub async fn send_chat_completion(
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
-    println!("[CHAT_COMPLETION] Starting request to: {}", url);
+    debug!("[ChatCompletion] {} model={}", url, model);
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -204,15 +192,6 @@ pub async fn send_chat_completion(
         }
     }
 
-    let mut log_headers = headers.clone();
-    if log_headers.contains_key(AUTHORIZATION) {
-        log_headers.insert(AUTHORIZATION, HeaderValue::from_static("Bearer [REDACTED]"));
-    }
-    if log_headers.contains_key("x-api-key") {
-        log_headers.insert("x-api-key", HeaderValue::from_static("[REDACTED]"));
-    }
-    println!("[CHAT_COMPLETION] Request headers: {:?}", log_headers);
-
     let client = reqwest::Client::builder()
         .default_headers(headers)
         .build()
@@ -226,23 +205,17 @@ pub async fn send_chat_completion(
         }],
     };
 
-    println!(
-        "[CHAT_COMPLETION] Request body: {}",
-        serde_json::to_string(&request_body).unwrap_or_default()
-    );
-
     let response = client
         .post(&url)
         .json(&request_body)
         .send()
         .await
         .map_err(|e| {
-            println!("[CHAT_COMPLETION] Request failed: {}", e);
+            warn!("[ChatCompletion] Request failed: {}", e);
             format!("HTTP request failed: {}", e)
         })?;
 
     let status = response.status();
-    println!("[CHAT_COMPLETION] Response status: {}", status);
 
     let body_text = response
         .text()
@@ -250,21 +223,19 @@ pub async fn send_chat_completion(
         .map_err(|e| format!("Failed to read response body: {}", e))?;
 
     if !status.is_success() {
-        println!("[CHAT_COMPLETION] Error response body: {}", body_text);
+        warn!("[ChatCompletion] Error ({}): {}", status, body_text);
         return Err(format!(
             "API request failed with status {}: {}",
             status, body_text
         ));
     }
 
-    println!("[CHAT_COMPLETION] Success response body: {}", body_text);
-
     let completion: ChatCompletionResponse = serde_json::from_str(&body_text).map_err(|e| {
-        println!("[CHAT_COMPLETION] Failed to parse JSON: {}", e);
+        warn!("[ChatCompletion] Failed to parse JSON: {}", e);
         format!("Failed to parse API response: {}", e)
     })?;
 
-    Ok(completion
+    let result = completion
         .choices
         .first()
         .map(|choice| InferenceResult {
@@ -274,5 +245,14 @@ pub async fn send_chat_completion(
         .unwrap_or(InferenceResult {
             content: None,
             reasoning_content: None,
-        }))
+        });
+
+    let content_len = result.content.as_ref().map(|s| s.len()).unwrap_or(0);
+    let has_reasoning = result.reasoning_content.is_some();
+    info!(
+        "[ChatCompletion] OK model={} content_len={} has_reasoning={}",
+        model, content_len, has_reasoning
+    );
+
+    Ok(result)
 }

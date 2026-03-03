@@ -746,13 +746,6 @@ pub async fn execute_llm_request(
                     if resp.status().is_success() {
                         match resp.json::<serde_json::Value>().await {
                             Ok(json_resp) => {
-                                // Log raw response structure for debugging
-                                let message = &json_resp["choices"][0]["message"];
-                                debug!(
-                                    "[LLM] Raw response message keys: {:?}",
-                                    message.as_object().map(|o| o.keys().collect::<Vec<_>>())
-                                );
-
                                 // Extract content from OpenAI-compatible response
                                 let raw_content = &json_resp["choices"][0]["message"]["content"];
                                 let content = raw_content
@@ -771,18 +764,7 @@ pub async fn execute_llm_request(
                                     info!("[LLM] Received reasoning content (len={})", r.len());
                                 }
 
-                                let preview: String = content.chars().take(100).collect();
-                                let truncated = preview.len() < content.len();
-                                info!(
-                                    "[LLM] Response content (len={}, empty={}, raw_type={}): \"{}{}\"",
-                                    content.len(),
-                                    content.is_empty(),
-                                    if raw_content.is_null() { "null" }
-                                    else if raw_content.is_string() { "string" }
-                                    else { "other" },
-                                    preview,
-                                    if truncated { "..." } else { "" }
-                                );
+                                info!("[LLM] Response content len={}", content.len());
 
                                 let (text, confidence, reason) =
                                     parse_response_with_confidence(&content);
