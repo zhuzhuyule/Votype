@@ -45,6 +45,10 @@ interface SettingsStore {
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  testPostProcessInference: (
+    providerId: string,
+    modelId: string,
+  ) => Promise<{ content?: string; reasoning_content?: string }>;
   setPostProcessModelOptions: (providerId: string, models: string[]) => void;
   addCachedModel: (model: CachedModel) => Promise<void>;
   updateCachedModelType: (
@@ -597,6 +601,24 @@ export const useSettingsStore = create<SettingsStore>()(
       } catch (error) {
         console.error("Failed to fetch models:", error);
         // Don't cache empty array on error - let user retry
+        throw error;
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    testPostProcessInference: async (providerId: string, modelId: string) => {
+      const updateKey = `test_post_process_inference:${providerId}`;
+      const { setUpdating } = get();
+      setUpdating(updateKey, true);
+      try {
+        const result = (await invoke("test_post_process_model_inference", {
+          providerId,
+          modelId,
+        })) as { content?: string; reasoning_content?: string };
+        return result;
+      } catch (error) {
+        console.error("Failed to test post-process inference:", error);
         throw error;
       } finally {
         setUpdating(updateKey, false);

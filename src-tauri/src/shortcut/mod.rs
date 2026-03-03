@@ -543,7 +543,7 @@ pub fn change_post_process_base_url_setting(
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
     if let Some(provider) = settings.post_process_provider_mut(&provider_id) {
-        provider.base_url = base_url.trim().trim_end_matches('/').to_string();
+        provider.base_url = crate::utils::normalize_base_url(&base_url);
         settings::write_settings(&app, settings);
     }
     Ok(())
@@ -632,7 +632,7 @@ pub fn add_custom_provider(
     let provider = PostProcessProvider {
         id: id.clone(),
         label: label.trim().to_string(),
-        base_url: base_url.trim().trim_end_matches('/').to_string(),
+        base_url: crate::utils::normalize_base_url(&base_url),
         allow_base_url_edit: true,
         models_endpoint,
     };
@@ -660,7 +660,7 @@ pub fn update_custom_provider(
         provider.label = l;
     }
     if let Some(b) = base_url {
-        provider.base_url = b.trim().trim_end_matches('/').to_string();
+        provider.base_url = crate::utils::normalize_base_url(&b);
     }
     if let Some(m) = models_endpoint {
         provider.models_endpoint = Some(m);
@@ -1238,11 +1238,31 @@ pub fn change_post_process_use_secondary_output_setting(
 #[tauri::command]
 #[specta::specta]
 pub async fn test_post_process_model_inference(
-    _app: AppHandle,
-    _model_id: String,
-    _provider_id: String,
-) -> Result<String, String> {
-    Ok("Test successful".to_string())
+    app: AppHandle,
+    model_id: String,
+    provider_id: String,
+) -> Result<crate::llm_client::InferenceResult, String> {
+    let settings = settings::get_settings(&app);
+    let provider = settings
+        .post_process_providers
+        .iter()
+        .find(|p| p.id == provider_id)
+        .ok_or("Provider not found")?;
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider_id)
+        .cloned()
+        .unwrap_or_default();
+
+    let result = crate::llm_client::send_chat_completion(
+        provider,
+        api_key,
+        &model_id,
+        "你是啥模型？".to_string(),
+    )
+    .await?;
+
+    Ok(result)
 }
 
 #[tauri::command]

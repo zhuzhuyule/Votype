@@ -136,7 +136,7 @@ const renderModelSection = ({
                               weight={isSelected ? "bold" : "medium"}
                               className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
                             >
-                              {model.model_id}
+                              {model.custom_label || model.model_id}
                             </Text>
                             {model.custom_label && (
                               <Badge
@@ -145,7 +145,7 @@ const renderModelSection = ({
                                 variant="soft"
                                 radius="full"
                               >
-                                {model.custom_label}
+                                {model.model_id}
                               </Badge>
                             )}
                             {isSelected && (
@@ -224,7 +224,7 @@ const renderModelSection = ({
                                       modelId: model.model_id,
                                     },
                                   )
-                                : await invoke<string>(
+                                : await invoke<any>(
                                     "test_post_process_model_inference",
                                     {
                                       providerId: model.provider_id,
@@ -233,23 +233,43 @@ const renderModelSection = ({
                                       input: "OK", // Simple input for text models
                                     },
                                   );
+
+                              const resultObj = isAsrModel
+                                ? ({ content: result as string } as const)
+                                : (result as {
+                                    content: string;
+                                    reasoning_content?: string;
+                                  });
+
+                              const mainContent = resultObj.content || "";
+                              const hasThinking =
+                                ("reasoning_content" in resultObj &&
+                                  !!resultObj.reasoning_content) ||
+                                mainContent.includes("<think>");
+
                               toast.dismiss(toastId);
-                              // Show success with result for ASR (transcription), simple success for text
+
                               const modelLabel =
                                 model.custom_label?.trim() ||
                                 model.name?.trim() ||
                                 model.model_id;
-                              const successPrefix = t(
-                                "settings.postProcessing.api.providers.testSuccess",
+
+                              const successMessage = t(
+                                "settings.postProcessing.api.providers.api.testSuccess",
+                                {
+                                  result: hasThinking
+                                    ? `[Thinking] ${mainContent}`
+                                    : mainContent,
+                                },
                               );
-                              const successMessage =
-                                isAsrModel && result
-                                  ? `${successPrefix}（${modelLabel}）: "${result}"`
-                                  : `${successPrefix}（${modelLabel}）`;
-                              toast.success(successMessage, {
-                                duration: 5000,
-                                closeButton: true,
-                              });
+
+                              toast.success(
+                                `${successMessage} (${modelLabel})`,
+                                {
+                                  duration: 5000,
+                                  closeButton: true,
+                                },
+                              );
                             } catch (error) {
                               toast.dismiss(toastId);
                               let errorMessage = String(error);

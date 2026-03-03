@@ -154,3 +154,40 @@ pub fn is_wayland() -> bool {
             .map(|v| v.to_lowercase() == "wayland")
             .unwrap_or(false)
 }
+
+/// Normalize a base URL for online ASR/LLM providers.
+/// - Trims whitespace and trailing slashes.
+/// - If the URL ends with '#', it's treated as a "raw" URL and the '#' is removed.
+/// - If the URL doesn't have a version path (e.g., /v1), then '/v1' is automatically appended.
+/// - Special protocols like `apple-intelligence://` and `ollama://` are preserved as-is.
+pub fn normalize_base_url(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    // Handle explicit raw mode (ends with #)
+    if trimmed.ends_with('#') {
+        let raw = &trimmed[..trimmed.len() - 1];
+        return raw.trim_end_matches('/').to_string();
+    }
+
+    // Skip normalization for special protocols
+    if trimmed.starts_with("apple-intelligence://") || trimmed.starts_with("ollama://") {
+        return trimmed.trim_end_matches('/').to_string();
+    }
+
+    // Check if it already contains a version like /v1, /v2, etc.
+    let has_version = trimmed.split('/').any(|segment| {
+        segment.starts_with('v')
+            && segment.len() > 1
+            && segment[1..].chars().all(|c| c.is_ascii_digit())
+    });
+
+    if has_version {
+        trimmed.trim_end_matches('/').to_string()
+    } else {
+        // Append /v1 by default
+        format!("{}/v1", trimmed.trim_end_matches('/'))
+    }
+}

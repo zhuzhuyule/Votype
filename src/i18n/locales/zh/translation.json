@@ -780,8 +780,8 @@
             },
             "testConnection": "测试模型推理",
             "testFailed": "测试失败: {{error}}",
-            "testing": "正在测试连接...",
-            "testSuccess": "测试成功"
+            "testing": "正在测试连接及推理...",
+            "testSuccess": "测试成功：{{result}}"
           },
           "builtInBadge": "内置",
           "deleteConfirm": {
@@ -798,6 +798,8 @@
           },
           "fields": {
             "baseUrl": "基础 URL",
+            "baseUrlHint": "兼容 OpenAI 的基础 URL。使用 '#' 后缀可禁用自动补全 /v1。",
+            "actualUrlPreview": "实际调用 URL 预览",
             "modelsEndpoint": "模型接口路径",
             "modelsEndpointPlaceholder": "/models",
             "name": "提供商名称",
@@ -806,7 +808,7 @@
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",
           "testFailed": "连接失败: {{error}}",
-          "testSuccess": "连接成功",
+          "testSuccess": "连接成功：{{result}}",
           "title": "提供商"
         },
         "title": "API（兼容 OpenAI）"

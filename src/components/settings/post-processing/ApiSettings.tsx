@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -277,6 +278,44 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 placeholder="https://api.openai.com/v1"
                 className="w-full"
               />
+              {localBaseUrl.trim() && (
+                <Flex
+                  direction="column"
+                  gap="1"
+                  className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700/50"
+                >
+                  <Text size="1" color="gray" weight="medium">
+                    {t(
+                      "settings.postProcessing.api.providers.fields.actualUrlPreview",
+                    )}
+                  </Text>
+                  <Text
+                    size="1"
+                    className="break-all font-mono opacity-80 text-(--accent-11)"
+                  >
+                    {(() => {
+                      let url = localBaseUrl.trim();
+                      let normalized = "";
+                      if (url.endsWith("#")) {
+                        normalized = url.slice(0, -1).replace(/\/+$/, "");
+                      } else {
+                        const isSpecial =
+                          url.startsWith("apple-intelligence://") ||
+                          url.startsWith("ollama://");
+                        const base = url.replace(/\/+$/, "");
+                        const hasVersion = /\/v\d+$/.test(base);
+
+                        if (isSpecial || hasVersion) {
+                          normalized = base;
+                        } else {
+                          normalized = base + "/v1";
+                        }
+                      }
+                      return `${normalized}/chat/completions`;
+                    })()}
+                  </Text>
+                </Flex>
+              )}
               <Text size="1" color="gray" className="opacity-70">
                 {t("settings.postProcessing.api.providers.fields.baseUrlHint")}
               </Text>
@@ -322,9 +361,17 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     // }
 
                     // 规范化 URL（仅去除尾部斜杠）
-                    const normalizedUrl = localBaseUrl
-                      .trim()
-                      .replace(/\/+$/, "");
+                    let normalizedUrl = localBaseUrl.trim();
+
+                    // 如果以 # 结尾，视为强制原始模式，移除 # 并跳过 v1 警告
+                    const isRawMode = normalizedUrl.endsWith("#");
+                    if (isRawMode) {
+                      normalizedUrl = normalizedUrl
+                        .slice(0, -1)
+                        .replace(/\/+$/, "");
+                    } else {
+                      normalizedUrl = normalizedUrl.replace(/\/+$/, "");
+                    }
 
                     // 智能检测是否缺少版本路径
                     const isSpecialProtocol =
@@ -332,10 +379,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       normalizedUrl.startsWith("ollama://");
                     const hasVersionPath = /\/v\d+$/.test(normalizedUrl);
 
-                    // 如果不是特殊协议且缺少版本路径，显示警告提示
+                    // 如果不是特殊协议、不是原始模式且缺少版本路径，显示警告提示
                     if (
                       normalizedUrl &&
                       !isSpecialProtocol &&
+                      !isRawMode &&
                       !hasVersionPath
                     ) {
                       toast.warning(
@@ -348,17 +396,50 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
                     await state.handleBaseUrlChange(normalizedUrl);
                     await state.handleApiKeyChange(localApiKey);
-                    const success = await state.testConnection();
-                    if (success) {
-                      toast.success(
-                        t("settings.postProcessing.api.providers.testSuccess"),
-                      );
+
+                    if (state.model) {
+                      const res = await state.testInference(state.model);
+                      state.setLastInferenceResult(res);
+                      const { result, error, hasThinking } = res;
+                      if (!error) {
+                        const displayResult = hasThinking
+                          ? `[Thinking] ${result}`
+                          : result;
+                        toast.success(
+                          t(
+                            "settings.postProcessing.api.providers.api.testSuccess",
+                            { result: displayResult },
+                          ),
+                        );
+                      } else {
+                        toast.error(
+                          t(
+                            "settings.postProcessing.api.providers.api.testFailed",
+                            {
+                              error,
+                            },
+                          ),
+                        );
+                      }
                     } else {
-                      toast.error(
-                        t("settings.postProcessing.api.providers.testFailed", {
-                          error: "",
-                        }),
-                      );
+                      const error = await state.testConnection();
+                      if (!error) {
+                        toast.success(
+                          t(
+                            "settings.postProcessing.api.providers.api.testSuccess",
+                            { result: "OK" },
+                          ),
+                        );
+                      } else {
+                        toast.error(
+                          t(
+                            "settings.postProcessing.api.providers.api.testFailed",
+                            {
+                              error,
+                            },
+                          ),
+                        );
+                      }
                     }
                   }}
                   disabled={isFetchingModels}
@@ -369,12 +450,47 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     <>
                       <IconPlugConnected size={14} />
                       {t(
-                        "settings.postProcessing.api.providers.testConnection",
+                        "settings.postProcessing.api.providers.api.testConnection",
                       )}
                     </>
                   )}
                 </Button>
               </Flex>
+
+              {state.lastInferenceResult && (
+                <Card className="p-4 bg-[var(--gray-2)] border-[1px] border-[var(--gray-5)] mt-2">
+                  <Flex direction="column" gap="2">
+                    <Flex align="center" gap="2">
+                      <Badge
+                        color={
+                          state.lastInferenceResult.error ? "red" : "green"
+                        }
+                        variant="soft"
+                        size="1"
+                      >
+                        {state.lastInferenceResult.error
+                          ? "Failure"
+                          : "Success"}
+                      </Badge>
+                      {state.lastInferenceResult.hasThinking && (
+                        <Badge color="amber" variant="surface" size="1">
+                          🧠 Thinking Model
+                        </Badge>
+                      )}
+                    </Flex>
+                    <Text
+                      size="1"
+                      color={
+                        state.lastInferenceResult.error ? "red" : undefined
+                      }
+                      className="whitespace-pre-wrap font-mono break-all opacity-80"
+                    >
+                      {state.lastInferenceResult.error ||
+                        state.lastInferenceResult.result}
+                    </Text>
+                  </Flex>
+                </Card>
+              )}
             </Flex>
 
             {/* Advanced Settings */}

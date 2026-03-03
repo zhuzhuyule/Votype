@@ -29,10 +29,21 @@ export type PostProcessProviderState = {
   handleModelSelect: (value: string) => void;
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
-  testConnection: () => Promise<boolean>;
+  testConnection: () => Promise<string | null>;
+  testInference: (
+    modelId: string,
+  ) => Promise<{ result?: string; error?: string; hasThinking?: boolean }>;
   verifiedProviderIds: Set<string>;
   activeProviderId: string;
   activateProvider: (providerId: string) => Promise<void>;
+  lastInferenceResult: {
+    result?: string;
+    hasThinking?: boolean;
+    error?: string;
+  } | null;
+  setLastInferenceResult: (
+    result: { result?: string; hasThinking?: boolean; error?: string } | null,
+  ) => void;
 };
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
@@ -57,6 +68,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     postProcessModelOptions,
     updateCustomProvider,
     removeCustomProvider,
+    testPostProcessInference,
   } = useSettings();
 
   const enabled = settings?.post_process_enabled || false;
@@ -200,8 +212,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     new Set(),
   );
 
-  const testConnection = useCallback(async () => {
-    if (isAppleProvider) return true;
+  const testConnection = useCallback(async (): Promise<string | null> => {
+    if (isAppleProvider) return null;
     try {
       await fetchPostProcessModels(viewingProviderId);
       setVerifiedProviderIds((prev) => {
@@ -209,16 +221,52 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         next.add(viewingProviderId);
         return next;
       });
-      return true;
+      return null;
     } catch (error) {
       setVerifiedProviderIds((prev) => {
         const next = new Set(prev);
         next.delete(viewingProviderId);
         return next;
       });
-      return false;
+      return typeof error === "string" ? error : JSON.stringify(error);
     }
   }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
+
+  const testInference = useCallback(
+    async (
+      modelId: string,
+    ): Promise<{ result?: string; error?: string; hasThinking?: boolean }> => {
+      try {
+        const { content, reasoning_content } = await testPostProcessInference(
+          viewingProviderId,
+          modelId,
+        );
+
+        const hasThinking =
+          !!reasoning_content ||
+          (!!content &&
+            (content.includes("<think>") || content.includes("</think>")));
+
+        const finalResult = content || "No response content";
+
+        return {
+          result: finalResult,
+          hasThinking,
+        };
+      } catch (error) {
+        return {
+          error: typeof error === "string" ? error : JSON.stringify(error),
+        };
+      }
+    },
+    [testPostProcessInference, viewingProviderId],
+  );
+
+  const [lastInferenceResult, setLastInferenceResult] = useState<{
+    result?: string;
+    hasThinking?: boolean;
+    error?: string;
+  } | null>(null);
 
   const availableModelsRaw = postProcessModelOptions[viewingProviderId] || [];
   console.log("[DEBUG] modelOptions computed", {
@@ -294,7 +342,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     modelsEndpoint,
     handleModelsEndpointChange,
     testConnection,
+    testInference,
     verifiedProviderIds,
     activateProvider: setPostProcessProvider,
+    lastInferenceResult,
+    setLastInferenceResult,
   };
 };

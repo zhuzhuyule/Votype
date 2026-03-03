@@ -63,6 +63,10 @@ interface UseSettingsReturn {
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;
   selectPromptModel: (modelId: string | null) => Promise<void>;
+  testPostProcessInference: (
+    providerId: string,
+    modelId: string,
+  ) => Promise<{ content?: string; reasoning_content?: string }>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
@@ -106,5 +110,6 @@ export const useSettings = (): UseSettingsReturn => {
     addCustomProvider: store.addCustomProvider,
     updateCustomProvider: store.updateCustomProvider,
     removeCustomProvider: store.removeCustomProvider,
+    testPostProcessInference: store.testPostProcessInference,
   };
 };

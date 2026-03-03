@@ -841,7 +841,7 @@
             "testConnection": "Test Model Inference",
             "testFailed": "Test failed: {{error}}",
             "testing": "Testing connection...",
-            "testSuccess": "Test successful"
+            "testSuccess": "Test successful: {{result}}"
           },
           "builtInBadge": "Built-in",
           "deleteConfirm": {
@@ -859,7 +859,8 @@
           "fields": {
             "apiKey": "API Key",
             "baseUrl": "Base URL",
-            "baseUrlHint": "OpenAI compatible mode, usually ends with /v1",
+            "baseUrlHint": "OpenAI compatible mode, usually ends with /v1. Use '#' suffix to bypass /v1 auto-append.",
+            "actualUrlPreview": "Actual API URL Preview",
             "modelsEndpoint": "Models Endpoint",
             "modelsEndpointPlaceholder": "/models",
             "name": "Provider Name",
