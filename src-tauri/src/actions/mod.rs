@@ -2,7 +2,7 @@ use crate::utils;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 pub mod post_process;
 mod transcribe;
@@ -31,11 +31,7 @@ struct CancelAction;
 
 impl ShortcutAction for CancelAction {
     fn start(&self, app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
-        // Only cancel if we are actually recording
-        let audio_manager = app.state::<Arc<crate::managers::audio::AudioRecordingManager>>();
-        if audio_manager.is_recording() {
-            utils::cancel_current_operation(app);
-        }
+        utils::cancel_current_operation(app);
     }
 
     fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {

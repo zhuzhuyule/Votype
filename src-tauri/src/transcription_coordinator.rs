@@ -94,9 +94,8 @@ impl TranscriptionCoordinator {
                         Command::Cancel {
                             recording_was_active,
                         } => {
-                            // Don't reset during processing — wait for the pipeline to finish.
-                            if !matches!(stage, Stage::Processing)
-                                && (recording_was_active || matches!(stage, Stage::Recording(_)))
+                            if matches!(stage, Stage::Recording(_) | Stage::Processing)
+                                || recording_was_active
                             {
                                 stage = Stage::Idle;
                             }

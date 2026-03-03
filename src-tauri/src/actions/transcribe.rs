@@ -290,8 +290,6 @@ impl ShortcutAction for TranscribeAction {
     }
 
     fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
-        shortcut::unregister_cancel_shortcut(app);
-
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
@@ -312,8 +310,19 @@ impl ShortcutAction for TranscribeAction {
         let current_transcription_id = rm.get_current_transcription_id();
         let binding_id = binding_id.to_string();
         let skill_mode = self.skill_mode;
+        let ppm_outer = Arc::clone(&ppm);
 
-        tauri::async_runtime::spawn(async move {
+        let pipeline_handle = tauri::async_runtime::spawn(async move {
+            // RAII guard to unregister the cancel shortcut when the async block
+            // exits — whether normally or via abort.
+            struct CancelShortcutGuard(AppHandle);
+            impl Drop for CancelShortcutGuard {
+                fn drop(&mut self) {
+                    shortcut::unregister_cancel_shortcut(&self.0);
+                }
+            }
+            let _cancel_guard = CancelShortcutGuard(ah.clone());
+
             debug!(
                 "Starting async transcription task for binding: {} (ID: {})",
                 binding_id, current_transcription_id
@@ -380,6 +389,57 @@ impl ShortcutAction for TranscribeAction {
                         info!("[Selection] Recording stopped - no text captured (get_selected_text returned None)");
                     }
                 }
+
+                // Pre-save audio with empty placeholder so the recording is preserved
+                // even if the pipeline is aborted during transcription/post-processing.
+                let asr_model_for_presave = if settings.online_asr_enabled {
+                    settings
+                        .selected_asr_model_id
+                        .clone()
+                        .unwrap_or_else(|| "online".to_string())
+                } else {
+                    settings.selected_model.clone()
+                };
+                let streaming_asr_model_for_presave =
+                    if settings.online_asr_enabled && settings.post_process_use_secondary_output {
+                        settings
+                            .post_process_secondary_model_id
+                            .clone()
+                            .or(Some(settings.selected_model.clone()))
+                    } else if !settings.online_asr_enabled {
+                        Some(settings.selected_model.clone())
+                    } else {
+                        None
+                    };
+                let presave_history_id = match hm
+                    .save_transcription(
+                        samples.clone(),
+                        String::new(), // empty placeholder
+                        None,
+                        streaming_asr_model_for_presave,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(duration_ms),
+                        None, // transcription_ms not known yet
+                        Some(settings.selected_language.clone()),
+                        Some(asr_model_for_presave),
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.app_name.clone()),
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.title.clone()),
+                    )
+                    .await
+                {
+                    Ok(id) => Some(id),
+                    Err(e) => {
+                        error!("Failed to pre-save audio to history: {}", e);
+                        None
+                    }
+                };
 
                 let transcription_time = Instant::now();
                 // Streaming workers no longer exist without Sherpa
@@ -532,7 +592,7 @@ impl ShortcutAction for TranscribeAction {
                 }
 
                 let transcription_ms = transcription_time.elapsed().as_millis() as i64;
-                let streaming_text = secondary_result
+                let _streaming_text = secondary_result
                     .clone()
                     .or_else(|| incremental_result.clone())
                     .filter(|t| !t.trim().is_empty());
@@ -545,7 +605,6 @@ impl ShortcutAction for TranscribeAction {
                     );
 
                     let transcription_clone = transcription.clone();
-                    let samples_clone = samples.clone();
 
                     let asr_model = if settings.online_asr_enabled {
                         settings
@@ -556,47 +615,26 @@ impl ShortcutAction for TranscribeAction {
                         settings.selected_model.clone()
                     };
 
-                    let streaming_asr_model = if settings.online_asr_enabled
-                        && settings.post_process_use_secondary_output
-                    {
-                        settings
-                            .post_process_secondary_model_id
-                            .clone()
-                            .or(Some(settings.selected_model.clone()))
-                    } else if !settings.online_asr_enabled {
-                        Some(settings.selected_model.clone())
+                    // Update the pre-saved placeholder with actual transcription content
+                    let history_id = if let Some(pid) = presave_history_id {
+                        let char_count = transcription.chars().count() as i64;
+                        if let Err(e) = hm
+                            .update_transcription_content(
+                                pid,
+                                transcription.clone(),
+                                asr_model,
+                                settings.selected_language.clone(),
+                                duration_ms,
+                                transcription_ms,
+                                char_count,
+                            )
+                            .await
+                        {
+                            error!("Failed to update transcription content: {}", e);
+                        }
+                        Some(pid)
                     } else {
                         None
-                    };
-
-                    let history_id = match hm
-                        .save_transcription(
-                            samples_clone,
-                            transcription.clone(),
-                            streaming_text.clone(),
-                            streaming_asr_model,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(duration_ms),
-                            Some(transcription_ms),
-                            Some(settings.selected_language.clone()),
-                            Some(asr_model),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.app_name.clone()),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.title.clone()),
-                        )
-                        .await
-                    {
-                        Ok(id) => Some(id),
-                        Err(e) => {
-                            error!("Failed to save transcription to history: {}", e);
-                            None
-                        }
                     };
 
                     if rm.get_current_transcription_id() != current_transcription_id {
@@ -960,6 +998,9 @@ impl ShortcutAction for TranscribeAction {
                         });
 
                         ppm_clone.set_current_task(task.abort_handle());
+                        // Await the inner task so the CancelShortcutGuard stays
+                        // alive (keeping Esc registered) during post-processing.
+                        let _ = task.await;
                     } else {
                         let ah_clone = ah.clone();
                         ah.run_on_main_thread(move || {
@@ -983,7 +1024,8 @@ impl ShortcutAction for TranscribeAction {
                     let err_msg = primary_error.unwrap_or_else(|| "unknown".to_string());
                     debug!("Global Shortcut Transcription error: {}", err_msg);
 
-                    // Save the audio even when transcription fails, so users can retry later.
+                    // Update the pre-saved placeholder with the failure message.
+                    // Audio was already saved during pre-save so users can retry later.
                     let asr_model = if settings.online_asr_enabled {
                         settings
                             .selected_asr_model_id
@@ -993,44 +1035,22 @@ impl ShortcutAction for TranscribeAction {
                         settings.selected_model.clone()
                     };
 
-                    let streaming_asr_model = if settings.online_asr_enabled
-                        && settings.post_process_use_secondary_output
-                    {
-                        settings
-                            .post_process_secondary_model_id
-                            .clone()
-                            .or(Some(settings.selected_model.clone()))
-                    } else if !settings.online_asr_enabled {
-                        Some(settings.selected_model.clone())
-                    } else {
-                        None
-                    };
-
                     let failure_text = format!("[Transcription failed] {}", err_msg);
-                    if let Err(e) = hm
-                        .save_transcription(
-                            samples.clone(),
-                            failure_text,
-                            streaming_text.clone(),
-                            streaming_asr_model,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(duration_ms),
-                            Some(transcription_ms),
-                            Some(settings.selected_language.clone()),
-                            Some(asr_model),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.app_name.clone()),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.title.clone()),
-                        )
-                        .await
-                    {
-                        error!("Failed to save failed transcription to history: {}", e);
+                    if let Some(pid) = presave_history_id {
+                        if let Err(e) = hm
+                            .update_transcription_content(
+                                pid,
+                                failure_text,
+                                asr_model,
+                                settings.selected_language.clone(),
+                                duration_ms,
+                                transcription_ms,
+                                0,
+                            )
+                            .await
+                        {
+                            error!("Failed to update failed transcription in history: {}", e);
+                        }
                     }
 
                     let _ = ah.emit(
@@ -1062,6 +1082,8 @@ impl ShortcutAction for TranscribeAction {
                 }
             }
         });
+
+        ppm_outer.set_pipeline_task(pipeline_handle);
 
         debug!(
             "TranscribeAction::stop completed in {:?}",

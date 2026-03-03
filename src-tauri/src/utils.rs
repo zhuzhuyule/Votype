@@ -130,6 +130,10 @@ pub fn cancel_current_operation(app: &AppHandle) {
     change_tray_icon(app, crate::tray::TrayIconState::Idle);
     hide_recording_overlay(app);
 
+    // Abort the async transcription/post-processing pipeline
+    let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
+    ppm.cancel_pipeline();
+
     // Cancel any ongoing transcription actively
     let tm = app.state::<Arc<TranscriptionManager>>();
     let _ = tm.unload_model();
