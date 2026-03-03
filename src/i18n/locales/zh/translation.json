@@ -157,6 +157,7 @@
       "title": "后处理",
       "punctuation": "自动标点",
       "translate": "翻译为英文",
+      "realtime": "实时预览",
       "llm": "大模型后处理",
       "selectModel": "选择模型..."
     }

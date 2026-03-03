@@ -11,6 +11,7 @@ import {
   IconCheck,
   IconChevronRight,
   IconLanguage,
+  IconPlayerPlay,
   IconSparkles,
   IconTextGrammar,
   IconWand,
@@ -25,6 +26,9 @@ export const PostProcessBar: React.FC = () => {
     useSettings();
   const [showModelList, setShowModelList] = useState(false);
 
+  const realtimeEnabled = getSetting("realtime_transcription_enabled") || false;
+  const realtimeUpdating = isUpdating("realtime_transcription_enabled");
+
   const punctEnabled = getSetting("punctuation_enabled") || false;
   const punctUpdating = isUpdating("punctuation_enabled");
 
@@ -34,7 +38,12 @@ export const PostProcessBar: React.FC = () => {
   const llmEnabled = getSetting("post_process_enabled") || false;
   const llmUpdating = isUpdating("post_process_enabled");
 
-  const hasActiveProcess = punctEnabled || translateEnabled || llmEnabled;
+  const onlineAsrEnabled = getSetting("online_asr_enabled") || false;
+  const secondaryOutputEnabled =
+    getSetting("post_process_use_secondary_output") || false;
+
+  const hasActiveProcess =
+    realtimeEnabled || punctEnabled || translateEnabled || llmEnabled;
 
   const textModels = useMemo(
     () =>
@@ -79,6 +88,23 @@ export const PostProcessBar: React.FC = () => {
             <Text size="1" weight="bold" color="gray">
               {t("footer.postProcess.title")}
             </Text>
+
+            {(!onlineAsrEnabled || secondaryOutputEnabled) && (
+              <Flex justify="between" align="center" gap="4">
+                <Flex align="center" gap="2">
+                  <IconPlayerPlay size={14} />
+                  <Text size="2">{t("footer.postProcess.realtime")}</Text>
+                </Flex>
+                <Switch
+                  size="1"
+                  checked={realtimeEnabled}
+                  disabled={realtimeUpdating}
+                  onCheckedChange={(checked) =>
+                    updateSetting("realtime_transcription_enabled", checked)
+                  }
+                />
+              </Flex>
+            )}
 
             <Flex justify="between" align="center" gap="4">
               <Flex align="center" gap="2">

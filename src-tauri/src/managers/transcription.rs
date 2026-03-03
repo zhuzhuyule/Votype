@@ -63,6 +63,7 @@ pub struct TranscriptionManager {
     is_loading: Arc<Mutex<bool>>,
     loading_condvar: Arc<Condvar>,
     punct_model: Arc<Mutex<Option<transcribe_rs::punct::PunctModel>>>,
+    engine_in_use: Arc<AtomicBool>,
 }
 
 impl TranscriptionManager {
@@ -83,6 +84,7 @@ impl TranscriptionManager {
             is_loading: Arc::new(Mutex::new(false)),
             loading_condvar: Arc::new(Condvar::new()),
             punct_model: Arc::new(Mutex::new(None)),
+            engine_in_use: Arc::new(AtomicBool::new(false)),
         };
 
         // Start the idle watcher
@@ -517,6 +519,21 @@ impl TranscriptionManager {
             return Ok(String::new());
         }
 
+        // Wait for realtime worker to release the engine if it's mid-transcription.
+        // This avoids a race where stop() drops the speech-frame sender and spawns
+        // the final transcription while the realtime worker still holds the engine.
+        {
+            let wait_start = std::time::Instant::now();
+            while self.engine_in_use.load(Ordering::Acquire) {
+                if wait_start.elapsed() > Duration::from_secs(5) {
+                    return Err(anyhow::anyhow!(
+                        "Timeout waiting for engine (realtime worker did not release)."
+                    ));
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+
         // Check if model is loaded
         {
             // If the model is loading, wait for it to complete.
@@ -549,6 +566,7 @@ impl TranscriptionManager {
                     return Err(anyhow::anyhow!("Model is not loaded for transcription."));
                 }
             };
+            self.engine_in_use.store(true, Ordering::Release);
 
             // Release the lock before transcribing — no mutex held during the engine call
             drop(engine_guard);
@@ -638,11 +656,13 @@ impl TranscriptionManager {
             match transcribe_result {
                 Ok(inner_result) => {
                     // Success or normal error — put the engine back
+                    self.engine_in_use.store(false, Ordering::Release);
                     let mut engine_guard = self.lock_engine();
                     *engine_guard = Some(engine);
                     inner_result?
                 }
                 Err(panic_payload) => {
+                    self.engine_in_use.store(false, Ordering::Release);
                     // Engine panicked — do NOT put it back (it's in an unknown state).
                     // The engine is dropped here, effectively unloading it.
                     let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
@@ -774,6 +794,132 @@ impl TranscriptionManager {
         self.maybe_unload_immediately("transcription");
 
         Ok(final_result)
+    }
+
+    /// Try to apply punctuation non-blockingly. Returns `None` if model not loaded or busy.
+    pub fn try_add_punctuation(&self, text: &str) -> Option<String> {
+        let settings = get_settings(&self.app_handle);
+        if !settings.punctuation_enabled {
+            return None;
+        }
+        if let Ok(mut guard) = self.punct_model.try_lock() {
+            if let Some(ref mut punct) = *guard {
+                return Some(punct.add_punctuation(text));
+            }
+        }
+        None
+    }
+
+    /// Pre-load the punctuation model so it's ready when needed.
+    pub fn ensure_punct_model_loaded(&self) {
+        let settings = get_settings(&self.app_handle);
+        if !settings.punctuation_enabled {
+            return;
+        }
+        let punct_model_id = &settings.punctuation_model;
+        if punct_model_id.is_empty() {
+            return;
+        }
+        let model_info = match self.model_manager.get_model_info(punct_model_id) {
+            Some(info) if info.is_downloaded => info,
+            _ => return,
+        };
+        let model_dir = match self.model_manager.get_model_path(punct_model_id) {
+            Ok(dir) => dir,
+            Err(_) => return,
+        };
+        let mut punct_guard = self.punct_model.lock().unwrap_or_else(|e| e.into_inner());
+        if punct_guard.is_some() {
+            return;
+        }
+        info!("Pre-loading punctuation model for realtime preview...");
+        match transcribe_rs::punct::PunctModel::new(&model_dir) {
+            Ok(model) => {
+                *punct_guard = Some(model);
+                info!(
+                    "Punctuation model '{}' pre-loaded successfully",
+                    model_info.name
+                );
+            }
+            Err(e) => {
+                warn!("Failed to pre-load punctuation model: {}", e);
+            }
+        }
+    }
+
+    /// Non-blocking transcription for realtime preview.
+    /// Returns `None` immediately if the engine is busy, not loaded, or audio is empty.
+    /// Does not wait for model loading, update last_activity, or trigger auto-unload.
+    pub fn try_transcribe_raw(&self, audio: Vec<f32>) -> Option<String> {
+        if audio.is_empty() {
+            return None;
+        }
+        if self.engine_in_use.load(Ordering::Acquire) {
+            return None;
+        }
+
+        let mut engine_guard = self.engine.try_lock().ok()?;
+        let mut engine = engine_guard.take()?;
+        self.engine_in_use.store(true, Ordering::Release);
+        drop(engine_guard);
+
+        let result = catch_unwind(AssertUnwindSafe(
+            || -> Result<transcribe_rs::TranscriptionResult> {
+                match &mut engine {
+                    LoadedEngine::Whisper(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("Whisper realtime failed: {}", e)),
+                    LoadedEngine::Parakeet(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("Parakeet realtime failed: {}", e)),
+                    LoadedEngine::Moonshine(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("Moonshine realtime failed: {}", e)),
+                    LoadedEngine::MoonshineStreaming(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("MoonshineStreaming realtime failed: {}", e)),
+                    LoadedEngine::SenseVoice(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("SenseVoice realtime failed: {}", e)),
+                    LoadedEngine::Paraformer(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("Paraformer realtime failed: {}", e)),
+                    LoadedEngine::ZipformerTransducer(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("ZipformerTransducer realtime failed: {}", e)),
+                    LoadedEngine::ZipformerCtc(e) => e
+                        .transcribe_samples(audio, None)
+                        .map_err(|e| anyhow::anyhow!("ZipformerCtc realtime failed: {}", e)),
+                }
+            },
+        ));
+
+        self.engine_in_use.store(false, Ordering::Release);
+
+        match result {
+            Ok(Ok(transcription)) => {
+                let mut guard = self.lock_engine();
+                *guard = Some(engine);
+                let text = transcription.text.trim().to_string();
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text)
+                }
+            }
+            Ok(Err(e)) => {
+                warn!("Realtime transcription error: {}", e);
+                // Put engine back even on transcription error (engine state is fine)
+                let mut guard = self.lock_engine();
+                *guard = Some(engine);
+                None
+            }
+            Err(_) => {
+                // Engine panicked — don't put it back
+                warn!("Realtime transcription engine panicked, engine dropped");
+                None
+            }
+        }
     }
 }
 

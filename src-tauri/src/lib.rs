@@ -450,6 +450,7 @@ pub fn run() {
             shortcut::change_confidence_threshold_setting,
             shortcut::change_punctuation_enabled_setting,
             shortcut::change_punctuation_model_setting,
+            shortcut::change_realtime_transcription_enabled_setting,
             shortcut::change_offline_vad_force_interval_ms_setting,
             shortcut::change_offline_vad_force_window_seconds_setting,
             shortcut::upsert_app_profile,

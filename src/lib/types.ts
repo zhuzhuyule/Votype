@@ -227,6 +227,7 @@ export const SettingsSchema = z.object({
     .optional()
     .default("punct-zh-en-ct-transformer-2024-04-12-int8"),
   favorite_transcription_models: z.array(z.string()).optional().default([]),
+  realtime_transcription_enabled: z.boolean().optional().default(false),
   offline_vad_force_interval_ms: z.number().optional().default(2000),
   offline_vad_force_window_seconds: z.number().optional().default(30),
   confidence_check_enabled: z.boolean().optional().default(false),

@@ -173,6 +173,7 @@
       "title": "Post-processing",
       "punctuation": "Auto-punctuation",
       "translate": "Translate to English",
+      "realtime": "Realtime Preview",
       "llm": "LLM Post-process",
       "selectModel": "Select model..."
     }

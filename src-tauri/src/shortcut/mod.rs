@@ -1069,6 +1069,18 @@ pub fn change_punctuation_model_setting(app: AppHandle, model: String) -> Result
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_realtime_transcription_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.realtime_transcription_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_offline_vad_force_interval_ms_setting(
     app: AppHandle,
     interval: u64,

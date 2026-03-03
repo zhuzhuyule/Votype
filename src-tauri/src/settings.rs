@@ -525,6 +525,8 @@ pub struct AppSettings {
     pub punctuation_model: String,
     #[serde(default = "default_favorite_transcription_models")]
     pub favorite_transcription_models: Vec<String>,
+    #[serde(default)]
+    pub realtime_transcription_enabled: bool,
     #[serde(default = "default_offline_vad_force_interval_ms")]
     pub offline_vad_force_interval_ms: u64,
     #[serde(default = "default_offline_vad_force_window_seconds")]
@@ -1053,6 +1055,7 @@ pub fn get_default_settings() -> AppSettings {
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
         favorite_transcription_models: default_favorite_transcription_models(),
+        realtime_transcription_enabled: false,
         offline_vad_force_interval_ms: default_offline_vad_force_interval_ms(),
         offline_vad_force_window_seconds: default_offline_vad_force_window_seconds(),
         confidence_check_enabled: default_confidence_check_enabled(),

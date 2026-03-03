@@ -198,7 +198,13 @@ impl ShortcutAction for TranscribeAction {
         ppm.cancel_current_task();
 
         let settings_for_load = get_settings(app);
-        if !settings_for_load.online_asr_enabled {
+
+        // Realtime preview: enabled for local ASR, or online ASR with secondary local model
+        let enable_realtime = settings_for_load.realtime_transcription_enabled
+            && (!settings_for_load.online_asr_enabled
+                || settings_for_load.post_process_use_secondary_output);
+
+        if !settings_for_load.online_asr_enabled || enable_realtime {
             let tm = app.state::<Arc<TranscriptionManager>>();
             tm.initiate_model_load();
         } else {
@@ -212,10 +218,12 @@ impl ShortcutAction for TranscribeAction {
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
         // Setup channel for receiving audio frames for realtime simulation if using local model
-        let (_realtime_tx, _realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
-        // TODO: Support an explicit user switch to enable simulated real-time transcription (e.g., settings.realtime_transcription_enabled)
-        // Currently disabled as requested to avoid engine overload and mismatch errors for streaming models.
-        rm.set_speech_frame_sender(None);
+        let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
+        if enable_realtime {
+            rm.set_speech_frame_sender(Some(realtime_tx));
+        } else {
+            rm.set_speech_frame_sender(None);
+        }
 
         rm.set_online_transcription_receiver(None);
         let _mm = app.state::<Arc<ModelManager>>();
@@ -273,14 +281,28 @@ impl ShortcutAction for TranscribeAction {
         if recording_started {
             shortcut::register_cancel_shortcut(app);
 
-            /*
-            TODO: Re-enable the simulated realtime loop when the realtime transcription settings switch is added.
-            if !settings_for_load.online_asr_enabled {
+            if enable_realtime {
                 let tm_realtime = app.state::<Arc<TranscriptionManager>>().inner().clone();
                 let app_handle_realtime = app.clone();
-                // ... spawned thread to consume realtime_rx and emit "realtime-partial" ...
+                let interval_ms = settings_for_load.offline_vad_force_interval_ms;
+                let window_secs = settings_for_load.offline_vad_force_window_seconds;
+
+                // Pre-load punct model in background so anchored punctuation is ready
+                let tm_punct = tm_realtime.clone();
+                std::thread::spawn(move || {
+                    tm_punct.ensure_punct_model_loaded();
+                });
+
+                std::thread::spawn(move || {
+                    realtime_worker_loop(
+                        realtime_rx,
+                        &tm_realtime,
+                        &app_handle_realtime,
+                        interval_ms,
+                        window_secs,
+                    );
+                });
             }
-            */
         }
 
         debug!(
@@ -303,6 +325,10 @@ impl ShortcutAction for TranscribeAction {
 
         change_tray_icon(app, TrayIconState::Transcribing);
         show_transcribing_overlay(app);
+
+        // Drop the speech frame sender so the realtime worker exits
+        // before the final transcription grabs the engine.
+        rm.set_speech_frame_sender(None);
 
         rm.remove_mute();
         play_feedback_sound(app, SoundType::Stop);
@@ -1094,4 +1120,277 @@ impl ShortcutAction for TranscribeAction {
     fn mode(&self) -> super::ActionMode {
         super::ActionMode::Stateful
     }
+}
+
+fn realtime_worker_loop(
+    rx: std::sync::mpsc::Receiver<Vec<f32>>,
+    tm: &TranscriptionManager,
+    app: &AppHandle,
+    interval_ms: u64,
+    window_seconds: u64,
+) {
+    let sample_rate = 16000;
+    let max_window_samples = (window_seconds as usize) * sample_rate;
+    let mut accumulated: Vec<f32> = Vec::new();
+    let mut last_transcribe = Instant::now();
+    let mut has_new_audio = false;
+    // Segment-based: keep finalized text from previous segments, only re-transcribe current window
+    let mut finalized_text = String::new();
+    let mut finalized_samples: usize = 0;
+
+    // Punctuation anchoring: run punct model every few seconds, use anchors in between
+    let punct_interval = Duration::from_secs(3);
+    let mut last_punct_run = Instant::now();
+    let mut punct_anchors: Vec<PunctAnchor> = Vec::new();
+    // Track the last raw text so we can apply final punctuation on exit
+    let mut last_raw_text = String::new();
+
+    loop {
+        match rx.recv_timeout(Duration::from_millis(interval_ms)) {
+            Ok(frame) => {
+                accumulated.extend_from_slice(&frame);
+                has_new_audio = true;
+
+                // Check if it's time to transcribe
+                if last_transcribe.elapsed().as_millis() < interval_ms as u128 {
+                    continue;
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                // No new speech frames — skip if no new audio since last transcription
+                if !has_new_audio || accumulated.is_empty() {
+                    continue;
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                // Recording ended — do one final punct pass on the full text
+                if !last_raw_text.is_empty() {
+                    if let Some(final_punctuated) = tm.try_add_punctuation(&last_raw_text) {
+                        debug!("Realtime worker: final punct pass before exit");
+                        let _ = app.emit(
+                            "realtime-partial",
+                            serde_json::json!({ "text": final_punctuated }),
+                        );
+                    }
+                }
+                debug!("Realtime worker: channel disconnected, exiting");
+                break;
+            }
+        }
+
+        if accumulated.is_empty() {
+            continue;
+        }
+
+        // Only transcribe the current (un-finalized) window
+        let current_audio = &accumulated[finalized_samples..];
+        // Need at least ~1.5s of audio for meaningful transcription;
+        // shorter clips produce garbage results.
+        if current_audio.len() < sample_rate * 3 / 2 {
+            continue;
+        }
+
+        let st = Instant::now();
+        if let Some(current_text) = tm.try_transcribe_raw(current_audio.to_vec()) {
+            let elapsed_ms = st.elapsed().as_millis();
+
+            // Filter out non-displayable characters (rare model tokens that render
+            // as replacement chars or control chars in UI/terminal).
+            let clean_text: String = current_text
+                .chars()
+                .filter(|c| {
+                    !c.is_control() && *c != '\u{FFFD}' && !('\u{E000}'..='\u{F8FF}').contains(c)
+                    // Private Use Area
+                })
+                .collect();
+            if clean_text.is_empty() {
+                continue;
+            }
+
+            // Combine finalized segments with current window
+            let raw_text = if finalized_text.is_empty() {
+                clean_text.clone()
+            } else {
+                format!("{}{}", finalized_text, clean_text)
+            };
+            last_raw_text.clone_from(&raw_text);
+
+            // Punctuation: run model every ~3s to extract anchors,
+            // apply saved anchors on intermediate cycles for consistent display.
+            let display_text = if last_punct_run.elapsed() >= punct_interval {
+                if let Some(punctuated) = tm.try_add_punctuation(&raw_text) {
+                    punct_anchors = extract_punct_anchors(&raw_text, &punctuated);
+                    last_punct_run = Instant::now();
+                    debug!(
+                        "Punct anchors updated: {} anchors from {} chars",
+                        punct_anchors.len(),
+                        raw_text.chars().count()
+                    );
+                    punctuated
+                } else {
+                    // Punct model busy — fall back to anchors
+                    apply_punct_anchors(&raw_text, &punct_anchors)
+                }
+            } else {
+                apply_punct_anchors(&raw_text, &punct_anchors)
+            };
+
+            info!(
+                "Realtime partial ({}ms, {}s audio): {}",
+                elapsed_ms,
+                current_audio.len() / sample_rate,
+                display_text,
+            );
+            let _ = app.emit(
+                "realtime-partial",
+                serde_json::json!({ "text": display_text }),
+            );
+            last_transcribe = Instant::now();
+            has_new_audio = false;
+
+            // If current window exceeds max, finalize it and start fresh
+            if current_audio.len() > max_window_samples {
+                finalized_text = raw_text;
+                finalized_samples = accumulated.len();
+                debug!(
+                    "Realtime: finalized segment, total finalized text len={}",
+                    finalized_text.len()
+                );
+            }
+        }
+        // If engine is busy, skip this round — try again next interval
+    }
+}
+
+// ─── Punctuation anchoring ──────────────────────────────────────────────────
+
+/// A punctuation mark with its surrounding character context, used to
+/// re-insert punctuation into new ASR output between punct-model runs.
+struct PunctAnchor {
+    /// Up to 2 characters immediately before the punctuation mark.
+    before: String,
+    /// Up to 1 character immediately after (empty if punct is at end of text).
+    after: String,
+    /// The punctuation character itself.
+    punct: char,
+}
+
+/// Characters the CT-Transformer punct model may insert.
+fn is_inserted_punct(c: char) -> bool {
+    matches!(
+        c,
+        '，' | '。'
+            | '！'
+            | '？'
+            | '；'
+            | '：'
+            | '、'
+            | '\u{201C}' // "
+            | '\u{201D}' // "
+            | '\u{2018}' // '
+            | '\u{2019}' // '
+            | '（'
+            | '）'
+            | '《'
+            | '》'
+            | '【'
+            | '】'
+            | '…'
+            | '—'
+            | ','
+            | '.'
+            | '!'
+            | '?'
+            | ';'
+            | ':'
+    )
+}
+
+/// Compare raw text with its punctuated version and extract anchors
+/// that record where each punctuation mark was inserted.
+fn extract_punct_anchors(raw: &str, punctuated: &str) -> Vec<PunctAnchor> {
+    let raw_chars: Vec<char> = raw.chars().collect();
+    let punct_chars: Vec<char> = punctuated.chars().collect();
+    let mut anchors = Vec::new();
+    let mut ri = 0; // index into raw_chars
+    let mut pi = 0; // index into punct_chars
+
+    while pi < punct_chars.len() {
+        if ri < raw_chars.len() && punct_chars[pi] == raw_chars[ri] {
+            // Characters match — advance both
+            ri += 1;
+            pi += 1;
+        } else if is_inserted_punct(punct_chars[pi]) {
+            // Inserted punctuation — record surrounding context from raw text
+            let before: String = raw_chars[..ri]
+                .iter()
+                .rev()
+                .take(2)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .cloned()
+                .collect();
+            let after: String = raw_chars[ri..].iter().take(1).cloned().collect();
+
+            if !before.is_empty() {
+                anchors.push(PunctAnchor {
+                    before,
+                    after,
+                    punct: punct_chars[pi],
+                });
+            }
+            pi += 1;
+        } else {
+            // Non-punct mismatch — alignment is broken, stop
+            break;
+        }
+    }
+
+    anchors
+}
+
+/// Apply saved punctuation anchors to new raw text by matching the
+/// surrounding character patterns and inserting punct marks.
+fn apply_punct_anchors(raw: &str, anchors: &[PunctAnchor]) -> String {
+    if anchors.is_empty() {
+        return raw.to_string();
+    }
+
+    // Collect insertion points: (byte_position, punct_char)
+    let mut insertions: Vec<(usize, char)> = Vec::new();
+    let mut search_from: usize = 0;
+
+    for anchor in anchors {
+        if anchor.after.is_empty() {
+            // Punct was at the end of text — only insert if text still ends with `before`
+            if raw.ends_with(&anchor.before) {
+                insertions.push((raw.len(), anchor.punct));
+            }
+        } else {
+            let pattern = format!("{}{}", anchor.before, anchor.after);
+            if let Some(rel_pos) = raw[search_from..].find(&pattern) {
+                let abs_pos = search_from + rel_pos;
+                let insert_pos = abs_pos + anchor.before.len();
+                insertions.push((insert_pos, anchor.punct));
+                search_from = insert_pos;
+            }
+        }
+    }
+
+    if insertions.is_empty() {
+        return raw.to_string();
+    }
+
+    // Insert from right to left so earlier byte positions stay valid
+    insertions.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let mut result = raw.to_string();
+    for (pos, punct) in insertions {
+        if pos <= result.len() {
+            result.insert(pos, punct);
+        }
+    }
+
+    result
 }
