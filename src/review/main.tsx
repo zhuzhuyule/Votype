@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import "../App.css";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { RadixThemeProvider } from "../components/theme/RadixThemeProvider";
 import "../i18n";
 import ReviewWindow from "./ReviewWindow";
@@ -46,47 +47,6 @@ interface MultiCandidateData {
 
 interface ReviewHidePayload {
   history_id: number | null;
-}
-
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ReviewWindow crashed:", error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <Box
-          style={{
-            padding: 20,
-            color: "red",
-            background: "rgba(255,255,255,0.9)",
-            borderRadius: 8,
-            maxWidth: 400,
-            margin: "20px auto",
-          }}
-        >
-          <h3>Something went wrong.</h3>
-          <pre style={{ fontSize: 11, overflow: "auto" }}>
-            {this.state.error?.toString()}
-          </pre>
-        </Box>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 const ReviewApp: React.FC = () => {

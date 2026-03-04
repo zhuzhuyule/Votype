@@ -11,11 +11,18 @@
     "title": "应用语言"
   },
   "common": {
+    "active": "活跃",
     "add": "添加",
     "addNewOption": "添加新选项",
+    "aiOptimizationFailed": "AI 优化失败，请检查配置",
+    "aiOptimizationSuccess": "AI 优化成功",
+    "aiOptimize": "AI 润色",
     "authorize": "授权",
+    "bold": "加粗",
     "cancel": "取消",
     "close": "关闭",
+    "code": "行内代码",
+    "confirm": "确认",
     "copied": "已复制",
     "copy": "复制",
     "create": "创建",
@@ -25,10 +32,17 @@
     "done": "完成",
     "edit": "编辑",
     "enabled": "已启用",
+    "exitFullscreen": "还原",
     "filterOptions": "筛选选项...",
+    "fullscreen": "全屏",
     "granted": "已授权",
+    "h1": "H1",
     "history": "历史记录",
+    "id": "ID",
+    "italic": "斜体",
     "latest": "最新",
+    "link": "链接",
+    "list": "列表",
     "loading": "加载中...",
     "models": "模型",
     "next": "下一步",
@@ -40,6 +54,8 @@
     "on": "开",
     "open": "打开",
     "optional": "可选",
+    "quote": "引用",
+    "refresh": "刷新",
     "remove": "移除",
     "requesting": "请求中...",
     "required": "必需",
@@ -51,10 +67,22 @@
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
-    "yes": "是"
+    "useThisProvider": "使用此提供商",
+    "variables": "可用变量",
+    "yes": "是",
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前"
+    }
   },
   "dashboard": {
     "actions": {
+      "edit": "编辑",
+      "editDescription": "修改此历史条目的转录文本",
+      "editPlaceholder": "输入修改后的文本...",
+      "editTitle": "编辑识别结果",
       "openRecordings": "录音目录",
       "reprocessFailed": "AI 重新处理失败",
       "retranscribe": "使用原音频重新转录",
@@ -79,6 +107,7 @@
       "audioRemoved": "录音已移除",
       "count": "共 {{count}} 条",
       "empty": "暂无数据",
+      "emptyHint": "使用快捷键开始你的第一次转录",
       "loadMore": "加载更多",
       "meta": {
         "chars": "{{value}} 字"
@@ -345,6 +374,11 @@
     }
   },
   "overlay": {
+    "skillConfirmation": {
+      "confirmUse": "用于所选内容？",
+      "detectedSelection": "使用 ",
+      "prompt": "使用此技能？"
+    },
     "error": {
       "appleIntelligenceFailed": "Apple Intelligence 调用失败",
       "appleIntelligenceUnavailable": "Apple Intelligence 不可用",
@@ -412,6 +446,26 @@
         "placeholder": "添加词汇",
         "remove": "删除 {{word}}",
         "title": "自定义词汇"
+      },
+      "vocabularyCorrections": {
+        "allApps": "所有应用",
+        "delete": "删除此修正",
+        "description": "从编辑历史中学习的词汇修正",
+        "empty": "暂无学习的修正",
+        "global": "全局",
+        "removeGlobal": "取消全局",
+        "scope": "范围",
+        "setGlobal": "设为全局",
+        "title": "词汇字典"
+      },
+      "scope": {
+        "custom": "指定应用",
+        "editDescription": "编辑「{{original}}」→「{{corrected}}」的适用范围",
+        "editTitle": "修正范围",
+        "global": "全局",
+        "multiple": "{{count}} 个应用",
+        "none": "无应用",
+        "source": "来源应用 ({{app}})"
       },
       "groups": {
         "startup": "启动与行为",
@@ -482,6 +536,9 @@
       "title": "高级",
       "translateToEnglish": {
         "description": "在转录过程中自动将其他语言的语音翻译为英语。",
+        "descriptionNoModel": "请选择一个本地模型以启用翻译。",
+        "descriptionNonWhisper": "翻译仅支持 Whisper 模型。当前模型：{{model}}",
+        "descriptionUnknownModel": "当前模型能力未知。请选择一个已下载的模型以启用翻译。",
         "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
         "label": "翻译为英语"
       }
@@ -680,7 +737,11 @@
       "language": {
         "auto": "自动",
         "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
+        "descriptionNoModel": "请选择一个本地模型以配置语言。",
+        "descriptionSenseVoice": "SenseVoice 在模型加载时应用语言设置。更改语言后请重新选择模型。",
+        "descriptionUnknownModel": "当前模型未知，语言选择已禁用。",
         "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
+        "descriptionUnsupportedEngine": "语言选择仅适用于 Whisper 或 SenseVoice 模型。",
         "noResults": "未找到语言",
         "searchPlaceholder": "搜索语言...",
         "title": "语言"
@@ -694,6 +755,10 @@
           "cancel": {
             "description": "取消当前录制。",
             "name": "取消"
+          },
+          "invoke_skill": {
+            "description": "以技能模式开始录制，支持智能意图路由。",
+            "name": "调用技能"
           },
           "open_settings": {
             "description": "打开设置窗口。",
@@ -724,6 +789,7 @@
     },
     "history": {
       "content": {
+        "chained": "链式处理",
         "improved": "优化后",
         "original": "语音识别结果",
         "streaming": "实时识别结果"
@@ -780,7 +846,15 @@
           }
         },
         "provider": {
+          "builtin": "内置",
+          "builtinTooltip": "内置提供商，无法删除",
+          "deleteAction": "删除提供商",
+          "deleteConfirmation": "确定要删除提供商「{{name}}」吗？此操作无法撤销。",
+          "deleteTitle": "删除提供商",
           "description": "选择一个兼容 OpenAI 的提供商。",
+          "editName": "编辑提供商名称",
+          "namePlaceholder": "提供商名称",
+          "newProvider": "新建提供商",
           "title": "提供商"
         },
         "providers": {
@@ -809,13 +883,16 @@
             "title": "暂无提供商"
           },
           "fields": {
+            "apiKey": "API 密钥",
             "baseUrl": "基础 URL",
             "baseUrlHint": "兼容 OpenAI 的基础 URL。使用 '#' 后缀可禁用自动补全 /v1。",
             "actualUrlPreview": "实际调用 URL 预览",
             "modelsEndpoint": "模型接口路径",
             "modelsEndpointPlaceholder": "/models",
             "name": "提供商名称",
-            "namePlaceholder": "我的提供商"
+            "namePlaceholder": "我的提供商",
+            "v1AutoAppended": "已自动追加 /v1",
+            "v1MissingWarning": "URL 可能缺少版本路径（如 /v1）"
           },
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",
@@ -824,6 +901,63 @@
           "title": "提供商"
         },
         "title": "API（兼容 OpenAI）"
+      },
+      "intentModel": {
+        "defaultOption": "使用默认模型",
+        "description": "用于技能意图检测的模型。保留默认值将跟随主后处理模型。",
+        "placeholder": "选择意图模型",
+        "title": "意图模型"
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} 条活跃规则",
+        "addApp": "添加应用",
+        "addRuleHead": "手动添加规则",
+        "addTitlePattern": "添加标题过滤器",
+        "assignedApps": "应用",
+        "assignedAppsDescription": "以下应用将使用此配置文件的设置。",
+        "capture": "捕获",
+        "captureTitle": "捕获标题",
+        "context": {
+          "description": "允许大模型参考当前应用的近期历史，以提高转录和修正的准确性。",
+          "enabled": "启用上下文参考",
+          "limit": "上下文历史深度",
+          "limitDesc": "模型将参考此应用最近 {{count}} 条记录作为上下文。",
+          "title": "上下文感知处理"
+        },
+        "createPromptHint": "添加应用规则以开始使用",
+        "default": "默认",
+        "newProfileName": "新配置文件名称...",
+        "noAppsAssigned": "尚未映射任何应用到此配置文件。",
+        "noProfiles": "暂无规则",
+        "noProfilesShort": "点击配置",
+        "policy": {
+          "always": "总是审阅",
+          "auto": "自动",
+          "label": "审阅策略",
+          "never": "直接插入"
+        },
+        "policyDesc": {
+          "always": "此配置文件中的应用始终显示审阅窗口。",
+          "auto": "当文本变化较大时触发审阅（基于阈值）。",
+          "never": "此配置文件中的应用从不显示审阅窗口。"
+        },
+        "policyHeader": "审阅触发策略",
+        "profilesDescription": "创建配置文件以对不同的应用组应用特定的处理逻辑或提示词。",
+        "profilesTitle": "应用配置文件",
+        "promptDescription": "选择此配置文件中转录使用的自定义提示词。",
+        "promptHeader": "覆盖 LLM 提示词",
+        "selectPrompt": "从侧边栏选择一个配置文件进行编辑",
+        "shortcuts": {
+          "description": "你可以使用快捷键触发特定配置文件或管理规则。",
+          "dialog": "确认或关闭对话框",
+          "dialogKeys": "Enter / Esc",
+          "nav": "在设置标签之间导航",
+          "navKeys": "Command + 1-8",
+          "title": "快捷键与使用方法"
+        },
+        "testMatch": "测试匹配",
+        "title": "应用规则",
+        "titlePattern": "标题（正则表达式）"
       },
       "disabledNotice": "后期处理当前已禁用。启用后即可进行配置。",
       "fusion": {
@@ -896,6 +1030,7 @@
       },
       "prompts": {
         "activeSet": "已设为默认提示词",
+        "advancedSettings": "高级设置",
         "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
         "aliasLabel": "别名 / 触发词",
         "aliasPlaceholder": "例如：翻译，翻译英语",
@@ -914,11 +1049,31 @@
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
+        "resetToDefault": "恢复默认",
+        "resetConfirm": {
+          "description": "这将把技能恢复为内置的原始内容。所有自定义修改将丢失。",
+          "title": "恢复默认"
+        },
+        "resetSuccess": "技能已恢复默认",
+        "resetFailed": "恢复默认失败",
+        "description": "描述（用于智能路由）",
+        "descriptionPlaceholder": "简要描述此技能的功能和触发时机",
         "editPrompt": "编辑提示词",
+        "enabledToggle": "启用/禁用此技能",
+        "enableReview": "启用审阅触发",
+        "generationDescription": "基于识别文本作为提示词生成新内容（如翻译、摘要）。",
+        "globalConfigTitle": "全局配置",
+        "jsonHint": "注意：如果你的提示词指示 AI 输出包含 text 和 confidence 字段的 JSON，审阅窗口将自动触发。",
+        "managementTitle": "提示词",
         "newPromptName": "新提示词",
         "noAliases": "暂无别名",
         "noPrefixes": "暂无指令前缀",
         "noPrompts": "没有可用的提示词",
+        "outputMode": {
+          "chat": "AI 对话",
+          "label": "输出模式",
+          "polish": "文本润色"
+        },
         "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
         "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
@@ -933,9 +1088,31 @@
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
         "setAsActive": "设为默认",
         "title": "提示词",
+        "refinementDescription": "自动修正和格式化识别文本。",
+        "reviewThreshold": "审阅阈值",
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
-        "updateSuccess": "提示词更新成功"
+        "updateSuccess": "提示词更新成功",
+        "varContextDesc": "来自活动窗口的历史上下文。",
+        "varHotWordsDesc": "来自高级设置的自定义词汇/热词。",
+        "varOutputDesc": "最终转录文本。",
+        "varPromptDesc": "当前提示词方案的显示名称。",
+        "varRawInputDesc": "完整的原始转录。",
+        "varSelectDesc": "录制结束时选中的文本。",
+        "varStreamingDesc": "实时转录中的中间文本。"
+      },
+      "skills": {
+        "advancedSkills": "高级技能",
+        "createHint": "在 ~/.votype/skills/ 中创建 .md 文件以添加自定义技能",
+        "enabledInFile": "技能始终启用（在文件中配置）",
+        "helpText": "在 skills 文件夹中创建带 YAML frontmatter 的 .md 文件。它们将被自动加载并可使用。",
+        "noExternalSkills": "未找到外部技能",
+        "openFolder": "打开文件夹",
+        "quickCommands": "快捷指令",
+        "refresh": "刷新",
+        "sourceBuiltin": "内置",
+        "sourceFile": "文件",
+        "sourceUser": "用户"
       },
       "confidenceCheck": {
         "title": "置信度检测",

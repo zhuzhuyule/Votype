@@ -2,9 +2,14 @@ use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
 use tauri_plugin_store::StoreExt;
+
+static SETTINGS_VERSION: AtomicU64 = AtomicU64::new(0);
+static CACHED_SETTINGS: Mutex<Option<(u64, AppSettings)>> = Mutex::new(None);
 
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
@@ -1194,6 +1199,14 @@ impl AppSettings {
     }
 }
 
+fn store_set_settings(store: &tauri_plugin_store::Store<tauri::Wry>, settings: &AppSettings) {
+    if let Ok(val) = serde_json::to_value(settings) {
+        store.set("settings", val);
+    } else {
+        log::error!("Failed to serialize settings to JSON");
+    }
+}
+
 pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
     // Initialize store
     let store = app
@@ -1219,7 +1232,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
                 if updated {
                     debug!("Settings updated with new bindings");
-                    store.set("settings", serde_json::to_value(&settings).unwrap());
+                    store_set_settings(&store, &settings);
                 }
 
                 settings
@@ -1246,18 +1259,18 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
                 // Fall back to default settings if parsing fails
                 let default_settings = get_default_settings();
-                store.set("settings", serde_json::to_value(&default_settings).unwrap());
+                store_set_settings(&store, &default_settings);
                 default_settings
             }
         }
     } else {
         let default_settings = get_default_settings();
-        store.set("settings", serde_json::to_value(&default_settings).unwrap());
+        store_set_settings(&store, &default_settings);
         default_settings
     };
 
     if ensure_post_process_defaults(&mut settings) {
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+        store_set_settings(&store, &settings);
     }
 
     // Migration: Convert app_review_policies to app_profiles
@@ -1280,7 +1293,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
             }
         }
         settings.app_review_policies.clear();
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+        store_set_settings(&store, &settings);
         let _ = store.save();
     }
 
@@ -1288,6 +1301,17 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 }
 
 pub fn get_settings(app: &AppHandle) -> AppSettings {
+    let current_version = SETTINGS_VERSION.load(Ordering::Acquire);
+
+    // Check cache
+    if let Ok(cache) = CACHED_SETTINGS.lock() {
+        if let Some((cached_version, ref cached_settings)) = *cache {
+            if cached_version == current_version {
+                return cached_settings.clone();
+            }
+        }
+    }
+
     let store = app
         .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
@@ -1295,17 +1319,17 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     let mut settings = if let Some(settings_value) = store.get("settings") {
         serde_json::from_value::<AppSettings>(settings_value).unwrap_or_else(|_| {
             let default_settings = get_default_settings();
-            store.set("settings", serde_json::to_value(&default_settings).unwrap());
+            store_set_settings(&store, &default_settings);
             default_settings
         })
     } else {
         let default_settings = get_default_settings();
-        store.set("settings", serde_json::to_value(&default_settings).unwrap());
+        store_set_settings(&store, &default_settings);
         default_settings
     };
 
     if ensure_post_process_defaults(&mut settings) {
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+        store_set_settings(&store, &settings);
     }
 
     // Merge external skills from ~/.votype/skills/
@@ -1314,8 +1338,13 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     if settings.post_process_selected_prompt_id.is_none() {
         if let Some(first) = settings.post_process_prompts.first() {
             settings.post_process_selected_prompt_id = Some(first.id.clone());
-            store.set("settings", serde_json::to_value(&settings).unwrap());
+            store_set_settings(&store, &settings);
         }
+    }
+
+    // Update cache
+    if let Ok(mut cache) = CACHED_SETTINGS.lock() {
+        *cache = Some((current_version, settings.clone()));
     }
 
     settings
@@ -1349,10 +1378,13 @@ pub fn write_settings(app: &AppHandle, settings: AppSettings) {
         .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
 
-    store.set("settings", serde_json::to_value(&settings).unwrap());
+    store_set_settings(&store, &settings);
     if let Err(e) = store.save() {
         log::error!("Failed to save settings to disk: {}", e);
     }
+
+    // Invalidate cache
+    SETTINGS_VERSION.fetch_add(1, Ordering::Release);
 }
 
 pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {
@@ -1361,12 +1393,9 @@ pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {
     settings.bindings
 }
 
-pub fn get_stored_binding(app: &AppHandle, id: &str) -> ShortcutBinding {
+pub fn get_stored_binding(app: &AppHandle, id: &str) -> Option<ShortcutBinding> {
     let bindings = get_bindings(app);
-
-    let binding = bindings.get(id).unwrap().clone();
-
-    binding
+    bindings.get(id).cloned()
 }
 
 pub fn get_history_limit(app: &AppHandle) -> usize {

@@ -87,8 +87,13 @@ impl AudioRecorder {
         let speech_cb = self.speech_cb.clone();
 
         let worker = std::thread::spawn(move || {
-            let config = AudioRecorder::get_preferred_config(&thread_device)
-                .expect("failed to fetch preferred config");
+            let config = match AudioRecorder::get_preferred_config(&thread_device) {
+                Ok(c) => c,
+                Err(e) => {
+                    log::error!("Failed to get audio config: {}", e);
+                    return;
+                }
+            };
 
             let sample_rate = config.sample_rate().0;
             let channels = config.channels() as usize;
@@ -101,31 +106,40 @@ impl AudioRecorder {
                 config.sample_format()
             );
 
-            let stream = match config.sample_format() {
+            let stream_result = match config.sample_format() {
                 cpal::SampleFormat::U8 => {
                     AudioRecorder::build_stream::<u8>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
                 }
                 cpal::SampleFormat::I8 => {
                     AudioRecorder::build_stream::<i8>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
                 }
                 cpal::SampleFormat::I16 => {
                     AudioRecorder::build_stream::<i16>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
                 }
                 cpal::SampleFormat::I32 => {
                     AudioRecorder::build_stream::<i32>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
                 }
                 cpal::SampleFormat::F32 => {
                     AudioRecorder::build_stream::<f32>(&thread_device, &config, sample_tx, channels)
-                        .unwrap()
                 }
-                _ => panic!("unsupported sample format"),
+                fmt => {
+                    log::error!("Unsupported sample format: {:?}", fmt);
+                    return;
+                }
             };
 
-            stream.play().expect("failed to start stream");
+            let stream = match stream_result {
+                Ok(s) => s,
+                Err(e) => {
+                    log::error!("Failed to build audio stream: {}", e);
+                    return;
+                }
+            };
+
+            if let Err(e) = stream.play() {
+                log::error!("Failed to start audio stream: {}", e);
+                return;
+            }
 
             // keep the stream alive while we process samples
             run_consumer(sample_rate, vad, sample_rx, cmd_rx, level_cb, speech_cb);

@@ -11,9 +11,9 @@ pub async fn get_vocabulary_corrections(
     app_name: Option<String>,
 ) -> Result<Vec<VocabularyCorrection>, String> {
     let vocab_manager = VocabularyManager::new(history_manager.db_path.clone());
-    if app_name.is_some() {
+    if let Some(name) = app_name {
         // Get corrections for specific app (plus global ones)
-        let scopes = vec![app_name.unwrap()];
+        let scopes = vec![name];
         vocab_manager
             .get_active_corrections(Some(&scopes))
             .map_err(|e| e.to_string())
@@ -71,7 +71,10 @@ pub async fn record_vocabulary_correction(
     // For manual recording, if app_name is provided, use it as scope hint.
     // If not, default to global.
     let is_global = app_name.is_none();
-    let target_apps = app_name.map(|app| serde_json::to_string(&vec![app]).unwrap());
+    let target_apps = app_name
+        .map(|app| serde_json::to_string(&vec![app]))
+        .transpose()
+        .map_err(|e| e.to_string())?;
 
     vocab_manager
         .record_correction(&diff, is_global, target_apps)

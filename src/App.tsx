@@ -5,6 +5,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Toaster } from "sonner";
 import "./App.css";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import Onboarding from "./components/onboarding";
 import {
   SECTION_ORDER,
@@ -205,59 +206,61 @@ function App() {
   };
 
   return (
-    <CompactModeProvider>
-      <RadixThemeProvider>
-        {showOnboarding ? (
-          <Onboarding onModelSelected={handleModelSelected} />
-        ) : (
-          <Flex className="h-screen flex flex-col">
-            <Toaster />
-            {/* Main content area that takes remaining space */}
-            <Flex className="flex-1 flex overflow-hidden relative">
-              <Sidebar
-                activeSection={currentSection}
-                onSectionChange={setCurrentSection}
-                collapsed={sidebarCollapsed}
-              />
-
-              {/* Scrollable content area with ScrollArea */}
-              <Flex flexGrow="1" direction="column" overflow="hidden">
-                <ScrollArea
-                  scrollbars="vertical"
-                  type="hover"
-                  className="flex-1"
-                >
-                  <Flex
-                    direction="column"
-                    align="center"
-                    py="6"
-                    px="4"
-                    gap="6"
-                    className="min-w-[600px] max-w-[1200px] mx-auto w-full pb-3"
-                  >
-                    {showNonCritical && (
-                      <Suspense fallback={null}>
-                        <AccessibilityPermissions />
-                      </Suspense>
-                    )}
-                    {renderSettingsContent(currentSection, navDirection)}
-                  </Flex>
-                </ScrollArea>
-              </Flex>
-            </Flex>
-            {/* Fixed footer at bottom */}
-            {showNonCritical && (
-              <Suspense fallback={null}>
-                <Footer
-                  sidebarCollapsed={sidebarCollapsed}
-                  onToggleSidebar={toggleSidebar}
+    <ErrorBoundary>
+      <CompactModeProvider>
+        <RadixThemeProvider>
+          {showOnboarding ? (
+            <Onboarding onModelSelected={handleModelSelected} />
+          ) : (
+            <Flex className="h-screen flex flex-col">
+              <Toaster />
+              {/* Main content area that takes remaining space */}
+              <Flex className="flex-1 flex overflow-hidden relative">
+                <Sidebar
+                  activeSection={currentSection}
+                  onSectionChange={setCurrentSection}
+                  collapsed={sidebarCollapsed}
                 />
-              </Suspense>
-            )}
-          </Flex>
-        )}
-      </RadixThemeProvider>
-    </CompactModeProvider>
+
+                {/* Scrollable content area with ScrollArea */}
+                <Flex flexGrow="1" direction="column" overflow="hidden">
+                  <ScrollArea
+                    scrollbars="vertical"
+                    type="hover"
+                    className="flex-1"
+                  >
+                    <Flex
+                      direction="column"
+                      align="center"
+                      py="6"
+                      px="4"
+                      gap="6"
+                      className="min-w-[600px] max-w-[1200px] mx-auto w-full pb-3"
+                    >
+                      {showNonCritical && (
+                        <Suspense fallback={null}>
+                          <AccessibilityPermissions />
+                        </Suspense>
+                      )}
+                      {renderSettingsContent(currentSection, navDirection)}
+                    </Flex>
+                  </ScrollArea>
+                </Flex>
+              </Flex>
+              {/* Fixed footer at bottom */}
+              {showNonCritical && (
+                <Suspense fallback={null}>
+                  <Footer
+                    sidebarCollapsed={sidebarCollapsed}
+                    onToggleSidebar={toggleSidebar}
+                  />
+                </Suspense>
+              )}
+            </Flex>
+          )}
+        </RadixThemeProvider>
+      </CompactModeProvider>
+    </ErrorBoundary>
   );
 }
 

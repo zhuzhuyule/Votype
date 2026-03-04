@@ -7690,6 +7690,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tauri-plugin-store",
  "tauri-plugin-updater",
+ "thiserror 2.0.18",
  "tokio",
  "transcribe-rs",
  "vad-rs",

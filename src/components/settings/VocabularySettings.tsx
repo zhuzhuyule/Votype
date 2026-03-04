@@ -26,7 +26,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { Card } from "../ui/Card";
-import { HotwordSettings } from "./HotwordSettings";
+import { HotwordSettings } from "./hotword/HotwordSettings";
 
 interface VocabularyCorrection {
   id: number;

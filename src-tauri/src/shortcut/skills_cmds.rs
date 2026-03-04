@@ -1,0 +1,283 @@
+use tauri::{AppHandle, Manager};
+use tauri_plugin_opener::OpenerExt;
+
+use crate::settings::{self, Skill, SkillSource};
+
+// Group: Skills Management
+#[tauri::command]
+#[specta::specta]
+pub fn get_all_skills(app: AppHandle) -> Vec<Skill> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.get_all_skills()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn create_skill(app: AppHandle, skill: Skill) -> Result<Skill, String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.create_skill_file(&skill)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_skill(app: AppHandle, id: String) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.delete_skill_file(&id)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_skill_templates() -> Vec<crate::managers::skill::SkillTemplate> {
+    crate::managers::skill::get_builtin_templates()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn save_external_skill(app: AppHandle, skill: Skill) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = skill_manager.find_skill_file_path(&skill.id);
+    let mut skill_with_path = skill;
+    skill_with_path.file_path = file_path;
+    skill_manager.save_skill_to_file(&skill_with_path)?;
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn create_skill_from_template(app: AppHandle, template_id: String) -> Result<Skill, String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.create_skill_from_template(&template_id)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn reorder_skills(app: AppHandle, order: Vec<String>) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.save_order(&order)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_builtin_skills(app: AppHandle) -> Vec<Skill> {
+    let settings = settings::get_settings(&app);
+    settings
+        .post_process_prompts
+        .into_iter()
+        .filter(|s| matches!(s.source, SkillSource::Builtin))
+        .collect()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_default_skill_content(app: AppHandle, skill_id: String) -> Option<Skill> {
+    let settings = settings::get_settings(&app);
+    settings
+        .post_process_prompts
+        .into_iter()
+        .find(|s| s.id == skill_id && matches!(s.source, SkillSource::Builtin))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_external_skills(app: AppHandle) -> Vec<Skill> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.load_all_external_skills()
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_skills_folder(app: AppHandle) -> Result<(), String> {
+    let home_dir = app.path().home_dir().map_err(|e| e.to_string())?;
+    let skills_dir = home_dir.join(".votype").join("skills");
+    if !skills_dir.exists() {
+        std::fs::create_dir_all(&skills_dir).map_err(|e| e.to_string())?;
+    }
+    app.opener()
+        .open_path(skills_dir.to_string_lossy().to_string(), None::<String>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn refresh_external_skills(app: AppHandle) -> Vec<Skill> {
+    get_external_skills(app)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn reset_skill_to_file_version(app: AppHandle, skill_id: String) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = skill_manager
+        .find_skill_file_path(&skill_id)
+        .ok_or_else(|| "File not found".to_string())?;
+    let source = if file_path.to_string_lossy().contains("/user/") {
+        SkillSource::User
+    } else {
+        SkillSource::Imported
+    };
+    let file_skill = skill_manager
+        .load_skill_from_path(&file_path, source)
+        .ok_or_else(|| "Load failed".to_string())?;
+    let mut settings = settings::get_settings(&app);
+    if let Some(existing) = settings
+        .post_process_prompts
+        .iter_mut()
+        .find(|p| p.id == skill_id)
+    {
+        *existing = file_skill;
+        existing.customized = false;
+        settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        Err("Skill not found in settings".to_string())
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn open_skill_source_file(app: AppHandle, skill_id: String) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = skill_manager
+        .find_skill_file_path(&skill_id)
+        .ok_or_else(|| "File not found".to_string())?;
+    app.opener()
+        .open_path(file_path.to_string_lossy().to_string(), None::<String>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_generate_skill(
+    app: AppHandle,
+    name: String,
+    description: String,
+    output_mode: String,
+) -> Result<String, String> {
+    use crate::llm_client::create_client;
+    use async_openai::types::{
+        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    };
+
+    let settings = settings::get_settings(&app);
+
+    // Get text provider
+    let provider = settings
+        .active_post_process_provider()
+        .ok_or("No text provider configured")?;
+
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    let client = create_client(&provider, api_key).map_err(|e| e.to_string())?;
+
+    // Get model ID
+    let model_id = settings
+        .post_process_models
+        .get(&provider.id)
+        .cloned()
+        .filter(|id| !id.trim().is_empty())
+        .or_else(|| {
+            settings
+                .cached_models
+                .iter()
+                .find(|m| m.provider_id == provider.id && m.model_type == settings::ModelType::Text)
+                .map(|m| m.model_id.clone())
+        })
+        .ok_or_else(|| format!("No model found for provider {}", provider.id))?;
+
+    // Build prompt
+    let prompt = format!(
+        r#"You are a professional Prompt Engineer. Generate a high-quality AI Skill instruction based on the information provided.
+
+## Skill Name
+{}
+
+## Function Description
+{}
+
+## Output Mode
+{}
+
+## Requirements
+1. The instruction should be clear, professional, and easy to understand
+2. Include role definition, task description, input variable description, and output format
+3. Design appropriate output format based on "output mode" ({}):
+   - polish mode: Return the processed text directly, without any JSON wrapping, confidence scores, or extra formatting
+   - chat mode: Return processed text content directly
+4. Use Markdown format with variable placeholders:
+   - ${{output}}: Final recognized text
+   - ${{raw_input}}: Complete original transcription text
+   - ${{select}}: Selected text content
+   - ${{streaming_output}}: Intermediate text during real-time transcription
+   - ${{hot_words}}: Custom vocabulary/hot words
+   - ${{context}}: Historical chat context
+   - ${{app_name}}: Current application name
+   - ${{window_title}}: Current window title
+   - ${{time}}: Current time
+5. Return ONLY the instruction content, without any explanation, preface, or suffix"#,
+        name, description, output_mode, output_mode
+    );
+
+    // Call LLM
+    let mut messages = Vec::new();
+
+    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+        .content("You are a helpful prompt engineering assistant.")
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::System(sys_msg));
+    }
+
+    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(prompt)
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
+
+    let request = CreateChatCompletionRequestArgs::default()
+        .model(model_id)
+        .messages(messages)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .chat()
+        .create(request)
+        .await
+        .map_err(|e| format!("LLM request failed: {}", e))?;
+
+    let content = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+        .ok_or("No response from LLM")?;
+
+    Ok(content)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn check_skill_id_conflict(
+    app: AppHandle,
+    skill_id: String,
+    is_external: bool,
+) -> Result<bool, String> {
+    let settings = settings::get_settings(&app);
+    if is_external {
+        Ok(settings
+            .post_process_prompts
+            .iter()
+            .any(|p| p.id == skill_id && p.source == SkillSource::Builtin))
+    } else {
+        let skill_manager = crate::managers::skill::SkillManager::new(&app);
+        Ok(skill_manager
+            .load_all_external_skills()
+            .iter()
+            .any(|s| s.id == skill_id))
+    }
+}

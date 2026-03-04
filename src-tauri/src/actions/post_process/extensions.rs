@@ -1,0 +1,376 @@
+use crate::managers::history::HistoryManager;
+use crate::settings::{AppSettings, MultiModelPostProcessItem};
+use async_openai::types::{
+    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+};
+use ferrous_opencc::{config::BuiltinConfig, OpenCC};
+use futures_util::stream::{FuturesUnordered, StreamExt};
+use log::{error, info};
+use std::sync::Arc;
+use std::time::Instant;
+use tauri::{AppHandle, Emitter, Manager};
+use tokio::sync::Semaphore;
+
+pub async fn maybe_convert_chinese_variant(
+    settings: &AppSettings,
+    transcription: &str,
+) -> Option<String> {
+    let is_simplified = settings.selected_language == "zh-Hans";
+    let is_traditional = settings.selected_language == "zh-Hant";
+
+    if !is_simplified && !is_traditional {
+        return None;
+    }
+
+    let config = if is_simplified {
+        BuiltinConfig::Tw2sp
+    } else {
+        BuiltinConfig::S2twp
+    };
+
+    match OpenCC::from_config(config) {
+        Ok(converter) => Some(converter.convert(transcription)),
+        Err(e) => {
+            error!("Failed to initialize OpenCC converter: {}", e);
+            None
+        }
+    }
+}
+
+#[allow(dead_code)]
+/// Execute multi-model parallel post-processing
+/// Returns all results when all models complete, or partial results if cancelled
+pub async fn multi_post_process_transcription(
+    _app_handle: &AppHandle,
+    settings: &AppSettings,
+    transcription: &str,
+    streaming_transcription: Option<&str>,
+    _history_id: Option<i64>,
+    app_name: Option<String>,
+    window_title: Option<String>,
+) -> Vec<super::MultiModelPostProcessResult> {
+    // Check if multi-model post-processing is enabled
+
+    if !settings.multi_model_post_process_enabled {
+        info!("[MultiModel] Multi-model post-processing is disabled");
+        return Vec::new();
+    }
+
+    // Prefer checkbox-based selection; fall back to legacy items
+    let built_items = settings.build_multi_model_items_from_selection();
+    let items_owned: Vec<MultiModelPostProcessItem>;
+    let items: Vec<&MultiModelPostProcessItem>;
+    if !built_items.is_empty() {
+        items_owned = built_items;
+        items = items_owned.iter().collect();
+    } else {
+        items = settings.enabled_multi_model_items();
+    }
+    if items.is_empty() {
+        info!("[MultiModel] No enabled multi-model items configured");
+        return Vec::new();
+    }
+
+    info!(
+        "[MultiModel] Starting multi-model post-processing with {} models",
+        items.len()
+    );
+
+    // Emit start event
+    let _ = _app_handle.emit(
+        "multi-post-process-start",
+        serde_json::json!({
+            "total": items.len(),
+            "transcription_length": transcription.len()
+        }),
+    );
+
+    // Build input data (similar to maybe_post_process_transcription)
+    let mut input_data_parts: Vec<String> = Vec::new();
+
+    // Add transcription
+    let transcription_text = streaming_transcription.unwrap_or(transcription);
+    input_data_parts.push(format!("原始识别结果:\n```\n{}\n```", transcription_text));
+
+    // Add history context if enabled
+    if settings.post_process_context_enabled {
+        if let Some(app) = &app_name {
+            if let Some(hm) = _app_handle.try_state::<Arc<HistoryManager>>() {
+                match hm.get_recent_history_texts_for_app(
+                    app,
+                    window_title.as_deref(),
+                    None,
+                    None,
+                    settings.post_process_context_limit as usize,
+                    _history_id,
+                ) {
+                    Ok(history) if !history.is_empty() => {
+                        let context_content = history
+                            .iter()
+                            .map(|s| format!("- {}", s))
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        input_data_parts.push(format!(
+                            "历史上下文（来自应用 \"{}\"，窗口 \"{}\"）:\n```context\n{}\n```",
+                            app,
+                            window_title.as_deref().unwrap_or(""),
+                            context_content
+                        ));
+                        info!(
+                            "[MultiModel] Injected {} history entries as context",
+                            history.len()
+                        );
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("[MultiModel] Failed to fetch history context: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    // Build final input data message
+    let input_data_message = if input_data_parts.is_empty() {
+        None
+    } else {
+        Some(format!("## 输入数据\n\n{}", input_data_parts.join("\n\n")))
+    };
+
+    // Create semaphore to limit concurrent requests
+    let max_concurrent = 3; // Limit to 3 concurrent LLM requests
+    let semaphore = Arc::new(Semaphore::new(max_concurrent));
+
+    // Create futures for each model
+    let mut futures: FuturesUnordered<_> = items
+        .iter()
+        .map(|item| {
+            let settings = settings.clone();
+            let app_handle = _app_handle.clone();
+            let transcription = transcription.to_string();
+            let input_data = input_data_message.clone();
+            let semaphore = Arc::clone(&semaphore);
+
+            async move {
+                // Acquire permit from semaphore
+                let _permit = semaphore.acquire().await.unwrap();
+
+                let start_time = Instant::now();
+                let result = execute_single_model_post_process(
+                    &app_handle,
+                    &settings,
+                    item,
+                    &transcription,
+                    input_data.as_deref(),
+                )
+                .await;
+
+                let elapsed = start_time.elapsed().as_millis() as u64;
+
+                let text = result.0.clone().unwrap_or_default();
+                let ready = result.0.is_some();
+
+                super::MultiModelPostProcessResult {
+                    id: item.id.clone(),
+                    label: get_item_label(&settings, item),
+                    text,
+                    confidence: None,
+                    processing_time_ms: elapsed,
+                    error: result.1,
+                    ready,
+                }
+            }
+        })
+        .collect();
+
+    let mut all_results: Vec<super::MultiModelPostProcessResult> = Vec::new();
+    let total = items.len();
+
+    // Collect results as they complete
+    while let Some(result) = futures.next().await {
+        all_results.push(result.clone());
+        let completed = all_results.len();
+
+        info!(
+            "[MultiModel] Progress: {}/{} completed (id: {})",
+            completed, total, result.id
+        );
+
+        // Emit progress event
+        let _ = _app_handle.emit(
+            "multi-post-process-progress",
+            super::MultiModelProgressEvent {
+                total,
+                completed,
+                results: all_results.clone(),
+                done: completed >= total,
+            },
+        );
+    }
+
+    info!("[MultiModel] All {} models completed", total);
+
+    // Emit complete event
+    let _ = _app_handle.emit(
+        "multi-post-process-complete",
+        super::MultiModelProgressEvent {
+            total,
+            completed: total,
+            results: all_results.clone(),
+            done: true,
+        },
+    );
+
+    all_results
+}
+
+#[allow(dead_code)]
+/// Execute post-processing for a single model
+async fn execute_single_model_post_process(
+    _app_handle: &AppHandle,
+    settings: &AppSettings,
+    item: &MultiModelPostProcessItem,
+    transcription: &str,
+    input_data_message: Option<&str>,
+) -> (Option<String>, Option<String>) {
+    // Get provider
+    let provider = match settings.post_process_provider(&item.provider_id) {
+        Some(p) => p,
+        None => {
+            error!("[MultiModel] Provider not found: {}", item.provider_id);
+            return (None, Some("Provider not found".to_string()));
+        }
+    };
+
+    // Use the model_id from the item directly (each item specifies its own model)
+    let model = item.model_id.clone();
+
+    // Get prompt
+    let prompt = match settings.get_prompt(&item.prompt_id) {
+        Some(p) => p,
+        None => {
+            error!("[MultiModel] Prompt not found: {}", item.prompt_id);
+            return (None, Some("Prompt not found".to_string()));
+        }
+    };
+
+    // Get API key
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    // Build messages
+    let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
+
+    // Add system prompt if exists
+    if !prompt.instructions.is_empty() {
+        if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+            .content(prompt.instructions.clone())
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::System(sys_msg));
+        }
+    }
+
+    // Build user message with prompt and transcription
+    let user_content = if let Some(input_data) = input_data_message {
+        format!("{}\n\n{}", prompt.prompt, input_data)
+    } else {
+        format!(
+            "{}\n\n原始识别结果:\n```\n{}\n```",
+            prompt.prompt, transcription
+        )
+    };
+
+    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(user_content)
+        .build()
+    {
+        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    }
+
+    if messages.is_empty() {
+        return (None, Some("Failed to build messages".to_string()));
+    }
+
+    // Build request
+    let model_id = model.clone();
+    let req = match CreateChatCompletionRequestArgs::default()
+        .model(model_id.clone())
+        .messages(messages)
+        .build()
+    {
+        Ok(r) => r,
+        Err(e) => {
+            error!("[MultiModel] Failed to build request: {:?}", e);
+            return (None, Some(format!("Request build failed: {:?}", e)));
+        }
+    };
+
+    // Create client and execute
+    let client = match crate::llm_client::create_client(provider, api_key) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("[MultiModel] Failed to create LLM client: {:?}", e);
+            return (None, Some(format!("Client creation failed: {:?}", e)));
+        }
+    };
+
+    let response = match client.chat().create(req).await {
+        Ok(r) => r,
+        Err(e) => {
+            error!("[MultiModel] LLM request failed: {:?}", e);
+            return (None, Some(format!("LLM request failed: {:?}", e)));
+        }
+    };
+
+    let content = match response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.clone())
+    {
+        Some(c) => c,
+        None => {
+            return (None, Some("Empty response".to_string()));
+        }
+    };
+
+    let text = super::core::extract_llm_text(&content);
+
+    info!(
+        "[MultiModel] Model {} completed, text length: {}",
+        item.id,
+        text.len(),
+    );
+
+    (Some(text), None)
+}
+
+#[allow(dead_code)]
+/// Get display label for a multi-model item
+fn get_item_label(settings: &AppSettings, item: &MultiModelPostProcessItem) -> String {
+    if let Some(custom) = &item.custom_label {
+        return custom.clone();
+    }
+
+    let provider_label = settings
+        .post_process_provider(&item.provider_id)
+        .map(|p| p.label.clone())
+        .unwrap_or_else(|| item.provider_id.clone());
+
+    let model_name = settings
+        .post_process_models
+        .get(&item.provider_id)
+        .cloned()
+        .unwrap_or_else(|| item.model_id.clone());
+
+    let prompt_name = settings
+        .get_prompt(&item.prompt_id)
+        .map(|p| p.name.clone())
+        .unwrap_or_else(|| item.prompt_id.clone());
+
+    format!("{} {} + {}", provider_label, model_name, prompt_name)
+}

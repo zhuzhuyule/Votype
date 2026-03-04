@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import React, { Suspense, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import i18n from "../i18n";
 import { OverlayState } from "./RecordingOverlay";
 
@@ -35,9 +36,11 @@ const OverlayApp: React.FC = () => {
   }, []);
 
   return mounted ? (
-    <Suspense fallback={<Box className="overlay-root" />}>
-      <RecordingOverlay initialState={initialState} />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<Box className="overlay-root" />}>
+        <RecordingOverlay initialState={initialState} />
+      </Suspense>
+    </ErrorBoundary>
   ) : null;
 };
 

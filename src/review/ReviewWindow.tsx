@@ -1,13 +1,8 @@
 // ReviewWindow - Independent window for reviewing low-confidence transcriptions
 // This provides a floating window UI for editing and inserting transcribed text
 
-import { Button, ScrollArea, Tooltip } from "@radix-ui/themes";
-import {
-  IconCheck,
-  IconClipboard,
-  IconCopy,
-  IconTextPlus,
-} from "@tabler/icons-react";
+import { Button, Tooltip } from "@radix-ui/themes";
+import { IconCheck, IconClipboard, IconTextPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Extension, Mark } from "@tiptap/core";
@@ -23,9 +18,15 @@ import StarterKit from "@tiptap/starter-kit";
 import hljs from "highlight.js";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CancelIcon } from "../components/icons";
 import { log } from "../lib/utils/logging";
+import { MultiModelCandidate } from "./CandidatePanel";
+import { DiffViewPanel } from "./DiffViewPanel";
+import { MultiCandidateView } from "./MultiCandidateView";
+import { ReviewFooter } from "./ReviewFooter";
+import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
 import "./ReviewWindow.css";
+import { buildDiffViews } from "./diff-utils";
+import { simpleMarkdownToHtml } from "./markdown-utils";
 
 interface ReviewData {
   source_text: string;
@@ -35,34 +36,6 @@ interface ReviewData {
   reason?: string | null;
   output_mode?: "polish" | "chat";
   skill_name?: string | null;
-}
-
-interface MultiModelCandidate {
-  id: string;
-  label: string;
-  text: string;
-  confidence?: number;
-  processing_time_ms: number;
-  error?: string;
-  ready?: boolean;
-}
-
-interface PromptInfo {
-  id: string;
-  name: string;
-}
-
-interface ReviewModelOption {
-  id: string;
-  label: string;
-  model_id: string;
-  provider_id: string;
-}
-
-function formatProcessingTime(ms: number): string {
-  if (ms <= 0) return "";
-  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${ms}ms`;
 }
 
 interface ReviewWindowProps {
@@ -112,578 +85,6 @@ const escapeHtml = (value: string): string =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-
-const escapeHtmlWithBreaks = (value: string): string =>
-  escapeHtml(value).replace(/\n/g, "<br />");
-
-type Token = {
-  value: string;
-  start: number;
-  end: number;
-};
-
-const isHanChar = (value: string) => /[\u4e00-\u9fff]/.test(value);
-const isAsciiWordChar = (value: string) => /[A-Za-z0-9]/.test(value);
-
-const tokenizeWithIndices = (text: string): Token[] => {
-  const tokens: Token[] = [];
-  let current = "";
-  let currentStart = 0;
-
-  const flushCurrent = (endIndex: number) => {
-    if (!current) return;
-    tokens.push({ value: current, start: currentStart, end: endIndex });
-    current = "";
-  };
-
-  for (let i = 0; i < text.length; ) {
-    const codePoint = text.codePointAt(i);
-    if (codePoint === undefined) break;
-    const char = String.fromCodePoint(codePoint);
-    const size = char.length;
-
-    if (/\s/.test(char)) {
-      flushCurrent(i);
-      i += size;
-      continue;
-    }
-
-    if (isHanChar(char)) {
-      flushCurrent(i);
-      tokens.push({ value: char, start: i, end: i + size });
-      i += size;
-      continue;
-    }
-
-    if (isAsciiWordChar(char)) {
-      if (!current) {
-        currentStart = i;
-      }
-      current += char;
-      i += size;
-      continue;
-    }
-
-    flushCurrent(i);
-    tokens.push({ value: char, start: i, end: i + size });
-    i += size;
-  }
-
-  flushCurrent(text.length);
-  return tokens;
-};
-
-const editDistance = (a: string, b: string): number => {
-  const aChars = Array.from(a);
-  const bChars = Array.from(b);
-  const aLen = aChars.length;
-  const bLen = bChars.length;
-  if (aLen === 0) return bLen;
-  if (bLen === 0) return aLen;
-  const prev = Array.from({ length: bLen + 1 }, (_, i) => i);
-  const curr = new Array<number>(bLen + 1).fill(0);
-  for (let i = 0; i < aLen; i += 1) {
-    curr[0] = i + 1;
-    for (let j = 0; j < bLen; j += 1) {
-      const cost = aChars[i] === bChars[j] ? 0 : 1;
-      curr[j + 1] = Math.min(prev[j + 1] + 1, curr[j] + 1, prev[j] + cost);
-    }
-    for (let j = 0; j <= bLen; j += 1) {
-      prev[j] = curr[j];
-    }
-  }
-  return prev[bLen];
-};
-
-type ScriptType = "latin" | "han" | "other";
-
-const normalizeToken = (value: string) => value.toLowerCase();
-
-const getScriptType = (value: string): ScriptType => {
-  if (/[\u4e00-\u9fff]/.test(value)) return "han";
-  if (/[A-Za-z]/.test(value)) return "latin";
-  return "other";
-};
-
-const classifyChangeLevel = (current: string, previous: string | null) => {
-  if (!previous) return "major";
-  const normalizedCurrent = normalizeToken(current);
-  const normalizedPrevious = normalizeToken(previous);
-  if (normalizedCurrent === normalizedPrevious) return null;
-  const currentScript = getScriptType(current);
-  const previousScript = getScriptType(previous);
-  if (
-    currentScript !== "other" &&
-    previousScript !== "other" &&
-    currentScript !== previousScript
-  ) {
-    return "major";
-  }
-  const distance = editDistance(normalizedCurrent, normalizedPrevious);
-  return distance <= 2 ? "minor" : "major";
-};
-
-type DiffAnnotations = {
-  sourceStatuses: Array<"equal" | "delete">;
-  targetLevels: Array<"minor" | "major" | null>;
-};
-
-const computeDiffAnnotations = (
-  source: string,
-  target: string,
-): DiffAnnotations => {
-  const start = performance.now();
-  const sourceTokens = tokenizeWithIndices(source).map((token) => ({
-    value: token.value,
-    normalized: normalizeToken(token.value),
-  }));
-  const targetTokens = tokenizeWithIndices(target).map((token) => ({
-    value: token.value,
-    normalized: normalizeToken(token.value),
-  }));
-  const sourceLen = sourceTokens.length;
-  const targetLen = targetTokens.length;
-  const dp = Array.from({ length: sourceLen + 1 }, () =>
-    new Array<number>(targetLen + 1).fill(0),
-  );
-
-  for (let i = 1; i <= sourceLen; i += 1) {
-    for (let j = 1; j <= targetLen; j += 1) {
-      if (sourceTokens[i - 1].normalized === targetTokens[j - 1].normalized) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-
-  type Op =
-    | { type: "equal"; sourceIndex: number; targetIndex: number }
-    | { type: "insert"; targetIndex: number }
-    | { type: "delete"; sourceIndex: number; sourceToken: string };
-
-  const ops: Op[] = [];
-  let i = sourceLen;
-  let j = targetLen;
-  while (i > 0 || j > 0) {
-    if (
-      i > 0 &&
-      j > 0 &&
-      sourceTokens[i - 1].normalized === targetTokens[j - 1].normalized
-    ) {
-      ops.push({ type: "equal", sourceIndex: i - 1, targetIndex: j - 1 });
-      i -= 1;
-      j -= 1;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      ops.push({ type: "insert", targetIndex: j - 1 });
-      j -= 1;
-    } else if (i > 0) {
-      ops.push({
-        type: "delete",
-        sourceIndex: i - 1,
-        sourceToken: sourceTokens[i - 1].value,
-      });
-      i -= 1;
-    }
-  }
-
-  ops.reverse();
-  const sourceStatuses: Array<"equal" | "delete"> = new Array(sourceLen).fill(
-    "equal",
-  );
-  const targetLevels: Array<"minor" | "major" | null> = new Array(
-    targetLen,
-  ).fill(null);
-  const pendingDeletes: Array<{ index: number; token: string }> = [];
-  for (const op of ops) {
-    if (op.type === "delete") {
-      pendingDeletes.push({ index: op.sourceIndex, token: op.sourceToken });
-    } else if (op.type === "insert") {
-      const pending = pendingDeletes.pop();
-      targetLevels[op.targetIndex] = classifyChangeLevel(
-        targetTokens[op.targetIndex].value,
-        pending?.token ?? null,
-      );
-    } else {
-      for (const pending of pendingDeletes) {
-        sourceStatuses[pending.index] = "delete";
-      }
-      pendingDeletes.length = 0;
-    }
-  }
-
-  for (const pending of pendingDeletes) {
-    sourceStatuses[pending.index] = "delete";
-  }
-
-  const durationMs = Math.round(performance.now() - start);
-  void log("[ReviewWindow] computeDiffAnnotations", {
-    sourceChars: source.length,
-    targetChars: target.length,
-    sourceTokens: sourceLen,
-    targetTokens: targetLen,
-    dpCells: (sourceLen + 1) * (targetLen + 1),
-    durationMs,
-  });
-
-  return { sourceStatuses, targetLevels };
-};
-
-const buildSourceHtml = (
-  source: string,
-  statuses: Array<"equal" | "delete">,
-) => {
-  const tokens = tokenizeWithIndices(source);
-  let html = "";
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    html += escapeHtmlWithBreaks(source.slice(cursor, token.start));
-    const tokenText = escapeHtmlWithBreaks(token.value);
-    if (statuses[index] === "delete") {
-      html += `<span class="diff-delete">${tokenText}</span>`;
-    } else {
-      html += tokenText;
-    }
-    cursor = token.end;
-  });
-  html += escapeHtmlWithBreaks(source.slice(cursor));
-  return html;
-};
-
-const buildTargetHtml = (
-  target: string,
-  levels: Array<"minor" | "major" | null>,
-) => {
-  const tokens = tokenizeWithIndices(target);
-  let html = "";
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    html += escapeHtmlWithBreaks(target.slice(cursor, token.start));
-    const level = levels[index];
-    const tokenText = escapeHtmlWithBreaks(token.value);
-    if (level) {
-      html += `<span data-diff-level="${level}">${tokenText}</span>`;
-    } else {
-      html += tokenText;
-    }
-    cursor = token.end;
-  });
-  html += escapeHtmlWithBreaks(target.slice(cursor));
-  return html;
-};
-
-const buildDiffViews = (source: string, target: string) => {
-  const start = performance.now();
-  const { sourceStatuses, targetLevels } = computeDiffAnnotations(
-    source,
-    target,
-  );
-  const result = {
-    sourceHtml: buildSourceHtml(source, sourceStatuses),
-    targetHtml: buildTargetHtml(target, targetLevels),
-  };
-  const durationMs = Math.round(performance.now() - start);
-  void log("[ReviewWindow] buildDiffViews", {
-    sourceChars: source.length,
-    targetChars: target.length,
-    sourceHtmlChars: result.sourceHtml.length,
-    targetHtmlChars: result.targetHtml.length,
-    durationMs,
-  });
-  return result;
-};
-
-const simpleMarkdownToHtml = (text: string): string => {
-  const start = performance.now();
-  // Use unique placeholders that won't conflict with markdown syntax
-  const PLACEHOLDER_PREFIX = "\x00CB"; // Code Block
-  const PLACEHOLDER_SUFFIX = "\x00";
-  const INLINE_PREFIX = "\x00IC"; // Inline Code
-
-  // Protect code blocks first
-  const codeBlocks: string[] = [];
-  let html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const trimmedCode = code.trim();
-    let highlightedCode = "";
-    try {
-      if (lang && hljs.getLanguage(lang)) {
-        highlightedCode = hljs.highlight(trimmedCode, { language: lang }).value;
-      } else {
-        highlightedCode = hljs.highlightAuto(trimmedCode).value;
-      }
-    } catch {
-      highlightedCode = escapeHtml(trimmedCode);
-    }
-    codeBlocks.push(
-      `<pre><code class="hljs language-${lang}">${highlightedCode}</code></pre>`,
-    );
-    return `${PLACEHOLDER_PREFIX}${codeBlocks.length - 1}${PLACEHOLDER_SUFFIX}`;
-  });
-
-  // Protect inline code
-  const inlineCodes: string[] = [];
-  html = html.replace(/`([^`\n]+)`/g, (_, code) => {
-    inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
-    return `${INLINE_PREFIX}${inlineCodes.length - 1}${PLACEHOLDER_SUFFIX}`;
-  });
-
-  // Split into lines for processing
-  const lines = html.split("\n");
-  const processedLines: string[] = [];
-  let inList = false;
-  let listType = "";
-  let inBlockquote = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Skip placeholder lines (code blocks) - pass them through unchanged
-    if (line.includes(PLACEHOLDER_PREFIX) || line.includes(INLINE_PREFIX)) {
-      if (inList) {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-      processedLines.push(line);
-      continue;
-    }
-
-    // Check for headings (# ## ### etc.)
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    if (headingMatch) {
-      if (inList) {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-      const level = headingMatch[1].length;
-      const content = processInlineMarkdown(headingMatch[2]);
-      processedLines.push(`<h${level}>${content}</h${level}>`);
-      continue;
-    }
-
-    // Check for blockquote
-    const blockquoteMatch = line.match(/^>\s?(.*)$/);
-    if (blockquoteMatch) {
-      if (inList) {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (!inBlockquote) {
-        processedLines.push("<blockquote>");
-        inBlockquote = true;
-      }
-      const content = processInlineMarkdown(blockquoteMatch[1]);
-      processedLines.push(`<p>${content}</p>`);
-      continue;
-    } else if (inBlockquote) {
-      processedLines.push("</blockquote>");
-      inBlockquote = false;
-    }
-
-    // Check for unordered list
-    const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
-    if (ulMatch) {
-      if (inList && listType !== "ul") {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (!inList) {
-        processedLines.push('<ul class="contains-task-list">');
-        inList = true;
-        listType = "ul";
-      }
-      const content = processInlineMarkdown(ulMatch[1]);
-      processedLines.push(`<li>${content}</li>`);
-      continue;
-    }
-
-    // Check for task list item
-    const taskMatch = line.match(/^[\s]*[-*+]\s+\[([ xX])\]\s+(.+)$/);
-    if (taskMatch) {
-      if (inList && listType !== "ul") {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (!inList) {
-        processedLines.push('<ul class="contains-task-list">');
-        inList = true;
-        listType = "ul";
-      }
-      const isChecked = taskMatch[1].toLowerCase() === "x";
-      const taskContent = processInlineMarkdown(taskMatch[2]);
-      processedLines.push(
-        `<li><input type="checkbox" disabled${isChecked ? " checked" : ""} /><span>${taskContent}</span></li>`,
-      );
-      continue;
-    }
-
-    // Check for ordered list
-    const olMatch = line.match(/^[\s]*\d+\.\s+(.+)$/);
-    if (olMatch) {
-      if (inList && listType !== "ol") {
-        processedLines.push("</ul>");
-        inList = false;
-      }
-      if (!inList) {
-        processedLines.push("<ol>");
-        inList = true;
-        listType = "ol";
-      }
-      const content = processInlineMarkdown(olMatch[1]);
-      processedLines.push(`<li>${content}</li>`);
-      continue;
-    }
-
-    // Close list if we're no longer in one
-    if (inList && line.trim() !== "") {
-      processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-      inList = false;
-    }
-
-    // Check for table
-    const tableMatch = line.match(/^\|[\s\S]+\|$/);
-    if (tableMatch) {
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-
-      // Check if this is a header separator row
-      const isHeaderSeparator = /^[\s\|:\-]+$/.test(line);
-      if (isHeaderSeparator) {
-        continue;
-      }
-
-      // Parse table cells
-      const cells = line
-        .split("|")
-        .slice(1, -1)
-        .map((cell) => cell.trim());
-      const isFirstRow =
-        processedLines.length === 0 ||
-        !processedLines[processedLines.length - 1].startsWith("<table");
-
-      if (isFirstRow) {
-        processedLines.push("<table><thead><tr>");
-        cells.forEach((cell) => {
-          processedLines.push(`<th>${processInlineMarkdown(cell)}</th>`);
-        });
-        processedLines.push("</tr></thead><tbody>");
-      } else {
-        processedLines.push("<tr>");
-        cells.forEach((cell) => {
-          processedLines.push(`<td>${processInlineMarkdown(cell)}</td>`);
-        });
-        processedLines.push("</tr>");
-      }
-      continue;
-    }
-
-    // Check for horizontal rule
-    if (/^[-*_]{3,}$/.test(line.trim())) {
-      processedLines.push("<hr>");
-      continue;
-    }
-
-    // Regular paragraph
-    if (line.trim() === "") {
-      processedLines.push("");
-    } else {
-      const content = processInlineMarkdown(line);
-      processedLines.push(`<p>${content}</p>`);
-    }
-  }
-
-  // Close any open lists, blockquotes, or tables
-  if (inList) {
-    processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-  }
-  if (inBlockquote) {
-    processedLines.push("</blockquote>");
-  }
-
-  // Close table if open
-  if (processedLines.length > 0) {
-    const lastLine = processedLines[processedLines.length - 1];
-    if (
-      lastLine &&
-      (lastLine.startsWith("<tr>") || lastLine.startsWith("<thead>"))
-    ) {
-      processedLines.push("</tbody></table>");
-    }
-  }
-
-  html = processedLines.join("\n");
-
-  // Restore inline code
-  const inlineCodeRegex = new RegExp(
-    `${INLINE_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
-    "g",
-  );
-  html = html.replace(inlineCodeRegex, (_, index) => {
-    return inlineCodes[parseInt(index)];
-  });
-
-  // Restore code blocks
-  const codeBlockRegex = new RegExp(
-    `${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
-    "g",
-  );
-  html = html.replace(codeBlockRegex, (_, index) => {
-    return codeBlocks[parseInt(index)];
-  });
-
-  // Clean up empty paragraphs
-  html = html.replace(/<p><\/p>/g, "");
-
-  const durationMs = Math.round(performance.now() - start);
-  void log("[ReviewWindow] simpleMarkdownToHtml", {
-    textChars: text.length,
-    codeBlocks: codeBlocks.length,
-    inlineCodes: inlineCodes.length,
-    htmlChars: html.length,
-    durationMs,
-  });
-
-  return html;
-};
-
-// Helper function to process inline markdown elements
-const processInlineMarkdown = (text: string): string => {
-  let result = escapeHtml(text);
-
-  // Bold: **text** or __text__
-  result = result.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  result = result.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-
-  // Italic: *text* or _text_
-  result = result.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  result = result.replace(/_([^_]+)_/g, "<em>$1</em>");
-
-  // Strikethrough: ~~text~~
-  result = result.replace(/~~([^~]+)~~/g, "<del>$1</del>");
-
-  // Links: [text](url)
-  result = result.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener">$1</a>',
-  );
-
-  // Images: ![alt](url)
-  result = result.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" loading="lazy" />',
-  );
-
-  return result;
-};
 
 const CodeBlockComponent = ({
   node: { textContent },
@@ -1219,6 +620,31 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
   }, []);
 
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(getEditorText());
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
+  }, [getEditorText]);
+
+  const handlePromptRerunReset = useCallback(
+    (promptId: string, candidates: MultiModelCandidate[]) => {
+      setSelectedPromptId(promptId);
+      setLocalCandidates(candidates);
+      setSelectedCandidateId(null);
+      setEditedTexts({});
+      setIsRerunning(true);
+    },
+    [],
+  );
+
+  const getHeaderMode = (): "multi" | "polish" | "chat" => {
+    if (multiCandidates && multiCandidates.length > 0) return "multi";
+    if (initialData.output_mode === "chat") return "chat";
+    return "polish";
+  };
+
   return (
     <div className="w-screen h-screen flex items-center justify-center p-0 box-border overflow-hidden bg-transparent">
       <div className="review-window-container" ref={containerRef}>
@@ -1233,373 +659,62 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }
           }}
         >
-          {multiCandidates && multiCandidates.length > 0 ? (
-            <div className="review-header">
-              <div className="review-header-left">
-                <span className="review-panel-label">
-                  {t("transcription.review.source", "ASR 结果")}
-                </span>
-                {prompts.length > 1 ? (
-                  <select
-                    className="prompt-select"
-                    value={selectedPromptId}
-                    onChange={(e) => {
-                      const newId = e.target.value;
-                      setSelectedPromptId(newId);
-                      // Immediately clear old results to loading state
-                      setLocalCandidates((prev) =>
-                        prev?.map((c) => ({
-                          ...c,
-                          text: "",
-                          confidence: undefined,
-                          processing_time_ms: 0,
-                          error: undefined,
-                          ready: false,
-                        })),
-                      );
-                      setSelectedCandidateId(null);
-                      setEditedTexts({});
-                      setIsRerunning(true);
-                      invoke("rerun_multi_model_with_prompt", {
-                        promptId: newId,
-                        sourceText: initialData.source_text,
-                        historyId: initialData.history_id,
-                      }).catch((err) => console.error("Failed to rerun:", err));
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {prompts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : prompts.length === 1 ? (
-                  <span className="review-prompt-badge">{prompts[0].name}</span>
-                ) : null}
-              </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          ) : initialData.output_mode === "chat" ? (
-            <div className="review-header">
-              <div className="review-skill-name">
-                {initialData.skill_name ||
-                  t("transcription.review.generationTitle", "AI Assistant")}
-              </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          ) : (
-            <div className="review-header">
-              <div className="review-header-left">
-                <span className="review-panel-label">
-                  {t("transcription.review.source", "Live transcript")}
-                </span>
-                {prompts.length > 1 ? (
-                  <select
-                    className="prompt-select"
-                    value={selectedPromptId}
-                    onChange={async (e) => {
-                      const newId = e.target.value;
-                      setSelectedPromptId(newId);
-                      setIsRerunning(true);
-                      try {
-                        const resp = await invoke<{
-                          text: string | null;
-                          error: string | null;
-                          model: string | null;
-                        }>("rerun_single_with_prompt", {
-                          promptId: newId,
-                          sourceText: initialData.source_text,
-                          historyId: initialData.history_id,
-                          modelId: selectedModelId || null,
-                        });
-                        if (resp.model) setCurrentModelName(resp.model);
-                        if (resp.text && editor) {
-                          const views = buildDiffViews(
-                            initialData.source_text,
-                            resp.text,
-                          );
-                          editor.commands.setContent(views.targetHtml, {
-                            emitUpdate: false,
-                          });
-                          setSourceHtml(views.sourceHtml);
-                          setTimeout(() => measureAndResize(false), 16);
-                        }
-                      } catch (err) {
-                        console.error("Failed to rerun:", err);
-                      } finally {
-                        setIsRerunning(false);
-                      }
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    {prompts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : prompts.length === 1 ? (
-                  <span className="review-prompt-badge">{prompts[0].name}</span>
-                ) : null}
-                {modelOptions.length > 1 && (
-                  <select
-                    className="prompt-select model-select"
-                    value={selectedModelId}
-                    onChange={async (e) => {
-                      const newModelId = e.target.value;
-                      setSelectedModelId(newModelId);
-                      setIsRerunning(true);
-                      try {
-                        const resp = await invoke<{
-                          text: string | null;
-                          error: string | null;
-                          model: string | null;
-                        }>("rerun_single_with_prompt", {
-                          promptId: selectedPromptId,
-                          sourceText: initialData.source_text,
-                          historyId: initialData.history_id,
-                          modelId: newModelId || null,
-                        });
-                        if (resp.model) setCurrentModelName(resp.model);
-                        if (resp.text && editor) {
-                          const views = buildDiffViews(
-                            initialData.source_text,
-                            resp.text,
-                          );
-                          editor.commands.setContent(views.targetHtml, {
-                            emitUpdate: false,
-                          });
-                          setSourceHtml(views.sourceHtml);
-                          setTimeout(() => measureAndResize(false), 16);
-                        }
-                      } catch (err) {
-                        console.error("Failed to rerun:", err);
-                      } finally {
-                        setIsRerunning(false);
-                      }
-                    }}
-                    onPointerDown={(e) => e.stopPropagation()}
-                  >
-                    <option value="">
-                      {defaultModelLabel
-                        ? `${t("common.default", "Default")} (${defaultModelLabel})`
-                        : t("common.default", "Default")}
-                    </option>
-                    {modelOptions.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label !== m.model_id ? m.label : m.model_id}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          )}
+          <ReviewHeader
+            mode={getHeaderMode()}
+            skillName={initialData.skill_name}
+            prompts={prompts}
+            selectedPromptId={selectedPromptId}
+            modelOptions={modelOptions}
+            selectedModelId={selectedModelId}
+            defaultModelLabel={defaultModelLabel}
+            sourceText={initialData.source_text}
+            historyId={initialData.history_id}
+            editor={editor}
+            onPromptChange={(promptId) => {
+              if (multiCandidates && multiCandidates.length > 0) {
+                // Multi mode: clear old results immediately
+                handlePromptRerunReset(
+                  promptId,
+                  multiCandidates.map((c) => ({
+                    ...c,
+                    text: "",
+                    confidence: undefined,
+                    processing_time_ms: 0,
+                    error: undefined,
+                    ready: false,
+                  })),
+                );
+              }
+            }}
+            onModelChange={setSelectedModelId}
+            onCancel={handleCancel}
+            onSourceHtmlChange={setSourceHtml}
+            onModelNameChange={setCurrentModelName}
+            onRerunStart={() => setIsRerunning(true)}
+            onRerunEnd={() => setIsRerunning(false)}
+            onMeasureAndResize={measureAndResize}
+          />
         </div>
 
         {displayCandidates && displayCandidates.length > 0 ? (
-          <div className="review-multi-content">
-            {/* All panels including source */}
-            <ScrollArea
-              scrollbars="vertical"
-              className="multi-candidates-panels"
-            >
-              {/* Source transcription as a simple inline frame */}
-              <div className="review-source-inline">
-                {initialData.source_text || "—"}
-              </div>
-
-              {(() => {
-                const maxTime = Math.max(
-                  ...displayCandidates.map((c) => c.processing_time_ms),
-                  1,
-                );
-                // Compute time ranking: fastest = 1
-                const readyWithTime = displayCandidates
-                  .filter(
-                    (c) => c.ready && !c.error && c.processing_time_ms > 0,
-                  )
-                  .sort((a, b) => a.processing_time_ms - b.processing_time_ms);
-                const timeRankMap = new Map<string, number>();
-                readyWithTime.forEach((c, i) => timeRankMap.set(c.id, i + 1));
-
-                return displayCandidates.map((candidate, index) => (
-                  <div
-                    key={candidate.id}
-                    className={`candidate-panel candidate-tint-${index % 4} ${
-                      selectedCandidateId === candidate.id ? "selected" : ""
-                    } ${candidate.error ? "error" : ""} ${!candidate.ready ? "loading" : ""}`}
-                    onClick={() => {
-                      if (candidate.ready && !candidate.error) {
-                        setSelectedCandidateId(candidate.id);
-                      }
-                    }}
-                  >
-                    <div className="candidate-panel-header">
-                      {/* Time fill inside header as progress indicator */}
-                      <div
-                        className={`candidate-header-fill${!candidate.ready ? " loading" : ""}`}
-                        style={
-                          candidate.ready && candidate.processing_time_ms > 0
-                            ? {
-                                width: `${(candidate.processing_time_ms / maxTime) * 100}%`,
-                              }
-                            : undefined
-                        }
-                      />
-                      <span className="candidate-label">{candidate.label}</span>
-                      <div className="candidate-meta">
-                        {candidate.ready ? (
-                          <>
-                            {candidate.error ? (
-                              <span className="error-badge">
-                                {t("common.error", "Error")}
-                              </span>
-                            ) : (
-                              <span className="candidate-header-stats">
-                                {timeRankMap.has(candidate.id) && (
-                                  <span
-                                    className={`candidate-rank rank-${timeRankMap.get(candidate.id)}`}
-                                  >
-                                    {timeRankMap.get(candidate.id)}
-                                  </span>
-                                )}
-                                {candidate.processing_time_ms > 0 && (
-                                  <span>
-                                    {formatProcessingTime(
-                                      candidate.processing_time_ms,
-                                    )}
-                                  </span>
-                                )}
-                                {candidate.confidence != null &&
-                                  candidate.processing_time_ms > 0 && (
-                                    <span className="stat-separator">|</span>
-                                  )}
-                                {candidate.confidence != null && (
-                                  <span>{candidate.confidence}%</span>
-                                )}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="candidate-loading-badge">
-                            {t(
-                              "transcription.review.processing",
-                              "Processing...",
-                            )}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="candidate-panel-content">
-                      {candidate.ready ? (
-                        candidate.error ? (
-                          <span className="candidate-error-text">
-                            {candidate.error}
-                          </span>
-                        ) : (
-                          <>
-                            <textarea
-                              className="candidate-edit-textarea"
-                              value={
-                                editedTexts[candidate.id] ?? candidate.text
-                              }
-                              onChange={(e) => {
-                                const el = e.target;
-                                setEditedTexts((prev) => ({
-                                  ...prev,
-                                  [candidate.id]: el.value,
-                                }));
-                                el.style.height = "auto";
-                                el.style.height = el.scrollHeight + "px";
-                              }}
-                              ref={(el) => {
-                                if (el) {
-                                  el.style.height = "auto";
-                                  el.style.height = el.scrollHeight + "px";
-                                }
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                              onFocus={() =>
-                                setSelectedCandidateId(candidate.id)
-                              }
-                            />
-                            <Tooltip
-                              content={t(
-                                "transcription.review.insert",
-                                "Insert",
-                              )}
-                            >
-                              <button
-                                type="button"
-                                className="candidate-insert-btn"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDirectInsert(
-                                    editedTexts[candidate.id] ?? candidate.text,
-                                    candidate.id,
-                                  );
-                                }}
-                              >
-                                <IconTextPlus size={16} />
-                              </button>
-                            </Tooltip>
-                          </>
-                        )
-                      ) : (
-                        <div className="candidate-loading-shimmer" />
-                      )}
-                    </div>
-                  </div>
-                ));
-              })()}
-            </ScrollArea>
-          </div>
+          <MultiCandidateView
+            sourceText={initialData.source_text}
+            candidates={displayCandidates}
+            selectedCandidateId={selectedCandidateId}
+            editedTexts={editedTexts}
+            onCandidateSelect={setSelectedCandidateId}
+            onTextChange={(candidateId, text) => {
+              setEditedTexts((prev) => ({ ...prev, [candidateId]: text }));
+            }}
+            onInsert={handleDirectInsert}
+          />
         ) : initialData.output_mode !== "chat" ? (
-          <div className="review-content-area review-panels-layout">
-            {/* Source text — simple inline frame */}
-            <div
-              className="review-source-inline"
-              dangerouslySetInnerHTML={{
-                __html: sourceHtml || "—",
-              }}
-            />
-            {/* Final output panel */}
-            <div className="review-panel review-panel-output">
-              <div className="review-panel-header">
-                <span className="review-panel-label">
-                  {t("transcription.review.final", "Final output")}
-                </span>
-                {currentModelName && (
-                  <span className="review-model-tag">{currentModelName}</span>
-                )}
-              </div>
-              <div className="review-panel-body review-output-content">
-                {isRerunning ? (
-                  <div className="candidate-loading-shimmer" />
-                ) : (
-                  <EditorContent editor={editor} />
-                )}
-              </div>
-            </div>
-          </div>
+          <DiffViewPanel
+            sourceHtml={sourceHtml}
+            editor={editor}
+            isRerunning={isRerunning}
+            currentModelName={currentModelName}
+          />
         ) : (
           <div className="review-content-area">
             <div className="review-section review-section-final review-section-no-title">
@@ -1608,43 +723,15 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           </div>
         )}
 
-        {/* Footer with hint and insert button */}
-        <div className="review-footer">
-          <div className="review-footer-left">
-            {initialData.reason?.trim() ? (
-              <span className="reason-text">{initialData.reason}</span>
-            ) : null}
-          </div>
-          <div className="review-footer-actions">
-            {initialData.output_mode === "chat" && (
-              <button
-                className="review-btn-secondary"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(getEditorText());
-                  } catch (err) {
-                    console.error("Failed to copy text: ", err);
-                  }
-                }}
-                disabled={isSubmitting || !getEditorText().trim()}
-              >
-                <IconCopy size={14} />
-                {t("common.copy", "Copy")}
-              </button>
-            )}
-            <button
-              className="review-btn-primary"
-              onClick={handleInsert}
-              disabled={isSubmitting || !getEditorText().trim()}
-              data-tauri-drag-region="false"
-            >
-              {t("transcription.review.insert", "Insert")}{" "}
-              <span className="opacity-60 ml-1 font-normal">
-                {insertShortcut}
-              </span>
-            </button>
-          </div>
-        </div>
+        <ReviewFooter
+          reason={initialData.reason}
+          outputMode={initialData.output_mode}
+          isSubmitting={isSubmitting}
+          hasText={!!getEditorText().trim()}
+          insertShortcut={insertShortcut}
+          onCopy={handleCopy}
+          onInsert={handleInsert}
+        />
       </div>
     </div>
   );
