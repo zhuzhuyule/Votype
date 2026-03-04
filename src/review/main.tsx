@@ -9,6 +9,7 @@ import "../App.css";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { RadixThemeProvider } from "../components/theme/RadixThemeProvider";
 import "../i18n";
+import { MultiModelCandidate } from "./CandidatePanel";
 import ReviewWindow from "./ReviewWindow";
 
 interface ReviewData {
@@ -18,16 +19,6 @@ interface ReviewData {
   history_id: number | null;
   reason?: string | null;
   output_mode?: "polish" | "chat";
-}
-
-interface MultiModelCandidate {
-  id: string;
-  label: string;
-  text: string;
-  confidence?: number;
-  processing_time_ms: number;
-  error?: string;
-  ready?: boolean;
 }
 
 interface MultiModelProgressEvent {

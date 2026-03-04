@@ -73,6 +73,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
       });
     } catch (err) {
       console.error("Failed to rerun:", err);
+      onRerunEnd();
     }
   };
 

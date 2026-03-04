@@ -1,6 +1,8 @@
 // Pure utility functions for diff computation and HTML generation
 // No React dependencies
 
+import { escapeHtml } from "../lib/utils/html";
+
 type Token = {
   value: string;
   start: number;
@@ -13,14 +15,6 @@ type DiffAnnotations = {
 };
 
 type ScriptType = "latin" | "han" | "other";
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
 const escapeHtmlWithBreaks = (value: string): string =>
   escapeHtml(value).replace(/\n/g, "<br />");

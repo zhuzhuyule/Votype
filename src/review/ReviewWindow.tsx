@@ -18,6 +18,7 @@ import StarterKit from "@tiptap/starter-kit";
 import hljs from "highlight.js";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { escapeHtml } from "../lib/utils/html";
 import { log } from "../lib/utils/logging";
 import { MultiModelCandidate } from "./CandidatePanel";
 import { DiffViewPanel } from "./DiffViewPanel";
@@ -77,14 +78,6 @@ const DiffMark = Mark.create({
     ];
   },
 });
-
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 
 const CodeBlockComponent = ({
   node: { textContent },

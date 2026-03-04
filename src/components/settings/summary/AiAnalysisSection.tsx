@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { IconSettings, IconSparkles, IconTrash } from "@tabler/icons-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dropdown } from "../../ui/Dropdown";
 import {
@@ -97,15 +97,6 @@ export const AiAnalysisSection: React.FC<AiAnalysisSectionProps> = ({
       content = summary?.ai_summary ?? null;
     }
 
-    // 调试日志：查看原始内容
-    if (content) {
-      console.log("[前端调试] 原始AI返回内容长度:", content.length);
-      console.log(
-        "[前端调试] 原始AI返回内容前500字符:",
-        content.substring(0, 500),
-      );
-    }
-
     return content;
   };
 
@@ -118,15 +109,17 @@ export const AiAnalysisSection: React.FC<AiAnalysisSectionProps> = ({
 
   const analysis = parseAiAnalysis(getDisplayContent());
 
-  let deleteButtonRendered = false;
+  const deleteButtonRenderedRef = useRef(false);
+  // Reset on each render so the first call per render cycle wins
+  deleteButtonRenderedRef.current = false;
 
   const renderDeleteAction = () => {
-    if (deleteButtonRendered) return null;
+    if (deleteButtonRenderedRef.current) return null;
     const canDelete =
       (summary && currentDisplayTimestamp) || (summary && summary.ai_summary);
     if (!canDelete) return null;
 
-    deleteButtonRendered = true;
+    deleteButtonRenderedRef.current = true;
     const timestampToDelete = currentDisplayTimestamp || 0;
 
     return (
