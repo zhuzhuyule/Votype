@@ -804,6 +804,31 @@ impl HistoryManager {
         Ok(())
     }
 
+    /// Save post-processed text with model/prompt metadata, without creating a PostProcessStep.
+    /// Used by multi-model pipeline for the initial auto-save before user review.
+    pub async fn save_post_processed_text(
+        &self,
+        id: i64,
+        text: String,
+        model: Option<String>,
+        prompt_id: Option<String>,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+        let corrected_char_count = text.chars().count() as i64;
+        conn.execute(
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_model = ?2, post_process_prompt_id = ?3, corrected_char_count = ?4 WHERE id = ?5",
+            params![text, model, prompt_id, corrected_char_count, id],
+        )?;
+        debug!(
+            "Saved post-processed text for transcription {} (no step created)",
+            id
+        );
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+        Ok(())
+    }
+
     /// Update a specific text field in a history entry (transcription_text, streaming_text, or post_processed_text)
     /// or update a specific step result in post_process_history.
     /// Used for user-initiated corrections to improve future transcription reference data.

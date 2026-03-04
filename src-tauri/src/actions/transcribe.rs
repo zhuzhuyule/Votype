@@ -864,18 +864,18 @@ impl ShortcutAction for TranscribeAction {
                                             )
                                             .await;
 
-                                        // Save the best result to history
+                                        // Save the best result to history (without creating PostProcessStep)
                                         let best_result =
                                             results.iter().find(|r| r.ready && r.error.is_none());
                                         if let (Some(best), Some(hid)) = (best_result, history_id) {
                                             if let Err(e) = hm_clone
-                                                .update_transcription_post_processing(
+                                                .save_post_processed_text(
                                                     hid,
                                                     best.text.clone(),
-                                                    String::new(),
-                                                    String::new(),
-                                                    None,
-                                                    None,
+                                                    Some(best.label.clone()),
+                                                    settings_clone
+                                                        .post_process_selected_prompt_id
+                                                        .clone(),
                                                 )
                                                 .await
                                             {
