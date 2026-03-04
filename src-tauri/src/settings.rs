@@ -196,6 +196,40 @@ pub enum ModelType {
     Other,
 }
 
+/// Multi-model post-process configuration item
+/// Uses cached_model_id and prompt_id to reference existing models and prompts
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct MultiModelPostProcessItem {
+    /// Unique identifier for this item
+    pub id: String,
+    /// Reference to LLM provider id
+    pub provider_id: String,
+    /// Reference to LLM model id
+    pub model_id: String,
+    /// Reference to skill/prompt id
+    pub prompt_id: String,
+    /// Display name (optional, defaults to model name + prompt name)
+    #[serde(default)]
+    pub custom_label: Option<String>,
+    /// Whether this item is enabled
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for MultiModelPostProcessItem {
+    fn default() -> Self {
+        let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
+        Self {
+            id: format!("mmpp_{}", timestamp),
+            provider_id: String::new(),
+            model_id: String::new(),
+            prompt_id: String::new(),
+            custom_label: None,
+            enabled: true,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct CachedModel {
     pub id: String,
@@ -507,6 +541,15 @@ pub struct AppSettings {
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
     pub post_process_intent_model_id: Option<String>,
+    /// Enable multi-model parallel post-processing
+    #[serde(default)]
+    pub multi_model_post_process_enabled: bool,
+    /// List of models to use for multi-model post-processing
+    #[serde(default)]
+    pub multi_model_post_process_items: Vec<MultiModelPostProcessItem>,
+    /// Selected cached_model IDs for multi-model parallel post-processing (checkbox-based)
+    #[serde(default)]
+    pub multi_model_selected_ids: Vec<String>,
     #[serde(default)]
     pub cached_models: Vec<CachedModel>,
     #[serde(default)]
@@ -1046,6 +1089,9 @@ pub fn get_default_settings() -> AppSettings {
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
         post_process_intent_model_id: None,
+        multi_model_post_process_enabled: false,
+        multi_model_post_process_items: Vec::new(),
+        multi_model_selected_ids: Vec::new(),
         cached_models: Vec::new(),
         online_asr_enabled: false,
         selected_asr_model_id: None,
@@ -1096,6 +1142,54 @@ impl AppSettings {
         self.post_process_providers
             .iter_mut()
             .find(|provider| provider.id == provider_id)
+    }
+
+    #[allow(dead_code)]
+    /// Get enabled multi-model post-process items
+    pub fn enabled_multi_model_items(&self) -> Vec<&MultiModelPostProcessItem> {
+        self.multi_model_post_process_items
+            .iter()
+            .filter(|item| item.enabled)
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    /// Get cached model by ID
+    pub fn get_cached_model(&self, model_id: &str) -> Option<&CachedModel> {
+        self.cached_models.iter().find(|m| m.id == model_id)
+    }
+
+    /// Build MultiModelPostProcessItem list from multi_model_selected_ids.
+    /// Uses cached_model info + current selected prompt to dynamically construct items.
+    pub fn build_multi_model_items_from_selection(&self) -> Vec<MultiModelPostProcessItem> {
+        let prompt_id = self
+            .post_process_selected_prompt_id
+            .clone()
+            .unwrap_or_else(|| "default".to_string());
+
+        self.multi_model_selected_ids
+            .iter()
+            .filter_map(|id| {
+                let cm = self.get_cached_model(id)?;
+                if cm.model_type != ModelType::Text {
+                    return None;
+                }
+                Some(MultiModelPostProcessItem {
+                    id: cm.id.clone(),
+                    provider_id: cm.provider_id.clone(),
+                    model_id: cm.model_id.clone(),
+                    prompt_id: prompt_id.clone(),
+                    custom_label: cm.custom_label.clone(),
+                    enabled: true,
+                })
+            })
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    /// Get prompt/skill by ID
+    pub fn get_prompt(&self, prompt_id: &str) -> Option<&LLMPrompt> {
+        self.post_process_prompts.iter().find(|p| p.id == prompt_id)
     }
 }
 

@@ -18,7 +18,7 @@ use log::{error, warn};
 use serde::Serialize;
 use specta::Type;
 use std::collections::HashMap;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_opener::OpenerExt;
 
@@ -847,16 +847,56 @@ pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Res
 #[tauri::command]
 #[specta::specta]
 pub fn confirm_reviewed_transcription(
-    _app: AppHandle,
-    _id: String,
-    _text: String,
+    app: AppHandle,
+    text: String,
+    history_id: Option<i64>,
 ) -> Result<(), String> {
-    Ok(())
+    use std::time::Duration;
+
+    log::info!(
+        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}",
+        text.len(),
+        history_id
+    );
+
+    // Hide the review window
+    crate::review_window::hide_review_window(&app, history_id);
+
+    // Focus the previously active window and paste
+    if let Some(info) = crate::review_window::get_last_active_window() {
+        if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
+            log::warn!("Failed to focus previous app: {}", e);
+        } else {
+            std::thread::sleep(Duration::from_millis(120));
+        }
+    }
+
+    crate::clipboard::paste(text, app)
 }
 
 #[tauri::command]
 #[specta::specta]
-pub fn cancel_transcription_review(_app: AppHandle, _id: String) -> Result<(), String> {
+pub fn cancel_transcription_review(
+    app: AppHandle,
+    text: Option<String>,
+    history_id: Option<i64>,
+) -> Result<(), String> {
+    log::info!(
+        "cancel_transcription_review: history_id={:?}, has_text={}",
+        history_id,
+        text.is_some()
+    );
+
+    // Hide the review window
+    crate::review_window::hide_review_window(&app, history_id);
+
+    // Restore focus to previous window
+    if let Some(info) = crate::review_window::get_last_active_window() {
+        if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
+            log::warn!("Failed to focus previous app on cancel: {}", e);
+        }
+    }
+
     Ok(())
 }
 
@@ -1135,6 +1175,213 @@ pub fn change_post_process_intent_model_id_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.post_process_intent_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+// Group: Multi-Model Post-Process Review Commands
+
+#[derive(serde::Serialize, Clone, specta::Type)]
+pub struct PromptInfo {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(serde::Serialize, Clone, specta::Type)]
+pub struct PromptListResponse {
+    pub prompts: Vec<PromptInfo>,
+    pub selected_id: Option<String>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
+    let settings = settings::get_settings(&app);
+    let prompts = settings
+        .post_process_prompts
+        .iter()
+        .filter(|p| p.enabled)
+        .map(|p| PromptInfo {
+            id: p.id.clone(),
+            name: p.name.clone(),
+        })
+        .collect();
+    PromptListResponse {
+        prompts,
+        selected_id: settings.post_process_selected_prompt_id.clone(),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn rerun_multi_model_with_prompt(
+    app: AppHandle,
+    prompt_id: String,
+    source_text: String,
+    history_id: Option<i64>,
+) -> Result<(), String> {
+    let settings = settings::get_settings(&app);
+
+    // Build multi-model items with the specified prompt_id
+    let items: Vec<settings::MultiModelPostProcessItem> = settings
+        .multi_model_selected_ids
+        .iter()
+        .filter_map(|id| {
+            let cm = settings.get_cached_model(id)?;
+            if cm.model_type != settings::ModelType::Text {
+                return None;
+            }
+            Some(settings::MultiModelPostProcessItem {
+                id: cm.id.clone(),
+                provider_id: cm.provider_id.clone(),
+                model_id: cm.model_id.clone(),
+                prompt_id: prompt_id.clone(),
+                custom_label: cm.custom_label.clone(),
+                enabled: true,
+            })
+        })
+        .collect();
+
+    if items.is_empty() {
+        return Err("No models selected".to_string());
+    }
+
+    // Build initial loading candidates
+    let initial_candidates: Vec<crate::review_window::MultiModelCandidate> = items
+        .iter()
+        .map(|item| {
+            let label = item
+                .custom_label
+                .clone()
+                .unwrap_or_else(|| item.model_id.clone());
+            crate::review_window::MultiModelCandidate {
+                id: item.id.clone(),
+                label,
+                text: String::new(),
+                confidence: None,
+                processing_time_ms: 0,
+                error: None,
+                ready: false,
+            }
+        })
+        .collect();
+
+    // Emit loading candidates to reset the review window
+    let _ = app.emit(
+        "multi-model-rerun-reset",
+        serde_json::json!({
+            "candidates": initial_candidates,
+        }),
+    );
+
+    // Spawn async task for re-processing
+    let app_clone = app.clone();
+    let source_clone = source_text.clone();
+    // Get active window info for history context
+    let active_window = crate::review_window::get_last_active_window();
+    let ctx_app_name = active_window.as_ref().map(|w| w.app_name.clone());
+    let ctx_window_title = active_window.as_ref().map(|w| w.title.clone());
+
+    tauri::async_runtime::spawn(async move {
+        // Build a modified settings with the overridden prompt for item lookup
+        let mut rerun_settings = settings.clone();
+        rerun_settings.multi_model_post_process_enabled = true;
+        // Clear selected_ids so the function falls back to multi_model_post_process_items
+        rerun_settings.multi_model_selected_ids = vec![];
+        rerun_settings.multi_model_post_process_items = items;
+
+        // Use the raw multi-model pipeline (it will use items directly)
+        let _results = crate::actions::post_process::multi_post_process_transcription(
+            &app_clone,
+            &rerun_settings,
+            &source_clone,
+            None,
+            history_id,
+            ctx_app_name,
+            ctx_window_title,
+        )
+        .await;
+    });
+
+    Ok(())
+}
+
+// Group: Multi-Model Post-Process Settings
+
+#[tauri::command]
+#[specta::specta]
+pub fn toggle_multi_model_selection(
+    app: AppHandle,
+    cached_model_id: String,
+    selected: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if selected {
+        if !settings.multi_model_selected_ids.contains(&cached_model_id) {
+            settings.multi_model_selected_ids.push(cached_model_id);
+        }
+    } else {
+        settings
+            .multi_model_selected_ids
+            .retain(|id| id != &cached_model_id);
+    }
+    // Auto-enable/disable multi-model mode based on selection count
+    settings.multi_model_post_process_enabled = settings.multi_model_selected_ids.len() >= 2;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_multi_model_post_process_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.multi_model_post_process_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn add_multi_model_post_process_item(
+    app: AppHandle,
+    item: settings::MultiModelPostProcessItem,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.multi_model_post_process_items.push(item);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_multi_model_post_process_item(
+    app: AppHandle,
+    item: settings::MultiModelPostProcessItem,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if let Some(pos) = settings
+        .multi_model_post_process_items
+        .iter()
+        .position(|i| i.id == item.id)
+    {
+        settings.multi_model_post_process_items[pos] = item;
+        settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        Err("Item not found".to_string())
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn remove_multi_model_post_process_item(app: AppHandle, item_id: String) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings
+        .multi_model_post_process_items
+        .retain(|i| i.id != item_id);
     settings::write_settings(&app, settings);
     Ok(())
 }

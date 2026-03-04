@@ -786,6 +786,113 @@ impl ShortcutAction for TranscribeAction {
                                     .and_then(|r| r.prompt_id.clone())
                                     .or_else(|| app_profile.and_then(|p| p.prompt_id.clone()));
 
+                                // Check if multi-model post-processing is enabled
+                                if settings_clone.multi_model_post_process_enabled {
+                                    let multi_items =
+                                        settings_clone.build_multi_model_items_from_selection();
+                                    if !multi_items.is_empty() {
+                                        info!(
+                                            "[MultiModel] Starting multi-model post-processing with {} models",
+                                            multi_items.len()
+                                        );
+
+                                        // Get output_mode from the current selected prompt
+                                        let output_mode = settings_clone
+                                            .post_process_selected_prompt_id
+                                            .as_ref()
+                                            .and_then(|pid| {
+                                                settings_clone
+                                                    .post_process_prompts
+                                                    .iter()
+                                                    .find(|p| &p.id == pid)
+                                            })
+                                            .map(|p| p.output_mode)
+                                            .unwrap_or_default();
+
+                                        // Build initial loading candidates and show review window immediately
+                                        let initial_candidates: Vec<
+                                            crate::review_window::MultiModelCandidate,
+                                        > = multi_items
+                                            .iter()
+                                            .map(|item| {
+                                                let label = item
+                                                    .custom_label
+                                                    .clone()
+                                                    .unwrap_or_else(|| item.model_id.clone());
+                                                crate::review_window::MultiModelCandidate {
+                                                    id: item.id.clone(),
+                                                    label,
+                                                    text: String::new(),
+                                                    confidence: None,
+                                                    processing_time_ms: 0,
+                                                    error: None,
+                                                    ready: false,
+                                                }
+                                            })
+                                            .collect();
+
+                                        crate::review_window::set_last_active_window(
+                                            active_window_snapshot_for_review.clone(),
+                                        );
+                                        crate::review_window::show_review_window_with_candidates(
+                                            &ah_clone,
+                                            transcription_clone.clone(),
+                                            initial_candidates,
+                                            history_id,
+                                            output_mode,
+                                            None,
+                                        );
+
+                                        // Hide overlay since review window is now visible
+                                        utils::hide_recording_overlay(&ah_clone);
+                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+
+                                        // Now run multi-model post-processing (progress events update review window)
+                                        let results =
+                                            crate::actions::post_process::multi_post_process_transcription(
+                                                &ah_clone,
+                                                &settings_clone,
+                                                &chinese_converted_text,
+                                                secondary.as_deref(),
+                                                history_id,
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.app_name.clone()),
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.title.clone()),
+                                            )
+                                            .await;
+
+                                        // Save the best result to history
+                                        let best_result =
+                                            results.iter().find(|r| r.ready && r.error.is_none());
+                                        if let (Some(best), Some(hid)) = (best_result, history_id) {
+                                            if let Err(e) = hm_clone
+                                                .update_transcription_post_processing(
+                                                    hid,
+                                                    best.text.clone(),
+                                                    String::new(),
+                                                    String::new(),
+                                                    None,
+                                                    None,
+                                                )
+                                                .await
+                                            {
+                                                error!(
+                                                    "Failed to save multi-model result to history: {}",
+                                                    e
+                                                );
+                                            }
+                                        }
+
+                                        if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
+                                            coordinator.notify_processing_finished();
+                                        }
+                                        return;
+                                    }
+                                }
+
                                 let (
                                     processed_text,
                                     model,

@@ -31,6 +31,29 @@ struct ReviewWindowPayload {
     skill_name: Option<String>,
 }
 
+/// Multi-model post-processing candidate result
+#[derive(Clone, serde::Serialize)]
+pub struct MultiModelCandidate {
+    pub id: String,
+    pub label: String,
+    pub text: String,
+    pub confidence: Option<u8>,
+    pub processing_time_ms: u64,
+    pub error: Option<String>,
+    pub ready: bool,
+}
+
+/// Review window payload for multi-candidate mode
+#[allow(dead_code)]
+#[derive(Clone, serde::Serialize)]
+pub struct ReviewWindowMultiCandidatePayload {
+    pub source_text: String,
+    pub candidates: Vec<MultiModelCandidate>,
+    pub history_id: Option<i64>,
+    pub output_mode: PromptOutputMode,
+    pub skill_name: Option<String>,
+}
+
 #[derive(Clone, serde::Serialize)]
 #[allow(dead_code)]
 struct ReviewWindowHidePayload {
@@ -206,6 +229,17 @@ fn maybe_restore_activation_policy(app_handle: &AppHandle) {
             let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
         }
     }
+}
+
+/// Get the logical size of the monitor containing the cursor (or primary).
+fn get_screen_logical_size(window: &tauri::WebviewWindow) -> (f64, f64) {
+    let monitor = window.primary_monitor().ok().flatten();
+    if let Some(m) = monitor {
+        let scale = m.scale_factor();
+        let size = m.size();
+        return (size.width as f64 / scale, size.height as f64 / scale);
+    }
+    (1440.0, 900.0) // sensible fallback
 }
 
 fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
@@ -458,4 +492,70 @@ pub fn set_last_active_window(info: Option<ActiveWindowInfo>) {
 pub fn get_last_active_window() -> Option<ActiveWindowInfo> {
     let last_window = LAST_ACTIVE_WINDOW.lock().unwrap();
     last_window.clone()
+}
+
+/// Shows the review window with multiple model candidates for selection
+pub fn show_review_window_with_candidates(
+    app_handle: &AppHandle,
+    source_text: String,
+    candidates: Vec<MultiModelCandidate>,
+    history_id: Option<i64>,
+    output_mode: PromptOutputMode,
+    skill_name: Option<String>,
+) {
+    REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
+    let had_visible_windows = record_hidden_windows(app_handle);
+    #[cfg(target_os = "macos")]
+    ensure_app_active_for_review(app_handle, had_visible_windows);
+
+    debug!(
+        "show_review_window_with_candidates called with {} candidates",
+        candidates.len()
+    );
+
+    {
+        let mut last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
+        *last_id = history_id;
+    }
+
+    let candidate_count = candidates.len() as f64;
+
+    let payload = ReviewWindowMultiCandidatePayload {
+        source_text,
+        candidates,
+        history_id,
+        output_mode,
+        skill_name,
+    };
+
+    if let Some(review_window) = app_handle.get_webview_window("review_window") {
+        debug!("Found review_window, emitting multi-candidate event...");
+        let (screen_w, screen_h) = get_screen_logical_size(&review_window);
+
+        // Width: use 65% of screen width for multi-candidate, generous space for text
+        let width = (screen_w * 0.65).clamp(680.0, REVIEW_WINDOW_MAX_WIDTH);
+
+        // Height: source panel + each candidate ~110px + header/footer ~100px, capped at 85% screen
+        let desired_height = 100.0 + 80.0 + candidate_count * 110.0;
+        let height = desired_height.clamp(500.0, screen_h * 0.85);
+
+        let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+        position_window_near_cursor(&review_window, width, height);
+
+        // Emit the multi-candidate event
+        let emit_result = review_window.emit("review-window-multi-candidate", payload);
+        debug!("review_window.emit() result: {:?}", emit_result);
+
+        if emit_result.is_ok() {
+            REVIEW_WINDOW_ACTIVE.store(true, Ordering::SeqCst);
+        }
+
+        let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
+        let show_result = review_window.show();
+        debug!("review_window.show() result: {:?}", show_result);
+        let focus_result = review_window.set_focus();
+        debug!("review_window.set_focus() result: {:?}", focus_result);
+        schedule_focus_review_window(app_handle.clone(), focus_token);
+        schedule_hide_windows(app_handle.clone());
+    }
 }
