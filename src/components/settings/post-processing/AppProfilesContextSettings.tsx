@@ -1,5 +1,5 @@
 import { Flex, Slider, Text } from "@radix-ui/themes";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { SettingContainer } from "../../ui/SettingContainer";
@@ -15,6 +15,17 @@ export const AppProfilesContextSettings: React.FC<
 > = ({ descriptionMode = "inline", grouped = true }) => {
   const { t } = useTranslation();
   const { settings, updateSetting, isUpdating } = useSettings();
+
+  // Local state for smooth dragging — only commit to backend on release
+  const [localLimit, setLocalLimit] = useState(
+    settings?.post_process_context_limit ?? 3,
+  );
+
+  useEffect(() => {
+    if (settings) {
+      setLocalLimit(settings.post_process_context_limit);
+    }
+  }, [settings?.post_process_context_limit]);
 
   if (!settings) return null;
 
@@ -39,7 +50,7 @@ export const AppProfilesContextSettings: React.FC<
             description={t(
               "settings.postProcessing.appRules.context.limitDesc",
               {
-                count: settings.post_process_context_limit,
+                count: localLimit,
               },
             )}
             descriptionMode={descriptionMode}
@@ -47,17 +58,18 @@ export const AppProfilesContextSettings: React.FC<
           >
             <Flex align="center" gap="3" style={{ width: "200px" }}>
               <Slider
-                value={[settings.post_process_context_limit]}
+                value={[localLimit]}
                 min={1}
                 max={30}
                 step={1}
-                onValueChange={([val]) =>
+                onValueChange={([val]) => setLocalLimit(val)}
+                onValueCommit={([val]) =>
                   updateSetting("post_process_context_limit", val)
                 }
                 className="flex-1"
               />
               <Text size="1" color="gray" style={{ minWidth: "24px" }}>
-                {settings.post_process_context_limit}
+                {localLimit}
               </Text>
             </Flex>
           </SettingContainer>

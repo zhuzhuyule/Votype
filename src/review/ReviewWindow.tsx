@@ -1,7 +1,7 @@
 // ReviewWindow - Independent window for reviewing low-confidence transcriptions
 // This provides a floating window UI for editing and inserting transcribed text
 
-import { Box, Button, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
 import {
   IconCheck,
   IconClipboard,
@@ -9,6 +9,7 @@ import {
   IconTextPlus,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { Extension, Mark } from "@tiptap/core";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -36,8 +37,30 @@ interface ReviewData {
   skill_name?: string | null;
 }
 
+interface MultiModelCandidate {
+  id: string;
+  label: string;
+  text: string;
+  confidence?: number;
+  processing_time_ms: number;
+  error?: string;
+  ready?: boolean;
+}
+
+interface PromptInfo {
+  id: string;
+  name: string;
+}
+
+function formatProcessingTime(ms: number): string {
+  if (ms <= 0) return "";
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${ms}ms`;
+}
+
 interface ReviewWindowProps {
   initialData: ReviewData;
+  multiCandidates?: MultiModelCandidate[];
   onClose: () => void;
 }
 
@@ -748,15 +771,126 @@ const CodeBlockComponent = ({
 
 const ReviewWindow: React.FC<ReviewWindowProps> = ({
   initialData,
+  multiCandidates,
   onClose,
 }) => {
   const { t } = useTranslation();
   const renderStartRef = useRef<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
+    multiCandidates && multiCandidates.length > 0
+      ? multiCandidates[0].id
+      : null,
+  );
+
+  // Prompt selector state for multi-candidate mode
+  const [prompts, setPrompts] = useState<PromptInfo[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>("");
+  const [localCandidates, setLocalCandidates] = useState<
+    MultiModelCandidate[] | undefined
+  >(multiCandidates);
+  const [isRerunning, setIsRerunning] = useState(false);
+
+  // Fetch prompts on mount when in multi-candidate mode
+  useEffect(() => {
+    if (!multiCandidates) return;
+    invoke<{ prompts: PromptInfo[]; selected_id: string | null }>(
+      "get_post_process_prompts",
+    ).then((resp) => {
+      setPrompts(resp.prompts);
+      if (resp.selected_id) {
+        setSelectedPromptId(resp.selected_id);
+      } else if (resp.prompts.length > 0) {
+        setSelectedPromptId(resp.prompts[0].id);
+      }
+    });
+  }, [!!multiCandidates]);
+
+  // Sync external multiCandidates prop into local state
+  // Skip during rerun — ReviewWindow owns local state while rerunning
+  useEffect(() => {
+    if (multiCandidates && !isRerunning) {
+      setLocalCandidates(multiCandidates);
+    }
+  }, [multiCandidates]);
+
+  // Listen for rerun reset and progress events
+  useEffect(() => {
+    if (!multiCandidates) return;
+    let unlistenReset: (() => void) | null = null;
+    let unlistenProgress: (() => void) | null = null;
+
+    listen<{ candidates: MultiModelCandidate[] }>(
+      "multi-model-rerun-reset",
+      (event) => {
+        setLocalCandidates(event.payload.candidates);
+        setSelectedCandidateId(null);
+        setIsRerunning(true);
+      },
+    ).then((fn) => {
+      unlistenReset = fn;
+    });
+
+    // Listen for progress events to update local candidates during rerun
+    listen<{
+      results: MultiModelCandidate[];
+    }>("multi-post-process-progress", (event) => {
+      const progress = event.payload;
+      setLocalCandidates((prev) => {
+        if (!prev) return prev;
+        return prev.map((candidate) => {
+          const completed = progress.results.find((r) => r.id === candidate.id);
+          if (completed) {
+            return {
+              ...candidate,
+              text: completed.text,
+              confidence: completed.confidence,
+              processing_time_ms: completed.processing_time_ms,
+              error: completed.error,
+              ready: completed.ready ?? true,
+            };
+          }
+          return candidate;
+        });
+      });
+    }).then((fn) => {
+      unlistenProgress = fn;
+    });
+
+    return () => {
+      unlistenReset?.();
+      unlistenProgress?.();
+    };
+  }, [!!multiCandidates]);
+
+  // Mark rerun done when all local candidates are ready
+  useEffect(() => {
+    if (
+      isRerunning &&
+      localCandidates &&
+      localCandidates.length > 0 &&
+      localCandidates.every((c) => c.ready)
+    ) {
+      setIsRerunning(false);
+      // Auto-select first successful candidate
+      const first = localCandidates.find((c) => !c.error);
+      if (first) setSelectedCandidateId(first.id);
+    }
+  }, [isRerunning, localCandidates]);
+
+  // The candidates to render (local state, updated by progress events)
+  const displayCandidates = localCandidates || multiCandidates;
+
+  // Use selected candidate text if in multi-candidate mode
+  const currentText =
+    selectedCandidateId && displayCandidates
+      ? displayCandidates.find((c) => c.id === selectedCandidateId)?.text ||
+        initialData.final_text
+      : initialData.final_text;
+
   const [sourceHtml, setSourceHtml] = useState(() => {
     if (initialData.output_mode === "chat") return "";
-    return buildDiffViews(initialData.source_text, initialData.final_text)
-      .sourceHtml;
+    return buildDiffViews(initialData.source_text, currentText).sourceHtml;
   });
   const isMac =
     typeof navigator !== "undefined" &&
@@ -910,9 +1044,16 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, [editor]);
 
   const getEditorText = useCallback(() => {
+    // In multi-candidate mode, return selected candidate's text
+    if (displayCandidates && selectedCandidateId) {
+      const candidate = displayCandidates.find(
+        (c) => c.id === selectedCandidateId,
+      );
+      return candidate?.text || "";
+    }
     if (!editor) return "";
     return editor.getText({ blockSeparator: "\n" });
-  }, [editor]);
+  }, [editor, displayCandidates, selectedCandidateId]);
 
   const handleInsert = useCallback(async () => {
     const currentText = getEditorText();
@@ -932,6 +1073,26 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       setIsSubmitting(false);
     }
   }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
+
+  // Direct insert for a specific candidate text (one-click from hover button)
+  const handleDirectInsert = useCallback(
+    async (text: string) => {
+      if (isSubmitting || !text.trim()) return;
+      setIsSubmitting(true);
+      try {
+        await invoke("confirm_reviewed_transcription", {
+          text: text.trim(),
+          history_id: initialData.history_id,
+        });
+        onClose();
+      } catch (e) {
+        console.error("Failed to insert text:", e);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [initialData.history_id, onClose, isSubmitting],
+  );
 
   // Keep refs updated
   useEffect(() => {
@@ -992,84 +1153,280 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }
           }}
         >
-          {initialData.output_mode !== "chat" && (
+          {multiCandidates && multiCandidates.length > 0 ? (
             <div className="review-header">
-              <div className="review-change-badge">
-                <Box
-                  className="review-status-dot"
-                  style={{
-                    backgroundColor: getChangeColor(initialData.change_percent),
-                    color: getChangeColor(initialData.change_percent),
+              <div className="review-header-left">
+                {prompts.length > 1 ? (
+                  <select
+                    className="prompt-select"
+                    value={selectedPromptId}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setSelectedPromptId(newId);
+                      // Immediately clear old results to loading state
+                      setLocalCandidates((prev) =>
+                        prev?.map((c) => ({
+                          ...c,
+                          text: "",
+                          confidence: undefined,
+                          processing_time_ms: 0,
+                          error: undefined,
+                          ready: false,
+                        })),
+                      );
+                      setSelectedCandidateId(null);
+                      setIsRerunning(true);
+                      invoke("rerun_multi_model_with_prompt", {
+                        promptId: newId,
+                        sourceText: initialData.source_text,
+                        historyId: initialData.history_id,
+                      }).catch((err) => console.error("Failed to rerun:", err));
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    {prompts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="review-skill-name">
+                    {prompts[0]?.name ||
+                      t("transcription.review.multiModel", "多模型结果")}
+                  </div>
+                )}
+              </div>
+              <div
+                className="review-close-button review-close-btn"
+                onClick={handleCancel}
+              >
+                <CancelIcon />
+              </div>
+            </div>
+          ) : (
+            <>
+              {initialData.output_mode !== "chat" && (
+                <div className="review-header">
+                  <div className="review-change-badge">
+                    <Box
+                      className="review-status-dot"
+                      style={{
+                        backgroundColor: getChangeColor(
+                          initialData.change_percent,
+                        ),
+                        color: getChangeColor(initialData.change_percent),
+                      }}
+                    />
+                    <span className="change-label">
+                      {t("transcription.review.change", "Change")}
+                    </span>
+                    <span
+                      className={`change-value ${
+                        initialData.change_percent < 50
+                          ? "change-low"
+                          : initialData.change_percent < 85
+                            ? "change-medium"
+                            : "change-high"
+                      }`}
+                    >
+                      {initialData.change_percent}%
+                    </span>
+                  </div>
+                  <div
+                    className="review-close-button review-close-btn"
+                    onClick={handleCancel}
+                  >
+                    <CancelIcon />
+                  </div>
+                </div>
+              )}
+
+              {initialData.output_mode === "chat" && (
+                <div className="review-header">
+                  <div className="review-skill-name">
+                    {initialData.skill_name ||
+                      t("transcription.review.generationTitle", "AI Assistant")}
+                  </div>
+                  <div
+                    className="review-close-button review-close-btn"
+                    onClick={handleCancel}
+                  >
+                    <CancelIcon />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {displayCandidates && displayCandidates.length > 0 ? (
+          <div className="review-multi-content">
+            {/* All panels including source */}
+            <ScrollArea
+              scrollbars="vertical"
+              className="multi-candidates-panels"
+            >
+              {/* Source transcription as a reference panel */}
+              <div className="candidate-panel candidate-tint-source">
+                <div className="candidate-panel-header">
+                  <span className="candidate-label">
+                    {t("transcription.review.source", "Live transcript")}
+                  </span>
+                </div>
+                <div className="candidate-panel-content">
+                  {initialData.source_text || "—"}
+                </div>
+              </div>
+
+              {(() => {
+                const maxTime = Math.max(
+                  ...displayCandidates.map((c) => c.processing_time_ms),
+                  1,
+                );
+                // Compute time ranking: fastest = 1
+                const readyWithTime = displayCandidates
+                  .filter(
+                    (c) => c.ready && !c.error && c.processing_time_ms > 0,
+                  )
+                  .sort((a, b) => a.processing_time_ms - b.processing_time_ms);
+                const timeRankMap = new Map<string, number>();
+                readyWithTime.forEach((c, i) => timeRankMap.set(c.id, i + 1));
+
+                return displayCandidates.map((candidate, index) => (
+                  <div
+                    key={candidate.id}
+                    className={`candidate-panel candidate-tint-${index % 4} ${
+                      selectedCandidateId === candidate.id ? "selected" : ""
+                    } ${candidate.error ? "error" : ""} ${!candidate.ready ? "loading" : ""}`}
+                    onClick={() => {
+                      if (candidate.ready && !candidate.error) {
+                        setSelectedCandidateId(candidate.id);
+                      }
+                    }}
+                  >
+                    <div className="candidate-panel-header">
+                      {/* Time fill inside header as progress indicator */}
+                      <div
+                        className={`candidate-header-fill${!candidate.ready ? " loading" : ""}`}
+                        style={
+                          candidate.ready && candidate.processing_time_ms > 0
+                            ? {
+                                width: `${(candidate.processing_time_ms / maxTime) * 100}%`,
+                              }
+                            : undefined
+                        }
+                      />
+                      <span className="candidate-label">{candidate.label}</span>
+                      <div className="candidate-meta">
+                        {candidate.ready ? (
+                          <>
+                            {candidate.error ? (
+                              <span className="error-badge">
+                                {t("common.error", "Error")}
+                              </span>
+                            ) : (
+                              <span className="candidate-header-stats">
+                                {timeRankMap.has(candidate.id) && (
+                                  <span
+                                    className={`candidate-rank rank-${timeRankMap.get(candidate.id)}`}
+                                  >
+                                    {timeRankMap.get(candidate.id)}
+                                  </span>
+                                )}
+                                {candidate.processing_time_ms > 0 && (
+                                  <span>
+                                    {formatProcessingTime(
+                                      candidate.processing_time_ms,
+                                    )}
+                                  </span>
+                                )}
+                                {candidate.confidence != null &&
+                                  candidate.processing_time_ms > 0 && (
+                                    <span className="stat-separator">|</span>
+                                  )}
+                                {candidate.confidence != null && (
+                                  <span>{candidate.confidence}%</span>
+                                )}
+                              </span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="candidate-loading-badge">
+                            {t(
+                              "transcription.review.processing",
+                              "Processing...",
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="candidate-panel-content">
+                      {candidate.ready ? (
+                        candidate.error ? (
+                          <span className="candidate-error-text">
+                            {candidate.error}
+                          </span>
+                        ) : (
+                          <>
+                            <span>{candidate.text}</span>
+                            <Tooltip
+                              content={t(
+                                "transcription.review.insert",
+                                "Insert",
+                              )}
+                            >
+                              <button
+                                type="button"
+                                className="candidate-insert-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDirectInsert(candidate.text);
+                                }}
+                              >
+                                <IconTextPlus size={16} />
+                              </button>
+                            </Tooltip>
+                          </>
+                        )
+                      ) : (
+                        <div className="candidate-loading-shimmer" />
+                      )}
+                    </div>
+                  </div>
+                ));
+              })()}
+            </ScrollArea>
+          </div>
+        ) : (
+          <div className="review-content-area">
+            {/* Source section - only show for polish mode */}
+            {initialData.output_mode !== "chat" && (
+              <div className="review-section">
+                <Text size="1" className="review-section-title">
+                  {t("transcription.review.source", "Live transcript")}
+                </Text>
+                <div
+                  className="review-source-content"
+                  dangerouslySetInnerHTML={{
+                    __html: sourceHtml || "—",
                   }}
                 />
-                <span className="change-label">
-                  {t("transcription.review.change", "Change")}
-                </span>
-                <span
-                  className={`change-value ${
-                    initialData.change_percent < 50
-                      ? "change-low"
-                      : initialData.change_percent < 85
-                        ? "change-medium"
-                        : "change-high"
-                  }`}
-                >
-                  {initialData.change_percent}%
-                </span>
               </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          )}
-
-          {initialData.output_mode === "chat" && (
-            <div className="review-header">
-              <div className="review-skill-name">
-                {initialData.skill_name ||
-                  t("transcription.review.generationTitle", "AI Assistant")}
-              </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Editable content area */}
-        <div className="review-content-area">
-          {/* Source section - only show for polish mode */}
-          {initialData.output_mode !== "chat" && (
-            <div className="review-section">
-              <Text size="1" className="review-section-title">
-                {t("transcription.review.source", "Live transcript")}
-              </Text>
-              <div
-                className="review-source-content"
-                dangerouslySetInnerHTML={{
-                  __html: sourceHtml || "—",
-                }}
-              />
-            </div>
-          )}
-          {/* Final output / AI response section */}
-          <div
-            className={`review-section review-section-final ${initialData.output_mode === "chat" ? "review-section-no-title" : ""}`}
-          >
-            {initialData.output_mode !== "chat" && (
-              <Text size="1" className="review-section-title">
-                {t("transcription.review.final", "Final output")}
-              </Text>
             )}
-            <EditorContent editor={editor} className="flex-1 min-h-0" />
+            {/* Final output / AI response section */}
+            <div
+              className={`review-section review-section-final ${initialData.output_mode === "chat" ? "review-section-no-title" : ""}`}
+            >
+              {initialData.output_mode !== "chat" && (
+                <Text size="1" className="review-section-title">
+                  {t("transcription.review.final", "Final output")}
+                </Text>
+              )}
+              <EditorContent editor={editor} className="flex-1 min-h-0" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Footer with hint and insert button */}
         <div className="review-footer">

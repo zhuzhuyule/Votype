@@ -167,6 +167,53 @@
   color: var(--accent-11);
 }
 
+.review-header-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Prompt selector in multi-model header */
+.prompt-select {
+  appearance: none;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-3) 80%, transparent) 0%,
+    color-mix(in srgb, var(--accent-4) 70%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--accent-6) 50%, transparent);
+  border-radius: 20px;
+  padding: 4px 24px 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-11);
+  cursor: pointer;
+  outline: none;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Custom arrow */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 8px 5px;
+  transition: border-color 0.15s ease;
+}
+
+.prompt-select:hover {
+  border-color: var(--accent-7);
+}
+
+.prompt-select:focus {
+  border-color: var(--accent-8);
+}
+
+.prompt-select option {
+  background: var(--color-panel-solid);
+  color: var(--gray-12);
+}
+
 /* Close button enhancement */
 .review-close-btn {
   width: 24px;
@@ -764,4 +811,324 @@
   color: var(--ruby-9);
   text-decoration: line-through;
   text-decoration-thickness: 1px;
+}
+
+/* Multi-candidate content area */
+.review-multi-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 12px 0 12px 18px;
+  gap: 10px;
+}
+
+/* Source panel — same style as candidates but gray, not selectable */
+.candidate-panel.candidate-tint-source {
+  background: color-mix(in srgb, var(--gray-3) 25%, transparent);
+  cursor: default;
+}
+
+.candidate-tint-source .candidate-panel-header {
+  background: color-mix(in srgb, var(--gray-5) 35%, transparent);
+}
+
+.candidate-panel.candidate-tint-source .candidate-panel-content {
+  color: var(--gray-11);
+}
+
+.multi-candidates-panels {
+  flex: 1;
+  min-height: 0;
+}
+
+.multi-candidates-panels > [data-radix-scroll-area-viewport] > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 18px;
+}
+
+/* Individual candidate panel */
+.candidate-panel {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+/* Distinct tint colors for each panel */
+.candidate-tint-0 {
+  background: color-mix(in srgb, var(--blue-3) 25%, transparent);
+}
+.candidate-tint-1 {
+  background: color-mix(in srgb, var(--green-3) 25%, transparent);
+}
+.candidate-tint-2 {
+  background: color-mix(in srgb, var(--purple-3) 25%, transparent);
+}
+.candidate-tint-3 {
+  background: color-mix(in srgb, var(--amber-3) 25%, transparent);
+}
+
+.candidate-panel:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  filter: brightness(1.05);
+}
+
+.candidate-panel.selected {
+  border-color: var(--accent-8);
+  box-shadow:
+    0 0 0 1px var(--accent-7),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent-6) 30%, transparent);
+}
+.candidate-panel.selected.candidate-tint-0 {
+  background: color-mix(in srgb, var(--blue-3) 50%, transparent);
+}
+.candidate-panel.selected.candidate-tint-1 {
+  background: color-mix(in srgb, var(--green-3) 50%, transparent);
+}
+.candidate-panel.selected.candidate-tint-2 {
+  background: color-mix(in srgb, var(--purple-3) 50%, transparent);
+}
+.candidate-panel.selected.candidate-tint-3 {
+  background: color-mix(in srgb, var(--amber-3) 50%, transparent);
+}
+
+.candidate-panel.error {
+  opacity: 0.7;
+  border-color: color-mix(in srgb, var(--ruby-6) 50%, transparent);
+}
+
+.candidate-panel.loading {
+  cursor: default;
+}
+
+/* Header = progress bar container */
+.candidate-panel-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  overflow: hidden;
+  border-radius: 7px 7px 0 0;
+}
+
+/* Darker tint backgrounds per panel header */
+.candidate-tint-0 .candidate-panel-header {
+  background: color-mix(in srgb, var(--blue-4) 45%, transparent);
+}
+.candidate-tint-1 .candidate-panel-header {
+  background: color-mix(in srgb, var(--green-4) 45%, transparent);
+}
+.candidate-tint-2 .candidate-panel-header {
+  background: color-mix(in srgb, var(--purple-4) 45%, transparent);
+}
+.candidate-tint-3 .candidate-panel-header {
+  background: color-mix(in srgb, var(--amber-4) 45%, transparent);
+}
+
+/* Lighter fill inside header representing elapsed time */
+.candidate-header-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  border-radius: 7px 0 0 0;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.candidate-tint-0 .candidate-header-fill {
+  background: color-mix(in srgb, var(--blue-5) 35%, transparent);
+}
+.candidate-tint-1 .candidate-header-fill {
+  background: color-mix(in srgb, var(--green-5) 35%, transparent);
+}
+.candidate-tint-2 .candidate-header-fill {
+  background: color-mix(in srgb, var(--purple-5) 35%, transparent);
+}
+.candidate-tint-3 .candidate-header-fill {
+  background: color-mix(in srgb, var(--amber-5) 35%, transparent);
+}
+
+/* Loading shimmer fill */
+.candidate-header-fill.loading {
+  width: 100% !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--gray-5) 20%, transparent) 25%,
+    color-mix(in srgb, var(--gray-6) 30%, transparent) 50%,
+    color-mix(in srgb, var(--gray-5) 20%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.candidate-label {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-12);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.candidate-meta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.candidate-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--gray-10);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Time rank badge */
+.candidate-rank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--gray-1);
+  background: var(--gray-8);
+}
+
+.candidate-rank.rank-1 {
+  background: linear-gradient(135deg, var(--amber-9), var(--amber-10));
+  color: white;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--amber-9) 60%, transparent);
+}
+
+.candidate-rank.rank-2 {
+  background: linear-gradient(135deg, var(--gray-9), var(--gray-11));
+  color: white;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--gray-9) 40%, transparent);
+}
+
+.candidate-rank.rank-3 {
+  background: linear-gradient(135deg, var(--bronze-8), var(--bronze-10));
+  color: white;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--bronze-9) 40%, transparent);
+}
+
+.candidate-header-stats .stat-separator {
+  opacity: 0.4;
+}
+
+.error-badge {
+  color: var(--ruby-10);
+  background: rgba(239, 68, 68, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.candidate-loading-badge {
+  color: var(--accent-10);
+  font-size: 11px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.candidate-panel-content {
+  position: relative;
+  padding: 8px 12px 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--gray-12);
+  white-space: pre-wrap;
+  min-height: 40px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--gray-7) 60%, transparent)
+    transparent;
+  font-family:
+    "SF Pro Text",
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    sans-serif;
+}
+
+/* Hover insert button — hidden by default, shown on panel hover */
+.candidate-insert-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-9) 90%, transparent);
+  color: white;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.85);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    background 0.15s ease;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.candidate-panel:hover .candidate-insert-btn {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.candidate-insert-btn:hover {
+  background: var(--accent-10);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent-9) 50%, transparent);
+}
+
+.candidate-insert-btn:active {
+  transform: scale(0.92);
+}
+
+.candidate-error-text {
+  color: var(--ruby-10);
+  font-size: 12px;
+}
+
+.candidate-loading-shimmer {
+  height: 40px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--gray-4) 50%, transparent) 25%,
+    color-mix(in srgb, var(--gray-5) 50%, transparent) 50%,
+    color-mix(in srgb, var(--gray-4) 50%, transparent) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }

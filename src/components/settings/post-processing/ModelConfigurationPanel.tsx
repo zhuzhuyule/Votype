@@ -1,11 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useMemo } from "react";
+import { useSettingsStore } from "../../../stores/settingsStore";
 
 import {
   AlertDialog,
   Badge,
   Box,
   Button,
+  Checkbox,
   Flex,
   IconButton,
   Text,
@@ -33,6 +35,8 @@ const renderModelSection = ({
   allowSelection,
   contentStyle = "",
   hideIfEmpty = true,
+  multiModelSelectedIds,
+  onToggleMultiModel,
 }: {
   type: ModelType;
   allModels: CachedModel[];
@@ -46,6 +50,8 @@ const renderModelSection = ({
   headerStyle?: string;
   contentStyle?: string;
   hideIfEmpty?: boolean;
+  multiModelSelectedIds?: Set<string>;
+  onToggleMultiModel?: (id: string, selected: boolean) => void;
 }) => {
   const models = allModels.filter((m) => m.model_type === type);
 
@@ -129,6 +135,18 @@ const renderModelSection = ({
                       }}
                     >
                       <Flex align="center" gap="3" className="flex-1 min-w-0">
+                        {/* Multi-model checkbox for text models */}
+                        {type === "text" &&
+                          multiModelSelectedIds &&
+                          onToggleMultiModel && (
+                            <Checkbox
+                              checked={multiModelSelectedIds.has(model.id)}
+                              onCheckedChange={(checked) => {
+                                onToggleMultiModel(model.id, !!checked);
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          )}
                         <Box className="flex-1 min-w-0">
                           <Flex align="center" gap="2" wrap="wrap">
                             <Text
@@ -373,9 +391,22 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
 }) => {
   const { settings, removeCachedModel, isUpdating, refreshSettings } =
     useSettings();
+  const { toggleMultiModelSelection } = useSettingsStore();
 
   const { t } = useTranslation();
   const cachedModels = settings?.cached_models ?? [];
+
+  const multiModelSelectedIds = useMemo(
+    () => new Set(settings?.multi_model_selected_ids ?? []),
+    [settings?.multi_model_selected_ids],
+  );
+
+  const handleToggleMultiModel = useCallback(
+    async (id: string, selected: boolean) => {
+      await toggleMultiModelSelection(id, selected);
+    },
+    [toggleMultiModelSelection],
+  );
 
   const providerNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -393,7 +424,6 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   );
 
   const typesToRender = Array.isArray(targetType) ? targetType : [targetType];
-  const primaryType = typesToRender[0];
 
   return (
     <Box>
@@ -409,7 +439,11 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
             t,
             refreshSettings,
             allowSelection: type === "text",
-            hideIfEmpty: false, // We handle empty state inside
+            hideIfEmpty: false,
+            multiModelSelectedIds:
+              type === "text" ? multiModelSelectedIds : undefined,
+            onToggleMultiModel:
+              type === "text" ? handleToggleMultiModel : undefined,
           })}
         </Box>
       ))}

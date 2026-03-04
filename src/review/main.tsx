@@ -19,6 +19,31 @@ interface ReviewData {
   output_mode?: "polish" | "chat";
 }
 
+interface MultiModelCandidate {
+  id: string;
+  label: string;
+  text: string;
+  confidence?: number;
+  processing_time_ms: number;
+  error?: string;
+  ready?: boolean;
+}
+
+interface MultiModelProgressEvent {
+  total: number;
+  completed: number;
+  results: MultiModelCandidate[];
+  done: boolean;
+}
+
+interface MultiCandidateData {
+  source_text: string;
+  candidates: MultiModelCandidate[];
+  history_id: number | null;
+  output_mode?: "polish" | "chat";
+  skill_name?: string;
+}
+
 interface ReviewHidePayload {
   history_id: number | null;
 }
@@ -66,15 +91,25 @@ class ErrorBoundary extends React.Component<
 
 const ReviewApp: React.FC = () => {
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
+  const [multiCandidateData, setMultiCandidateData] =
+    useState<MultiCandidateData | null>(null);
   const reviewDataRef = useRef<ReviewData | null>(null);
+  const multiCandidateDataRef = useRef<MultiCandidateData | null>(null);
 
   useEffect(() => {
     reviewDataRef.current = reviewData;
   }, [reviewData]);
 
   useEffect(() => {
+    multiCandidateDataRef.current = multiCandidateData;
+  }, [multiCandidateData]);
+
+  useEffect(() => {
     let unlistenShow: (() => void) | null = null;
     let unlistenHide: (() => void) | null = null;
+    let unlistenMultiCandidate: (() => void) | null = null;
+    let unlistenMultiProgress: (() => void) | null = null;
+    let unlistenRerunReset: (() => void) | null = null;
 
     const setupListeners = async () => {
       // Ensure window is hidden during reload/mount to avoid white flash
@@ -86,19 +121,73 @@ const ReviewApp: React.FC = () => {
       // Listen for show event from Rust
       unlistenShow = await listen<ReviewData>("review-window-show", (event) => {
         setReviewData(event.payload);
+        setMultiCandidateData(null);
       });
+
+      // Listen for multi-candidate event from Rust
+      unlistenMultiCandidate = await listen<MultiCandidateData>(
+        "review-window-multi-candidate",
+        (event) => {
+          setMultiCandidateData(event.payload);
+          setReviewData(null);
+        },
+      );
+
+      // Listen for rerun reset — clear parent candidates to loading state
+      unlistenRerunReset = await listen<{ candidates: MultiModelCandidate[] }>(
+        "multi-model-rerun-reset",
+        (event) => {
+          setMultiCandidateData((prev) => {
+            if (!prev) return prev;
+            return { ...prev, candidates: event.payload.candidates };
+          });
+        },
+      );
+
+      // Listen for multi-model progress updates
+      unlistenMultiProgress = await listen<MultiModelProgressEvent>(
+        "multi-post-process-progress",
+        (event) => {
+          const progress = event.payload;
+          setMultiCandidateData((prev) => {
+            if (!prev) return prev;
+            // Merge completed results into existing candidates
+            const updatedCandidates = prev.candidates.map((candidate) => {
+              const completed = progress.results.find(
+                (r) => r.id === candidate.id,
+              );
+              if (completed) {
+                return {
+                  ...candidate,
+                  text: completed.text,
+                  confidence: completed.confidence,
+                  processing_time_ms: completed.processing_time_ms,
+                  error: completed.error,
+                  ready: completed.ready ?? true,
+                };
+              }
+              return candidate;
+            });
+            return { ...prev, candidates: updatedCandidates };
+          });
+        },
+      );
 
       // Listen for hide event from Rust
       unlistenHide = await listen<ReviewHidePayload>(
         "review-window-hide",
         (event) => {
           const activeReview = reviewDataRef.current;
+          const activeMultiCandidate = multiCandidateDataRef.current;
           const payloadHistoryId = event.payload?.history_id ?? null;
           const shouldHide =
-            !activeReview || activeReview.history_id === payloadHistoryId;
+            (!activeReview || activeReview.history_id === payloadHistoryId) &&
+            (!activeMultiCandidate ||
+              activeMultiCandidate.history_id === payloadHistoryId);
 
           if (shouldHide) {
             setReviewData(null);
+            setMultiCandidateData(null);
             void getCurrentWindow().hide();
           }
         },
@@ -117,14 +206,17 @@ const ReviewApp: React.FC = () => {
     return () => {
       if (unlistenShow) unlistenShow();
       if (unlistenHide) unlistenHide();
+      if (unlistenMultiCandidate) unlistenMultiCandidate();
+      if (unlistenMultiProgress) unlistenMultiProgress();
+      if (unlistenRerunReset) unlistenRerunReset();
     };
   }, []);
 
   useEffect(() => {
-    if (!reviewData) {
+    if (!reviewData && !multiCandidateData) {
       void getCurrentWindow().hide();
     }
-  }, [reviewData]);
+  }, [reviewData, multiCandidateData]);
 
   return (
     <RadixThemeProvider>
@@ -136,7 +228,20 @@ const ReviewApp: React.FC = () => {
         }}
       >
         <ErrorBoundary>
-          {reviewData ? (
+          {multiCandidateData ? (
+            <ReviewWindow
+              initialData={{
+                source_text: multiCandidateData.source_text,
+                final_text: multiCandidateData.candidates[0]?.text || "",
+                change_percent: 0,
+                history_id: multiCandidateData.history_id,
+                output_mode: multiCandidateData.output_mode,
+                skill_name: multiCandidateData.skill_name,
+              }}
+              multiCandidates={multiCandidateData.candidates}
+              onClose={() => setMultiCandidateData(null)}
+            />
+          ) : reviewData ? (
             <ReviewWindow
               initialData={reviewData}
               onClose={() => setReviewData(null)}

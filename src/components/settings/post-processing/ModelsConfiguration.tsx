@@ -253,6 +253,7 @@ export const ModelsConfiguration: React.FC = () => {
         isFetchingModels={providerState.isFetchingModels}
         providerState={providerState}
       />
+
       {/* 2. Models Grid (Side-by-Side) */}
       <Grid columns="2" gap="4">
         {/* Text Models */}

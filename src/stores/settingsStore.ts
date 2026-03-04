@@ -2,7 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { BindingResponse } from "../lib/types";
-import { AudioDevice, CachedModel, ModelType, Settings } from "../lib/types";
+import {
+  AudioDevice,
+  CachedModel,
+  ModelType,
+  MultiModelPostProcessItem,
+  Settings,
+} from "../lib/types";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -71,6 +77,17 @@ interface SettingsStore {
     modelsEndpoint?: string;
   }) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
+  toggleMultiModelSelection: (
+    cachedModelId: string,
+    selected: boolean,
+  ) => Promise<void>;
+  addMultiModelPostProcessItem: (
+    item: MultiModelPostProcessItem,
+  ) => Promise<void>;
+  updateMultiModelPostProcessItem: (
+    item: MultiModelPostProcessItem,
+  ) => Promise<void>;
+  removeMultiModelPostProcessItem: (itemId: string) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -188,7 +205,7 @@ const settingUpdaters: {
   post_process_context_enabled: (value) =>
     invoke("change_post_process_context_enabled_setting", { enabled: value }),
   post_process_context_limit: (value) =>
-    invoke("change_post_process_context_limit_setting", { value }),
+    invoke("change_post_process_context_limit_setting", { limit: value }),
   post_process_use_secondary_output: (value) =>
     invoke("change_post_process_use_secondary_output_setting", {
       enabled: value,
@@ -205,6 +222,11 @@ const settingUpdaters: {
     invoke("change_post_process_intent_model_id_setting", {
       modelId: value,
     }),
+  multi_model_post_process_enabled: (value) =>
+    invoke("change_multi_model_post_process_enabled_setting", {
+      enabled: value,
+    }),
+  multi_model_post_process_items: () => Promise.resolve(), // Handled separately
   post_process_selected_prompt_id: (value) =>
     invoke("set_post_process_selected_prompt", { id: value }),
   mute_while_recording: (value) =>
@@ -692,6 +714,76 @@ export const useSettingsStore = create<SettingsStore>()(
         await refreshSettings();
       } catch (error) {
         console.error("Failed to remove custom provider:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    // Multi-model checkbox selection
+    toggleMultiModelSelection: async (
+      cachedModelId: string,
+      selected: boolean,
+    ) => {
+      const updateKey = "toggle_multi_model_selection";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("toggle_multi_model_selection", {
+          cachedModelId,
+          selected,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to toggle multi-model selection:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    // Multi-model post-process CRUD operations
+    addMultiModelPostProcessItem: async (item: MultiModelPostProcessItem) => {
+      const updateKey = "add_multi_model_item";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("add_multi_model_post_process_item", { item });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to add multi-model item:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateMultiModelPostProcessItem: async (
+      item: MultiModelPostProcessItem,
+    ) => {
+      const updateKey = `update_multi_model_item:${item.id}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("update_multi_model_post_process_item", { item });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update multi-model item:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    removeMultiModelPostProcessItem: async (itemId: string) => {
+      const updateKey = `remove_multi_model_item:${itemId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("remove_multi_model_post_process_item", { itemId });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to remove multi-model item:", error);
       } finally {
         setUpdating(updateKey, false);
       }

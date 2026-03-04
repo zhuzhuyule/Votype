@@ -72,6 +72,17 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [chainedPromptName, setChainedPromptName] = useState<string>("");
   const [skillConfirmation, setSkillConfirmation] =
     useState<SkillConfirmationEvent | null>(null);
+  // Multi-model post-process progress tracking
+  const [multiModelProgress, setMultiModelProgress] = useState<
+    Record<
+      string,
+      {
+        label: string;
+        status: "pending" | "processing" | "done" | "error";
+        text?: string;
+      }
+    >
+  >({});
   // Track which button is focused for keyboard navigation: 'accept' or 'reject'
   const [focusedButton, setFocusedButton] = useState<"accept" | "reject">(
     "accept",
@@ -207,6 +218,41 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         },
       );
 
+      // Listen for multi-model post-process start
+      const unlistenMultiModelStart = await listen<{
+        items: { id: string; label: string }[];
+      }>("multi-post-process-start", (event) => {
+        const progress: typeof multiModelProgress = {};
+        event.payload.items.forEach((item) => {
+          progress[item.id] = { label: item.label, status: "pending" };
+        });
+        setMultiModelProgress(progress);
+      });
+
+      // Listen for multi-model post-process progress
+      const unlistenMultiModelProgress = await listen<{
+        id: string;
+        status: "processing" | "done" | "error";
+        text?: string;
+      }>("multi-post-process-progress", (event) => {
+        setMultiModelProgress((prev) => ({
+          ...prev,
+          [event.payload.id]: {
+            ...prev[event.payload.id],
+            status: event.payload.status,
+            text: event.payload.text,
+          },
+        }));
+      });
+
+      // Listen for multi-model post-process complete
+      const unlistenMultiModelComplete = await listen(
+        "multi-post-process-complete",
+        () => {
+          // Keep results visible until user selects
+        },
+      );
+
       // Listen for theme changes from localStorage (when main app changes theme)
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === STORAGE_KEY) {
@@ -225,6 +271,9 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         unlistenPostProcessStatus();
         unlistenStateUpdate();
         unlistenSkillConfirmation();
+        unlistenMultiModelStart();
+        unlistenMultiModelProgress();
+        unlistenMultiModelComplete();
         window.removeEventListener("storage", handleStorageChange);
       };
     };

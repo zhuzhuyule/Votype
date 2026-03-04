@@ -147,6 +147,19 @@ export const CachedModelSchema = z.object({
 
 export type CachedModel = z.infer<typeof CachedModelSchema>;
 
+export const MultiModelPostProcessItemSchema = z.object({
+  id: z.string(),
+  provider_id: z.string(),
+  model_id: z.string(),
+  prompt_id: z.string(),
+  custom_label: z.string().optional(),
+  enabled: z.boolean().default(true),
+});
+
+export type MultiModelPostProcessItem = z.infer<
+  typeof MultiModelPostProcessItemSchema
+>;
+
 export const PostProcessProviderSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -215,6 +228,12 @@ export const SettingsSchema = z.object({
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
   post_process_intent_model_id: z.string().nullable().optional().default(null),
+  multi_model_post_process_enabled: z.boolean().optional().default(false),
+  multi_model_post_process_items: z
+    .array(MultiModelPostProcessItemSchema)
+    .optional()
+    .default([]),
+  multi_model_selected_ids: z.array(z.string()).optional().default([]),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),
   selected_asr_model_id: z.string().nullable().optional(),
