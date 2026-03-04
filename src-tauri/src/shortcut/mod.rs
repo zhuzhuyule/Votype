@@ -859,6 +859,21 @@ pub fn confirm_reviewed_transcription(
         history_id
     );
 
+    // Update history with the selected/inserted text
+    if let Some(hid) = history_id {
+        let app_for_history = app.clone();
+        let text_for_history = text.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Some(hm) = app_for_history
+                .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
+            {
+                if let Err(e) = hm.update_reviewed_text(hid, text_for_history).await {
+                    log::error!("Failed to update history with reviewed text: {}", e);
+                }
+            }
+        });
+    }
+
     // Hide the review window
     crate::review_window::hide_review_window(&app, history_id);
 
