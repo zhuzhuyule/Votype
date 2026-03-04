@@ -15,6 +15,7 @@ use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 use crate::managers::history::HistoryManager;
@@ -41,8 +42,6 @@ fn clean_response_content(content: &str) -> String {
 #[derive(Debug, Deserialize)]
 struct LlmReviewResponse {
     pub text: Option<String>,
-    pub confidence: Option<u8>,
-    pub reason: Option<serde_json::Value>,
 }
 
 /// Response from LLM for skill routing intent recognition
@@ -317,7 +316,7 @@ async fn execute_default_polish<'a>(
         .first()
         .and_then(|c| c.message.content.clone())?;
 
-    let (text, _confidence, _reason) = parse_response_with_confidence(&content);
+    let text = extract_llm_text(&content);
 
     info!(
         "[ParallelPolish] Default polish completed, result length: {}",
@@ -347,66 +346,21 @@ fn extract_json_block(content: &str) -> Option<String> {
     None
 }
 
-fn normalize_reason(reason_value: serde_json::Value) -> Option<String> {
-    let mut items: Vec<String> = Vec::new();
-    match reason_value {
-        serde_json::Value::String(value) => {
-            let trimmed = value.trim();
-            if !trimmed.is_empty() {
-                items.push(trimmed.to_string());
-            }
-        }
-        serde_json::Value::Array(values) => {
-            for item in values {
-                if let serde_json::Value::String(value) = item {
-                    let trimmed = value.trim();
-                    if !trimmed.is_empty() {
-                        items.push(trimmed.to_string());
-                    }
-                }
-            }
-        }
-        _ => {}
-    }
-
-    if items.is_empty() {
-        None
-    } else {
-        Some(items.join("；"))
-    }
-}
-
-/// Parse LLM response to extract text, confidence score, and reason
-fn parse_response_with_confidence(content: &str) -> (String, Option<u8>, Option<String>) {
+/// Extract text from LLM response.
+/// Handles both plain text and JSON `{"text":"..."}` formats (for user-custom prompts).
+fn extract_llm_text(content: &str) -> String {
     let cleaned = clean_response_content(content);
 
+    // Try JSON extraction for backward compatibility with custom prompts
     if let Some(json) = extract_json_block(&cleaned) {
         if let Ok(parsed) = serde_json::from_str::<LlmReviewResponse>(&json) {
             if let Some(text) = parsed.text {
-                let mut confidence = parsed.confidence.map(|v| v.min(100));
-                let reason = parsed.reason.and_then(normalize_reason);
-                if reason.is_none() {
-                    confidence = Some(100);
-                }
-                return (text, confidence, reason);
+                return text;
             }
         }
     }
 
-    // Back-compat: Look for confidence marker at the end
-    if let Some(pos) = cleaned.rfind("---CONFIDENCE:") {
-        let text_part = cleaned[..pos].trim();
-        let marker_part = &cleaned[pos + 14..]; // Skip "---CONFIDENCE:"
-
-        if let Some(end_pos) = marker_part.find("---") {
-            if let Ok(score) = marker_part[..end_pos].trim().parse::<u8>() {
-                return (text_part.to_string(), Some(score.min(100)), None);
-            }
-        }
-    }
-
-    // No confidence marker found, return cleaned text with no score
-    (cleaned, None, None)
+    cleaned
 }
 
 /// Detect usage scenario from app name
@@ -532,7 +486,7 @@ pub async fn execute_llm_request(
     window_title: Option<String>,
     match_pattern: Option<String>,
     match_type: Option<crate::settings::TitleMatchType>,
-) -> (Option<String>, bool, Option<u8>, Option<String>) {
+) -> (Option<String>, bool) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -541,7 +495,7 @@ pub async fn execute_llm_request(
                     "overlay-error",
                     serde_json::json!({ "code": "apple_intelligence_unavailable" }),
                 );
-                return (None, true, None, None);
+                return (None, true);
             }
 
             let mut final_prompt = prompt_content.to_string();
@@ -584,19 +538,19 @@ pub async fn execute_llm_request(
 
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
             return match apple_intelligence::process_text(&final_prompt, token_limit) {
-                Ok(result) => (Some(result), false, None, None), // Apple Intelligence doesn't support confidence check
+                Ok(result) => (Some(result), false),
                 Err(err) => {
                     error!("Apple Intelligence failed: {}", err);
                     let _ = app_handle.emit(
                         "overlay-error",
                         serde_json::json!({ "code": "apple_intelligence_failed" }),
                     );
-                    (None, true, None, None)
+                    (None, true)
                 }
             };
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        return (None, false, None, None);
+        return (None, false);
     }
 
     let api_key = settings
@@ -613,7 +567,7 @@ pub async fn execute_llm_request(
                 "overlay-error",
                 serde_json::json!({ "code": "llm_init_failed" }),
             );
-            return (None, true, None, None);
+            return (None, true);
         }
     };
 
@@ -679,7 +633,7 @@ pub async fn execute_llm_request(
     }
 
     if messages.is_empty() {
-        return (None, false, None, None);
+        return (None, false);
     }
 
     // Resolve CachedModel to get extra_params and is_thinking_model
@@ -770,9 +724,8 @@ pub async fn execute_llm_request(
 
                                 info!("[LLM] Response content len={}", content.len());
 
-                                let (text, confidence, reason) =
-                                    parse_response_with_confidence(&content);
-                                return (Some(text), false, confidence, reason);
+                                let text = extract_llm_text(&content);
+                                return (Some(text), false);
                             }
                             Err(e) => {
                                 error!("Failed to parse LLM JSON response: {:?}", e);
@@ -798,7 +751,7 @@ pub async fn execute_llm_request(
         "overlay-error",
         serde_json::json!({ "code": "llm_request_failed" }),
     );
-    (None, true, None, None)
+    (None, true)
 }
 
 fn resolve_prompt_from_text(
@@ -852,21 +805,39 @@ pub(crate) async fn maybe_post_process_transcription(
     history_id: Option<i64>,
     skill_mode: bool,
     selected_text: Option<String>,
-) -> (
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    bool,
-    Option<u8>,
-    Option<String>,
-) {
+) -> (Option<String>, Option<String>, Option<String>, bool) {
     if !settings.post_process_enabled {
-        return (None, None, None, false, None, None);
+        return (None, None, None, false);
     }
+
+    // Length routing: override selected_prompt_model_id based on text length
+    let settings = if settings.length_routing_enabled && !settings.multi_model_post_process_enabled
+    {
+        let char_count = transcription.chars().count() as u32;
+        let routed_model_id = if char_count <= settings.length_routing_threshold {
+            settings.length_routing_short_model_id.clone()
+        } else {
+            settings.length_routing_long_model_id.clone()
+        };
+        if routed_model_id.is_some() {
+            let mut s = settings.clone();
+            s.selected_prompt_model_id = routed_model_id;
+            info!(
+                "[PostProcess] Length routing: {} chars → model {:?}",
+                char_count, s.selected_prompt_model_id
+            );
+            Cow::Owned(s)
+        } else {
+            Cow::Borrowed(settings)
+        }
+    } else {
+        Cow::Borrowed(settings)
+    };
+    let settings = settings.as_ref();
 
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None, None),
+        None => return (None, None, None, false),
     };
 
     // Load external skills (Phase 9)
@@ -1102,8 +1073,6 @@ pub(crate) async fn maybe_post_process_transcription(
                                     None,
                                     Some(routed_prompt.id.clone()),
                                     false,
-                                    None,
-                                    None,
                                 );
                             }
                             // If polish failed, fall through to standard processing
@@ -1192,8 +1161,6 @@ pub(crate) async fn maybe_post_process_transcription(
                             Some("__PENDING_SKILL_CONFIRMATION__".to_string()),
                             None,
                             false,
-                            None,
-                            None,
                         );
                     }
                 }
@@ -1205,14 +1172,7 @@ pub(crate) async fn maybe_post_process_transcription(
                         "[PostProcess] No skill matched, using parallel polish result with default prompt: {} (id={})",
                         default_prompt.name, default_prompt.id
                     );
-                    return (
-                        Some(polished),
-                        None,
-                        Some(default_prompt.id.clone()),
-                        false,
-                        None,
-                        None,
-                    );
+                    return (Some(polished), None, Some(default_prompt.id.clone()), false);
                 }
 
                 // Both failed or no match + polish failed - fall through to standard processing
@@ -1230,7 +1190,7 @@ pub(crate) async fn maybe_post_process_transcription(
         Some(p) => p,
         None => {
             log::warn!("[PostProcess] initial_prompt_opt is None! Cannot start post-processing chain. Aborting.");
-            return (None, None, None, false, None, None);
+            return (None, None, None, false);
         }
     };
 
@@ -1248,8 +1208,6 @@ pub(crate) async fn maybe_post_process_transcription(
     let mut last_model = None;
     let mut last_prompt_id = None;
     let mut last_err = false;
-    let mut last_confidence = None;
-    let mut last_reason = None;
 
     while chain_depth < MAX_CHAIN_DEPTH {
         let prompt = current_prompt.clone();
@@ -1271,14 +1229,7 @@ pub(crate) async fn maybe_post_process_transcription(
             }
             None => {
                 log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
-                return (
-                    final_result,
-                    last_model,
-                    Some(prompt.id.clone()),
-                    false,
-                    last_confidence,
-                    last_reason,
-                );
+                return (final_result, last_model, Some(prompt.id.clone()), false);
             }
         };
 
@@ -1557,7 +1508,7 @@ pub(crate) async fn maybe_post_process_transcription(
             .model_id
             .as_deref()
             .or(settings.selected_prompt_model_id.as_deref());
-        let (result, err, confidence, reason) = execute_llm_request(
+        let (result, err) = execute_llm_request(
             app_handle,
             settings,
             actual_provider,
@@ -1578,8 +1529,6 @@ pub(crate) async fn maybe_post_process_transcription(
         last_model = Some(model);
         last_prompt_id = Some(prompt.id.clone());
         last_err = err;
-        last_confidence = confidence;
-        last_reason = reason;
 
         if err || final_result.is_none() {
             break;
@@ -1644,14 +1593,7 @@ pub(crate) async fn maybe_post_process_transcription(
         break;
     }
 
-    (
-        final_result,
-        last_model,
-        last_prompt_id,
-        last_err,
-        last_confidence,
-        last_reason,
-    )
+    (final_result, last_model, last_prompt_id, last_err)
 }
 
 pub(crate) async fn post_process_text_with_prompt(
@@ -1661,23 +1603,16 @@ pub(crate) async fn post_process_text_with_prompt(
     streaming_transcription: Option<&str>,
     prompt: &LLMPrompt,
     show_overlay: bool,
-) -> (
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    bool,
-    Option<u8>,
-    Option<String>,
-) {
+) -> (Option<String>, Option<String>, Option<String>, bool) {
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None, None),
+        None => return (None, None, None, false),
     };
 
     let (actual_provider, model) =
         match resolve_effective_model(settings, fallback_provider, prompt) {
             Some((p, m)) => (p, m),
-            None => return (None, None, Some(prompt.id.clone()), false, None, None),
+            None => return (None, None, Some(prompt.id.clone()), false),
         };
 
     if show_overlay {
@@ -1709,12 +1644,11 @@ pub(crate) async fn post_process_text_with_prompt(
         Some(format!("## 输入数据\n\n{}", input_data_parts.join("\n\n")))
     };
 
-    // For manual prompt processing, don't enable confidence checking
     let cached_model_id = prompt
         .model_id
         .as_deref()
         .or(settings.selected_prompt_model_id.as_deref());
-    let (result, err, confidence, reason) = execute_llm_request(
+    let (result, err) = execute_llm_request(
         app_handle,
         settings,
         actual_provider,
@@ -1739,14 +1673,7 @@ pub(crate) async fn post_process_text_with_prompt(
         );
     }
 
-    (
-        result,
-        Some(model),
-        Some(prompt.id.clone()),
-        err,
-        confidence,
-        reason,
-    )
+    (result, Some(model), Some(prompt.id.clone()), err)
 }
 
 pub(crate) async fn maybe_convert_chinese_variant(
@@ -1946,7 +1873,7 @@ pub(crate) async fn multi_post_process_transcription(
                     id: item.id.clone(),
                     label: get_item_label(&settings, item),
                     text,
-                    confidence: result.2,
+                    confidence: None,
                     processing_time_ms: elapsed,
                     error: result.1,
                     ready,
@@ -2004,13 +1931,13 @@ async fn execute_single_model_post_process(
     item: &MultiModelPostProcessItem,
     transcription: &str,
     input_data_message: Option<&str>,
-) -> (Option<String>, Option<String>, Option<u8>) {
+) -> (Option<String>, Option<String>) {
     // Get provider
     let provider = match settings.post_process_provider(&item.provider_id) {
         Some(p) => p,
         None => {
             error!("[MultiModel] Provider not found: {}", item.provider_id);
-            return (None, Some("Provider not found".to_string()), None);
+            return (None, Some("Provider not found".to_string()));
         }
     };
 
@@ -2022,7 +1949,7 @@ async fn execute_single_model_post_process(
         Some(p) => p,
         None => {
             error!("[MultiModel] Prompt not found: {}", item.prompt_id);
-            return (None, Some("Prompt not found".to_string()), None);
+            return (None, Some("Prompt not found".to_string()));
         }
     };
 
@@ -2064,7 +1991,7 @@ async fn execute_single_model_post_process(
     }
 
     if messages.is_empty() {
-        return (None, Some("Failed to build messages".to_string()), None);
+        return (None, Some("Failed to build messages".to_string()));
     }
 
     // Build request
@@ -2077,7 +2004,7 @@ async fn execute_single_model_post_process(
         Ok(r) => r,
         Err(e) => {
             error!("[MultiModel] Failed to build request: {:?}", e);
-            return (None, Some(format!("Request build failed: {:?}", e)), None);
+            return (None, Some(format!("Request build failed: {:?}", e)));
         }
     };
 
@@ -2086,7 +2013,7 @@ async fn execute_single_model_post_process(
         Ok(c) => c,
         Err(e) => {
             error!("[MultiModel] Failed to create LLM client: {:?}", e);
-            return (None, Some(format!("Client creation failed: {:?}", e)), None);
+            return (None, Some(format!("Client creation failed: {:?}", e)));
         }
     };
 
@@ -2094,7 +2021,7 @@ async fn execute_single_model_post_process(
         Ok(r) => r,
         Err(e) => {
             error!("[MultiModel] LLM request failed: {:?}", e);
-            return (None, Some(format!("LLM request failed: {:?}", e)), None);
+            return (None, Some(format!("LLM request failed: {:?}", e)));
         }
     };
 
@@ -2105,20 +2032,19 @@ async fn execute_single_model_post_process(
     {
         Some(c) => c,
         None => {
-            return (None, Some("Empty response".to_string()), None);
+            return (None, Some("Empty response".to_string()));
         }
     };
 
-    let (text, confidence, _reason) = parse_response_with_confidence(&content);
+    let text = extract_llm_text(&content);
 
     info!(
-        "[MultiModel] Model {} completed, text length: {}, confidence: {:?}",
+        "[MultiModel] Model {} completed, text length: {}",
         item.id,
         text.len(),
-        confidence
     );
 
-    (Some(text), None, confidence)
+    (Some(text), None)
 }
 
 #[allow(dead_code)]

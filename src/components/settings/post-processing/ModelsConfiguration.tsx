@@ -21,6 +21,7 @@ import { Dropdown } from "../../ui/Dropdown";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ApiSettings } from "./ApiSettings";
+import { TextModelModeSettings } from "./LengthRoutingSettings";
 import { ModelListPanel } from "./ModelConfigurationPanel";
 
 // --- Helpers & Types for Dialog ---
@@ -254,13 +255,19 @@ export const ModelsConfiguration: React.FC = () => {
         providerState={providerState}
       />
 
-      {/* 2. Models Grid (Side-by-Side) */}
+      {/* 2. Default Model / Length Routing (expert mode) */}
+      {settings?.expert_mode && <TextModelModeSettings />}
+
+      {/* 3. Models Grid (Side-by-Side) */}
       <Grid columns="2" gap="4">
         {/* Text Models */}
         <SettingsGroup
           title={t("settings.postProcessing.models.modelTypes.text.label")}
         >
-          <ModelListPanel targetType="text" />
+          <ModelListPanel
+            targetType="text"
+            allowSelection={!settings?.expert_mode}
+          />
         </SettingsGroup>
 
         {/* ASR Models */}

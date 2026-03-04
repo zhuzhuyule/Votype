@@ -574,12 +574,6 @@ pub struct AppSettings {
     pub offline_vad_force_interval_ms: u64,
     #[serde(default = "default_offline_vad_force_window_seconds")]
     pub offline_vad_force_window_seconds: u64,
-    /// Enable LLM-based confidence checking for transcriptions
-    #[serde(default = "default_confidence_check_enabled")]
-    pub confidence_check_enabled: bool,
-    /// Confidence threshold (0-100). Below this threshold, user review is required.
-    #[serde(default = "default_confidence_threshold")]
-    pub confidence_threshold: u8,
     /// Application-specific review policies (App Bundle ID or Process Name -> Policy)
     #[serde(default)]
     pub app_review_policies: HashMap<String, AppReviewPolicy>,
@@ -606,6 +600,15 @@ pub struct AppSettings {
     pub typing_tool: TypingTool,
     #[serde(default)]
     pub external_script_path: Option<String>,
+    /// Length routing: auto-select model based on text length
+    #[serde(default)]
+    pub length_routing_enabled: bool,
+    #[serde(default = "default_length_routing_threshold")]
+    pub length_routing_threshold: u32,
+    #[serde(default)]
+    pub length_routing_short_model_id: Option<String>,
+    #[serde(default)]
+    pub length_routing_long_model_id: Option<String>,
 }
 
 fn default_model() -> String {
@@ -811,20 +814,16 @@ fn default_offline_vad_force_window_seconds() -> u64 {
     30
 }
 
-fn default_confidence_check_enabled() -> bool {
-    false
-}
-
-fn default_confidence_threshold() -> u8 {
-    20
-}
-
 fn default_post_process_context_enabled() -> bool {
     false
 }
 
 fn default_post_process_context_limit() -> u8 {
     3
+}
+
+fn default_length_routing_threshold() -> u32 {
+    100
 }
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
@@ -1104,8 +1103,6 @@ pub fn get_default_settings() -> AppSettings {
         realtime_transcription_enabled: false,
         offline_vad_force_interval_ms: default_offline_vad_force_interval_ms(),
         offline_vad_force_window_seconds: default_offline_vad_force_window_seconds(),
-        confidence_check_enabled: default_confidence_check_enabled(),
-        confidence_threshold: default_confidence_threshold(),
         app_review_policies: HashMap::new(),
         app_profiles: Vec::new(),
         app_to_profile: HashMap::new(),
@@ -1119,6 +1116,10 @@ pub fn get_default_settings() -> AppSettings {
         paste_delay_ms: default_paste_delay_ms(),
         typing_tool: TypingTool::default(),
         external_script_path: None,
+        length_routing_enabled: false,
+        length_routing_threshold: default_length_routing_threshold(),
+        length_routing_short_model_id: None,
+        length_routing_long_model_id: None,
     }
 }
 

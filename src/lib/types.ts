@@ -249,8 +249,6 @@ export const SettingsSchema = z.object({
   realtime_transcription_enabled: z.boolean().optional().default(false),
   offline_vad_force_interval_ms: z.number().optional().default(2000),
   offline_vad_force_window_seconds: z.number().optional().default(30),
-  confidence_check_enabled: z.boolean().optional().default(false),
-  confidence_threshold: z.number().min(0).max(100).optional().default(20),
   app_review_policies: z
     .record(z.string(), AppReviewPolicySchema)
     .optional()
@@ -265,6 +263,10 @@ export const SettingsSchema = z.object({
     .optional()
     .default("tauri"),
   show_tray_icon: z.boolean().optional().default(true),
+  length_routing_enabled: z.boolean().optional().default(false),
+  length_routing_threshold: z.number().min(10).max(500).optional().default(100),
+  length_routing_short_model_id: z.string().nullable().optional().default(null),
+  length_routing_long_model_id: z.string().nullable().optional().default(null),
 });
 
 export const BindingResponseSchema = z.object({

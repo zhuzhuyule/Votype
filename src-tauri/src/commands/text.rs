@@ -43,9 +43,7 @@ pub async fn optimize_text_with_llm(
         instruction.unwrap_or_else(|| "优化这个提示词，使其更专业、结构更清晰。".to_string());
     let processed_prompt = format!("{}\n\n待优化的提示词内容：\n\n{}", user_instruction, text);
 
-    // Reuse existing execute_llm_request logic
-    // Note: execute_llm_request usually handles confidence checks and returns a tuple
-    let (optimized_text, _success, _confidence, _reason) = post_process::execute_llm_request(
+    let (optimized_text, _err) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -116,7 +114,7 @@ pub async fn generate_skill_description(
 
     let user_content = format!("Skill 名称：{}\nSkill 指令：\n{}", name, instructions);
 
-    let (description, _success, _confidence, _reason) = post_process::execute_llm_request(
+    let (description, _err) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,

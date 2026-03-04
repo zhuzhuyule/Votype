@@ -253,9 +253,18 @@ const settingUpdaters: {
   app_review_policies: (value) =>
     invoke("set_app_review_policies", { policies: value }),
   app_profiles: (value) => invoke("set_app_profiles", { profiles: value }),
-  app_to_profile: (value) => invoke("set_app_to_profile", { mapping: value }),
+  app_to_profile: (value) =>
+    invoke("set_app_to_profile", { appToProfile: value }),
   expert_mode: (value) =>
     invoke("change_expert_mode_setting", { enabled: value }),
+  length_routing_enabled: (value) =>
+    invoke("change_length_routing_enabled_setting", { enabled: value }),
+  length_routing_threshold: (value) =>
+    invoke("change_length_routing_threshold_setting", { threshold: value }),
+  length_routing_short_model_id: (value) =>
+    invoke("change_length_routing_short_model_setting", { modelId: value }),
+  length_routing_long_model_id: (value) =>
+    invoke("change_length_routing_long_model_setting", { modelId: value }),
 };
 
 export const useSettingsStore = create<SettingsStore>()(

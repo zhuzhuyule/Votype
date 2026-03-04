@@ -899,33 +899,27 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
 
-                                let (
-                                    processed_text,
-                                    model,
-                                    prompt_id,
-                                    err,
-                                    confidence_score,
-                                    reason,
-                                ) = maybe_post_process_transcription(
-                                    &ah_clone,
-                                    &settings_clone,
-                                    &chinese_converted_text,
-                                    secondary.as_deref(),
-                                    true,
-                                    override_prompt_id,
-                                    active_window_snapshot_for_review
-                                        .as_ref()
-                                        .map(|info| info.app_name.clone()),
-                                    active_window_snapshot_for_review
-                                        .as_ref()
-                                        .map(|info| info.title.clone()),
-                                    matched_rule.map(|r| r.pattern.clone()),
-                                    matched_rule.map(|r| r.match_type),
-                                    history_id,
-                                    skill_mode, // Pass skill_mode to control LLM routing
-                                    selected_text.clone(), // Pass captured context for Mode C
-                                )
-                                .await;
+                                let (processed_text, model, prompt_id, err) =
+                                    maybe_post_process_transcription(
+                                        &ah_clone,
+                                        &settings_clone,
+                                        &chinese_converted_text,
+                                        secondary.as_deref(),
+                                        true,
+                                        override_prompt_id,
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.app_name.clone()),
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.title.clone()),
+                                        matched_rule.map(|r| r.pattern.clone()),
+                                        matched_rule.map(|r| r.match_type),
+                                        history_id,
+                                        skill_mode, // Pass skill_mode to control LLM routing
+                                        selected_text.clone(), // Pass captured context for Mode C
+                                    )
+                                    .await;
 
                                 // Check if pending skill confirmation - skip all subsequent processing
                                 if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
@@ -1010,16 +1004,7 @@ impl ShortcutAction for TranscribeAction {
                                                 if !prompt_compliance_enabled {
                                                     false
                                                 } else {
-                                                    // Unified Risk Logic:
-                                                    // 1. If LLM provides confidence (0-100, where 100 is best), Risk = 100 - confidence.
-                                                    // 2. Otherwise, Risk = Change Percent (0-100, where 0 is no change).
-                                                    // Trigger review if Risk >= Threshold.
-                                                    let risk = if let Some(conf) = confidence_score {
-                                                        100u8.saturating_sub(conf)
-                                                    } else {
-                                                        change_percent
-                                                    };
-                                                    risk >= prompt_threshold
+                                                    change_percent >= prompt_threshold
                                                 }
                                             }
                                         }
@@ -1061,9 +1046,9 @@ impl ShortcutAction for TranscribeAction {
                                         final_text.clone(),
                                         change_percent,
                                         history_id,
-                                        reason.clone(),
+                                        None, // reason removed (was from confidence scoring)
                                         output_mode,
-                                        None, // No skill_name for confidence review
+                                        None, // No skill_name for compliance review
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);

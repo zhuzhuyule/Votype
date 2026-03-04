@@ -384,10 +384,14 @@ const renderModelSection = ({
 
 export interface ModelListPanelProps {
   targetType: ModelType | ModelType[];
+  allowSelection?: boolean;
+  showMultiModelCheckboxes?: boolean;
 }
 
 export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   targetType,
+  allowSelection: allowSelectionProp,
+  showMultiModelCheckboxes: showMultiModelCheckboxesProp,
 }) => {
   const { settings, removeCachedModel, isUpdating, refreshSettings } =
     useSettings();
@@ -438,12 +442,23 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
             handleRemove: handleRemoveModel,
             t,
             refreshSettings,
-            allowSelection: type === "text",
+            allowSelection:
+              allowSelectionProp !== undefined
+                ? allowSelectionProp
+                : type === "text",
             hideIfEmpty: false,
             multiModelSelectedIds:
-              type === "text" ? multiModelSelectedIds : undefined,
+              type === "text" &&
+              (showMultiModelCheckboxesProp ??
+                settings?.multi_model_post_process_enabled)
+                ? multiModelSelectedIds
+                : undefined,
             onToggleMultiModel:
-              type === "text" ? handleToggleMultiModel : undefined,
+              type === "text" &&
+              (showMultiModelCheckboxesProp ??
+                settings?.multi_model_post_process_enabled)
+                ? handleToggleMultiModel
+                : undefined,
           })}
         </Box>
       ))}

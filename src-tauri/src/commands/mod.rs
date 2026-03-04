@@ -328,7 +328,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 .ok();
         }
 
-        let (result, model, prompt_id, _err, _confidence, _reason) =
+        let (result, model, prompt_id, _err) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
@@ -469,7 +469,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         } else {
             // Fallback: execute default polish (should not happen with parallel requests)
             log::warn!("[SkillConfirmation] No cached polish result, executing default polish");
-            let (result, _model, _prompt_id, _err, _confidence, _reason) =
+            let (result, _model, _prompt_id, _err) =
                 crate::actions::post_process::maybe_post_process_transcription(
                     &app,
                     &settings,
