@@ -14,10 +14,10 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 const REVIEW_WINDOW_WIDTH: f64 = 540.0;
-const REVIEW_WINDOW_MIN_WIDTH: f64 = 480.0;
+const REVIEW_WINDOW_MIN_WIDTH: f64 = 600.0;
 const REVIEW_WINDOW_MAX_WIDTH: f64 = 1080.0;
 const REVIEW_WINDOW_HEIGHT: f64 = 480.0;
-const REVIEW_WINDOW_MIN_HEIGHT: f64 = 420.0;
+const REVIEW_WINDOW_MIN_HEIGHT: f64 = 450.0;
 const REVIEW_WINDOW_MAX_HEIGHT: f64 = 920.0;
 
 #[derive(Clone, serde::Serialize)]
@@ -112,22 +112,24 @@ fn estimate_window_width(source_text: &str, final_text: &str) -> f64 {
     if max_line_len == 0 {
         return REVIEW_WINDOW_WIDTH;
     }
-    let estimated = (max_line_len as f64 * 9.2).min(REVIEW_WINDOW_MAX_WIDTH);
+    let estimated = (max_line_len as f64 * 9.2 + 70.0).min(REVIEW_WINDOW_MAX_WIDTH);
     estimated.clamp(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MAX_WIDTH)
 }
 
 fn estimate_window_height(source_text: &str, final_text: &str, width: f64) -> f64 {
-    let line_chars = (width / 10.5).floor().max(18.0) as usize;
+    let text_width = (width - 70.0).max(200.0); // subtract panel margins
+    let line_chars = (text_width / 9.2).floor().max(18.0) as usize;
     let source_lines = estimate_line_count(source_text, line_chars);
     let final_lines = estimate_line_count(final_text, line_chars);
-    let content_lines = source_lines + final_lines;
-    // Increased line height estimation due to 16px font
-    let content_height = content_lines as f64 * 28.0;
-    let chrome_height = 140.0; // Compacted Header + Footer
-    let height = (chrome_height + content_height)
-        .max(REVIEW_WINDOW_MIN_HEIGHT)
-        .min(REVIEW_WINDOW_MAX_HEIGHT);
-    height
+
+    // Source inline frame: padding(14) + body(lines*20, max 120) + border(2)
+    let source_body = (source_lines as f64 * 20.0).min(120.0);
+    let source_frame = 14.0 + source_body + 2.0;
+    // Output panel: header(30) + body(lines*24) + border(2)
+    let output_panel = 30.0 + final_lines as f64 * 24.0 + 2.0;
+    // Total: header(40) + content-padding(8) + source + gap(8) + output + footer(32)
+    let total = 40.0 + 8.0 + source_frame + 8.0 + output_panel + 32.0;
+    total.clamp(REVIEW_WINDOW_MIN_HEIGHT, REVIEW_WINDOW_MAX_HEIGHT)
 }
 
 fn was_app_active_before_review() -> bool {
@@ -304,7 +306,7 @@ pub fn create_review_window(app_handle: &AppHandle) {
     .resizable(true)
     .inner_size(REVIEW_WINDOW_WIDTH, REVIEW_WINDOW_HEIGHT)
     .shadow(true)
-    .min_inner_size(REVIEW_WINDOW_WIDTH, REVIEW_WINDOW_HEIGHT)
+    .min_inner_size(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MIN_HEIGHT)
     .maximizable(false)
     .minimizable(false)
     .closable(false)
@@ -478,6 +480,30 @@ pub fn review_window_content_ready(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Called by frontend to resize the review window after measuring actual DOM content.
+/// When `reposition` is true, the window is re-centered on the cursor's monitor (initial show).
+/// When false, only size changes (e.g. after prompt switch).
+#[tauri::command]
+pub fn resize_review_window(
+    app: AppHandle,
+    width: f64,
+    height: f64,
+    reposition: bool,
+) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("review_window") {
+        let w = width.clamp(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MAX_WIDTH);
+        let h = height.clamp(REVIEW_WINDOW_MIN_HEIGHT, REVIEW_WINDOW_MAX_HEIGHT);
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+            width: w,
+            height: h,
+        }));
+        if reposition {
+            position_window_near_cursor(&window, w, h);
+        }
+    }
+    Ok(())
+}
+
 #[allow(dead_code)]
 pub fn get_last_review_history_id() -> Option<i64> {
     let last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
@@ -535,9 +561,12 @@ pub fn show_review_window_with_candidates(
         // Width: use 65% of screen width for multi-candidate, generous space for text
         let width = (screen_w * 0.65).clamp(680.0, REVIEW_WINDOW_MAX_WIDTH);
 
-        // Height: source panel + each candidate ~110px + header/footer ~100px, capped at 85% screen
-        let desired_height = 100.0 + 80.0 + candidate_count * 110.0;
-        let height = desired_height.clamp(500.0, screen_h * 0.85);
+        // Height: sized to content based on actual candidate count
+        // header(40) + footer(40) + content-padding(6) + source-inline(44) + gap(8)
+        // + each candidate: ~120px (header + single-line content + border + gap)
+        let per_candidate = 110.0;
+        let desired_height = 40.0 + 40.0 + 6.0 + 44.0 + 8.0 + candidate_count * per_candidate;
+        let height = desired_height.clamp(REVIEW_WINDOW_MIN_HEIGHT, screen_h * 0.85);
 
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
         position_window_near_cursor(&review_window, width, height);

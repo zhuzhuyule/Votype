@@ -426,7 +426,7 @@ pub async fn ai_generate_skill(
 1. The instruction should be clear, professional, and easy to understand
 2. Include role definition, task description, input variable description, and output format
 3. Design appropriate output format based on "output mode" ({}):
-   - polish mode: Return JSON format {{"text": "...", "confidence": 0-100, "reason": "..."}}
+   - polish mode: Return the processed text directly, without any JSON wrapping, confidence scores, or extra formatting
    - chat mode: Return processed text content directly
 4. Use Markdown format with variable placeholders:
    - ${{output}}: Final recognized text
@@ -1104,24 +1104,6 @@ pub fn change_favorite_transcription_models_setting(
 
 #[tauri::command]
 #[specta::specta]
-pub fn change_confidence_check_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.confidence_check_enabled = enabled;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
-pub fn change_confidence_threshold_setting(app: AppHandle, threshold: u8) -> Result<(), String> {
-    let mut settings = settings::get_settings(&app);
-    settings.confidence_threshold = threshold;
-    settings::write_settings(&app, settings);
-    Ok(())
-}
-
-#[tauri::command]
-#[specta::specta]
 pub fn change_punctuation_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.punctuation_enabled = enabled;
@@ -1210,6 +1192,66 @@ pub fn change_post_process_intent_model_id_setting(
     Ok(())
 }
 
+// Group: Single-Model Rerun with Prompt
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, specta::Type)]
+pub struct RerunSingleResult {
+    pub text: Option<String>,
+    pub error: Option<String>,
+    pub model: Option<String>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn rerun_single_with_prompt(
+    app: AppHandle,
+    prompt_id: String,
+    source_text: String,
+    _history_id: Option<i64>,
+    model_id: Option<String>,
+) -> Result<RerunSingleResult, String> {
+    let settings = settings::get_settings(&app);
+
+    // Find the prompt by id
+    let mut prompt = settings
+        .post_process_prompts
+        .iter()
+        .find(|p| p.id == prompt_id)
+        .cloned()
+        .ok_or_else(|| format!("Prompt not found: {}", prompt_id))?;
+
+    // Override prompt's model_id if caller specified one
+    if model_id.is_some() {
+        prompt.model_id = model_id;
+    }
+
+    // Call post_process_text_with_prompt to reprocess
+    let (result, model_used, _prompt_id, err) =
+        crate::actions::post_process::post_process_text_with_prompt(
+            &app,
+            &settings,
+            &source_text,
+            None,
+            &prompt,
+            false,
+        )
+        .await;
+
+    if err {
+        Ok(RerunSingleResult {
+            text: None,
+            error: Some("LLM request failed".to_string()),
+            model: model_used,
+        })
+    } else {
+        Ok(RerunSingleResult {
+            text: result,
+            error: None,
+            model: model_used,
+        })
+    }
+}
+
 // Group: Multi-Model Post-Process Review Commands
 
 #[derive(serde::Serialize, Clone, specta::Type)]
@@ -1240,6 +1282,68 @@ pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
     PromptListResponse {
         prompts,
         selected_id: settings.post_process_selected_prompt_id.clone(),
+    }
+}
+
+#[derive(serde::Serialize, Clone, specta::Type)]
+pub struct ReviewModelOption {
+    pub id: String,
+    pub label: String,
+    pub model_id: String,
+    pub provider_id: String,
+}
+
+#[derive(serde::Serialize, Clone, specta::Type)]
+pub struct ReviewModelOptionsResponse {
+    pub models: Vec<ReviewModelOption>,
+    /// The cached_model.id of the current default model (resolved from settings)
+    pub default_model_id: Option<String>,
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_review_model_options(app: AppHandle) -> ReviewModelOptionsResponse {
+    let settings = settings::get_settings(&app);
+
+    // Resolve default model: selected_prompt_model_id takes priority
+    let default_model_id = settings
+        .selected_prompt_model_id
+        .as_ref()
+        .filter(|id| !id.trim().is_empty())
+        .and_then(|id| {
+            settings
+                .cached_models
+                .iter()
+                .find(|m| m.id == *id)
+                .map(|_| id.clone())
+        });
+
+    let mut models: Vec<ReviewModelOption> = settings
+        .cached_models
+        .iter()
+        .filter(|m| m.model_type == settings::ModelType::Text)
+        .map(|m| {
+            let label = m
+                .custom_label
+                .as_deref()
+                .filter(|l| !l.trim().is_empty())
+                .unwrap_or(&m.name)
+                .to_string();
+            ReviewModelOption {
+                id: m.id.clone(),
+                label,
+                model_id: m.model_id.clone(),
+                provider_id: m.provider_id.clone(),
+            }
+        })
+        .collect();
+
+    // Sort alphabetically by label
+    models.sort_by(|a, b| a.label.to_lowercase().cmp(&b.label.to_lowercase()));
+
+    ReviewModelOptionsResponse {
+        models,
+        default_model_id,
     }
 }
 
@@ -1413,6 +1517,52 @@ pub fn remove_multi_model_post_process_item(app: AppHandle, item_id: String) -> 
     settings
         .multi_model_post_process_items
         .retain(|i| i.id != item_id);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+// Group: Length Routing Settings
+#[tauri::command]
+#[specta::specta]
+pub fn change_length_routing_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.length_routing_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_length_routing_threshold_setting(
+    app: AppHandle,
+    threshold: u32,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.length_routing_threshold = threshold;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_length_routing_short_model_setting(
+    app: AppHandle,
+    model_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.length_routing_short_model_id = model_id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_length_routing_long_model_setting(
+    app: AppHandle,
+    model_id: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.length_routing_long_model_id = model_id;
     settings::write_settings(&app, settings);
     Ok(())
 }

@@ -1,7 +1,7 @@
 // ReviewWindow - Independent window for reviewing low-confidence transcriptions
 // This provides a floating window UI for editing and inserting transcribed text
 
-import { Box, Button, ScrollArea, Text, Tooltip } from "@radix-ui/themes";
+import { Button, ScrollArea, Tooltip } from "@radix-ui/themes";
 import {
   IconCheck,
   IconClipboard,
@@ -50,6 +50,13 @@ interface MultiModelCandidate {
 interface PromptInfo {
   id: string;
   name: string;
+}
+
+interface ReviewModelOption {
+  id: string;
+  label: string;
+  model_id: string;
+  provider_id: string;
 }
 
 function formatProcessingTime(ms: number): string {
@@ -776,6 +783,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 }) => {
   const { t } = useTranslation();
   const renderStartRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
     multiCandidates && multiCandidates.length > 0
@@ -790,10 +798,16 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     MultiModelCandidate[] | undefined
   >(multiCandidates);
   const [isRerunning, setIsRerunning] = useState(false);
+  const [editedTexts, setEditedTexts] = useState<Record<string, string>>({});
 
-  // Fetch prompts on mount when in multi-candidate mode
+  // Model selector state (single-model polish mode only)
+  const [modelOptions, setModelOptions] = useState<ReviewModelOption[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [defaultModelLabel, setDefaultModelLabel] = useState<string>("");
+  const [currentModelName, setCurrentModelName] = useState<string>("");
+
+  // Fetch prompts and model options on mount
   useEffect(() => {
-    if (!multiCandidates) return;
     invoke<{ prompts: PromptInfo[]; selected_id: string | null }>(
       "get_post_process_prompts",
     ).then((resp) => {
@@ -804,7 +818,20 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         setSelectedPromptId(resp.prompts[0].id);
       }
     });
-  }, [!!multiCandidates]);
+    // Fetch text-type models for single-model mode selector
+    if (!multiCandidates || multiCandidates.length === 0) {
+      invoke<{
+        models: ReviewModelOption[];
+        default_model_id: string | null;
+      }>("get_review_model_options").then((resp) => {
+        setModelOptions(resp.models);
+        if (resp.default_model_id) {
+          const dm = resp.models.find((m) => m.id === resp.default_model_id);
+          if (dm) setDefaultModelLabel(dm.label);
+        }
+      });
+    }
+  }, []);
 
   // Sync external multiCandidates prop into local state
   // Skip during rerun — ReviewWindow owns local state while rerunning
@@ -825,6 +852,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       (event) => {
         setLocalCandidates(event.payload.candidates);
         setSelectedCandidateId(null);
+        setEditedTexts({});
         setIsRerunning(true);
       },
     ).then((fn) => {
@@ -900,6 +928,45 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   // Use refs to access latest callbacks inside Tiptap extension
   const insertRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
+
+  const measureAndResize = useCallback(async (reposition: boolean) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const header = container.querySelector(".review-header");
+    const footer = container.querySelector(".review-footer");
+    const headerH = header?.getBoundingClientRect().height ?? 44;
+    const footerH = footer?.getBoundingClientRect().height ?? 52;
+
+    const sourcePanel = container.querySelector(".review-panel-source");
+    const outputPanel = container.querySelector(".review-panel-output");
+    const chatSection = container.querySelector(".review-section-no-title");
+
+    let contentH: number;
+    if (sourcePanel && outputPanel) {
+      // Panel mode: padding(24) + source + gap(10) + output
+      const sourceH = sourcePanel.scrollHeight;
+      const outputH = outputPanel.scrollHeight;
+      contentH = 24 + sourceH + 10 + outputH;
+    } else if (chatSection) {
+      contentH = chatSection.scrollHeight + 24;
+    } else {
+      contentH = 200;
+    }
+
+    const totalH = headerH + contentH + footerH;
+    const currentW = window.innerWidth;
+
+    try {
+      await invoke("resize_review_window", {
+        width: currentW,
+        height: totalH,
+        reposition,
+      });
+    } catch (e) {
+      console.error("[ReviewWindow] resize_review_window failed:", e);
+    }
+  }, []);
 
   const editor = useEditor(
     {
@@ -1019,22 +1086,31 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       editor.commands.focus("end");
     }, 50);
 
-    // Notify Rust that content is rendered and window can be shown
-    // This ensures no flicker - window only becomes visible after content is ready
-    const readyTimer = window.setTimeout(() => {
+    // Multi-model mode: backend already sized and showed the window directly,
+    // skip frontend measure/resize to avoid overriding the correct size.
+    // Single-model/chat mode: measure DOM, resize, then notify backend to show.
+    const isMultiModel = multiCandidates && multiCandidates.length > 0;
+    const readyTimer = window.setTimeout(async () => {
       if (disposed) return;
-      const renderStart = renderStartRef.current;
-      const renderDurationMs = renderStart
-        ? Math.round(performance.now() - renderStart)
-        : null;
-      void log("[ReviewWindow] content_ready", {
-        renderDurationMs,
-        outputMode: initialData.output_mode ?? "polish",
-      });
-      invoke("review_window_content_ready").catch((e) => {
-        console.error("Failed to notify content ready:", e);
-      });
-    }, 0);
+      if (!isMultiModel) {
+        try {
+          await measureAndResize(true);
+        } catch (e) {
+          console.error("Failed to measure/resize:", e);
+        }
+        const renderStart = renderStartRef.current;
+        const renderDurationMs = renderStart
+          ? Math.round(performance.now() - renderStart)
+          : null;
+        void log("[ReviewWindow] content_ready", {
+          renderDurationMs,
+          outputMode: initialData.output_mode ?? "polish",
+        });
+        invoke("review_window_content_ready").catch((e) => {
+          console.error("Failed to notify content ready:", e);
+        });
+      }
+    }, 16);
 
     return () => {
       disposed = true;
@@ -1044,8 +1120,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, [editor]);
 
   const getEditorText = useCallback(() => {
-    // In multi-candidate mode, return selected candidate's text
+    // In multi-candidate mode, return edited or original candidate text
     if (displayCandidates && selectedCandidateId) {
+      const edited = editedTexts[selectedCandidateId];
+      if (edited !== undefined) return edited;
       const candidate = displayCandidates.find(
         (c) => c.id === selectedCandidateId,
       );
@@ -1053,7 +1131,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
     if (!editor) return "";
     return editor.getText({ blockSeparator: "\n" });
-  }, [editor, displayCandidates, selectedCandidateId]);
+  }, [editor, displayCandidates, selectedCandidateId, editedTexts]);
 
   const handleInsert = useCallback(async () => {
     const currentText = getEditorText();
@@ -1131,12 +1209,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     cancelRef.current = handleCancel;
   }, [handleCancel]);
 
-  const getChangeColor = (changePercent: number): string => {
-    if (changePercent >= 85) return "var(--ruby-9)";
-    if (changePercent >= 50) return "var(--amber-9)";
-    return "var(--grass-9)";
-  };
-
   const handleDrag = useCallback(async () => {
     try {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -1149,7 +1221,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   return (
     <div className="w-screen h-screen flex items-center justify-center p-0 box-border overflow-hidden bg-transparent">
-      <div className="review-window-container">
+      <div className="review-window-container" ref={containerRef}>
         <div
           className="cursor-grab select-none"
           onPointerDown={(e) => {
@@ -1164,6 +1236,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           {multiCandidates && multiCandidates.length > 0 ? (
             <div className="review-header">
               <div className="review-header-left">
+                <span className="review-panel-label">
+                  {t("transcription.review.source", "ASR 结果")}
+                </span>
                 {prompts.length > 1 ? (
                   <select
                     className="prompt-select"
@@ -1183,6 +1258,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                         })),
                       );
                       setSelectedCandidateId(null);
+                      setEditedTexts({});
                       setIsRerunning(true);
                       invoke("rerun_multi_model_with_prompt", {
                         promptId: newId,
@@ -1198,12 +1274,22 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                       </option>
                     ))}
                   </select>
-                ) : (
-                  <div className="review-skill-name">
-                    {prompts[0]?.name ||
-                      t("transcription.review.multiModel", "多模型结果")}
-                  </div>
-                )}
+                ) : prompts.length === 1 ? (
+                  <span className="review-prompt-badge">{prompts[0].name}</span>
+                ) : null}
+              </div>
+              <div
+                className="review-close-button review-close-btn"
+                onClick={handleCancel}
+              >
+                <CancelIcon />
+              </div>
+            </div>
+          ) : initialData.output_mode === "chat" ? (
+            <div className="review-header">
+              <div className="review-skill-name">
+                {initialData.skill_name ||
+                  t("transcription.review.generationTitle", "AI Assistant")}
               </div>
               <div
                 className="review-close-button review-close-btn"
@@ -1213,58 +1299,118 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               </div>
             </div>
           ) : (
-            <>
-              {initialData.output_mode !== "chat" && (
-                <div className="review-header">
-                  <div className="review-change-badge">
-                    <Box
-                      className="review-status-dot"
-                      style={{
-                        backgroundColor: getChangeColor(
-                          initialData.change_percent,
-                        ),
-                        color: getChangeColor(initialData.change_percent),
-                      }}
-                    />
-                    <span className="change-label">
-                      {t("transcription.review.change", "Change")}
-                    </span>
-                    <span
-                      className={`change-value ${
-                        initialData.change_percent < 50
-                          ? "change-low"
-                          : initialData.change_percent < 85
-                            ? "change-medium"
-                            : "change-high"
-                      }`}
-                    >
-                      {initialData.change_percent}%
-                    </span>
-                  </div>
-                  <div
-                    className="review-close-button review-close-btn"
-                    onClick={handleCancel}
+            <div className="review-header">
+              <div className="review-header-left">
+                <span className="review-panel-label">
+                  {t("transcription.review.source", "Live transcript")}
+                </span>
+                {prompts.length > 1 ? (
+                  <select
+                    className="prompt-select"
+                    value={selectedPromptId}
+                    onChange={async (e) => {
+                      const newId = e.target.value;
+                      setSelectedPromptId(newId);
+                      setIsRerunning(true);
+                      try {
+                        const resp = await invoke<{
+                          text: string | null;
+                          error: string | null;
+                          model: string | null;
+                        }>("rerun_single_with_prompt", {
+                          promptId: newId,
+                          sourceText: initialData.source_text,
+                          historyId: initialData.history_id,
+                          modelId: selectedModelId || null,
+                        });
+                        if (resp.model) setCurrentModelName(resp.model);
+                        if (resp.text && editor) {
+                          const views = buildDiffViews(
+                            initialData.source_text,
+                            resp.text,
+                          );
+                          editor.commands.setContent(views.targetHtml, {
+                            emitUpdate: false,
+                          });
+                          setSourceHtml(views.sourceHtml);
+                          setTimeout(() => measureAndResize(false), 16);
+                        }
+                      } catch (err) {
+                        console.error("Failed to rerun:", err);
+                      } finally {
+                        setIsRerunning(false);
+                      }
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <CancelIcon />
-                  </div>
-                </div>
-              )}
-
-              {initialData.output_mode === "chat" && (
-                <div className="review-header">
-                  <div className="review-skill-name">
-                    {initialData.skill_name ||
-                      t("transcription.review.generationTitle", "AI Assistant")}
-                  </div>
-                  <div
-                    className="review-close-button review-close-btn"
-                    onClick={handleCancel}
+                    {prompts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : prompts.length === 1 ? (
+                  <span className="review-prompt-badge">{prompts[0].name}</span>
+                ) : null}
+                {modelOptions.length > 1 && (
+                  <select
+                    className="prompt-select model-select"
+                    value={selectedModelId}
+                    onChange={async (e) => {
+                      const newModelId = e.target.value;
+                      setSelectedModelId(newModelId);
+                      setIsRerunning(true);
+                      try {
+                        const resp = await invoke<{
+                          text: string | null;
+                          error: string | null;
+                          model: string | null;
+                        }>("rerun_single_with_prompt", {
+                          promptId: selectedPromptId,
+                          sourceText: initialData.source_text,
+                          historyId: initialData.history_id,
+                          modelId: newModelId || null,
+                        });
+                        if (resp.model) setCurrentModelName(resp.model);
+                        if (resp.text && editor) {
+                          const views = buildDiffViews(
+                            initialData.source_text,
+                            resp.text,
+                          );
+                          editor.commands.setContent(views.targetHtml, {
+                            emitUpdate: false,
+                          });
+                          setSourceHtml(views.sourceHtml);
+                          setTimeout(() => measureAndResize(false), 16);
+                        }
+                      } catch (err) {
+                        console.error("Failed to rerun:", err);
+                      } finally {
+                        setIsRerunning(false);
+                      }
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <CancelIcon />
-                  </div>
-                </div>
-              )}
-            </>
+                    <option value="">
+                      {defaultModelLabel
+                        ? `${t("common.default", "Default")} (${defaultModelLabel})`
+                        : t("common.default", "Default")}
+                    </option>
+                    {modelOptions.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label !== m.model_id ? m.label : m.model_id}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div
+                className="review-close-button review-close-btn"
+                onClick={handleCancel}
+              >
+                <CancelIcon />
+              </div>
+            </div>
           )}
         </div>
 
@@ -1275,16 +1421,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               scrollbars="vertical"
               className="multi-candidates-panels"
             >
-              {/* Source transcription as a reference panel */}
-              <div className="candidate-panel candidate-tint-source">
-                <div className="candidate-panel-header">
-                  <span className="candidate-label">
-                    {t("transcription.review.source", "Live transcript")}
-                  </span>
-                </div>
-                <div className="candidate-panel-content">
-                  {initialData.source_text || "—"}
-                </div>
+              {/* Source transcription as a simple inline frame */}
+              <div className="review-source-inline">
+                {initialData.source_text || "—"}
               </div>
 
               {(() => {
@@ -1377,7 +1516,31 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                           </span>
                         ) : (
                           <>
-                            <span>{candidate.text}</span>
+                            <textarea
+                              className="candidate-edit-textarea"
+                              value={
+                                editedTexts[candidate.id] ?? candidate.text
+                              }
+                              onChange={(e) => {
+                                const el = e.target;
+                                setEditedTexts((prev) => ({
+                                  ...prev,
+                                  [candidate.id]: el.value,
+                                }));
+                                el.style.height = "auto";
+                                el.style.height = el.scrollHeight + "px";
+                              }}
+                              ref={(el) => {
+                                if (el) {
+                                  el.style.height = "auto";
+                                  el.style.height = el.scrollHeight + "px";
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              onFocus={() =>
+                                setSelectedCandidateId(candidate.id)
+                              }
+                            />
                             <Tooltip
                               content={t(
                                 "transcription.review.insert",
@@ -1390,7 +1553,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleDirectInsert(
-                                    candidate.text,
+                                    editedTexts[candidate.id] ?? candidate.text,
                                     candidate.id,
                                   );
                                 }}
@@ -1409,31 +1572,37 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               })()}
             </ScrollArea>
           </div>
+        ) : initialData.output_mode !== "chat" ? (
+          <div className="review-content-area review-panels-layout">
+            {/* Source text — simple inline frame */}
+            <div
+              className="review-source-inline"
+              dangerouslySetInnerHTML={{
+                __html: sourceHtml || "—",
+              }}
+            />
+            {/* Final output panel */}
+            <div className="review-panel review-panel-output">
+              <div className="review-panel-header">
+                <span className="review-panel-label">
+                  {t("transcription.review.final", "Final output")}
+                </span>
+                {currentModelName && (
+                  <span className="review-model-tag">{currentModelName}</span>
+                )}
+              </div>
+              <div className="review-panel-body review-output-content">
+                {isRerunning ? (
+                  <div className="candidate-loading-shimmer" />
+                ) : (
+                  <EditorContent editor={editor} />
+                )}
+              </div>
+            </div>
+          </div>
         ) : (
           <div className="review-content-area">
-            {/* Source section - only show for polish mode */}
-            {initialData.output_mode !== "chat" && (
-              <div className="review-section">
-                <Text size="1" className="review-section-title">
-                  {t("transcription.review.source", "Live transcript")}
-                </Text>
-                <div
-                  className="review-source-content"
-                  dangerouslySetInnerHTML={{
-                    __html: sourceHtml || "—",
-                  }}
-                />
-              </div>
-            )}
-            {/* Final output / AI response section */}
-            <div
-              className={`review-section review-section-final ${initialData.output_mode === "chat" ? "review-section-no-title" : ""}`}
-            >
-              {initialData.output_mode !== "chat" && (
-                <Text size="1" className="review-section-title">
-                  {t("transcription.review.final", "Final output")}
-                </Text>
-              )}
+            <div className="review-section review-section-final review-section-no-title">
               <EditorContent editor={editor} className="flex-1 min-h-0" />
             </div>
           </div>

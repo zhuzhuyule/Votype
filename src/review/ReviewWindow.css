@@ -77,7 +77,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px; /* Increased breathing room */
+  padding: 10px 14px;
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.03) 0%,
@@ -170,6 +170,7 @@
 .review-header-left {
   display: flex;
   align-items: center;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -214,6 +215,33 @@
   color: var(--gray-12);
 }
 
+.model-select {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E"),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--gray-3) 80%, transparent) 0%,
+      color-mix(in srgb, var(--gray-4) 70%, transparent) 100%
+    );
+  background-repeat: no-repeat, no-repeat;
+  background-position:
+    right 10px center,
+    0 0;
+  background-size:
+    8px 5px,
+    100% 100%;
+  border-color: color-mix(in srgb, var(--gray-6) 50%, transparent);
+  color: var(--gray-11);
+}
+
+.model-select:hover {
+  border-color: var(--gray-7);
+}
+
+.model-select:focus {
+  border-color: var(--gray-8);
+}
+
 /* Close button enhancement */
 .review-close-btn {
   width: 24px;
@@ -245,9 +273,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 18px; /* Matches header padding */
-  gap: 12px;
-  background: transparent; /* Seamless blending */
+  padding: 6px 12px;
+  gap: 8px;
+  background: transparent;
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -780,6 +808,142 @@
   font-size: 11px;
 }
 
+/* ── Single-model panel layout ── */
+.review-panels-layout {
+  padding: 0 12px 0;
+  gap: 8px;
+}
+
+/* ── Source inline frame (simple bordered text) ── */
+.review-source-inline {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--gray-4);
+  background: color-mix(in srgb, var(--gray-3) 40%, transparent);
+  color: var(--gray-11);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  font-family:
+    "SF Pro Text",
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    sans-serif;
+}
+
+/* Prompt badge (single prompt, no dropdown) */
+.review-prompt-badge {
+  font-size: 11px;
+  color: var(--gray-9);
+}
+
+/* Shared panel base */
+.review-panel {
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid var(--gray-5);
+  overflow: hidden;
+}
+
+.review-panel-header {
+  padding: 5px 12px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-panel-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-10);
+  letter-spacing: 0.02em;
+}
+
+.review-model-tag {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--gray-9);
+  background: var(--gray-3);
+  border: 1px solid var(--gray-5);
+  border-radius: 10px;
+  padding: 1px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.review-panel-body {
+  padding: 8px 12px 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--gray-12);
+  white-space: pre-wrap;
+  font-family:
+    "SF Pro Text",
+    -apple-system,
+    BlinkMacSystemFont,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    sans-serif;
+}
+
+/* Source panel — compact, muted */
+.review-panel-source {
+  background: var(--gray-2);
+  border-color: var(--gray-4);
+}
+
+.review-panel-source .review-panel-header {
+  background: var(--gray-3);
+  border-bottom: 1px solid var(--gray-4);
+}
+
+.review-panel-source .review-panel-body {
+  color: var(--gray-11);
+  font-size: 13px;
+  max-height: 160px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: auto;
+}
+
+/* Output panel — takes remaining space, prominent */
+.review-panel-output {
+  flex: 1;
+  min-height: 0;
+  background: var(--color-panel-solid);
+}
+
+.review-panel-output .review-panel-header {
+  border-bottom: 1px solid var(--gray-4);
+}
+
+/* Output body fills panel */
+.review-output-content {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: auto;
+}
+
+/* Editor adapts to panel */
+.review-output-content .review-editor {
+  height: auto;
+  min-height: 40px;
+}
+
+.review-output-content .ProseMirror {
+  overflow-y: visible;
+}
+
 .review-source-content {
   padding: 10px 12px;
   border-radius: 12px;
@@ -790,6 +954,8 @@
   min-height: 48px;
   white-space: pre-wrap;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: auto;
 }
 
 .diff-mark {
@@ -820,8 +986,8 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  padding: 12px 0 12px 18px;
-  gap: 10px;
+  padding: 2px 0 4px 12px;
+  gap: 0;
 }
 
 /* Source panel — same style as candidates but gray, not selectable */
@@ -844,10 +1010,11 @@
 }
 
 .multi-candidates-panels > [data-radix-scroll-area-viewport] > div {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   gap: 8px;
-  padding-right: 18px;
+  padding-right: 12px;
+  padding-bottom: 2px;
 }
 
 /* Individual candidate panel */
@@ -855,7 +1022,7 @@
   display: flex;
   flex-direction: column;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--gray-4);
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -877,7 +1044,7 @@
 }
 
 .candidate-panel:hover {
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: var(--gray-6);
   filter: brightness(1.05);
 }
 
@@ -1063,8 +1230,7 @@
   max-height: 200px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--gray-7) 60%, transparent)
-    transparent;
+  scrollbar-color: auto;
   font-family:
     "SF Pro Text",
     -apple-system,
@@ -1072,6 +1238,32 @@
     "PingFang SC",
     "Hiragino Sans GB",
     sans-serif;
+}
+
+/* Editable textarea inside candidate panel — blends seamlessly */
+.candidate-edit-textarea {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow: hidden;
+  min-height: 24px;
+  -webkit-app-region: no-drag;
+}
+
+.candidate-edit-textarea:focus {
+  background: color-mix(in srgb, var(--accent-3) 20%, transparent);
+  border-radius: 4px;
+  margin: -2px;
+  padding: 2px;
 }
 
 /* Hover insert button — hidden by default, shown on panel hover */

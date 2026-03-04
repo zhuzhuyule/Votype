@@ -940,6 +940,29 @@
         "thresholdHint": "Scores above this value will trigger the review window.",
         "title": "Auto-Review Sensitivity"
       },
+      "textModelMode": {
+        "title": "Text Model Mode",
+        "single": "Single Model",
+        "singleHint": "One model for all text",
+        "length": "Smart",
+        "lengthHint": "Auto-select model by text length",
+        "multi": "Multi Model",
+        "multiHint": "Parallel comparison",
+        "defaultModelDescription": "Default model",
+        "noModelSelected": "No model selected",
+        "multiDescription": "Select models in the list below for parallel comparison"
+      },
+      "lengthRouting": {
+        "enableLabel": "Auto-select model by text length",
+        "enableDescription": "Use a fast model for short text, an advanced model for long text",
+        "thresholdLabel": "Character threshold",
+        "thresholdDescription": "By Unicode characters (1 Chinese character = 1, 1 English letter = 1)",
+        "thresholdValue": "{{count}} characters",
+        "shortModelLabel": "Short text",
+        "longModelLabel": "Long text",
+        "characters": " chars",
+        "useDefault": "Use global default"
+      },
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {
         "enabled": {

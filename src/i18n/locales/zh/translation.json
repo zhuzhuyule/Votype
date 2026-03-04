@@ -134,7 +134,18 @@
       "placeholder": "在此编辑转录内容...",
       "hint": "⌘/Ctrl + Enter 确认, Escape 取消",
       "confirm": "确认并插入",
-      "insert": "插入"
+      "insert": "插入",
+      "source": "ASR 结果",
+      "final": "润色结果",
+      "generationTitle": "AI 助手回复",
+      "aiResponse": "AI 回复",
+      "change": "修改",
+      "highlightHint": "高亮词表示 AI 编辑。",
+      "insertCode": "插入代码",
+      "insertStabilityHint": "快捷键：{{shortcut}}\n若插入不稳定，可临时关闭此功能。",
+      "instruction": "指令",
+      "multiModel": "多模型结果",
+      "processing": "处理中..."
     }
   },
   "errors": {
@@ -931,6 +942,29 @@
         "description": "当 LLM 报告低置信度时，提示用户审阅转录结果",
         "threshold": "置信度阈值",
         "thresholdHint": "低于此分数的转录将提示用户审阅"
+      },
+      "textModelMode": {
+        "title": "文本模型模式",
+        "single": "单个模型",
+        "singleHint": "所有文本使用同一模型",
+        "length": "智能模型",
+        "lengthHint": "按文本长度自动选择模型",
+        "multi": "多模型",
+        "multiHint": "多模型并行对比",
+        "defaultModelDescription": "默认模型",
+        "noModelSelected": "未选择模型",
+        "multiDescription": "在下方模型列表中勾选参与并行对比的模型"
+      },
+      "lengthRouting": {
+        "enableLabel": "按文本长度自动选择模型",
+        "enableDescription": "短文本使用快速模型，长文本使用高级模型",
+        "thresholdLabel": "字符数阈值",
+        "thresholdDescription": "按 Unicode 字符计算（1 个中文字 = 1，1 个英文字母 = 1）",
+        "thresholdValue": "{{count}} 个字符",
+        "shortModelLabel": "短文本",
+        "longModelLabel": "长文本",
+        "characters": "字符",
+        "useDefault": "使用全局默认"
       },
       "title": "后期处理"
     },
