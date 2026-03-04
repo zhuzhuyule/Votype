@@ -804,6 +804,16 @@ impl HistoryManager {
         Ok(())
     }
 
+    /// Update only the post_process_model field for a history entry.
+    pub fn update_post_process_model(&self, id: i64, model: &str) -> Result<()> {
+        let conn = self.get_connection()?;
+        conn.execute(
+            "UPDATE transcription_history SET post_process_model = ?1 WHERE id = ?2",
+            params![model, id],
+        )?;
+        Ok(())
+    }
+
     /// Save post-processed text with model/prompt metadata, without creating a PostProcessStep.
     /// Used by multi-model pipeline for the initial auto-save before user review.
     pub async fn save_post_processed_text(

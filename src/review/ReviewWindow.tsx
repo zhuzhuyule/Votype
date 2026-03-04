@@ -1065,6 +1065,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       await invoke("confirm_reviewed_transcription", {
         text: currentText.trim(),
         history_id: initialData.history_id,
+        cached_model_id: selectedCandidateId || undefined,
       });
       onClose();
     } catch (e) {
@@ -1072,17 +1073,24 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
+  }, [
+    getEditorText,
+    initialData.history_id,
+    onClose,
+    isSubmitting,
+    selectedCandidateId,
+  ]);
 
   // Direct insert for a specific candidate text (one-click from hover button)
   const handleDirectInsert = useCallback(
-    async (text: string) => {
+    async (text: string, candidateId?: string) => {
       if (isSubmitting || !text.trim()) return;
       setIsSubmitting(true);
       try {
         await invoke("confirm_reviewed_transcription", {
           text: text.trim(),
           history_id: initialData.history_id,
+          cached_model_id: candidateId || undefined,
         });
         onClose();
       } catch (e) {
@@ -1381,7 +1389,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                                 className="candidate-insert-btn"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleDirectInsert(candidate.text);
+                                  handleDirectInsert(
+                                    candidate.text,
+                                    candidate.id,
+                                  );
                                 }}
                               >
                                 <IconTextPlus size={16} />

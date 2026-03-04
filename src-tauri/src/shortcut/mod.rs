@@ -850,14 +850,24 @@ pub fn confirm_reviewed_transcription(
     app: AppHandle,
     text: String,
     history_id: Option<i64>,
+    cached_model_id: Option<String>,
 ) -> Result<(), String> {
     use std::time::Duration;
 
     log::info!(
-        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}",
+        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}, cached_model_id={:?}",
         text.len(),
-        history_id
+        history_id,
+        cached_model_id
     );
+
+    // Resolve the actual model_id from cached_model_id
+    let model_id = cached_model_id.and_then(|cm_id| {
+        let settings = settings::get_settings(&app);
+        settings
+            .get_cached_model(&cm_id)
+            .map(|cm| cm.model_id.clone())
+    });
 
     // Update history with the selected/inserted text
     if let Some(hid) = history_id {
@@ -869,6 +879,12 @@ pub fn confirm_reviewed_transcription(
             {
                 if let Err(e) = hm.update_reviewed_text(hid, text_for_history).await {
                     log::error!("Failed to update history with reviewed text: {}", e);
+                }
+                // Update model name if the user selected a specific candidate
+                if let Some(model_name) = model_id {
+                    if let Err(e) = hm.update_post_process_model(hid, &model_name) {
+                        log::error!("Failed to update model in history: {}", e);
+                    }
                 }
             }
         });

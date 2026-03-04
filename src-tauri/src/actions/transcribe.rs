@@ -868,11 +868,17 @@ impl ShortcutAction for TranscribeAction {
                                         let best_result =
                                             results.iter().find(|r| r.ready && r.error.is_none());
                                         if let (Some(best), Some(hid)) = (best_result, history_id) {
+                                            // Look up the actual model_id from multi_items
+                                            let model_name = multi_items
+                                                .iter()
+                                                .find(|item| item.id == best.id)
+                                                .map(|item| item.model_id.clone())
+                                                .unwrap_or_else(|| best.label.clone());
                                             if let Err(e) = hm_clone
                                                 .save_post_processed_text(
                                                     hid,
                                                     best.text.clone(),
-                                                    Some(best.label.clone()),
+                                                    Some(model_name),
                                                     settings_clone
                                                         .post_process_selected_prompt_id
                                                         .clone(),
