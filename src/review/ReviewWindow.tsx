@@ -610,6 +610,28 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     cancelRef.current = handleCancel;
   }, [handleCancel]);
 
+  // In multi-model mode, Tiptap editor is not rendered so its keyboard
+  // shortcuts don't fire. Register a global keydown listener as fallback.
+  useEffect(() => {
+    if (!displayCandidates || displayCandidates.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        insertRef.current();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        cancelRef.current();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        insertRef.current();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [displayCandidates]);
+
   const handleDrag = useCallback(async () => {
     try {
       const { getCurrentWindow } = await import("@tauri-apps/api/window");
