@@ -7322,6 +7322,7 @@ dependencies = [
 [[package]]
 name = "transcribe-rs"
 version = "0.2.9"
+source = "git+https://github.com/zhuzhuyule/transcribe-rs?branch=main#4e6c03ba25abeba4a29e113860bfae8c4cda94da"
 dependencies = [
  "async-openai 0.29.6",
  "async-trait",
