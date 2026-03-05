@@ -160,8 +160,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(summary_manager.clone());
     let hotword_manager = Arc::new(managers::HotwordManager::new(db_path.clone()));
     app_handle.manage(hotword_manager.clone());
-    let daily_vocabulary_manager = Arc::new(managers::DailyVocabularyManager::new(db_path.clone()));
-    app_handle.manage(daily_vocabulary_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
     app_handle.manage(prompt_manager.clone());
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
@@ -539,32 +537,17 @@ pub fn run() {
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
             commands::history::update_history_entry_text,
-            commands::vocabulary::get_vocabulary_corrections,
-            commands::vocabulary::delete_vocabulary_correction,
-            commands::vocabulary::update_vocabulary_correction_scope,
-            commands::vocabulary::record_vocabulary_correction,
-            commands::daily_vocabulary::get_daily_vocabulary,
-            commands::daily_vocabulary::get_all_daily_vocabulary,
-            commands::daily_vocabulary::get_daily_vocabulary_range,
-            commands::daily_vocabulary::add_word_to_daily_vocabulary,
-            commands::daily_vocabulary::remove_word_from_daily_vocabulary,
-            commands::daily_vocabulary::remove_word_from_daily_vocabulary_global,
-            commands::daily_vocabulary::update_word_context_type,
-            commands::daily_vocabulary::update_word_context_type_global,
-            commands::daily_vocabulary::batch_update_context_types,
-            commands::daily_vocabulary::promote_word_to_hotword,
-            commands::daily_vocabulary::batch_promote_to_hotword,
-            commands::daily_vocabulary::get_vocabulary_hotwords,
-            commands::daily_vocabulary::remove_from_hotword,
-            commands::daily_vocabulary::update_hotword_metadata,
-            commands::daily_vocabulary::get_vocabulary_stats,
-            commands::daily_vocabulary::get_daily_vocabulary_stats,
             commands::hotword::get_hotwords,
             commands::hotword::add_hotword,
             commands::hotword::update_hotword,
             commands::hotword::delete_hotword,
             commands::hotword::infer_hotword_category,
             commands::hotword::increment_hotword_false_positive,
+            commands::hotword::get_hotword_suggestions,
+            commands::hotword::accept_hotword_suggestion,
+            commands::hotword::dismiss_hotword_suggestion,
+            commands::hotword::accept_all_hotword_suggestions,
+            commands::hotword::dismiss_all_hotword_suggestions,
             commands::summary::get_summary_stats,
             commands::summary::get_or_create_summary,
             commands::summary::get_summary_list,

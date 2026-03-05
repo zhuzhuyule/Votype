@@ -463,25 +463,12 @@ pub async fn generate_summary_ai_analysis(
             ai_summary.chars().take(50).collect::<String>()
         );
 
-        // Parse and extract vocabulary
-        let daily_vocab_manager_clone = app
-            .try_state::<Arc<crate::managers::DailyVocabularyManager>>()
+        // Parse and extract vocabulary → write to hotwords as suggested
+        let hotword_manager_clone = app
+            .try_state::<Arc<crate::managers::HotwordManager>>()
             .map(|s| s.inner().clone());
 
-        // Get the date from summary period_end (format: YYYY-MM-DD)
-        let summary_date = chrono::Utc
-            .timestamp_opt(summary_for_period.period_end, 0)
-            .single()
-            .map(|dt| dt.format("%Y-%m-%d").to_string())
-            .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%d").to_string());
-
-        extract_and_save_vocabulary(
-            &ai_summary,
-            summary_id,
-            &summary_date,
-            daily_vocab_manager_clone.as_ref().map(|v| &**v),
-        )
-        .await;
+        extract_and_save_vocabulary(&ai_summary, hotword_manager_clone.as_deref()).await;
 
         // Update the summary with AI content
         summary_manager_clone
@@ -594,7 +581,8 @@ fn format_summary_as_markdown(summary: &Summary) -> String {
 struct VocabularyItem {
     word: String,
     category: Option<String>,
-    confidence: Option<i32>,
+    originals: Option<Vec<String>>,
+    // Legacy fields (still accepted for backward compat)
     frequency_count: Option<i32>,
     frequency_type: Option<String>,
     possible_typo: Option<bool>,
@@ -621,18 +609,25 @@ struct AiAnalysisResponse {
     vocabulary_extracted: Option<VocabularySection>,
 }
 
+/// Map AI category string to HotwordCategory
+fn map_ai_category_to_hotword(cat: &str) -> crate::settings::HotwordCategory {
+    match cat {
+        "Person" | "person" => crate::settings::HotwordCategory::Person,
+        "Brand" | "brand" | "Project" => crate::settings::HotwordCategory::Brand,
+        "Abbreviation" | "abbreviation" => crate::settings::HotwordCategory::Abbreviation,
+        _ => crate::settings::HotwordCategory::Term, // Term, Other, and unknown → term
+    }
+}
+
 async fn extract_and_save_vocabulary(
     json_text: &str,
-    _summary_id: i64,
-    date: &str,
-    daily_vocab_manager: Option<&crate::managers::DailyVocabularyManager>,
+    hotword_manager: Option<&crate::managers::HotwordManager>,
 ) {
-    let Some(daily_vocab_manager) = daily_vocab_manager else {
-        log::warn!("DailyVocabularyManager not available for vocabulary extraction");
+    let Some(hotword_manager) = hotword_manager else {
+        log::warn!("HotwordManager not available for vocabulary extraction");
         return;
     };
 
-    info!("[词汇提取] 开始处理，目标日期: {}", date);
     info!(
         "[词汇提取] JSON 文本前 200 字符: {}",
         &json_text.chars().take(200).collect::<String>()
@@ -653,137 +648,93 @@ async fn extract_and_save_vocabulary(
     let response: Result<AiAnalysisResponse, _> = serde_json::from_str(json_str);
 
     if let Ok(response) = response {
-        info!("[词汇提取] JSON 解析成功");
         if let Some(vocab_section) = response.vocabulary_extracted {
-            info!("[词汇提取] 找到 vocabulary_extracted 字段");
             if let Some(items) = vocab_section.items {
-                // Store vocabulary to daily_vocabulary table
-                let mut daily_words: Vec<(String, Option<String>, i32)> = Vec::new();
-                let mut skipped_count = 0;
+                // Collect items as (target, originals, category) for hotword suggestion
+                let mut suggested: Vec<(String, Vec<String>, crate::settings::HotwordCategory)> =
+                    Vec::new();
 
                 match items {
                     VocabularyItems::Strings(strings) => {
-                        info!("[词汇提取] 字符串数组格式，找到 {} 个词汇", strings.len());
-                        if strings.is_empty() {
-                            info!("[词汇提取] 字符串数组为空");
-                            return;
-                        }
-
-                        // Parse string format: extract word and type from "Word (类型)" format
+                        info!("[词汇提取] 字符串数组格式，{} 个词汇", strings.len());
                         for word_str in &strings {
                             let trimmed = word_str.trim();
                             if trimmed.is_empty() {
                                 continue;
                             }
-
-                            // Try to extract word and type from "Word (类型)" format
-                            let (word, context_type) = if let Some(open_paren) = trimmed.rfind('(')
-                            {
+                            // Parse "Word (类型)" format
+                            let (word, cat_hint) = if let Some(open_paren) = trimmed.rfind('(') {
                                 if let Some(close_paren) = trimmed.rfind(')') {
                                     if open_paren < close_paren && close_paren == trimmed.len() - 1
                                     {
-                                        let word = trimmed[..open_paren].trim();
-                                        let type_hint = trimmed[open_paren + 1..close_paren].trim();
-
-                                        // Map Chinese type hints to context_type
-                                        let context_type = match type_hint {
-                                            "项目" | "模块" | "功能" => {
-                                                Some("work".to_string())
-                                            }
-                                            "人名" | "同事" => Some("people".to_string()),
-                                            "技术" | "术语" | "概念" => {
-                                                Some("learning".to_string())
-                                            }
-                                            "工具" | "软件" | "应用" => {
-                                                Some("work".to_string())
-                                            }
-                                            "品牌" | "产品" => Some("work".to_string()),
-                                            _ => Some("other".to_string()),
-                                        };
-
-                                        info!(
-                                            "[词汇提取] 解析: '{}' -> 词汇='{}', 类型={:?}",
-                                            trimmed, word, context_type
-                                        );
-                                        (word.to_string(), context_type)
+                                        let w = trimmed[..open_paren].trim();
+                                        let hint = trimmed[open_paren + 1..close_paren].trim();
+                                        (w.to_string(), Some(hint.to_string()))
                                     } else {
-                                        (trimmed.to_string(), Some("other".to_string()))
+                                        (trimmed.to_string(), None)
                                     }
                                 } else {
-                                    (trimmed.to_string(), Some("other".to_string()))
+                                    (trimmed.to_string(), None)
                                 }
                             } else {
-                                (trimmed.to_string(), Some("other".to_string()))
+                                (trimmed.to_string(), None)
                             };
 
                             if !word.is_empty() {
-                                daily_words.push((word, context_type, 1));
+                                let inferred_cat =
+                                    crate::managers::HotwordManager::infer_category(&word);
+                                let category = cat_hint
+                                    .as_deref()
+                                    .map(|h| match h {
+                                        "人名" | "同事" => {
+                                            crate::settings::HotwordCategory::Person
+                                        }
+                                        "品牌" | "产品" | "项目" | "模块" => {
+                                            crate::settings::HotwordCategory::Brand
+                                        }
+                                        _ => inferred_cat.clone(),
+                                    })
+                                    .unwrap_or(inferred_cat);
+                                suggested.push((word, vec![], category));
                             }
                         }
                     }
                     VocabularyItems::Objects(objects) => {
-                        info!("[词汇提取] 对象数组格式，找到 {} 个词汇项目", objects.len());
-                        if objects.is_empty() {
-                            info!("[词汇提取] 对象数组为空");
-                            return;
-                        }
-
+                        info!("[词汇提取] 对象数组格式，{} 个词汇", objects.len());
                         for item in &objects {
                             let word = item.word.trim();
                             if word.is_empty() {
                                 continue;
                             }
 
-                            let confidence = item.confidence.unwrap_or(50);
+                            let category = item
+                                .category
+                                .as_deref()
+                                .map(map_ai_category_to_hotword)
+                                .unwrap_or_else(|| {
+                                    crate::managers::HotwordManager::infer_category(word)
+                                });
 
-                            // Skip very low confidence items (< 50)
-                            if confidence < 50 {
-                                skipped_count += 1;
-                                log::debug!(
-                                    "Skipping very low confidence word '{}' (confidence: {})",
-                                    word,
-                                    confidence
-                                );
-                                continue;
-                            }
+                            let originals = item.originals.clone().unwrap_or_default();
 
-                            // Map AI category to context_type
-                            // AI returns: Term, Person, Brand, Project, Abbreviation, Other
-                            // We map to: work, life, learning, entertainment, people, location, other
-                            let context_type = item.category.as_deref().and_then(|cat| match cat {
-                                "Person" => Some("people".to_string()),
-                                "Term" | "Abbreviation" => Some("learning".to_string()),
-                                "Brand" | "Project" => Some("work".to_string()),
-                                "Other" => Some("other".to_string()),
-                                _ => Some("other".to_string()),
-                            });
-                            let frequency = item.frequency_count.unwrap_or(1);
-
-                            daily_words.push((word.to_string(), context_type, frequency));
+                            suggested.push((word.to_string(), originals, category));
                         }
                     }
                 }
 
-                if !daily_words.is_empty() {
-                    match daily_vocab_manager.store_daily_vocabulary(date, daily_words.clone()) {
-                        Ok(()) => {
-                            info!(
-                                "Successfully stored {} vocabulary items to daily_vocabulary for {} ({} skipped)",
-                                daily_words.len(), date, skipped_count
-                            );
+                if !suggested.is_empty() {
+                    match hotword_manager.add_suggested(suggested.clone()) {
+                        Ok(added) => {
+                            info!("[词汇提取] 写入 {} 条建议热词", added.len());
                         }
                         Err(e) => {
-                            log::error!("Failed to store daily vocabulary: {}", e);
+                            log::error!("[词汇提取] 写入建议热词失败: {}", e);
                         }
                     }
                 } else {
-                    info!("[词汇提取] daily_words 为空，没有可保存的词汇");
+                    info!("[词汇提取] 无可保存的词汇");
                 }
-            } else {
-                info!("[词汇提取] vocabulary_extracted.items 为 None");
             }
-        } else {
-            info!("[词汇提取] 未找到 vocabulary_extracted 字段");
         }
     } else {
         log::error!("[词汇提取] JSON 解析失败: {:?}", response.err());

@@ -134,8 +134,6 @@ pub struct Hotword {
     pub category: HotwordCategory,
     /// Usage scenarios (can be multiple)
     pub scenarios: Vec<HotwordScenario>,
-    /// Auto-inference confidence (0.0-1.0)
-    pub confidence: f64,
     /// Whether user manually overrode the category
     pub user_override: bool,
     /// Usage statistics
@@ -143,6 +141,20 @@ pub struct Hotword {
     pub last_used_at: Option<i64>,
     pub false_positive_count: i64,
     pub created_at: i64,
+    /// "active" (confirmed) or "suggested" (AI-suggested, pending user confirmation)
+    #[serde(default = "default_hotword_status")]
+    pub status: String,
+    /// Source of the hotword: "manual", "auto_learned", "ai_extracted"
+    #[serde(default = "default_hotword_source")]
+    pub source: String,
+}
+
+fn default_hotword_status() -> String {
+    "active".to_string()
+}
+
+fn default_hotword_source() -> String {
+    "manual".to_string()
 }
 
 /// Backward compatibility: LLMPrompt is now an alias for Skill

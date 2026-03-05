@@ -1,38 +1,24 @@
-// HotwordSettings - Main component for managing hotwords with category filtering
+// HotwordSettings - Main component for managing hotwords
 
-import { AlertDialog, Button, Flex } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  type Hotword,
-  type HotwordCategory,
-  type HotwordScenario,
+import type {
+  Hotword,
+  HotwordCategory,
+  HotwordScenario,
 } from "../../../types/hotword";
-import { Card } from "../../ui/Card";
-import { AddHotwordDialog } from "./AddHotwordDialog";
-import { BatchAddDialog } from "./BatchAddDialog";
-import { EditHotwordDialog } from "./EditHotwordDialog";
-import { HotwordTable } from "./HotwordTable";
-
-// Filter type includes "all" plus all categories
-type FilterType = "all" | HotwordCategory;
+import { HotwordTagCloud } from "./HotwordTagCloud";
 
 export const HotwordSettings: React.FC = () => {
   const [hotwords, setHotwords] = useState<Hotword[]>([]);
+  const [suggestions, setSuggestions] = useState<Hotword[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterType>("all");
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [batchDialogOpen, setBatchDialogOpen] = useState(false);
-  const [editingHotword, setEditingHotword] = useState<Hotword | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  // Load hotwords
   const loadHotwords = useCallback(async () => {
     setLoading(true);
     try {
       const result = await invoke<Hotword[]>("get_hotwords");
-      setHotwords(result);
+      setHotwords(result.filter((h) => h.status === "active"));
     } catch (e) {
       console.error("[HotwordSettings] Failed to load hotwords:", e);
     } finally {
@@ -40,26 +26,22 @@ export const HotwordSettings: React.FC = () => {
     }
   }, []);
 
+  const loadSuggestions = useCallback(async () => {
+    try {
+      const result = await invoke<Hotword[]>("get_hotword_suggestions");
+      setSuggestions(result);
+    } catch (e) {
+      console.error("[HotwordSettings] Failed to load suggestions:", e);
+    }
+  }, []);
+
   useEffect(() => {
     loadHotwords();
-  }, [loadHotwords]);
+    loadSuggestions();
+  }, [loadHotwords, loadSuggestions]);
 
-  // Clear selection when filter changes
-  useEffect(() => {
-    setSelectedIds(new Set());
-  }, [filter]);
-
-  // Filter hotwords by category (with null safety)
-  const filteredHotwords = React.useMemo(
-    () =>
-      filter === "all"
-        ? hotwords.filter((h) => h != null)
-        : hotwords.filter((h) => h != null && h.category === filter),
-    [filter, hotwords],
-  );
-
-  // Add hotword handler
-  const handleAddHotword = async (
+  // Add hotword
+  const handleAdd = async (
     target: string,
     originals: string[],
     category: HotwordCategory,
@@ -74,12 +56,11 @@ export const HotwordSettings: React.FC = () => {
     setHotwords((prev) => [...prev, newHotword]);
   };
 
-  // Batch add handler
+  // Batch add
   const handleBatchAdd = async (targets: string[]) => {
     for (const target of targets) {
       try {
-        // Infer category for each target
-        const [category] = await invoke<[HotwordCategory, number]>(
+        const category = await invoke<HotwordCategory>(
           "infer_hotword_category",
           { target },
         );
@@ -96,131 +77,79 @@ export const HotwordSettings: React.FC = () => {
     }
   };
 
-  // Edit handler
-  const handleEditHotword = async (
+  // Update category (drag-and-drop)
+  const handleUpdateCategory = async (
     id: number,
-    target: string,
-    originals: string[],
     category: HotwordCategory,
-    scenarios: HotwordScenario[],
   ) => {
+    const hotword = hotwords.find((h) => h.id === id);
+    if (!hotword) return;
     try {
-      await invoke<Hotword>("update_hotword", {
+      await invoke("update_hotword", {
         id,
-        target,
-        originals,
+        target: null,
+        originals: hotword.originals,
         category,
-        scenarios,
+        scenarios: hotword.scenarios,
       });
-      // Reload all hotwords to ensure consistent state
+      setHotwords((prev) =>
+        prev.map((h) => (h.id === id ? { ...h, category } : h)),
+      );
+    } catch (e) {
+      console.error("[HotwordSettings] Failed to update category:", e);
+    }
+  };
+
+  // Delete
+  const handleDelete = async (id: number) => {
+    try {
+      await invoke("delete_hotword", { id });
+      setHotwords((prev) => prev.filter((h) => h.id !== id));
+    } catch (e) {
+      console.error("[HotwordSettings] Failed to delete:", e);
+    }
+  };
+
+  // Suggestion handlers
+  const handleAcceptSuggestion = async (id: number) => {
+    try {
+      await invoke("accept_hotword_suggestion", { id });
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
       await loadHotwords();
     } catch (e) {
-      console.error(`[HotwordSettings] Failed to edit hotword ${id}:`, e);
+      console.error("[HotwordSettings] Failed to accept suggestion:", e);
     }
   };
 
-  // Delete handler
-  const handleDelete = async () => {
-    if (deleteId === null) return;
-
+  const handleDismissSuggestion = async (id: number) => {
     try {
-      await invoke("delete_hotword", { id: deleteId });
-      setHotwords((prev) => prev.filter((h) => h && h.id !== deleteId));
-      setSelectedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(deleteId);
-        return next;
-      });
+      await invoke("dismiss_hotword_suggestion", { id });
+      setSuggestions((prev) => prev.filter((s) => s.id !== id));
     } catch (e) {
-      console.error("[HotwordSettings] Failed to delete hotword:", e);
-    } finally {
-      setDeleteId(null);
+      console.error("[HotwordSettings] Failed to dismiss suggestion:", e);
     }
   };
 
-  // Selection handlers
-  const toggleSelect = (id: number) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === filteredHotwords.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(
-        new Set(filteredHotwords.filter((h) => h != null).map((h) => h.id)),
-      );
+  const handleAcceptAll = async () => {
+    try {
+      await invoke("accept_all_hotword_suggestions");
+      setSuggestions([]);
+      await loadHotwords();
+    } catch (e) {
+      console.error("[HotwordSettings] Failed to accept all:", e);
     }
   };
 
-  const clearSelection = () => setSelectedIds(new Set());
-
-  // Batch action handlers
-  const handleBatchChangeCategory = async (newCategory: HotwordCategory) => {
-    for (const id of selectedIds) {
-      const hotword = hotwords.find((h) => h && h.id === id);
-      if (hotword && hotword.category !== newCategory) {
-        try {
-          await invoke<Hotword>("update_hotword", {
-            id,
-            target: hotword.target,
-            originals: hotword.originals,
-            category: newCategory,
-            scenarios: hotword.scenarios,
-          });
-        } catch (e) {
-          console.error(`[HotwordSettings] Failed to update hotword ${id}:`, e);
-        }
-      }
+  const handleDismissAll = async () => {
+    try {
+      await invoke("dismiss_all_hotword_suggestions");
+      setSuggestions([]);
+    } catch (e) {
+      console.error("[HotwordSettings] Failed to dismiss all:", e);
     }
-    clearSelection();
-    await loadHotwords();
   };
 
-  const handleBatchChangeScenarios = async (
-    newScenarios: HotwordScenario[],
-  ) => {
-    for (const id of selectedIds) {
-      const hotword = hotwords.find((h) => h && h.id === id);
-      if (hotword) {
-        try {
-          await invoke<Hotword>("update_hotword", {
-            id,
-            target: hotword.target,
-            originals: hotword.originals,
-            category: hotword.category,
-            scenarios: newScenarios,
-          });
-        } catch (e) {
-          console.error(`[HotwordSettings] Failed to update hotword ${id}:`, e);
-        }
-      }
-    }
-    clearSelection();
-    await loadHotwords();
-  };
-
-  const handleBatchDelete = async () => {
-    for (const id of selectedIds) {
-      try {
-        await invoke("delete_hotword", { id });
-      } catch (e) {
-        console.error(`[HotwordSettings] Failed to delete hotword ${id}:`, e);
-      }
-    }
-    clearSelection();
-    await loadHotwords();
-  };
-
-  // Export handler
+  // Export
   const handleExport = () => {
     const exportData = {
       version: "2.0",
@@ -241,7 +170,7 @@ export const HotwordSettings: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Import handler
+  // Import
   const handleImport = () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -253,12 +182,10 @@ export const HotwordSettings: React.FC = () => {
         const text = await file.text();
         const imported = JSON.parse(text);
 
-        // Support both old string[] format and new object format
         if (Array.isArray(imported)) {
-          // Old format: string[]
           for (const target of imported) {
             if (typeof target === "string" && target.trim()) {
-              const [category] = await invoke<[HotwordCategory, number]>(
+              const category = await invoke<HotwordCategory>(
                 "infer_hotword_category",
                 { target: target.trim() },
               );
@@ -275,7 +202,6 @@ export const HotwordSettings: React.FC = () => {
           imported.version === "2.0" &&
           Array.isArray(imported.hotwords)
         ) {
-          // New format: { version: "2.0", hotwords: [...] }
           for (const h of imported.hotwords) {
             if (h.target && typeof h.target === "string") {
               const newHotword = await invoke<Hotword>("add_hotword", {
@@ -298,74 +224,21 @@ export const HotwordSettings: React.FC = () => {
   };
 
   return (
-    <>
-      <Card className="max-w-5xl w-full mx-auto p-0 flex flex-col">
-        <HotwordTable
-          hotwords={hotwords}
-          loading={loading}
-          filter={filter}
-          onFilterChange={setFilter}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onToggleSelectAll={toggleSelectAll}
-          onClearSelection={clearSelection}
-          onEdit={setEditingHotword}
-          onDelete={setDeleteId}
-          onBatchChangeCategory={handleBatchChangeCategory}
-          onBatchChangeScenarios={handleBatchChangeScenarios}
-          onBatchDelete={handleBatchDelete}
-          onAddClick={() => setAddDialogOpen(true)}
-          onBatchAddClick={() => setBatchDialogOpen(true)}
-          onImport={handleImport}
-          onExport={handleExport}
-        />
-      </Card>
-
-      {/* Add Dialog */}
-      <AddHotwordDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-        onAdd={handleAddHotword}
-      />
-
-      {/* Batch Add Dialog */}
-      <BatchAddDialog
-        open={batchDialogOpen}
-        onOpenChange={setBatchDialogOpen}
-        onBatchAdd={handleBatchAdd}
-      />
-
-      {/* Edit Dialog */}
-      <EditHotwordDialog
-        hotword={editingHotword}
-        onOpenChange={() => setEditingHotword(null)}
-        onSave={handleEditHotword}
-      />
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog.Root
-        open={deleteId !== null}
-        onOpenChange={() => setDeleteId(null)}
-      >
-        <AlertDialog.Content maxWidth="450px">
-          <AlertDialog.Title>确认删除</AlertDialog.Title>
-          <AlertDialog.Description size="2">
-            确定要删除这个热词吗？此操作无法撤销。
-          </AlertDialog.Description>
-          <Flex gap="3" mt="4" justify="end">
-            <AlertDialog.Cancel>
-              <Button variant="soft" color="gray">
-                取消
-              </Button>
-            </AlertDialog.Cancel>
-            <AlertDialog.Action>
-              <Button variant="solid" color="red" onClick={handleDelete}>
-                删除
-              </Button>
-            </AlertDialog.Action>
-          </Flex>
-        </AlertDialog.Content>
-      </AlertDialog.Root>
-    </>
+    <HotwordTagCloud
+      hotwords={hotwords}
+      suggestions={suggestions}
+      loading={loading}
+      onAddHotword={handleAdd}
+      onBatchAdd={handleBatchAdd}
+      onDelete={handleDelete}
+      onUpdateCategory={handleUpdateCategory}
+      onReload={loadHotwords}
+      onAcceptSuggestion={handleAcceptSuggestion}
+      onDismissSuggestion={handleDismissSuggestion}
+      onAcceptAll={handleAcceptAll}
+      onDismissAll={handleDismissAll}
+      onImport={handleImport}
+      onExport={handleExport}
+    />
   );
 };

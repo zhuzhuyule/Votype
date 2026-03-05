@@ -291,6 +291,23 @@ static MIGRATIONS: &[M] = &[
         CREATE INDEX IF NOT EXISTS idx_cc_score ON correction_candidates(phonetic_score);
         CREATE INDEX IF NOT EXISTS idx_cc_last_seen ON correction_candidates(last_seen_at DESC);",
     ),
+    // Migration 26: Add status column to hotwords table for suggested/active workflow
+    // 'active' = confirmed hotwords (participate in LLM injection)
+    // 'suggested' = AI-suggested hotwords (pending user confirmation)
+    // Also migrate high-frequency daily_vocabulary entries as suggested hotwords
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
+        CREATE INDEX IF NOT EXISTS idx_hotwords_status ON hotwords(status);
+        INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, false_positive_count, created_at, status)
+        SELECT DISTINCT word, '[]', 'term', '[\"work\",\"casual\"]', 0.5, 0, 0, 0, MIN(created_at), 'suggested'
+        FROM daily_vocabulary
+        WHERE frequency >= 3
+        GROUP BY word;",
+    ),
+    // Migration 27: Add source column to hotwords
+    // source tracks where a hotword came from: 'manual', 'auto_learned', 'ai_extracted'
+    // Data migration from vocabulary_corrections is done in init_database() post-migration hook
+    M::up("ALTER TABLE hotwords ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -433,6 +450,13 @@ impl HistoryManager {
                 "Database migrated from version {} to {}",
                 version_before, version_after
             );
+
+            // Post-migration: migrate vocabulary_corrections into hotwords (migration 27)
+            if version_before < 27 && version_after >= 27 {
+                if let Err(e) = Self::migrate_corrections_to_hotwords(&conn) {
+                    error!("Failed to migrate corrections to hotwords: {}", e);
+                }
+            }
         } else {
             debug!("Database already at latest version {}", version_after);
         }
@@ -528,6 +552,104 @@ impl HistoryManager {
         })?;
 
         Ok(totals)
+    }
+
+    /// Migrate vocabulary_corrections data into the hotwords table.
+    /// Called once after migration 27 adds the source column.
+    fn migrate_corrections_to_hotwords(conn: &Connection) -> Result<()> {
+        info!("[Migration] Migrating vocabulary_corrections into hotwords...");
+
+        let mut stmt = conn.prepare(
+            "SELECT corrected_text, original_text, correction_count
+             FROM vocabulary_corrections
+             ORDER BY corrected_text, correction_count DESC",
+        )?;
+
+        let mut corrections_map: std::collections::HashMap<String, (Vec<String>, i64)> =
+            std::collections::HashMap::new();
+
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+
+        for row in rows {
+            let (corrected, original, count) = row?;
+            let entry = corrections_map
+                .entry(corrected)
+                .or_insert_with(|| (Vec::new(), 0));
+            if !entry.0.contains(&original) {
+                entry.0.push(original);
+            }
+            entry.1 += count;
+        }
+
+        let now = chrono::Utc::now().timestamp();
+        let mut migrated = 0;
+        let mut merged = 0;
+
+        for (target, (originals, use_count)) in &corrections_map {
+            let originals_json =
+                serde_json::to_string(originals).unwrap_or_else(|_| "[]".to_string());
+
+            // Check if hotword with same target already exists
+            let existing: Option<(i64, String)> = conn
+                .query_row(
+                    "SELECT id, originals FROM hotwords WHERE LOWER(target) = LOWER(?1)",
+                    params![target],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .ok();
+
+            if let Some((id, existing_originals_json)) = existing {
+                // Merge originals into existing hotword
+                let mut existing_originals: Vec<String> =
+                    serde_json::from_str(&existing_originals_json).unwrap_or_default();
+                for o in originals {
+                    if !existing_originals.contains(o) {
+                        existing_originals.push(o.clone());
+                    }
+                }
+                let merged_json =
+                    serde_json::to_string(&existing_originals).unwrap_or_else(|_| "[]".to_string());
+
+                conn.execute(
+                    "UPDATE hotwords SET originals = ?1, use_count = use_count + ?2 WHERE id = ?3",
+                    params![merged_json, use_count, id],
+                )?;
+                merged += 1;
+            } else {
+                // Infer category from target
+                let trimmed = target.trim();
+                let category = if trimmed.len() >= 2
+                    && trimmed.len() <= 5
+                    && trimmed.chars().all(|c| c.is_ascii_uppercase())
+                {
+                    "abbreviation"
+                } else {
+                    "term"
+                };
+
+                conn.execute(
+                    "INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, false_positive_count, created_at, status, source)
+                     VALUES (?1, ?2, ?3, '[\"work\",\"casual\"]', 0.5, 0, ?4, 0, ?5, 'active', 'auto_learned')",
+                    params![target, originals_json, category, use_count, now],
+                )?;
+                migrated += 1;
+            }
+        }
+
+        info!(
+            "[Migration] Migrated {} new hotwords, merged {} into existing (from {} correction groups)",
+            migrated,
+            merged,
+            corrections_map.len()
+        );
+
+        Ok(())
     }
 
     /// Query all-time totals from the transcription_history table.
@@ -748,36 +870,32 @@ impl HistoryManager {
             |row| row.get(0),
         ).ok();
 
-        // Also fetch app_name for scoping corrections
-        let app_name: Option<String> = conn
-            .query_row(
-                "SELECT app_name FROM transcription_history WHERE id = ?1",
-                params![id],
-                |row| row.get(0),
-            )
-            .ok();
-
         // Perform correction learning if we have original text
         if let Some(original) = original_text_opt {
+            use crate::managers::hotword::HotwordManager;
             use crate::managers::vocabulary::VocabularyManager;
+            use crate::phonetic_similarity::calculate_phonetic_similarity;
+
             let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
-
-                let is_global = app_name.is_none();
-                let target_apps = app_name
-                    .as_ref()
-                    .map(|app| serde_json::to_string(&vec![app]).unwrap());
+                let hotword_manager = HotwordManager::new(self.db_path.clone());
 
                 for diff in &diffs {
-                    if let Err(e) =
-                        vocab_manager.record_correction(diff, is_global, target_apps.clone())
-                    {
-                        error!("Failed to record vocabulary correction: {}", e);
+                    let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
+                    if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
+                        error!("Failed to record correction candidate: {}", e);
+                    }
+                    if similarity.is_phonetically_similar {
+                        if let Err(e) =
+                            hotword_manager.record_auto_learned(&diff.corrected, &diff.original)
+                        {
+                            error!("Failed to record auto-learned hotword: {}", e);
+                        }
                     }
                 }
                 info!(
-                    "[History] Recorded {} vocabulary corrections from review window for entry {}",
+                    "[History] Processed {} edit diffs from review window for entry {}",
                     diffs.len(),
                     id
                 );
@@ -844,14 +962,13 @@ impl HistoryManager {
     /// Used for user-initiated corrections to improve future transcription reference data.
     ///
     /// When field is "post_process_history_step", the step_index must be provided to identify which step to update.
-    /// The app_name is used to scope vocabulary corrections to specific applications.
     pub async fn update_history_entry_text(
         &self,
         id: i64,
         field: &str,
         new_text: String,
         step_index: Option<usize>,
-        app_name: Option<String>,
+        _app_name: Option<String>,
     ) -> Result<()> {
         use crate::managers::vocabulary::VocabularyManager;
 
@@ -898,26 +1015,33 @@ impl HistoryManager {
             conn.query_row(&query, params![id], |row| row.get(0)).ok()
         };
 
-        // Analyze diff and record vocabulary corrections
+        // Analyze diff and record auto-learned hotwords
         if let Some(original) = &original_text {
+            use crate::managers::hotword::HotwordManager;
+            use crate::phonetic_similarity::calculate_phonetic_similarity;
+
             let diffs = VocabularyManager::analyze_edit_diff(original, &new_text);
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
-
-                let is_global = app_name.is_none();
-                let target_apps = app_name
-                    .as_ref()
-                    .map(|app| serde_json::to_string(&vec![app]).unwrap());
+                let hotword_manager = HotwordManager::new(self.db_path.clone());
 
                 for diff in &diffs {
-                    if let Err(e) =
-                        vocab_manager.record_correction(diff, is_global, target_apps.clone())
-                    {
-                        error!("Failed to record vocabulary correction: {}", e);
+                    let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
+                    // Record candidate for debugging/analytics
+                    if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
+                        error!("Failed to record correction candidate: {}", e);
+                    }
+                    // Only auto-learn phonetically similar corrections as hotwords
+                    if similarity.is_phonetically_similar {
+                        if let Err(e) =
+                            hotword_manager.record_auto_learned(&diff.corrected, &diff.original)
+                        {
+                            error!("Failed to record auto-learned hotword: {}", e);
+                        }
                     }
                 }
                 info!(
-                    "[History] Recorded {} vocabulary corrections for entry {} field {}",
+                    "[History] Processed {} edit diffs for entry {} field {}",
                     diffs.len(),
                     id,
                     field

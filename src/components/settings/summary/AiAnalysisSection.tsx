@@ -12,9 +12,16 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import { IconSettings, IconSparkles, IconTrash } from "@tabler/icons-react";
-import React, { useEffect, useRef, useState } from "react";
+import {
+  IconCheck,
+  IconSettings,
+  IconSparkles,
+  IconTrash,
+} from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { Hotword, HotwordCategory } from "../../../types/hotword";
 import { Dropdown } from "../../ui/Dropdown";
 import {
   parseAiAnalysis,
@@ -62,11 +69,29 @@ export const AiAnalysisSection: React.FC<AiAnalysisSectionProps> = ({
   const [lineBreakEnabled, setLineBreakEnabled] = useState(true);
   const [splitRequestsEnabled, setSplitRequestsEnabled] = useState(false);
   const [parallelRequestsEnabled, setParallelRequestsEnabled] = useState(false);
+  const [existingHotwords, setExistingHotwords] = useState<Set<string>>(
+    new Set(),
+  );
+  const [addedWords, setAddedWords] = useState<Set<string>>(new Set());
+
+  // Load existing hotwords for comparison
+  const loadExistingHotwords = useCallback(async () => {
+    try {
+      const hotwords = await invoke<Hotword[]>("get_hotwords");
+      setExistingHotwords(new Set(hotwords.map((h) => h.target.toLowerCase())));
+    } catch (e) {
+      console.error("[AiAnalysis] Failed to load hotwords:", e);
+    }
+  }, []);
 
   // Reset history selection when summary changes
   useEffect(() => {
     setSelectedHistoryTimestamp(null);
   }, [summary]);
+
+  useEffect(() => {
+    loadExistingHotwords();
+  }, [loadExistingHotwords]);
 
   const handleGenerateAnalysis = () => {
     if (!summary) return;
@@ -591,10 +616,15 @@ export const AiAnalysisSection: React.FC<AiAnalysisSectionProps> = ({
                         const word = match ? match[1].trim() : item;
                         const typeHint = match ? match[2].trim() : null;
 
+                        const isAlreadyAdded =
+                          existingHotwords.has(word.toLowerCase()) ||
+                          addedWords.has(word.toLowerCase());
+
                         // Map type hint to color
                         const getTypeColor = (
                           hint: string | null,
                         ): "purple" | "blue" | "green" | "orange" | "gray" => {
+                          if (isAlreadyAdded) return "gray";
                           if (!hint) return "purple";
                           if (
                             hint.includes("项目") ||
@@ -609,14 +639,47 @@ export const AiAnalysisSection: React.FC<AiAnalysisSectionProps> = ({
                           return "purple";
                         };
 
+                        const handleAddToHotword = async () => {
+                          if (isAlreadyAdded) return;
+                          try {
+                            const category = await invoke<HotwordCategory>(
+                              "infer_hotword_category",
+                              { target: word },
+                            );
+                            await invoke("add_hotword", {
+                              target: word,
+                              originals: [],
+                              category,
+                              scenarios: ["work", "casual"],
+                            });
+                            setAddedWords((prev) =>
+                              new Set(prev).add(word.toLowerCase()),
+                            );
+                          } catch (e) {
+                            console.error(
+                              `[AiAnalysis] Failed to add hotword "${word}":`,
+                              e,
+                            );
+                          }
+                        };
+
                         return (
                           <Flex key={i} gap="1" align="center">
                             <Badge
                               size="2"
                               variant="soft"
                               color={getTypeColor(typeHint)}
-                              className="px-3 py-1"
+                              className={`px-3 py-1 ${isAlreadyAdded ? "opacity-60" : "cursor-pointer hover:opacity-80"}`}
+                              onClick={handleAddToHotword}
+                              title={
+                                isAlreadyAdded
+                                  ? "已添加到热词"
+                                  : "点击添加到热词"
+                              }
                             >
+                              {isAlreadyAdded && (
+                                <IconCheck size={12} className="mr-1 inline" />
+                              )}
                               {word}
                             </Badge>
                             {typeHint && (
