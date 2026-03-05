@@ -193,7 +193,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           return (
             <Box key={category}>
               <ModelGroupHeader
-                label={suffix ? `${category} · ${suffix}` : category}
+                label={suffix ? `${category}（${suffix}）` : category}
                 count={items.length}
                 className={headerClass}
                 icon={<IconDeviceDesktop className="w-3 h-3" />}
@@ -241,46 +241,41 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           <Box className="pr-0 transition-[padding-right] duration-200 group-has-[div[data-orientation=vertical][data-state=visible]]:pr-3">
             {/* Downloaded Models */}
             {availableModels.length > 0 &&
-              renderGroupedModels(
-                availableModels,
-                (model) => {
-                  const isActive =
-                    !onlineEnabled && currentModelId === model.id;
-                  return (
-                    <ModelListItem
-                      key={model.id}
-                      name={getTranslatedModelName(model, t)}
-                      meta={
-                        <Flex gap="1" wrap="wrap" align="center">
-                          <ModelTags
-                            model={model}
-                            t={t}
-                            showSize
-                            showMode={false}
-                            showLanguages
-                            showType={false}
-                          />
-                        </Flex>
+              renderGroupedModels(availableModels, (model) => {
+                const isActive = !onlineEnabled && currentModelId === model.id;
+                return (
+                  <ModelListItem
+                    key={model.id}
+                    name={getTranslatedModelName(model, t)}
+                    meta={
+                      <Flex gap="1" wrap="wrap" align="center">
+                        <ModelTags
+                          model={model}
+                          t={t}
+                          showSize
+                          showMode={false}
+                          showLanguages
+                          showType={false}
+                        />
+                      </Flex>
+                    }
+                    isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
+                    isActive={isActive}
+                    onClick={() => handleModelClick(model.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleModelClick(model.id);
                       }
-                      isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
-                      isActive={isActive}
-                      onClick={() => handleModelClick(model.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleModelClick(model.id);
-                        }
-                      }}
-                      rightElement={
-                        isActive ? (
-                          <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
-                        ) : null
-                      }
-                    />
-                  );
-                },
-                t("settings.asrModels.status.downloaded"),
-              )}
+                    }}
+                    rightElement={
+                      isActive ? (
+                        <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
+                      ) : null
+                    }
+                  />
+                );
+              })}
 
             {/* Online ASR Models */}
 
