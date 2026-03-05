@@ -3,7 +3,6 @@ import {
   IconCheck,
   IconChevronRight,
   IconCloud,
-  IconCloudUpload,
   IconCube,
   IconDeviceDesktop,
   IconDownload,
@@ -13,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
 import { RECOMMENDED_MODEL_IDS } from "../settings/asr-models/constants";
+import { getModeKey } from "../settings/asr-models/utils";
 import { ProgressBar } from "../shared";
 import { ModelTags } from "../ui/ModelTags";
 import { ModelGroupHeader } from "./ModelGroupHeader";
@@ -98,14 +98,15 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   const getCategory = React.useCallback(
     (model: ModelInfo) => {
-      return t("settings.asrModels.groups.offline");
+      const mode = getModeKey(model);
+      return t(`settings.asrModels.groups.${mode}`);
     },
     [t],
   );
 
   const orderCategory = (category: string) => {
-    if (category === t("settings.asrModels.groups.streaming")) return 0;
-    if (category === t("settings.asrModels.groups.offline")) return 1;
+    if (category === t("settings.asrModels.groups.asr")) return 0;
+    if (category === t("settings.asrModels.groups.punctuation")) return 1;
     return 2;
   };
 
@@ -175,27 +176,17 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     return (
       <Flex direction="column" gap="0">
         {ordered.map(([category, items]) => {
-          const isStreaming =
-            category === t("settings.asrModels.groups.streaming");
-          const isMultilingual =
-            category === t("settings.asrModels.groups.multilingual");
+          const isAsr = category === t("settings.asrModels.groups.asr");
           const isPunctuation =
             category === t("settings.asrModels.groups.punctuation");
 
           let headerClass = "text-text/70 bg-mid-gray/5 dark:bg-gray-900/40";
-          if (isStreaming) {
+          if (isAsr) {
             headerClass =
-              "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20!";
-          } else if (isMultilingual) {
-            headerClass =
-              "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30";
+              "text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/50";
           } else if (isPunctuation) {
             headerClass =
               "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30";
-          } else {
-            // Default offline
-            headerClass =
-              "text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/50";
           }
 
           return (
@@ -204,13 +195,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                 label={category}
                 count={items.length}
                 className={headerClass}
-                icon={
-                  isStreaming ? (
-                    <IconCloudUpload className="w-3 h-3" />
-                  ) : (
-                    <IconDeviceDesktop className="w-3 h-3" />
-                  )
-                }
+                icon={<IconDeviceDesktop className="w-3 h-3" />}
               />
               <Box className="divide-y divide-black/5">
                 {items.map(renderItem)}
