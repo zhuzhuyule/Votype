@@ -8,8 +8,10 @@ interface MultiCandidateViewProps {
   sourceText: string;
   candidates: MultiModelCandidate[];
   selectedCandidateId: string | null;
+  editingCandidateId: string | null;
   editedTexts: Record<string, string>;
   onCandidateSelect: (id: string) => void;
+  onEditEnd: () => void;
   onTextChange: (candidateId: string, text: string) => void;
   onInsert: (text: string, candidateId: string) => void;
 }
@@ -18,8 +20,10 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   sourceText,
   candidates,
   selectedCandidateId,
+  editingCandidateId,
   editedTexts,
   onCandidateSelect,
+  onEditEnd,
   onTextChange,
   onInsert,
 }) => {
@@ -44,10 +48,12 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             candidate={candidate}
             index={index}
             isSelected={selectedCandidateId === candidate.id}
+            isEditing={editingCandidateId === candidate.id}
             maxTime={maxTime}
             timeRank={timeRankMap.get(candidate.id)}
             editedText={editedTexts[candidate.id]}
             onSelect={() => onCandidateSelect(candidate.id)}
+            onEditEnd={onEditEnd}
             onTextChange={(text) => onTextChange(candidate.id, text)}
             onInsert={onInsert}
           />

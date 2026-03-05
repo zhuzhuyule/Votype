@@ -184,6 +184,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       ? multiCandidates[0].id
       : null,
   );
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(
+    null,
+  );
 
   // Prompt selector state for multi-candidate mode
   const [prompts, setPrompts] = useState<PromptInfo[]>([]);
@@ -246,6 +249,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       (event) => {
         setLocalCandidates(event.payload.candidates);
         setSelectedCandidateId(null);
+        setEditingCandidateId(null);
         setEditedTexts({});
         setIsRerunning(true);
       },
@@ -603,27 +607,73 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     cancelRef.current = handleCancel;
   }, [handleCancel]);
 
+  // Navigate between ready candidates in multi-model mode
+  const getNextReadyCandidate = useCallback(
+    (direction: 1 | -1): string | null => {
+      if (!displayCandidates) return null;
+      const ready = displayCandidates.filter((c) => c.ready && !c.error);
+      if (ready.length === 0) return null;
+      const currentIdx = ready.findIndex((c) => c.id === selectedCandidateId);
+      const nextIdx = (currentIdx + direction + ready.length) % ready.length;
+      return ready[nextIdx].id;
+    },
+    [displayCandidates, selectedCandidateId],
+  );
+
   // In multi-model mode, Tiptap editor is not rendered so its keyboard
-  // shortcuts don't fire. Register a global keydown listener as fallback.
+  // shortcuts don't fire. Register a global keydown listener with
+  // two-level focus model (List Mode / Edit Mode).
   useEffect(() => {
     if (!displayCandidates || displayCandidates.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+Enter: insert in both modes
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         insertRef.current();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        cancelRef.current();
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        insertRef.current();
+        return;
+      }
+
+      if (editingCandidateId === null) {
+        // === List Mode ===
+        if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+          e.preventDefault();
+          const next = getNextReadyCandidate(1);
+          if (next) setSelectedCandidateId(next);
+        } else if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+          e.preventDefault();
+          const prev = getNextReadyCandidate(-1);
+          if (prev) setSelectedCandidateId(prev);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (selectedCandidateId) {
+            setEditingCandidateId(selectedCandidateId);
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancelRef.current();
+        }
+      } else {
+        // === Edit Mode ===
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setEditingCandidateId(null);
+        } else if (e.key === "Tab") {
+          e.preventDefault();
+          setEditingCandidateId(null);
+        }
+        // All other keys pass through to the focused textarea
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [displayCandidates]);
+  }, [
+    displayCandidates,
+    editingCandidateId,
+    selectedCandidateId,
+    getNextReadyCandidate,
+  ]);
 
   const handleDrag = useCallback(async () => {
     try {
@@ -648,6 +698,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       setSelectedPromptId(promptId);
       setLocalCandidates(candidates);
       setSelectedCandidateId(null);
+      setEditingCandidateId(null);
       setEditedTexts({});
       setIsRerunning(true);
     },
@@ -716,8 +767,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             sourceText={initialData.source_text}
             candidates={displayCandidates}
             selectedCandidateId={selectedCandidateId}
+            editingCandidateId={editingCandidateId}
             editedTexts={editedTexts}
             onCandidateSelect={setSelectedCandidateId}
+            onEditEnd={() => setEditingCandidateId(null)}
             onTextChange={(candidateId, text) => {
               setEditedTexts((prev) => ({ ...prev, [candidateId]: text }));
             }}
@@ -744,6 +797,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           isSubmitting={isSubmitting}
           hasText={!!getEditorText().trim()}
           insertShortcut={insertShortcut}
+          isMultiModel={!!displayCandidates && displayCandidates.length > 0}
           onCopy={handleCopy}
           onInsert={handleInsert}
         />

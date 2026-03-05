@@ -2,7 +2,7 @@
 
 import { Tooltip } from "@radix-ui/themes";
 import { IconTextPlus } from "@tabler/icons-react";
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 export interface MultiModelCandidate {
@@ -19,10 +19,12 @@ interface CandidatePanelProps {
   candidate: MultiModelCandidate;
   index: number;
   isSelected: boolean;
+  isEditing: boolean;
   maxTime: number;
   timeRank?: number;
   editedText?: string;
   onSelect: () => void;
+  onEditEnd: () => void;
   onTextChange: (text: string) => void;
   onInsert: (text: string, candidateId: string) => void;
 }
@@ -37,22 +39,36 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   candidate,
   index,
   isSelected,
+  isEditing,
   maxTime,
   timeRank,
   editedText,
   onSelect,
+  onEditEnd,
   onTextChange,
   onInsert,
 }) => {
   const { t } = useTranslation();
   const displayText = editedText ?? candidate.text;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Track whether blur was caused by our keydown handler (Esc/Tab)
+  const blurFromKeydownRef = useRef(false);
+
+  // Auto-focus textarea when entering edit mode
+  useEffect(() => {
+    if (isEditing && textareaRef.current) {
+      textareaRef.current.focus();
+    } else if (!isEditing && textareaRef.current) {
+      textareaRef.current.blur();
+    }
+  }, [isEditing]);
 
   return (
     <div
       key={candidate.id}
       className={`candidate-panel candidate-tint-${index % 4} ${
         isSelected ? "selected" : ""
-      } ${candidate.error ? "error" : ""} ${!candidate.ready ? "loading" : ""}`}
+      } ${isEditing ? "editing" : ""} ${candidate.error ? "error" : ""} ${!candidate.ready ? "loading" : ""}`}
       onClick={() => {
         if (candidate.ready && !candidate.error) {
           onSelect();
@@ -124,6 +140,9 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                   el.style.height = el.scrollHeight + "px";
                 }}
                 ref={(el) => {
+                  (
+                    textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>
+                  ).current = el;
                   if (el) {
                     el.style.height = "auto";
                     el.style.height = el.scrollHeight + "px";
@@ -131,6 +150,21 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                 }}
                 onClick={(e) => e.stopPropagation()}
                 onFocus={onSelect}
+                onBlur={() => {
+                  // If blur was triggered by Esc/Tab keydown, skip —
+                  // the keydown handler already set editingCandidateId = null
+                  if (blurFromKeydownRef.current) {
+                    blurFromKeydownRef.current = false;
+                    return;
+                  }
+                  // External blur (e.g., mouse click outside): exit edit mode
+                  onEditEnd();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape" || e.key === "Tab") {
+                    blurFromKeydownRef.current = true;
+                  }
+                }}
               />
               <Tooltip content={t("transcription.review.insert", "Insert")}>
                 <button

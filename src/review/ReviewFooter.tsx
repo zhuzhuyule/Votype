@@ -10,6 +10,7 @@ interface ReviewFooterProps {
   isSubmitting: boolean;
   hasText: boolean;
   insertShortcut: string;
+  isMultiModel?: boolean;
   onCopy: () => void;
   onInsert: () => void;
 }
@@ -20,6 +21,7 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
   isSubmitting,
   hasText,
   insertShortcut,
+  isMultiModel,
   onCopy,
   onInsert,
 }) => {
