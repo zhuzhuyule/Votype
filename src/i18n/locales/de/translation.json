@@ -714,19 +714,37 @@
         "deletePrompt": "Prompt löschen",
         "noPrompts": "Keine Prompts verfügbar",
         "promptInstructions": "Prompt-Anweisungen",
-        "enableReview": "Überprüfung aktivieren",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "promptInstructionsPlaceholder": "Schreibe die Anweisungen, die nach der Transkription ausgeführt werden sollen. Beispiel: Basierend auf ${context}, korrigiere Fachbegriffe im folgenden Text: ${output}",
         "promptLabel": "Prompt-Name",
         "promptLabelPlaceholder": "Prompt-Namen eingeben",
-        "promptTip": "Tipp: Die folgenden Variablen sind verfügbar (zum Kopieren anklicken):<br/><code>${output}</code>: Das endgültige transkribierte Textergebnis.<br/><code>${streaming_output}</code>: Zwischenergebnisse während der Echtzeit-Transkription.<br/><code>${hot_words}</code>: In den erweiterten Einstellungen definierte Hotwords.<br/><code>${prompt}</code>: Anzeigename des aktuell aktiven Prompt-Schemas.<br/><code>${context}</code>: Historische Chat-Informationen aus dem aktiven Fenster.<br/><b>Hinweis: Wenn dein Prompt die KI anweist, eine JSON-Struktur mit den Feldern `text` und `confidence` auszugeben, wird das Überprüfungsfenster automatisch ausgelöst.</b>",
+        "promptTip": "Tipp: Die folgenden Variablen sind verfügbar (zum Kopieren anklicken):<br/><code>${output}</code>: Das endgültige transkribierte Textergebnis.<br/><code>${streaming_output}</code>: Zwischenergebnisse während der Echtzeit-Transkription.<br/><code>${prompt}</code>: Anzeigename des aktuell aktiven Prompt-Schemas.<br/><code>${context}</code>: Historische Chat-Informationen aus dem aktiven Fenster.<br/><b>Hinweis: Wenn dein Prompt die KI anweist, eine JSON-Struktur mit den Feldern `text` und `confidence` auszugeben, wird das Überprüfungsfenster automatisch ausgelöst.</b>",
         "selectedPrompt": {
-          "description": "Wähle eine Vorlage zur Verfeinerung von Transkriptionen oder erstelle eine neue. Du kannst Variablen wie <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code> usw. verwenden.",
+          "description": "Wähle eine Vorlage zur Verfeinerung von Transkriptionen oder erstelle eine neue. Du kannst Variablen wie <code>${output}</code>, <code>${streaming_output}</code> usw. verwenden.",
           "title": "Ausgewählter Prompt"
         },
         "selectPrompt": "Prompt auswählen",
         "selectToEdit": "Wähle oben einen Prompt aus, um dessen Details anzuzeigen und zu bearbeiten.",
         "title": "Prompt",
-        "updatePrompt": "Prompt aktualisieren"
+        "updatePrompt": "Prompt aktualisieren",
+        "varAppNameDesc": "Name der aktiven Anwendung.",
+        "varContextDesc": "Historische Chat-Informationen aus dem aktiven Fenster.",
+        "varOutputDesc": "Das endgültige transkribierte Textergebnis.",
+        "varPromptDesc": "Anzeigename des aktuell aktiven Prompt-Schemas.",
+        "varRawInputDesc": "Vollständige Originaltranskription.",
+        "varSelectDesc": "Text, der bei Aufnahmeende ausgewählt war.",
+        "varStreamingDesc": "Zwischenergebnisse während der Echtzeit-Transkription.",
+        "varTimeDesc": "Aktueller Zeitstempel.",
+        "varWindowTitleDesc": "Aktueller Fenstertitel.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       },
       "title": "Nachbearbeitung"
     },

@@ -745,7 +745,10 @@ impl TranscriptionManager {
                                 let mut punct_guard =
                                     self.punct_model.lock().unwrap_or_else(|e| e.into_inner());
                                 if punct_guard.is_none() {
-                                    info!("Loading punctuation model (first use)...");
+                                    info!(
+                                        "Loading punctuation model '{}' (first use)...",
+                                        punct_model_id
+                                    );
                                     match transcribe_rs::punct::PunctModel::new(&model_dir) {
                                         Ok(model) => {
                                             *punct_guard = Some(model);

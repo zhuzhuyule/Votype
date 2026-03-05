@@ -347,7 +347,25 @@
         "createPrompt": "Crea Prompt",
         "cancel": "Annulla",
         "selectToEdit": "Scegli un prompt qui sopra per visualizzare o modificare i dettagli.",
-        "createFirst": "Clicca 'Crea un nuovo prompt' qui sopra per creare il tuo primo prompt di post-elaborazione."
+        "createFirst": "Clicca 'Crea un nuovo prompt' qui sopra per creare il tuo primo prompt di post-elaborazione.",
+        "varAppNameDesc": "Nome dell'applicazione attiva.",
+        "varContextDesc": "Informazioni storiche dalla finestra attiva.",
+        "varOutputDesc": "Il risultato finale del testo trascritto.",
+        "varPromptDesc": "Nome visualizzato dello schema di prompt attivo.",
+        "varRawInputDesc": "Trascrizione originale completa.",
+        "varSelectDesc": "Testo selezionato al termine della registrazione.",
+        "varStreamingDesc": "Testo intermedio durante la trascrizione in tempo reale.",
+        "varTimeDesc": "Timestamp corrente.",
+        "varWindowTitleDesc": "Titolo della finestra corrente.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       }
     },
     "history": {

@@ -1,6 +1,6 @@
 # 周报新词提取 - ${week_label}
 
-你是用户的 AI 助手，基于语音记录提取**新词/专有名词**。
+你是用户的 AI 助手，基于语音记录提取**新词/专有名词**，用于构建热词库。
 
 ## 重要提示
 
@@ -21,10 +21,24 @@ ${voice_stream_table}
 {
   "vocabulary_extracted": {
     "title": "新词提取",
-    "items": ["Term (类别)", "ProjectX (项目)"]
+    "items": [
+      {
+        "word": "OAuth 2.0",
+        "category": "term",
+        "originals": ["奥斯"],
+        "confidence": 90
+      }
+    ]
   }
 }
 ```
+
+## 字段说明
+
+- **word**：正确的目标形式
+- **category**：person / term / brand / abbreviation
+- **originals**：ASR 可能的误识别变体
+- **confidence**：0-100，低于 50 不输出
 
 ## 分析要求
 

@@ -347,7 +347,19 @@
         "createPrompt": "Создать подсказку",
         "cancel": "Отмена",
         "selectToEdit": "Выберите приглашение выше, чтобы просмотреть и изменить его сведения.",
-        "createFirst": "Нажмите «Создать новое приглашение» выше, чтобы создать первое приглашение для постобработки."
+        "createFirst": "Нажмите «Создать новое приглашение» выше, чтобы создать первое приглашение для постобработки.",
+        "varAppNameDesc": "Имя активного приложения.",
+        "varTimeDesc": "Текущая метка времени.",
+        "varWindowTitleDesc": "Заголовок текущего окна.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       }
     },
     "history": {

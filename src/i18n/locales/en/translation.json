@@ -1051,16 +1051,24 @@
           "description": "This will restore the skill to its original built-in content. Any customizations will be lost.",
           "title": "Reset to Default"
         },
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
         "resetSuccess": "Skill reset to default",
         "resetFailed": "Failed to reset skill",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        },
         "description": "Description (for smart routing)",
         "descriptionPlaceholder": "Briefly describe what this Skill does and when it should be triggered",
         "editPrompt": "Edit Prompt",
         "enabledToggle": "Enable/Disable this Skill",
-        "enableReview": "Enable Review Trigger",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "generationDescription": "Generates new content based on the recognized text as a prompt (e.g., translation, summarization).",
         "globalConfigTitle": "Global Configuration",
-        "jsonHint": "Note: If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
         "managementTitle": "Prompts",
         "newPromptName": "New Prompt",
         "noPrompts": "No prompts available",
@@ -1073,7 +1081,7 @@
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tip: The system automatically sends input data as a separate message to the AI. You only need to reference variable names in your prompt:<br/><b>Input Variables (auto-appended):</b><br/><code>${output}</code>: Final transcribed text.<br/><code>${raw_input}</code>: Complete original transcription.<br/><code>${select}</code>: Text selected when recording ended.<br/><code>${streaming_output}</code>: Real-time transcription (works with output for better accuracy).<br/><code>${hot_words}</code>: Your custom vocabulary/hot words.<br/><code>${context}</code>: Historical context from the active window.<br/><b>Metadata Variables (directly replaced):</b><br/><code>${prompt}</code>: Current prompt scheme name.<br/><br/><b>Fallback:</b> If your prompt doesn't reference output/raw_input/select, the system will automatically append the transcription at the end, so you can write pure task descriptions.<br/><br/><b>Note:</b> If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
+        "promptTip": "Tip: The system automatically sends input data as a separate message to the AI. You only need to reference variable names in your prompt:<br/><b>Input Variables (auto-appended):</b><br/><code>${output}</code>: Final transcribed text.<br/><code>${raw_input}</code>: Complete original transcription.<br/><code>${select}</code>: Text selected when recording ended.<br/><code>${streaming_output}</code>: Real-time transcription (works with output for better accuracy).<br/><code>${context}</code>: Historical context from the active window.<br/><b>Metadata Variables (directly replaced):</b><br/><code>${app_name}</code>: Active application name.<br/><code>${window_title}</code>: Current window title.<br/><code>${time}</code>: Current timestamp.<br/><code>${prompt}</code>: Current prompt scheme name.<br/><br/><b>Fallback:</b> If your prompt doesn't reference output/raw_input/select, the system will automatically append the transcription at the end, so you can write pure task descriptions.",
         "refinementDescription": "Automatically corrects and formats the recognized text.",
         "reviewThreshold": "Review Threshold",
         "selectedPrompt": {
@@ -1087,13 +1095,15 @@
         "updateFailed": "Update failed",
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully",
+        "varAppNameDesc": "Active application name.",
         "varContextDesc": "Historical context from the active window.",
-        "varHotWordsDesc": "Custom vocabulary/hot words from Advanced Settings.",
         "varOutputDesc": "Final transcribed text.",
         "varPromptDesc": "Current prompt scheme's display name.",
         "varRawInputDesc": "Complete original transcription.",
         "varSelectDesc": "Text selected when recording ended.",
-        "varStreamingDesc": "Intermediate text during real-time transcription."
+        "varStreamingDesc": "Intermediate text during real-time transcription.",
+        "varTimeDesc": "Current timestamp.",
+        "varWindowTitleDesc": "Current window title."
       },
       "skills": {
         "advancedSkills": "Advanced Skills",
@@ -1137,20 +1147,6 @@
       }
     },
     "vocabulary": {
-      "actions": "Actions",
-      "corrections": {
-        "allApps": "All apps",
-        "correction": "Correction",
-        "count": "Count",
-        "description": "Automatically learned from your edit history",
-        "empty": "No learned corrections yet",
-        "global": "Global",
-        "source": "Source",
-        "sourceUnavailable": "Source unavailable",
-        "scope": "Scope",
-        "title": "Corrections"
-      },
-      "export": "Export",
       "hotWords": {
         "description": "Add words that are often misheard. The system will auto-correct.",
         "empty": "No hot words yet",
@@ -1159,21 +1155,8 @@
         "word": "Word"
       },
       "import": "Import",
-      "scope": {
-        "custom": "Specific Apps",
-        "deselectAll": "Deselect All",
-        "editDescription": "Edit scope for \"{{original}}\" → \"{{corrected}}\"",
-        "editTitle": "Correction Scope",
-        "global": "Global",
-        "multiple": "{{count}} apps",
-        "none": "No apps",
-        "other": "Other Apps",
-        "selectAll": "Select All",
-        "source": "Source App ({{app}})"
-      },
       "deleteConfirm": {
         "title": "Confirm Deletion",
-        "correctionMessage": "Are you sure you want to delete this correction rule? This action cannot be undone.",
         "hotwordMessage": "Are you sure you want to remove this hot word?"
       }
     }

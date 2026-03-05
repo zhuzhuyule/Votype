@@ -712,21 +712,39 @@
         "createNew": "Crear Nuevo Prompt",
         "createPrompt": "Crear Prompt",
         "deletePrompt": "Eliminar Prompt",
-        "enableReview": "Habilitar revisión",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "No hay prompts disponibles",
         "promptInstructions": "Instrucciones del Prompt",
         "promptInstructionsPlaceholder": "Escribe las instrucciones para ejecutar después de la transcripción. Ejemplo: Basado en ${context}, corrige los términos técnicos en el siguiente texto: ${output}",
         "promptLabel": "Etiqueta del Prompt",
         "promptLabelPlaceholder": "Ingresa el nombre del prompt",
-        "promptTip": "Consejo: Las siguientes variables están disponibles (haz clic para copiar):<br/><code>${output}</code>: El resultado final del texto transcrito.<br/><code>${streaming_output}</code>: Texto intermedio durante la transcripción en tiempo real.<br/><code>${hot_words}</code>: Palabras clave definidas en la configuración avanzada.<br/><code>${prompt}</code>: Nombre visible del esquema de prompt activo.<br/><code>${context}</code>: Información histórica del chat desde la ventana activa.<br/><b>Nota: Si tu prompt instruye a la IA para emitir una estructura JSON con los campos `text` y `confidence`, la ventana de revisión se activará automáticamente.</b>",
+        "promptTip": "Consejo: Las siguientes variables están disponibles (haz clic para copiar):<br/><code>${output}</code>: El resultado final del texto transcrito.<br/><code>${streaming_output}</code>: Texto intermedio durante la transcripción en tiempo real.<br/><code>${prompt}</code>: Nombre visible del esquema de prompt activo.<br/><code>${context}</code>: Información histórica del chat desde la ventana activa.<br/><b>Nota: Si tu prompt instruye a la IA para emitir una estructura JSON con los campos `text` y `confidence`, la ventana de revisión se activará automáticamente.</b>",
         "selectedPrompt": {
-          "description": "Selecciona una plantilla para refinar las transcripciones o crea una nueva. Puedes usar variables como <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, etc.",
+          "description": "Selecciona una plantilla para refinar las transcripciones o crea una nueva. Puedes usar variables como <code>${output}</code>, <code>${streaming_output}</code>, etc.",
           "title": "Prompt Seleccionado"
         },
         "selectPrompt": "Seleccionar un prompt",
         "selectToEdit": "Selecciona un prompt arriba para ver y editar sus detalles.",
         "title": "Prompt",
-        "updatePrompt": "Actualizar Prompt"
+        "updatePrompt": "Actualizar Prompt",
+        "varAppNameDesc": "Nombre de la aplicación activa.",
+        "varContextDesc": "Información histórica del chat desde la ventana activa.",
+        "varOutputDesc": "El resultado final del texto transcrito.",
+        "varPromptDesc": "Nombre visible del esquema de prompt activo.",
+        "varRawInputDesc": "Transcripción original completa.",
+        "varSelectDesc": "Texto seleccionado cuando se detuvo la grabación.",
+        "varStreamingDesc": "Texto intermedio durante la transcripción en tiempo real.",
+        "varTimeDesc": "Marca de tiempo actual.",
+        "varWindowTitleDesc": "Título de la ventana actual.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       },
       "title": "Post Proceso"
     },
