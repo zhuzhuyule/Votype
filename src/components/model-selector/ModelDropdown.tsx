@@ -155,6 +155,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   const renderGroupedModels = (
     list: ModelInfo[],
     renderItem: (m: ModelInfo) => React.ReactNode,
+    suffix?: string,
   ) => {
     const groups = new Map<string, ModelInfo[]>();
     for (const model of list) {
@@ -192,7 +193,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           return (
             <Box key={category}>
               <ModelGroupHeader
-                label={category}
+                label={suffix ? `${category} · ${suffix}` : category}
                 count={items.length}
                 className={headerClass}
                 icon={<IconDeviceDesktop className="w-3 h-3" />}
@@ -240,41 +241,46 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
           <Box className="pr-0 transition-[padding-right] duration-200 group-has-[div[data-orientation=vertical][data-state=visible]]:pr-3">
             {/* Downloaded Models */}
             {availableModels.length > 0 &&
-              renderGroupedModels(availableModels, (model) => {
-                const isActive = !onlineEnabled && currentModelId === model.id;
-                return (
-                  <ModelListItem
-                    key={model.id}
-                    name={getTranslatedModelName(model, t)}
-                    meta={
-                      <Flex gap="1" wrap="wrap" align="center">
-                        <ModelTags
-                          model={model}
-                          t={t}
-                          showSize
-                          showMode={false}
-                          showLanguages
-                          showType={false}
-                        />
-                      </Flex>
-                    }
-                    isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
-                    isActive={isActive}
-                    onClick={() => handleModelClick(model.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleModelClick(model.id);
+              renderGroupedModels(
+                availableModels,
+                (model) => {
+                  const isActive =
+                    !onlineEnabled && currentModelId === model.id;
+                  return (
+                    <ModelListItem
+                      key={model.id}
+                      name={getTranslatedModelName(model, t)}
+                      meta={
+                        <Flex gap="1" wrap="wrap" align="center">
+                          <ModelTags
+                            model={model}
+                            t={t}
+                            showSize
+                            showMode={false}
+                            showLanguages
+                            showType={false}
+                          />
+                        </Flex>
                       }
-                    }}
-                    rightElement={
-                      isActive ? (
-                        <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
-                      ) : null
-                    }
-                  />
-                );
-              })}
+                      isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
+                      isActive={isActive}
+                      onClick={() => handleModelClick(model.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleModelClick(model.id);
+                        }
+                      }}
+                      rightElement={
+                        isActive ? (
+                          <IconCheck className="text-logo-primary w-5 h-5 flex-shrink-0" />
+                        ) : null
+                      }
+                    />
+                  );
+                },
+                t("settings.asrModels.status.downloaded"),
+              )}
 
             {/* Online ASR Models */}
 
@@ -387,77 +393,81 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
             {/* Downloadable Models */}
             {downloadableModels.length > 0 &&
-              renderGroupedModels(downloadableModels, (model) => {
-                const isDownloading = downloadProgress.has(model.id);
-                const progress = downloadProgress.get(model.id);
+              renderGroupedModels(
+                downloadableModels,
+                (model: ModelInfo) => {
+                  const isDownloading = downloadProgress.has(model.id);
+                  const progress = downloadProgress.get(model.id);
 
-                return (
-                  <ModelListItem
-                    key={model.id}
-                    name={getTranslatedModelName(model, t)}
-                    meta={
-                      <Flex gap="1" wrap="wrap" align="center">
-                        <ModelTags
-                          model={model}
-                          t={t}
-                          showSize
-                          showMode={false}
-                          showLanguages
-                          showType={false}
-                        />
-                      </Flex>
-                    }
-                    isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
-                    className={
-                      isDownloading ? "cursor-default" : "cursor-default"
-                    }
-                    rightElement={
-                      isDownloading && progress ? (
-                        <Box className="w-20">
-                          <Text
-                            className="text-xs text-logo-primary font-medium text-right block mb-1"
-                            size="1"
-                          >
-                            {Math.max(
-                              0,
-                              Math.min(100, Math.round(progress.percentage)),
-                            )}
-                            %
-                          </Text>
-                          <ProgressBar
-                            progress={[
-                              {
-                                id: model.id,
-                                percentage: Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    Math.round(progress.percentage),
-                                  ),
-                                ),
-                              },
-                            ]}
-                            size="small"
+                  return (
+                    <ModelListItem
+                      key={model.id}
+                      name={getTranslatedModelName(model, t)}
+                      meta={
+                        <Flex gap="1" wrap="wrap" align="center">
+                          <ModelTags
+                            model={model}
+                            t={t}
+                            showSize
+                            showMode={false}
+                            showLanguages
+                            showType={false}
                           />
-                        </Box>
-                      ) : (
-                        <IconButton
-                          variant="ghost"
-                          size="1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadClick(model.id);
-                          }}
-                          className="hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          title={t("modelSelector.download")}
-                        >
-                          <IconDownload className="w-4 h-4" />
-                        </IconButton>
-                      )
-                    }
-                  />
-                );
-              })}
+                        </Flex>
+                      }
+                      isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
+                      className={
+                        isDownloading ? "cursor-default" : "cursor-default"
+                      }
+                      rightElement={
+                        isDownloading && progress ? (
+                          <Box className="w-20">
+                            <Text
+                              className="text-xs text-logo-primary font-medium text-right block mb-1"
+                              size="1"
+                            >
+                              {Math.max(
+                                0,
+                                Math.min(100, Math.round(progress.percentage)),
+                              )}
+                              %
+                            </Text>
+                            <ProgressBar
+                              progress={[
+                                {
+                                  id: model.id,
+                                  percentage: Math.max(
+                                    0,
+                                    Math.min(
+                                      100,
+                                      Math.round(progress.percentage),
+                                    ),
+                                  ),
+                                },
+                              ]}
+                              size="small"
+                            />
+                          </Box>
+                        ) : (
+                          <IconButton
+                            variant="ghost"
+                            size="1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadClick(model.id);
+                            }}
+                            className="hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title={t("modelSelector.download")}
+                          >
+                            <IconDownload className="w-4 h-4" />
+                          </IconButton>
+                        )
+                      }
+                    />
+                  );
+                },
+                t("settings.asrModels.status.notDownloaded"),
+              )}
 
             {/* No Models Available */}
             {availableModels.length === 0 &&
