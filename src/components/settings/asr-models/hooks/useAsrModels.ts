@@ -123,8 +123,8 @@ export const useAsrModels = (): UseAsrModelsReturn => {
   const punctuationModelOptions = useMemo(() => {
     return punctuationModels.map((m) => ({
       value: m.id,
-      label: `${getTranslatedModelName(m, t)} · ${m.size_mb} MB${m.is_downloaded ? "" : ` (${t("settings.asrModels.status.notDownloaded")})`}`,
-      disabled: !m.is_downloaded,
+      label: `${getTranslatedModelName(m, t)} · ${m.size_mb} MB`,
+      disabled: false,
     }));
   }, [punctuationModels, t]);
 
