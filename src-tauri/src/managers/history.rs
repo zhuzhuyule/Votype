@@ -308,6 +308,22 @@ static MIGRATIONS: &[M] = &[
     // source tracks where a hotword came from: 'manual', 'auto_learned', 'ai_extracted'
     // Data migration from vocabulary_corrections is done in init_database() post-migration hook
     M::up("ALTER TABLE hotwords ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';"),
+    // Migration 28: Add hotword_categories table for user-customizable categories
+    M::up(
+        "CREATE TABLE IF NOT EXISTS hotword_categories (
+            id TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            color TEXT NOT NULL DEFAULT 'gray',
+            icon TEXT NOT NULL DEFAULT 'IconTag',
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            is_builtin BOOLEAN NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        );
+        INSERT OR IGNORE INTO hotword_categories VALUES ('person', '人名', 'green', 'IconUser', 0, 1, strftime('%s','now'));
+        INSERT OR IGNORE INTO hotword_categories VALUES ('term', '术语', 'orange', 'IconVocabulary', 1, 1, strftime('%s','now'));
+        INSERT OR IGNORE INTO hotword_categories VALUES ('brand', '品牌', 'blue', 'IconBuildingStore', 2, 1, strftime('%s','now'));
+        INSERT OR IGNORE INTO hotword_categories VALUES ('abbreviation', '缩写', 'purple', 'IconAbc', 3, 1, strftime('%s','now'));",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -879,21 +895,32 @@ impl HistoryManager {
             let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
-                let hotword_manager = HotwordManager::new(self.db_path.clone());
+
+                // Collect corrections for LLM analysis
+                let mut corrections: Vec<(String, String)> = Vec::new();
 
                 for diff in &diffs {
                     let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
                     if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
                         error!("Failed to record correction candidate: {}", e);
                     }
-                    if similarity.is_phonetically_similar {
-                        if let Err(e) =
-                            hotword_manager.record_auto_learned(&diff.corrected, &diff.original)
-                        {
-                            error!("Failed to record auto-learned hotword: {}", e);
-                        }
-                    }
+                    corrections.push((diff.original.clone(), diff.corrected.clone()));
                 }
+
+                // Fire-and-forget LLM analysis (safe: we're already in async context)
+                if !corrections.is_empty() {
+                    let app_handle = self.app_handle.clone();
+                    let db_path = self.db_path.clone();
+                    tokio::spawn(async move {
+                        HotwordManager::analyze_corrections_via_llm(
+                            app_handle,
+                            db_path,
+                            corrections,
+                        )
+                        .await;
+                    });
+                }
+
                 info!(
                     "[History] Processed {} edit diffs from review window for entry {}",
                     diffs.len(),
@@ -1015,7 +1042,7 @@ impl HistoryManager {
             conn.query_row(&query, params![id], |row| row.get(0)).ok()
         };
 
-        // Analyze diff and record auto-learned hotwords
+        // Analyze diff and send corrections to LLM for classification
         if let Some(original) = &original_text {
             use crate::managers::hotword::HotwordManager;
             use crate::phonetic_similarity::calculate_phonetic_similarity;
@@ -1023,7 +1050,9 @@ impl HistoryManager {
             let diffs = VocabularyManager::analyze_edit_diff(original, &new_text);
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
-                let hotword_manager = HotwordManager::new(self.db_path.clone());
+
+                // Collect corrections for LLM analysis
+                let mut corrections: Vec<(String, String)> = Vec::new();
 
                 for diff in &diffs {
                     let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
@@ -1031,15 +1060,23 @@ impl HistoryManager {
                     if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
                         error!("Failed to record correction candidate: {}", e);
                     }
-                    // Only auto-learn phonetically similar corrections as hotwords
-                    if similarity.is_phonetically_similar {
-                        if let Err(e) =
-                            hotword_manager.record_auto_learned(&diff.corrected, &diff.original)
-                        {
-                            error!("Failed to record auto-learned hotword: {}", e);
-                        }
-                    }
+                    corrections.push((diff.original.clone(), diff.corrected.clone()));
                 }
+
+                // Fire-and-forget LLM analysis (safe: we're already in async context)
+                if !corrections.is_empty() {
+                    let app_handle = self.app_handle.clone();
+                    let db_path = self.db_path.clone();
+                    tokio::spawn(async move {
+                        HotwordManager::analyze_corrections_via_llm(
+                            app_handle,
+                            db_path,
+                            corrections,
+                        )
+                        .await;
+                    });
+                }
+
                 info!(
                     "[History] Processed {} edit diffs for entry {} field {}",
                     diffs.len(),

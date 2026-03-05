@@ -5,11 +5,14 @@
 
 use anyhow::Result;
 use chrono::Utc;
-use log::{debug, info};
+use log::{debug, error, info, warn};
 use rusqlite::{params, Connection};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
-use crate::settings::{Hotword, HotwordCategory, HotwordScenario};
+use tauri::{Emitter, Manager};
+
+use crate::settings::{Hotword, HotwordCategoryMeta, HotwordScenario};
 
 /// Technical term suffixes for category inference
 const TECHNICAL_SUFFIXES: &[&str] = &[
@@ -43,11 +46,11 @@ impl HotwordManager {
     /// Infer the category of a hotword based on its target form.
     ///
     /// Heuristics:
-    /// - All uppercase 2-5 chars -> Abbreviation
-    /// - Technical suffixes (-js, -ts, Config, Manager, etc.) -> Term
-    /// - Single capitalized word -> Person
-    /// - Default -> Term
-    pub fn infer_category(target: &str) -> HotwordCategory {
+    /// - All uppercase 2-5 chars -> "abbreviation"
+    /// - Technical suffixes (-js, -ts, Config, Manager, etc.) -> "term"
+    /// - Single capitalized word -> "person"
+    /// - Default -> "term"
+    pub fn infer_category(target: &str) -> String {
         let trimmed = target.trim();
 
         // Check for abbreviations (all uppercase, 2-5 characters)
@@ -55,7 +58,7 @@ impl HotwordManager {
             && trimmed.len() <= 5
             && trimmed.chars().all(|c| c.is_ascii_uppercase())
         {
-            return HotwordCategory::Abbreviation;
+            return "abbreviation".to_string();
         }
 
         // Check for technical terms with known suffixes
@@ -63,7 +66,7 @@ impl HotwordManager {
         for suffix in TECHNICAL_SUFFIXES {
             let suffix_lower = suffix.to_lowercase();
             if lower.ends_with(&suffix_lower) || lower.contains(&suffix_lower) {
-                return HotwordCategory::Term;
+                return "term".to_string();
             }
         }
 
@@ -79,11 +82,11 @@ impl HotwordManager {
                     .iter()
                     .all(|c| c.is_lowercase() || !c.is_alphabetic())
             {
-                return HotwordCategory::Person;
+                return "person".to_string();
             }
         }
 
-        HotwordCategory::Term
+        "term".to_string()
     }
 
     /// Map a database row to a Hotword struct
@@ -98,7 +101,7 @@ impl HotwordManager {
             id: row.get("id")?,
             target: row.get("target")?,
             originals: serde_json::from_str(&originals_json).unwrap_or_default(),
-            category: serde_json::from_str(&format!("\"{}\"", category_str)).unwrap_or_default(),
+            category: category_str,
             scenarios: serde_json::from_str(&scenarios_json).unwrap_or_default(),
             user_override: row.get("user_override")?,
             use_count: row.get("use_count")?,
@@ -153,15 +156,16 @@ impl HotwordManager {
         &self,
         target: String,
         originals: Vec<String>,
-        category: Option<HotwordCategory>,
+        category: Option<String>,
         scenarios: Option<Vec<HotwordScenario>>,
     ) -> Result<Hotword> {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
 
         // Infer category if not provided
-        let inferred_category = Self::infer_category(&target);
-        let final_category = category.unwrap_or(inferred_category);
+        let final_category = category
+            .clone()
+            .unwrap_or_else(|| Self::infer_category(&target));
         let user_override = category.is_some();
 
         // Default to both scenarios if not specified
@@ -169,9 +173,6 @@ impl HotwordManager {
             scenarios.unwrap_or_else(|| vec![HotwordScenario::Work, HotwordScenario::Casual]);
 
         let originals_json = serde_json::to_string(&originals)?;
-        let category_str = serde_json::to_string(&final_category)?;
-        // Remove quotes from category string for storage
-        let category_str = category_str.trim_matches('"');
         let scenarios_json = serde_json::to_string(&final_scenarios)?;
 
         conn.execute(
@@ -180,7 +181,7 @@ impl HotwordManager {
             params![
                 target,
                 originals_json,
-                category_str,
+                final_category,
                 scenarios_json,
                 user_override,
                 now
@@ -190,7 +191,7 @@ impl HotwordManager {
         let id = conn.last_insert_rowid();
 
         info!(
-            "[Hotword] Added hotword: {} (category={:?})",
+            "[Hotword] Added hotword: {} (category={})",
             target, final_category
         );
 
@@ -216,14 +217,12 @@ impl HotwordManager {
         id: i64,
         target: Option<String>,
         originals: Vec<String>,
-        category: HotwordCategory,
+        category: String,
         scenarios: Vec<HotwordScenario>,
     ) -> Result<()> {
         let conn = self.get_connection()?;
 
         let originals_json = serde_json::to_string(&originals)?;
-        let category_str = serde_json::to_string(&category)?;
-        let category_str = category_str.trim_matches('"');
         let scenarios_json = serde_json::to_string(&scenarios)?;
 
         if let Some(ref new_target) = target {
@@ -231,14 +230,14 @@ impl HotwordManager {
                 "UPDATE hotwords
                  SET target = ?1, originals = ?2, category = ?3, scenarios = ?4, user_override = 1
                  WHERE id = ?5",
-                params![new_target, originals_json, category_str, scenarios_json, id],
+                params![new_target, originals_json, category, scenarios_json, id],
             )?;
         } else {
             conn.execute(
                 "UPDATE hotwords
                  SET originals = ?1, category = ?2, scenarios = ?3, user_override = 1
                  WHERE id = ?4",
-                params![originals_json, category_str, scenarios_json, id],
+                params![originals_json, category, scenarios_json, id],
             )?;
         }
 
@@ -285,27 +284,147 @@ impl HotwordManager {
         Ok(())
     }
 
+    // ── Category CRUD ────────────────────────────────────────────────────
+
+    /// Get all hotword categories from the database
+    pub fn get_categories(&self) -> Result<Vec<HotwordCategoryMeta>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, label, color, icon, sort_order, is_builtin FROM hotword_categories ORDER BY sort_order ASC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(HotwordCategoryMeta {
+                id: row.get("id")?,
+                label: row.get("label")?,
+                color: row.get("color")?,
+                icon: row.get("icon")?,
+                sort_order: row.get("sort_order")?,
+                is_builtin: row.get("is_builtin")?,
+            })
+        })?;
+        let mut categories = Vec::new();
+        for row in rows {
+            categories.push(row?);
+        }
+        Ok(categories)
+    }
+
+    /// Add a new custom category
+    pub fn add_category(
+        &self,
+        id: &str,
+        label: &str,
+        color: &str,
+        icon: &str,
+    ) -> Result<HotwordCategoryMeta> {
+        let conn = self.get_connection()?;
+        let now = Utc::now().timestamp();
+
+        // Get next sort_order
+        let max_order: i64 = conn
+            .query_row(
+                "SELECT COALESCE(MAX(sort_order), 0) FROM hotword_categories",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+
+        conn.execute(
+            "INSERT INTO hotword_categories (id, label, color, icon, sort_order, is_builtin, created_at) VALUES (?1, ?2, ?3, ?4, ?5, 0, ?6)",
+            params![id, label, color, icon, max_order + 1, now],
+        )?;
+
+        info!("[Hotword] Added category: {} ({})", label, id);
+        Ok(HotwordCategoryMeta {
+            id: id.to_string(),
+            label: label.to_string(),
+            color: color.to_string(),
+            icon: icon.to_string(),
+            sort_order: max_order + 1,
+            is_builtin: false,
+        })
+    }
+
+    /// Update an existing category (only non-builtin)
+    pub fn update_category(
+        &self,
+        id: &str,
+        label: Option<&str>,
+        color: Option<&str>,
+        icon: Option<&str>,
+        sort_order: Option<i64>,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+
+        if let Some(label) = label {
+            conn.execute(
+                "UPDATE hotword_categories SET label = ?1 WHERE id = ?2",
+                params![label, id],
+            )?;
+        }
+        if let Some(color) = color {
+            conn.execute(
+                "UPDATE hotword_categories SET color = ?1 WHERE id = ?2",
+                params![color, id],
+            )?;
+        }
+        if let Some(icon) = icon {
+            conn.execute(
+                "UPDATE hotword_categories SET icon = ?1 WHERE id = ?2",
+                params![icon, id],
+            )?;
+        }
+        if let Some(sort_order) = sort_order {
+            conn.execute(
+                "UPDATE hotword_categories SET sort_order = ?1 WHERE id = ?2",
+                params![sort_order, id],
+            )?;
+        }
+
+        info!("[Hotword] Updated category: {}", id);
+        Ok(())
+    }
+
+    /// Delete a custom category and reassign its hotwords to "term"
+    pub fn delete_category(&self, id: &str) -> Result<()> {
+        let conn = self.get_connection()?;
+
+        // Check if builtin
+        let is_builtin: bool = conn
+            .query_row(
+                "SELECT is_builtin FROM hotword_categories WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap_or(true);
+
+        if is_builtin {
+            return Err(anyhow::anyhow!("Cannot delete built-in category: {}", id));
+        }
+
+        // Reassign hotwords to "term"
+        conn.execute(
+            "UPDATE hotwords SET category = 'term' WHERE category = ?1",
+            params![id],
+        )?;
+
+        // Delete the category
+        conn.execute(
+            "DELETE FROM hotword_categories WHERE id = ?1 AND is_builtin = 0",
+            params![id],
+        )?;
+
+        info!(
+            "[Hotword] Deleted category: {}, reassigned hotwords to 'term'",
+            id
+        );
+        Ok(())
+    }
+
+    // ── LLM Injection ────────────────────────────────────────────────────
+
     /// Build LLM injection text for a specific scenario.
-    /// Groups hotwords by category and formats them for inclusion in prompts.
-    ///
-    /// Returns formatted text like:
-    /// ```
-    /// 【人名】
-    /// - 张三
-    /// - 李四
-    ///
-    /// 【专业术语】
-    /// - Kubernetes
-    /// - Docker
-    ///
-    /// 【缩写】
-    /// - API -> Application Programming Interface
-    /// - SDK -> Software Development Kit
-    ///
-    /// 【判断规则】
-    /// - 仅在语境合适时使用上述词汇
-    /// - 如不确定，保留原始转写
-    /// ```
+    /// Dynamically groups hotwords by category using DB-stored category metadata.
     pub fn build_llm_injection(&self, scenario: HotwordScenario, limit: usize) -> Result<String> {
         let hotwords = self.get_by_scenario(scenario)?;
         // Only inject confirmed (active) hotwords
@@ -321,63 +440,32 @@ impl HotwordManager {
         // Take top N by use_count (already sorted)
         let hotwords: Vec<&Hotword> = hotwords.iter().take(limit).collect();
 
-        // Group by category
-        let mut persons: Vec<&Hotword> = Vec::new();
-        let mut terms: Vec<&Hotword> = Vec::new();
-        let mut brands: Vec<&Hotword> = Vec::new();
-        let mut abbreviations: Vec<&Hotword> = Vec::new();
+        // Load categories from DB
+        let categories = self.get_categories().unwrap_or_default();
+        let cat_map: HashMap<String, HotwordCategoryMeta> =
+            categories.into_iter().map(|c| (c.id.clone(), c)).collect();
 
-        for h in hotwords {
-            match h.category {
-                HotwordCategory::Person => persons.push(h),
-                HotwordCategory::Term => terms.push(h),
-                HotwordCategory::Brand => brands.push(h),
-                HotwordCategory::Abbreviation => abbreviations.push(h),
-            }
+        // Group by category
+        let mut groups: HashMap<String, Vec<&Hotword>> = HashMap::new();
+        for h in &hotwords {
+            groups.entry(h.category.clone()).or_default().push(h);
         }
+
+        // Sort category keys by sort_order
+        let mut cat_keys: Vec<String> = groups.keys().cloned().collect();
+        cat_keys.sort_by_key(|k| cat_map.get(k).map(|m| m.sort_order).unwrap_or(999));
 
         let mut output = String::new();
 
-        // Format each category
-        if !persons.is_empty() {
-            output.push_str("【人名】\n");
-            for h in &persons {
-                if h.originals.is_empty() {
-                    output.push_str(&format!("- {}\n", h.target));
-                } else {
-                    output.push_str(&format!("- {} ({})\n", h.target, h.originals.join(", ")));
-                }
-            }
-            output.push('\n');
-        }
+        for cat_id in &cat_keys {
+            let items = &groups[cat_id];
+            let label = cat_map
+                .get(cat_id)
+                .map(|m| m.label.as_str())
+                .unwrap_or(cat_id.as_str());
 
-        if !terms.is_empty() {
-            output.push_str("【专业术语】\n");
-            for h in &terms {
-                if h.originals.is_empty() {
-                    output.push_str(&format!("- {}\n", h.target));
-                } else {
-                    output.push_str(&format!("- {} ({})\n", h.target, h.originals.join(", ")));
-                }
-            }
-            output.push('\n');
-        }
-
-        if !brands.is_empty() {
-            output.push_str("【品牌/产品】\n");
-            for h in &brands {
-                if h.originals.is_empty() {
-                    output.push_str(&format!("- {}\n", h.target));
-                } else {
-                    output.push_str(&format!("- {} ({})\n", h.target, h.originals.join(", ")));
-                }
-            }
-            output.push('\n');
-        }
-
-        if !abbreviations.is_empty() {
-            output.push_str("【缩写】\n");
-            for h in &abbreviations {
+            output.push_str(&format!("【{}】\n", label));
+            for h in items {
                 if h.originals.is_empty() {
                     output.push_str(&format!("- {}\n", h.target));
                 } else {
@@ -402,9 +490,12 @@ impl HotwordManager {
         Ok(output)
     }
 
+    // ── Auto-learning ────────────────────────────────────────────────────
+
     /// Record an auto-learned hotword from user edit corrections.
     /// If the target already exists, merges the original into its originals array.
     /// If not, creates a new hotword with source='auto_learned'.
+    #[allow(dead_code)]
     pub fn record_auto_learned(&self, target: &str, original: &str) -> Result<()> {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
@@ -447,18 +538,16 @@ impl HotwordManager {
         } else {
             // Create new hotword
             let inferred_category = Self::infer_category(target);
-            let category_str = serde_json::to_string(&inferred_category)?;
-            let category_str = category_str.trim_matches('"');
             let originals_json = serde_json::to_string(&vec![original])?;
 
             conn.execute(
                 "INSERT INTO hotwords (target, originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
                  VALUES (?1, ?2, ?3, '[\"work\",\"casual\"]', 0, 1, 0, ?4, 'active', 'auto_learned')",
-                params![target, originals_json, category_str, now],
+                params![target, originals_json, inferred_category, now],
             )?;
 
             info!(
-                "[Hotword] Auto-learned: new hotword \"{}\" from correction \"{}\" (category={:?})",
+                "[Hotword] Auto-learned: new hotword \"{}\" from correction \"{}\" (category={})",
                 target, original, inferred_category
             );
         }
@@ -466,19 +555,65 @@ impl HotwordManager {
         Ok(())
     }
 
-    /// Add AI-suggested hotwords in batch. Uses ON CONFLICT to avoid overwriting existing active hotwords.
-    pub fn add_suggested(
+    /// Record an auto-learned hotword as a suggestion (status='suggested') from LLM analysis.
+    pub fn record_auto_learned_suggested(
         &self,
-        items: Vec<(String, Vec<String>, HotwordCategory)>,
-    ) -> Result<Vec<Hotword>> {
+        target: &str,
+        original: &str,
+        category: &str,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+        let now = Utc::now().timestamp();
+
+        // Check if hotword with same target already exists (case-insensitive)
+        let existing: Option<(i64, String)> = conn
+            .query_row(
+                "SELECT id, originals FROM hotwords WHERE LOWER(target) = LOWER(?1)",
+                params![target],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+
+        if let Some((id, originals_json)) = existing {
+            // Merge original into existing originals
+            let mut originals: Vec<String> =
+                serde_json::from_str(&originals_json).unwrap_or_default();
+            if !originals.iter().any(|o| o.eq_ignore_ascii_case(original)) {
+                originals.push(original.to_string());
+                let merged_json = serde_json::to_string(&originals)?;
+                conn.execute(
+                    "UPDATE hotwords SET originals = ?1 WHERE id = ?2",
+                    params![merged_json, id],
+                )?;
+                info!(
+                    "[Hotword] LLM suggested: merged \"{}\" into existing hotword \"{}\" (id={})",
+                    original, target, id
+                );
+            }
+        } else {
+            let originals_json = serde_json::to_string(&vec![original])?;
+            conn.execute(
+                "INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
+                 VALUES (?1, ?2, ?3, '[\"work\",\"casual\"]', 0, 0, 0, ?4, 'suggested', 'auto_learned')",
+                params![target, originals_json, category, now],
+            )?;
+            info!(
+                "[Hotword] LLM suggested: new hotword \"{}\" from correction \"{}\" (category={})",
+                target, original, category
+            );
+        }
+
+        Ok(())
+    }
+
+    /// Add AI-suggested hotwords in batch. Uses ON CONFLICT to avoid overwriting existing active hotwords.
+    pub fn add_suggested(&self, items: Vec<(String, Vec<String>, String)>) -> Result<Vec<Hotword>> {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
         let mut added = Vec::new();
 
         for (target, originals, category) in items {
             let originals_json = serde_json::to_string(&originals)?;
-            let category_str = serde_json::to_string(&category)?;
-            let category_str = category_str.trim_matches('"');
             let scenarios_json = "[\"work\",\"casual\"]";
 
             let result = conn.execute(
@@ -487,7 +622,7 @@ impl HotwordManager {
                 params![
                     target,
                     originals_json,
-                    category_str,
+                    category,
                     scenarios_json,
                     now
                 ],
@@ -583,6 +718,260 @@ impl HotwordManager {
         info!("[Hotword] Dismissed all {} suggestions", count);
         Ok(count as u64)
     }
+
+    // ── LLM Correction Analysis ──────────────────────────────────────────
+
+    /// Analyze correction diffs via LLM to determine if they are ASR errors.
+    /// Runs as fire-and-forget from the edit pipeline.
+    pub async fn analyze_corrections_via_llm(
+        app_handle: tauri::AppHandle,
+        db_path: PathBuf,
+        corrections: Vec<(String, String)>, // (original, corrected)
+    ) {
+        if corrections.is_empty() {
+            return;
+        }
+
+        use crate::llm_client;
+        use crate::managers::prompt::{self, PromptManager};
+        use crate::settings::get_settings;
+        use async_openai::types::{
+            ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+            ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+        };
+        use std::sync::Arc;
+
+        let settings = get_settings(&app_handle);
+
+        // Need a configured LLM provider and model
+        let provider = match settings.active_post_process_provider() {
+            Some(p) => p.clone(),
+            None => {
+                debug!(
+                    "[Hotword] No active post-process provider, skipping LLM correction analysis"
+                );
+                return;
+            }
+        };
+
+        let api_key = settings
+            .post_process_api_keys
+            .get(&provider.id)
+            .cloned()
+            .unwrap_or_default();
+        if api_key.is_empty() {
+            debug!(
+                "[Hotword] No API key for provider {}, skipping LLM correction analysis",
+                provider.id
+            );
+            return;
+        }
+
+        // Use selected prompt model or default post-process model
+        let model = settings
+            .selected_prompt_model_id
+            .as_deref()
+            .or_else(|| {
+                settings
+                    .post_process_models
+                    .get(&provider.id)
+                    .map(|s| s.as_str())
+            })
+            .unwrap_or_default();
+        if model.is_empty() {
+            debug!("[Hotword] No model configured, skipping LLM correction analysis");
+            return;
+        }
+
+        // Load prompt template
+        let prompt_manager = app_handle.state::<Arc<PromptManager>>();
+        let template = match prompt_manager.get_prompt(&app_handle, "system_correction_analysis") {
+            Ok(t) => t,
+            Err(e) => {
+                warn!("[Hotword] Failed to load correction analysis prompt: {}", e);
+                return;
+            }
+        };
+
+        // Format corrections
+        let corrections_text: String = corrections
+            .iter()
+            .map(|(orig, corr)| format!("- \"{}\" → \"{}\"", orig, corr))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let mut vars = HashMap::new();
+        vars.insert("corrections", corrections_text);
+        let system_prompt = prompt::substitute_variables(&template, &vars);
+
+        // Create LLM client and call
+        let client = match llm_client::create_client(&provider, api_key) {
+            Ok(c) => c,
+            Err(e) => {
+                warn!("[Hotword] Failed to create LLM client: {}", e);
+                return;
+            }
+        };
+
+        let mut messages = Vec::new();
+        if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+            .content(system_prompt)
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::System(sys_msg));
+        }
+        if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+            .content("请分析上述修正对。")
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::User(user_msg));
+        }
+
+        let req = match CreateChatCompletionRequestArgs::default()
+            .model(model.to_string())
+            .messages(messages)
+            .build()
+        {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("[Hotword] Failed to build LLM request: {}", e);
+                return;
+            }
+        };
+
+        let response = match client.chat().create(req).await {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("[Hotword] LLM correction analysis request failed: {}", e);
+                return;
+            }
+        };
+
+        let content = match response
+            .choices
+            .first()
+            .and_then(|c| c.message.content.as_ref())
+        {
+            Some(c) => c.clone(),
+            None => {
+                warn!("[Hotword] LLM returned empty response for correction analysis");
+                return;
+            }
+        };
+
+        info!(
+            "[Hotword] LLM correction analysis response: {} chars",
+            content.len()
+        );
+
+        // Extract JSON from response
+        let json_str = extract_json_block_standalone(&content);
+        let json_str = match json_str {
+            Some(s) => s,
+            None => {
+                warn!("[Hotword] Failed to extract JSON from LLM response");
+                return;
+            }
+        };
+
+        // Parse response
+        #[derive(serde::Deserialize)]
+        struct CorrectionItem {
+            original: String,
+            corrected: String,
+            #[serde(rename = "type")]
+            correction_type: String,
+            category: Option<String>,
+        }
+
+        let items: Vec<CorrectionItem> = match serde_json::from_str(&json_str) {
+            Ok(v) => v,
+            Err(e) => {
+                warn!(
+                    "[Hotword] Failed to parse LLM correction analysis JSON: {}",
+                    e
+                );
+                return;
+            }
+        };
+
+        // Record ASR errors as suggested hotwords
+        let hotword_manager = HotwordManager::new(db_path);
+        let mut created_count = 0;
+
+        for item in &items {
+            if item.correction_type == "asr_error" {
+                let category = item.category.as_deref().unwrap_or("term");
+                if let Err(e) = hotword_manager.record_auto_learned_suggested(
+                    &item.corrected,
+                    &item.original,
+                    category,
+                ) {
+                    error!("[Hotword] Failed to record LLM-suggested hotword: {}", e);
+                } else {
+                    created_count += 1;
+                }
+            }
+        }
+
+        if created_count > 0 {
+            info!(
+                "[Hotword] LLM correction analysis: created {} suggested hotwords from {} items",
+                created_count,
+                items.len()
+            );
+            // Notify frontend
+            if let Err(e) = app_handle.emit("hotword-suggestions-updated", ()) {
+                error!(
+                    "[Hotword] Failed to emit hotword-suggestions-updated: {}",
+                    e
+                );
+            }
+        }
+    }
+}
+
+/// Standalone JSON block extractor (mirrors core::extract_json_block but accessible from here)
+fn extract_json_block_standalone(content: &str) -> Option<String> {
+    // Remove <think>...</think> blocks
+    let mut text = content.to_string();
+    while let Some(start) = text.find("<think>") {
+        if let Some(end) = text[start..].find("</think>") {
+            text.replace_range(start..start + end + 8, "");
+        } else {
+            break;
+        }
+    }
+    let content = text.trim();
+
+    // Try ```json block
+    if let Some(start) = content.find("```json") {
+        let rest = &content[start + 7..];
+        if let Some(end) = rest.find("```") {
+            return Some(rest[..end].trim().to_string());
+        }
+    }
+    // Try generic ``` block
+    if let Some(start) = content.find("```") {
+        let rest = &content[start + 3..];
+        if let Some(end) = rest.find("```") {
+            return Some(rest[..end].trim().to_string());
+        }
+    }
+    // Try raw [ or {
+    let start_bracket = content.find('[');
+    let start_brace = content.find('{');
+    let (start_char, end_char) = match (start_bracket, start_brace) {
+        (Some(b), Some(c)) if b < c => (b, content.rfind(']')?),
+        (Some(_), Some(c)) => (c, content.rfind('}')?),
+        (Some(b), None) => (b, content.rfind(']')?),
+        (None, Some(c)) => (c, content.rfind('}')?),
+        (None, None) => return None,
+    };
+    if end_char > start_char {
+        return Some(content[start_char..=end_char].trim().to_string());
+    }
+    None
 }
 
 #[cfg(test)]
@@ -591,102 +980,50 @@ mod tests {
 
     #[test]
     fn test_infer_category_abbreviation() {
-        // All uppercase 2-5 chars should be abbreviations
-        assert_eq!(
-            HotwordManager::infer_category("API"),
-            HotwordCategory::Abbreviation
-        );
-        assert_eq!(
-            HotwordManager::infer_category("SDK"),
-            HotwordCategory::Abbreviation
-        );
-        assert_eq!(
-            HotwordManager::infer_category("CEO"),
-            HotwordCategory::Abbreviation
-        );
-        assert_eq!(
-            HotwordManager::infer_category("HTTP"),
-            HotwordCategory::Abbreviation
-        );
-        assert_eq!(
-            HotwordManager::infer_category("HTTPS"),
-            HotwordCategory::Abbreviation
-        );
+        assert_eq!(HotwordManager::infer_category("API"), "abbreviation");
+        assert_eq!(HotwordManager::infer_category("SDK"), "abbreviation");
+        assert_eq!(HotwordManager::infer_category("CEO"), "abbreviation");
+        assert_eq!(HotwordManager::infer_category("HTTP"), "abbreviation");
+        assert_eq!(HotwordManager::infer_category("HTTPS"), "abbreviation");
     }
 
     #[test]
     fn test_infer_category_abbreviation_too_long() {
-        // More than 5 chars should not be abbreviations
         let category = HotwordManager::infer_category("ABCDEF");
-        assert_ne!(category, HotwordCategory::Abbreviation);
+        assert_ne!(category, "abbreviation");
     }
 
     #[test]
     fn test_infer_category_abbreviation_too_short() {
-        // Less than 2 chars should not be abbreviations
         let category = HotwordManager::infer_category("A");
-        assert_ne!(category, HotwordCategory::Abbreviation);
+        assert_ne!(category, "abbreviation");
     }
 
     #[test]
     fn test_infer_category_technical_terms() {
-        // Technical suffixes should be Term
-        assert_eq!(
-            HotwordManager::infer_category("UserConfig"),
-            HotwordCategory::Term
-        );
-        assert_eq!(
-            HotwordManager::infer_category("TaskManager"),
-            HotwordCategory::Term
-        );
-        assert_eq!(
-            HotwordManager::infer_category("AuthService"),
-            HotwordCategory::Term
-        );
-        assert_eq!(
-            HotwordManager::infer_category("EventHandler"),
-            HotwordCategory::Term
-        );
-        assert_eq!(
-            HotwordManager::infer_category("AppController"),
-            HotwordCategory::Term
-        );
-        assert_eq!(
-            HotwordManager::infer_category("DataProvider"),
-            HotwordCategory::Term
-        );
+        assert_eq!(HotwordManager::infer_category("UserConfig"), "term");
+        assert_eq!(HotwordManager::infer_category("TaskManager"), "term");
+        assert_eq!(HotwordManager::infer_category("AuthService"), "term");
+        assert_eq!(HotwordManager::infer_category("EventHandler"), "term");
+        assert_eq!(HotwordManager::infer_category("AppController"), "term");
+        assert_eq!(HotwordManager::infer_category("DataProvider"), "term");
     }
 
     #[test]
     fn test_infer_category_person() {
-        // Single capitalized word should be Person
-        assert_eq!(
-            HotwordManager::infer_category("John"),
-            HotwordCategory::Person
-        );
-        assert_eq!(
-            HotwordManager::infer_category("Alice"),
-            HotwordCategory::Person
-        );
+        assert_eq!(HotwordManager::infer_category("John"), "person");
+        assert_eq!(HotwordManager::infer_category("Alice"), "person");
     }
 
     #[test]
     fn test_infer_category_default() {
-        // Random words should default to Term
-        assert_eq!(
-            HotwordManager::infer_category("kubernetes"),
-            HotwordCategory::Term
-        );
-        assert_eq!(
-            HotwordManager::infer_category("docker"),
-            HotwordCategory::Term
-        );
+        assert_eq!(HotwordManager::infer_category("kubernetes"), "term");
+        assert_eq!(HotwordManager::infer_category("docker"), "term");
     }
 
     #[test]
     fn test_infer_category_mixed_case_not_abbreviation() {
-        // Mixed case should not be abbreviation
         let category = HotwordManager::infer_category("Api");
-        assert_ne!(category, HotwordCategory::Abbreviation);
+        assert_ne!(category, "abbreviation");
     }
 }

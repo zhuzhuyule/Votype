@@ -4,60 +4,40 @@ import {
   AlertDialog,
   Badge,
   Button,
-  Checkbox,
   Flex,
   IconButton,
   Text,
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
-import {
-  IconAbc,
-  IconBuildingStore,
-  IconCheck,
-  IconTrash,
-  IconUser,
-  IconVocabulary,
-} from "@tabler/icons-react";
+import { IconCheck, IconTrash } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  CATEGORY_LABELS,
   type Hotword,
   type HotwordCategory,
+  type HotwordCategoryMeta,
   type HotwordScenario,
   SCENARIO_LABELS,
   SOURCE_LABELS,
 } from "../../../types/hotword";
+import { resolveIcon } from "../../../lib/hotwordIcons";
 import { TagInput } from "../post-processing/prompts/components/TagInput";
-
-const CATEGORY_ICON_COMPONENTS: Record<HotwordCategory, typeof IconUser> = {
-  person: IconUser,
-  term: IconVocabulary,
-  brand: IconBuildingStore,
-  abbreviation: IconAbc,
-};
-
-const CATEGORY_COLORS: Record<
-  HotwordCategory,
-  "green" | "orange" | "blue" | "purple"
-> = {
-  person: "green",
-  term: "orange",
-  brand: "blue",
-  abbreviation: "purple",
-};
 
 interface HotwordEditPanelProps {
   hotword: Hotword;
   onUpdate: () => void;
   onDelete: (id: number) => void;
+  categoryMap: Record<string, HotwordCategoryMeta>;
+  sortedIds: string[];
 }
 
 export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
   hotword,
   onUpdate,
   onDelete,
+  categoryMap,
+  sortedIds,
 }) => {
   const [target, setTarget] = useState(hotword.target);
   const [originals, setOriginals] = useState<string[]>(hotword.originals);
@@ -218,17 +198,23 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
               类别
             </Text>
             <Flex gap="1" wrap="wrap">
-              {(
-                Object.entries(CATEGORY_LABELS) as [HotwordCategory, string][]
-              ).map(([key, label]) => {
-                const Icon = CATEGORY_ICON_COMPONENTS[key];
+              {sortedIds.map((key) => {
+                const meta = categoryMap[key];
+                if (!meta) return null;
+                const Icon = resolveIcon(meta.icon);
                 const isActive = category === key;
+                const chipColor = (meta.color || "gray") as
+                  | "green"
+                  | "orange"
+                  | "blue"
+                  | "purple"
+                  | "gray";
                 return (
                   <Badge
                     key={key}
                     size="1"
                     variant={isActive ? "solid" : "outline"}
-                    color={CATEGORY_COLORS[key]}
+                    color={chipColor}
                     className={`px-2 py-0.5 cursor-pointer select-none transition-all duration-100 ${
                       isActive ? "" : "opacity-50 hover:opacity-80"
                     }`}
@@ -236,7 +222,7 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
                   >
                     <Flex align="center" gap="1">
                       <Icon size={11} />
-                      {label}
+                      {meta.label}
                     </Flex>
                   </Badge>
                 );

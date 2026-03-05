@@ -1,5 +1,6 @@
 // HotwordSettings - Main component for managing hotwords
 
+import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useState } from "react";
 import type {
@@ -7,12 +8,19 @@ import type {
   HotwordCategory,
   HotwordScenario,
 } from "../../../types/hotword";
+import { useHotwordCategories } from "../../../hooks/useHotwordCategories";
 import { HotwordTagCloud } from "./HotwordTagCloud";
 
 export const HotwordSettings: React.FC = () => {
   const [hotwords, setHotwords] = useState<Hotword[]>([]);
   const [suggestions, setSuggestions] = useState<Hotword[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const {
+    categoryMap,
+    sortedIds,
+    reload: reloadCategories,
+  } = useHotwordCategories();
 
   const loadHotwords = useCallback(async () => {
     setLoading(true);
@@ -39,6 +47,16 @@ export const HotwordSettings: React.FC = () => {
     loadHotwords();
     loadSuggestions();
   }, [loadHotwords, loadSuggestions]);
+
+  // Listen for LLM-generated suggestion updates
+  useEffect(() => {
+    const unlisten = listen("hotword-suggestions-updated", () => {
+      loadSuggestions();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [loadSuggestions]);
 
   // Add hotword
   const handleAdd = async (
@@ -239,6 +257,8 @@ export const HotwordSettings: React.FC = () => {
       onDismissAll={handleDismissAll}
       onImport={handleImport}
       onExport={handleExport}
+      categoryMap={categoryMap}
+      sortedIds={sortedIds}
     />
   );
 };

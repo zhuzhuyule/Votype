@@ -4,24 +4,15 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Badge, Tooltip } from "@radix-ui/themes";
 import React from "react";
-import type { Hotword, HotwordCategory } from "../../../types/hotword";
+import type { Hotword, HotwordCategoryMeta } from "../../../types/hotword";
 import { SOURCE_LABELS } from "../../../types/hotword";
-
-const CATEGORY_COLORS: Record<
-  HotwordCategory,
-  "green" | "orange" | "blue" | "purple"
-> = {
-  person: "green",
-  term: "orange",
-  brand: "blue",
-  abbreviation: "purple",
-};
 
 interface HotwordTagProps {
   hotword: Hotword;
   isSelected: boolean;
   isHighlighted?: boolean;
   onClick: () => void;
+  categoryMap: Record<string, HotwordCategoryMeta>;
 }
 
 export const HotwordTag: React.FC<HotwordTagProps> = ({
@@ -29,6 +20,7 @@ export const HotwordTag: React.FC<HotwordTagProps> = ({
   isSelected,
   isHighlighted,
   onClick,
+  categoryMap,
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -36,7 +28,17 @@ export const HotwordTag: React.FC<HotwordTagProps> = ({
       data: { hotword },
     });
 
-  const color = CATEGORY_COLORS[hotword.category];
+  const color = (categoryMap[hotword.category]?.color ?? "gray") as
+    | "green"
+    | "orange"
+    | "blue"
+    | "purple"
+    | "gray"
+    | "red"
+    | "cyan"
+    | "amber"
+    | "teal"
+    | "pink";
   const tooltipContent = [
     hotword.originals.length > 0 && `纠错: ${hotword.originals.length}`,
     `使用: ${hotword.use_count}次`,

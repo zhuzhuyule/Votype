@@ -609,13 +609,13 @@ struct AiAnalysisResponse {
     vocabulary_extracted: Option<VocabularySection>,
 }
 
-/// Map AI category string to HotwordCategory
-fn map_ai_category_to_hotword(cat: &str) -> crate::settings::HotwordCategory {
+/// Map AI category string to hotword category id
+fn map_ai_category_to_hotword(cat: &str) -> String {
     match cat {
-        "Person" | "person" => crate::settings::HotwordCategory::Person,
-        "Brand" | "brand" | "Project" => crate::settings::HotwordCategory::Brand,
-        "Abbreviation" | "abbreviation" => crate::settings::HotwordCategory::Abbreviation,
-        _ => crate::settings::HotwordCategory::Term, // Term, Other, and unknown → term
+        "Person" | "person" => "person".to_string(),
+        "Brand" | "brand" | "Project" => "brand".to_string(),
+        "Abbreviation" | "abbreviation" => "abbreviation".to_string(),
+        _ => "term".to_string(),
     }
 }
 
@@ -651,8 +651,7 @@ async fn extract_and_save_vocabulary(
         if let Some(vocab_section) = response.vocabulary_extracted {
             if let Some(items) = vocab_section.items {
                 // Collect items as (target, originals, category) for hotword suggestion
-                let mut suggested: Vec<(String, Vec<String>, crate::settings::HotwordCategory)> =
-                    Vec::new();
+                let mut suggested: Vec<(String, Vec<String>, String)> = Vec::new();
 
                 match items {
                     VocabularyItems::Strings(strings) => {
@@ -686,11 +685,9 @@ async fn extract_and_save_vocabulary(
                                 let category = cat_hint
                                     .as_deref()
                                     .map(|h| match h {
-                                        "人名" | "同事" => {
-                                            crate::settings::HotwordCategory::Person
-                                        }
+                                        "人名" | "同事" => "person".to_string(),
                                         "品牌" | "产品" | "项目" | "模块" => {
-                                            crate::settings::HotwordCategory::Brand
+                                            "brand".to_string()
                                         }
                                         _ => inferred_cat.clone(),
                                     })

@@ -1,27 +1,15 @@
 // HotwordAddBar - Inline add bar for adding hotwords
 
 import { Badge, Button, Flex, Text, TextField } from "@radix-ui/themes";
-import {
-  IconAbc,
-  IconBuildingStore,
-  IconPlus,
-  IconUser,
-  IconVocabulary,
-} from "@tabler/icons-react";
+import { IconPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useState } from "react";
-import {
-  CATEGORY_LABELS,
-  type HotwordCategory,
-  type HotwordScenario,
+import type {
+  HotwordCategory,
+  HotwordCategoryMeta,
+  HotwordScenario,
 } from "../../../types/hotword";
-
-const CATEGORY_ICON_COMPONENTS: Record<HotwordCategory, typeof IconUser> = {
-  person: IconUser,
-  term: IconVocabulary,
-  brand: IconBuildingStore,
-  abbreviation: IconAbc,
-};
+import { resolveIcon } from "../../../lib/hotwordIcons";
 
 interface HotwordAddBarProps {
   onAdd: (
@@ -31,11 +19,13 @@ interface HotwordAddBarProps {
     scenarios: HotwordScenario[],
   ) => Promise<void>;
   onBatchAdd: (targets: string[]) => Promise<void>;
+  categoryMap: Record<string, HotwordCategoryMeta>;
 }
 
 export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
   onAdd,
   onBatchAdd,
+  categoryMap,
 }) => {
   const [input, setInput] = useState("");
   const [inferredCategory, setInferredCategory] =
@@ -101,6 +91,8 @@ export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
     }
   };
 
+  const inferredMeta = inferredCategory ? categoryMap[inferredCategory] : null;
+
   return (
     <div className="p-3 rounded-lg border border-dashed border-gray-300 bg-gray-50/50 animate-fade-in-down">
       <Flex gap="2" align="center">
@@ -112,12 +104,12 @@ export const HotwordAddBar: React.FC<HotwordAddBarProps> = ({
           onKeyDown={handleKeyDown}
           placeholder="输入热词（逗号分隔可批量添加）..."
         />
-        {inferredCategory && !isBatch && (
+        {inferredMeta && !isBatch && (
           <Badge size="1" variant="soft" color="gray">
-            {React.createElement(CATEGORY_ICON_COMPONENTS[inferredCategory], {
+            {React.createElement(resolveIcon(inferredMeta.icon), {
               size: 12,
             })}{" "}
-            {CATEGORY_LABELS[inferredCategory]}
+            {inferredMeta.label}
           </Badge>
         )}
         {isBatch && (

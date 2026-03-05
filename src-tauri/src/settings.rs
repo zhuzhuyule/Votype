@@ -98,19 +98,15 @@ pub enum SkillSource {
     External { path: String },
 }
 
-/// Hotword category for semantic classification
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
-#[serde(rename_all = "lowercase")]
-pub enum HotwordCategory {
-    /// Person names (colleagues, friends, public figures)
-    #[default]
-    Person,
-    /// Technical terms, industry vocabulary
-    Term,
-    /// Product/brand names, company names
-    Brand,
-    /// Abbreviations like API, SDK, CEO
-    Abbreviation,
+/// Metadata for a hotword category (stored in DB)
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct HotwordCategoryMeta {
+    pub id: String,
+    pub label: String,
+    pub color: String,
+    pub icon: String,
+    pub sort_order: i64,
+    pub is_builtin: bool,
 }
 
 /// Usage scenario for hotwords
@@ -131,8 +127,8 @@ pub struct Hotword {
     pub originals: Vec<String>,
     /// Target correct form
     pub target: String,
-    /// Semantic category
-    pub category: HotwordCategory,
+    /// Semantic category (e.g. "person", "term", "brand", "abbreviation", or custom)
+    pub category: String,
     /// Usage scenarios (can be multiple)
     pub scenarios: Vec<HotwordScenario>,
     /// Whether user manually overrode the category

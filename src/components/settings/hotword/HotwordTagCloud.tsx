@@ -17,50 +17,23 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
-  IconAbc,
-  IconBuildingStore,
   IconDownload,
   IconPlus,
   IconSearch,
   IconUpload,
-  IconUser,
-  IconVocabulary,
   IconX,
 } from "@tabler/icons-react";
 import React, { useCallback, useMemo, useState } from "react";
-import {
-  CATEGORY_LABELS,
-  type Hotword,
-  type HotwordCategory,
-  type HotwordScenario,
+import type {
+  Hotword,
+  HotwordCategory,
+  HotwordCategoryMeta,
+  HotwordScenario,
 } from "../../../types/hotword";
+import { resolveIcon } from "../../../lib/hotwordIcons";
 import { HotwordAddBar } from "./HotwordAddBar";
 import { HotwordEditPanel } from "./HotwordEditPanel";
 import { HotwordTag } from "./HotwordTag";
-
-const CATEGORY_COLORS: Record<
-  HotwordCategory,
-  "green" | "orange" | "blue" | "purple"
-> = {
-  person: "green",
-  term: "orange",
-  brand: "blue",
-  abbreviation: "purple",
-};
-
-const CATEGORY_ORDER: HotwordCategory[] = [
-  "person",
-  "term",
-  "brand",
-  "abbreviation",
-];
-
-const CATEGORY_ICON_COMPONENTS: Record<HotwordCategory, typeof IconUser> = {
-  person: IconUser,
-  term: IconVocabulary,
-  brand: IconBuildingStore,
-  abbreviation: IconAbc,
-};
 
 // Droppable category group wrapper
 const DroppableCategoryGroup: React.FC<{
@@ -106,6 +79,8 @@ interface HotwordTagCloudProps {
   onDismissAll: () => void;
   onImport: () => void;
   onExport: () => void;
+  categoryMap: Record<string, HotwordCategoryMeta>;
+  sortedIds: string[];
 }
 
 export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
@@ -123,6 +98,8 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   onDismissAll,
   onImport,
   onExport,
+  categoryMap,
+  sortedIds,
 }) => {
   const [search, setSearch] = useState("");
   const [showAddBar, setShowAddBar] = useState(false);
@@ -151,18 +128,17 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   const grouped = useMemo(() => {
     const cjkRegex = /^[\u4e00-\u9fff\u3400-\u4dbf]/;
     const collator = new Intl.Collator("zh-Hans-CN", { sensitivity: "base" });
-    const groups: Record<HotwordCategory, Hotword[]> = {
-      person: [],
-      term: [],
-      brand: [],
-      abbreviation: [],
-    };
+    const groups: Record<string, Hotword[]> = {};
+    for (const id of sortedIds) {
+      groups[id] = [];
+    }
     filteredHotwords.forEach((h) => {
-      if (groups[h.category]) {
-        groups[h.category].push(h);
+      if (!groups[h.category]) {
+        groups[h.category] = [];
       }
+      groups[h.category].push(h);
     });
-    for (const cat of CATEGORY_ORDER) {
+    for (const cat of Object.keys(groups)) {
       groups[cat].sort((a, b) => {
         const aCJK = cjkRegex.test(a.target);
         const bCJK = cjkRegex.test(b.target);
@@ -171,7 +147,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
       });
     }
     return groups;
-  }, [filteredHotwords]);
+  }, [filteredHotwords, sortedIds]);
 
   const selectedHotword = selectedId
     ? hotwords.find((h) => h.id === selectedId) || null
@@ -201,6 +177,15 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
     setShowAddBar(false);
   };
 
+  // All category ids for drag validation (sorted + any extra from hotwords)
+  const allCategoryIds = useMemo(() => {
+    const ids = new Set(sortedIds);
+    for (const h of hotwords) {
+      ids.add(h.category);
+    }
+    return [...ids];
+  }, [sortedIds, hotwords]);
+
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
       setIsDragging(false);
@@ -211,11 +196,8 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
       if (!hotword) return;
 
       // Extract category from droppable id "category-xxx"
-      const targetCategory = String(over.id).replace(
-        "category-",
-        "",
-      ) as HotwordCategory;
-      if (!CATEGORY_ORDER.includes(targetCategory)) return;
+      const targetCategory = String(over.id).replace("category-", "");
+      if (!allCategoryIds.includes(targetCategory)) return;
       if (hotword.category === targetCategory) return;
 
       onUpdateCategory(hotword.id, targetCategory);
@@ -224,7 +206,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
       setHighlightedId(hotword.id);
       setTimeout(() => setHighlightedId(null), 1200);
     },
-    [onUpdateCategory],
+    [onUpdateCategory, allCategoryIds],
   );
 
   return (
@@ -289,6 +271,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
             <HotwordAddBar
               onAdd={handleAddDone}
               onBatchAdd={handleBatchAddDone}
+              categoryMap={categoryMap}
             />
           )}
 
@@ -320,27 +303,36 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                   </Flex>
                 </Flex>
                 <Flex wrap="wrap" gap="1">
-                  {suggestions.map((s) => (
-                    <Badge
-                      key={s.id}
-                      size="2"
-                      variant="outline"
-                      color={CATEGORY_COLORS[s.category]}
-                      className="px-2 py-1 cursor-pointer hover:brightness-95 transition-all duration-150 group"
-                    >
-                      <span onClick={() => onAcceptSuggestion(s.id)}>
-                        {s.target}
-                      </span>
-                      <IconX
-                        size={12}
-                        className="ml-1 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-red-500 transition-opacity cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDismissSuggestion(s.id);
-                        }}
-                      />
-                    </Badge>
-                  ))}
+                  {suggestions.map((s) => {
+                    const suggColor = (categoryMap[s.category]?.color ??
+                      "gray") as
+                      | "green"
+                      | "orange"
+                      | "blue"
+                      | "purple"
+                      | "gray";
+                    return (
+                      <Badge
+                        key={s.id}
+                        size="2"
+                        variant="outline"
+                        color={suggColor}
+                        className="px-2 py-1 cursor-pointer hover:brightness-95 transition-all duration-150 group"
+                      >
+                        <span onClick={() => onAcceptSuggestion(s.id)}>
+                          {s.target}
+                        </span>
+                        <IconX
+                          size={12}
+                          className="ml-1 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-red-500 transition-opacity cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDismissSuggestion(s.id);
+                          }}
+                        />
+                      </Badge>
+                    );
+                  })}
                 </Flex>
               </Flex>
             </div>
@@ -376,9 +368,13 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
               onDragCancel={() => setIsDragging(false)}
             >
               <Flex direction="column" gap="3">
-                {CATEGORY_ORDER.map((cat) => {
-                  const items = grouped[cat];
+                {sortedIds.map((cat) => {
+                  const items = grouped[cat] || [];
                   if (items.length === 0 && !isDragging) return null;
+
+                  const meta = categoryMap[cat];
+                  const CatIcon = resolveIcon(meta?.icon);
+                  const catLabel = meta?.label ?? cat;
 
                   return (
                     <DroppableCategoryGroup
@@ -387,12 +383,12 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                       isDragging={isDragging}
                     >
                       <Flex align="center" gap="1" className="mb-3">
-                        {React.createElement(CATEGORY_ICON_COMPONENTS[cat], {
+                        {React.createElement(CatIcon, {
                           size: 14,
                           className: "text-gray-400",
                         })}
                         <Text size="1" weight="medium" color="gray">
-                          {CATEGORY_LABELS[cat]} ({items.length})
+                          {catLabel} ({items.length})
                         </Text>
                       </Flex>
                       <Flex wrap="wrap" gap="2">
@@ -403,6 +399,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                             isSelected={selectedId === h.id}
                             isHighlighted={highlightedId === h.id}
                             onClick={() => handleTagClick(h.id)}
+                            categoryMap={categoryMap}
                           />
                         ))}
                         {items.length === 0 && isDragging && (
@@ -420,6 +417,8 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                           hotword={selectedHotword}
                           onUpdate={onReload}
                           onDelete={handleDelete}
+                          categoryMap={categoryMap}
+                          sortedIds={sortedIds}
                         />
                       )}
                     </DroppableCategoryGroup>

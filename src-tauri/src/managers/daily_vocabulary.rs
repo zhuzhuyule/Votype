@@ -325,23 +325,14 @@ impl DailyVocabularyManager {
     // Hotword Promotion
     // ============================================================================
 
-    /// Map context_type from daily vocabulary to HotwordCategory string for the hotwords table.
+    /// Map context_type from daily vocabulary to category string for the hotwords table.
     /// Falls back to HotwordManager::infer_category for unknown or unclassified types.
-    fn map_context_to_category(context_type: Option<&str>, word: &str) -> &'static str {
+    fn map_context_to_category(context_type: Option<&str>, word: &str) -> String {
         match context_type {
-            Some("people") => "Person",
-            Some("work") => "Brand",
-            Some("learning") => "Term",
-            _ => {
-                // Use HotwordManager's heuristic inference for other/unknown types
-                let cat = super::hotword::HotwordManager::infer_category(word);
-                match cat {
-                    crate::settings::HotwordCategory::Person => "Person",
-                    crate::settings::HotwordCategory::Term => "Term",
-                    crate::settings::HotwordCategory::Brand => "Brand",
-                    crate::settings::HotwordCategory::Abbreviation => "Abbreviation",
-                }
-            }
+            Some("people") => "person".to_string(),
+            Some("work") => "brand".to_string(),
+            Some("learning") => "term".to_string(),
+            _ => super::hotword::HotwordManager::infer_category(word),
         }
     }
 
