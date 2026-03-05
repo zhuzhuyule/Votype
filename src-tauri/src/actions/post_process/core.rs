@@ -190,14 +190,15 @@ pub async fn execute_llm_request(
         }
     }
 
-    // 3. Add current prompt as the final User message
-    if let Ok(user_msg) = async_openai::types::ChatCompletionRequestUserMessageArgs::default()
+    // 3. Add current prompt as System message (instructions for the model)
+    if let Ok(sys_msg) = async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
         .content(prompt_content.to_string())
         .build()
     {
-        messages.push(async_openai::types::ChatCompletionRequestMessage::User(
-            user_msg,
-        ));
+        messages.insert(
+            0,
+            async_openai::types::ChatCompletionRequestMessage::System(sys_msg),
+        );
     }
 
     // 4. Add input data as a separate User message if provided

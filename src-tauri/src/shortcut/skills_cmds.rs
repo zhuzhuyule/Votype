@@ -187,10 +187,12 @@ pub async fn ai_generate_skill(
     output_mode: String,
 ) -> Result<String, String> {
     use crate::llm_client::create_client;
+    use crate::managers::prompt::{self, PromptManager};
     use async_openai::types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-        ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+        ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
+        CreateChatCompletionRequestArgs,
     };
+    use std::sync::Arc;
 
     let settings = settings::get_settings(&app);
 
@@ -222,48 +224,20 @@ pub async fn ai_generate_skill(
         })
         .ok_or_else(|| format!("No model found for provider {}", provider.id))?;
 
-    // Build prompt
-    let prompt = format!(
-        r#"You are a professional Prompt Engineer. Generate a high-quality AI Skill instruction based on the information provided.
+    // Build prompt from external template
+    let prompt_manager = app.state::<Arc<PromptManager>>();
+    let template = prompt_manager
+        .get_prompt(&app, "system_skill_generation")
+        .map_err(|e| format!("Failed to load skill generation prompt: {}", e))?;
 
-## Skill Name
-{}
-
-## Function Description
-{}
-
-## Output Mode
-{}
-
-## Requirements
-1. The instruction should be clear, professional, and easy to understand
-2. Include role definition, task description, input variable description, and output format
-3. Design appropriate output format based on "output mode" ({}):
-   - polish mode: Return the processed text directly, without any JSON wrapping, confidence scores, or extra formatting
-   - chat mode: Return processed text content directly
-4. Use Markdown format with variable placeholders:
-   - ${{output}}: Final recognized text
-   - ${{raw_input}}: Complete original transcription text
-   - ${{select}}: Selected text content
-   - ${{streaming_output}}: Intermediate text during real-time transcription
-   - ${{hot_words}}: Custom vocabulary/hot words
-   - ${{context}}: Historical chat context
-   - ${{app_name}}: Current application name
-   - ${{window_title}}: Current window title
-   - ${{time}}: Current time
-5. Return ONLY the instruction content, without any explanation, preface, or suffix"#,
-        name, description, output_mode, output_mode
-    );
+    let mut vars = std::collections::HashMap::new();
+    vars.insert("SKILL_NAME", name.clone());
+    vars.insert("SKILL_DESCRIPTION", description.clone());
+    vars.insert("OUTPUT_MODE", output_mode.clone());
+    let prompt = prompt::substitute_variables(&template, &vars);
 
     // Call LLM
     let mut messages = Vec::new();
-
-    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-        .content("You are a helpful prompt engineering assistant.")
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::System(sys_msg));
-    }
 
     if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
         .content(prompt)
