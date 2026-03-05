@@ -476,31 +476,83 @@ impl ShortcutAction for TranscribeAction {
                     && settings.post_process_use_secondary_output;
 
                 // Always compute the final transcription from full audio on stop.
-                // If online ASR is enabled and a secondary local candidate is requested for post-processing,
-                // run the online request and the secondary local transcription concurrently.
+                // If online ASR is enabled, use OnlineAsrClient for the primary transcription.
+                // If a secondary local candidate is also requested, run both concurrently.
                 let (transcription_result, secondary_result): (
                     anyhow::Result<String>,
                     Option<String>,
-                ) = if use_parallel_online_secondary {
-                    let tm_for_primary = Arc::clone(&tm);
-                    let samples_for_primary = samples.clone();
+                ) = if settings.online_asr_enabled {
+                    // --- Online ASR primary ---
+                    use crate::online_asr::OnlineAsrClient;
 
-                    let incremental_for_secondary = incremental_result.clone();
-                    let model_id_for_secondary = settings
-                        .post_process_secondary_model_id
-                        .as_ref()
-                        .filter(|id| !id.trim().is_empty())
-                        .cloned()
-                        .unwrap_or_default();
-                    let tm_for_secondary = Arc::clone(&tm);
-                    let samples_for_secondary = samples.clone();
+                    let online_model_id = settings
+                        .selected_asr_model_id
+                        .clone()
+                        .unwrap_or_else(|| "online".to_string());
 
-                    let primary_handle = tokio::task::spawn_blocking(move || {
-                        tm_for_primary.transcribe(samples_for_primary)
-                    });
+                    let cached_model = settings
+                        .cached_models
+                        .iter()
+                        .find(|m| {
+                            m.model_type == crate::settings::ModelType::Asr
+                                && m.id == online_model_id
+                        })
+                        .cloned();
 
-                    let secondary_handle =
-                        tokio::task::spawn_blocking(move || -> Option<String> {
+                    let samples_for_online = samples.clone();
+                    let language = settings.selected_language.clone();
+
+                    let primary_handle = if let Some(cached) = cached_model {
+                        let provider_info = settings
+                            .post_process_providers
+                            .iter()
+                            .find(|p| p.id == cached.provider_id)
+                            .cloned();
+                        let api_key = settings
+                            .post_process_api_keys
+                            .get(&cached.provider_id)
+                            .cloned();
+                        let remote_model_id = cached.model_id.clone();
+
+                        tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                            let provider = provider_info
+                                .ok_or_else(|| anyhow::anyhow!("Online ASR provider not found"))?;
+                            let client =
+                                OnlineAsrClient::new(16000, std::time::Duration::from_secs(120));
+                            let lang = if language == "auto" {
+                                None
+                            } else {
+                                Some(language.as_str())
+                            };
+                            client.transcribe(
+                                &provider,
+                                api_key,
+                                &remote_model_id,
+                                lang,
+                                &samples_for_online,
+                            )
+                        })
+                    } else {
+                        // No cached model found, fall back to local
+                        let tm_fallback = Arc::clone(&tm);
+                        tokio::task::spawn_blocking(move || {
+                            tm_fallback.transcribe(samples_for_online)
+                        })
+                    };
+
+                    // --- Optional secondary local candidate ---
+                    let secondary_handle = if use_parallel_online_secondary {
+                        let incremental_for_secondary = incremental_result.clone();
+                        let model_id_for_secondary = settings
+                            .post_process_secondary_model_id
+                            .as_ref()
+                            .filter(|id| !id.trim().is_empty())
+                            .cloned()
+                            .unwrap_or_default();
+                        let tm_for_secondary = Arc::clone(&tm);
+                        let samples_for_secondary = samples.clone();
+
+                        Some(tokio::task::spawn_blocking(move || -> Option<String> {
                             if let Some(text) = incremental_for_secondary {
                                 if !text.trim().is_empty() {
                                     return Some(text);
@@ -536,21 +588,25 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 }
                             }
-                        });
-
-                    let (primary_joined, secondary_joined) =
-                        tokio::join!(primary_handle, secondary_handle);
-
-                    let primary = match primary_joined {
-                        Ok(res) => res,
-                        Err(e) => Err(anyhow::anyhow!("Primary transcription task failed: {}", e)),
+                        }))
+                    } else {
+                        None
                     };
-                    let secondary = match secondary_joined {
+
+                    let primary = match primary_handle.await {
                         Ok(res) => res,
-                        Err(e) => {
-                            log::warn!("Secondary transcription task failed: {}", e);
-                            None
+                        Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
+                    };
+                    let secondary = if let Some(handle) = secondary_handle {
+                        match handle.await {
+                            Ok(res) => res,
+                            Err(e) => {
+                                log::warn!("Secondary transcription task failed: {}", e);
+                                None
+                            }
                         }
+                    } else {
+                        None
                     };
 
                     (primary, secondary)
