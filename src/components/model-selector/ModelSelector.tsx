@@ -446,7 +446,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   );
 
   const modelsForQuickSelector = useMemo(() => {
-    const selectable = models;
+    const selectable = models.filter((m) => !m.id.startsWith("punct-"));
 
     const base =
       favoriteModels.size === 0
@@ -472,7 +472,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   }, [models, favoriteModels, currentModelId]);
 
   const realtimeModelsForQuickSelector = useMemo(
-    () => models.filter((m) => m.is_downloaded),
+    () => models.filter((m) => m.is_downloaded && !m.id.startsWith("punct-")),
     [models],
   );
 
