@@ -154,6 +154,29 @@ impl ModelManager {
         Ok(())
     }
 
+    fn calculate_dir_size(path: &Path) -> u64 {
+        if path.is_file() {
+            return path.metadata().map(|m| m.len()).unwrap_or(0);
+        }
+        fs::read_dir(path)
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .map(|e| Self::calculate_dir_size(&e.path()))
+                    .sum()
+            })
+            .unwrap_or(0)
+    }
+
+    fn update_user_catalog_size(&self, model_id: &str, size_mb: u64) -> Result<()> {
+        let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
+        if let Some(entry) = entries.iter_mut().find(|e| e.id == model_id) {
+            entry.size_mb = size_mb;
+            Self::write_user_catalog(&self.user_catalog_path, &entries)?;
+        }
+        Ok(())
+    }
+
     fn filename_from_url(url: &str) -> Result<String> {
         let without_query = url.split('?').next().unwrap_or(url);
         let filename = without_query
@@ -1106,45 +1129,78 @@ impl ModelManager {
     }
 
     fn update_download_status(&self) -> Result<()> {
-        let mut models = self.available_models.lock().unwrap();
+        let mut size_updates: Vec<(String, u64)> = Vec::new();
 
-        for model in models.values_mut() {
-            if model.is_directory {
-                // For directory-based models, check if the directory exists
-                let model_path = self.models_dir.join(&model.filename);
-                let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
-                let extracting_path = self
-                    .models_dir
-                    .join(format!("{}.extracting", &model.filename));
+        {
+            let mut models = self.available_models.lock().unwrap();
 
-                // Clean up any leftover .extracting directories from interrupted extractions
-                if extracting_path.exists() {
-                    warn!("Cleaning up interrupted extraction for model: {}", model.id);
-                    let _ = fs::remove_dir_all(&extracting_path);
-                }
+            for model in models.values_mut() {
+                if model.is_directory {
+                    // For directory-based models, check if the directory exists
+                    let model_path = self.models_dir.join(&model.filename);
+                    let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+                    let extracting_path = self
+                        .models_dir
+                        .join(format!("{}.extracting", &model.filename));
 
-                model.is_downloaded = model_path.exists() && model_path.is_dir();
-                model.is_downloading = false;
+                    // Clean up any leftover .extracting directories from interrupted extractions
+                    if extracting_path.exists() {
+                        warn!("Cleaning up interrupted extraction for model: {}", model.id);
+                        let _ = fs::remove_dir_all(&extracting_path);
+                    }
 
-                // Get partial file size if it exists (for the .tar.gz being downloaded)
-                if partial_path.exists() {
-                    model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    model.is_downloaded = model_path.exists() && model_path.is_dir();
+                    model.is_downloading = false;
+
+                    // Get partial file size if it exists (for the .tar.gz being downloaded)
+                    if partial_path.exists() {
+                        model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    } else {
+                        model.partial_size = 0;
+                    }
+
+                    // Fix size_mb for downloaded models that have size_mb=0 (legacy data)
+                    if model.is_downloaded && model.size_mb == 0 {
+                        model.size_mb = Self::calculate_dir_size(&model_path) / (1024 * 1024);
+                        size_updates.push((model.id.clone(), model.size_mb));
+                    }
                 } else {
-                    model.partial_size = 0;
+                    // For file-based models (existing logic)
+                    let model_path = self.models_dir.join(&model.filename);
+                    let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+
+                    model.is_downloaded = model_path.exists();
+                    model.is_downloading = false;
+
+                    // Get partial file size if it exists
+                    if partial_path.exists() {
+                        model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    } else {
+                        model.partial_size = 0;
+                    }
+
+                    // Fix size_mb for downloaded models that have size_mb=0 (legacy data)
+                    if model.is_downloaded && model.size_mb == 0 {
+                        model.size_mb =
+                            model_path.metadata().map(|m| m.len()).unwrap_or(0) / (1024 * 1024);
+                        size_updates.push((model.id.clone(), model.size_mb));
+                    }
                 }
-            } else {
-                // For file-based models (existing logic)
-                let model_path = self.models_dir.join(&model.filename);
-                let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+            }
+        }
 
-                model.is_downloaded = model_path.exists();
-                model.is_downloading = false;
-
-                // Get partial file size if it exists
-                if partial_path.exists() {
-                    model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
-                } else {
-                    model.partial_size = 0;
+        // Persist size_mb fixes to user catalog for any updated models
+        if !size_updates.is_empty() {
+            if let Ok(mut entries) = Self::read_user_catalog(&self.user_catalog_path) {
+                let mut changed = false;
+                for (id, size_mb) in &size_updates {
+                    if let Some(entry) = entries.iter_mut().find(|e| e.id == *id) {
+                        entry.size_mb = *size_mb;
+                        changed = true;
+                    }
+                }
+                if changed {
+                    let _ = Self::write_user_catalog(&self.user_catalog_path, &entries);
                 }
             }
         }
@@ -1439,15 +1495,26 @@ impl ModelManager {
             fs::rename(&partial_path, &model_path)?;
         }
 
-        // Update download status
+        // Calculate actual file size after download
+        let actual_size_mb = if model_info.is_directory {
+            Self::calculate_dir_size(&model_path) / (1024 * 1024)
+        } else {
+            model_path.metadata().map(|m| m.len()).unwrap_or(0) / (1024 * 1024)
+        };
+
+        // Update download status and size in memory
         {
             let mut models = self.available_models.lock().unwrap();
             if let Some(model) = models.get_mut(model_id) {
                 model.is_downloading = false;
                 model.is_downloaded = true;
                 model.partial_size = 0;
+                model.size_mb = actual_size_mb;
             }
         }
+
+        // Persist size_mb to user catalog
+        let _ = self.update_user_catalog_size(model_id, actual_size_mb);
 
         // Emit completion event
         let _ = self.app_handle.emit("model-download-complete", model_id);
