@@ -573,7 +573,8 @@ export function DailyVocabularyPage() {
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
-    const rect = event.active.rect.current || event.active.rect.initial;
+    const rect =
+      event.active.rect.current.translated || event.active.rect.current.initial;
     if (rect) {
       setActiveRect({ width: rect.width, height: rect.height });
     } else {

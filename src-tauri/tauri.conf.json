@@ -46,7 +46,7 @@
     "macOS": {
       "entitlements": "Entitlements.plist",
       "files": {},
-      "frameworks": ["target/release/libonnxruntime.1.17.1.dylib"],
+      "frameworks": [],
       "hardenedRuntime": true,
       "minimumSystemVersion": "10.13",
       "signingIdentity": "-"

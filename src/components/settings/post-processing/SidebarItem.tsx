@@ -11,6 +11,7 @@ import { DynamicIcon } from "../../shared/IconPicker";
 
 export interface SidebarItemProps {
   option: { value: string; label: string | React.ReactNode };
+  isActive?: boolean;
   isSelected: boolean;
   isBuiltin?: boolean;
   isVerified?: boolean;

@@ -1,10 +1,10 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 import { useSettings } from "../../hooks/useSettings";
-import { useOsType } from "../../hooks/useOsType";
-import type { AutoSubmitKey } from "@/bindings";
+import { type as getOsType } from "@tauri-apps/plugin-os";
+import type { AutoSubmitKey } from "../../lib/types";
 
 interface AutoSubmitProps {
   descriptionMode?: "inline" | "tooltip";
@@ -16,7 +16,10 @@ type AutoSubmitOptionValue = AutoSubmitKey | "off";
 export const AutoSubmit: React.FC<AutoSubmitProps> = React.memo(
   ({ descriptionMode = "tooltip", grouped = false }) => {
     const { t } = useTranslation();
-    const osType = useOsType();
+    const [osType, setOsType] = useState<string>("unknown");
+    useEffect(() => {
+      setOsType(getOsType());
+    }, []);
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
     const enabled = getSetting("auto_submit") ?? false;
