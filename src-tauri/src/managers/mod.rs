@@ -1,4 +1,5 @@
 pub mod audio;
+#[allow(dead_code)]
 pub mod daily_vocabulary;
 pub mod history;
 pub mod hotword;
@@ -10,5 +11,4 @@ pub mod summary;
 pub mod transcription;
 pub mod vocabulary;
 
-pub use daily_vocabulary::DailyVocabularyManager;
 pub use hotword::HotwordManager;

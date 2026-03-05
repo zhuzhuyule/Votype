@@ -236,7 +236,7 @@ const settingUpdaters: {
   punctuation_enabled: (value) =>
     invoke("change_punctuation_enabled_setting", { enabled: value }),
   punctuation_model: (value) =>
-    invoke("change_punctuation_model_setting", { modelId: value }),
+    invoke("change_punctuation_model_setting", { model: value }),
   favorite_transcription_models: (value) =>
     invoke("change_favorite_transcription_models_setting", { models: value }),
   realtime_transcription_enabled: (value) =>

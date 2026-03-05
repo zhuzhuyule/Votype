@@ -5,7 +5,6 @@ import {
   IconApps,
   IconBrain,
   IconChartBar,
-  IconDatabase,
   IconInfoCircle,
   IconKeyboard,
   IconLayoutDashboard,
@@ -62,11 +61,6 @@ const AppProfilesSettings = lazy(() =>
 const VocabularySettings = lazy(() =>
   import("./settings/VocabularySettings").then((m) => ({
     default: m.VocabularySettings,
-  })),
-);
-const DailyVocabularyPage = lazy(() =>
-  import("./settings/vocabulary/DailyVocabularyPage").then((m) => ({
-    default: m.DailyVocabularyPage,
   })),
 );
 const SummaryPage = lazy(() =>
@@ -157,13 +151,6 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "8",
   },
-  dailyVocabulary: {
-    labelKey: "sidebar.dailyVocabulary",
-    icon: IconSchool,
-    component: DailyVocabularyPage,
-    enabled: () => true,
-    shortcutKey: "d",
-  },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoCircle,
@@ -184,7 +171,6 @@ export const SECTION_ORDER: SidebarSection[] = [
   "shortcuts",
   "appProfiles",
   "vocabulary",
-  "dailyVocabulary",
   "about",
 ];
 

@@ -327,19 +327,19 @@ impl DailyVocabularyManager {
 
     /// Map context_type from daily vocabulary to HotwordCategory string for the hotwords table.
     /// Falls back to HotwordManager::infer_category for unknown or unclassified types.
-    fn map_context_to_category(context_type: Option<&str>, word: &str) -> (&'static str, f64) {
+    fn map_context_to_category(context_type: Option<&str>, word: &str) -> &'static str {
         match context_type {
-            Some("people") => ("Person", 0.9),
-            Some("work") => ("Brand", 0.8),
-            Some("learning") => ("Term", 0.85),
+            Some("people") => "Person",
+            Some("work") => "Brand",
+            Some("learning") => "Term",
             _ => {
                 // Use HotwordManager's heuristic inference for other/unknown types
-                let (cat, conf) = super::hotword::HotwordManager::infer_category(word);
+                let cat = super::hotword::HotwordManager::infer_category(word);
                 match cat {
-                    crate::settings::HotwordCategory::Person => ("Person", conf),
-                    crate::settings::HotwordCategory::Term => ("Term", conf),
-                    crate::settings::HotwordCategory::Brand => ("Brand", conf),
-                    crate::settings::HotwordCategory::Abbreviation => ("Abbreviation", conf),
+                    crate::settings::HotwordCategory::Person => "Person",
+                    crate::settings::HotwordCategory::Term => "Term",
+                    crate::settings::HotwordCategory::Brand => "Brand",
+                    crate::settings::HotwordCategory::Abbreviation => "Abbreviation",
                 }
             }
         }
@@ -368,19 +368,18 @@ impl DailyVocabularyManager {
         let _weight = weight.unwrap_or(1.0);
 
         // Map context_type to the appropriate HotwordCategory
-        let (category, confidence) = Self::map_context_to_category(context_type, word);
+        let category = Self::map_context_to_category(context_type, word);
 
         // Insert into hotwords table with required fields
         conn.execute(
-            "INSERT INTO hotwords (target, originals, category, scenarios, confidence,
+            "INSERT INTO hotwords (target, originals, category, scenarios,
                                     user_override, use_count, false_positive_count, created_at,
                                     context_type, total_occurrences, days_count,
                                     promotion_type, promoted_at, promoted_from_date)
-             VALUES (?1, '[]', ?8, '[\"work\",\"casual\"]', ?9, 0, 0, 0, ?2,
+             VALUES (?1, '[]', ?8, '[\"work\",\"casual\"]', 0, 0, 0, ?2,
                      ?3, ?4, ?5, 'manual', ?6, ?7)
              ON CONFLICT(target) DO UPDATE SET
                 category = excluded.category,
-                confidence = excluded.confidence,
                 context_type = excluded.context_type,
                 total_occurrences = excluded.total_occurrences,
                 days_count = excluded.days_count,
@@ -395,13 +394,12 @@ impl DailyVocabularyManager {
                 now,
                 promoted_from_date,
                 category,
-                confidence,
             ],
         )?;
 
         info!(
-            "Manually promoted '{}' to hotword library (category: {}, confidence: {:.2}, days: {}, freq: {})",
-            word, category, confidence, days_count, total_occurrences
+            "Manually promoted '{}' to hotword library (category: {}, days: {}, freq: {})",
+            word, category, days_count, total_occurrences
         );
         Ok(())
     }
