@@ -87,7 +87,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [modeFilter, setModeFilter] = useState<Set<ModeKey>>(
-    () => new Set(["streaming", "offline", "punctuation"]),
+    () => new Set(["asr", "punctuation"]),
   );
   const [languageFilter, setLanguageFilter] = useState<Set<LanguageKey>>(
     () => new Set(),
@@ -112,8 +112,10 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     [settings?.favorite_transcription_models],
   );
 
-  // Punctuation models no longer supported without Sherpa
-  const punctuationModels: typeof models = [];
+  const punctuationModels = useMemo(
+    () => models.filter((m) => m.id.startsWith("punct-")),
+    [models],
+  );
 
   const selectedPunctuationModelId =
     settings?.punctuation_model ?? "punct-zh-en-ct-transformer-2024-04-12-int8";
@@ -121,8 +123,8 @@ export const useAsrModels = (): UseAsrModelsReturn => {
   const punctuationModelOptions = useMemo(() => {
     return punctuationModels.map((m) => ({
       value: m.id,
-      label: `${getTranslatedModelName(m, t)} · ${m.size_mb} MB`,
-      disabled: false,
+      label: `${getTranslatedModelName(m, t)} · ${m.size_mb} MB${m.is_downloaded ? "" : ` (${t("settings.asrModels.status.notDownloaded")})`}`,
+      disabled: !m.is_downloaded,
     }));
   }, [punctuationModels, t]);
 
@@ -136,7 +138,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     setUrl("");
     setQuery("");
     setStatusFilter("all");
-    setModeFilter(new Set(["streaming", "offline", "punctuation"]));
+    setModeFilter(new Set(["asr", "punctuation"]));
     setLanguageFilter(new Set());
     setTypeFilter(new Set());
     setError(null);

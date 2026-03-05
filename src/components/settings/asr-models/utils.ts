@@ -37,36 +37,54 @@ export const parseLanguageKeys = (model: ModelInfo): LanguageKey[] => {
 };
 
 /**
- * Get the mode key for a model (streaming, offline, or punctuation)
+ * Get the mode key for a model (asr or punctuation)
  */
-export const getModeKey = (_m: ModelInfo): ModeKey => "offline";
+export const getModeKey = (m: ModelInfo): ModeKey =>
+  m.id.startsWith("punct-") ? "punctuation" : "asr";
 
 /**
  * Get the type key for a model
  */
 export const getTypeKey = (m: ModelInfo): TypeKey => {
-  if (m.engine_type === "Whisper") return "whisper";
-  if (m.engine_type === "Parakeet") return "parakeet";
-  return "other";
+  switch (m.engine_type) {
+    case "Whisper":
+      return "whisper";
+    case "Parakeet":
+      return "parakeet";
+    case "Moonshine":
+    case "MoonshineStreaming":
+      return "moonshine";
+    case "SenseVoice":
+      return "sensevoice";
+    case "ZipformerTransducer":
+    case "ZipformerCtc":
+      return "zipformer";
+    case "Paraformer":
+      return m.id.startsWith("punct-") ? "other" : "paraformer";
+    default:
+      return "other";
+  }
 };
 
 /**
  * Ordering function for mode keys
  */
-export const orderMode = (_k: ModeKey): number => 0;
+export const orderMode = (k: ModeKey): number => (k === "asr" ? 0 : 1);
 
 /**
  * Ordering function for type keys
  */
 export const orderType = (k: TypeKey): number => {
-  switch (k) {
-    case "whisper":
-      return 0;
-    case "parakeet":
-      return 1;
-    case "other":
-      return 99;
-  }
+  const order: Record<TypeKey, number> = {
+    whisper: 0,
+    parakeet: 1,
+    moonshine: 2,
+    sensevoice: 3,
+    zipformer: 4,
+    paraformer: 5,
+    other: 99,
+  };
+  return order[k] ?? 99;
 };
 
 /**

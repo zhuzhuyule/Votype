@@ -36,10 +36,7 @@ export const ModelGroup: React.FC<ModelGroupProps> = ({
   let textClass = "text-gray-700 dark:text-gray-300";
   let badgeColor: "gray" | "blue" | "amber" = "gray";
 
-  if (mode === "streaming") {
-    textClass = "text-blue-600 dark:text-blue-400";
-    badgeColor = "blue";
-  } else if (mode === "offline") {
+  if (mode === "asr") {
     textClass = "text-stone-600 dark:text-stone-300";
     badgeColor = "gray";
   } else if (mode === "punctuation") {

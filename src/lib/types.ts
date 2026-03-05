@@ -281,20 +281,36 @@ export type ShortcutBinding = z.infer<typeof ShortcutBindingSchema>;
 export type ShortcutBindingsMap = z.infer<typeof ShortcutBindingsMapSchema>;
 export type Settings = z.infer<typeof SettingsSchema>;
 
+export const EngineTypeSchema = z.enum([
+  "Whisper",
+  "Parakeet",
+  "Moonshine",
+  "MoonshineStreaming",
+  "SenseVoice",
+  "Paraformer",
+  "ZipformerTransducer",
+  "ZipformerCtc",
+]);
+export type EngineType = z.infer<typeof EngineTypeSchema>;
+
 export const ModelInfoSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
   filename: z.string(),
-  url: z.string().optional(),
+  url: z.string().optional().nullable(),
   size_mb: z.number(),
   is_downloaded: z.boolean(),
   is_downloading: z.boolean(),
   partial_size: z.number(),
   is_directory: z.boolean(),
-
+  engine_type: EngineTypeSchema,
   accuracy_score: z.number(),
   speed_score: z.number(),
+  supports_translation: z.boolean().default(false),
+  is_recommended: z.boolean().default(false),
+  supported_languages: z.array(z.string()).default([]),
+  is_custom: z.boolean().default(false),
   tags: z.array(z.string()).optional(),
   is_default: z.boolean().default(false),
 });

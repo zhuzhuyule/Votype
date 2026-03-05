@@ -569,10 +569,9 @@
         "type": "类型"
       },
       "groups": {
+        "asr": "语音识别模型",
         "multilingual": "多语言",
-        "offline": "完整转录",
-        "punctuation": "标点",
-        "streaming": "实时转录"
+        "punctuation": "标点符号模型"
       },
       "idLabel": "id: {{id}}",
       "install": {
@@ -611,9 +610,8 @@
         "title": "模型库"
       },
       "modeChips": {
-        "offline": "完整转录",
-        "punctuation": "标点",
-        "streaming": "实时转录"
+        "asr": "语音识别",
+        "punctuation": "标点"
       },
       "pipeline": {
         "description": "可在转录后自动应用的全局后处理能力。",
@@ -636,15 +634,22 @@
       },
       "title": "本地模型",
       "typeChips": {
+        "moonshine": "Moonshine",
         "other": "其他",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
-        "punctuation": "标点",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       },
       "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
         "punctuation": "标点",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       }
     },
     "debug": {

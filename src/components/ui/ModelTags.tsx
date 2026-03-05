@@ -47,14 +47,9 @@ export const ModelTags: React.FC<ModelTagsProps> = ({
           ? "red"
           : "gray";
 
-  // Mode badge (streaming/offline/punctuation)
+  // Mode badge (asr/punctuation)
   const modeKey = getModeKey(model);
-  const modeColor =
-    modeKey === "streaming"
-      ? "green" // 实时转录 - 绿色
-      : modeKey === "punctuation"
-        ? "purple" // 标点模型 - 紫色
-        : "blue"; // 完整转录 - 蓝色
+  const modeColor = modeKey === "punctuation" ? "purple" : "blue";
 
   // Type badge
   const typeKey = getTypeKey(model);
@@ -81,7 +76,7 @@ export const ModelTags: React.FC<ModelTagsProps> = ({
         </Badge>
       )}
 
-      {/* Mode Badge (Streaming/Offline/Punctuation) */}
+      {/* Mode Badge (ASR/Punctuation) */}
       {showMode && (
         <Badge variant="soft" color={modeColor} size="1">
           {t(`settings.asrModels.modeChips.${modeKey}`)}

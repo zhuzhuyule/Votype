@@ -2,9 +2,16 @@
 
 export type StatusFilter = "all" | "downloaded" | "favorites" | "recommended";
 
-export type ModeKey = "offline";
+export type ModeKey = "asr" | "punctuation";
 
-export type TypeKey = "whisper" | "parakeet" | "other";
+export type TypeKey =
+  | "whisper"
+  | "parakeet"
+  | "moonshine"
+  | "sensevoice"
+  | "zipformer"
+  | "paraformer"
+  | "other";
 
 export type LanguageKey =
   | "zh"

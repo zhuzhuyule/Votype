@@ -544,10 +544,9 @@
         "type": "Type"
       },
       "groups": {
+        "asr": "ASR Models",
         "multilingual": "Multilingual",
-        "offline": "Full",
-        "punctuation": "Punctuation",
-        "streaming": "Realtime"
+        "punctuation": "Punctuation Models"
       },
       "idLabel": "id: {{id}}",
       "install": {
@@ -586,9 +585,8 @@
         "title": "Library"
       },
       "modeChips": {
-        "offline": "Full",
-        "punctuation": "Punctuation",
-        "streaming": "Realtime"
+        "asr": "ASR",
+        "punctuation": "Punctuation"
       },
       "pipeline": {
         "description": "Global post-processing that can be applied automatically after transcription.",
@@ -611,15 +609,22 @@
       },
       "title": "Local Models",
       "typeChips": {
+        "moonshine": "Moonshine",
         "other": "Other",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
-        "punctuation": "Punctuation",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       },
       "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
         "punctuation": "Punctuation",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       }
     },
     "debug": {

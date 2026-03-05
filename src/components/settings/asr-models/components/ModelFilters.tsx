@@ -69,7 +69,7 @@ export const ModelFilters: React.FC<ModelFiltersProps> = ({
         >
           {t("settings.asrModels.filters.mode")}
         </Text>
-        {(["streaming", "offline", "punctuation"] as const).map((mode) => (
+        {(["asr", "punctuation"] as const).map((mode) => (
           <Badge
             key={mode}
             size="2"
