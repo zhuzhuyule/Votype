@@ -474,11 +474,24 @@ impl TranscriptionManager {
         Ok(())
     }
 
-    /// Kicks off the model loading in a background thread if it's not already loaded
+    /// Kicks off the model loading in a background thread if the correct model isn't already loaded
     pub fn initiate_model_load(&self) {
         let mut is_loading = self.is_loading.lock().unwrap();
-        if *is_loading || self.is_model_loaded() {
+        if *is_loading {
             return;
+        }
+
+        // Check if the correct model is already loaded
+        let settings = get_settings(&self.app_handle);
+        let desired_model = &settings.selected_model;
+        if let Some(ref current) = *self.current_model_id.lock().unwrap() {
+            if current == desired_model {
+                return;
+            }
+            debug!(
+                "Loaded model '{}' differs from selected '{}', reloading",
+                current, desired_model
+            );
         }
 
         *is_loading = true;
