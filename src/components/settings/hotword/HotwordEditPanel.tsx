@@ -215,7 +215,7 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
                     size="1"
                     variant={isActive ? "solid" : "outline"}
                     color={chipColor}
-                    className={`px-2 py-0.5 cursor-pointer select-none transition-all duration-100 ${
+                    className={`px-2 py-0.5 cursor-pointer select-none transition-opacity duration-100 ${
                       isActive ? "" : "opacity-50 hover:opacity-80"
                     }`}
                     onClick={() => setCategory(key)}
@@ -251,7 +251,7 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
                     size="1"
                     variant={isActive ? "solid" : "outline"}
                     color="gray"
-                    className={`px-2 py-0.5 cursor-pointer select-none transition-all duration-100 ${
+                    className={`px-2 py-0.5 cursor-pointer select-none transition-opacity duration-100 ${
                       isActive ? "" : "opacity-40 hover:opacity-70"
                     }`}
                     onClick={() => handleScenarioToggle(key)}

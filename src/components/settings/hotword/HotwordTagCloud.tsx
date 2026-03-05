@@ -31,6 +31,7 @@ import type {
   HotwordScenario,
 } from "../../../types/hotword";
 import { resolveIcon } from "../../../lib/hotwordIcons";
+import { CategoryManageDialog } from "./CategoryManageDialog";
 import { HotwordAddBar } from "./HotwordAddBar";
 import { HotwordEditPanel } from "./HotwordEditPanel";
 import { HotwordTag } from "./HotwordTag";
@@ -81,6 +82,18 @@ interface HotwordTagCloudProps {
   onExport: () => void;
   categoryMap: Record<string, HotwordCategoryMeta>;
   sortedIds: string[];
+  categories: HotwordCategoryMeta[];
+  onAddCategory: (
+    id: string,
+    label: string,
+    color: string,
+    icon: string,
+  ) => Promise<HotwordCategoryMeta>;
+  onUpdateCategoryMeta: (
+    id: string,
+    updates: { label?: string; color?: string; icon?: string },
+  ) => Promise<void>;
+  onDeleteCategory: (id: string) => Promise<void>;
 }
 
 export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
@@ -100,6 +113,10 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   onExport,
   categoryMap,
   sortedIds,
+  categories,
+  onAddCategory,
+  onUpdateCategoryMeta,
+  onDeleteCategory,
 }) => {
   const [search, setSearch] = useState("");
   const [showAddBar, setShowAddBar] = useState(false);
@@ -236,6 +253,12 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
               <IconDownload size={14} />
               导出
             </Button>
+            <CategoryManageDialog
+              categories={categories}
+              onAdd={onAddCategory}
+              onUpdate={onUpdateCategoryMeta}
+              onDelete={onDeleteCategory}
+            />
           </Flex>
           <div className="relative w-48">
             <TextField.Root
@@ -317,7 +340,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                         size="2"
                         variant="outline"
                         color={suggColor}
-                        className="px-2 py-1 cursor-pointer hover:brightness-95 transition-all duration-150 group"
+                        className="px-2 py-1 cursor-pointer hover:brightness-95 transition-[filter,opacity] duration-150 group"
                       >
                         <span onClick={() => onAcceptSuggestion(s.id)}>
                           {s.target}

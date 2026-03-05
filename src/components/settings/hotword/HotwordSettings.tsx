@@ -17,9 +17,13 @@ export const HotwordSettings: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const {
+    categories,
     categoryMap,
     sortedIds,
     reload: reloadCategories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
   } = useHotwordCategories();
 
   const loadHotwords = useCallback(async () => {
@@ -259,6 +263,10 @@ export const HotwordSettings: React.FC = () => {
       onExport={handleExport}
       categoryMap={categoryMap}
       sortedIds={sortedIds}
+      categories={categories}
+      onAddCategory={addCategory}
+      onUpdateCategoryMeta={updateCategory}
+      onDeleteCategory={deleteCategory}
     />
   );
 };

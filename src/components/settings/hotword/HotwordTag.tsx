@@ -70,7 +70,7 @@ export const HotwordTag: React.FC<HotwordTagProps> = ({
               ? "animate-highlight-fade ring-2 ring-offset-1 ring-current"
               : isSelected
                 ? "ring-2 ring-offset-1 ring-current transition-all duration-150"
-                : "hover:brightness-95 active:scale-95 transition-all duration-150"
+                : "hover:brightness-95 active:scale-95 transition-[filter,transform] duration-150"
         }`}
         onClick={onClick}
       >
