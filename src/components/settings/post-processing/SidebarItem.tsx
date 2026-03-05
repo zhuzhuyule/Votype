@@ -13,7 +13,7 @@ export interface SidebarItemProps {
   option: { value: string; label: string | React.ReactNode };
   isActive?: boolean;
   isSelected: boolean;
-  isBuiltin?: boolean;
+  isLocked?: boolean;
   isVerified?: boolean;
   onClick: () => void;
   onActivate: () => void;
@@ -29,7 +29,7 @@ export interface SidebarItemProps {
 export const SidebarItem: React.FC<SidebarItemProps> = ({
   option,
   isSelected,
-  isBuiltin,
+  isLocked,
   isVerified,
   onClick,
   onActivate,
@@ -117,8 +117,8 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       </Flex>
 
       <Flex align="center" gap="2" className="shrink-0">
-        {isBuiltin && (
-          <Box title={t("settings.postProcessing.api.provider.builtinTooltip")}>
+        {isLocked && (
+          <Box title={t("settings.postProcessing.prompts.skillLocked")}>
             <IconLock size={14} style={{ opacity: 0.5 }} />
           </Box>
         )}

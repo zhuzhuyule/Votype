@@ -91,19 +91,19 @@ pub async fn execute_llm_request(
                 let context_label =
                     if let (Some(pattern), Some(mtype)) = (&match_pattern, &match_type) {
                         format!(
-                            "Rule: \"{}\" ({})",
+                            "规则: \"{}\" ({})",
                             pattern,
                             match mtype {
-                                crate::settings::TitleMatchType::Text => "Text match",
-                                crate::settings::TitleMatchType::Regex => "Regex match",
+                                crate::settings::TitleMatchType::Text => "文本包含",
+                                crate::settings::TitleMatchType::Regex => "正则匹配",
                             }
                         )
                     } else {
-                        format!("Window: \"{}\"", window_title.clone().unwrap_or_default())
+                        format!("窗口: \"{}\"", window_title.clone().unwrap_or_default())
                     };
 
                 let context_block = format!(
-                    "\n\nRecent context for application \"{}\" ({}):\n{}\n\n",
+                    "\n\n以下是对话的历史识别结果（来自应用 \"{}\"，{}），仅用于提供上下文，请勿修改：\n{}\n\n",
                     app_name.clone().unwrap_or_default(),
                     context_label,
                     history

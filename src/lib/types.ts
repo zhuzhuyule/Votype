@@ -117,11 +117,12 @@ export const LLMPromptSchema = z.object({
   icon: z.string().optional().nullable(),
   skill_type: SkillTypeSchema.default("text"),
   source: SkillSourceSchema.default("builtin"),
-  compliance_check_enabled: z.boolean().default(false),
-  compliance_threshold: z.number().optional().default(20),
+  confidence_check_enabled: z.boolean().default(false),
+  confidence_threshold: z.number().optional().default(70),
   output_mode: PromptOutputModeSchema.default("chat"),
   enabled: z.boolean().default(true),
   customized: z.boolean().optional().default(false),
+  locked: z.boolean().default(false),
   // Keep legacy field for a bit of safety during transition if any code still uses it
   prompt: z.string().optional(),
 });

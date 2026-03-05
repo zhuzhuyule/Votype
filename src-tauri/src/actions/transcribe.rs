@@ -1017,6 +1017,8 @@ impl ShortcutAction for TranscribeAction {
                                     .map(|text| compute_change_percent(&transcription_clone, text))
                                     .unwrap_or(0);
 
+                                let mut confidence_reason: Option<String> = None;
+
                                 // Get output_mode early to determine review behavior
                                 let output_mode = if let Some(pid) = &post_process_prompt_id {
                                     settings_clone
@@ -1040,7 +1042,7 @@ impl ShortcutAction for TranscribeAction {
                                             crate::settings::AppReviewPolicy::Auto => {
                                                 // Gate Auto policy with PROMPT-level setting
                                                 // Find the prompt object used
-                                                let (prompt_compliance_enabled, prompt_threshold) =
+                                                let (check_enabled, threshold) =
                                                     if let Some(pid) = &post_process_prompt_id {
                                                         settings_clone
                                                             .post_process_prompts
@@ -1048,8 +1050,8 @@ impl ShortcutAction for TranscribeAction {
                                                             .find(|p| &p.id == pid)
                                                             .map(|p| {
                                                                 (
-                                                                    p.compliance_check_enabled,
-                                                                    p.compliance_threshold.unwrap_or(70),
+                                                                    p.confidence_check_enabled,
+                                                                    p.confidence_threshold.unwrap_or(70),
                                                                 )
                                                             })
                                                             .unwrap_or((false, 70))
@@ -1057,10 +1059,42 @@ impl ShortcutAction for TranscribeAction {
                                                         (false, 70)
                                                     };
 
-                                                if !prompt_compliance_enabled {
+                                                if !check_enabled {
                                                     false
                                                 } else {
-                                                    change_percent >= prompt_threshold
+                                                    // Try LLM confidence check first
+                                                    let llm_result = {
+                                                        let fb_provider = settings_clone.active_post_process_provider();
+                                                        let fb_prompt = settings_clone.post_process_prompts.first();
+                                                        if let (Some(fp), Some(fpr)) = (fb_provider, fb_prompt) {
+                                                            if let Some((provider, model, api_key)) =
+                                                                crate::actions::post_process::routing::resolve_intent_routing_model(
+                                                                    &settings_clone, fp, fpr,
+                                                                )
+                                                            {
+                                                                crate::actions::post_process::perform_confidence_check(
+                                                                    &ah_clone,
+                                                                    provider,
+                                                                    &model,
+                                                                    api_key,
+                                                                    &transcription_clone,
+                                                                    &final_text,
+                                                                ).await
+                                                            } else {
+                                                                None
+                                                            }
+                                                        } else {
+                                                            None
+                                                        }
+                                                    };
+
+                                                    if let Some(result) = llm_result {
+                                                        confidence_reason = result.reason;
+                                                        result.confidence < threshold
+                                                    } else {
+                                                        // Fallback: use change_percent
+                                                        change_percent >= threshold
+                                                    }
                                                 }
                                             }
                                         }
@@ -1102,9 +1136,9 @@ impl ShortcutAction for TranscribeAction {
                                         final_text.clone(),
                                         change_percent,
                                         history_id,
-                                        None, // reason removed (was from confidence scoring)
+                                        confidence_reason.clone(),
                                         output_mode,
-                                        None, // No skill_name for compliance review
+                                        None, // No skill_name for confidence review
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);

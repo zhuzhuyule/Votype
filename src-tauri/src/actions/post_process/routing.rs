@@ -306,7 +306,7 @@ pub(super) fn resolve_effective_model<'a>(
     None
 }
 
-pub(super) fn resolve_intent_routing_model<'a>(
+pub(crate) fn resolve_intent_routing_model<'a>(
     settings: &'a AppSettings,
     fallback_provider: &'a PostProcessProvider,
     fallback_prompt: &LLMPrompt,

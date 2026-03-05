@@ -74,11 +74,12 @@ export function useSkills(): UseSkillsReturn {
           icon: skillData.icon || null,
           skill_type: skillData.skill_type || "text",
           source: "user",
-          compliance_check_enabled: skillData.compliance_check_enabled || false,
-          compliance_threshold: skillData.compliance_threshold || 20,
+          confidence_check_enabled: skillData.confidence_check_enabled ?? false,
+          confidence_threshold: skillData.confidence_threshold ?? 70,
           output_mode: skillData.output_mode || "polish",
           enabled: skillData.enabled ?? true,
           customized: false,
+          locked: false,
         };
 
         const newSkill = await invoke<LLMPrompt>("create_skill", {

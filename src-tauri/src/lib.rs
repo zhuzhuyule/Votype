@@ -451,6 +451,7 @@ pub fn run() {
             shortcut::skills_cmds::delete_skill,
             shortcut::skills_cmds::save_external_skill,
             shortcut::skills_cmds::reorder_skills,
+            shortcut::skills_cmds::get_skills_order,
             shortcut::skills_cmds::refresh_external_skills,
             shortcut::skills_cmds::open_skills_folder,
             shortcut::skills_cmds::reset_skill_to_file_version,

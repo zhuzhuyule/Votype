@@ -72,11 +72,12 @@ impl Default for Skill {
             icon: None,
             skill_type: SkillType::default(),
             source: SkillSource::default(),
-            compliance_check_enabled: false,
-            compliance_threshold: None,
+            confidence_check_enabled: false,
+            confidence_threshold: None,
             output_mode: SkillOutputMode::default(),
             enabled: true,
             customized: false,
+            locked: false,
             file_path: None,
         }
     }
@@ -175,10 +176,10 @@ pub struct Skill {
     pub skill_type: SkillType,
     #[serde(default)]
     pub source: SkillSource,
-    #[serde(default)]
-    pub compliance_check_enabled: bool,
-    #[serde(default)]
-    pub compliance_threshold: Option<u8>,
+    #[serde(default, alias = "compliance_check_enabled")]
+    pub confidence_check_enabled: bool,
+    #[serde(default, alias = "compliance_threshold")]
+    pub confidence_threshold: Option<u8>,
     #[serde(default)]
     pub output_mode: SkillOutputMode,
     /// Whether this skill is enabled (default: true)
@@ -188,6 +189,9 @@ pub struct Skill {
     /// If true, user's version takes priority over file-based version
     #[serde(default)]
     pub customized: bool,
+    /// Whether this skill is locked (prevents editing/deletion)
+    #[serde(default)]
+    pub locked: bool,
     /// File path for external skills (user/imported source only)
     /// Skipped from serialization (runtime only)
     #[serde(skip)]
@@ -856,11 +860,12 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             icon: Some("IconShieldCheck".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
-            compliance_check_enabled: true,
-            compliance_threshold: Some(20),
+            confidence_check_enabled: true,
+            confidence_threshold: Some(70),
             output_mode: SkillOutputMode::Polish,
             enabled: true,
             customized: false,
+            locked: false,
             file_path: None,
         },
         LLMPrompt {
@@ -875,11 +880,12 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             icon: Some("IconMessageSparkle".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
+            confidence_check_enabled: false,
+            confidence_threshold: Some(70),
             output_mode: SkillOutputMode::Chat,
             enabled: true,
             customized: false,
+            locked: false,
             file_path: None,
         },
         // Preset: Translation
@@ -895,11 +901,12 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             icon: Some("IconLanguage".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
+            confidence_check_enabled: false,
+            confidence_threshold: Some(70),
             output_mode: SkillOutputMode::Chat,
             enabled: true,
             customized: false,
+            locked: false,
             file_path: None,
         },
         // Preset: Summary
@@ -914,11 +921,12 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
             icon: Some("IconListDetails".to_string()),
             skill_type: SkillType::Text,
             source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
+            confidence_check_enabled: false,
+            confidence_threshold: Some(70),
             output_mode: SkillOutputMode::Chat,
             enabled: true,
             customized: false,
+            locked: false,
             file_path: None,
         },
     ]
@@ -957,6 +965,43 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                     .insert(provider.id.clone(), default_model);
                 changed = true;
             }
+        }
+    }
+
+    // Refresh built-in prompts: update content for non-customized builtin prompts,
+    // preserving user's `enabled` and `model_id` choices.
+    let defaults = default_post_process_prompts();
+    for default_prompt in &defaults {
+        if let Some(existing) = settings
+            .post_process_prompts
+            .iter_mut()
+            .find(|p| p.id == default_prompt.id)
+        {
+            if existing.source == SkillSource::Builtin && !existing.customized {
+                if existing.instructions != default_prompt.instructions
+                    || existing.prompt != default_prompt.prompt
+                    || existing.name != default_prompt.name
+                    || existing.description != default_prompt.description
+                    || existing.icon != default_prompt.icon
+                    || existing.output_mode != default_prompt.output_mode
+                    || existing.confidence_check_enabled != default_prompt.confidence_check_enabled
+                    || existing.confidence_threshold != default_prompt.confidence_threshold
+                {
+                    existing.instructions = default_prompt.instructions.clone();
+                    existing.prompt = default_prompt.prompt.clone();
+                    existing.name = default_prompt.name.clone();
+                    existing.description = default_prompt.description.clone();
+                    existing.icon = default_prompt.icon.clone();
+                    existing.output_mode = default_prompt.output_mode.clone();
+                    existing.confidence_check_enabled = default_prompt.confidence_check_enabled;
+                    existing.confidence_threshold = default_prompt.confidence_threshold;
+                    changed = true;
+                }
+            }
+        } else {
+            // Built-in prompt missing entirely, add it
+            settings.post_process_prompts.push(default_prompt.clone());
+            changed = true;
         }
     }
 

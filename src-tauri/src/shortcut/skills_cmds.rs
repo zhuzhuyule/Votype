@@ -34,12 +34,38 @@ pub fn get_skill_templates() -> Vec<crate::managers::skill::SkillTemplate> {
 #[tauri::command]
 #[specta::specta]
 pub fn save_external_skill(app: AppHandle, skill: Skill) -> Result<(), String> {
-    let skill_manager = crate::managers::skill::SkillManager::new(&app);
-    let file_path = skill_manager.find_skill_file_path(&skill.id);
-    let mut skill_with_path = skill;
-    skill_with_path.file_path = file_path;
-    skill_manager.save_skill_to_file(&skill_with_path)?;
-    Ok(())
+    if matches!(skill.source, SkillSource::Builtin) {
+        // Built-in skills are stored in settings, not as files
+        let mut settings = settings::get_settings(&app);
+        if let Some(existing) = settings
+            .post_process_prompts
+            .iter_mut()
+            .find(|p| p.id == skill.id)
+        {
+            existing.name = skill.name;
+            existing.description = skill.description;
+            existing.instructions = skill.instructions.clone();
+            existing.prompt = skill.instructions;
+            existing.model_id = skill.model_id;
+            existing.icon = skill.icon;
+            existing.output_mode = skill.output_mode;
+            existing.confidence_check_enabled = skill.confidence_check_enabled;
+            existing.confidence_threshold = skill.confidence_threshold;
+            existing.locked = skill.locked;
+            existing.customized = true;
+        } else {
+            return Err(format!("Built-in skill not found: {}", skill.id));
+        }
+        settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        let skill_manager = crate::managers::skill::SkillManager::new(&app);
+        let file_path = skill_manager.find_skill_file_path(&skill.id);
+        let mut skill_with_path = skill;
+        skill_with_path.file_path = file_path;
+        skill_manager.save_skill_to_file(&skill_with_path)?;
+        Ok(())
+    }
 }
 
 #[tauri::command]
@@ -54,6 +80,13 @@ pub fn create_skill_from_template(app: AppHandle, template_id: String) -> Result
 pub fn reorder_skills(app: AppHandle, order: Vec<String>) -> Result<(), String> {
     let skill_manager = crate::managers::skill::SkillManager::new(&app);
     skill_manager.save_order(&order)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_skills_order(app: AppHandle) -> Vec<String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    skill_manager.load_order()
 }
 
 #[tauri::command]

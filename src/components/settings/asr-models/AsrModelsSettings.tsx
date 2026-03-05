@@ -38,6 +38,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
     models,
     groupsByMode,
     favoriteSet,
+    punctuationModels,
     punctuationModelOptions,
     selectedPunctuationModelId,
 
@@ -85,6 +86,14 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
     openEditDialog,
     setRemoveConfirmOpen,
   } = useAsrModels();
+
+  const handlePunctuationModelSelect = async (modelId: string) => {
+    await updateSetting("punctuation_model", modelId);
+    const model = punctuationModels.find((m) => m.id === modelId);
+    if (model && !model.is_downloaded) {
+      await downloadModel(modelId);
+    }
+  };
 
   return (
     <Flex
@@ -155,9 +164,7 @@ export const AsrModelsSettings: React.FC<AsrModelsSettingsProps> = ({
                 <Dropdown
                   options={punctuationModelOptions}
                   selectedValue={selectedPunctuationModelId}
-                  onSelect={(value) =>
-                    updateSetting("punctuation_model", value)
-                  }
+                  onSelect={handlePunctuationModelSelect}
                   disabled={busy || punctuationModelOptions.length === 0}
                   enableFilter={false}
                 />

@@ -35,14 +35,15 @@ import {
   IconChevronDown,
   IconDeviceFloppy,
   IconFolder,
+  IconLock,
+  IconLockOpen,
   IconPlus,
-  IconRefresh,
   IconSparkles,
   IconStar,
   IconTrash,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
-import React, { useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { IconPicker } from "../../shared/IconPicker";
@@ -60,12 +61,13 @@ import { usePrompts } from "./prompts/hooks/usePrompts";
 const PromptsConfiguration: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [templates, setTemplates] = useState<SkillTemplate[]>([]);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [isDescriptionGenerating, setIsDescriptionGenerating] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const [isInstructionGenerating, setIsInstructionGenerating] = useState(false);
+  const [pendingTabId, setPendingTabId] = useState<string | null>(null);
+  const isGenerating = isDescriptionGenerating || isInstructionGenerating;
 
   // All skills from ~/.votype/skills/ (unified source)
   const {
@@ -76,8 +78,8 @@ const PromptsConfiguration: React.FC = () => {
     openSkillsFolder,
     createSkillFromTemplate,
     getSkillTemplates,
+    skillOrder,
     reorderSkills,
-    getDefaultSkillContent,
   } = useExternalSkills();
 
   // Drag-and-drop sensors
@@ -114,13 +116,15 @@ const PromptsConfiguration: React.FC = () => {
     handleDelete,
     handleSetAsActive,
     isSaving,
-    draftComplianceCheck,
-    setDraftComplianceCheck,
-    draftComplianceThreshold,
-    setDraftComplianceThreshold,
+    draftConfidenceCheck,
+    setDraftConfidenceCheck,
+    draftConfidenceThreshold,
+    setDraftConfidenceThreshold,
 
     draftOutputMode,
     setDraftOutputMode,
+    draftLocked,
+    setDraftLocked,
   } = usePrompts(fileSkills, async (skillId: string) => {
     // After saving an external skill, refresh the list
     await refreshSkills();
@@ -129,13 +133,42 @@ const PromptsConfiguration: React.FC = () => {
     return updated || null;
   });
 
-  // Merge built-in skills with user skills (built-in first)
-  const allSkills = [...builtinSkills, ...fileSkills];
+  // Merge built-in + user skills, respecting saved drag order
+  const allSkills = useMemo(() => {
+    const combined = [...builtinSkills, ...fileSkills];
+    if (skillOrder.length === 0) return combined;
+    const orderMap = new Map(skillOrder.map((id, idx) => [id, idx]));
+    return [...combined].sort((a, b) => {
+      const posA = orderMap.get(a.id);
+      const posB = orderMap.get(b.id);
+      if (posA !== undefined && posB !== undefined) return posA - posB;
+      if (posA !== undefined) return -1;
+      if (posB !== undefined) return 1;
+      return 0;
+    });
+  }, [builtinSkills, fileSkills, skillOrder]);
 
   // Load templates on mount
   React.useEffect(() => {
     getSkillTemplates().then(setTemplates);
   }, [getSkillTemplates]);
+
+  // Guard: prevent switching while AI is generating or there are unsaved changes
+  const handleTabSwitch = useCallback(
+    (tabId: string) => {
+      if (tabId === currentTab) return;
+      if (isGenerating) {
+        toast.warning(t("settings.postProcessing.prompts.aiGeneratingWait"));
+        return;
+      }
+      if (isDirty) {
+        setPendingTabId(tabId);
+        return;
+      }
+      setCurrentTab(tabId);
+    },
+    [currentTab, isGenerating, isDirty, setCurrentTab, t],
+  );
 
   // Handle creating skill from template
   const handleCreateFromTemplate = async (templateId: string) => {
@@ -146,35 +179,8 @@ const PromptsConfiguration: React.FC = () => {
     }
   };
 
-  // Handle resetting a built-in skill to its default
-  const handleResetToDefault = async () => {
-    if (!viewingPrompt || viewingPrompt.source !== "builtin") return;
-
-    setIsResetting(true);
-    try {
-      const defaultContent = await getDefaultSkillContent(viewingPrompt.id);
-      if (defaultContent) {
-        // Reset drafts to the default values
-        setDraftName(defaultContent.name);
-        setDraftContent(defaultContent.instructions);
-        setDraftDescription(defaultContent.description);
-        setDraftIcon(defaultContent.icon ?? null);
-        setDraftModelId(defaultContent.model_id ?? null);
-        setDraftOutputMode(defaultContent.output_mode);
-        setDraftComplianceCheck(defaultContent.compliance_check_enabled);
-        setDraftComplianceThreshold(defaultContent.compliance_threshold);
-        toast.success(t("settings.postProcessing.prompts.resetSuccess"));
-      } else {
-        toast.error(t("settings.postProcessing.prompts.resetFailed"));
-      }
-    } catch (e) {
-      console.error("Failed to reset skill:", e);
-      toast.error(t("settings.postProcessing.prompts.resetFailed"));
-    } finally {
-      setIsResetting(false);
-      setShowResetConfirm(false);
-    }
-  };
+  // Whether the skill is effectively locked (saved locked state, no pending changes)
+  const isEffectivelyLocked = draftLocked && !isDirty;
 
   return (
     <Box className="w-full max-w-5xl mx-auto">
@@ -278,9 +284,9 @@ const PromptsConfiguration: React.FC = () => {
                           option={{ value: skill.id, label: skill.name }}
                           isActive={activePromptId === skill.id}
                           isSelected={currentTab === skill.id}
-                          isBuiltin={skill.source === "builtin"}
+                          isLocked={skill.locked ?? false}
                           isVerified={false}
-                          onClick={() => setCurrentTab(skill.id)}
+                          onClick={() => handleTabSwitch(skill.id)}
                           onActivate={() => handleSetAsActive()}
                           t={t}
                           icon={skill.icon || "IconWand"}
@@ -300,7 +306,7 @@ const PromptsConfiguration: React.FC = () => {
                       }}
                       isActive={false}
                       isSelected={true}
-                      isBuiltin={false}
+                      isLocked={false}
                       isVerified={false}
                       onClick={() => {}}
                       onActivate={() => {}}
@@ -318,7 +324,16 @@ const PromptsConfiguration: React.FC = () => {
                 <Box className="py-2.5 px-8 shrink-0 border-b border-gray-100 dark:border-gray-800">
                   <Flex direction="column" gap="1">
                     <Flex justify="between" align="center" width="100%">
-                      <Flex align="center" gap="2" className="flex-1">
+                      <Flex
+                        align="center"
+                        gap="2"
+                        className="flex-1"
+                        style={
+                          isEffectivelyLocked
+                            ? { pointerEvents: "none", opacity: 0.5 }
+                            : undefined
+                        }
+                      >
                         <IconPicker
                           value={draftIcon || "IconWand"}
                           onChange={(icon: string) => setDraftIcon(icon)}
@@ -358,63 +373,37 @@ const PromptsConfiguration: React.FC = () => {
                           />
                         </IconButton>
 
-                        {/* Reset button for built-in skills */}
-                        {!isCreating && viewingPrompt?.source === "builtin" && (
-                          <Dialog.Root
-                            open={showResetConfirm}
-                            onOpenChange={setShowResetConfirm}
+                        {/* Lock/Unlock toggle */}
+                        {!isCreating && (
+                          <Tooltip
+                            content={
+                              draftLocked
+                                ? t(
+                                    "settings.postProcessing.prompts.unlockSkill",
+                                  )
+                                : t("settings.postProcessing.prompts.lockSkill")
+                            }
                           >
-                            <Dialog.Trigger>
-                              <IconButton
-                                variant="ghost"
-                                color="gray"
-                                size="1"
-                                className="cursor-pointer"
-                                title={t(
-                                  "settings.postProcessing.prompts.resetToDefault",
-                                )}
-                              >
-                                <IconRefresh size={16} />
-                              </IconButton>
-                            </Dialog.Trigger>
-                            <Dialog.Content maxWidth="450px">
-                              <Dialog.Title>
-                                {t(
-                                  "settings.postProcessing.prompts.resetConfirm.title",
-                                )}
-                              </Dialog.Title>
-                              <Dialog.Description size="2" mb="4">
-                                {t(
-                                  "settings.postProcessing.prompts.resetConfirm.description",
-                                )}
-                              </Dialog.Description>
-                              <Flex gap="3" mt="4" justify="end">
-                                <Dialog.Close>
-                                  <Button
-                                    variant="soft"
-                                    color="gray"
-                                    className="cursor-pointer"
-                                  >
-                                    {t("common.cancel")}
-                                  </Button>
-                                </Dialog.Close>
-                                <Button
-                                  color="blue"
-                                  className="cursor-pointer"
-                                  loading={isResetting}
-                                  onClick={handleResetToDefault}
-                                >
-                                  {t("common.reset")}
-                                </Button>
-                              </Flex>
-                            </Dialog.Content>
-                          </Dialog.Root>
+                            <IconButton
+                              variant="ghost"
+                              color={draftLocked ? "amber" : "gray"}
+                              size="1"
+                              onClick={() => setDraftLocked(!draftLocked)}
+                              className="cursor-pointer"
+                            >
+                              {draftLocked ? (
+                                <IconLock size={16} />
+                              ) : (
+                                <IconLockOpen size={16} />
+                              )}
+                            </IconButton>
+                          </Tooltip>
                         )}
 
-                        {/* Delete button for user skills */}
+                        {/* Delete button (hidden when locked) */}
                         {!isCreating &&
-                          prompts.length > 1 &&
-                          viewingPrompt?.source !== "builtin" && (
+                          allSkills.length > 1 &&
+                          !viewingPrompt?.locked && (
                             <Dialog.Root
                               open={showDeleteConfirm}
                               onOpenChange={setShowDeleteConfirm}
@@ -502,7 +491,16 @@ const PromptsConfiguration: React.FC = () => {
 
                     {/* Collapsible Advanced Settings - No Card, inline flow */}
                     {showAdvanced && (
-                      <Flex direction="column" gap="3" className="pt-2">
+                      <Flex
+                        direction="column"
+                        gap="3"
+                        className="pt-2"
+                        style={
+                          isEffectivelyLocked
+                            ? { pointerEvents: "none", opacity: 0.5 }
+                            : undefined
+                        }
+                      >
                         <Grid columns="2" gap="4">
                           {/* 1. Model */}
                           <Box>
@@ -546,40 +544,40 @@ const PromptsConfiguration: React.FC = () => {
                             </SegmentedControl.Root>
                           </Box>
 
-                          {/* 4. Compliance (only for polish mode) - Single row */}
+                          {/* 4. Confidence check (only for polish mode) - Single row */}
                           {draftOutputMode === "polish" && (
                             <Box>
                               <label className="text-xs font-medium text-gray-500 mb-1 block">
                                 {t(
-                                  "settings.postProcessing.prompts.enableReview",
+                                  "settings.postProcessing.prompts.enableConfidenceCheck",
                                 )}
                               </label>
                               <Flex align="center" gap="3" className="mt-1.5">
                                 <Switch
                                   size="1"
-                                  checked={draftComplianceCheck}
-                                  onCheckedChange={setDraftComplianceCheck}
+                                  checked={draftConfidenceCheck}
+                                  onCheckedChange={setDraftConfidenceCheck}
                                   className="cursor-pointer shrink-0"
                                 />
-                                {draftComplianceCheck && (
+                                {draftConfidenceCheck && (
                                   <>
                                     <Slider
-                                      value={[draftComplianceThreshold]}
+                                      value={[draftConfidenceThreshold]}
                                       onValueChange={(val: number[]) =>
-                                        setDraftComplianceThreshold(val[0])
+                                        setDraftConfidenceThreshold(val[0])
                                       }
                                       min={0}
                                       max={100}
-                                      step={5}
+                                      step={1}
                                       size="1"
                                       className="flex-1 min-w-20"
                                     />
                                     <Text
                                       size="1"
                                       weight="medium"
-                                      className="shrink-0 w-10 text-right tabular-nums"
+                                      className="shrink-0 w-12 text-right tabular-nums"
                                     >
-                                      {draftComplianceThreshold}%
+                                      {draftConfidenceThreshold}%
                                     </Text>
                                   </>
                                 )}
@@ -593,7 +591,14 @@ const PromptsConfiguration: React.FC = () => {
                 </Box>
 
                 {/* Editor Content - Expands with content */}
-                <Box className="px-8 py-5">
+                <Box
+                  className="px-8 py-5"
+                  style={
+                    isEffectivelyLocked
+                      ? { pointerEvents: "none", opacity: 0.5 }
+                      : undefined
+                  }
+                >
                   <Flex direction="column" gap="5">
                     {/* Description Section - v3 Improvements */}
                     <Flex direction="column" gap="2">
@@ -669,12 +674,53 @@ const PromptsConfiguration: React.FC = () => {
                         t={t}
                         draftContent={draftContent}
                         setDraftContent={setDraftContent}
+                        onAiLoadingChange={setIsInstructionGenerating}
                       />
                     </Box>
                   </Flex>
                 </Box>
               </Flex>
             </Grid>
+
+            {/* Unsaved changes confirmation dialog */}
+            <Dialog.Root
+              open={!!pendingTabId}
+              onOpenChange={(open) => !open && setPendingTabId(null)}
+            >
+              <Dialog.Content maxWidth="400px">
+                <Dialog.Title>
+                  {t("settings.postProcessing.prompts.unsavedChanges.title")}
+                </Dialog.Title>
+                <Dialog.Description size="2" mb="4">
+                  {t(
+                    "settings.postProcessing.prompts.unsavedChanges.description",
+                  )}
+                </Dialog.Description>
+                <Flex gap="3" mt="4" justify="end">
+                  <Button
+                    variant="soft"
+                    color="gray"
+                    className="cursor-pointer"
+                    onClick={() => setPendingTabId(null)}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                  <Button
+                    variant="solid"
+                    color="red"
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setCurrentTab(pendingTabId!);
+                      setPendingTabId(null);
+                    }}
+                  >
+                    {t(
+                      "settings.postProcessing.prompts.unsavedChanges.discard",
+                    )}
+                  </Button>
+                </Flex>
+              </Dialog.Content>
+            </Dialog.Root>
           </Card>
         )}
       </Flex>

@@ -14,12 +14,14 @@ interface PromptEditorProps {
   t: TFunction;
   draftContent: string;
   setDraftContent: (value: string) => void;
+  onAiLoadingChange?: (loading: boolean) => void;
 }
 
 export const PromptEditor: React.FC<PromptEditorProps> = ({
   t,
   draftContent,
   setDraftContent,
+  onAiLoadingChange,
 }) => {
   return (
     <Box className="h-full">
@@ -32,6 +34,7 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
           "settings.postProcessing.prompts.promptInstructionsPlaceholder",
         )}
         className="h-full"
+        onAiLoadingChange={onAiLoadingChange}
       />
     </Box>
   );

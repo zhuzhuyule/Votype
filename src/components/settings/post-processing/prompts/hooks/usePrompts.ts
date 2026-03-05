@@ -30,12 +30,14 @@ export interface UsePromptsReturn {
   setDraftModelId: (value: string | null) => void;
   draftIcon: string | null;
   setDraftIcon: (value: string | null) => void;
-  draftComplianceCheck: boolean;
-  setDraftComplianceCheck: (value: boolean) => void;
-  draftComplianceThreshold: number;
-  setDraftComplianceThreshold: (value: number) => void;
+  draftConfidenceCheck: boolean;
+  setDraftConfidenceCheck: (value: boolean) => void;
+  draftConfidenceThreshold: number;
+  setDraftConfidenceThreshold: (value: number) => void;
   draftOutputMode: PromptOutputMode;
   setDraftOutputMode: (value: PromptOutputMode) => void;
+  draftLocked: boolean;
+  setDraftLocked: (value: boolean) => void;
 
   // Computed
   isDirty: boolean;
@@ -79,11 +81,12 @@ export const usePrompts = (
   const [draftDescription, setDraftDescription] = useState("");
   const [draftModelId, setDraftModelId] = useState<string | null>(null);
   const [draftIcon, setDraftIcon] = useState<string | null>(null);
-  const [draftComplianceCheck, setDraftComplianceCheck] = useState(false);
-  const [draftComplianceThreshold, setDraftComplianceThreshold] = useState(70);
+  const [draftConfidenceCheck, setDraftConfidenceCheck] = useState(false);
+  const [draftConfidenceThreshold, setDraftConfidenceThreshold] = useState(70);
 
   const [draftOutputMode, setDraftOutputMode] =
     useState<PromptOutputMode>("polish");
+  const [draftLocked, setDraftLocked] = useState(false);
 
   // Derived values
   const isCreating = currentTab === "NEW";
@@ -131,10 +134,11 @@ export const usePrompts = (
       draftDescription !== (viewingPrompt.description || "") ||
       (draftModelId || null) !== (viewingPrompt.model_id || null) ||
       (draftIcon || null) !== (viewingPrompt.icon || null) ||
-      draftComplianceCheck !==
-        (viewingPrompt.compliance_check_enabled || false) ||
-      draftComplianceThreshold !== (viewingPrompt.compliance_threshold ?? 70) ||
-      draftOutputMode !== (viewingPrompt.output_mode || "polish")
+      draftConfidenceCheck !==
+        (viewingPrompt.confidence_check_enabled || false) ||
+      draftConfidenceThreshold !== (viewingPrompt.confidence_threshold ?? 70) ||
+      draftOutputMode !== (viewingPrompt.output_mode || "polish") ||
+      draftLocked !== (viewingPrompt.locked ?? false)
     );
   }, [
     isCreating,
@@ -144,9 +148,10 @@ export const usePrompts = (
     draftDescription,
     draftModelId,
     draftIcon,
-    draftComplianceCheck,
-    draftComplianceThreshold,
+    draftConfidenceCheck,
+    draftConfidenceThreshold,
     draftOutputMode,
+    draftLocked,
   ]);
 
   // Text models for dropdown
@@ -192,9 +197,10 @@ export const usePrompts = (
         setDraftDescription("");
         setDraftModelId(null);
         setDraftIcon(null);
-        setDraftComplianceCheck(false);
-        setDraftComplianceThreshold(20);
+        setDraftConfidenceCheck(false);
+        setDraftConfidenceThreshold(70);
         setDraftOutputMode("polish");
+        setDraftLocked(false);
         lastLoadedTabRef.current = "NEW";
       }
       return;
@@ -206,9 +212,10 @@ export const usePrompts = (
       setDraftDescription(viewingPrompt.description || "");
       setDraftModelId(viewingPrompt.model_id || null);
       setDraftIcon(viewingPrompt.icon || null);
-      setDraftComplianceCheck(viewingPrompt.compliance_check_enabled || false);
-      setDraftComplianceThreshold(viewingPrompt.compliance_threshold ?? 20);
+      setDraftConfidenceCheck(viewingPrompt.confidence_check_enabled || false);
+      setDraftConfidenceThreshold(viewingPrompt.confidence_threshold ?? 70);
       setDraftOutputMode(viewingPrompt.output_mode || "polish");
+      setDraftLocked(viewingPrompt.locked ?? false);
       lastLoadedTabRef.current = viewingPrompt.id;
     }
 
@@ -253,9 +260,10 @@ export const usePrompts = (
         model_id: draftModelId === "default" ? null : draftModelId,
         description: draftDescription.trim(),
         icon: draftIcon || undefined,
-        compliance_check_enabled: draftComplianceCheck,
-        compliance_threshold: Math.round(draftComplianceThreshold),
+        confidence_check_enabled: draftConfidenceCheck,
+        confidence_threshold: Math.round(draftConfidenceThreshold),
         output_mode: draftOutputMode,
+        locked: draftLocked,
         enabled: true,
         customized: true,
       };
@@ -265,9 +273,15 @@ export const usePrompts = (
       console.log("[usePrompts] save_external_skill succeeded");
 
       // Trigger refresh
+      if (viewingPrompt.source === "builtin") {
+        // Built-in skills are stored in settings, refresh settings to pick up changes
+        await refreshSettings();
+      }
       if (onExternalSkillSaved) {
         await onExternalSkillSaved(viewingPrompt.id);
       }
+      // Force draft re-sync on next render so isDirty resets
+      lastLoadedTabRef.current = null;
       toast.success(t("settings.postProcessing.prompts.updateSuccess"));
     } catch (error) {
       console.error("Failed to save skill:", error);
@@ -280,12 +294,14 @@ export const usePrompts = (
     draftContent,
     draftModelId,
     draftIcon,
-    draftComplianceCheck,
-    draftComplianceThreshold,
+    draftConfidenceCheck,
+    draftConfidenceThreshold,
     draftOutputMode,
+    draftLocked,
     draftDescription,
     viewingPrompt,
     t,
+    refreshSettings,
     onExternalSkillSaved,
   ]);
 
@@ -342,12 +358,14 @@ export const usePrompts = (
     setDraftModelId,
     draftIcon,
     setDraftIcon,
-    draftComplianceCheck,
-    setDraftComplianceCheck,
-    draftComplianceThreshold,
-    setDraftComplianceThreshold,
+    draftConfidenceCheck,
+    setDraftConfidenceCheck,
+    draftConfidenceThreshold,
+    setDraftConfidenceThreshold,
     draftOutputMode,
     setDraftOutputMode,
+    draftLocked,
+    setDraftLocked,
     isDirty,
     textModels,
     handleSave,

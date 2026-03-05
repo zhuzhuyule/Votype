@@ -30,6 +30,7 @@ const SkillTemplatesArraySchema = z.array(SkillTemplateSchema);
 export function useExternalSkills() {
   const [externalSkills, setExternalSkills] = useState<LLMPrompt[]>([]);
   const [builtinSkills, setBuiltinSkills] = useState<LLMPrompt[]>([]);
+  const [skillOrder, setSkillOrder] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,10 +38,11 @@ export function useExternalSkills() {
     setIsLoading(true);
     setError(null);
     try {
-      // Load both user skills and built-in skills
-      const [userSkills, builtins] = await Promise.all([
+      // Load user skills, built-in skills, and saved order
+      const [userSkills, builtins, savedOrder] = await Promise.all([
         invoke("get_all_skills"),
         invoke("get_builtin_skills"),
+        invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
@@ -58,6 +60,10 @@ export function useExternalSkills() {
       } else {
         console.error("Failed to parse builtin skills:", parsedBuiltin.error);
       }
+
+      if (Array.isArray(savedOrder)) {
+        setSkillOrder(savedOrder);
+      }
     } catch (e) {
       console.error("Failed to load skills:", e);
       setError(String(e));
@@ -69,10 +75,10 @@ export function useExternalSkills() {
   const refreshExternalSkills = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Load both user skills and built-in skills
-      const [userSkills, builtins] = await Promise.all([
+      const [userSkills, builtins, savedOrder] = await Promise.all([
         invoke("get_all_skills"),
         invoke("get_builtin_skills"),
+        invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
@@ -83,6 +89,9 @@ export function useExternalSkills() {
       }
       if (parsedBuiltin.success) {
         setBuiltinSkills(parsedBuiltin.data);
+      }
+      if (Array.isArray(savedOrder)) {
+        setSkillOrder(savedOrder);
       }
     } catch (e) {
       console.error("Failed to refresh skills:", e);
@@ -141,11 +150,12 @@ export function useExternalSkills() {
         icon: skillData.icon ?? null,
         skill_type: skillData.skill_type || "text",
         source: "user",
-        compliance_check_enabled: skillData.compliance_check_enabled ?? false,
-        compliance_threshold: skillData.compliance_threshold ?? 20,
+        confidence_check_enabled: skillData.confidence_check_enabled ?? false,
+        confidence_threshold: skillData.confidence_threshold ?? 70,
         output_mode: skillData.output_mode || "polish",
         enabled: skillData.enabled ?? true,
         customized: false,
+        locked: false,
       };
       const result = await invoke<LLMPrompt>("create_skill", { skill });
       await loadExternalSkills();
@@ -185,9 +195,11 @@ export function useExternalSkills() {
         return null;
       }
     },
+    skillOrder,
     reorderSkills: async (order: string[]): Promise<void> => {
       try {
         await invoke("reorder_skills", { order });
+        setSkillOrder(order);
         // Update local state to reflect new order
         setExternalSkills((prev) => {
           const orderMap = new Map(order.map((id, idx) => [id, idx]));

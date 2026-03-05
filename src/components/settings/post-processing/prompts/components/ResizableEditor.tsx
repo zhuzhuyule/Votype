@@ -48,6 +48,7 @@ interface ResizableEditorProps {
   autoHeight?: boolean;
   maxAutoLines?: number;
   loading?: boolean;
+  onAiLoadingChange?: (loading: boolean) => void;
 }
 
 const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
@@ -105,24 +106,33 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${hot_words}"}
+              {"${context}"}
             </code>{" "}
-            {t("settings.postProcessing.prompts.varHotWordsDesc")}
+            {t("settings.postProcessing.prompts.varContextDesc")}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${app_name}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varAppNameDesc")}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${window_title}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varWindowTitleDesc")}
+          </Text>
+          <Text size="1" color="gray" className="block">
+            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+              {"${time}"}
+            </code>{" "}
+            {t("settings.postProcessing.prompts.varTimeDesc")}
           </Text>
           <Text size="1" color="gray" className="block">
             <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
               {"${prompt}"}
             </code>{" "}
             {t("settings.postProcessing.prompts.varPromptDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${context}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varContextDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block mt-2 italic opacity-80">
-            {t("settings.postProcessing.prompts.jsonHint")}
           </Text>
         </Box>
       )}
@@ -146,6 +156,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   autoHeight = false,
   maxAutoLines = 4,
   loading = false,
+  onAiLoadingChange,
 }) => {
   const { t } = useTranslation();
   const [height, setHeight] = useState(defaultHeight);
@@ -279,6 +290,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   const handleAiOptimize = async () => {
     if (isAiLoading) return;
     setIsAiLoading(true);
+    onAiLoadingChange?.(true);
     try {
       const optimizedText = await invoke<string>("optimize_text_with_llm", {
         text: value,
@@ -294,6 +306,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       );
     } finally {
       setIsAiLoading(false);
+      onAiLoadingChange?.(false);
     }
   };
 

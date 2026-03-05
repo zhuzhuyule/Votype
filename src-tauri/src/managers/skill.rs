@@ -15,6 +15,8 @@ struct SkillFrontmatter {
     output_mode: SkillOutputMode,
     model_id: Option<String>,
     icon: Option<String>,
+    #[serde(default)]
+    locked: bool,
 }
 
 /// Template for creating new skills
@@ -181,7 +183,7 @@ impl SkillManager {
     }
 
     /// Load saved skill order
-    fn load_order(&self) -> Vec<String> {
+    pub fn load_order(&self) -> Vec<String> {
         let order_file = self.get_order_file_path();
         if let Ok(content) = fs::read_to_string(&order_file) {
             if let Ok(order) = serde_json::from_str::<Vec<String>>(&content) {
@@ -406,12 +408,13 @@ impl SkillManager {
                 icon: None,
                 skill_type: SkillType::Text,
                 source,
-                compliance_check_enabled: false,
-                compliance_threshold: Some(20),
+                confidence_check_enabled: false,
+                confidence_threshold: Some(70),
                 output_mode: SkillOutputMode::Chat, // Default to Chat for external skills
                 enabled: true,
-                customized: false, // Not customized by default
-                file_path: Some(file_path.to_path_buf()), // Store file path
+                customized: false,
+                locked: false,
+                file_path: Some(file_path.to_path_buf()),
             });
         }
 
@@ -443,12 +446,13 @@ impl SkillManager {
             icon: fm.icon,
             skill_type: fm.skill_type,
             source,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
+            confidence_check_enabled: false,
+            confidence_threshold: Some(70),
             output_mode,
             enabled: true,
-            customized: false,                        // Not customized by default
-            file_path: Some(file_path.to_path_buf()), // Store file path
+            customized: false,
+            locked: fm.locked,
+            file_path: Some(file_path.to_path_buf()),
         })
     }
     /// Save a skill to its file (or create new file)
@@ -495,6 +499,10 @@ impl SkillManager {
             .unwrap_or_else(|_| "text".to_string());
         frontmatter.push_str(&format!("skill_type: {}\n", type_str));
 
+        if skill.locked {
+            frontmatter.push_str("locked: true\n");
+        }
+
         frontmatter.push_str("---\n\n");
 
         let content = format!("{}{}", frontmatter, skill.instructions);
@@ -530,11 +538,12 @@ impl SkillManager {
             icon: template.icon.clone(),
             skill_type: SkillType::Text,
             source: SkillSource::User,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
+            confidence_check_enabled: false,
+            confidence_threshold: Some(70),
             output_mode: template.output_mode,
             enabled: true,
             customized: false,
+            locked: false,
             file_path: None,
         };
 

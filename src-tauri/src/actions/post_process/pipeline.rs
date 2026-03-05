@@ -438,22 +438,16 @@ pub async fn maybe_post_process_transcription(
         }
     };
 
-    let mut current_prompt = initial_prompt;
-    let mut current_input_content: String = initial_content;
-    let mut current_transcription = transcription.to_string();
-    let mut chain_depth = 0;
-    const MAX_CHAIN_DEPTH: usize = 2;
+    let current_prompt = initial_prompt;
+    let current_input_content: String = initial_content;
+    let current_transcription = transcription.to_string();
 
-    // Track if first iteration used default prompt (non-explicit match)
-    // Chain calls should ONLY happen after default prompt processing
-    let was_default_prompt = !is_explicit;
+    let final_result;
+    let last_model;
+    let last_prompt_id;
+    let last_err;
 
-    let mut final_result = None;
-    let mut last_model = None;
-    let mut last_prompt_id = None;
-    let mut last_err = false;
-
-    while chain_depth < MAX_CHAIN_DEPTH {
+    loop {
         let prompt = current_prompt.clone();
         let transcription_content = &current_input_content;
         let transcription_original = &current_transcription;
@@ -473,7 +467,7 @@ pub async fn maybe_post_process_transcription(
             }
             None => {
                 log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
-                return (final_result, last_model, Some(prompt.id.clone()), false);
+                return (None, None, Some(prompt.id.clone()), false);
             }
         };
 
@@ -486,14 +480,23 @@ pub async fn maybe_post_process_transcription(
 
         // Check which variables are referenced in the prompt template
         let prompt_template = &prompt.instructions;
-        let has_output_ref = prompt_template.contains("output");
-        let has_select_ref = prompt_template.contains("select");
-        let has_raw_input_ref = prompt_template.contains("raw_input");
-        let has_streaming_ref = prompt_template.contains("streaming_output");
-        let has_context_ref = prompt_template.contains("context");
-        let has_app_name_ref = prompt_template.contains("app_name");
-        let has_window_title_ref = prompt_template.contains("window_title");
-        let has_time_ref = prompt_template.contains("time");
+        let has_output_ref = prompt_template.contains("${output}");
+        let has_select_ref = prompt_template.contains("${select}");
+        let has_raw_input_ref = prompt_template.contains("${raw_input}");
+        let has_streaming_ref = prompt_template.contains("${streaming_output}");
+        let has_context_ref = prompt_template.contains("${context}");
+        let has_app_name_ref = prompt_template.contains("${app_name}");
+        let has_window_title_ref = prompt_template.contains("${window_title}");
+        let has_time_ref = prompt_template.contains("${time}");
+
+        // Strip data-block variable markers from prompt text after detection.
+        // These variables inject data via separate message blocks, not inline replacement,
+        // so the ${...} syntax would remain as meaningless noise in the prompt sent to the LLM.
+        processed_prompt = processed_prompt
+            .replace("${output}", "output")
+            .replace("${raw_input}", "raw_input")
+            .replace("${select}", "select")
+            .replace("${streaming_output}", "streaming_output");
 
         // Build structured input data message - only include variables referenced in prompt
         let mut input_data_parts: Vec<String> = Vec::new();
@@ -554,107 +557,8 @@ pub async fn maybe_post_process_transcription(
             processed_prompt = processed_prompt.replace("${time}", &time_str);
         }
 
-        // Inject hot words and skills - only for non-explicit (fallback) matches
+        // Inject hotwords (includes auto-learned corrections) - only for non-explicit (fallback) matches
         if !is_explicit {
-            // Case B: Fallback (unrecognized intent). Inject skills info to guide the LLM.
-            let mut hot_words: Vec<String> = Vec::new();
-            let mut skills_info = Vec::new();
-
-            for p in &settings.post_process_prompts {
-                // For hot_words variable: add names for fuzzy matching
-                hot_words.push(p.name.clone());
-                skills_info.push(format!("- **{}**", p.name));
-            }
-
-            hot_words.sort();
-            hot_words.dedup();
-
-            // 1. Inject into ${hot_words} if referenced
-            if !hot_words.is_empty() {
-                let hot_words_text = hot_words
-                    .iter()
-                    .map(|w| format!("- {}", w))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-
-                if processed_prompt.contains("${hot_words}") {
-                    processed_prompt = processed_prompt.replace("${hot_words}", &hot_words_text);
-                } else {
-                    input_data_parts.push(format!("```hot_words\n{}\n```", hot_words_text));
-                }
-            }
-
-            // 2. Inject vocabulary corrections as separate context block (lower priority than hot_words)
-            if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
-                use crate::managers::vocabulary::VocabularyManager;
-
-                // Determine active scopes (App Name + Matching Rules)
-                let mut active_scopes = Vec::new();
-                if let Some(app) = &app_name {
-                    active_scopes.push(app.clone());
-
-                    // Check against App Profiles for rule matches
-                    if let Some(window) = &window_title {
-                        if let Some(profile) = settings.app_profiles.iter().find(|p| p.name == *app)
-                        {
-                            for rule in &profile.rules {
-                                let is_match = match rule.match_type {
-                                    crate::settings::TitleMatchType::Text => {
-                                        window.contains(&rule.pattern)
-                                    }
-                                    crate::settings::TitleMatchType::Regex => {
-                                        if let Ok(re) = regex::Regex::new(&rule.pattern) {
-                                            re.is_match(window)
-                                        } else {
-                                            false
-                                        }
-                                    }
-                                };
-
-                                if is_match {
-                                    // Use convention: "AppName##RuleID"
-                                    active_scopes.push(format!("{}##{}", app, rule.id));
-                                    debug!("[PostProcess] Active Rule Match: {}##{}", app, rule.id);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // If app is not in App Profiles (not a "known app"), it counts as "Other"
-                if let Some(app) = &app_name {
-                    if !settings.app_profiles.iter().any(|p| p.name == *app) {
-                        active_scopes.push("__OTHER__".to_string());
-                    }
-                }
-
-                let vocab_manager = VocabularyManager::new(hm.db_path.clone());
-                if let Ok(corrections) = vocab_manager.get_active_corrections(Some(&active_scopes))
-                {
-                    if !corrections.is_empty() {
-                        let corrections_text = corrections
-                            .iter()
-                            .take(20)
-                            .map(|c| {
-                                format!("- \"{}\" → \"{}\"", c.original_text, c.corrected_text)
-                            })
-                            .collect::<Vec<_>>()
-                            .join("\n");
-
-                        input_data_parts.push(format!(
-                            "以下是用户的高频词汇修正，请在适当时参考：\n{}",
-                            corrections_text
-                        ));
-
-                        debug!(
-                            "[PostProcess] Injected {} vocabulary corrections",
-                            corrections.len().min(20)
-                        );
-                    }
-                }
-            }
-
-            // 3. Inject structured hotwords from new system
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 let hotword_manager = HotwordManager::new(hm.db_path.clone());
 
@@ -664,7 +568,7 @@ pub async fn maybe_post_process_transcription(
                 // Use Work as default if no specific scenario detected
                 let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
 
-                if let Ok(injection) = hotword_manager.build_llm_injection(effective_scenario, 25) {
+                if let Ok(injection) = hotword_manager.build_llm_injection(effective_scenario, 40) {
                     if !injection.is_empty() {
                         input_data_parts.push(injection);
                         debug!(
@@ -673,15 +577,6 @@ pub async fn maybe_post_process_transcription(
                         );
                     }
                 }
-            }
-
-            // 4. Inject Semantic Skills block
-            if !skills_info.is_empty() {
-                let skills_block = format!(
-                    "## 可用技能\n\n用户可能正在尝试执行以下某种操作（技能）。请分析用户输入（raw_input）的意图，并根据最匹配的技能进行处理：\n\n{}",
-                    skills_info.join("\n")
-                );
-                input_data_parts.push(skills_block);
             }
         }
 
@@ -718,7 +613,7 @@ pub async fn maybe_post_process_transcription(
 
             if processed_prompt.contains("${context}") {
                 let context_block = format!(
-                    "\n\nRecent context for application \"{}\" (Window: \"{}\"):\n{}\n\n",
+                    "\n\n以下是对话的历史识别结果（来自应用 \"{}\"，窗口: \"{}\"），仅用于提供上下文，请勿修改：\n{}\n\n",
                     app_name.clone().unwrap_or_default(),
                     window_title.clone().unwrap_or_default(),
                     context_content
@@ -773,71 +668,6 @@ pub async fn maybe_post_process_transcription(
         last_model = Some(model);
         last_prompt_id = Some(prompt.id.clone());
         last_err = err;
-
-        if err || final_result.is_none() {
-            break;
-        }
-
-        // result_text is the result of LLM processing (fully parsed/extracted if JSON was used)
-        let result_text = final_result.as_ref().unwrap();
-        chain_depth += 1;
-
-        if chain_depth < MAX_CHAIN_DEPTH {
-            // Try to match the result against prompts again for the NEXT step in the chain
-            let (next_prompt_opt, next_content, is_explicit_match) =
-                super::routing::resolve_prompt_from_text(
-                    result_text,
-                    &all_prompts,
-                    default_prompt,
-                    None,
-                );
-
-            if let Some(next_prompt) = next_prompt_opt {
-                // Only chain if:
-                // 1. We matched a DIFFERENT prompt through an EXPLICIT override
-                // 2. The first prompt was the DEFAULT prompt (non-explicit match)
-                if is_explicit_match
-                    && was_default_prompt
-                    && chain_depth == 1
-                    && next_prompt.id != current_prompt.id
-                    && !next_prompt.id.is_empty()
-                {
-                    info!(
-                        "[PostProcess] Chaining detected via explicit match: \"{}\" -> \"{}\". Using extracted text for next call.",
-                        current_prompt.name, next_prompt.name
-                    );
-
-                    // Notify UI about the second step
-                    app_handle
-                        .emit("post-process-status", next_prompt.name.clone())
-                        .ok();
-
-                    // Persist intermediate result to history if we have an ID
-                    if let Some(hid) = history_id {
-                        if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
-                            let _ = hm
-                                .update_transcription_post_processing(
-                                    hid,
-                                    result_text.clone(),
-                                    current_prompt.instructions.clone(),
-                                    current_prompt.name.clone(),
-                                    Some(current_prompt.id.clone()),
-                                    last_model.clone(),
-                                )
-                                .await;
-                        }
-                    }
-
-                    // For the next iteration, the intermediate result text becomes
-                    // the new transcription content.
-                    current_prompt = next_prompt;
-                    current_input_content = next_content;
-                    // The full intermediate text becomes the new raw input for referencing.
-                    current_transcription = result_text.clone();
-                    continue;
-                }
-            }
-        }
 
         break;
     }
