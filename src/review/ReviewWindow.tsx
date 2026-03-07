@@ -217,6 +217,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const [isTranslationHovered, setIsTranslationHovered] = useState(false);
 
   // Fetch prompts and model options on mount
+  // NOTE: dependency is [] because ReviewWindow is re-mounted via key when new data arrives.
+  // Using [initialData] would cause re-runs on every progress event (object reference changes).
   useEffect(() => {
     invoke<{ prompts: PromptInfo[]; selected_id: string | null }>(
       "get_post_process_prompts",
@@ -251,7 +253,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         }
       });
     }
-  }, [initialData]);
+  }, []);
 
   // Sync external multiCandidates prop into local state
   // Skip during rerun — ReviewWindow owns local state while rerunning
@@ -839,28 +841,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               // Clear translation panel when changing prompt
               setTranslatedText(null);
 
-              // Handle skip post-process case
-              if (promptId === "__skip__") {
-                // Use original ASR result directly
-                setCurrentFinalText(initialData.source_text);
-                setSourceHtml(initialData.source_text);
-                setShowDiff(false);
-                setIsRerunning(false);
-                if (multiCandidates && multiCandidates.length > 0) {
-                  handlePromptRerunReset(
-                    promptId,
-                    multiCandidates.map((c) => ({
-                      ...c,
-                      text: initialData.source_text,
-                      confidence: undefined,
-                      processing_time_ms: 0,
-                      error: undefined,
-                      ready: true,
-                    })),
-                  );
-                }
-                return;
-              }
               if (multiCandidates && multiCandidates.length > 0) {
                 // Multi mode: clear old results immediately
                 handlePromptRerunReset(

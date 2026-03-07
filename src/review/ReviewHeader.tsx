@@ -85,10 +85,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
     onPromptChange(newId);
     onRerunStart();
     try {
-      // Save user's prompt selection as new default
-      if (newId !== "__skip__") {
-        await invoke("set_post_process_selected_prompt", { id: newId });
-      }
+      // Prompt selection in review window is session-local only;
+      // global default is only changed from the settings page.
       await invoke("rerun_multi_model_with_prompt", {
         promptId: newId,
         sourceText,
@@ -104,10 +102,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
     onPromptChange(newId);
     onRerunStart();
     try {
-      // Save user's prompt selection as new default
-      if (newId !== "__skip__") {
-        await invoke("set_post_process_selected_prompt", { id: newId });
-      }
+      // Prompt selection in review window is session-local only;
+      // global default is only changed from the settings page.
       const resp = await invoke<{
         text: string | null;
         error: string | null;
@@ -168,10 +164,6 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
               onChange={(e) => handlePromptChangeMulti(e.target.value)}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              {/* Skip post-process option */}
-              <option value="__skip__">
-                {t("transcription.review.skipPostProcess", "不使用润色")}
-              </option>
               {prompts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -223,10 +215,6 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             onChange={(e) => handlePromptChangeSingle(e.target.value)}
             onPointerDown={(e) => e.stopPropagation()}
           >
-            {/* Skip post-process option */}
-            <option value="__skip__">
-              {t("transcription.review.skipPostProcess", "不使用润色")}
-            </option>
             {prompts.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
