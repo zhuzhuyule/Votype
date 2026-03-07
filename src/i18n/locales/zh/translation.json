@@ -186,7 +186,8 @@
       "deviationNone": "完全匹配",
       "deviationMinor": "轻微偏差",
       "deviationMajor": "偏差较大",
-      "insertTranslation": "插入翻译结果"
+      "insertTranslation": "插入翻译结果",
+      "skipPostProcess": "不使用润色"
     }
   },
   "errors": {
@@ -1127,7 +1128,20 @@
         "varSelectDesc": "录制结束时选中的文本。",
         "varStreamingDesc": "实时转录中的中间文本。",
         "varTimeDesc": "当前时间戳。",
-        "varWindowTitleDesc": "当前窗口标题。"
+        "varWindowTitleDesc": "当前窗口标题。",
+        "autoGenerate": {
+          "title": "语音创建技能",
+          "description": "用自然语言描述你的需求，AI 会为你生成完整的技能。",
+          "shortcutHint": "提示：按",
+          "placeholder": "例如：帮我润色文本，修正语法并使其更加专业...",
+          "step1": "优化提示词指令",
+          "step2": "生成名称和图标",
+          "step3": "生成描述",
+          "emptyInput": "请描述这个技能需要做什么",
+          "start": "生成",
+          "menuItem": "语音输入",
+          "success": "技能创建成功"
+        }
       },
       "skills": {
         "advancedSkills": "高级技能",

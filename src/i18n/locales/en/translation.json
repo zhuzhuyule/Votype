@@ -1106,7 +1106,20 @@
         "varSelectDesc": "Text selected when recording ended.",
         "varStreamingDesc": "Intermediate text during real-time transcription.",
         "varTimeDesc": "Current timestamp.",
-        "varWindowTitleDesc": "Current window title."
+        "varWindowTitleDesc": "Current window title.",
+        "autoGenerate": {
+          "title": "Voice-to-Skill",
+          "description": "Describe what you want in natural language. AI will generate a complete Skill for you.",
+          "shortcutHint": "Tip: Press",
+          "placeholder": "e.g. Help me polish text, fix grammar and make it more professional...",
+          "step1": "Optimizing prompt instructions",
+          "step2": "Generating name and icon",
+          "step3": "Generating description",
+          "emptyInput": "Please describe what this Skill should do",
+          "start": "Generate",
+          "menuItem": "Voice Input",
+          "success": "Skill created successfully"
+        }
       },
       "skills": {
         "advancedSkills": "Advanced Skills",
@@ -1335,7 +1348,9 @@
       "deviationNone": "Perfect Match",
       "deviationMinor": "Minor Changes",
       "deviationMajor": "Significant Changes",
-      "insertTranslation": "Insert translation"
+      "insertTranslation": "Insert translation",
+      "multiModel": "Multi-model Results",
+      "processing": "Processing..."
     }
   }
 }
