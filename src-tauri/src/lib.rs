@@ -564,6 +564,8 @@ pub fn run() {
             commands::summary::export_summary,
             commands::text::optimize_text_with_llm,
             commands::text::generate_skill_description,
+            commands::text::generate_skill_metadata,
+            commands::text::translate_review_text,
             helpers::clamshell::is_clamshell,
             helpers::clamshell::is_laptop,
         ])

@@ -29,12 +29,39 @@ export function useSkills(): UseSkillsReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await invoke("get_all_skills");
-      const parsed = SkillsArraySchema.safeParse(result);
-      if (parsed.success) {
-        setSkills(parsed.data);
+      // Load user/imported skills, builtin skills, and saved order
+      const [userSkills, builtinSkills, skillOrder] = await Promise.all([
+        invoke("get_all_skills"),
+        invoke("get_builtin_skills"),
+        invoke<string[]>("get_skills_order"),
+      ]);
+
+      const parsedUser = SkillsArraySchema.safeParse(userSkills);
+      const parsedBuiltin = SkillsArraySchema.safeParse(builtinSkills);
+
+      if (parsedUser.success && parsedBuiltin.success) {
+        // Combine builtin and user skills
+        const combined = [...parsedBuiltin.data, ...parsedUser.data];
+
+        // Apply saved ordering
+        if (Array.isArray(skillOrder) && skillOrder.length > 0) {
+          const orderMap = new Map(skillOrder.map((id, idx) => [id, idx]));
+          combined.sort((a, b) => {
+            const posA = orderMap.get(a.id);
+            const posB = orderMap.get(b.id);
+            if (posA !== undefined && posB !== undefined) return posA - posB;
+            if (posA !== undefined) return -1;
+            if (posB !== undefined) return 1;
+            return 0;
+          });
+        }
+
+        setSkills(combined);
       } else {
-        console.error("Failed to parse skills:", parsed.error);
+        console.error(
+          "Failed to parse skills:",
+          parsedUser.error || parsedBuiltin.error,
+        );
         setError("Failed to parse skills");
       }
     } catch (e) {
