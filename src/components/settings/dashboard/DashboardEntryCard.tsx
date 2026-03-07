@@ -231,6 +231,8 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
       ? formatDuration(entry.duration_ms)
       : null;
 
+    const isCancelled = !entry.transcription_text?.trim();
+
     const availablePrompts = settings?.post_process_prompts || [];
 
     const activeClass = "text-logo-primary! font-medium";
@@ -532,9 +534,15 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   </Text>
                 </Tabs.Content>
                 <Tabs.Content value="original">
-                  <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
-                    {entry.transcription_text}
-                  </Text>
+                  {isCancelled ? (
+                    <Text className="text-text/40 text-sm italic">
+                      {t("dashboard.details.cancelled")}
+                    </Text>
+                  ) : (
+                    <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
+                      {entry.transcription_text}
+                    </Text>
+                  )}
                 </Tabs.Content>
                 <Tabs.Content value="streaming">
                   <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono italic">
@@ -558,26 +566,34 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
             </Tabs.Root>
           ) : (
             <Box className="relative group mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
-              <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
-                {entry.transcription_text}
-              </Text>
-              <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all z-20">
-                <Tooltip content={t("dashboard.actions.edit")}>
-                  <IconButton
-                    variant="ghost"
-                    size="1"
-                    onClick={() =>
-                      openEditDialog(
-                        "transcription_text",
-                        entry.transcription_text,
-                      )
-                    }
-                    className="text-logo-primary hover:bg-logo-primary/10 cursor-pointer"
-                  >
-                    <IconPencil size={14} />
-                  </IconButton>
-                </Tooltip>
-              </Box>
+              {isCancelled ? (
+                <Text className="text-text/40 text-sm italic">
+                  {t("dashboard.details.cancelled")}
+                </Text>
+              ) : (
+                <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
+                  {entry.transcription_text}
+                </Text>
+              )}
+              {!isCancelled && (
+                <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <Tooltip content={t("dashboard.actions.edit")}>
+                    <IconButton
+                      variant="ghost"
+                      size="1"
+                      onClick={() =>
+                        openEditDialog(
+                          "transcription_text",
+                          entry.transcription_text,
+                        )
+                      }
+                      className="text-logo-primary hover:bg-logo-primary/10 cursor-pointer"
+                    >
+                      <IconPencil size={14} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
             </Box>
           )}
 

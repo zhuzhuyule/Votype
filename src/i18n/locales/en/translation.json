@@ -11,6 +11,7 @@
     "title": "Application Language"
   },
   "common": {
+    "locale": "en",
     "active": "Active",
     "add": "Add",
     "addNewOption": "Add new option",
@@ -103,6 +104,7 @@
     },
     "details": {
       "audioRemoved": "Recording removed",
+      "cancelled": "Cancelled",
       "count": "{{count}} entries",
       "empty": "No data",
       "emptyHint": "Use the shortcut key to start your first transcription",
@@ -927,6 +929,7 @@
         "promptDescription": "Select a custom prompt to use for transcriptions in this profile.",
         "promptHeader": "Override LLM Prompt",
         "selectPrompt": "Select a profile from the sidebar to edit",
+        "skipPostProcess": "Skip Post-Processing",
         "shortcuts": {
           "description": "You can use keyboard shortcuts to trigger specific profiles or manage rules.",
           "dialog": "Confirm or close dialogs",
@@ -1317,11 +1320,22 @@
       "hint": "⌘/Ctrl + Enter to confirm, Escape to cancel",
       "insert": "Insert",
       "insertCode": "Insert Code",
+      "insertOriginal": "Insert Original (Tab)",
       "insertStabilityHint": "Shortcut: {{shortcut}}\nIf insertion is unstable, you can temporarily disable this feature.",
       "instruction": "Instruction",
       "placeholder": "Edit transcription...",
       "source": "Live transcript",
-      "title": "Review Transcription"
+      "title": "Review Transcription",
+      "skipPostProcess": "Skip Post-process",
+      "hideDiff": "Hide Diff",
+      "showDiff": "Show Diff",
+      "translateText": "Translate",
+      "translationResult": "Translation Result",
+      "analysisTitle": "Analysis:",
+      "deviationNone": "Perfect Match",
+      "deviationMinor": "Minor Changes",
+      "deviationMajor": "Significant Changes",
+      "insertTranslation": "Insert translation"
     }
   }
 }

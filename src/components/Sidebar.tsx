@@ -224,9 +224,7 @@ const SidebarItem: React.FC<{
         justify={collapsed ? "center" : "start"}
         className={collapsed ? "w-full justify-center" : "w-full"}
       >
-        <Box
-          className={`transition-transform duration-200 flex items-center justify-center ${isActive ? "scale-110" : "group-hover:scale-105"}`}
-        >
+        <Box className="flex items-center justify-center">
           <Icon
             size={20}
             stroke={isActive ? 2 : 1.5}
