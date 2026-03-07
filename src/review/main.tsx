@@ -37,6 +37,7 @@ interface MultiCandidateData {
   history_id: number | null;
   output_mode?: "polish" | "chat";
   skill_name?: string;
+  prompt_id?: string | null;
 }
 
 interface ReviewHidePayload {
@@ -195,6 +196,7 @@ const ReviewApp: React.FC = () => {
                 history_id: multiCandidateData.history_id,
                 output_mode: multiCandidateData.output_mode,
                 skill_name: multiCandidateData.skill_name,
+                prompt_id: multiCandidateData.prompt_id,
               }}
               multiCandidates={multiCandidateData.candidates}
               onClose={() => setMultiCandidateData(null)}

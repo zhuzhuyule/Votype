@@ -49,6 +49,7 @@ pub async fn multi_post_process_transcription(
     _history_id: Option<i64>,
     app_name: Option<String>,
     window_title: Option<String>,
+    override_prompt_id: Option<String>,
 ) -> Vec<super::MultiModelPostProcessResult> {
     // Check if multi-model post-processing is enabled
 
@@ -59,22 +60,41 @@ pub async fn multi_post_process_transcription(
 
     // Prefer checkbox-based selection; fall back to legacy items
     let built_items = settings.build_multi_model_items_from_selection();
-    let items_owned: Vec<MultiModelPostProcessItem>;
+    let mut items_owned: Vec<MultiModelPostProcessItem>;
     let items: Vec<&MultiModelPostProcessItem>;
     if !built_items.is_empty() {
         items_owned = built_items;
-        items = items_owned.iter().collect();
     } else {
-        items = settings.enabled_multi_model_items();
+        items_owned = settings
+            .enabled_multi_model_items()
+            .into_iter()
+            .cloned()
+            .collect();
     }
+
+    // Override prompt_id when app-specific prompt is configured
+    if let Some(ref oid) = override_prompt_id {
+        info!("[MultiModel] Overriding prompt_id to: {}", oid);
+        for item in &mut items_owned {
+            item.prompt_id = oid.clone();
+        }
+    } else {
+        info!(
+            "[MultiModel] No override_prompt_id, using default: {:?}",
+            items_owned.first().map(|i| &i.prompt_id)
+        );
+    }
+
+    items = items_owned.iter().collect();
     if items.is_empty() {
         info!("[MultiModel] No enabled multi-model items configured");
         return Vec::new();
     }
 
     info!(
-        "[MultiModel] Starting multi-model post-processing with {} models",
-        items.len()
+        "[MultiModel] Starting multi-model post-processing with {} models, prompt_id: {:?}",
+        items.len(),
+        items.first().map(|i| &i.prompt_id)
     );
 
     // Emit start event
@@ -246,11 +266,31 @@ async fn execute_single_model_post_process(
     // Use the model_id from the item directly (each item specifies its own model)
     let model = item.model_id.clone();
 
-    // Get prompt
-    let prompt = match settings.get_prompt(&item.prompt_id) {
-        Some(p) => p,
+    // Get prompt — merge external skills so we can find prompts from filesystem too
+    let skill_manager = crate::managers::skill::SkillManager::new(_app_handle);
+    let external_skills = skill_manager.load_all_external_skills();
+    let mut all_prompts = settings.post_process_prompts.clone();
+    for file_skill in external_skills {
+        if !all_prompts.iter().any(|p| p.id == file_skill.id) {
+            all_prompts.push(file_skill);
+        }
+    }
+    let prompt = match all_prompts.iter().find(|p| p.id == item.prompt_id) {
+        Some(p) => {
+            info!(
+                "[MultiModel] Resolved prompt: id={}, name=\"{}\", instructions_len={}",
+                p.id,
+                p.name,
+                p.instructions.len()
+            );
+            p
+        }
         None => {
-            error!("[MultiModel] Prompt not found: {}", item.prompt_id);
+            error!(
+                "[MultiModel] Prompt not found: {}, available: {:?}",
+                item.prompt_id,
+                all_prompts.iter().map(|p| &p.id).collect::<Vec<_>>()
+            );
             return (None, Some("Prompt not found".to_string()));
         }
     };

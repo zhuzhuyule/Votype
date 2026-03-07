@@ -177,30 +177,65 @@ pub struct PromptListResponse {
 #[specta::specta]
 pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
     let settings = settings::get_settings(&app);
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
 
-    // Collect prompts and deduplicate by both id AND name
-    let mut seen_ids = std::collections::HashSet::new();
-    let mut seen_names = std::collections::HashSet::new();
-    let prompts: Vec<PromptInfo> = settings
+    // Collect builtin skills from settings (matching get_builtin_skills)
+    let builtin_skills: Vec<PromptInfo> = settings
         .post_process_prompts
         .iter()
         .filter(|p| p.enabled)
-        .filter(|p| {
-            // Deduplicate by id first (primary key)
-            if !seen_ids.insert(p.id.clone()) {
-                return false;
-            }
-            // Then also deduplicate by name to avoid duplicate entries in UI
-            seen_names.insert(p.name.clone())
-        })
+        .filter(|p| matches!(p.source, settings::SkillSource::Builtin))
         .map(|p| PromptInfo {
             id: p.id.clone(),
             name: p.name.clone(),
         })
         .collect();
 
+    // Collect external skills from filesystem (matching get_all_skills)
+    let external_skills: Vec<PromptInfo> = skill_manager
+        .get_all_skills()
+        .into_iter()
+        .filter(|p| p.enabled)
+        .map(|p| PromptInfo {
+            id: p.id.clone(),
+            name: p.name.clone(),
+        })
+        .collect();
+
+    // Merge: builtin first, then external
+    let mut all_prompts: Vec<PromptInfo> = Vec::new();
+    let mut seen_ids = std::collections::HashSet::new();
+    for p in builtin_skills
+        .into_iter()
+        .chain(external_skills.into_iter())
+    {
+        if seen_ids.insert(p.id.clone()) {
+            all_prompts.push(p);
+        }
+    }
+
+    // Apply saved drag-and-drop ordering (same logic as SkillManager::apply_ordering)
+    let order = skill_manager.load_order();
+    if !order.is_empty() {
+        let order_map: std::collections::HashMap<&str, usize> = order
+            .iter()
+            .enumerate()
+            .map(|(i, id)| (id.as_str(), i))
+            .collect();
+        all_prompts.sort_by(|a, b| {
+            let pos_a = order_map.get(a.id.as_str());
+            let pos_b = order_map.get(b.id.as_str());
+            match (pos_a, pos_b) {
+                (Some(pa), Some(pb)) => pa.cmp(pb),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => a.name.cmp(&b.name),
+            }
+        });
+    }
+
     PromptListResponse {
-        prompts,
+        prompts: all_prompts,
         selected_id: settings.post_process_selected_prompt_id.clone(),
     }
 }
@@ -337,6 +372,7 @@ pub fn rerun_multi_model_with_prompt(
     let ctx_app_name = active_window.as_ref().map(|w| w.app_name.clone());
     let ctx_window_title = active_window.as_ref().map(|w| w.title.clone());
 
+    let prompt_id_clone = prompt_id.clone();
     tauri::async_runtime::spawn(async move {
         // Build a modified settings with the overridden prompt for item lookup
         let mut rerun_settings = settings.clone();
@@ -354,6 +390,7 @@ pub fn rerun_multi_model_with_prompt(
             history_id,
             ctx_app_name,
             ctx_window_title,
+            Some(prompt_id_clone),
         )
         .await;
     });

@@ -842,6 +842,15 @@ impl ShortcutAction for TranscribeAction {
                                     .and_then(|r| r.prompt_id.clone())
                                     .or_else(|| app_profile.and_then(|p| p.prompt_id.clone()));
 
+                                info!(
+                                    "[Transcribe] App profile resolution: app_profile={:?}, matched_rule={:?}, override_prompt_id={:?}, app_policy={:?}, global_selected_prompt_id={:?}",
+                                    app_profile.map(|p| &p.id),
+                                    matched_rule.map(|r| &r.pattern),
+                                    override_prompt_id,
+                                    app_policy,
+                                    settings_clone.post_process_selected_prompt_id,
+                                );
+
                                 // Check if multi-model post-processing is enabled
                                 if settings_clone.multi_model_post_process_enabled {
                                     let multi_items =
@@ -852,18 +861,34 @@ impl ShortcutAction for TranscribeAction {
                                             multi_items.len()
                                         );
 
-                                        // Get output_mode from the current selected prompt
-                                        let output_mode = settings_clone
-                                            .post_process_selected_prompt_id
-                                            .as_ref()
-                                            .and_then(|pid| {
-                                                settings_clone
-                                                    .post_process_prompts
-                                                    .iter()
-                                                    .find(|p| &p.id == pid)
-                                            })
-                                            .map(|p| p.output_mode)
-                                            .unwrap_or_default();
+                                        // Get output_mode from the actual prompt being used
+                                        // Must search both builtin and external skills
+                                        let effective_prompt_id =
+                                            override_prompt_id.as_ref().or(settings_clone
+                                                .post_process_selected_prompt_id
+                                                .as_ref());
+                                        let output_mode = if let Some(pid) = effective_prompt_id {
+                                            // Search builtin first
+                                            settings_clone
+                                                .post_process_prompts
+                                                .iter()
+                                                .find(|p| &p.id == pid)
+                                                .map(|p| p.output_mode)
+                                                .or_else(|| {
+                                                    // Fallback: search external skills from filesystem
+                                                    let sm =
+                                                        crate::managers::skill::SkillManager::new(
+                                                            &ah_clone,
+                                                        );
+                                                    sm.get_all_skills()
+                                                        .into_iter()
+                                                        .find(|p| &p.id == pid)
+                                                        .map(|p| p.output_mode)
+                                                })
+                                                .unwrap_or_default()
+                                        } else {
+                                            crate::settings::PromptOutputMode::default()
+                                        };
 
                                         // Build initial loading candidates and show review window immediately
                                         let initial_candidates: Vec<
@@ -897,7 +922,7 @@ impl ShortcutAction for TranscribeAction {
                                             history_id,
                                             output_mode,
                                             None,
-                                            override_prompt_id.clone(),
+                                            effective_prompt_id.cloned(),
                                         );
 
                                         // Hide overlay since review window is now visible
@@ -918,6 +943,7 @@ impl ShortcutAction for TranscribeAction {
                                                 active_window_snapshot_for_review
                                                     .as_ref()
                                                     .map(|info| info.title.clone()),
+                                                override_prompt_id.clone(),
                                             )
                                             .await;
 
