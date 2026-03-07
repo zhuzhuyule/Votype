@@ -9,11 +9,48 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
+/// A single word-level change detected by the confidence check
+#[derive(Debug, Clone, Deserialize)]
+pub struct WordChange {
+    pub original: String,
+    pub corrected: String,
+    #[serde(default)]
+    pub is_hotword: bool,
+    pub category: Option<String>,
+}
+
 /// Response from LLM confidence check
 #[derive(Debug, Deserialize)]
 pub struct ConfidenceCheckResponse {
     pub confidence: u8,
-    pub reason: Option<String>,
+    #[serde(default)]
+    pub changes: Vec<WordChange>,
+}
+
+impl ConfidenceCheckResponse {
+    /// Format changes into a human-readable reason string for display
+    pub fn format_reason(&self) -> Option<String> {
+        if self.changes.is_empty() {
+            return None;
+        }
+        let parts: Vec<String> = self
+            .changes
+            .iter()
+            .map(|c| {
+                if c.is_hotword {
+                    format!("{} → {} ✓", c.original, c.corrected)
+                } else {
+                    format!("{} → {}", c.original, c.corrected)
+                }
+            })
+            .collect();
+        Some(parts.join("  "))
+    }
+
+    /// Get hotword candidates from the changes
+    pub fn hotword_candidates(&self) -> Vec<&WordChange> {
+        self.changes.iter().filter(|c| c.is_hotword).collect()
+    }
 }
 
 /// Perform confidence check: call lightweight LLM to evaluate polish quality.
@@ -66,7 +103,7 @@ pub async fn perform_confidence_check(
     }
 
     if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content("请评估上述润色结果的质量。")
+        .content("请评估上述润色结果的质量，并列出所有词级变动。")
         .build()
     {
         messages.push(ChatCompletionRequestMessage::User(user_msg));
@@ -113,9 +150,16 @@ pub async fn perform_confidence_check(
     match serde_json::from_str::<ConfidenceCheckResponse>(&json_str) {
         Ok(result) => {
             info!(
-                "[ConfidenceCheck] Result: confidence={}, reason={:?}",
-                result.confidence, result.reason
+                "[ConfidenceCheck] Result: confidence={}, changes={}",
+                result.confidence,
+                result.changes.len()
             );
+            for c in &result.changes {
+                info!(
+                    "[ConfidenceCheck]   {} → {} (hotword={}, category={:?})",
+                    c.original, c.corrected, c.is_hotword, c.category
+                );
+            }
             Some(result)
         }
         Err(e) => {

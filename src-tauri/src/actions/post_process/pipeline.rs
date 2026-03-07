@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 /// Detect usage scenario from app name
-fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenario> {
+pub(super) fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenario> {
     let work_apps = [
         "Code", "VSCode", "Cursor", "Terminal", "iTerm", "Slack", "Notion", "Figma", "Xcode",
         "IntelliJ",
@@ -46,6 +46,12 @@ pub async fn maybe_post_process_transcription(
     selected_text: Option<String>,
 ) -> (Option<String>, Option<String>, Option<String>, bool) {
     if !settings.post_process_enabled {
+        return (None, None, None, false);
+    }
+
+    // Check for skip post-process marker
+    if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
+        info!("[PostProcess] Skipping post-processing due to app rule override");
         return (None, None, None, false);
     }
 
@@ -557,22 +563,20 @@ pub async fn maybe_post_process_transcription(
             processed_prompt = processed_prompt.replace("${time}", &time_str);
         }
 
-        // Inject hotwords (includes auto-learned corrections) - only for non-explicit (fallback) matches
+        // Inject hotwords into system prompt (instructions, not user content)
         if !is_explicit {
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 let hotword_manager = HotwordManager::new(hm.db_path.clone());
 
-                // Determine scenario from app context
                 let scenario = detect_scenario(&app_name);
-
-                // Use Work as default if no specific scenario detected
                 let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
 
                 if let Ok(injection) = hotword_manager.build_llm_injection(effective_scenario, 40) {
                     if !injection.is_empty() {
-                        input_data_parts.push(injection);
+                        processed_prompt.push_str("\n\n");
+                        processed_prompt.push_str(&injection);
                         debug!(
-                            "[PostProcess] Injected structured hotwords for scenario {:?}",
+                            "[PostProcess] Injected hotwords into system prompt for scenario {:?}",
                             effective_scenario
                         );
                     }
@@ -613,9 +617,7 @@ pub async fn maybe_post_process_transcription(
 
             if processed_prompt.contains("${context}") {
                 let context_block = format!(
-                    "\n\n以下是对话的历史识别结果（来自应用 \"{}\"，窗口: \"{}\"），仅用于提供上下文，请勿修改：\n{}\n\n",
-                    app_name.clone().unwrap_or_default(),
-                    window_title.clone().unwrap_or_default(),
+                    "\n\n[ASR上下文] 当前应用近期识别的上下文,用于推断讨论的领域和话题,仅供语境参考。\n{}\n\n",
                     context_content
                 );
                 processed_prompt = processed_prompt.replace("${context}", &context_block);

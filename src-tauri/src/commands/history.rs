@@ -376,6 +376,9 @@ pub async fn reprocess_history_entry(
         entry.streaming_text.as_deref(),
         prompt,
         false,
+        None,
+        None,
+        Some(id),
     )
     .await;
 

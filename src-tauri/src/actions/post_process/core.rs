@@ -66,10 +66,10 @@ pub async fn execute_llm_request(
     input_data_message: Option<&str>,
     fallback_message: Option<&str>,
     history: Vec<String>,
-    app_name: Option<String>,
-    window_title: Option<String>,
-    match_pattern: Option<String>,
-    match_type: Option<crate::settings::TitleMatchType>,
+    _app_name: Option<String>,
+    _window_title: Option<String>,
+    _match_pattern: Option<String>,
+    _match_type: Option<crate::settings::TitleMatchType>,
 ) -> (Option<String>, bool) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -88,24 +88,8 @@ pub async fn execute_llm_request(
                 final_prompt = format!("{}\n\n{}", final_prompt, input_data);
             }
             if !history.is_empty() {
-                let context_label =
-                    if let (Some(pattern), Some(mtype)) = (&match_pattern, &match_type) {
-                        format!(
-                            "规则: \"{}\" ({})",
-                            pattern,
-                            match mtype {
-                                crate::settings::TitleMatchType::Text => "文本包含",
-                                crate::settings::TitleMatchType::Regex => "正则匹配",
-                            }
-                        )
-                    } else {
-                        format!("窗口: \"{}\"", window_title.clone().unwrap_or_default())
-                    };
-
                 let context_block = format!(
-                    "\n\n以下是对话的历史识别结果（来自应用 \"{}\"，{}），仅用于提供上下文，请勿修改：\n{}\n\n",
-                    app_name.clone().unwrap_or_default(),
-                    context_label,
+                    "\n\n[ASR上下文] 当前应用近期识别的上下文,用于推断讨论的领域和话题,仅供语境参考。\n{}\n\n",
                     history
                         .iter()
                         .map(|s| format!("- {}", s))
@@ -158,50 +142,34 @@ pub async fn execute_llm_request(
     // Build messages list
     let mut messages: Vec<async_openai::types::ChatCompletionRequestMessage> = Vec::new();
 
-    // 2. Add history as a single User message context block
-    if !history.is_empty() {
-        let context_label = if let (Some(pattern), Some(mtype)) = (&match_pattern, &match_type) {
-            format!(
-                "规则: \"{}\" ({})",
-                pattern,
-                match mtype {
-                    crate::settings::TitleMatchType::Text => "文本包含",
-                    crate::settings::TitleMatchType::Regex => "正则匹配",
-                }
-            )
-        } else {
-            format!("窗口: \"{}\"", window_title.clone().unwrap_or_default())
-        };
+    // 1. System message: processing instructions
+    if let Ok(sys_msg) = async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
+        .content(prompt_content.to_string())
+        .build()
+    {
+        messages.push(async_openai::types::ChatCompletionRequestMessage::System(
+            sys_msg,
+        ));
+    }
 
+    // 2. History context as a separate System message (reference only)
+    if !history.is_empty() {
         let history_block = format!(
-            "以下是对话的历史识别结果（来自应用 \"{}\"，{}），仅用于提供上下文，请勿修改：\n\n{}",
-            app_name.clone().unwrap_or_default(),
-            context_label,
+            "[ASR上下文] 当前应用近期识别的上下文,用于推断讨论的领域和话题,仅供语境参考。\n{}",
             history.join("\n")
         );
 
-        if let Ok(ctx_msg) = async_openai::types::ChatCompletionRequestUserMessageArgs::default()
+        if let Ok(ctx_msg) = async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
             .content(history_block)
             .build()
         {
-            messages.push(async_openai::types::ChatCompletionRequestMessage::User(
+            messages.push(async_openai::types::ChatCompletionRequestMessage::System(
                 ctx_msg,
             ));
         }
     }
 
-    // 3. Add current prompt as System message (instructions for the model)
-    if let Ok(sys_msg) = async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
-        .content(prompt_content.to_string())
-        .build()
-    {
-        messages.insert(
-            0,
-            async_openai::types::ChatCompletionRequestMessage::System(sys_msg),
-        );
-    }
-
-    // 4. Add input data as a separate User message if provided
+    // 3. User message: actual input data to process (transcription + hotwords)
     if let Some(input_data) = input_data_message {
         if let Ok(input_msg) = async_openai::types::ChatCompletionRequestUserMessageArgs::default()
             .content(input_data.to_string())
@@ -213,7 +181,7 @@ pub async fn execute_llm_request(
         }
     }
 
-    // 5. Add fallback message if provided (when prompt doesn't reference output/select)
+    // 4. Fallback: raw transcription when prompt doesn't reference output/select
     if let Some(fallback) = fallback_message {
         if let Ok(fallback_msg) =
             async_openai::types::ChatCompletionRequestUserMessageArgs::default()
@@ -264,6 +232,14 @@ pub async fn execute_llm_request(
             }
         }
     }
+
+    info!(
+        "[LLM] Post-process request: provider={}, model={}, url={}/chat/completions\n{}",
+        provider.id,
+        model,
+        provider.base_url.trim_end_matches('/'),
+        serde_json::to_string_pretty(&body).unwrap_or_else(|_| body.to_string())
+    );
 
     // Manual HTTP request to allow arbitrary parameters and handle response flexibly
     let base_url = provider.base_url.trim_end_matches('/');
@@ -316,7 +292,11 @@ pub async fn execute_llm_request(
                                     info!("[LLM] Received reasoning content (len={})", r.len());
                                 }
 
-                                info!("[LLM] Response content len={}", content.len());
+                                info!(
+                                    "[LLM] Post-process raw response ({} chars):\n{}",
+                                    content.len(),
+                                    content
+                                );
 
                                 let text = extract_llm_text(&content);
                                 return (Some(text), false);

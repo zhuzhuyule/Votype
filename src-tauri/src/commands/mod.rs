@@ -399,6 +399,8 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                         None,
                         output_mode,
                         skill_name,
+                        prompt_id.clone(),
+                        model.clone(),
                     );
                 }
                 crate::settings::SkillOutputMode::Polish => {

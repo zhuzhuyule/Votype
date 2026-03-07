@@ -897,6 +897,7 @@ impl ShortcutAction for TranscribeAction {
                                             history_id,
                                             output_mode,
                                             None,
+                                            override_prompt_id.clone(),
                                         );
 
                                         // Hide overlay since review window is now visible
@@ -962,7 +963,7 @@ impl ShortcutAction for TranscribeAction {
                                         &chinese_converted_text,
                                         secondary.as_deref(),
                                         true,
-                                        override_prompt_id,
+                                        override_prompt_id.clone(),
                                         active_window_snapshot_for_review
                                             .as_ref()
                                             .map(|info| info.app_name.clone()),
@@ -1032,8 +1033,12 @@ impl ShortcutAction for TranscribeAction {
                                 };
 
                                 let should_review =
+                                    // If post-processing was skipped, never show review window
+                                    if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
+                                        false
+                                    }
                                     // Chat mode always shows review window
-                                    if output_mode == crate::settings::PromptOutputMode::Chat {
+                                    else if output_mode == crate::settings::PromptOutputMode::Chat {
                                         true
                                     } else {
                                         match app_policy {
@@ -1089,7 +1094,32 @@ impl ShortcutAction for TranscribeAction {
                                                     };
 
                                                     if let Some(result) = llm_result {
-                                                        confidence_reason = result.reason;
+                                                        confidence_reason = result.format_reason();
+
+                                                        // Auto-record hotword candidates as suggestions
+                                                        let hotword_candidates = result.hotword_candidates();
+                                                        if !hotword_candidates.is_empty() {
+                                                            if let Some(hm_state) = ah_clone.try_state::<Arc<crate::managers::history::HistoryManager>>() {
+                                                                let hotword_manager = crate::managers::HotwordManager::new(hm_state.db_path.clone());
+                                                                for c in &hotword_candidates {
+                                                                    let category = c.category.as_deref().unwrap_or("term");
+                                                                    if let Err(e) = hotword_manager.record_auto_learned_suggested(
+                                                                        &c.corrected,
+                                                                        &c.original,
+                                                                        category,
+                                                                    ) {
+                                                                        error!("[ConfidenceCheck] Failed to record hotword suggestion: {}", e);
+                                                                    }
+                                                                }
+                                                                info!(
+                                                                    "[ConfidenceCheck] Recorded {} hotword suggestions from confidence check",
+                                                                    hotword_candidates.len()
+                                                                );
+                                                                // Notify frontend about new suggestions
+                                                                ah_clone.emit("hotword-suggestions-updated", ()).ok();
+                                                            }
+                                                        }
+
                                                         result.confidence < threshold
                                                     } else {
                                                         // Fallback: use change_percent
@@ -1139,6 +1169,10 @@ impl ShortcutAction for TranscribeAction {
                                         confidence_reason.clone(),
                                         output_mode,
                                         None, // No skill_name for confidence review
+                                        post_process_prompt_id
+                                            .clone()
+                                            .or(override_prompt_id.clone()),
+                                        used_model.clone(),
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);
