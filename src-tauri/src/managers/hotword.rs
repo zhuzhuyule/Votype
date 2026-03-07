@@ -151,7 +151,7 @@ impl HotwordManager {
         Ok(filtered)
     }
 
-    /// Add a new hotword
+    /// Add a new hotword (with case-insensitive dedup)
     pub fn add(
         &self,
         target: String,
@@ -161,6 +161,72 @@ impl HotwordManager {
     ) -> Result<Hotword> {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
+
+        // Case-insensitive duplicate check
+        let existing: Option<(i64, String, String, String, String, bool, i64, Option<i64>, i64, i64, String, String)> = conn
+            .query_row(
+                "SELECT id, target, originals, category, scenarios, user_override, use_count, last_used_at, false_positive_count, created_at, status, source FROM hotwords WHERE LOWER(target) = LOWER(?1)",
+                params![target],
+                |row| Ok((
+                    row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
+                    row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?,
+                    row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?,
+                )),
+            )
+            .ok();
+
+        if let Some((
+            id,
+            existing_target,
+            existing_originals_json,
+            existing_category,
+            existing_scenarios_json,
+            existing_user_override,
+            existing_use_count,
+            existing_last_used_at,
+            existing_fp_count,
+            existing_created_at,
+            existing_status,
+            existing_source,
+        )) = existing
+        {
+            // Merge originals into existing hotword
+            let mut existing_originals: Vec<String> =
+                serde_json::from_str(&existing_originals_json).unwrap_or_default();
+            for orig in &originals {
+                if !existing_originals
+                    .iter()
+                    .any(|o| o.eq_ignore_ascii_case(orig))
+                {
+                    existing_originals.push(orig.clone());
+                }
+            }
+            let merged_json = serde_json::to_string(&existing_originals)?;
+            conn.execute(
+                "UPDATE hotwords SET originals = ?1 WHERE id = ?2",
+                params![merged_json, id],
+            )?;
+            info!(
+                "[Hotword] Merged into existing hotword \"{}\" (id={}), originals: {:?}",
+                existing_target, id, existing_originals
+            );
+            let existing_scenarios: Vec<HotwordScenario> =
+                serde_json::from_str(&existing_scenarios_json).unwrap_or_default();
+            return Ok(Hotword {
+                id,
+                target: existing_target,
+                originals: existing_originals,
+                category: existing_category,
+                scenarios: existing_scenarios,
+                user_override: existing_user_override,
+                use_count: existing_use_count,
+                last_used_at: existing_last_used_at,
+                false_positive_count: existing_fp_count,
+                created_at: existing_created_at,
+                status: existing_status,
+                source: existing_source,
+            });
+        }
 
         // Infer category if not provided
         let final_category = category
@@ -457,6 +523,9 @@ impl HotwordManager {
 
         let mut output = String::new();
 
+        output.push_str("[ASR专有名词校正]\n");
+        output.push_str("语音识别常将专有名词误识别为发音相似的文字。以下按类别列出用户定义的专有名词，括号内为已知的常见误识别形式。\n\n");
+
         for cat_id in &cat_keys {
             let items = &groups[cat_id];
             let label = cat_map
@@ -464,22 +533,26 @@ impl HotwordManager {
                 .map(|m| m.label.as_str())
                 .unwrap_or(cat_id.as_str());
 
-            output.push_str(&format!("【{}】\n", label));
-            for h in items {
-                if h.originals.is_empty() {
-                    output.push_str(&format!("- {}\n", h.target));
-                } else {
-                    output.push_str(&format!("- {} ({})\n", h.target, h.originals.join(", ")));
-                }
-            }
-            output.push('\n');
+            // Compact comma-separated format: 类别: word1(orig1,orig2),word2,word3
+            let entries: Vec<String> = items
+                .iter()
+                .map(|h| {
+                    if h.originals.is_empty() {
+                        h.target.clone()
+                    } else {
+                        format!("{}({})", h.target, h.originals.join(","))
+                    }
+                })
+                .collect();
+            output.push_str(&format!("{}: {}\n", label, entries.join(", ")));
         }
 
-        // Add judgment rules
-        output.push_str("【判断规则】\n");
-        output.push_str("- 括号内为常见误识别形式，遇到时请替换为正确词汇\n");
-        output.push_str("- 仅在语境合适时使用上述词汇\n");
-        output.push_str("- 如不确定，保留原始转写\n");
+        output.push_str("\n校正规则:\n");
+        output.push_str("- 遇到括号内的已知误识别形式时，替换为对应的正确词汇\n");
+        output.push_str("- 未标注括号的词，也请主动识别发音相似(同音/近音/谐音)的误识别\n");
+        output.push_str("- 人名类: 仅在谈论人物的语境中替换，避免将普通词汇误判为人名\n");
+        output.push_str("- 术语/品牌/缩写类: 仅在相关技术或产品讨论的语境中替换\n");
+        output.push_str("- 不确定时保留原文，避免过度校正\n");
 
         debug!(
             "[Hotword] Built LLM injection for scenario {:?}: {} chars",
@@ -732,6 +805,16 @@ impl HotwordManager {
             return;
         }
 
+        info!(
+            "[Hotword] LLM correction analysis: {} corrections to analyze: [{}]",
+            corrections.len(),
+            corrections
+                .iter()
+                .map(|(o, c)| format!("\"{}\" → \"{}\"", o, c))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+
         use crate::llm_client;
         use crate::managers::prompt::{self, PromptManager};
         use crate::settings::get_settings;
@@ -743,43 +826,68 @@ impl HotwordManager {
 
         let settings = get_settings(&app_handle);
 
-        // Need a configured LLM provider and model
-        let provider = match settings.active_post_process_provider() {
-            Some(p) => p.clone(),
-            None => {
-                debug!(
-                    "[Hotword] No active post-process provider, skipping LLM correction analysis"
-                );
-                return;
+        // Resolve provider and model via CachedModel (same as main pipeline)
+        let (provider, api_key, model) = {
+            // Try selected_prompt_model_id first (it's a CachedModel.id UUID)
+            if let Some(cm_id) = &settings.selected_prompt_model_id {
+                if let Some(cm) = settings.get_cached_model(cm_id) {
+                    let prov = settings
+                        .post_process_providers
+                        .iter()
+                        .find(|p| p.id == cm.provider_id);
+                    if let Some(p) = prov {
+                        let key = settings
+                            .post_process_api_keys
+                            .get(&p.id)
+                            .cloned()
+                            .unwrap_or_default();
+                        (p.clone(), key, cm.model_id.clone())
+                    } else {
+                        info!(
+                            "[Hotword] Provider {} not found for cached model {}, skipping LLM correction analysis",
+                            cm.provider_id, cm_id
+                        );
+                        return;
+                    }
+                } else {
+                    info!(
+                        "[Hotword] Cached model {} not found, skipping LLM correction analysis",
+                        cm_id
+                    );
+                    return;
+                }
+            } else {
+                // Fallback to active provider + default model
+                let prov = match settings.active_post_process_provider() {
+                    Some(p) => p.clone(),
+                    None => {
+                        info!("[Hotword] No active post-process provider, skipping LLM correction analysis");
+                        return;
+                    }
+                };
+                let key = settings
+                    .post_process_api_keys
+                    .get(&prov.id)
+                    .cloned()
+                    .unwrap_or_default();
+                let mdl = settings
+                    .post_process_models
+                    .get(&prov.id)
+                    .cloned()
+                    .unwrap_or_default();
+                if mdl.is_empty() {
+                    info!("[Hotword] No model configured, skipping LLM correction analysis");
+                    return;
+                }
+                (prov, key, mdl)
             }
         };
 
-        let api_key = settings
-            .post_process_api_keys
-            .get(&provider.id)
-            .cloned()
-            .unwrap_or_default();
         if api_key.is_empty() {
-            debug!(
+            info!(
                 "[Hotword] No API key for provider {}, skipping LLM correction analysis",
                 provider.id
             );
-            return;
-        }
-
-        // Use selected prompt model or default post-process model
-        let model = settings
-            .selected_prompt_model_id
-            .as_deref()
-            .or_else(|| {
-                settings
-                    .post_process_models
-                    .get(&provider.id)
-                    .map(|s| s.as_str())
-            })
-            .unwrap_or_default();
-        if model.is_empty() {
-            debug!("[Hotword] No model configured, skipping LLM correction analysis");
             return;
         }
 
@@ -800,9 +908,20 @@ impl HotwordManager {
             .collect::<Vec<_>>()
             .join("\n");
 
+        info!(
+            "[Hotword] LLM correction analysis: provider={}, model={}, corrections_text_len={}",
+            provider.id,
+            model,
+            corrections_text.len()
+        );
+
         let mut vars = HashMap::new();
         vars.insert("corrections", corrections_text);
         let system_prompt = prompt::substitute_variables(&template, &vars);
+        info!(
+            "[Hotword] LLM correction analysis prompt:\n{}",
+            system_prompt
+        );
 
         // Create LLM client and call
         let client = match llm_client::create_client(&provider, api_key) {
@@ -860,8 +979,9 @@ impl HotwordManager {
         };
 
         info!(
-            "[Hotword] LLM correction analysis response: {} chars",
-            content.len()
+            "[Hotword] LLM correction analysis raw response ({} chars):\n{}",
+            content.len(),
+            content
         );
 
         // Extract JSON from response
@@ -895,6 +1015,13 @@ impl HotwordManager {
             }
         };
 
+        for item in &items {
+            info!(
+                "[Hotword] LLM classified: \"{}\" → \"{}\" = {} (category: {:?})",
+                item.original, item.corrected, item.correction_type, item.category
+            );
+        }
+
         // Record ASR errors as suggested hotwords
         let hotword_manager = HotwordManager::new(db_path);
         let mut created_count = 0;
@@ -902,6 +1029,10 @@ impl HotwordManager {
         for item in &items {
             if item.correction_type == "asr_error" {
                 let category = item.category.as_deref().unwrap_or("term");
+                info!(
+                    "[Hotword] Recording LLM suggestion: \"{}\" (original: \"{}\", category: {})",
+                    item.corrected, item.original, category
+                );
                 if let Err(e) = hotword_manager.record_auto_learned_suggested(
                     &item.corrected,
                     &item.original,
