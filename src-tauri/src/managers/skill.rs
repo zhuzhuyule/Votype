@@ -17,6 +17,9 @@ struct SkillFrontmatter {
     icon: Option<String>,
     #[serde(default)]
     locked: bool,
+    #[serde(default)]
+    confidence_check_enabled: bool,
+    confidence_threshold: Option<u8>,
 }
 
 /// Template for creating new skills
@@ -446,8 +449,8 @@ impl SkillManager {
             icon: fm.icon,
             skill_type: fm.skill_type,
             source,
-            confidence_check_enabled: false,
-            confidence_threshold: Some(70),
+            confidence_check_enabled: fm.confidence_check_enabled,
+            confidence_threshold: fm.confidence_threshold.or(Some(70)),
             output_mode,
             enabled: true,
             customized: false,
@@ -501,6 +504,13 @@ impl SkillManager {
 
         if skill.locked {
             frontmatter.push_str("locked: true\n");
+        }
+
+        if skill.confidence_check_enabled {
+            frontmatter.push_str("confidence_check_enabled: true\n");
+        }
+        if let Some(threshold) = skill.confidence_threshold {
+            frontmatter.push_str(&format!("confidence_threshold: {}\n", threshold));
         }
 
         frontmatter.push_str("---\n\n");
