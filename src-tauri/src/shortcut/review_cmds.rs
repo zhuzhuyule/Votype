@@ -106,7 +106,7 @@ pub async fn rerun_single_with_prompt(
     app: AppHandle,
     prompt_id: String,
     source_text: String,
-    _history_id: Option<i64>,
+    history_id: Option<i64>,
     model_id: Option<String>,
 ) -> Result<RerunSingleResult, String> {
     let settings = settings::get_settings(&app);
@@ -124,6 +124,11 @@ pub async fn rerun_single_with_prompt(
         prompt.model_id = model_id;
     }
 
+    // Get active window info for context
+    let active_window = crate::review_window::get_last_active_window();
+    let ctx_app_name = active_window.as_ref().map(|w| w.app_name.clone());
+    let ctx_window_title = active_window.as_ref().map(|w| w.title.clone());
+
     // Call post_process_text_with_prompt to reprocess
     let (result, model_used, _prompt_id, err) =
         crate::actions::post_process::post_process_text_with_prompt(
@@ -133,6 +138,9 @@ pub async fn rerun_single_with_prompt(
             None,
             &prompt,
             false,
+            ctx_app_name,
+            ctx_window_title,
+            history_id,
         )
         .await;
 
@@ -169,15 +177,28 @@ pub struct PromptListResponse {
 #[specta::specta]
 pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
     let settings = settings::get_settings(&app);
-    let prompts = settings
+
+    // Collect prompts and deduplicate by both id AND name
+    let mut seen_ids = std::collections::HashSet::new();
+    let mut seen_names = std::collections::HashSet::new();
+    let prompts: Vec<PromptInfo> = settings
         .post_process_prompts
         .iter()
         .filter(|p| p.enabled)
+        .filter(|p| {
+            // Deduplicate by id first (primary key)
+            if !seen_ids.insert(p.id.clone()) {
+                return false;
+            }
+            // Then also deduplicate by name to avoid duplicate entries in UI
+            seen_names.insert(p.name.clone())
+        })
         .map(|p| PromptInfo {
             id: p.id.clone(),
             name: p.name.clone(),
         })
         .collect();
+
     PromptListResponse {
         prompts,
         selected_id: settings.post_process_selected_prompt_id.clone(),

@@ -242,6 +242,278 @@
   border-color: var(--gray-8);
 }
 
+/* Diff toggle button */
+.review-diff-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gray-8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.review-diff-toggle:hover {
+  background: var(--gray-4);
+  color: var(--gray-11);
+}
+
+.review-diff-toggle.active {
+  color: var(--accent-10);
+  background: color-mix(in srgb, var(--accent-4) 50%, transparent);
+  border-color: color-mix(in srgb, var(--accent-6) 40%, transparent);
+}
+
+/* Insert original button */
+.review-insert-original-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--gray-6);
+  background: var(--gray-2);
+  color: var(--gray-11);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.review-insert-original-btn:hover {
+  background: var(--gray-3);
+  border-color: var(--gray-7);
+  color: var(--gray-12);
+}
+
+.review-insert-original-btn:active {
+  background: var(--gray-4);
+  transform: scale(0.98);
+}
+
+/* Translate button */
+.review-translate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--gray-8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.review-translate-btn:hover:not(:disabled) {
+  background: var(--gray-4);
+  color: var(--gray-11);
+}
+
+.review-translate-btn:disabled {
+  cursor: not-allowed;
+}
+
+.review-translate-btn.loading {
+  color: var(--accent-10);
+}
+
+/* Spinning animation for loading icon */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* Source inline with hover insert button */
+.review-source-inline {
+  position: relative;
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-radius: 6px;
+  background: var(--gray-2);
+  border: 1px solid var(--gray-5);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--gray-11);
+}
+
+.review-source-insert-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--gray-6);
+  background: var(--gray-1);
+  color: var(--gray-11);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.review-source-insert-btn:hover {
+  background: var(--accent-3);
+  border-color: var(--accent-7);
+  color: var(--accent-11);
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Translation panel */
+.review-translation-panel {
+  margin: 12px 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--gray-2);
+  border: 1px solid var(--gray-5);
+}
+
+.review-translation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.review-translation-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.review-translation-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-11);
+}
+
+/* Deviation level badge */
+.review-deviation-badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.review-deviation-none {
+  background: var(--green-3);
+  color: var(--green-11);
+  border: 1px solid var(--green-6);
+}
+
+.review-deviation-minor {
+  background: var(--amber-3);
+  color: var(--amber-11);
+  border: 1px solid var(--amber-6);
+}
+
+.review-deviation-major {
+  background: var(--red-3);
+  color: var(--red-11);
+  border: 1px solid var(--red-6);
+}
+
+.review-translation-close {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--gray-10);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+
+.review-translation-close:hover {
+  background: var(--gray-4);
+  color: var(--gray-12);
+}
+
+.review-translation-content {
+  position: relative;
+  padding: 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--gray-12);
+  background: var(--gray-1);
+  border-radius: 6px;
+  border: 1px solid var(--gray-4);
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.review-translation-insert-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--gray-6);
+  background: var(--gray-1);
+  color: var(--gray-11);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.review-translation-insert-btn:hover {
+  background: var(--accent-3);
+  border-color: var(--accent-7);
+  color: var(--accent-11);
+  transform: scale(1.1);
+}
+
+.review-translation-analysis {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--gray-5);
+}
+
+.review-translation-analysis-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-11);
+  margin-bottom: 6px;
+}
+
+.review-translation-analysis-content {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--gray-10);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* Close button enhancement */
 .review-close-btn {
   width: 24px;
@@ -958,17 +1230,20 @@
   scrollbar-color: auto;
 }
 
-.diff-mark {
+.diff-mark,
+span[data-diff-level] {
   padding: 0 2px;
   border-radius: 4px;
 }
 
-.diff-minor {
+.diff-minor,
+span[data-diff-level="minor"] {
   background: color-mix(in srgb, var(--amber-4) 80%, transparent);
   color: var(--amber-11);
 }
 
-.diff-major {
+.diff-major,
+span[data-diff-level="major"] {
   background: color-mix(in srgb, var(--ruby-4) 80%, transparent);
   color: var(--ruby-11);
 }

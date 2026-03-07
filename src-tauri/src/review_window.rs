@@ -29,6 +29,10 @@ struct ReviewWindowPayload {
     reason: Option<String>,
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
+    /// The prompt_id that was actually used for this transcription (may be overridden by app rules)
+    prompt_id: Option<String>,
+    /// The model_id that was actually used for this transcription
+    model_id: Option<String>,
 }
 
 /// Multi-model post-processing candidate result
@@ -52,6 +56,8 @@ pub struct ReviewWindowMultiCandidatePayload {
     pub history_id: Option<i64>,
     pub output_mode: PromptOutputMode,
     pub skill_name: Option<String>,
+    /// The prompt_id that was actually used for this transcription (may be overridden by app rules)
+    pub prompt_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -351,6 +357,8 @@ pub fn show_review_window(
     reason: Option<String>,
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
+    prompt_id: Option<String>,
+    model_id: Option<String>,
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     let had_visible_windows = record_hidden_windows(app_handle);
@@ -381,6 +389,8 @@ pub fn show_review_window(
         reason,
         output_mode,
         skill_name,
+        prompt_id,
+        model_id,
     };
 
     {
@@ -528,6 +538,7 @@ pub fn show_review_window_with_candidates(
     history_id: Option<i64>,
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
+    prompt_id: Option<String>,
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     let had_visible_windows = record_hidden_windows(app_handle);
@@ -545,6 +556,7 @@ pub fn show_review_window_with_candidates(
     }
 
     let candidate_count = candidates.len() as f64;
+    let char_count = source_text.chars().count();
 
     let payload = ReviewWindowMultiCandidatePayload {
         source_text,
@@ -552,6 +564,7 @@ pub fn show_review_window_with_candidates(
         history_id,
         output_mode,
         skill_name,
+        prompt_id,
     };
 
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
@@ -561,11 +574,11 @@ pub fn show_review_window_with_candidates(
         // Width: use 65% of screen width for multi-candidate, generous space for text
         let width = (screen_w * 0.65).clamp(680.0, REVIEW_WINDOW_MAX_WIDTH);
 
-        // Height: sized to content based on actual candidate count
-        // header(40) + footer(40) + content-padding(6) + source-inline(44) + gap(8)
-        // + each candidate: ~120px (header + single-line content + border + gap)
-        let per_candidate = 110.0;
-        let desired_height = 40.0 + 40.0 + 6.0 + 44.0 + 8.0 + candidate_count * per_candidate;
+        // Height: (n+1) * per_item
+        // Base 110px per slot; add 20px per 100 chars of source text for longer content
+        let extra = (char_count / 100) as f64 * 20.0;
+        let per_item = 110.0 + extra;
+        let desired_height = (candidate_count + 1.0) * per_item;
         let height = desired_height.clamp(REVIEW_WINDOW_MIN_HEIGHT, screen_h * 0.85);
 
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));

@@ -263,6 +263,21 @@ const buildTargetHtml = (
   return html;
 };
 
+export const computeChangePercent = (
+  source: string,
+  target: string,
+): number => {
+  const { targetLevels } = computeDiffAnnotations(source, target);
+  if (targetLevels.length === 0) return 0;
+  const changed = targetLevels.filter((l) => l !== null).length;
+  return Math.round((changed / targetLevels.length) * 100);
+};
+
+export const buildPlainViews = (source: string, target: string) => ({
+  sourceHtml: escapeHtmlWithBreaks(source),
+  targetHtml: escapeHtmlWithBreaks(target),
+});
+
 export const buildDiffViews = (source: string, target: string) => {
   const start = performance.now();
   const { sourceStatuses, targetLevels } = computeDiffAnnotations(

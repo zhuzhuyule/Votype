@@ -1,7 +1,8 @@
 // Multi-model candidate panel container
 
 import { ScrollArea } from "@radix-ui/themes";
-import React from "react";
+import { IconTextPlus } from "@tabler/icons-react";
+import React, { useState } from "react";
 import { CandidatePanel, MultiModelCandidate } from "./CandidatePanel";
 
 interface MultiCandidateViewProps {
@@ -14,6 +15,7 @@ interface MultiCandidateViewProps {
   onEditEnd: () => void;
   onTextChange: (candidateId: string, text: string) => void;
   onInsert: (text: string, candidateId: string) => void;
+  onInsertOriginal?: () => void;
 }
 
 export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
@@ -26,7 +28,9 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   onEditEnd,
   onTextChange,
   onInsert,
+  onInsertOriginal,
 }) => {
+  const [isSourceHovered, setIsSourceHovered] = useState(false);
   const maxTime = Math.max(...candidates.map((c) => c.processing_time_ms), 1);
 
   // Compute time ranking: fastest = 1
@@ -39,8 +43,23 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   return (
     <div className="review-multi-content">
       <ScrollArea scrollbars="vertical" className="multi-candidates-panels">
-        {/* Source transcription as a simple inline frame */}
-        <div className="review-source-inline">{sourceText || "—"}</div>
+        {/* Source transcription as a simple inline frame with hover insert button */}
+        <div
+          className="review-source-inline"
+          onMouseEnter={() => setIsSourceHovered(true)}
+          onMouseLeave={() => setIsSourceHovered(false)}
+        >
+          {sourceText || "—"}
+          {isSourceHovered && onInsertOriginal && (
+            <button
+              className="review-source-insert-btn"
+              onClick={onInsertOriginal}
+              title="插入原文 (Tab)"
+            >
+              <IconTextPlus size={16} />
+            </button>
+          )}
+        </div>
 
         {candidates.map((candidate, index) => (
           <CandidatePanel

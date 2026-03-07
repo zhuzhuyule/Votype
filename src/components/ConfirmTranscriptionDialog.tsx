@@ -41,7 +41,7 @@ export const ConfirmTranscriptionDialog: React.FC<
     try {
       await invoke("confirm_reviewed_transcription", {
         text: editedText.trim(),
-        history_id: reviewData.history_id,
+        historyId: reviewData.history_id,
       });
       onClose();
     } catch (e) {
@@ -59,7 +59,7 @@ export const ConfirmTranscriptionDialog: React.FC<
       const trimmed = editedText.trim();
       await invoke("cancel_transcription_review", {
         text: trimmed.length > 0 ? trimmed : null,
-        history_id: reviewData?.history_id ?? null,
+        historyId: reviewData?.history_id ?? null,
       });
       onClose();
     } catch (e) {

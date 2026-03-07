@@ -1,15 +1,22 @@
 // Header with prompt/model selector and close button
 
+import {
+  IconEye,
+  IconEyeOff,
+  IconLanguage,
+  IconLoader2,
+} from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { Editor } from "@tiptap/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { CancelIcon } from "../components/icons";
-import { buildDiffViews } from "./diff-utils";
 
 export interface PromptInfo {
   id: string;
   name: string;
+  /** Special flag to indicate skipping post-processing */
+  isSkipPostProcess?: boolean;
 }
 
 export interface ReviewModelOption {
@@ -30,14 +37,20 @@ interface ReviewHeaderProps {
   sourceText: string;
   historyId: number | null;
   editor: Editor | null;
+  showDiff?: boolean;
+  onShowDiffChange?: (show: boolean) => void;
   onPromptChange: (promptId: string) => void;
   onModelChange: (modelId: string) => void;
   onCancel: () => void;
+  onInsertOriginal: () => void;
+  onTranslate: () => void;
+  isTranslating?: boolean;
   onSourceHtmlChange: (html: string) => void;
   onModelNameChange: (name: string) => void;
   onRerunStart: () => void;
   onRerunEnd: () => void;
   onMeasureAndResize: (reposition: boolean) => void;
+  onRerunResult?: (text: string) => void;
 }
 
 export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
@@ -51,14 +64,20 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
   sourceText,
   historyId,
   editor,
+  showDiff,
+  onShowDiffChange,
   onPromptChange,
   onModelChange,
   onCancel,
+  onInsertOriginal,
+  onTranslate,
+  isTranslating,
   onSourceHtmlChange,
   onModelNameChange,
   onRerunStart,
   onRerunEnd,
   onMeasureAndResize,
+  onRerunResult,
 }) => {
   const { t } = useTranslation();
 
@@ -66,6 +85,10 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
     onPromptChange(newId);
     onRerunStart();
     try {
+      // Save user's prompt selection as new default
+      if (newId !== "__skip__") {
+        await invoke("set_post_process_selected_prompt", { id: newId });
+      }
       await invoke("rerun_multi_model_with_prompt", {
         promptId: newId,
         sourceText,
@@ -81,6 +104,10 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
     onPromptChange(newId);
     onRerunStart();
     try {
+      // Save user's prompt selection as new default
+      if (newId !== "__skip__") {
+        await invoke("set_post_process_selected_prompt", { id: newId });
+      }
       const resp = await invoke<{
         text: string | null;
         error: string | null;
@@ -92,13 +119,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
         modelId: selectedModelId || null,
       });
       if (resp.model) onModelNameChange(resp.model);
-      if (resp.text && editor) {
-        const views = buildDiffViews(sourceText, resp.text);
-        editor.commands.setContent(views.targetHtml, {
-          emitUpdate: false,
-        });
-        onSourceHtmlChange(views.sourceHtml);
-        setTimeout(() => onMeasureAndResize(false), 16);
+      if (resp.text) {
+        onRerunResult?.(resp.text);
       }
     } catch (err) {
       console.error("Failed to rerun:", err);
@@ -122,13 +144,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
         modelId: newModelId || null,
       });
       if (resp.model) onModelNameChange(resp.model);
-      if (resp.text && editor) {
-        const views = buildDiffViews(sourceText, resp.text);
-        editor.commands.setContent(views.targetHtml, {
-          emitUpdate: false,
-        });
-        onSourceHtmlChange(views.sourceHtml);
-        setTimeout(() => onMeasureAndResize(false), 16);
+      if (resp.text) {
+        onRerunResult?.(resp.text);
       }
     } catch (err) {
       console.error("Failed to rerun:", err);
@@ -151,6 +168,10 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
               onChange={(e) => handlePromptChangeMulti(e.target.value)}
               onPointerDown={(e) => e.stopPropagation()}
             >
+              {/* Skip post-process option */}
+              <option value="__skip__">
+                {t("transcription.review.skipPostProcess", "不使用润色")}
+              </option>
               {prompts.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -202,6 +223,10 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             onChange={(e) => handlePromptChangeSingle(e.target.value)}
             onPointerDown={(e) => e.stopPropagation()}
           >
+            {/* Skip post-process option */}
+            <option value="__skip__">
+              {t("transcription.review.skipPostProcess", "不使用润色")}
+            </option>
             {prompts.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -230,6 +255,39 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             ))}
           </select>
         )}
+        <div
+          className="review-tooltip review-tooltip-bottom"
+          data-tooltip={
+            showDiff
+              ? t("transcription.review.hideDiff", "隐藏差异标注")
+              : t("transcription.review.showDiff", "显示差异标注")
+          }
+        >
+          <button
+            className={`review-diff-toggle${showDiff ? " active" : ""}`}
+            onClick={() => onShowDiffChange?.(!showDiff)}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {showDiff ? <IconEye size={14} /> : <IconEyeOff size={14} />}
+          </button>
+        </div>
+        <div
+          className="review-tooltip review-tooltip-bottom"
+          data-tooltip={t("transcription.review.translateText", "翻译查看")}
+        >
+          <button
+            className={`review-translate-btn ${isTranslating ? "loading" : ""}`}
+            onClick={onTranslate}
+            onPointerDown={(e) => e.stopPropagation()}
+            disabled={isTranslating}
+          >
+            {isTranslating ? (
+              <IconLoader2 size={14} className="spinning" />
+            ) : (
+              <IconLanguage size={14} />
+            )}
+          </button>
+        </div>
       </div>
       <div className="review-close-button review-close-btn" onClick={onCancel}>
         <CancelIcon />

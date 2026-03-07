@@ -26,8 +26,14 @@ import { MultiCandidateView } from "./MultiCandidateView";
 import { ReviewFooter } from "./ReviewFooter";
 import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
 import "./ReviewWindow.css";
-import { buildDiffViews } from "./diff-utils";
+import {
+  buildDiffViews,
+  buildPlainViews,
+  computeChangePercent,
+} from "./diff-utils";
 import { simpleMarkdownToHtml } from "./markdown-utils";
+
+const DIFF_THRESHOLD = 50;
 
 interface ReviewData {
   source_text: string;
@@ -37,6 +43,8 @@ interface ReviewData {
   reason?: string | null;
   output_mode?: "polish" | "chat";
   skill_name?: string | null;
+  prompt_id?: string | null;
+  model_id?: string | null;
 }
 
 interface ReviewWindowProps {
@@ -203,13 +211,21 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const [defaultModelLabel, setDefaultModelLabel] = useState<string>("");
   const [currentModelName, setCurrentModelName] = useState<string>("");
 
+  // Translation state
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [isTranslationHovered, setIsTranslationHovered] = useState(false);
+
   // Fetch prompts and model options on mount
   useEffect(() => {
     invoke<{ prompts: PromptInfo[]; selected_id: string | null }>(
       "get_post_process_prompts",
     ).then((resp) => {
       setPrompts(resp.prompts);
-      if (resp.selected_id) {
+      // Prioritize the prompt_id from initialData (may be overridden by app rules)
+      if (initialData.prompt_id) {
+        setSelectedPromptId(initialData.prompt_id);
+      } else if (resp.selected_id) {
         setSelectedPromptId(resp.selected_id);
       } else if (resp.prompts.length > 0) {
         setSelectedPromptId(resp.prompts[0].id);
@@ -222,13 +238,20 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         default_model_id: string | null;
       }>("get_review_model_options").then((resp) => {
         setModelOptions(resp.models);
-        if (resp.default_model_id) {
+        // Prioritize the model_id from initialData
+        if (initialData.model_id) {
+          setSelectedModelId(initialData.model_id);
+          const selectedModel = resp.models.find(
+            (m) => m.id === initialData.model_id,
+          );
+          if (selectedModel) setCurrentModelName(selectedModel.label);
+        } else if (resp.default_model_id) {
           const dm = resp.models.find((m) => m.id === resp.default_model_id);
           if (dm) setDefaultModelLabel(dm.label);
         }
       });
     }
-  }, []);
+  }, [initialData]);
 
   // Sync external multiCandidates prop into local state
   // Skip during rerun — ReviewWindow owns local state while rerunning
@@ -314,9 +337,21 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         initialData.final_text
       : initialData.final_text;
 
+  // Diff toggle: auto-off when change_percent >= threshold
+  const [showDiff, setShowDiff] = useState(() => {
+    if (initialData.output_mode === "chat") return false;
+    return (initialData.change_percent ?? 0) < DIFF_THRESHOLD;
+  });
+
+  // Track current final text (updated by rerun results)
+  const [currentFinalText, setCurrentFinalText] = useState(
+    initialData.final_text,
+  );
+
   const [sourceHtml, setSourceHtml] = useState(() => {
     if (initialData.output_mode === "chat") return "";
-    return buildDiffViews(initialData.source_text, currentText).sourceHtml;
+    const build = showDiff ? buildDiffViews : buildPlainViews;
+    return build(initialData.source_text, currentText).sourceHtml;
   });
   const isMac =
     typeof navigator !== "undefined" &&
@@ -325,6 +360,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   // Use refs to access latest callbacks inside Tiptap extension
   const insertRef = useRef<() => void>(() => {});
+  const insertOriginalRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
 
   const measureAndResize = useCallback(async (reposition: boolean) => {
@@ -393,7 +429,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 return true;
               },
               Tab: () => {
-                insertRef.current();
+                insertOriginalRef.current();
                 return true;
               },
               Escape: () => {
@@ -407,8 +443,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       content:
         initialData.output_mode === "chat"
           ? simpleMarkdownToHtml(initialData.final_text)
-          : buildDiffViews(initialData.source_text, initialData.final_text)
-              .targetHtml,
+          : (showDiff ? buildDiffViews : buildPlainViews)(
+              initialData.source_text,
+              initialData.final_text,
+            ).targetHtml,
       editorProps: {
         attributes: {
           class: "review-editor",
@@ -422,17 +460,19 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     renderStartRef.current = performance.now();
     void log("[ReviewWindow] render_start", {
       sourceChars: initialData.source_text.length,
-      targetChars: initialData.final_text.length,
+      targetChars: currentFinalText.length,
       outputMode: initialData.output_mode ?? "polish",
       changePercent: initialData.change_percent,
+      showDiff,
       historyId: initialData.history_id,
     });
   }, [
     initialData.source_text,
-    initialData.final_text,
+    currentFinalText,
     initialData.output_mode,
     initialData.change_percent,
     initialData.history_id,
+    showDiff,
   ]);
 
   useEffect(() => {
@@ -443,12 +483,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     const buildStart = performance.now();
 
     if (initialData.output_mode === "chat") {
-      content = simpleMarkdownToHtml(initialData.final_text.trim());
+      content = simpleMarkdownToHtml(currentFinalText.trim());
     } else {
-      const views = buildDiffViews(
-        initialData.source_text,
-        initialData.final_text,
-      );
+      const build = showDiff ? buildDiffViews : buildPlainViews;
+      const views = build(initialData.source_text, currentFinalText);
       content = views.targetHtml;
       nextSourceHtml = views.sourceHtml;
     }
@@ -456,6 +494,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     const buildDurationMs = Math.round(performance.now() - buildStart);
     void log("[ReviewWindow] content_build_done", {
       outputMode: initialData.output_mode ?? "polish",
+      showDiff,
       buildDurationMs,
       targetHtmlChars: content.length,
       sourceHtmlChars: nextSourceHtml.length,
@@ -469,11 +508,17 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       targetHtmlChars: content.length,
     });
     setSourceHtml(nextSourceHtml);
+    // Multi-model mode: backend already sized the window, skip frontend resize
+    if (!(multiCandidates && multiCandidates.length > 0)) {
+      setTimeout(() => measureAndResize(false), 16);
+    }
   }, [
     editor,
     initialData.source_text,
-    initialData.final_text,
+    currentFinalText,
     initialData.output_mode,
+    showDiff,
+    multiCandidates,
   ]);
 
   useEffect(() => {
@@ -540,8 +585,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     try {
       await invoke("confirm_reviewed_transcription", {
         text: currentText.trim(),
-        history_id: initialData.history_id,
-        cached_model_id: selectedCandidateId || undefined,
+        historyId: initialData.history_id,
+        cachedModelId: selectedCandidateId || undefined,
       });
       onClose();
     } catch (e) {
@@ -557,6 +602,26 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     selectedCandidateId,
   ]);
 
+  // Insert original ASR text directly
+  const handleInsertOriginal = useCallback(async () => {
+    if (isSubmitting || !initialData.source_text.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await invoke("confirm_reviewed_transcription", {
+        text: initialData.source_text.trim(),
+        historyId: initialData.history_id,
+        cachedModelId: undefined,
+      });
+      onClose();
+    } catch (e) {
+      console.error("Failed to insert original text:", e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [initialData.source_text, initialData.history_id, onClose, isSubmitting]);
+
   // Direct insert for a specific candidate text (one-click from hover button)
   const handleDirectInsert = useCallback(
     async (text: string, candidateId?: string) => {
@@ -565,8 +630,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       try {
         await invoke("confirm_reviewed_transcription", {
           text: text.trim(),
-          history_id: initialData.history_id,
-          cached_model_id: candidateId || undefined,
+          historyId: initialData.history_id,
+          cachedModelId: candidateId || undefined,
         });
         onClose();
       } catch (e) {
@@ -578,10 +643,35 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     [initialData.history_id, onClose, isSubmitting],
   );
 
+  // Translate current text with auto language detection and analysis
+  const handleTranslate = useCallback(async () => {
+    const currentText = getEditorText();
+    if (isTranslating || !currentText.trim()) return;
+
+    setIsTranslating(true);
+
+    try {
+      const result = await invoke<{
+        translated_text: string;
+      }>("translate_review_text", {
+        text: currentText.trim(),
+        originalText: initialData.source_text,
+        userLocale: t("common.locale", "zh"), // Get user's locale from i18n
+      });
+      setTranslatedText(result.translated_text);
+    } catch (e) {
+      console.error("Failed to translate text:", e);
+      setTranslatedText(null);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [getEditorText, isTranslating, initialData.source_text, t]);
+
   // Keep refs updated
   useEffect(() => {
     insertRef.current = handleInsert;
-  }, [handleInsert]);
+    insertOriginalRef.current = handleInsertOriginal;
+  }, [handleInsert, handleInsertOriginal]);
 
   const handleCancel = useCallback(() => {
     if (isSubmitting) return;
@@ -594,7 +684,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       try {
         await invoke("cancel_transcription_review", {
           text: trimmed.length > 0 ? trimmed : null,
-          history_id: historyId,
+          historyId,
         });
       } catch (e) {
         console.error("Failed to cancel review:", e);
@@ -627,7 +717,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     if (!displayCandidates || displayCandidates.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl+Enter: insert in both modes
+      // Tab: insert original text
+      if (e.key === "Tab" && !e.shiftKey) {
+        e.preventDefault();
+        insertOriginalRef.current();
+        return;
+      }
+
+      // Cmd/Ctrl+Enter: insert edited/polished text
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
         insertRef.current();
@@ -636,7 +733,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
       if (editingCandidateId === null) {
         // === List Mode ===
-        if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) {
+        if (e.key === "ArrowDown") {
           e.preventDefault();
           const next = getNextReadyCandidate(1);
           if (next) setSelectedCandidateId(next);
@@ -656,9 +753,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       } else {
         // === Edit Mode ===
         if (e.key === "Escape") {
-          e.preventDefault();
-          setEditingCandidateId(null);
-        } else if (e.key === "Tab") {
           e.preventDefault();
           setEditingCandidateId(null);
         }
@@ -736,7 +830,37 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             sourceText={initialData.source_text}
             historyId={initialData.history_id}
             editor={editor}
+            showDiff={showDiff}
+            onShowDiffChange={setShowDiff}
             onPromptChange={(promptId) => {
+              // Update local state to sync dropdown display
+              setSelectedPromptId(promptId);
+
+              // Clear translation panel when changing prompt
+              setTranslatedText(null);
+
+              // Handle skip post-process case
+              if (promptId === "__skip__") {
+                // Use original ASR result directly
+                setCurrentFinalText(initialData.source_text);
+                setSourceHtml(initialData.source_text);
+                setShowDiff(false);
+                setIsRerunning(false);
+                if (multiCandidates && multiCandidates.length > 0) {
+                  handlePromptRerunReset(
+                    promptId,
+                    multiCandidates.map((c) => ({
+                      ...c,
+                      text: initialData.source_text,
+                      confidence: undefined,
+                      processing_time_ms: 0,
+                      error: undefined,
+                      ready: true,
+                    })),
+                  );
+                }
+                return;
+              }
               if (multiCandidates && multiCandidates.length > 0) {
                 // Multi mode: clear old results immediately
                 handlePromptRerunReset(
@@ -754,11 +878,23 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }}
             onModelChange={setSelectedModelId}
             onCancel={handleCancel}
+            onInsertOriginal={handleInsertOriginal}
+            onTranslate={handleTranslate}
+            isTranslating={isTranslating}
             onSourceHtmlChange={setSourceHtml}
             onModelNameChange={setCurrentModelName}
-            onRerunStart={() => setIsRerunning(true)}
+            onRerunStart={() => {
+              setIsRerunning(true);
+              // Clear translation panel when rerunning
+              setTranslatedText(null);
+            }}
             onRerunEnd={() => setIsRerunning(false)}
             onMeasureAndResize={measureAndResize}
+            onRerunResult={(text: string) => {
+              const cp = computeChangePercent(initialData.source_text, text);
+              setShowDiff(cp < DIFF_THRESHOLD);
+              setCurrentFinalText(text);
+            }}
           />
         </div>
 
@@ -775,6 +911,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               setEditedTexts((prev) => ({ ...prev, [candidateId]: text }));
             }}
             onInsert={handleDirectInsert}
+            onInsertOriginal={handleInsertOriginal}
           />
         ) : initialData.output_mode !== "chat" ? (
           <DiffViewPanel
@@ -782,11 +919,49 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             editor={editor}
             isRerunning={isRerunning}
             currentModelName={currentModelName}
+            onInsertOriginal={handleInsertOriginal}
           />
         ) : (
           <div className="review-content-area">
             <div className="review-section review-section-final review-section-no-title">
               <EditorContent editor={editor} className="flex-1 min-h-0" />
+            </div>
+          </div>
+        )}
+
+        {translatedText && (
+          <div className="review-translation-panel">
+            <div className="review-translation-header">
+              <span className="review-translation-title">
+                {t("transcription.review.translationResult", "翻译结果")}
+              </span>
+              <button
+                className="review-translation-close"
+                onClick={() => {
+                  setTranslatedText(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div
+              className="review-translation-content"
+              onMouseEnter={() => setIsTranslationHovered(true)}
+              onMouseLeave={() => setIsTranslationHovered(false)}
+            >
+              {translatedText}
+              {isTranslationHovered && !isSubmitting && (
+                <button
+                  className="review-translation-insert-btn"
+                  onClick={() => handleDirectInsert(translatedText)}
+                  title={t(
+                    "transcription.review.insertTranslation",
+                    "插入翻译结果",
+                  )}
+                >
+                  <IconTextPlus size={16} />
+                </button>
+              )}
             </div>
           </div>
         )}

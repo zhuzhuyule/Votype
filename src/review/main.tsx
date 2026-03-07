@@ -19,6 +19,9 @@ interface ReviewData {
   history_id: number | null;
   reason?: string | null;
   output_mode?: "polish" | "chat";
+  skill_name?: string | null;
+  prompt_id?: string | null;
+  model_id?: string | null;
 }
 
 interface MultiModelProgressEvent {
@@ -46,6 +49,7 @@ const ReviewApp: React.FC = () => {
     useState<MultiCandidateData | null>(null);
   const reviewDataRef = useRef<ReviewData | null>(null);
   const multiCandidateDataRef = useRef<MultiCandidateData | null>(null);
+  const reviewKeyRef = useRef(0); // Counter for forcing re-mount
 
   useEffect(() => {
     reviewDataRef.current = reviewData;
@@ -71,6 +75,7 @@ const ReviewApp: React.FC = () => {
       }
       // Listen for show event from Rust
       unlistenShow = await listen<ReviewData>("review-window-show", (event) => {
+        reviewKeyRef.current += 1; // Force re-mount on new data
         setReviewData(event.payload);
         setMultiCandidateData(null);
       });
@@ -79,6 +84,7 @@ const ReviewApp: React.FC = () => {
       unlistenMultiCandidate = await listen<MultiCandidateData>(
         "review-window-multi-candidate",
         (event) => {
+          reviewKeyRef.current += 1; // Force re-mount on new data
           setMultiCandidateData(event.payload);
           setReviewData(null);
         },
@@ -181,6 +187,7 @@ const ReviewApp: React.FC = () => {
         <ErrorBoundary>
           {multiCandidateData ? (
             <ReviewWindow
+              key={`review-${reviewKeyRef.current}`}
               initialData={{
                 source_text: multiCandidateData.source_text,
                 final_text: multiCandidateData.candidates[0]?.text || "",
@@ -194,6 +201,7 @@ const ReviewApp: React.FC = () => {
             />
           ) : reviewData ? (
             <ReviewWindow
+              key={`review-${reviewKeyRef.current}`}
               initialData={reviewData}
               onClose={() => setReviewData(null)}
             />
