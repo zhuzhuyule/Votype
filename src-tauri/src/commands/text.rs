@@ -52,8 +52,6 @@ pub async fn optimize_text_with_llm(
         &system_prompt,      // System message: optimization instructions
         Some(&user_content), // User message: text to optimize
         None,
-        Vec::new(),
-        None,
         None,
         None,
         None,
@@ -123,8 +121,6 @@ pub async fn generate_skill_description(
         &system_prompt,      // System message: generation instructions
         Some(&user_content), // User message: skill name + instructions
         None,
-        Vec::new(),
-        None,
         None,
         None,
         None,
@@ -145,7 +141,7 @@ pub struct TranslationResult {
 pub async fn translate_review_text(
     app_handle: AppHandle,
     text: String,
-    original_text: String,
+    _original_text: String,
     user_locale: String,
 ) -> Result<TranslationResult, String> {
     let settings = settings::get_settings(&app_handle);
@@ -285,8 +281,6 @@ pub async fn translate_review_text(
         &system_prompt,
         Some(&user_content),
         None,
-        Vec::new(),
-        None,
         None,
         None,
         None,
@@ -363,8 +357,6 @@ pub async fn generate_skill_metadata(
         None,
         &system_prompt,
         None,
-        None,
-        Vec::new(),
         None,
         None,
         None,

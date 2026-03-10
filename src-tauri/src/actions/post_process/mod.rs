@@ -6,6 +6,7 @@ mod core;
 mod extensions;
 mod manual;
 mod pipeline;
+pub(crate) mod prompt_builder;
 pub(crate) mod routing;
 
 // Re-export public functions

@@ -482,110 +482,33 @@ pub async fn maybe_post_process_transcription(
         }
 
         // Keep prompt template as-is, only replace metadata variables
-        let mut processed_prompt = prompt.instructions.replace("${prompt}", &prompt.name);
+        // (PromptBuilder handles variable detection, stripping, and data injection)
 
-        // Check which variables are referenced in the prompt template
-        let prompt_template = &prompt.instructions;
-        let has_output_ref = prompt_template.contains("${output}");
-        let has_select_ref = prompt_template.contains("${select}");
-        let has_raw_input_ref = prompt_template.contains("${raw_input}");
-        let has_streaming_ref = prompt_template.contains("${streaming_output}");
-        let has_context_ref = prompt_template.contains("${context}");
-        let has_app_name_ref = prompt_template.contains("${app_name}");
-        let has_window_title_ref = prompt_template.contains("${window_title}");
-        let has_time_ref = prompt_template.contains("${time}");
-
-        // Strip data-block variable markers from prompt text after detection.
-        // These variables inject data via separate message blocks, not inline replacement,
-        // so the ${...} syntax would remain as meaningless noise in the prompt sent to the LLM.
-        processed_prompt = processed_prompt
-            .replace("${output}", "output")
-            .replace("${raw_input}", "raw_input")
-            .replace("${select}", "select")
-            .replace("${streaming_output}", "streaming_output");
-
-        // Build structured input data message - only include variables referenced in prompt
-        let mut input_data_parts: Vec<String> = Vec::new();
-
-        // Add output (transcription content) - only if referenced
-        if has_output_ref && !transcription_content.is_empty() {
-            input_data_parts.push(format!("```output\n{}\n```", transcription_content));
-        }
-
-        // Add raw_input (full original transcription) - only if referenced
-        if has_raw_input_ref
-            && !transcription_original.is_empty()
-            && transcription_original != transcription_content
-        {
-            input_data_parts.push(format!("```raw_input\n{}\n```", transcription_original));
-        }
-
-        // Add streaming_output if available and referenced
-        if has_streaming_ref {
-            if let Some(streaming) = streaming_transcription {
-                if !streaming.is_empty() {
-                    input_data_parts.push(format!("```streaming_output\n{}\n```", streaming));
-                }
-            }
-        }
-
-        // Add selected text if referenced
-        if has_select_ref {
-            if let Some(text) = &selected_text {
-                if !text.is_empty() {
-                    input_data_parts.push(format!("```select\n{}\n```", text));
-                }
-            }
-        }
-
-        // Add app_name if referenced
-        if has_app_name_ref {
-            if let Some(name) = &app_name {
-                if !name.is_empty() {
-                    processed_prompt = processed_prompt.replace("${app_name}", name);
-                }
-            }
-        }
-
-        // Add window_title if referenced
-        if has_window_title_ref {
-            if let Some(title) = &window_title {
-                if !title.is_empty() {
-                    processed_prompt = processed_prompt.replace("${window_title}", title);
-                }
-            }
-        }
-
-        // Add current time if referenced
-        if has_time_ref {
-            let now = chrono::Local::now();
-            let time_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
-            processed_prompt = processed_prompt.replace("${time}", &time_str);
-        }
-
-        // Inject hotwords into system prompt (instructions, not user content)
-        if !is_explicit {
+        // Build hotword injection (only for non-explicit/default prompts)
+        let hotword_injection = if !is_explicit {
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 let hotword_manager = HotwordManager::new(hm.db_path.clone());
-
                 let scenario = detect_scenario(&app_name);
                 let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
-
-                if let Ok(injection) = hotword_manager.build_llm_injection(effective_scenario, 40) {
-                    if !injection.is_empty() {
-                        processed_prompt.push_str("\n\n");
-                        processed_prompt.push_str(&injection);
+                match hotword_manager.build_llm_injection(effective_scenario, 40) {
+                    Ok(injection) if !injection.is_empty() => {
                         debug!(
                             "[PostProcess] Injected hotwords into system prompt for scenario {:?}",
                             effective_scenario
                         );
+                        Some(injection)
                     }
+                    _ => None,
                 }
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
-        let mut history_entries = Vec::new();
-        if settings.post_process_context_enabled {
+        // Fetch history context
+        let history_entries = if settings.post_process_context_enabled {
             if let Some(app) = &app_name {
                 if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                     match hm.get_recent_history_texts_for_app(
@@ -596,54 +519,32 @@ pub async fn maybe_post_process_transcription(
                         settings.post_process_context_limit as usize,
                         history_id,
                     ) {
-                        Ok(history) => {
-                            history_entries = history;
-                        }
+                        Ok(history) => history,
                         Err(e) => {
                             error!("Failed to fetch history for context: {}", e);
+                            Vec::new()
                         }
                     }
+                } else {
+                    Vec::new()
                 }
-            }
-        }
-
-        // Handle context
-        if !history_entries.is_empty() && has_context_ref {
-            let context_content = history_entries
-                .iter()
-                .map(|s| format!("- {}", s))
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            if processed_prompt.contains("${context}") {
-                let context_block = format!(
-                    "\n\n[ASR上下文] 当前应用近期识别的上下文,用于推断讨论的领域和话题,仅供语境参考。\n{}\n\n",
-                    context_content
-                );
-                processed_prompt = processed_prompt.replace("${context}", &context_block);
             } else {
-                input_data_parts.push(format!("```context\n{}\n```", context_content));
+                Vec::new()
             }
-            history_entries.clear();
-        }
-
-        // Build final input data message
-        let input_data_message = if input_data_parts.is_empty() {
-            None
         } else {
-            Some(format!("## 输入数据\n\n{}", input_data_parts.join("\n\n")))
+            Vec::new()
         };
 
-        // Build fallback message
-        let fallback_message = if !has_output_ref
-            && !has_select_ref
-            && !has_raw_input_ref
-            && !transcription_content.is_empty()
-        {
-            Some(transcription_content.clone())
-        } else {
-            None
-        };
+        // Use PromptBuilder for unified variable processing
+        let built = super::prompt_builder::PromptBuilder::new(&prompt, transcription_content)
+            .raw_transcription(transcription_original)
+            .streaming_transcription(streaming_transcription)
+            .selected_text(selected_text.as_deref())
+            .app_name(app_name.as_deref())
+            .window_title(window_title.as_deref())
+            .history_entries(history_entries)
+            .hotword_injection(hotword_injection)
+            .build();
 
         let cached_model_id = prompt
             .model_id
@@ -655,10 +556,8 @@ pub async fn maybe_post_process_transcription(
             actual_provider,
             &model,
             cached_model_id,
-            &processed_prompt,
-            input_data_message.as_deref(),
-            fallback_message.as_deref(),
-            history_entries,
+            &built.system_prompt,
+            built.user_message.as_deref(),
             app_name.clone(),
             window_title.clone(),
             match_pattern.clone(),

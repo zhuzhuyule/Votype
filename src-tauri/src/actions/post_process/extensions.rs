@@ -106,15 +106,11 @@ pub async fn multi_post_process_transcription(
         }),
     );
 
-    // Build input data (similar to maybe_post_process_transcription)
-    let mut input_data_parts: Vec<String> = Vec::new();
+    // Input data is now built per-model inside execute_single_model_post_process
+    // using PromptBuilder, which respects each skill's variable declarations.
 
-    // Add transcription
-    let transcription_text = streaming_transcription.unwrap_or(transcription);
-    input_data_parts.push(format!("原始识别结果:\n```\n{}\n```", transcription_text));
-
-    // Add history context if enabled
-    if settings.post_process_context_enabled {
+    // Build history context (shared across all models)
+    let shared_history_entries: Vec<String> = if settings.post_process_context_enabled {
         if let Some(app) = &app_name {
             if let Some(hm) = _app_handle.try_state::<Arc<HistoryManager>>() {
                 match hm.get_recent_history_texts_for_app(
@@ -126,36 +122,26 @@ pub async fn multi_post_process_transcription(
                     _history_id,
                 ) {
                     Ok(history) if !history.is_empty() => {
-                        let context_content = history
-                            .iter()
-                            .map(|s| format!("- {}", s))
-                            .collect::<Vec<_>>()
-                            .join("\n");
-                        input_data_parts.push(format!(
-                            "历史上下文（来自应用 \"{}\"，窗口 \"{}\"）:\n```context\n{}\n```",
-                            app,
-                            window_title.as_deref().unwrap_or(""),
-                            context_content
-                        ));
                         info!(
-                            "[MultiModel] Injected {} history entries as context",
+                            "[MultiModel] Fetched {} history entries as context",
                             history.len()
                         );
+                        history
                     }
-                    Ok(_) => {}
+                    Ok(_) => Vec::new(),
                     Err(e) => {
                         error!("[MultiModel] Failed to fetch history context: {}", e);
+                        Vec::new()
                     }
                 }
+            } else {
+                Vec::new()
             }
+        } else {
+            Vec::new()
         }
-    }
-
-    // Build final input data message
-    let input_data_message = if input_data_parts.is_empty() {
-        None
     } else {
-        Some(format!("## 输入数据\n\n{}", input_data_parts.join("\n\n")))
+        Vec::new()
     };
 
     // Create semaphore to limit concurrent requests
@@ -169,7 +155,8 @@ pub async fn multi_post_process_transcription(
             let settings = settings.clone();
             let app_handle = _app_handle.clone();
             let transcription = transcription.to_string();
-            let input_data = input_data_message.clone();
+            let streaming = streaming_transcription.map(|s| s.to_string());
+            let history = shared_history_entries.clone();
             let semaphore = Arc::clone(&semaphore);
 
             async move {
@@ -182,7 +169,8 @@ pub async fn multi_post_process_transcription(
                     &settings,
                     item,
                     &transcription,
-                    input_data.as_deref(),
+                    streaming.as_deref(),
+                    history.clone(),
                 )
                 .await;
 
@@ -246,13 +234,14 @@ pub async fn multi_post_process_transcription(
 }
 
 #[allow(dead_code)]
-/// Execute post-processing for a single model
+/// Execute post-processing for a single model using PromptBuilder
 async fn execute_single_model_post_process(
     _app_handle: &AppHandle,
     settings: &AppSettings,
     item: &MultiModelPostProcessItem,
     transcription: &str,
-    input_data_message: Option<&str>,
+    streaming_transcription: Option<&str>,
+    history_entries: Vec<String>,
 ) -> (Option<String>, Option<String>) {
     // Get provider
     let provider = match settings.post_process_provider(&item.provider_id) {
@@ -302,34 +291,33 @@ async fn execute_single_model_post_process(
         .cloned()
         .unwrap_or_default();
 
+    // Use PromptBuilder for unified variable processing
+    let built = super::prompt_builder::PromptBuilder::new(prompt, transcription)
+        .streaming_transcription(streaming_transcription)
+        .history_entries(history_entries)
+        .build();
+
     // Build messages
     let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
 
-    // Add system prompt if exists
-    if !prompt.instructions.is_empty() {
+    // 1. Single system message
+    if !built.system_prompt.is_empty() {
         if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-            .content(prompt.instructions.clone())
+            .content(built.system_prompt)
             .build()
         {
             messages.push(ChatCompletionRequestMessage::System(sys_msg));
         }
     }
 
-    // Build user message with prompt and transcription
-    let user_content = if let Some(input_data) = input_data_message {
-        format!("{}\n\n{}", prompt.prompt, input_data)
-    } else {
-        format!(
-            "{}\n\n原始识别结果:\n```\n{}\n```",
-            prompt.prompt, transcription
-        )
-    };
-
-    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(user_content)
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    // 2. Single user message
+    if let Some(user_content) = built.user_message {
+        if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+            .content(user_content)
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::User(user_msg));
+        }
     }
 
     if messages.is_empty() {

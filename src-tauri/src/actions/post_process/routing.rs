@@ -228,23 +228,27 @@ pub(super) async fn execute_default_polish<'a>(
 
     let client = crate::llm_client::create_client(actual_provider, api_key).ok()?;
 
-    // Build a simple prompt for polish
+    // Use PromptBuilder for consistent variable processing
+    let built = super::prompt_builder::PromptBuilder::new(default_prompt, transcription).build();
+
     let mut messages = Vec::new();
 
-    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(default_prompt.instructions.clone())
+    // 1. Single system message
+    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
+        .content(built.system_prompt)
         .build()
     {
-        messages.push(ChatCompletionRequestMessage::User(user_msg));
+        messages.push(ChatCompletionRequestMessage::System(sys_msg));
     }
 
-    // Add the transcription as input
-    let input_message = format!("```output\n{}\n```", transcription);
-    if let Ok(input_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(input_message)
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::User(input_msg));
+    // 2. Single user message
+    if let Some(user_content) = built.user_message {
+        if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
+            .content(user_content)
+            .build()
+        {
+            messages.push(ChatCompletionRequestMessage::User(user_msg));
+        }
     }
 
     if messages.is_empty() {
