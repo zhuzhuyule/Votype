@@ -844,88 +844,25 @@ fn default_length_routing_threshold() -> u32 {
 }
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
-    vec![
-        LLMPrompt {
-            id: "system_default_correction".to_string(),
-            name: "默认润色".to_string(),
-            description: "润色和优化文本表达。这是默认 Skill。".to_string(),
-            instructions: include_str!("../resources/skills/system_default_correction.md")
-                .to_string(),
-            prompt: include_str!("../resources/skills/system_default_correction.md").to_string(),
-            model_id: None,
-            icon: Some("IconShieldCheck".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            confidence_check_enabled: true,
-            confidence_threshold: Some(70),
-            output_mode: SkillOutputMode::Polish,
-            enabled: true,
-            customized: false,
-            locked: false,
-            file_path: None,
-        },
-        LLMPrompt {
-            id: "system_default_ai_chat".to_string(),
-            name: "AI 问答".to_string(),
-            description:
-                "解释选中内容或回答问题。当用户说\"这是什么\"、\"帮我解释\"、\"帮我查询\"时触发。"
-                    .to_string(),
-            instructions: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
-            prompt: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
-            model_id: None,
-            icon: Some("IconMessageSparkle".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            confidence_check_enabled: false,
-            confidence_threshold: Some(70),
-            output_mode: SkillOutputMode::Chat,
-            enabled: true,
-            customized: false,
-            locked: false,
-            file_path: None,
-        },
-        // Preset: Translation
-        LLMPrompt {
-            id: "system_preset_translate".to_string(),
-            name: "翻译".to_string(),
-            description: "将文本翻译成目标语言。当用户说\"翻译\"、\"译成\"、\"translate\"时使用。"
-                .to_string(),
-            prompt: include_str!("../resources/skills/system_preset_translate.md").to_string(),
-            instructions: include_str!("../resources/skills/system_preset_translate.md")
-                .to_string(),
-            model_id: None,
-            icon: Some("IconLanguage".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            confidence_check_enabled: false,
-            confidence_threshold: Some(70),
-            output_mode: SkillOutputMode::Chat,
-            enabled: true,
-            customized: false,
-            locked: false,
-            file_path: None,
-        },
-        // Preset: Summary
-        LLMPrompt {
-            id: "system_preset_summary".to_string(),
-            name: "总结".to_string(),
-            description: "总结和提炼文本要点。当用户说\"总结\"、\"概括\"、\"摘要\"时使用。"
-                .to_string(),
-            instructions: include_str!("../resources/skills/system_preset_summary.md").to_string(),
-            prompt: include_str!("../resources/skills/system_preset_summary.md").to_string(),
-            model_id: None,
-            icon: Some("IconListDetails".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            confidence_check_enabled: false,
-            confidence_threshold: Some(70),
-            output_mode: SkillOutputMode::Chat,
-            enabled: true,
-            customized: false,
-            locked: false,
-            file_path: None,
-        },
+    use crate::managers::skill::parse_builtin_skill_content;
+
+    [
+        include_str!("../resources/skills/builtin/default_correction.skill.md"),
+        include_str!("../resources/skills/builtin/ai_chat.skill.md"),
+        include_str!("../resources/skills/builtin/translation.skill.md"),
+        include_str!("../resources/skills/builtin/summarize.skill.md"),
+        include_str!("../resources/skills/builtin/memo.skill.md"),
+        include_str!("../resources/skills/builtin/code_generate.skill.md"),
+        include_str!("../resources/skills/builtin/code_explain.skill.md"),
+        include_str!("../resources/skills/builtin/style_reply.skill.md"),
+        include_str!("../resources/skills/builtin/reply_suggestion.skill.md"),
+        include_str!("../resources/skills/builtin/votype_command.skill.md"),
+        include_str!("../resources/skills/builtin/grammar_fix.skill.md"),
+        include_str!("../resources/skills/builtin/smart_compose.skill.md"),
     ]
+    .iter()
+    .filter_map(|c| parse_builtin_skill_content(c))
+    .collect()
 }
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {

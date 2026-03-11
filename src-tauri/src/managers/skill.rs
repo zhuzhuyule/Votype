@@ -7,6 +7,7 @@ use tauri::Manager;
 
 #[derive(Debug, Deserialize)]
 struct SkillFrontmatter {
+    id: Option<String>,
     name: String,
     description: Option<String>,
     #[serde(default)]
@@ -97,10 +98,12 @@ impl SkillManager {
                                     if let Ok(fm) =
                                         serde_yaml::from_str::<SkillFrontmatter>(frontmatter_str)
                                     {
-                                        let id = format!(
-                                            "ext_{}",
-                                            fm.name.to_lowercase().replace(" ", "_")
-                                        );
+                                        let id = fm.id.clone().unwrap_or_else(|| {
+                                            format!(
+                                                "ext_{}",
+                                                fm.name.to_lowercase().replace(" ", "_")
+                                            )
+                                        });
                                         debug!(
                                             "search_skill_in_dir: folder {:?} has id={}",
                                             md_file, id
@@ -123,8 +126,9 @@ impl SkillManager {
                             if let Ok(fm) =
                                 serde_yaml::from_str::<SkillFrontmatter>(frontmatter_str)
                             {
-                                let id =
-                                    format!("ext_{}", fm.name.to_lowercase().replace(" ", "_"));
+                                let id = fm.id.clone().unwrap_or_else(|| {
+                                    format!("ext_{}", fm.name.to_lowercase().replace(" ", "_"))
+                                });
                                 debug!(
                                     "search_skill_in_dir: file {:?} has name='{}' -> id={}",
                                     entry_path, fm.name, id
@@ -429,7 +433,10 @@ impl SkillManager {
             }
         };
 
-        let id = format!("ext_{}", fm.name.to_lowercase().replace(" ", "_"));
+        let id = fm
+            .id
+            .clone()
+            .unwrap_or_else(|| format!("ext_{}", fm.name.to_lowercase().replace(" ", "_")));
 
         debug!(
             "Loaded skill \"{}\" from {:?} (id: {})",
@@ -559,6 +566,55 @@ impl SkillManager {
 
         self.create_skill_file(&skill)
     }
+}
+
+/// Parse a builtin skill from its raw content (as loaded by `include_str!`).
+///
+/// Returns `None` if the content cannot be parsed.
+/// The resulting `Skill` has `source = SkillSource::Builtin` and no `file_path`.
+pub fn parse_builtin_skill_content(content: &str) -> Option<Skill> {
+    let (frontmatter_str, instructions) = if content.starts_with("---") {
+        let parts: Vec<&str> = content.splitn(3, "---").collect();
+        if parts.len() == 3 {
+            (parts[1], parts[2].trim())
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    };
+
+    let fm: SkillFrontmatter = match serde_yaml::from_str(frontmatter_str) {
+        Ok(f) => f,
+        Err(e) => {
+            error!("Failed to parse builtin skill frontmatter: {}", e);
+            return None;
+        }
+    };
+
+    let id = fm
+        .id
+        .clone()
+        .unwrap_or_else(|| format!("ext_{}", fm.name.to_lowercase().replace(" ", "_")));
+
+    Some(Skill {
+        id,
+        name: fm.name,
+        description: fm.description.unwrap_or_default(),
+        instructions: instructions.to_string(),
+        prompt: instructions.to_string(),
+        model_id: fm.model_id,
+        icon: fm.icon,
+        skill_type: fm.skill_type,
+        source: SkillSource::Builtin,
+        confidence_check_enabled: fm.confidence_check_enabled,
+        confidence_threshold: fm.confidence_threshold.or(Some(70)),
+        output_mode: fm.output_mode,
+        enabled: true,
+        customized: false,
+        locked: fm.locked,
+        file_path: None,
+    })
 }
 
 /// Get all available builtin templates for creating new skills
