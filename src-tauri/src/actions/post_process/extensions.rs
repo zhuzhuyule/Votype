@@ -10,7 +10,6 @@ use log::{error, info};
 use std::sync::Arc;
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::sync::Semaphore;
 
 pub async fn maybe_convert_chinese_variant(
     settings: &AppSettings,
@@ -144,9 +143,9 @@ pub async fn multi_post_process_transcription(
         Vec::new()
     };
 
-    // Create semaphore to limit concurrent requests
-    let max_concurrent = 3; // Limit to 3 concurrent LLM requests
-    let semaphore = Arc::new(Semaphore::new(max_concurrent));
+    // Measure "speed" from the user's perspective: from batch start until the
+    // full result for each model is available.
+    let batch_start_time = Instant::now();
 
     // Create futures for each model
     let mut futures: FuturesUnordered<_> = items
@@ -157,13 +156,9 @@ pub async fn multi_post_process_transcription(
             let transcription = transcription.to_string();
             let streaming = streaming_transcription.map(|s| s.to_string());
             let history = shared_history_entries.clone();
-            let semaphore = Arc::clone(&semaphore);
+            let batch_start_time = batch_start_time;
 
             async move {
-                // Acquire permit from semaphore
-                let _permit = semaphore.acquire().await.unwrap();
-
-                let start_time = Instant::now();
                 let result = execute_single_model_post_process(
                     &app_handle,
                     &settings,
@@ -174,7 +169,7 @@ pub async fn multi_post_process_transcription(
                 )
                 .await;
 
-                let elapsed = start_time.elapsed().as_millis() as u64;
+                let elapsed = batch_start_time.elapsed().as_millis() as u64;
 
                 let text = result.0.clone().unwrap_or_default();
                 let ready = result.0.is_some();

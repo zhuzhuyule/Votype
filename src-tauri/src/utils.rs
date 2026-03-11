@@ -13,6 +13,42 @@ pub use crate::clipboard::*;
 pub use crate::overlay::*;
 pub use crate::tray::*;
 
+fn cancel_current_operation_inner(app: &AppHandle, notify_coordinator: bool) {
+    // Clear any pending skill confirmation state
+    if let Some(pending_state) = app.try_state::<crate::ManagedPendingSkillConfirmation>() {
+        if let Ok(mut guard) = pending_state.lock() {
+            *guard = crate::PendingSkillConfirmation::default();
+        }
+    }
+
+    // Unregister the cancel shortcut asynchronously
+    shortcut::unregister_cancel_shortcut(app);
+
+    // Cancel any ongoing recording
+    let audio_manager = app.state::<Arc<AudioRecordingManager>>();
+    let recording_was_active = audio_manager.is_recording();
+    audio_manager.cancel_recording();
+
+    // Update tray icon and hide overlay
+    change_tray_icon(app, crate::tray::TrayIconState::Idle);
+    hide_recording_overlay(app);
+
+    // Abort the async transcription/post-processing pipeline
+    let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
+    ppm.cancel_pipeline();
+
+    // Cancel any ongoing transcription actively
+    let tm = app.state::<Arc<TranscriptionManager>>();
+    let _ = tm.unload_model();
+
+    // Notify coordinator so it can keep lifecycle state coherent.
+    if notify_coordinator {
+        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
+            coordinator.notify_cancel(recording_was_active);
+        }
+    }
+}
+
 pub fn show_or_create_main_window(
     app: &AppHandle,
     section: Option<&str>,
@@ -110,40 +146,35 @@ pub fn cancel_current_operation(app: &AppHandle) {
     }
 
     info!("Initiating operation cancellation...");
+    cancel_current_operation_inner(app, true);
 
-    // Clear any pending skill confirmation state
-    if let Some(pending_state) = app.try_state::<ManagedPendingSkillConfirmation>() {
-        if let Ok(mut guard) = pending_state.lock() {
-            *guard = crate::PendingSkillConfirmation::default();
+    info!("Operation cancellation completed - returned to idle state");
+}
+
+pub fn interrupt_current_operation(app: &AppHandle) {
+    info!("Interrupting current operation for a new transcription request...");
+    cancel_current_operation_inner(app, false);
+}
+
+pub fn has_visible_transcription_ui(app: &AppHandle) -> bool {
+    for label in ["recording_overlay", "review_window", "main"] {
+        if app
+            .get_webview_window(label)
+            .is_some_and(|window| window.is_visible().unwrap_or(false))
+        {
+            return true;
         }
     }
 
-    // Unregister the cancel shortcut asynchronously
-    shortcut::unregister_cancel_shortcut(app);
-
-    // Cancel any ongoing recording
-    let audio_manager = app.state::<Arc<AudioRecordingManager>>();
-    let recording_was_active = audio_manager.is_recording();
-    audio_manager.cancel_recording();
-
-    // Update tray icon and hide overlay
-    change_tray_icon(app, crate::tray::TrayIconState::Idle);
-    hide_recording_overlay(app);
-
-    // Abort the async transcription/post-processing pipeline
-    let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
-    ppm.cancel_pipeline();
-
-    // Cancel any ongoing transcription actively
-    let tm = app.state::<Arc<TranscriptionManager>>();
-    let _ = tm.unload_model();
-
-    // Notify coordinator so it can keep lifecycle state coherent.
-    if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-        coordinator.notify_cancel(recording_was_active);
+    if let Some(pending_state) = app.try_state::<crate::ManagedPendingSkillConfirmation>() {
+        if let Ok(guard) = pending_state.lock() {
+            if guard.is_ui_visible {
+                return true;
+            }
+        }
     }
 
-    info!("Operation cancellation completed - returned to idle state");
+    false
 }
 
 /// Check if using the Wayland display server protocol

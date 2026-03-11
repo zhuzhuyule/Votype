@@ -1,5 +1,6 @@
 use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
+use crate::utils;
 use log::{debug, error, warn};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
@@ -84,6 +85,16 @@ impl TranscriptionCoordinator {
                                     }
                                     Stage::Recording(id) if id == &binding_id => {
                                         stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                    }
+                                    Stage::Processing
+                                        if !utils::has_visible_transcription_ui(&app) =>
+                                    {
+                                        debug!(
+                                            "Preempting processing for '{binding_id}' because no transcription UI is visible"
+                                        );
+                                        utils::interrupt_current_operation(&app);
+                                        stage = Stage::Idle;
+                                        start(&app, &mut stage, &binding_id, &hotkey_string);
                                     }
                                     _ => {
                                         debug!("Ignoring press for '{binding_id}': pipeline busy")

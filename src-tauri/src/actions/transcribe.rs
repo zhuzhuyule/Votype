@@ -27,6 +27,61 @@ impl TranscribeAction {
     }
 }
 
+#[derive(Clone, Debug)]
+struct HotwordSuggestionCandidate {
+    corrected: String,
+    original: String,
+    category: String,
+}
+
+fn spawn_hotword_suggestion_analysis(
+    app_handle: AppHandle,
+    candidates: Vec<HotwordSuggestionCandidate>,
+) {
+    if candidates.is_empty() {
+        return;
+    }
+
+    let Some(hm_state) = app_handle.try_state::<Arc<HistoryManager>>() else {
+        return;
+    };
+    let db_path = hm_state.db_path.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let candidate_count = candidates.len();
+        let result = tokio::task::spawn_blocking(move || {
+            let hotword_manager = crate::managers::HotwordManager::new(db_path);
+            for candidate in candidates {
+                if let Err(e) = hotword_manager.record_auto_learned_suggested(
+                    &candidate.corrected,
+                    &candidate.original,
+                    &candidate.category,
+                ) {
+                    error!(
+                        "[ConfidenceCheck] Failed to record hotword suggestion: {}",
+                        e
+                    );
+                }
+            }
+        })
+        .await;
+
+        if let Err(e) = result {
+            error!(
+                "[ConfidenceCheck] Hotword suggestion background task failed: {}",
+                e
+            );
+            return;
+        }
+
+        info!(
+            "[ConfidenceCheck] Recorded {} hotword suggestions in background",
+            candidate_count
+        );
+        app_handle.emit("hotword-suggestions-updated", ()).ok();
+    });
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ScriptType {
     Latin,
@@ -341,13 +396,22 @@ impl ShortcutAction for TranscribeAction {
         let pipeline_handle = tauri::async_runtime::spawn(async move {
             // RAII guard to unregister the cancel shortcut when the async block
             // exits — whether normally or via abort.
-            struct CancelShortcutGuard(AppHandle);
+            struct CancelShortcutGuard {
+                app: AppHandle,
+                transcription_id: u64,
+            }
             impl Drop for CancelShortcutGuard {
                 fn drop(&mut self) {
-                    shortcut::unregister_cancel_shortcut(&self.0);
+                    let rm = self.app.state::<Arc<AudioRecordingManager>>();
+                    if rm.get_current_transcription_id() == self.transcription_id {
+                        shortcut::unregister_cancel_shortcut(&self.app);
+                    }
                 }
             }
-            let _cancel_guard = CancelShortcutGuard(ah.clone());
+            let _cancel_guard = CancelShortcutGuard {
+                app: ah.clone(),
+                transcription_id: current_transcription_id,
+            };
 
             debug!(
                 "Starting async transcription task for binding: {} (ID: {})",
@@ -1125,25 +1189,21 @@ impl ShortcutAction for TranscribeAction {
                                                         // Auto-record hotword candidates as suggestions
                                                         let hotword_candidates = result.hotword_candidates();
                                                         if !hotword_candidates.is_empty() {
-                                                            if let Some(hm_state) = ah_clone.try_state::<Arc<crate::managers::history::HistoryManager>>() {
-                                                                let hotword_manager = crate::managers::HotwordManager::new(hm_state.db_path.clone());
-                                                                for c in &hotword_candidates {
-                                                                    let category = c.category.as_deref().unwrap_or("term");
-                                                                    if let Err(e) = hotword_manager.record_auto_learned_suggested(
-                                                                        &c.corrected,
-                                                                        &c.original,
-                                                                        category,
-                                                                    ) {
-                                                                        error!("[ConfidenceCheck] Failed to record hotword suggestion: {}", e);
-                                                                    }
-                                                                }
-                                                                info!(
-                                                                    "[ConfidenceCheck] Recorded {} hotword suggestions from confidence check",
-                                                                    hotword_candidates.len()
-                                                                );
-                                                                // Notify frontend about new suggestions
-                                                                ah_clone.emit("hotword-suggestions-updated", ()).ok();
-                                                            }
+                                                            let candidates = hotword_candidates
+                                                                .iter()
+                                                                .map(|c| HotwordSuggestionCandidate {
+                                                                    corrected: c.corrected.clone(),
+                                                                    original: c.original.clone(),
+                                                                    category: c
+                                                                        .category
+                                                                        .clone()
+                                                                        .unwrap_or_else(|| "term".to_string()),
+                                                                })
+                                                                .collect();
+                                                            spawn_hotword_suggestion_analysis(
+                                                                ah_clone.clone(),
+                                                                candidates,
+                                                            );
                                                         }
 
                                                         result.confidence < threshold
