@@ -17,19 +17,22 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
+  IconArrowRight,
+  IconCheck,
   IconDownload,
   IconPlus,
   IconSearch,
   IconUpload,
   IconX,
 } from "@tabler/icons-react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   Hotword,
   HotwordCategory,
   HotwordCategoryMeta,
   HotwordScenario,
 } from "../../../types/hotword";
+import { SOURCE_LABELS } from "../../../types/hotword";
 import { resolveIcon } from "../../../lib/hotwordIcons";
 import { CategoryManageDialog } from "./CategoryManageDialog";
 import { HotwordAddBar } from "./HotwordAddBar";
@@ -64,6 +67,7 @@ interface HotwordTagCloudProps {
   hotwords: Hotword[];
   suggestions: Hotword[];
   loading: boolean;
+  focusedHotwordId: number | null;
   onAddHotword: (
     target: string,
     originals: string[],
@@ -100,6 +104,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   hotwords,
   suggestions,
   loading,
+  focusedHotwordId,
   onAddHotword,
   onBatchAdd,
   onDelete,
@@ -169,6 +174,32 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   const selectedHotword = selectedId
     ? hotwords.find((h) => h.id === selectedId) || null
     : null;
+
+  useEffect(() => {
+    if (!focusedHotwordId) return;
+    setHighlightedId(focusedHotwordId);
+
+    const scrollTimer = window.setTimeout(() => {
+      const target = document.querySelector<HTMLElement>(
+        `[data-hotword-id="${focusedHotwordId}"]`,
+      );
+      target?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+    }, 80);
+    const clearTimer = window.setTimeout(() => {
+      setHighlightedId((current) =>
+        current === focusedHotwordId ? null : current,
+      );
+    }, 2200);
+
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [focusedHotwordId]);
 
   const handleTagClick = (id: number) => {
     setSelectedId((prev) => (prev === id ? null : id));
@@ -334,26 +365,88 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
                       | "blue"
                       | "purple"
                       | "gray";
+                    const sourceText =
+                      s.originals.length > 0
+                        ? s.originals.join(" / ")
+                        : "上下文高频词";
+                    const targetCategoryLabel =
+                      categoryMap[s.category]?.label ?? s.category;
+                    const sourceLabel = SOURCE_LABELS[s.source] ?? s.source;
                     return (
-                      <Badge
+                      <div
                         key={s.id}
-                        size="2"
-                        variant="outline"
-                        color={suggColor}
-                        className="px-2 py-1 cursor-pointer hover:brightness-95 transition-[filter,opacity] duration-150 group"
+                        className="group min-w-[220px] max-w-[320px] rounded-lg border border-amber-200/80 bg-[linear-gradient(180deg,rgba(255,251,235,0.88),rgba(255,255,255,0.98))] px-3 py-2 shadow-sm transition-[border-color,box-shadow] duration-150 hover:border-amber-300 hover:shadow"
                       >
-                        <span onClick={() => onAcceptSuggestion(s.id)}>
-                          {s.target}
-                        </span>
-                        <IconX
-                          size={12}
-                          className="ml-1 opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:text-red-500 transition-opacity cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDismissSuggestion(s.id);
-                          }}
-                        />
-                      </Badge>
+                        <Flex align="start" justify="between" gap="2">
+                          <Flex
+                            align="center"
+                            gap="2"
+                            wrap="wrap"
+                            className="min-w-0"
+                          >
+                            <Badge size="1" variant="soft" color={suggColor}>
+                              {targetCategoryLabel}
+                            </Badge>
+                            <Badge size="1" variant="surface" color="gray">
+                              {sourceLabel}
+                            </Badge>
+                          </Flex>
+                          <Flex align="center" gap="1" className="shrink-0">
+                            <IconButton
+                              type="button"
+                              size="1"
+                              variant="soft"
+                              color="green"
+                              radius="full"
+                              aria-label="采纳建议"
+                              className="h-7 w-7 opacity-85 transition-[opacity,transform,box-shadow] hover:!opacity-100 hover:scale-105 hover:shadow-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAcceptSuggestion(s.id);
+                              }}
+                            >
+                              <IconCheck size={15} />
+                            </IconButton>
+                            <IconButton
+                              type="button"
+                              size="1"
+                              variant="soft"
+                              color="red"
+                              radius="full"
+                              aria-label="忽略建议"
+                              className="h-7 w-7 opacity-85 transition-[opacity,transform,box-shadow] hover:!opacity-100 hover:scale-105 hover:shadow-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDismissSuggestion(s.id);
+                              }}
+                            >
+                              <IconX size={15} />
+                            </IconButton>
+                          </Flex>
+                        </Flex>
+
+                        <div className="mt-2 min-w-0">
+                          <Flex align="center" gap="1.5" className="min-w-0">
+                            <Text
+                              size="1"
+                              className="min-w-0 flex-1 break-all leading-4 text-gray-600"
+                            >
+                              {sourceText}
+                            </Text>
+                            <IconArrowRight
+                              size={12}
+                              className="shrink-0 text-amber-500"
+                            />
+                            <Text
+                              size="1"
+                              weight="medium"
+                              className="min-w-0 flex-1 break-all leading-4 text-gray-900"
+                            >
+                              {s.target}
+                            </Text>
+                          </Flex>
+                        </div>
+                      </div>
                     );
                   })}
                 </Flex>
