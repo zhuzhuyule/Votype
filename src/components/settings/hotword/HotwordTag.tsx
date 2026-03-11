@@ -2,10 +2,9 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Badge, Tooltip } from "@radix-ui/themes";
+import { Badge } from "@radix-ui/themes";
 import React from "react";
 import type { Hotword, HotwordCategoryMeta } from "../../../types/hotword";
-import { SOURCE_LABELS } from "../../../types/hotword";
 
 interface HotwordTagProps {
   hotword: Hotword;
@@ -39,13 +38,6 @@ export const HotwordTag: React.FC<HotwordTagProps> = ({
     | "amber"
     | "teal"
     | "pink";
-  const tooltipContent = [
-    hotword.originals.length > 0 && `纠错: ${hotword.originals.length}`,
-    `使用: ${hotword.use_count}次`,
-    hotword.source !== "manual" && SOURCE_LABELS[hotword.source],
-  ]
-    .filter(Boolean)
-    .join(" | ");
 
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
@@ -54,28 +46,27 @@ export const HotwordTag: React.FC<HotwordTagProps> = ({
   };
 
   return (
-    <Tooltip content={tooltipContent}>
-      <Badge
-        ref={setNodeRef}
-        {...listeners}
-        {...attributes}
-        size="2"
-        variant={isHighlighted ? "solid" : isSelected ? "solid" : "soft"}
-        color={color}
-        style={style}
-        className={`px-3 py-1.5 cursor-pointer select-none ${
-          isDragging
-            ? "shadow-lg scale-105"
-            : isHighlighted
-              ? "animate-highlight-fade ring-2 ring-offset-1 ring-current"
-              : isSelected
-                ? "ring-2 ring-offset-1 ring-current transition-all duration-150"
-                : "hover:brightness-95 active:scale-95 transition-[filter,transform] duration-150"
-        }`}
-        onClick={onClick}
-      >
-        {hotword.target}
-      </Badge>
-    </Tooltip>
+    <Badge
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      data-hotword-id={hotword.id}
+      size="2"
+      variant={isHighlighted ? "solid" : isSelected ? "solid" : "soft"}
+      color={color}
+      style={style}
+      className={`px-3 py-1.5 cursor-pointer select-none ${
+        isDragging
+          ? "shadow-lg scale-105"
+          : isHighlighted
+            ? "animate-highlight-fade ring-2 ring-offset-1 ring-current"
+            : isSelected
+              ? "ring-2 ring-offset-1 ring-current transition-all duration-150"
+              : "hover:brightness-95 active:scale-95 transition-[filter,transform] duration-150"
+      }`}
+      onClick={onClick}
+    >
+      {hotword.target}
+    </Badge>
   );
 };

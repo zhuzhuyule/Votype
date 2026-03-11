@@ -15,6 +15,7 @@ export const HotwordSettings: React.FC = () => {
   const [hotwords, setHotwords] = useState<Hotword[]>([]);
   const [suggestions, setSuggestions] = useState<Hotword[]>([]);
   const [loading, setLoading] = useState(true);
+  const [focusedHotwordId, setFocusedHotwordId] = useState<number | null>(null);
 
   const {
     categories,
@@ -76,10 +77,12 @@ export const HotwordSettings: React.FC = () => {
       scenarios,
     });
     setHotwords((prev) => [...prev, newHotword]);
+    setFocusedHotwordId(newHotword.id);
   };
 
   // Batch add
   const handleBatchAdd = async (targets: string[]) => {
+    let lastAdded: Hotword | null = null;
     for (const target of targets) {
       try {
         const category = await invoke<HotwordCategory>(
@@ -93,9 +96,13 @@ export const HotwordSettings: React.FC = () => {
           scenarios: ["work", "casual"],
         });
         setHotwords((prev) => [...prev, newHotword]);
+        lastAdded = newHotword;
       } catch (e) {
         console.error(`[HotwordSettings] Failed to add "${target}":`, e);
       }
+    }
+    if (lastAdded) {
+      setFocusedHotwordId(lastAdded.id);
     }
   };
 
@@ -135,9 +142,13 @@ export const HotwordSettings: React.FC = () => {
   // Suggestion handlers
   const handleAcceptSuggestion = async (id: number) => {
     try {
+      const suggestion = suggestions.find((s) => s.id === id) || null;
       await invoke("accept_hotword_suggestion", { id });
       setSuggestions((prev) => prev.filter((s) => s.id !== id));
       await loadHotwords();
+      if (suggestion) {
+        setFocusedHotwordId(id);
+      }
     } catch (e) {
       console.error("[HotwordSettings] Failed to accept suggestion:", e);
     }
@@ -250,6 +261,7 @@ export const HotwordSettings: React.FC = () => {
       hotwords={hotwords}
       suggestions={suggestions}
       loading={loading}
+      focusedHotwordId={focusedHotwordId}
       onAddHotword={handleAdd}
       onBatchAdd={handleBatchAdd}
       onDelete={handleDelete}
