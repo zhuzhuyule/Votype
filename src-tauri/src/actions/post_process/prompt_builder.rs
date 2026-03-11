@@ -102,6 +102,7 @@ impl<'a> PromptBuilder<'a> {
         let has_raw_input_ref = skill_prompt.contains("${raw_input}");
         let has_context_ref = skill_prompt.contains("${context}");
         let has_app_name_ref = skill_prompt.contains("${app_name}");
+        let has_app_category_ref = skill_prompt.contains("${app_category}");
         let has_window_title_ref = skill_prompt.contains("${window_title}");
         let has_time_ref = skill_prompt.contains("${time}");
 
@@ -140,6 +141,13 @@ impl<'a> PromptBuilder<'a> {
             if let Some(name) = self.app_name {
                 skill_prompt = skill_prompt.replace("${app_name}", name);
             }
+        }
+        if has_app_category_ref {
+            let category = self
+                .app_name
+                .map(crate::app_category::from_app_name)
+                .unwrap_or("Other");
+            skill_prompt = skill_prompt.replace("${app_category}", category);
         }
         if has_window_title_ref {
             if let Some(title) = self.window_title {
