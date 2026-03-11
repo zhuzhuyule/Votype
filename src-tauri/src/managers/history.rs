@@ -865,7 +865,13 @@ impl HistoryManager {
     }
 
     #[allow(dead_code)]
-    pub async fn update_reviewed_text(&self, id: i64, post_processed_text: String) -> Result<()> {
+    pub async fn update_reviewed_text(
+        &self,
+        id: i64,
+        post_processed_text: String,
+        learn_from_edit: bool,
+        original_text_for_learning: Option<String>,
+    ) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;
 
@@ -878,54 +884,65 @@ impl HistoryManager {
             )
             .unwrap_or(0);
 
-        // Fetch original text for diff analysis
-        // We prioritize post_processed_text if it exists, otherwise transcription_text
-        let original_text_opt: Option<String> = conn.query_row(
-            "SELECT COALESCE(post_processed_text, transcription_text) FROM transcription_history WHERE id = ?1",
-            params![id],
-            |row| row.get(0),
-        ).ok();
+        // Prefer the exact text the user saw before editing in the review UI.
+        // Falling back to stored history text can mix in differences caused by
+        // model switching / candidate selection and produce incorrect A→B pairs.
+        let original_text_opt: Option<String> = original_text_for_learning.or_else(|| {
+            conn.query_row(
+                "SELECT COALESCE(post_processed_text, transcription_text) FROM transcription_history WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .ok()
+        });
 
-        // Perform correction learning if we have original text
-        if let Some(original) = original_text_opt {
-            use crate::managers::hotword::HotwordManager;
-            use crate::managers::vocabulary::VocabularyManager;
-            use crate::phonetic_similarity::calculate_phonetic_similarity;
+        // Only learn from explicit user edits in the review window.
+        // Selecting a model output / inserting original / inserting translation
+        // should update history but must not be treated as a correction-learning event.
+        if learn_from_edit {
+            if let Some(original) = original_text_opt {
+                use crate::managers::hotword::HotwordManager;
+                use crate::managers::vocabulary::VocabularyManager;
+                use crate::phonetic_similarity::calculate_phonetic_similarity;
 
-            let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
-            if !diffs.is_empty() {
-                let vocab_manager = VocabularyManager::new(self.db_path.clone());
+                let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
+                if !diffs.is_empty() {
+                    let vocab_manager = VocabularyManager::new(self.db_path.clone());
 
-                // Collect corrections for LLM analysis
-                let mut corrections: Vec<(String, String)> = Vec::new();
+                    // Once the diff is extracted from the exact text the user saw,
+                    // let the downstream similarity/LLM pipeline decide whether each
+                    // A→B correction is worth learning instead of short-circuiting here.
+                    let mut corrections: Vec<(String, String)> = Vec::new();
 
-                for diff in &diffs {
-                    let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
-                    if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
-                        error!("Failed to record correction candidate: {}", e);
+                    for diff in &diffs {
+                        let similarity =
+                            calculate_phonetic_similarity(&diff.original, &diff.corrected);
+                        if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
+                            error!("Failed to record correction candidate: {}", e);
+                        }
+                        corrections.push((diff.original.clone(), diff.corrected.clone()));
                     }
-                    corrections.push((diff.original.clone(), diff.corrected.clone()));
-                }
 
-                // Fire-and-forget LLM analysis (safe: we're already in async context)
-                if !corrections.is_empty() {
-                    let app_handle = self.app_handle.clone();
-                    let db_path = self.db_path.clone();
-                    tokio::spawn(async move {
-                        HotwordManager::analyze_corrections_via_llm(
-                            app_handle,
-                            db_path,
-                            corrections,
-                        )
-                        .await;
-                    });
-                }
+                    // Fire-and-forget LLM analysis (safe: we're already in async context)
+                    if !corrections.is_empty() {
+                        let app_handle = self.app_handle.clone();
+                        let db_path = self.db_path.clone();
+                        tokio::spawn(async move {
+                            HotwordManager::analyze_corrections_via_llm(
+                                app_handle,
+                                db_path,
+                                corrections,
+                            )
+                            .await;
+                        });
+                    }
 
-                info!(
-                    "[History] Processed {} edit diffs from review window for entry {}",
-                    diffs.len(),
-                    id
-                );
+                    info!(
+                        "[History] Processed {} edit diffs from review window for entry {}",
+                        diffs.len(),
+                        id
+                    );
+                }
             }
         }
 

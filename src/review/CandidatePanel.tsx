@@ -22,6 +22,7 @@ interface CandidatePanelProps {
   isEditing: boolean;
   maxTime: number;
   timeRank?: number;
+  rankCount?: number;
   editedText?: string;
   onSelect: () => void;
   onEditEnd: () => void;
@@ -42,6 +43,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   isEditing,
   maxTime,
   timeRank,
+  rankCount,
   editedText,
   onSelect,
   onEditEnd,
@@ -100,6 +102,15 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                   {timeRank && (
                     <span className={`candidate-rank rank-${timeRank}`}>
                       {timeRank}
+                    </span>
+                  )}
+                  {timeRank != null && timeRank <= 3 && rankCount != null && (
+                    <span className="candidate-rank-count">
+                      {t("transcription.review.rankCount", {
+                        defaultValue: "第{{rank}}名 {{count}}次",
+                        rank: timeRank,
+                        count: rankCount,
+                      })}
                     </span>
                   )}
                   {candidate.processing_time_ms > 0 && (

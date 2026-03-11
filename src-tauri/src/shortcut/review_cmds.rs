@@ -11,14 +11,18 @@ pub fn confirm_reviewed_transcription(
     text: String,
     history_id: Option<i64>,
     cached_model_id: Option<String>,
+    learn_from_edit: bool,
+    original_text_for_learning: Option<String>,
 ) -> Result<(), String> {
     use std::time::Duration;
 
     log::info!(
-        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}, cached_model_id={:?}",
+        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}, cached_model_id={:?}, learn_from_edit={}, has_original_text_for_learning={}",
         text.len(),
         history_id,
-        cached_model_id
+        cached_model_id,
+        learn_from_edit,
+        original_text_for_learning.is_some()
     );
 
     // Resolve the actual model_id from cached_model_id
@@ -37,7 +41,15 @@ pub fn confirm_reviewed_transcription(
             if let Some(hm) = app_for_history
                 .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
             {
-                if let Err(e) = hm.update_reviewed_text(hid, text_for_history).await {
+                if let Err(e) = hm
+                    .update_reviewed_text(
+                        hid,
+                        text_for_history,
+                        learn_from_edit,
+                        original_text_for_learning.clone(),
+                    )
+                    .await
+                {
                     log::error!("Failed to update history with reviewed text: {}", e);
                 }
                 // Update model name if the user selected a specific candidate

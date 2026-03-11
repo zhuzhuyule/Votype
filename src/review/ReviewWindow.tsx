@@ -16,7 +16,13 @@ import {
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import hljs from "highlight.js";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { escapeHtml } from "../lib/utils/html";
 import { log } from "../lib/utils/logging";
@@ -34,6 +40,42 @@ import {
 import { simpleMarkdownToHtml } from "./markdown-utils";
 
 const DIFF_THRESHOLD = 50;
+const SPEED_RANK_STATS_STORAGE_KEY = "votype.multiModelSpeedRankStats";
+const MULTI_SORT_MODE_STORAGE_KEY = "votype.multiModelSortMode";
+
+type RankPosition = 1 | 2 | 3;
+type SpeedRankStats = Record<string, Partial<Record<RankPosition, number>>>;
+type MultiSortMode = "default" | "speed";
+
+function readSpeedRankStats(): SpeedRankStats {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(SPEED_RANK_STATS_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as SpeedRankStats;
+  } catch {
+    return {};
+  }
+}
+
+function writeSpeedRankStats(stats: SpeedRankStats) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    SPEED_RANK_STATS_STORAGE_KEY,
+    JSON.stringify(stats),
+  );
+}
+
+function readMultiSortMode(): MultiSortMode {
+  if (typeof window === "undefined") return "default";
+  const raw = window.localStorage.getItem(MULTI_SORT_MODE_STORAGE_KEY);
+  return raw === "speed" ? "speed" : "default";
+}
+
+function writeMultiSortMode(mode: MultiSortMode) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(MULTI_SORT_MODE_STORAGE_KEY, mode);
+}
 
 interface ReviewData {
   source_text: string;
@@ -204,6 +246,17 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   >(multiCandidates);
   const [isRerunning, setIsRerunning] = useState(false);
   const [editedTexts, setEditedTexts] = useState<Record<string, string>>({});
+  const [multiSortMode, setMultiSortMode] = useState<MultiSortMode>(() =>
+    readMultiSortMode(),
+  );
+  const [speedRankStats, setSpeedRankStats] = useState<SpeedRankStats>(() =>
+    readSpeedRankStats(),
+  );
+  const lastRecordedRaceKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    writeMultiSortMode(multiSortMode);
+  }, [multiSortMode]);
 
   // Model selector state (single-model polish mode only)
   const [modelOptions, setModelOptions] = useState<ReviewModelOption[]>([]);
@@ -331,11 +384,86 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   // The candidates to render (local state, updated by progress events)
   const displayCandidates = localCandidates || multiCandidates;
+  const sortedCandidates = useMemo(() => {
+    if (!displayCandidates || multiSortMode !== "speed") {
+      return displayCandidates;
+    }
+
+    const originalOrder = new Map(
+      displayCandidates.map((candidate, index) => [candidate.id, index]),
+    );
+
+    return [...displayCandidates].sort((a, b) => {
+      const aReady = a.ready && !a.error && a.processing_time_ms > 0;
+      const bReady = b.ready && !b.error && b.processing_time_ms > 0;
+
+      if (aReady && bReady && a.processing_time_ms !== b.processing_time_ms) {
+        return a.processing_time_ms - b.processing_time_ms;
+      }
+
+      if (aReady !== bReady) {
+        return aReady ? -1 : 1;
+      }
+
+      const aError = Boolean(a.error);
+      const bError = Boolean(b.error);
+      if (aError !== bError) {
+        return aError ? 1 : -1;
+      }
+
+      return (
+        (originalOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (originalOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      );
+    });
+  }, [displayCandidates, multiSortMode]);
+
+  useEffect(() => {
+    if (!displayCandidates || multiSortMode !== "speed") return;
+    if (
+      displayCandidates.length === 0 ||
+      !displayCandidates.every((c) => c.ready)
+    ) {
+      return;
+    }
+
+    const podium = [...displayCandidates]
+      .filter((c) => !c.error && c.processing_time_ms > 0)
+      .sort((a, b) => a.processing_time_ms - b.processing_time_ms)
+      .slice(0, 3);
+
+    if (podium.length === 0) return;
+
+    const raceKey = JSON.stringify(
+      podium.map((candidate, index) => ({
+        id: candidate.id,
+        rank: index + 1,
+        processing_time_ms: candidate.processing_time_ms,
+      })),
+    );
+    if (lastRecordedRaceKeyRef.current === raceKey) {
+      return;
+    }
+    lastRecordedRaceKeyRef.current = raceKey;
+
+    setSpeedRankStats((prev) => {
+      const next: SpeedRankStats = { ...prev };
+      podium.forEach((candidate, index) => {
+        const rank = (index + 1) as RankPosition;
+        next[candidate.id] = {
+          ...next[candidate.id],
+          [rank]: (next[candidate.id]?.[rank] ?? 0) + 1,
+        };
+      });
+      writeSpeedRankStats(next);
+      return next;
+    });
+  }, [displayCandidates, multiSortMode]);
 
   // Use selected candidate text if in multi-candidate mode
   const currentText =
-    selectedCandidateId && displayCandidates
-      ? displayCandidates.find((c) => c.id === selectedCandidateId)?.text ||
+    selectedCandidateId && sortedCandidates
+      ? sortedCandidates.find((c) => c.id === selectedCandidateId)?.text ||
         initialData.final_text
       : initialData.final_text;
 
@@ -566,17 +694,49 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   const getEditorText = useCallback(() => {
     // In multi-candidate mode, return edited or original candidate text
-    if (displayCandidates && selectedCandidateId) {
+    if (sortedCandidates && selectedCandidateId) {
       const edited = editedTexts[selectedCandidateId];
       if (edited !== undefined) return edited;
-      const candidate = displayCandidates.find(
+      const candidate = sortedCandidates.find(
         (c) => c.id === selectedCandidateId,
       );
       return candidate?.text || "";
     }
     if (!editor) return "";
     return editor.getText({ blockSeparator: "\n" });
-  }, [editor, displayCandidates, selectedCandidateId, editedTexts]);
+  }, [editor, sortedCandidates, selectedCandidateId, editedTexts]);
+
+  const getOriginalReviewText = useCallback(() => {
+    if (sortedCandidates && selectedCandidateId) {
+      return (
+        sortedCandidates
+          .find((c) => c.id === selectedCandidateId)
+          ?.text.trim() || ""
+      );
+    }
+    return currentFinalText.trim();
+  }, [currentFinalText, selectedCandidateId, sortedCandidates]);
+
+  const didUserEditReviewedText = useCallback(() => {
+    const currentText = getEditorText().trim();
+    const originalReviewText = getOriginalReviewText();
+
+    if (sortedCandidates && selectedCandidateId) {
+      return (
+        editedTexts[selectedCandidateId] !== undefined &&
+        currentText.length > 0 &&
+        currentText !== originalReviewText
+      );
+    }
+
+    return currentText.length > 0 && currentText !== originalReviewText;
+  }, [
+    editedTexts,
+    getEditorText,
+    getOriginalReviewText,
+    selectedCandidateId,
+    sortedCandidates,
+  ]);
 
   const handleInsert = useCallback(async () => {
     const currentText = getEditorText();
@@ -589,6 +749,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         text: currentText.trim(),
         historyId: initialData.history_id,
         cachedModelId: selectedCandidateId || undefined,
+        learnFromEdit: didUserEditReviewedText(),
+        originalTextForLearning: didUserEditReviewedText()
+          ? getOriginalReviewText()
+          : undefined,
       });
       onClose();
     } catch (e) {
@@ -602,6 +766,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     onClose,
     isSubmitting,
     selectedCandidateId,
+    didUserEditReviewedText,
+    getOriginalReviewText,
   ]);
 
   // Insert original ASR text directly
@@ -615,6 +781,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         text: initialData.source_text.trim(),
         historyId: initialData.history_id,
         cachedModelId: undefined,
+        learnFromEdit: false,
       });
       onClose();
     } catch (e) {
@@ -634,6 +801,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           text: text.trim(),
           historyId: initialData.history_id,
           cachedModelId: candidateId || undefined,
+          learnFromEdit: false,
         });
         onClose();
       } catch (e) {
@@ -702,21 +870,21 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   // Navigate between ready candidates in multi-model mode
   const getNextReadyCandidate = useCallback(
     (direction: 1 | -1): string | null => {
-      if (!displayCandidates) return null;
-      const ready = displayCandidates.filter((c) => c.ready && !c.error);
+      if (!sortedCandidates) return null;
+      const ready = sortedCandidates.filter((c) => c.ready && !c.error);
       if (ready.length === 0) return null;
       const currentIdx = ready.findIndex((c) => c.id === selectedCandidateId);
       const nextIdx = (currentIdx + direction + ready.length) % ready.length;
       return ready[nextIdx].id;
     },
-    [displayCandidates, selectedCandidateId],
+    [sortedCandidates, selectedCandidateId],
   );
 
   // In multi-model mode, Tiptap editor is not rendered so its keyboard
   // shortcuts don't fire. Register a global keydown listener with
   // two-level focus model (List Mode / Edit Mode).
   useEffect(() => {
-    if (!displayCandidates || displayCandidates.length === 0) return;
+    if (!sortedCandidates || sortedCandidates.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Tab: insert original text
@@ -765,7 +933,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [
-    displayCandidates,
+    sortedCandidates,
     editingCandidateId,
     selectedCandidateId,
     getNextReadyCandidate,
@@ -875,13 +1043,16 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               setShowDiff(cp < DIFF_THRESHOLD);
               setCurrentFinalText(text);
             }}
+            multiSortMode={multiSortMode}
+            onMultiSortModeChange={setMultiSortMode}
           />
         </div>
 
-        {displayCandidates && displayCandidates.length > 0 ? (
+        {sortedCandidates && sortedCandidates.length > 0 ? (
           <MultiCandidateView
             sourceText={initialData.source_text}
-            candidates={displayCandidates}
+            candidates={sortedCandidates}
+            rankStats={speedRankStats}
             selectedCandidateId={selectedCandidateId}
             editingCandidateId={editingCandidateId}
             editedTexts={editedTexts}
@@ -952,7 +1123,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           isSubmitting={isSubmitting}
           hasText={!!getEditorText().trim()}
           insertShortcut={insertShortcut}
-          isMultiModel={!!displayCandidates && displayCandidates.length > 0}
+          isMultiModel={!!sortedCandidates && sortedCandidates.length > 0}
           onCopy={handleCopy}
           onInsert={handleInsert}
         />

@@ -1,6 +1,7 @@
 // Header with prompt/model selector and close button
 
 import {
+  IconBolt,
   IconEye,
   IconEyeOff,
   IconLanguage,
@@ -51,6 +52,8 @@ interface ReviewHeaderProps {
   onRerunEnd: () => void;
   onMeasureAndResize: (reposition: boolean) => void;
   onRerunResult?: (text: string) => void;
+  multiSortMode?: "default" | "speed";
+  onMultiSortModeChange?: (mode: "default" | "speed") => void;
 }
 
 export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
@@ -78,6 +81,8 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
   onRerunEnd,
   onMeasureAndResize,
   onRerunResult,
+  multiSortMode,
+  onMultiSortModeChange,
 }) => {
   const { t } = useTranslation();
 
@@ -173,6 +178,45 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           ) : prompts.length === 1 ? (
             <span className="review-prompt-badge">{prompts[0].name}</span>
           ) : null}
+          <button
+            type="button"
+            className={`review-multi-sort-btn ${multiSortMode === "speed" ? "active" : ""}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={() =>
+              onMultiSortModeChange?.(
+                multiSortMode === "speed" ? "default" : "speed",
+              )
+            }
+            title={
+              multiSortMode === "speed"
+                ? t("transcription.review.restoreOrder", "恢复原顺序")
+                : t("transcription.review.sortBySpeed", "按反应速率排序")
+            }
+          >
+            <IconBolt size={14} />
+            <span>
+              {multiSortMode === "speed"
+                ? t("transcription.review.speedSorted", "速度优先")
+                : t("transcription.review.sortBySpeedShort", "按速度")}
+            </span>
+          </button>
+          <div
+            className="review-tooltip review-tooltip-bottom"
+            data-tooltip={t("transcription.review.translateText", "翻译查看")}
+          >
+            <button
+              className={`review-translate-btn ${isTranslating ? "loading" : ""}`}
+              onClick={onTranslate}
+              onPointerDown={(e) => e.stopPropagation()}
+              disabled={isTranslating}
+            >
+              {isTranslating ? (
+                <IconLoader2 size={14} className="spinning" />
+              ) : (
+                <IconLanguage size={14} />
+              )}
+            </button>
+          </div>
         </div>
         <div
           className="review-close-button review-close-btn"

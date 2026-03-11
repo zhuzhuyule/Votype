@@ -8,6 +8,7 @@ import { CandidatePanel, MultiModelCandidate } from "./CandidatePanel";
 interface MultiCandidateViewProps {
   sourceText: string;
   candidates: MultiModelCandidate[];
+  rankStats?: Record<string, Partial<Record<1 | 2 | 3, number>>>;
   selectedCandidateId: string | null;
   editingCandidateId: string | null;
   editedTexts: Record<string, string>;
@@ -21,6 +22,7 @@ interface MultiCandidateViewProps {
 export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   sourceText,
   candidates,
+  rankStats,
   selectedCandidateId,
   editingCandidateId,
   editedTexts,
@@ -70,6 +72,14 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             isEditing={editingCandidateId === candidate.id}
             maxTime={maxTime}
             timeRank={timeRankMap.get(candidate.id)}
+            rankCount={
+              timeRankMap.get(candidate.id) &&
+              timeRankMap.get(candidate.id)! <= 3
+                ? rankStats?.[candidate.id]?.[
+                    timeRankMap.get(candidate.id)! as 1 | 2 | 3
+                  ]
+                : undefined
+            }
             editedText={editedTexts[candidate.id]}
             onSelect={() => onCandidateSelect(candidate.id)}
             onEditEnd={onEditEnd}
