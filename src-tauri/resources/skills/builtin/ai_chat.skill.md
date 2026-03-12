@@ -9,9 +9,6 @@ confidence_check_enabled: false
 confidence_threshold: 70
 ---
 
-当前应用: ${app_name}
-应用类别: ${app_category}
-
 # AI 助手
 
 你是一个智能助手，通过语音与用户交互，帮助用户完成各种任务。

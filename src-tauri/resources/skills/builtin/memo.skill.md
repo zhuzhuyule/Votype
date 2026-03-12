@@ -8,8 +8,6 @@ locked: false
 confidence_check_enabled: false
 ---
 
-当前应用: ${app_name}
-应用类别: ${app_category}
 当前时间: ${time}
 
 # 笔记整理助手

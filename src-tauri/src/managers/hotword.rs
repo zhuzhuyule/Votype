@@ -523,8 +523,23 @@ impl HotwordManager {
 
         let mut output = String::new();
 
-        output.push_str("[ASR专有名词校正]\n");
-        output.push_str("语音识别常将专有名词误识别为发音相似的文字。以下按类别列出用户定义的专有名词，括号内为已知的常见误识别形式。\n\n");
+        output.push_str("## 热词 / 易混词处理\n");
+        output
+            .push_str("以下内容是用户整理的词汇参考，可用于术语消歧、专有名词识别和易混词判断。\n");
+        output.push_str(
+            "它只作为语义增强参考，不是强制替换依据；请结合当前语境、相似度和表达意图谨慎使用。\n\n",
+        );
+        output.push_str("处理原则:\n");
+        output.push_str("1. 如果输入与下列词条存在明显音近、形近、缩写误写或 ASR 常见错误，可优先参考对应词条。\n");
+        output.push_str("2. 若证据不足，不要强行替换。\n");
+        output.push_str("3. 不要把普通语义润色误当成热词替换。\n");
+        output.push_str(
+            "4. 人名类仅在谈论人物的语境中参考；术语、品牌、缩写类仅在相关领域语境中参考。\n",
+        );
+        output.push_str(
+            "5. 相似度判断以读音接近、字形接近、常见误拼写和上下文语义一致性为主，不要只凭单一线索替换。\n\n",
+        );
+        output.push_str("词表:\n");
 
         for cat_id in &cat_keys {
             let items = &groups[cat_id];
@@ -533,26 +548,18 @@ impl HotwordManager {
                 .map(|m| m.label.as_str())
                 .unwrap_or(cat_id.as_str());
 
-            // Compact comma-separated format: 类别: word1(orig1,orig2),word2,word3
-            let entries: Vec<String> = items
-                .iter()
-                .map(|h| {
-                    if h.originals.is_empty() {
-                        h.target.clone()
-                    } else {
-                        format!("{}({})", h.target, h.originals.join(","))
-                    }
-                })
-                .collect();
-            output.push_str(&format!("{}: {}\n", label, entries.join(", ")));
+            output.push_str(&format!("\n### {}\n", label));
+            output.push_str("[\n");
+            for h in items {
+                let note = if h.originals.is_empty() {
+                    "仅在相关语境中参考".to_string()
+                } else {
+                    format!("常见易混形式: {}", h.originals.join("、"))
+                };
+                output.push_str(&format!("  [\"{}\", \"{}\"],\n", h.target, note));
+            }
+            output.push_str("]\n");
         }
-
-        output.push_str("\n校正规则:\n");
-        output.push_str("- 遇到括号内的已知误识别形式时，替换为对应的正确词汇\n");
-        output.push_str("- 未标注括号的词，也请主动识别发音相似(同音/近音/谐音)的误识别\n");
-        output.push_str("- 人名类: 仅在谈论人物的语境中替换，避免将普通词汇误判为人名\n");
-        output.push_str("- 术语/品牌/缩写类: 仅在相关技术或产品讨论的语境中替换\n");
-        output.push_str("- 不确定时保留原文，避免过度校正\n");
 
         debug!(
             "[Hotword] Built LLM injection for scenario {:?}: {} chars",
@@ -901,8 +908,22 @@ impl HotwordManager {
             }
         };
 
+        let filtered_corrections: Vec<_> = corrections
+            .iter()
+            .filter(|(orig, corr)| {
+                let original = orig.trim();
+                let corrected = corr.trim();
+                !original.is_empty() && !corrected.is_empty() && original != corrected
+            })
+            .collect();
+
+        if filtered_corrections.is_empty() {
+            info!("[Hotword] No meaningful corrections to analyze, skipping");
+            return;
+        }
+
         // Format corrections
-        let corrections_text: String = corrections
+        let corrections_text: String = filtered_corrections
             .iter()
             .map(|(orig, corr)| format!("- \"{}\" → \"{}\"", orig, corr))
             .collect::<Vec<_>>()
