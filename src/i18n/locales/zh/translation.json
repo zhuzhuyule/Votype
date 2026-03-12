@@ -926,6 +926,25 @@
         "placeholder": "选择意图模型",
         "title": "意图模型"
       },
+      "inputInjection": {
+        "groupTitle": "自动注入内容",
+        "title": "自动注入内容",
+        "description": "控制后处理或翻译请求中会自动附带哪些辅助信息。",
+        "history": {
+          "enabled": "注入历史转录上下文",
+          "description": "将当前应用最近的识别结果作为上下文提供给后处理模型。",
+          "limit": "历史上下文条数",
+          "limitDesc": "后处理最多附带最近 {{count}} 条历史记录。"
+        },
+        "streaming": {
+          "enabled": "注入实时转录中间结果",
+          "description": "将 streaming_output 一并提供给模型，用于辅助歧义消解。"
+        },
+        "hotwords": {
+          "enabled": "注入热词与专有名词表",
+          "description": "将热词、专有名词和常见误识别映射附带给后处理模型。"
+        }
+      },
       "appRules": {
         "activeProfiles": "{{count}} 条活跃规则",
         "addApp": "添加应用",
@@ -1106,9 +1125,9 @@
         "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
         "promptLabel": "提示词名称",
         "promptLabelPlaceholder": "输入提示词名称",
-        "promptTip": "提示：<br/>使用 <code>${output}</code> 引用转录文本。<br/>使用 <code>${streaming_output}</code> 引用实时转录文本（仅作参考，可能为空）。",
+        "promptTip": "提示：系统会自动整理输入来源。只有一个主输入时，会直接发送纯文本；存在多个输入源时，会按“用户输入 / 用户选中文本 / 本地 ASR 参考 / 历史上下文”等分段发送。提示词应重点描述“如何处理这些内容”，而不是自行组织输入结构。",
         "selectedPrompt": {
-          "description": "选择用于优化转录的模板或创建新模板。在提示词文本中使用 ${output} 来引用捕获的转录。",
+          "description": "选择用于优化转录的模板或创建新模板。系统会按当前规则自动注入主输入与参考信息；需要显式引用时，仍可使用 ${output}、${select}、${context} 等变量。",
           "title": "已选提示词"
         },
         "selectPrompt": "选择提示词",

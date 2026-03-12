@@ -890,6 +890,25 @@
         "placeholder": "Select an intent model",
         "title": "Intent Model"
       },
+      "inputInjection": {
+        "groupTitle": "Automatic Inputs",
+        "title": "Automatic Inputs",
+        "description": "Control which helper inputs are automatically attached to post-processing or translation requests.",
+        "history": {
+          "enabled": "Inject history context",
+          "description": "Provide recent transcriptions from the current app as context for post-processing.",
+          "limit": "History context depth",
+          "limitDesc": "Attach up to the last {{count}} history entries to post-processing."
+        },
+        "streaming": {
+          "enabled": "Inject streaming transcript",
+          "description": "Send streaming_output alongside the final text to help disambiguate ASR results."
+        },
+        "hotwords": {
+          "enabled": "Inject hotwords and vocabulary",
+          "description": "Attach hotwords, terminology, and common misrecognition mappings to post-processing."
+        }
+      },
       "appRules": {
         "activeProfiles": "{{count}} active rules",
         "addApp": "Add App",
@@ -1084,11 +1103,11 @@
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tip: The system automatically sends input data as a separate message to the AI. You only need to reference variable names in your prompt:<br/><b>Input Variables (auto-appended):</b><br/><code>${output}</code>: Final transcribed text.<br/><code>${raw_input}</code>: Complete original transcription.<br/><code>${select}</code>: Text selected when recording ended.<br/><code>${streaming_output}</code>: Real-time transcription (works with output for better accuracy).<br/><code>${context}</code>: Historical context from the active window.<br/><b>Metadata Variables (directly replaced):</b><br/><code>${app_name}</code>: Active application name.<br/><code>${window_title}</code>: Current window title.<br/><code>${time}</code>: Current timestamp.<br/><code>${prompt}</code>: Current prompt scheme name.<br/><br/><b>Fallback:</b> If your prompt doesn't reference output/raw_input/select, the system will automatically append the transcription at the end, so you can write pure task descriptions.",
+        "promptTip": "Tip: The system now organizes input sources automatically. When there is only one main input, it sends plain text directly. When multiple sources are present, it sends clearly labeled sections such as User Input, Selected Text, Local ASR Reference, and History Context. Your prompt should focus on how to use these inputs, not on rebuilding the structure yourself.",
         "refinementDescription": "Automatically corrects and formats the recognized text.",
         "reviewThreshold": "Review Threshold",
         "selectedPrompt": {
-          "description": "The system automatically sends referenced variables (like <code>${output}</code>, <code>${select}</code>) as a separate message to the AI. If no input variables are referenced, the system will auto-append the transcription.",
+          "description": "Choose the template used for post-processing, or create a new one. The system injects the main input and reference information automatically; when needed, you can still explicitly reference variables such as <code>${output}</code>, <code>${select}</code>, and <code>${context}</code>.",
           "title": "Selected Prompt"
         },
         "selectPrompt": "Select a prompt",

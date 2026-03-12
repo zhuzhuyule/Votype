@@ -553,6 +553,8 @@ pub struct AppSettings {
     #[serde(default = "default_post_process_prompts")]
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
+    pub builtin_prompt_resource_hashes: HashMap<String, String>,
+    #[serde(default)]
     pub custom_words: Vec<String>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
@@ -567,6 +569,12 @@ pub struct AppSettings {
     /// Selected cached_model IDs for multi-model parallel post-processing (checkbox-based)
     #[serde(default)]
     pub multi_model_selected_ids: Vec<String>,
+    /// Multi-model strategy: manual | race | lazy
+    #[serde(default = "default_multi_model_strategy")]
+    pub multi_model_strategy: String,
+    /// Counts of manual candidate picks by cached_model_id
+    #[serde(default)]
+    pub multi_model_manual_pick_counts: HashMap<String, u32>,
     #[serde(default)]
     pub cached_models: Vec<CachedModel>,
     #[serde(default)]
@@ -602,6 +610,10 @@ pub struct AppSettings {
     pub post_process_context_enabled: bool,
     #[serde(default = "default_post_process_context_limit")]
     pub post_process_context_limit: u8,
+    #[serde(default = "default_post_process_streaming_output_enabled")]
+    pub post_process_streaming_output_enabled: bool,
+    #[serde(default = "default_post_process_hotword_injection_enabled")]
+    pub post_process_hotword_injection_enabled: bool,
     /// Expert mode enables advanced settings visibility
     #[serde(default)]
     pub expert_mode: bool,
@@ -815,6 +827,10 @@ fn default_punctuation_enabled() -> bool {
     false
 }
 
+fn default_multi_model_strategy() -> String {
+    "manual".to_string()
+}
+
 fn default_punctuation_model() -> String {
     "".to_string()
 }
@@ -837,6 +853,14 @@ fn default_post_process_context_enabled() -> bool {
 
 fn default_post_process_context_limit() -> u8 {
     3
+}
+
+fn default_post_process_streaming_output_enabled() -> bool {
+    true
+}
+
+fn default_post_process_hotword_injection_enabled() -> bool {
+    true
 }
 
 fn default_length_routing_threshold() -> u32 {
@@ -863,6 +887,36 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
     .iter()
     .filter_map(|c| parse_builtin_skill_content(c))
     .collect()
+}
+
+fn builtin_prompt_signature(prompt: &LLMPrompt) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    prompt.id.hash(&mut hasher);
+    prompt.name.hash(&mut hasher);
+    prompt.description.hash(&mut hasher);
+    prompt.instructions.hash(&mut hasher);
+    prompt.prompt.hash(&mut hasher);
+    prompt.icon.hash(&mut hasher);
+    format!("{:?}", prompt.output_mode).hash(&mut hasher);
+    prompt.confidence_check_enabled.hash(&mut hasher);
+    prompt.confidence_threshold.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+fn is_stale_builtin_prompt(existing: &LLMPrompt) -> bool {
+    if existing.source != SkillSource::Builtin {
+        return false;
+    }
+
+    let content = existing.instructions.as_str();
+    content.contains("语音转录后处理专家提示词（优化版）")
+        || content.contains("系统可能提供以下数据")
+        || content.contains("系统已自动注入以下辅助信息")
+        || content.contains("${output}")
+        || content.contains("${streaming_output}")
 }
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
@@ -901,17 +955,28 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         }
     }
 
-    // Refresh built-in prompts: update content for non-customized builtin prompts,
+    // Refresh built-in prompts: update content for synchronized builtin prompts,
     // preserving user's `enabled` and `model_id` choices.
     let defaults = default_post_process_prompts();
     for default_prompt in &defaults {
+        let default_hash = builtin_prompt_signature(default_prompt);
         if let Some(existing) = settings
             .post_process_prompts
             .iter_mut()
             .find(|p| p.id == default_prompt.id)
         {
-            if existing.source == SkillSource::Builtin && !existing.customized {
-                if existing.instructions != default_prompt.instructions
+            let stored_hash = settings
+                .builtin_prompt_resource_hashes
+                .get(&default_prompt.id)
+                .cloned();
+            let existing_hash = builtin_prompt_signature(existing);
+            let should_sync = existing.source == SkillSource::Builtin
+                && (!existing.customized
+                    || stored_hash.as_deref() == Some(existing_hash.as_str())
+                    || is_stale_builtin_prompt(existing));
+
+            if should_sync
+                && (existing.instructions != default_prompt.instructions
                     || existing.prompt != default_prompt.prompt
                     || existing.name != default_prompt.name
                     || existing.description != default_prompt.description
@@ -919,21 +984,36 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                     || existing.output_mode != default_prompt.output_mode
                     || existing.confidence_check_enabled != default_prompt.confidence_check_enabled
                     || existing.confidence_threshold != default_prompt.confidence_threshold
-                {
-                    existing.instructions = default_prompt.instructions.clone();
-                    existing.prompt = default_prompt.prompt.clone();
-                    existing.name = default_prompt.name.clone();
-                    existing.description = default_prompt.description.clone();
-                    existing.icon = default_prompt.icon.clone();
-                    existing.output_mode = default_prompt.output_mode.clone();
-                    existing.confidence_check_enabled = default_prompt.confidence_check_enabled;
-                    existing.confidence_threshold = default_prompt.confidence_threshold;
-                    changed = true;
-                }
+                    || existing.customized)
+            {
+                existing.instructions = default_prompt.instructions.clone();
+                existing.prompt = default_prompt.prompt.clone();
+                existing.name = default_prompt.name.clone();
+                existing.description = default_prompt.description.clone();
+                existing.icon = default_prompt.icon.clone();
+                existing.output_mode = default_prompt.output_mode.clone();
+                existing.confidence_check_enabled = default_prompt.confidence_check_enabled;
+                existing.confidence_threshold = default_prompt.confidence_threshold;
+                existing.customized = false;
+                changed = true;
+            }
+
+            if settings
+                .builtin_prompt_resource_hashes
+                .get(&default_prompt.id)
+                != Some(&default_hash)
+            {
+                settings
+                    .builtin_prompt_resource_hashes
+                    .insert(default_prompt.id.clone(), default_hash);
+                changed = true;
             }
         } else {
             // Built-in prompt missing entirely, add it
             settings.post_process_prompts.push(default_prompt.clone());
+            settings
+                .builtin_prompt_resource_hashes
+                .insert(default_prompt.id.clone(), default_hash);
             changed = true;
         }
     }
@@ -1081,11 +1161,14 @@ pub fn get_default_settings() -> AppSettings {
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
+        builtin_prompt_resource_hashes: HashMap::new(),
         post_process_selected_prompt_id: None,
         post_process_intent_model_id: None,
         multi_model_post_process_enabled: false,
         multi_model_post_process_items: Vec::new(),
         multi_model_selected_ids: Vec::new(),
+        multi_model_strategy: default_multi_model_strategy(),
+        multi_model_manual_pick_counts: HashMap::new(),
         cached_models: Vec::new(),
         online_asr_enabled: false,
         selected_asr_model_id: None,
@@ -1103,6 +1186,8 @@ pub fn get_default_settings() -> AppSettings {
         app_to_profile: HashMap::new(),
         post_process_context_enabled: default_post_process_context_enabled(),
         post_process_context_limit: default_post_process_context_limit(),
+        post_process_streaming_output_enabled: default_post_process_streaming_output_enabled(),
+        post_process_hotword_injection_enabled: default_post_process_hotword_injection_enabled(),
         custom_words: Vec::new(),
         expert_mode: false,
         experimental_enabled: false,

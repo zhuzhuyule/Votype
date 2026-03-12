@@ -206,6 +206,14 @@ const settingUpdaters: {
     invoke("change_post_process_context_enabled_setting", { enabled: value }),
   post_process_context_limit: (value) =>
     invoke("change_post_process_context_limit_setting", { limit: value }),
+  post_process_streaming_output_enabled: (value) =>
+    invoke("change_post_process_streaming_output_enabled_setting", {
+      enabled: value,
+    }),
+  post_process_hotword_injection_enabled: (value) =>
+    invoke("change_post_process_hotword_injection_enabled_setting", {
+      enabled: value,
+    }),
   post_process_use_secondary_output: (value) =>
     invoke("change_post_process_use_secondary_output_setting", {
       enabled: value,
@@ -225,6 +233,10 @@ const settingUpdaters: {
   multi_model_post_process_enabled: (value) =>
     invoke("change_multi_model_post_process_enabled_setting", {
       enabled: value,
+    }),
+  multi_model_strategy: (value) =>
+    invoke("change_multi_model_strategy_setting", {
+      strategy: value,
     }),
   multi_model_post_process_items: () => Promise.resolve(), // Handled separately
   post_process_selected_prompt_id: (value) =>

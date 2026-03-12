@@ -235,6 +235,11 @@ export const SettingsSchema = z.object({
     .optional()
     .default([]),
   multi_model_selected_ids: z.array(z.string()).optional().default([]),
+  multi_model_strategy: z
+    .enum(["manual", "race", "lazy"])
+    .optional()
+    .default("manual"),
+  multi_model_manual_pick_counts: z.record(z.number()).optional().default({}),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),
   selected_asr_model_id: z.string().nullable().optional(),
@@ -257,7 +262,9 @@ export const SettingsSchema = z.object({
   app_profiles: z.array(AppProfileSchema).optional().default([]),
   app_to_profile: z.record(z.string(), z.string()).optional().default({}),
   post_process_context_enabled: z.boolean().optional().default(false),
-  post_process_context_limit: z.number().min(1).max(10).optional().default(3),
+  post_process_context_limit: z.number().min(1).max(30).optional().default(3),
+  post_process_streaming_output_enabled: z.boolean().optional().default(true),
+  post_process_hotword_injection_enabled: z.boolean().optional().default(true),
   expert_mode: z.boolean().optional().default(false),
   keyboard_implementation: z
     .enum(["tauri", "handy_keys"])

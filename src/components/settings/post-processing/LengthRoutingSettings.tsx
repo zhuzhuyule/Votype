@@ -6,6 +6,7 @@ import {
   Select,
   Slider as RadixSlider,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +18,8 @@ type TextModelMode = "single" | "length" | "multi";
 
 export const TextModelModeSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, updateSetting, selectPromptModel } = useSettings();
+  const { settings, updateSetting, selectPromptModel, isUpdating } =
+    useSettings();
 
   const lengthRoutingEnabled = settings?.length_routing_enabled ?? false;
   const multiModelEnabled = settings?.multi_model_post_process_enabled ?? false;
@@ -36,6 +38,7 @@ export const TextModelModeSettings: React.FC = () => {
     () => settings?.multi_model_selected_ids ?? [],
     [settings?.multi_model_selected_ids],
   );
+  const multiModelStrategy = settings?.multi_model_strategy ?? "manual";
 
   const textModels: CachedModel[] = useMemo(
     () =>
@@ -154,6 +157,42 @@ export const TextModelModeSettings: React.FC = () => {
       hint: t(
         "settings.postProcessing.textModelMode.multiHint",
         "Parallel comparison",
+      ),
+    },
+  ];
+
+  const multiStrategyOptions = [
+    {
+      value: "manual" as const,
+      label: t(
+        "settings.postProcessing.textModelMode.multiStrategyManual",
+        "手动",
+      ),
+      hint: t(
+        "settings.postProcessing.textModelMode.multiStrategyManualHint",
+        "展示所有候选，手动选择",
+      ),
+    },
+    {
+      value: "race" as const,
+      label: t(
+        "settings.postProcessing.textModelMode.multiStrategyRaceShort",
+        "极速",
+      ),
+      hint: t(
+        "settings.postProcessing.textModelMode.multiStrategyRaceHint",
+        "谁先返回可用结果就直接采用",
+      ),
+    },
+    {
+      value: "lazy" as const,
+      label: t(
+        "settings.postProcessing.textModelMode.multiStrategyLazyShort",
+        "懒惰",
+      ),
+      hint: t(
+        "settings.postProcessing.textModelMode.multiStrategyLazyHint",
+        "优先等默认模型 3 秒，超时后按偏好自动选择",
       ),
     },
   ];
@@ -310,6 +349,44 @@ export const TextModelModeSettings: React.FC = () => {
               "Select models in the list below for parallel comparison",
             )}
           </Text>
+          <Box mt="3">
+            <Text size="2" weight="medium" color="gray" mb="2" as="div">
+              {t(
+                "settings.postProcessing.textModelMode.multiStrategy",
+                "多模型策略",
+              )}
+            </Text>
+            <Flex
+              align="center"
+              gap="1"
+              className="w-fit rounded-full border border-(--gray-6) bg-(--gray-2) p-1"
+            >
+              {multiStrategyOptions.map((item) => {
+                const selected = multiModelStrategy === item.value;
+                return (
+                  <Tooltip key={item.value} content={item.hint}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateSetting("multi_model_strategy", item.value)
+                      }
+                      disabled={isUpdating("multi_model_strategy")}
+                      className={`
+                        min-w-[66px] rounded-full px-3 py-1.5 text-xs font-medium transition-colors
+                        ${
+                          selected
+                            ? "bg-(--accent-9) text-white"
+                            : "text-(--gray-11) hover:bg-(--gray-4)"
+                        }
+                      `}
+                    >
+                      {item.label}
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </Flex>
+          </Box>
           {selectedMultiCount > 0 && (
             <Flex gap="1" mt="2" wrap="wrap">
               {multiModelSelectedIds.map((id) => {
