@@ -8,8 +8,9 @@ use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use log::{error, info};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
+use tokio::time::{sleep_until, Instant as TokioInstant};
 
 pub async fn maybe_convert_chinese_variant(
     settings: &AppSettings,
@@ -190,8 +191,49 @@ pub async fn multi_post_process_transcription(
     let mut all_results: Vec<super::MultiModelPostProcessResult> = Vec::new();
     let total = items.len();
 
+    let strategy = settings.multi_model_strategy.as_str();
+    let preferred_model_id = if strategy == "lazy" {
+        settings
+            .selected_prompt_model_id
+            .clone()
+            .filter(|id| items.iter().any(|item| item.id == *id))
+    } else {
+        None
+    };
+    let timeout_deadline = TokioInstant::now() + Duration::from_secs(3);
+    let mut timeout_elapsed = false;
+
     // Collect results as they complete
-    while let Some(result) = futures.next().await {
+    while !futures.is_empty() {
+        let next_result = if strategy == "lazy" {
+            tokio::select! {
+                result = futures.next() => result,
+                _ = sleep_until(timeout_deadline), if !timeout_elapsed => {
+                    timeout_elapsed = true;
+                    if let Some(preferred) = preferred_model_id
+                        .as_ref()
+                        .and_then(|id| find_ready_result(&all_results, id))
+                    {
+                        info!("[MultiModel] Lazy mode selected preferred model at timeout: {}", preferred.id);
+                        emit_multi_complete(_app_handle, total, all_results.len(), vec![preferred.clone()]);
+                        return vec![preferred.clone()];
+                    }
+                    if let Some(best) = find_latest_ready_result(&all_results) {
+                        info!("[MultiModel] Lazy mode selected latest ready result at timeout: {}", best.id);
+                        emit_multi_complete(_app_handle, total, all_results.len(), vec![best.clone()]);
+                        return vec![best.clone()];
+                    }
+                    continue;
+                }
+            }
+        } else {
+            futures.next().await
+        };
+
+        let Some(result) = next_result else {
+            break;
+        };
+
         all_results.push(result.clone());
         let completed = all_results.len();
 
@@ -210,6 +252,71 @@ pub async fn multi_post_process_transcription(
                 done: completed >= total,
             },
         );
+
+        if strategy == "race" && result.ready && result.error.is_none() {
+            info!(
+                "[MultiModel] Race mode winner: id={}, completed={}/{}",
+                result.id, completed, total
+            );
+            emit_multi_complete(_app_handle, total, completed, vec![result.clone()]);
+            return vec![result];
+        }
+
+        if strategy == "lazy" {
+            if !timeout_elapsed {
+                if let Some(preferred_id) = preferred_model_id.as_ref() {
+                    if result.ready && result.error.is_none() && &result.id == preferred_id {
+                        info!(
+                            "[MultiModel] Lazy mode preferred model arrived within timeout: {}",
+                            result.id
+                        );
+                        emit_multi_complete(_app_handle, total, completed, vec![result.clone()]);
+                        return vec![result];
+                    }
+                }
+            } else if result.ready && result.error.is_none() {
+                info!(
+                    "[MultiModel] Lazy mode selected first result after timeout: {}",
+                    result.id
+                );
+                emit_multi_complete(_app_handle, total, completed, vec![result.clone()]);
+                return vec![result];
+            } else if let Some(best) = find_latest_ready_result(&all_results) {
+                info!(
+                    "[MultiModel] Lazy mode selected latest ready result after timeout progress: {}",
+                    best.id
+                );
+                emit_multi_complete(_app_handle, total, completed, vec![best.clone()]);
+                return vec![best];
+            }
+        }
+    }
+
+    if strategy == "lazy" {
+        if let Some(preferred) = preferred_model_id
+            .as_ref()
+            .and_then(|id| find_ready_result(&all_results, id))
+        {
+            info!(
+                "[MultiModel] Lazy mode selected preferred model at completion: {}",
+                preferred.id
+            );
+            emit_multi_complete(
+                _app_handle,
+                total,
+                all_results.len(),
+                vec![preferred.clone()],
+            );
+            return vec![preferred.clone()];
+        }
+        if let Some(best) = find_latest_ready_result(&all_results) {
+            info!(
+                "[MultiModel] Lazy mode selected latest ready result at completion: {}",
+                best.id
+            );
+            emit_multi_complete(_app_handle, total, all_results.len(), vec![best.clone()]);
+            return vec![best];
+        }
     }
 
     info!("[MultiModel] All {} models completed", total);
@@ -226,6 +333,42 @@ pub async fn multi_post_process_transcription(
     );
 
     all_results
+}
+
+fn find_ready_result<'a>(
+    results: &'a [super::MultiModelPostProcessResult],
+    id: &str,
+) -> Option<&'a super::MultiModelPostProcessResult> {
+    results
+        .iter()
+        .find(|r| r.id == id && r.ready && r.error.is_none())
+}
+
+fn find_latest_ready_result(
+    results: &[super::MultiModelPostProcessResult],
+) -> Option<super::MultiModelPostProcessResult> {
+    results
+        .iter()
+        .rev()
+        .find(|r| r.ready && r.error.is_none())
+        .cloned()
+}
+
+fn emit_multi_complete(
+    app_handle: &AppHandle,
+    total: usize,
+    completed: usize,
+    results: Vec<super::MultiModelPostProcessResult>,
+) {
+    let _ = app_handle.emit(
+        "multi-post-process-complete",
+        super::MultiModelProgressEvent {
+            total,
+            completed,
+            results,
+            done: true,
+        },
+    );
 }
 
 #[allow(dead_code)]
@@ -290,6 +433,9 @@ async fn execute_single_model_post_process(
     let built = super::prompt_builder::PromptBuilder::new(prompt, transcription)
         .streaming_transcription(streaming_transcription)
         .history_entries(history_entries)
+        .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
+            settings,
+        ))
         .build();
 
     // Build messages

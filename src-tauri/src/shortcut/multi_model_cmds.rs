@@ -41,6 +41,18 @@ pub fn change_multi_model_post_process_enabled_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_multi_model_strategy_setting(app: AppHandle, strategy: String) -> Result<(), String> {
+    if !matches!(strategy.as_str(), "manual" | "race" | "lazy") {
+        return Err("Invalid multi-model strategy".to_string());
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.multi_model_strategy = strategy;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn add_multi_model_post_process_item(
     app: AppHandle,
     item: settings::MultiModelPostProcessItem,
