@@ -39,7 +39,7 @@ pub struct TranscriptionCoordinator {
 }
 
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    id == "transcribe" || id == "transcribe_with_post_process" || id == "invoke_skill"
 }
 
 impl TranscriptionCoordinator {
@@ -71,34 +71,32 @@ impl TranscriptionCoordinator {
                             }
 
                             if push_to_talk {
-                                if is_pressed && matches!(stage, Stage::Idle) {
-                                    start(&app, &mut stage, &binding_id, &hotkey_string);
-                                } else if !is_pressed
-                                    && matches!(&stage, Stage::Recording(id) if id == &binding_id)
-                                {
-                                    stop(&app, &mut stage, &binding_id, &hotkey_string);
-                                }
-                            } else if is_pressed {
-                                match &stage {
-                                    Stage::Idle => {
-                                        start(&app, &mut stage, &binding_id, &hotkey_string);
-                                    }
-                                    Stage::Recording(id) if id == &binding_id => {
-                                        stop(&app, &mut stage, &binding_id, &hotkey_string);
-                                    }
-                                    Stage::Processing
-                                        if !utils::has_visible_transcription_ui(&app) =>
+                                if is_pressed {
+                                    if !matches!(&stage, Stage::Recording(id) if id == &binding_id)
                                     {
                                         debug!(
-                                            "Preempting processing for '{binding_id}' because no transcription UI is visible"
+                                            "Preempting current operation for push-to-talk binding '{binding_id}'"
                                         );
                                         utils::interrupt_current_operation(&app);
                                         stage = Stage::Idle;
                                         start(&app, &mut stage, &binding_id, &hotkey_string);
                                     }
-                                    _ => {
-                                        debug!("Ignoring press for '{binding_id}': pipeline busy")
+                                } else if matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                {
+                                    stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                }
+                            } else if is_pressed {
+                                if matches!(&stage, Stage::Recording(id) if id == &binding_id) {
+                                    stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                } else {
+                                    if !matches!(stage, Stage::Idle) {
+                                        debug!(
+                                            "Preempting current operation for binding '{binding_id}' to start a new transcription"
+                                        );
+                                        utils::interrupt_current_operation(&app);
+                                        stage = Stage::Idle;
                                     }
+                                    start(&app, &mut stage, &binding_id, &hotkey_string);
                                 }
                             }
                         }

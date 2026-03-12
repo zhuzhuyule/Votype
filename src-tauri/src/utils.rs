@@ -13,7 +13,11 @@ pub use crate::clipboard::*;
 pub use crate::overlay::*;
 pub use crate::tray::*;
 
-fn cancel_current_operation_inner(app: &AppHandle, notify_coordinator: bool) {
+fn cancel_current_operation_inner(
+    app: &AppHandle,
+    notify_coordinator: bool,
+    hide_review_window: bool,
+) {
     // Clear any pending skill confirmation state
     if let Some(pending_state) = app.try_state::<crate::ManagedPendingSkillConfirmation>() {
         if let Ok(mut guard) = pending_state.lock() {
@@ -32,6 +36,9 @@ fn cancel_current_operation_inner(app: &AppHandle, notify_coordinator: bool) {
     // Update tray icon and hide overlay
     change_tray_icon(app, crate::tray::TrayIconState::Idle);
     hide_recording_overlay(app);
+    if hide_review_window {
+        crate::review_window::hide_review_window(app, None);
+    }
 
     // Abort the async transcription/post-processing pipeline
     let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
@@ -146,35 +153,14 @@ pub fn cancel_current_operation(app: &AppHandle) {
     }
 
     info!("Initiating operation cancellation...");
-    cancel_current_operation_inner(app, true);
+    cancel_current_operation_inner(app, true, true);
 
     info!("Operation cancellation completed - returned to idle state");
 }
 
 pub fn interrupt_current_operation(app: &AppHandle) {
     info!("Interrupting current operation for a new transcription request...");
-    cancel_current_operation_inner(app, false);
-}
-
-pub fn has_visible_transcription_ui(app: &AppHandle) -> bool {
-    for label in ["recording_overlay", "review_window", "main"] {
-        if app
-            .get_webview_window(label)
-            .is_some_and(|window| window.is_visible().unwrap_or(false))
-        {
-            return true;
-        }
-    }
-
-    if let Some(pending_state) = app.try_state::<crate::ManagedPendingSkillConfirmation>() {
-        if let Ok(guard) = pending_state.lock() {
-            if guard.is_ui_visible {
-                return true;
-            }
-        }
-    }
-
-    false
+    cancel_current_operation_inner(app, false, false);
 }
 
 /// Check if using the Wayland display server protocol

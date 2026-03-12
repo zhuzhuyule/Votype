@@ -25,13 +25,37 @@ pub fn confirm_reviewed_transcription(
         original_text_for_learning.is_some()
     );
 
+    if let Some(ppm) =
+        app.try_state::<std::sync::Arc<crate::managers::post_processing::PostProcessingManager>>()
+    {
+        ppm.cancel_pipeline();
+        log::info!("confirm_reviewed_transcription: cancelled remaining post-processing tasks");
+    }
+    if let Some(coordinator) =
+        app.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+    {
+        coordinator.notify_processing_finished();
+        log::info!("confirm_reviewed_transcription: reset transcription coordinator to idle");
+    }
+
     // Resolve the actual model_id from cached_model_id
+    let cached_model_id_for_stats = cached_model_id.clone();
     let model_id = cached_model_id.and_then(|cm_id| {
         let settings = settings::get_settings(&app);
         settings
             .get_cached_model(&cm_id)
             .map(|cm| cm.model_id.clone())
     });
+
+    if let Some(cached_model_id) = cached_model_id_for_stats {
+        let mut settings = settings::get_settings(&app);
+        let entry = settings
+            .multi_model_manual_pick_counts
+            .entry(cached_model_id)
+            .or_insert(0);
+        *entry += 1;
+        settings::write_settings(&app, settings);
+    }
 
     // Update history with the selected/inserted text
     if let Some(hid) = history_id {
@@ -90,6 +114,19 @@ pub fn cancel_transcription_review(
         text.is_some()
     );
 
+    if let Some(ppm) =
+        app.try_state::<std::sync::Arc<crate::managers::post_processing::PostProcessingManager>>()
+    {
+        ppm.cancel_pipeline();
+        log::info!("cancel_transcription_review: cancelled remaining post-processing tasks");
+    }
+    if let Some(coordinator) =
+        app.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+    {
+        coordinator.notify_processing_finished();
+        log::info!("cancel_transcription_review: reset transcription coordinator to idle");
+    }
+
     // Hide the review window
     crate::review_window::hide_review_window(&app, history_id);
 
@@ -101,6 +138,42 @@ pub fn cancel_transcription_review(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn dispatch_transcribe_binding_from_review(
+    app: AppHandle,
+    binding_id: String,
+    is_pressed: bool,
+) -> Result<(), String> {
+    if binding_id != "transcribe"
+        && binding_id != "transcribe_with_post_process"
+        && binding_id != "invoke_skill"
+    {
+        return Err(format!("Unsupported binding id: {}", binding_id));
+    }
+
+    let settings = settings::get_settings(&app);
+    if let Some(coordinator) =
+        app.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+    {
+        coordinator.send_input(
+            &binding_id,
+            "review-window-local",
+            is_pressed,
+            settings.push_to_talk,
+        );
+        log::info!(
+            "dispatch_transcribe_binding_from_review: binding_id={}, is_pressed={}, push_to_talk={}",
+            binding_id,
+            is_pressed,
+            settings.push_to_talk
+        );
+        Ok(())
+    } else {
+        Err("TranscriptionCoordinator not initialized".to_string())
+    }
 }
 
 // Group: Single-Model Rerun with Prompt
@@ -142,7 +215,7 @@ pub async fn rerun_single_with_prompt(
     let ctx_window_title = active_window.as_ref().map(|w| w.title.clone());
 
     // Call post_process_text_with_prompt to reprocess
-    let (result, model_used, _prompt_id, err) =
+    let (result, model_used, _prompt_id, err, error_message) =
         crate::actions::post_process::post_process_text_with_prompt(
             &app,
             &settings,
@@ -159,7 +232,7 @@ pub async fn rerun_single_with_prompt(
     if err {
         Ok(RerunSingleResult {
             text: None,
-            error: Some("LLM request failed".to_string()),
+            error: Some(error_message.unwrap_or_else(|| "LLM request failed".to_string())),
             model: model_used,
         })
     } else {

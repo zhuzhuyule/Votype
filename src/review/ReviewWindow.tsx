@@ -95,6 +95,69 @@ interface ReviewWindowProps {
   onClose: () => void;
 }
 
+type ShortcutMap = Partial<
+  Record<"transcribe" | "transcribe_with_post_process" | "invoke_skill", string>
+>;
+
+function normalizeShortcutPart(part: string): string {
+  const value = part.trim().toLowerCase();
+  switch (value) {
+    case "cmd":
+    case "command":
+    case "meta":
+    case "super":
+    case "win":
+    case "windows":
+      return "meta";
+    case "ctrl":
+    case "control":
+      return "ctrl";
+    case "alt":
+    case "option":
+      return "alt";
+    case "shift":
+      return "shift";
+    case "space":
+    case "spacebar":
+      return "space";
+    case "esc":
+      return "escape";
+    default:
+      return value;
+  }
+}
+
+function getEventMainKey(event: KeyboardEvent): string {
+  const key = event.key.toLowerCase();
+  switch (key) {
+    case " ":
+    case "spacebar":
+      return "space";
+    case "os":
+      return "meta";
+    default:
+      return key;
+  }
+}
+
+function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
+  const parts = shortcut.split("+").map(normalizeShortcutPart).filter(Boolean);
+  if (parts.length === 0) return false;
+
+  const required = new Set(parts);
+  const mainKeys = [...required].filter(
+    (part) => !["meta", "ctrl", "alt", "shift"].includes(part),
+  );
+
+  if (required.has("meta") !== event.metaKey) return false;
+  if (required.has("ctrl") !== event.ctrlKey) return false;
+  if (required.has("alt") !== event.altKey) return false;
+  if (required.has("shift") !== event.shiftKey) return false;
+  if (mainKeys.length === 0) return false;
+
+  return mainKeys.includes(getEventMainKey(event));
+}
+
 const DiffMark = Mark.create({
   name: "diffMark",
   addAttributes() {
@@ -229,6 +292,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const renderStartRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [transcribeShortcuts, setTranscribeShortcuts] = useState<ShortcutMap>(
+    {},
+  );
+  const [isPushToTalk, setIsPushToTalk] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
     multiCandidates && multiCandidates.length > 0
       ? multiCandidates[0].id
@@ -253,6 +320,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     readSpeedRankStats(),
   );
   const lastRecordedRaceKeyRef = useRef<string | null>(null);
+  const activeShortcutRef = useRef<keyof ShortcutMap | null>(null);
 
   useEffect(() => {
     writeMultiSortMode(multiSortMode);
@@ -306,6 +374,26 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         }
       });
     }
+  }, []);
+
+  useEffect(() => {
+    invoke("get_app_settings")
+      .then((settings) => {
+        const typed = settings as {
+          push_to_talk?: boolean;
+          bindings?: Record<string, { current_binding?: string }>;
+        };
+        setIsPushToTalk(Boolean(typed.push_to_talk));
+        setTranscribeShortcuts({
+          transcribe: typed.bindings?.transcribe?.current_binding,
+          transcribe_with_post_process:
+            typed.bindings?.transcribe_with_post_process?.current_binding,
+          invoke_skill: typed.bindings?.invoke_skill?.current_binding,
+        });
+      })
+      .catch((e) => {
+        console.error("Failed to load review window shortcuts:", e);
+      });
   }, []);
 
   // Sync external multiCandidates prop into local state
@@ -938,6 +1026,54 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     selectedCandidateId,
     getNextReadyCandidate,
   ]);
+
+  useEffect(() => {
+    const bindingEntries = Object.entries(transcribeShortcuts).filter(
+      (entry): entry is [keyof ShortcutMap, string] => Boolean(entry[1]),
+    );
+    if (bindingEntries.length === 0) return;
+
+    const handleShortcutKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
+
+      for (const [bindingId, shortcut] of bindingEntries) {
+        if (!matchesShortcut(event, shortcut)) continue;
+
+        event.preventDefault();
+        event.stopPropagation();
+        activeShortcutRef.current = bindingId;
+        void invoke("dispatch_transcribe_binding_from_review", {
+          bindingId,
+          isPressed: true,
+        }).catch((e) => {
+          console.error("Failed to dispatch review transcribe shortcut:", e);
+        });
+        return;
+      }
+    };
+
+    const handleShortcutKeyUp = (event: KeyboardEvent) => {
+      if (!isPushToTalk || !activeShortcutRef.current) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      const bindingId = activeShortcutRef.current;
+      activeShortcutRef.current = null;
+      void invoke("dispatch_transcribe_binding_from_review", {
+        bindingId,
+        isPressed: false,
+      }).catch((e) => {
+        console.error("Failed to release review transcribe shortcut:", e);
+      });
+    };
+
+    document.addEventListener("keydown", handleShortcutKeyDown, true);
+    document.addEventListener("keyup", handleShortcutKeyUp, true);
+    return () => {
+      document.removeEventListener("keydown", handleShortcutKeyDown, true);
+      document.removeEventListener("keyup", handleShortcutKeyUp, true);
+    };
+  }, [isPushToTalk, transcribeShortcuts]);
 
   const handleDrag = useCallback(async () => {
     try {
