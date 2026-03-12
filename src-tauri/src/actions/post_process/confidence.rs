@@ -6,6 +6,7 @@ use async_openai::types::{
 };
 use log::{info, warn};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
@@ -28,6 +29,19 @@ pub struct ConfidenceCheckResponse {
 }
 
 impl ConfidenceCheckResponse {
+    pub fn retain_meaningful_changes(&mut self) {
+        let mut seen = HashSet::new();
+        self.changes.retain(|change| {
+            let original = change.original.trim();
+            let corrected = change.corrected.trim();
+            if original.is_empty() || corrected.is_empty() || original == corrected {
+                return false;
+            }
+
+            seen.insert(format!("{}\u{241f}{}", original, corrected))
+        });
+    }
+
     /// Format changes into a human-readable reason string for display
     pub fn format_reason(&self) -> Option<String> {
         if self.changes.is_empty() {
@@ -45,11 +59,6 @@ impl ConfidenceCheckResponse {
             })
             .collect();
         Some(parts.join("  "))
-    }
-
-    /// Get hotword candidates from the changes
-    pub fn hotword_candidates(&self) -> Vec<&WordChange> {
-        self.changes.iter().filter(|c| c.is_hotword).collect()
     }
 }
 
@@ -148,7 +157,8 @@ pub async fn perform_confidence_check(
     let json_str = super::core::extract_json_block(&cleaned).unwrap_or_else(|| cleaned.clone());
 
     match serde_json::from_str::<ConfidenceCheckResponse>(&json_str) {
-        Ok(result) => {
+        Ok(mut result) => {
+            result.retain_meaningful_changes();
             info!(
                 "[ConfidenceCheck] Result: confidence={}, changes={}",
                 result.confidence,
@@ -169,5 +179,43 @@ pub async fn perform_confidence_check(
             );
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ConfidenceCheckResponse, WordChange};
+
+    #[test]
+    fn retain_meaningful_changes_filters_unchanged_and_duplicates() {
+        let mut result = ConfidenceCheckResponse {
+            confidence: 90,
+            changes: vec![
+                WordChange {
+                    original: "提示词".into(),
+                    corrected: "提示词".into(),
+                    is_hotword: false,
+                    category: None,
+                },
+                WordChange {
+                    original: "你".into(),
+                    corrected: "我们".into(),
+                    is_hotword: false,
+                    category: None,
+                },
+                WordChange {
+                    original: "你".into(),
+                    corrected: "我们".into(),
+                    is_hotword: false,
+                    category: None,
+                },
+            ],
+        };
+
+        result.retain_meaningful_changes();
+
+        assert_eq!(result.changes.len(), 1);
+        assert_eq!(result.changes[0].original, "你");
+        assert_eq!(result.changes[0].corrected, "我们");
     }
 }

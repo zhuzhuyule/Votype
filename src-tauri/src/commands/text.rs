@@ -43,7 +43,7 @@ pub async fn optimize_text_with_llm(
         instruction.unwrap_or_else(|| "优化这个提示词，使其更专业、结构更清晰。".to_string());
     let user_content = format!("{}\n\n待优化的提示词内容：\n\n{}", user_instruction, text);
 
-    let (optimized_text, _err) = post_process::execute_llm_request(
+    let (optimized_text, _err, _error_message) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -112,7 +112,7 @@ pub async fn generate_skill_description(
 
     let user_content = format!("Skill 名称：{}\nSkill 指令：\n{}", name, instructions);
 
-    let (description, _err) = post_process::execute_llm_request(
+    let (description, _err, _error_message) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -141,7 +141,7 @@ pub struct TranslationResult {
 pub async fn translate_review_text(
     app_handle: AppHandle,
     text: String,
-    _original_text: String,
+    original_text: String,
     user_locale: String,
 ) -> Result<TranslationResult, String> {
     let settings = settings::get_settings(&app_handle);
@@ -270,9 +270,10 @@ pub async fn translate_review_text(
         locale_lang = locale_language
     );
 
+    let _ = original_text;
     let user_content = text;
 
-    let (response, _err) = post_process::execute_llm_request(
+    let (response, _err, _error_message) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -349,7 +350,7 @@ pub async fn generate_skill_metadata(
     vars.insert("INSTRUCTIONS", instructions);
     let system_prompt = prompt::substitute_variables(&template, &vars);
 
-    let (response, _err) = post_process::execute_llm_request(
+    let (response, _err, _error_message) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,

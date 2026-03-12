@@ -44,15 +44,21 @@ pub async fn maybe_post_process_transcription(
     history_id: Option<i64>,
     skill_mode: bool,
     selected_text: Option<String>,
-) -> (Option<String>, Option<String>, Option<String>, bool) {
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<String>,
+) {
     if !settings.post_process_enabled {
-        return (None, None, None, false);
+        return (None, None, None, false, None);
     }
 
     // Check for skip post-process marker
     if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
         info!("[PostProcess] Skipping post-processing due to app rule override");
-        return (None, None, None, false);
+        return (None, None, None, false, None);
     }
 
     // Length routing: override selected_prompt_model_id based on text length
@@ -82,7 +88,7 @@ pub async fn maybe_post_process_transcription(
 
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false),
+        None => return (None, None, None, false, None),
     };
 
     // Load external skills (Phase 9)
@@ -323,6 +329,7 @@ pub async fn maybe_post_process_transcription(
                                     None,
                                     Some(routed_prompt.id.clone()),
                                     false,
+                                    None,
                                 );
                             }
                             // If polish failed, fall through to standard processing
@@ -411,6 +418,7 @@ pub async fn maybe_post_process_transcription(
                             Some("__PENDING_SKILL_CONFIRMATION__".to_string()),
                             None,
                             false,
+                            None,
                         );
                     }
                 }
@@ -422,7 +430,13 @@ pub async fn maybe_post_process_transcription(
                         "[PostProcess] No skill matched, using parallel polish result with default prompt: {} (id={})",
                         default_prompt.name, default_prompt.id
                     );
-                    return (Some(polished), None, Some(default_prompt.id.clone()), false);
+                    return (
+                        Some(polished),
+                        None,
+                        Some(default_prompt.id.clone()),
+                        false,
+                        None,
+                    );
                 }
 
                 // Both failed or no match + polish failed - fall through to standard processing
@@ -440,7 +454,7 @@ pub async fn maybe_post_process_transcription(
         Some(p) => p,
         None => {
             log::warn!("[PostProcess] initial_prompt_opt is None! Cannot start post-processing chain. Aborting.");
-            return (None, None, None, false);
+            return (None, None, None, false, None);
         }
     };
 
@@ -452,6 +466,7 @@ pub async fn maybe_post_process_transcription(
     let last_model;
     let last_prompt_id;
     let last_err;
+    let last_error_message;
 
     loop {
         let prompt = current_prompt.clone();
@@ -473,7 +488,7 @@ pub async fn maybe_post_process_transcription(
             }
             None => {
                 log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
-                return (None, None, Some(prompt.id.clone()), false);
+                return (None, None, Some(prompt.id.clone()), false, None);
             }
         };
 
@@ -485,7 +500,7 @@ pub async fn maybe_post_process_transcription(
         // (PromptBuilder handles variable detection, stripping, and data injection)
 
         // Build hotword injection (only for non-explicit/default prompts)
-        let hotword_injection = if !is_explicit {
+        let hotword_injection = if !is_explicit && settings.post_process_hotword_injection_enabled {
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 let hotword_manager = HotwordManager::new(hm.db_path.clone());
                 let scenario = detect_scenario(&app_name);
@@ -536,21 +551,24 @@ pub async fn maybe_post_process_transcription(
         };
 
         // Use PromptBuilder for unified variable processing
-        let built = super::prompt_builder::PromptBuilder::new(&prompt, transcription_content)
-            .raw_transcription(transcription_original)
+        let mut builder = super::prompt_builder::PromptBuilder::new(&prompt, transcription_content)
             .streaming_transcription(streaming_transcription)
             .selected_text(selected_text.as_deref())
             .app_name(app_name.as_deref())
             .window_title(window_title.as_deref())
             .history_entries(history_entries)
             .hotword_injection(hotword_injection)
-            .build();
+            .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
+                settings,
+            ));
+        builder = builder.raw_transcription(transcription_original);
+        let built = builder.build();
 
         let cached_model_id = prompt
             .model_id
             .as_deref()
             .or(settings.selected_prompt_model_id.as_deref());
-        let (result, err) = super::core::execute_llm_request(
+        let (result, err, error_message) = super::core::execute_llm_request(
             app_handle,
             settings,
             actual_provider,
@@ -569,9 +587,16 @@ pub async fn maybe_post_process_transcription(
         last_model = Some(model);
         last_prompt_id = Some(prompt.id.clone());
         last_err = err;
+        last_error_message = error_message;
 
         break;
     }
 
-    (final_result, last_model, last_prompt_id, last_err)
+    (
+        final_result,
+        last_model,
+        last_prompt_id,
+        last_err,
+        last_error_message,
+    )
 }

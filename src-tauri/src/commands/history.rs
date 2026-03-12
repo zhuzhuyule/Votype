@@ -284,7 +284,7 @@ pub async fn retranscribe_history_entry(
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            let (llm_result, used_model, prompt_id, _) = maybe_post_process_transcription(
+            let (llm_result, used_model, prompt_id, _, _) = maybe_post_process_transcription(
                 &app,
                 &settings,
                 &transcription_text,
@@ -369,7 +369,7 @@ pub async fn reprocess_history_entry(
         .filter(|t| !t.trim().is_empty())
         .unwrap_or_else(|| entry.transcription_text.clone());
 
-    let (llm_result, used_model, used_prompt_id, _) = post_process_text_with_prompt(
+    let (llm_result, used_model, used_prompt_id, _, _) = post_process_text_with_prompt(
         &app,
         &settings,
         &text_to_process,

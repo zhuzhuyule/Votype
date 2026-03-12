@@ -10,7 +10,6 @@ pub(crate) mod prompt_builder;
 pub(crate) mod routing;
 
 // Re-export public functions
-pub use confidence::perform_confidence_check;
 pub use core::execute_llm_request;
 pub use extensions::{maybe_convert_chinese_variant, multi_post_process_transcription};
 pub use manual::post_process_text_with_prompt;
