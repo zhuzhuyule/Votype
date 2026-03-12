@@ -255,8 +255,7 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
         #[cfg(target_os = "windows")]
         force_overlay_topmost(&overlay_window);
 
-        // Emit event to trigger fade-in animation with recording state
-        let _ = overlay_window.emit("show-overlay", "recording");
+        emit_overlay_state_with_retry(overlay_window, "recording");
     }
 }
 
@@ -280,8 +279,7 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
         #[cfg(target_os = "windows")]
         force_overlay_topmost(&overlay_window);
 
-        // Emit event to switch to transcribing state
-        let _ = overlay_window.emit("show-overlay", "transcribing");
+        emit_overlay_state_with_retry(overlay_window, "transcribing");
     }
 }
 
@@ -299,8 +297,19 @@ pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
         }
 
         let _ = overlay_window.show();
-        let _ = overlay_window.emit("show-overlay", "llm");
+        emit_overlay_state_with_retry(overlay_window, "llm");
     }
+}
+
+fn emit_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, state: &'static str) {
+    let _ = overlay_window.emit("show-overlay", state);
+
+    std::thread::spawn(move || {
+        for delay_ms in [40_u64, 120_u64] {
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            let _ = overlay_window.emit("show-overlay", state);
+        }
+    });
 }
 
 /// Updates the overlay window position based on current settings

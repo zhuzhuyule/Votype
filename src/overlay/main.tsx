@@ -11,37 +11,27 @@ import { OverlayState } from "./RecordingOverlay";
 const RecordingOverlay = React.lazy(() => import("./RecordingOverlay"));
 
 const OverlayApp: React.FC = () => {
-  const [mounted, setMounted] = useState(false);
   const [initialState, setInitialState] = useState<OverlayState>("recording");
 
   useEffect(() => {
-    // Listen for show/hide events from Rust to control lifecycle
+    // Keep the overlay app mounted so the first recording event cannot be missed.
     const unlistenShow = listen("show-overlay", (event) => {
       const state = event.payload as OverlayState;
       setInitialState(state);
-      setMounted(true);
-    });
-
-    const unlistenHide = listen("hide-overlay", () => {
-      setMounted(false);
-      setTimeout(() => {
-        window.location.reload();
-      }, 10);
     });
 
     return () => {
       unlistenShow.then((f) => f());
-      unlistenHide.then((f) => f());
     };
   }, []);
 
-  return mounted ? (
+  return (
     <ErrorBoundary>
       <Suspense fallback={<Box className="overlay-root" />}>
         <RecordingOverlay initialState={initialState} />
       </Suspense>
     </ErrorBoundary>
-  ) : null;
+  );
 };
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

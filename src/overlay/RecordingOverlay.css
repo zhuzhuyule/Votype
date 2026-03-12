@@ -8,9 +8,9 @@
 
 .recording-overlay {
   min-height: 36px;
-  width: 172px;
+  width: 196px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 24px minmax(88px, 1fr) 24px;
   align-items: center;
   padding: 6px;
   background: #000000cc;
@@ -37,6 +37,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
+  min-width: 0;
 }
 
 .recording-overlay.has-realtime .overlay-middle {
@@ -58,6 +59,7 @@
   gap: 3px;
   padding-bottom: 0px;
   height: 24px;
+  width: 78px;
   overflow: hidden;
 }
 

@@ -122,6 +122,11 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         (event) => {
           const payload = (event.payload ?? {}) as OverlayErrorEvent;
 
+          if (payload.message) {
+            setErrorText(payload.message);
+            return;
+          }
+
           if (payload.code) {
             // Map backend error codes to translation keys
             const errorMap: Record<string, string> = {
@@ -140,12 +145,6 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               setErrorText(t(key));
               return;
             }
-          }
-
-          // Fallback to raw message if provided (legacy or custom)
-          if (payload.message) {
-            setErrorText(payload.message);
-            return;
           }
         },
       );
