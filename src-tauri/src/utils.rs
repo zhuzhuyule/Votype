@@ -1,5 +1,4 @@
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::transcription::TranscriptionManager;
 use crate::shortcut;
 use crate::transcription_coordinator::TranscriptionCoordinator;
 use log::info;
@@ -44,9 +43,11 @@ fn cancel_current_operation_inner(
     let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
     ppm.cancel_pipeline();
 
-    // Cancel any ongoing transcription actively
-    let tm = app.state::<Arc<TranscriptionManager>>();
-    let _ = tm.unload_model();
+    // Note: we intentionally do NOT unload the model here.
+    // The pipeline abort + cancel_recording already stop the active operation,
+    // and the engine's `engine_in_use` flag ensures the next transcription
+    // waits for any in-flight work to finish. Unloading would force an
+    // expensive (~1s) model reload on every preemption.
 
     // Notify coordinator so it can keep lifecycle state coherent.
     if notify_coordinator {
