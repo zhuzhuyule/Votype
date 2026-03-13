@@ -260,10 +260,21 @@ pub struct CachedModel {
     /// 是否为 Thinking 模式（深度推理）模型
     #[serde(default)]
     pub is_thinking_model: bool,
+    /// LLM 指令消息角色（system / developer）
+    #[serde(default)]
+    pub prompt_message_role: PromptMessageRole,
     /// 额外的请求参数（JSON 格式，会合并到 LLM 请求体中）
     /// 例如: {"extended_thinking": true, "thinking_budget_tokens": 10000}
     #[serde(default)]
     pub extra_params: Option<HashMap<String, serde_json::Value>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum PromptMessageRole {
+    #[default]
+    System,
+    Developer,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -868,55 +879,7 @@ fn default_length_routing_threshold() -> u32 {
 }
 
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
-    use crate::managers::skill::parse_builtin_skill_content;
-
-    [
-        include_str!("../resources/skills/builtin/default_correction.skill.md"),
-        include_str!("../resources/skills/builtin/ai_chat.skill.md"),
-        include_str!("../resources/skills/builtin/translation.skill.md"),
-        include_str!("../resources/skills/builtin/summarize.skill.md"),
-        include_str!("../resources/skills/builtin/memo.skill.md"),
-        include_str!("../resources/skills/builtin/code_generate.skill.md"),
-        include_str!("../resources/skills/builtin/code_explain.skill.md"),
-        include_str!("../resources/skills/builtin/style_reply.skill.md"),
-        include_str!("../resources/skills/builtin/reply_suggestion.skill.md"),
-        include_str!("../resources/skills/builtin/votype_command.skill.md"),
-        include_str!("../resources/skills/builtin/grammar_fix.skill.md"),
-        include_str!("../resources/skills/builtin/smart_compose.skill.md"),
-    ]
-    .iter()
-    .filter_map(|c| parse_builtin_skill_content(c))
-    .collect()
-}
-
-fn builtin_prompt_signature(prompt: &LLMPrompt) -> String {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
-
-    let mut hasher = DefaultHasher::new();
-    prompt.id.hash(&mut hasher);
-    prompt.name.hash(&mut hasher);
-    prompt.description.hash(&mut hasher);
-    prompt.instructions.hash(&mut hasher);
-    prompt.prompt.hash(&mut hasher);
-    prompt.icon.hash(&mut hasher);
-    format!("{:?}", prompt.output_mode).hash(&mut hasher);
-    prompt.confidence_check_enabled.hash(&mut hasher);
-    prompt.confidence_threshold.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
-}
-
-fn is_stale_builtin_prompt(existing: &LLMPrompt) -> bool {
-    if existing.source != SkillSource::Builtin {
-        return false;
-    }
-
-    let content = existing.instructions.as_str();
-    content.contains("语音转录后处理专家提示词（优化版）")
-        || content.contains("系统可能提供以下数据")
-        || content.contains("系统已自动注入以下辅助信息")
-        || content.contains("${output}")
-        || content.contains("${streaming_output}")
+    Vec::new()
 }
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
@@ -955,65 +918,94 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         }
     }
 
-    // Refresh built-in prompts: update content for synchronized builtin prompts,
-    // preserving user's `enabled` and `model_id` choices.
-    let defaults = default_post_process_prompts();
-    for default_prompt in &defaults {
-        let default_hash = builtin_prompt_signature(default_prompt);
-        if let Some(existing) = settings
-            .post_process_prompts
-            .iter_mut()
-            .find(|p| p.id == default_prompt.id)
-        {
-            let stored_hash = settings
-                .builtin_prompt_resource_hashes
-                .get(&default_prompt.id)
-                .cloned();
-            let existing_hash = builtin_prompt_signature(existing);
-            let should_sync = existing.source == SkillSource::Builtin
-                && (!existing.customized
-                    || stored_hash.as_deref() == Some(existing_hash.as_str())
-                    || is_stale_builtin_prompt(existing));
+    let original_len = settings.post_process_prompts.len();
+    settings
+        .post_process_prompts
+        .retain(|prompt| prompt.source != SkillSource::Builtin);
+    if settings.post_process_prompts.len() != original_len {
+        changed = true;
+    }
 
-            if should_sync
-                && (existing.instructions != default_prompt.instructions
-                    || existing.prompt != default_prompt.prompt
-                    || existing.name != default_prompt.name
-                    || existing.description != default_prompt.description
-                    || existing.icon != default_prompt.icon
-                    || existing.output_mode != default_prompt.output_mode
-                    || existing.confidence_check_enabled != default_prompt.confidence_check_enabled
-                    || existing.confidence_threshold != default_prompt.confidence_threshold
-                    || existing.customized)
-            {
-                existing.instructions = default_prompt.instructions.clone();
-                existing.prompt = default_prompt.prompt.clone();
-                existing.name = default_prompt.name.clone();
-                existing.description = default_prompt.description.clone();
-                existing.icon = default_prompt.icon.clone();
-                existing.output_mode = default_prompt.output_mode.clone();
-                existing.confidence_check_enabled = default_prompt.confidence_check_enabled;
-                existing.confidence_threshold = default_prompt.confidence_threshold;
-                existing.customized = false;
+    if !settings.builtin_prompt_resource_hashes.is_empty() {
+        settings.builtin_prompt_resource_hashes.clear();
+        changed = true;
+    }
+
+    if settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .is_some_and(|selected_id| {
+            !settings
+                .post_process_prompts
+                .iter()
+                .any(|prompt| &prompt.id == selected_id)
+        })
+    {
+        settings.post_process_selected_prompt_id = None;
+        changed = true;
+    }
+
+    changed
+}
+
+fn materialize_stored_user_prompts(app: &AppHandle, settings: &mut AppSettings) -> bool {
+    let skill_manager = crate::managers::skill::SkillManager::new(app);
+    let mut changed = false;
+
+    for prompt in settings
+        .post_process_prompts
+        .iter()
+        .filter(|prompt| prompt.source != SkillSource::Builtin)
+        .cloned()
+    {
+        if skill_manager.find_skill_file_path(&prompt.id).is_some() {
+            continue;
+        }
+
+        match skill_manager.create_skill_file(&prompt) {
+            Ok(created) => {
+                log::info!(
+                    "Materialized stored prompt '{}' ({}) to file-backed user skill at {:?}",
+                    created.name,
+                    created.id,
+                    created.file_path
+                );
                 changed = true;
             }
+            Err(err) => {
+                log::error!(
+                    "Failed to materialize stored prompt '{}' ({}): {}",
+                    prompt.name,
+                    prompt.id,
+                    err
+                );
+            }
+        }
+    }
 
-            if settings
-                .builtin_prompt_resource_hashes
-                .get(&default_prompt.id)
-                != Some(&default_hash)
-            {
-                settings
-                    .builtin_prompt_resource_hashes
-                    .insert(default_prompt.id.clone(), default_hash);
+    changed
+}
+
+fn normalize_app_review_policies(settings: &mut AppSettings) -> bool {
+    let mut changed = false;
+
+    for profile in &mut settings.app_profiles {
+        if matches!(profile.policy, AppReviewPolicy::Auto) {
+            profile.policy = AppReviewPolicy::Always;
+            changed = true;
+        }
+
+        for rule in &mut profile.rules {
+            if matches!(rule.policy, AppReviewPolicy::Auto) {
+                rule.policy = AppReviewPolicy::Always;
                 changed = true;
             }
-        } else {
-            // Built-in prompt missing entirely, add it
-            settings.post_process_prompts.push(default_prompt.clone());
-            settings
-                .builtin_prompt_resource_hashes
-                .insert(default_prompt.id.clone(), default_hash);
+        }
+    }
+
+    for policy in settings.app_review_policies.values_mut() {
+        if matches!(*policy, AppReviewPolicy::Auto) {
+            *policy = AppReviewPolicy::Always;
             changed = true;
         }
     }
@@ -1243,10 +1235,15 @@ impl AppSettings {
     /// Build MultiModelPostProcessItem list from multi_model_selected_ids.
     /// Uses cached_model info + current selected prompt to dynamically construct items.
     pub fn build_multi_model_items_from_selection(&self) -> Vec<MultiModelPostProcessItem> {
-        let prompt_id = self
-            .post_process_selected_prompt_id
-            .clone()
-            .unwrap_or_else(|| "default".to_string());
+        let prompt_id = self.post_process_selected_prompt_id.clone().or_else(|| {
+            self.post_process_prompts
+                .first()
+                .map(|prompt| prompt.id.clone())
+        });
+
+        let Some(prompt_id) = prompt_id else {
+            return Vec::new();
+        };
 
         self.multi_model_selected_ids
             .iter()
@@ -1348,6 +1345,15 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
         store_set_settings(&store, &settings);
     }
 
+    if materialize_stored_user_prompts(app, &mut settings) {
+        merge_external_skills(app, &mut settings);
+        store_set_settings(&store, &settings);
+    }
+
+    if normalize_app_review_policies(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
     // Migration: Convert app_review_policies to app_profiles
     if !settings.app_review_policies.is_empty() {
         debug!("Migrating app_review_policies to app_profiles");
@@ -1407,6 +1413,15 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         store_set_settings(&store, &settings);
     }
 
+    if materialize_stored_user_prompts(app, &mut settings) {
+        merge_external_skills(app, &mut settings);
+        store_set_settings(&store, &settings);
+    }
+
+    if normalize_app_review_policies(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
     // Merge external skills from ~/.votype/skills/
     merge_external_skills(app, &mut settings);
 
@@ -1449,6 +1464,9 @@ fn merge_external_skills(app: &AppHandle, settings: &mut AppSettings) {
 }
 
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {
+    let mut settings = settings;
+    normalize_app_review_policies(&mut settings);
+
     let store = app
         .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
