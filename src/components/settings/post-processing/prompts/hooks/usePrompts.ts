@@ -111,7 +111,7 @@ export const usePrompts = (
       });
       return externalSkill;
     }
-    // Then try settings prompts (builtin)
+    // Then try settings prompts (user-owned prompts merged into settings state)
     const prompt = prompts.find((p) => p.id === currentTab);
     if (prompt) {
       console.log("[usePrompts] Found in prompts:", {
@@ -273,8 +273,10 @@ export const usePrompts = (
       console.log("[usePrompts] save_external_skill succeeded");
 
       // Trigger refresh
-      if (viewingPrompt.source === "builtin") {
-        // Built-in skills are stored in settings, refresh settings to pick up changes
+      if (
+        viewingPrompt.source !== "user" &&
+        viewingPrompt.source !== "imported"
+      ) {
         await refreshSettings();
       }
       if (onExternalSkillSaved) {

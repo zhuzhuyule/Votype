@@ -61,6 +61,10 @@ interface SettingsStore {
     modelId: string,
     modelType: ModelType,
   ) => Promise<void>;
+  updateCachedModelPromptMessageRole: (
+    modelId: string,
+    role: "system" | "developer",
+  ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;
@@ -836,6 +840,26 @@ export const useSettingsStore = create<SettingsStore>()(
         await refreshSettings();
       } catch (error) {
         console.error("Failed to update cached model type:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateCachedModelPromptMessageRole: async (modelId, role) => {
+      const updateKey = `cached_model_prompt_role:${modelId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("change_cached_model_prompt_message_role", {
+          id: modelId,
+          role,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error(
+          "Failed to update cached model prompt message role:",
+          error,
+        );
       } finally {
         setUpdating(updateKey, false);
       }

@@ -930,6 +930,10 @@
         "groupTitle": "自动注入内容",
         "title": "自动注入内容",
         "description": "控制后处理或翻译请求中会自动附带哪些辅助信息。",
+        "summaryEnabled": "已启用历史上下文注入，当前最多附带 {{count}} 条记录。",
+        "summaryDisabled": "当前不会自动附带历史上下文。",
+        "moreOptions": "更多选项",
+        "basicOnly": "仅显示基础项",
         "history": {
           "enabled": "注入历史转录上下文",
           "description": "将当前应用最近的识别结果作为上下文提供给后处理模型。",
@@ -1021,6 +1025,9 @@
         "empty": {
           "description": "添加一个模型以开始使用。",
           "title": "尚未配置模型"
+        },
+        "promptMessageRole": {
+          "label": "Developer 模式"
         },
         "modelTypes": {
           "asr": {

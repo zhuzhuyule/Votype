@@ -96,6 +96,9 @@ pub fn open_log_dir(app: AppHandle) -> Result<(), String> {
         .app_log_dir()
         .map_err(|e| format!("Failed to get log directory: {}", e))?;
 
+    std::fs::create_dir_all(&log_dir)
+        .map_err(|e| format!("Failed to create log directory: {}", e))?;
+
     let path = log_dir.to_string_lossy().as_ref().to_string();
     app.opener()
         .open_path(path, None::<String>)

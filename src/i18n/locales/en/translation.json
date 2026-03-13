@@ -894,6 +894,10 @@
         "groupTitle": "Automatic Inputs",
         "title": "Automatic Inputs",
         "description": "Control which helper inputs are automatically attached to post-processing or translation requests.",
+        "summaryEnabled": "History context injection is enabled, with up to {{count}} entries attached.",
+        "summaryDisabled": "No history context will be attached automatically.",
+        "moreOptions": "More options",
+        "basicOnly": "Basic item only",
         "history": {
           "enabled": "Inject history context",
           "description": "Provide recent transcriptions from the current app as context for post-processing.",
@@ -1014,6 +1018,9 @@
         "empty": {
           "description": "Add a model to get started.",
           "title": "No models configured"
+        },
+        "promptMessageRole": {
+          "label": "Developer Mode"
         },
         "modelTypes": {
           "asr": {

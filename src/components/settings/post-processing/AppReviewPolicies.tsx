@@ -203,9 +203,6 @@ const TitleRuleRow: React.FC<TitleRuleRowProps> = ({
           >
             <Select.Trigger variant="surface" style={{ width: 100 }} />
             <Select.Content position="popper">
-              <Select.Item value="auto">
-                {t("settings.postProcessing.appRules.policy.auto")}
-              </Select.Item>
               <Select.Item value="always">
                 {t("settings.postProcessing.appRules.policy.always")}
               </Select.Item>
@@ -295,7 +292,7 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
       id: `rule_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       pattern: "",
       match_type: "text",
-      policy: "auto",
+      policy: "always",
       prompt_id: null,
     };
     onUpdateProfile(profile.id, { rules: [...rules, newRule] });
@@ -371,9 +368,6 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
               >
                 <Select.Trigger variant="surface" style={{ width: 100 }} />
                 <Select.Content position="popper">
-                  <Select.Item value="auto">
-                    {t("settings.postProcessing.appRules.policy.auto")}
-                  </Select.Item>
                   <Select.Item value="always">
                     {t("settings.postProcessing.appRules.policy.always")}
                   </Select.Item>
@@ -513,7 +507,7 @@ export const AppProfilesManager: React.FC = () => {
       const newProfile: AppProfile = {
         id: profileId,
         name: appName,
-        policy: "auto",
+        policy: "always",
         prompt_id: null,
         icon: null,
         rules: [],

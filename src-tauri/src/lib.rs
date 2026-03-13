@@ -256,6 +256,34 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     review_window::create_review_window(app_handle);
 }
 
+fn ensure_runtime_dirs(app_handle: &AppHandle) {
+    match app_handle.path().app_data_dir() {
+        Ok(app_data_dir) => {
+            if let Err(err) = std::fs::create_dir_all(&app_data_dir) {
+                eprintln!(
+                    "Failed to create app data dir {}: {}",
+                    app_data_dir.display(),
+                    err
+                );
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to resolve app data dir: {}", err);
+        }
+    }
+
+    match app_handle.path().app_log_dir() {
+        Ok(log_dir) => {
+            if let Err(err) = std::fs::create_dir_all(&log_dir) {
+                eprintln!("Failed to create log dir {}: {}", log_dir.display(), err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to resolve log dir: {}", err);
+        }
+    }
+}
+
 #[tauri::command]
 fn trigger_update_check(app: AppHandle) -> Result<(), String> {
     let settings = settings::get_settings(&app);
@@ -332,6 +360,8 @@ pub fn run() {
         ))
         .manage(Mutex::new(ShortcutToggleStates::default()))
         .setup(move |app| {
+            ensure_runtime_dirs(app.handle());
+
             let settings = settings::get_settings(app.handle());
             let file_log_level: log::Level = settings.log_level.clone().into();
             // Store the file log level in the atomic for the filter to use
@@ -440,6 +470,7 @@ pub fn run() {
             shortcut::provider_cmds::remove_custom_provider,
             shortcut::settings_cmds::add_cached_model,
             shortcut::settings_cmds::update_cached_model_capability,
+            shortcut::settings_cmds::change_cached_model_prompt_message_role,
             shortcut::settings_cmds::remove_cached_model,
             shortcut::settings_cmds::toggle_online_asr,
             shortcut::settings_cmds::select_asr_model,

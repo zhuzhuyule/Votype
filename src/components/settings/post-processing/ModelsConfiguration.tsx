@@ -236,6 +236,7 @@ export const ModelsConfiguration: React.FC = () => {
       is_thinking_model:
         extra_params?.["extended_thinking"] === true ||
         extra_params?.["thinking"] === true,
+      prompt_message_role: "system",
       extra_params,
     };
     await addCachedModel(newModel);

@@ -10,6 +10,7 @@ import {
   Checkbox,
   Flex,
   IconButton,
+  Switch,
   Text,
 } from "@radix-ui/themes";
 import {
@@ -37,6 +38,7 @@ const renderModelSection = ({
   hideIfEmpty = true,
   multiModelSelectedIds,
   onToggleMultiModel,
+  onPromptMessageRoleChange,
 }: {
   type: ModelType;
   allModels: CachedModel[];
@@ -52,6 +54,10 @@ const renderModelSection = ({
   hideIfEmpty?: boolean;
   multiModelSelectedIds?: Set<string>;
   onToggleMultiModel?: (id: string, selected: boolean) => void;
+  onPromptMessageRoleChange?: (
+    id: string,
+    role: "system" | "developer",
+  ) => void;
 }) => {
   const models = allModels.filter((m) => m.model_type === type);
 
@@ -194,6 +200,33 @@ const renderModelSection = ({
                         align="center"
                         className="opacity-0 group-hover:opacity-100 transition-opacity pl-2"
                       >
+                        {type === "text" && onPromptMessageRoleChange && (
+                          <Flex
+                            gap="1"
+                            align="center"
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded-md border border-gray-200 bg-white/80 px-2 py-1 dark:border-white/10 dark:bg-white/5"
+                          >
+                            <Text size="1" color="gray">
+                              {t(
+                                "settings.postProcessing.models.promptMessageRole.label",
+                                "Developer 模式",
+                              )}
+                            </Text>
+                            <Switch
+                              size="1"
+                              checked={
+                                model.prompt_message_role === "developer"
+                              }
+                              onCheckedChange={(checked) =>
+                                onPromptMessageRoleChange(
+                                  model.id,
+                                  checked ? "developer" : "system",
+                                )
+                              }
+                            />
+                          </Flex>
+                        )}
                         {allowSelection && !isSelected && (
                           <Button
                             size="1"
@@ -393,8 +426,13 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   allowSelection: allowSelectionProp,
   showMultiModelCheckboxes: showMultiModelCheckboxesProp,
 }) => {
-  const { settings, removeCachedModel, isUpdating, refreshSettings } =
-    useSettings();
+  const {
+    settings,
+    removeCachedModel,
+    updateCachedModelPromptMessageRole,
+    isUpdating,
+    refreshSettings,
+  } = useSettings();
   const { toggleMultiModelSelection } = useSettingsStore();
 
   const { t } = useTranslation();
@@ -425,6 +463,13 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
       await removeCachedModel(modelId);
     },
     [removeCachedModel],
+  );
+
+  const handlePromptMessageRoleChange = useCallback(
+    async (modelId: string, role: "system" | "developer") => {
+      await updateCachedModelPromptMessageRole(modelId, role);
+    },
+    [updateCachedModelPromptMessageRole],
   );
 
   const typesToRender = Array.isArray(targetType) ? targetType : [targetType];
@@ -459,6 +504,8 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
                 settings?.multi_model_post_process_enabled)
                 ? handleToggleMultiModel
                 : undefined,
+            onPromptMessageRoleChange:
+              type === "text" ? handlePromptMessageRoleChange : undefined,
           })}
         </Box>
       ))}

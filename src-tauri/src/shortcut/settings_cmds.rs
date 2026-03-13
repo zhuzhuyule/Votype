@@ -415,6 +415,25 @@ pub fn update_cached_model_capability(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_cached_model_prompt_message_role(
+    app: AppHandle,
+    id: String,
+    role: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    let parsed = match role.as_str() {
+        "developer" => settings::PromptMessageRole::Developer,
+        _ => settings::PromptMessageRole::System,
+    };
+    if let Some(m) = settings.cached_models.iter_mut().find(|m| m.id == id) {
+        m.prompt_message_role = parsed;
+        settings::write_settings(&app, settings);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn remove_cached_model(app: AppHandle, id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.cached_models.retain(|m| m.id != id);

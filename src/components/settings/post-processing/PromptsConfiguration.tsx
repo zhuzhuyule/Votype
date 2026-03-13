@@ -78,7 +78,6 @@ const PromptsConfiguration: React.FC = () => {
   // All skills from ~/.votype/skills/ (unified source)
   const {
     externalSkills: fileSkills,
-    builtinSkills,
     isLoading: isLoadingSkills,
     refreshExternalSkills: refreshSkills,
     openSkillsFolder,
@@ -141,7 +140,7 @@ const PromptsConfiguration: React.FC = () => {
 
   // Merge built-in + user skills, respecting saved drag order
   const allSkills = useMemo(() => {
-    const combined = [...builtinSkills, ...fileSkills];
+    const combined = [...fileSkills];
     if (skillOrder.length === 0) return combined;
     const orderMap = new Map(skillOrder.map((id, idx) => [id, idx]));
     return [...combined].sort((a, b) => {
@@ -152,7 +151,7 @@ const PromptsConfiguration: React.FC = () => {
       if (posB !== undefined) return 1;
       return 0;
     });
-  }, [builtinSkills, fileSkills, skillOrder]);
+  }, [fileSkills, skillOrder]);
 
   // Load templates on mount
   React.useEffect(() => {
@@ -302,7 +301,7 @@ const PromptsConfiguration: React.FC = () => {
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
                 </Flex>
-                <Box className="flex-1 overflow-y-auto px-2 space-y-0.5">
+                <Box className="flex-1 overflow-y-auto px-2 space-y-1">
                   <DndContext
                     sensors={sensors}
                     collisionDetection={closestCenter}
@@ -330,6 +329,25 @@ const PromptsConfiguration: React.FC = () => {
                       items={allSkills.map((s) => s.id)}
                       strategy={verticalListSortingStrategy}
                     >
+                      {allSkills.length > 0 && (
+                        <Flex
+                          align="center"
+                          justify="between"
+                          className="px-3 pt-2 pb-1 text-[11px] uppercase tracking-[0.08em] text-gray-400"
+                        >
+                          <Text
+                            size="1"
+                            weight="medium"
+                            className="text-gray-400"
+                          >
+                            {t(
+                              "settings.postProcessing.prompts.userOwnedPrompts",
+                              "我的提示词",
+                            )}
+                            {` (${allSkills.length})`}
+                          </Text>
+                        </Flex>
+                      )}
                       {allSkills.map((skill) => (
                         <SidebarItem
                           key={skill.id}

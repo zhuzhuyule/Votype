@@ -29,19 +29,15 @@ export function useSkills(): UseSkillsReturn {
     setIsLoading(true);
     setError(null);
     try {
-      // Load user/imported skills, builtin skills, and saved order
-      const [userSkills, builtinSkills, skillOrder] = await Promise.all([
+      const [userSkills, skillOrder] = await Promise.all([
         invoke("get_all_skills"),
-        invoke("get_builtin_skills"),
         invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = SkillsArraySchema.safeParse(userSkills);
-      const parsedBuiltin = SkillsArraySchema.safeParse(builtinSkills);
 
-      if (parsedUser.success && parsedBuiltin.success) {
-        // Combine builtin and user skills
-        const combined = [...parsedBuiltin.data, ...parsedUser.data];
+      if (parsedUser.success) {
+        const combined = [...parsedUser.data];
 
         // Apply saved ordering
         if (Array.isArray(skillOrder) && skillOrder.length > 0) {
@@ -58,10 +54,7 @@ export function useSkills(): UseSkillsReturn {
 
         setSkills(combined);
       } else {
-        console.error(
-          "Failed to parse skills:",
-          parsedUser.error || parsedBuiltin.error,
-        );
+        console.error("Failed to parse skills:", parsedUser.error);
         setError("Failed to parse skills");
       }
     } catch (e) {

@@ -1,4 +1,5 @@
-import { Flex, Slider, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Slider, Text, Switch } from "@radix-ui/themes";
+import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -15,6 +16,7 @@ export const AppProfilesContextSettings: React.FC<
 > = ({ descriptionMode = "inline", grouped = true }) => {
   const { t } = useTranslation();
   const { settings, updateSetting, isUpdating } = useSettings();
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [localLimit, setLocalLimit] = useState(
     settings?.post_process_context_limit ?? 3,
   );
@@ -27,28 +29,74 @@ export const AppProfilesContextSettings: React.FC<
 
   if (!settings) return null;
 
+  const summary = settings.post_process_context_enabled
+    ? t("settings.postProcessing.inputInjection.summaryEnabled", {
+        count: localLimit,
+      })
+    : t("settings.postProcessing.inputInjection.summaryDisabled");
+
   return (
     <Flex direction="column" className={grouped ? "" : "p-4"}>
       <SettingContainer
         title={t("settings.postProcessing.inputInjection.title")}
-        description={t("settings.postProcessing.inputInjection.description")}
+        description={summary}
         descriptionMode={descriptionMode}
         grouped={grouped}
       >
-        <Flex direction="column" gap="2" className="w-full">
-          <ToggleSwitch
+        <Flex align="center" gap="2">
+          <Button
+            variant={showAdvanced ? "solid" : "soft"}
+            color={showAdvanced ? "blue" : "gray"}
+            size="1"
+            onClick={() => setShowAdvanced((prev) => !prev)}
+            className="transition-all duration-200"
+          >
+            {showAdvanced ? (
+              <IconChevronDown size={14} />
+            ) : (
+              <IconChevronRight size={14} />
+            )}
+            {t("settings.postProcessing.inputInjection.moreOptions")}
+          </Button>
+          <Switch
             checked={settings.post_process_context_enabled}
-            onChange={(checked) =>
+            disabled={isUpdating("post_process_context_enabled")}
+            onCheckedChange={(checked) =>
               updateSetting("post_process_context_enabled", checked)
             }
-            isUpdating={isUpdating("post_process_context_enabled")}
-            label={t("settings.postProcessing.inputInjection.history.enabled")}
+            className="data-[state=checked]:bg-logo-primary/90"
+          />
+        </Flex>
+      </SettingContainer>
+
+      <Box
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          showAdvanced
+            ? "max-h-[420px] opacity-100 mt-1"
+            : "max-h-0 opacity-0 pointer-events-none"
+        }`}
+      >
+        <Box
+          className="ml-5 border-l border-[var(--gray-5)] pl-4"
+          style={{ width: "calc(100% - 20px)" }}
+        >
+          <SettingContainer
+            title={t("settings.postProcessing.inputInjection.history.enabled")}
             description={t(
               "settings.postProcessing.inputInjection.history.description",
             )}
             descriptionMode={descriptionMode}
             grouped={false}
-          />
+          >
+            <Switch
+              checked={settings.post_process_context_enabled}
+              disabled={isUpdating("post_process_context_enabled")}
+              onCheckedChange={(checked) =>
+                updateSetting("post_process_context_enabled", checked)
+              }
+              className="data-[state=checked]:bg-logo-primary/90"
+            />
+          </SettingContainer>
 
           {settings.post_process_context_enabled && (
             <SettingContainer
@@ -110,8 +158,8 @@ export const AppProfilesContextSettings: React.FC<
             descriptionMode={descriptionMode}
             grouped={false}
           />
-        </Flex>
-      </SettingContainer>
+        </Box>
+      </Box>
     </Flex>
   );
 };

@@ -142,6 +142,10 @@ export const CachedModelSchema = z.object({
   custom_label: z.string().optional(),
   // Thinking Mode 标记
   is_thinking_model: z.boolean().optional().default(false),
+  prompt_message_role: z
+    .enum(["system", "developer"])
+    .optional()
+    .default("system"),
   // 额外的请求参数（JSON 格式，会合并到 LLM 请求体中）
   extra_params: z.record(z.string(), z.unknown()).optional(),
 });

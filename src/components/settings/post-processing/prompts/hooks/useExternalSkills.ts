@@ -29,7 +29,6 @@ const SkillTemplatesArraySchema = z.array(SkillTemplateSchema);
 
 export function useExternalSkills() {
   const [externalSkills, setExternalSkills] = useState<LLMPrompt[]>([]);
-  const [builtinSkills, setBuiltinSkills] = useState<LLMPrompt[]>([]);
   const [skillOrder, setSkillOrder] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,27 +37,18 @@ export function useExternalSkills() {
     setIsLoading(true);
     setError(null);
     try {
-      // Load user skills, built-in skills, and saved order
-      const [userSkills, builtins, savedOrder] = await Promise.all([
+      const [userSkills, savedOrder] = await Promise.all([
         invoke("get_all_skills"),
-        invoke("get_builtin_skills"),
         invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
-      const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtins);
 
       if (parsedUser.success) {
         setExternalSkills(parsedUser.data);
       } else {
         console.error("Failed to parse user skills:", parsedUser.error);
         setError("Failed to parse user skills");
-      }
-
-      if (parsedBuiltin.success) {
-        setBuiltinSkills(parsedBuiltin.data);
-      } else {
-        console.error("Failed to parse builtin skills:", parsedBuiltin.error);
       }
 
       if (Array.isArray(savedOrder)) {
@@ -75,20 +65,15 @@ export function useExternalSkills() {
   const refreshExternalSkills = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [userSkills, builtins, savedOrder] = await Promise.all([
+      const [userSkills, savedOrder] = await Promise.all([
         invoke("get_all_skills"),
-        invoke("get_builtin_skills"),
         invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
-      const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtins);
 
       if (parsedUser.success) {
         setExternalSkills(parsedUser.data);
-      }
-      if (parsedBuiltin.success) {
-        setBuiltinSkills(parsedBuiltin.data);
       }
       if (Array.isArray(savedOrder)) {
         setSkillOrder(savedOrder);
@@ -115,7 +100,6 @@ export function useExternalSkills() {
 
   return {
     externalSkills,
-    builtinSkills,
     isLoading,
     error,
     refreshExternalSkills,

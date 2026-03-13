@@ -59,6 +59,10 @@ interface UseSettingsReturn {
     modelId: string,
     modelType: ModelType,
   ) => Promise<void>;
+  updateCachedModelPromptMessageRole: (
+    modelId: string,
+    role: "system" | "developer",
+  ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;
@@ -103,6 +107,8 @@ export const useSettings = (): UseSettingsReturn => {
     fetchPostProcessModels: store.fetchPostProcessModels,
     addCachedModel: store.addCachedModel,
     updateCachedModelType: store.updateCachedModelType,
+    updateCachedModelPromptMessageRole:
+      store.updateCachedModelPromptMessageRole,
     removeCachedModel: store.removeCachedModel,
     toggleOnlineAsr: store.toggleOnlineAsr,
     selectAsrModel: store.selectAsrModel,
