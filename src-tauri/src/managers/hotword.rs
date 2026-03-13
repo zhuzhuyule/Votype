@@ -489,9 +489,119 @@ impl HotwordManager {
 
     // ── LLM Injection ────────────────────────────────────────────────────
 
+    fn normalize_for_match(text: &str) -> String {
+        text.chars()
+            .filter(|ch| ch.is_alphanumeric() || ('\u{4E00}'..='\u{9FFF}').contains(ch))
+            .flat_map(|ch| ch.to_lowercase())
+            .collect()
+    }
+
+    fn extract_ascii_tokens(text: &str) -> Vec<String> {
+        text.split(|ch: char| !ch.is_ascii_alphanumeric())
+            .map(str::trim)
+            .filter(|token| token.len() >= 2)
+            .map(|token| token.to_lowercase())
+            .collect()
+    }
+
+    fn find_priority_matches<'a>(
+        current_input: &str,
+        hotwords: &[&'a Hotword],
+    ) -> Vec<(&'a Hotword, String)> {
+        let normalized_input = Self::normalize_for_match(current_input);
+        let ascii_tokens = Self::extract_ascii_tokens(current_input);
+        let mut matches: Vec<(&Hotword, String, i32)> = Vec::new();
+
+        for hotword in hotwords {
+            let mut best: Option<(String, i32)> = None;
+
+            let variants = std::iter::once(hotword.target.as_str())
+                .chain(hotword.originals.iter().map(|s| s.as_str()));
+
+            for variant in variants {
+                let variant = variant.trim();
+                if variant.is_empty() {
+                    continue;
+                }
+
+                let normalized_variant = Self::normalize_for_match(variant);
+                if normalized_variant.is_empty() {
+                    continue;
+                }
+
+                let is_target = variant.eq_ignore_ascii_case(&hotword.target);
+
+                if normalized_input.contains(&normalized_variant) {
+                    let note = if is_target {
+                        format!("当前输入中直接出现了词条“{}”", variant)
+                    } else {
+                        format!("当前输入中出现了易混形式“{}”", variant)
+                    };
+                    let score = if is_target { 120 } else { 140 };
+                    if best.as_ref().map(|(_, s)| *s).unwrap_or(-1) < score {
+                        best = Some((note, score));
+                    }
+                    continue;
+                }
+
+                if variant.is_ascii() {
+                    let variant_lower = variant.to_lowercase();
+                    for token in &ascii_tokens {
+                        if token == &variant_lower {
+                            let note = if is_target {
+                                format!("当前输入中直接出现了词条“{}”", variant)
+                            } else {
+                                format!("当前输入中出现了易混形式“{}”", variant)
+                            };
+                            let score = if is_target { 110 } else { 130 };
+                            if best.as_ref().map(|(_, s)| *s).unwrap_or(-1) < score {
+                                best = Some((note, score));
+                            }
+                            break;
+                        }
+
+                        if crate::phonetic_similarity::is_phonetically_similar(
+                            token,
+                            &variant_lower,
+                        ) {
+                            let note = if is_target {
+                                format!("当前输入中有与“{}”读音或拼写接近的词", variant)
+                            } else {
+                                format!("当前输入中有与易混形式“{}”读音或拼写接近的词", variant)
+                            };
+                            let score = if is_target { 80 } else { 95 };
+                            if best.as_ref().map(|(_, s)| *s).unwrap_or(-1) < score {
+                                best = Some((note, score));
+                            }
+                        }
+                    }
+                }
+            }
+
+            if let Some((note, score)) = best {
+                matches.push((hotword, note, score));
+            }
+        }
+
+        matches.sort_by(|a, b| {
+            b.2.cmp(&a.2)
+                .then_with(|| b.0.use_count.cmp(&a.0.use_count))
+        });
+        matches.truncate(8);
+        matches
+            .into_iter()
+            .map(|(hotword, note, _)| (hotword, note))
+            .collect()
+    }
+
     /// Build LLM injection text for a specific scenario.
     /// Dynamically groups hotwords by category using DB-stored category metadata.
-    pub fn build_llm_injection(&self, scenario: HotwordScenario, limit: usize) -> Result<String> {
+    pub fn build_llm_injection(
+        &self,
+        scenario: HotwordScenario,
+        limit: usize,
+        current_input: Option<&str>,
+    ) -> Result<String> {
         let hotwords = self.get_by_scenario(scenario)?;
         // Only inject confirmed (active) hotwords
         let hotwords: Vec<Hotword> = hotwords
@@ -521,25 +631,23 @@ impl HotwordManager {
         let mut cat_keys: Vec<String> = groups.keys().cloned().collect();
         cat_keys.sort_by_key(|k| cat_map.get(k).map(|m| m.sort_order).unwrap_or(999));
 
+        let priority_matches = current_input
+            .map(str::trim)
+            .filter(|text| !text.is_empty())
+            .map(|text| Self::find_priority_matches(text, &hotwords))
+            .unwrap_or_default();
+        let priority_map: HashMap<i64, String> = priority_matches
+            .iter()
+            .map(|(hotword, note)| (hotword.id, note.clone()))
+            .collect();
         let mut output = String::new();
 
-        output.push_str("## 热词 / 易混词处理\n");
-        output
-            .push_str("以下内容是用户整理的词汇参考，可用于术语消歧、专有名词识别和易混词判断。\n");
-        output.push_str(
-            "它只作为语义增强参考，不是强制替换依据；请结合当前语境、相似度和表达意图谨慎使用。\n\n",
-        );
-        output.push_str("处理原则:\n");
-        output.push_str("1. 如果输入与下列词条存在明显音近、形近、缩写误写或 ASR 常见错误，可优先参考对应词条。\n");
-        output.push_str("2. 若证据不足，不要强行替换。\n");
-        output.push_str("3. 不要把普通语义润色误当成热词替换。\n");
-        output.push_str(
-            "4. 人名类仅在谈论人物的语境中参考；术语、品牌、缩写类仅在相关领域语境中参考。\n",
-        );
-        output.push_str(
-            "5. 相似度判断以读音接近、字形接近、常见误拼写和上下文语义一致性为主，不要只凭单一线索替换。\n\n",
-        );
-        output.push_str("词表:\n");
+        output.push_str("## 常用词汇与热词\n");
+        output.push_str("以下内容是高优先级词汇参考，可能包含人名、专业术语和缩写。若当前输入在语境、读音或拼写上与这些词接近，可优先判断是否应替换为这些目标词。\n");
+        output.push_str("若证据不足，不要强行替换；这些内容是参考，不是必须命中的规则。\n");
+        if !priority_matches.is_empty() {
+            output.push_str("标记为“优先留意”的词条，表示它与当前输入更接近，替换时应优先检查。\n");
+        }
 
         for cat_id in &cat_keys {
             let items = &groups[cat_id];
@@ -549,16 +657,34 @@ impl HotwordManager {
                 .unwrap_or(cat_id.as_str());
 
             output.push_str(&format!("\n### {}\n", label));
-            output.push_str("[\n");
             for h in items {
-                let note = if h.originals.is_empty() {
-                    "仅在相关语境中参考".to_string()
+                if priority_map.contains_key(&h.id) {
+                    output.push_str(&format!("- {}（优先留意）\n", h.target));
                 } else {
-                    format!("常见易混形式: {}", h.originals.join("、"))
-                };
-                output.push_str(&format!("  [\"{}\", \"{}\"],\n", h.target, note));
+                    output.push_str(&format!("- {}\n", h.target));
+                }
             }
-            output.push_str("]\n");
+        }
+
+        let manual_pairs: Vec<String> = hotwords
+            .iter()
+            .filter(|h| h.source == "manual" && !h.originals.is_empty())
+            .flat_map(|h| {
+                h.originals
+                    .iter()
+                    .map(move |original| format!("- \"{}\" -> \"{}\"", original, h.target))
+            })
+            .take(20)
+            .collect();
+
+        if !manual_pairs.is_empty() {
+            output.push_str("\n\n## 历史手动替换词\n");
+            output.push_str("以下内容来自历史中的手动替换记录，会再次复述一遍，用于增强这些目标词在替换场景中的覆盖率。\n");
+            output.push_str("如果当前输入与这些替换对接近，可优先检查是否需要修正；其中目标词也已在上方的常用词汇与热词中体现。\n");
+            for pair in &manual_pairs {
+                output.push_str(pair);
+                output.push('\n');
+            }
         }
 
         debug!(
@@ -825,10 +951,7 @@ impl HotwordManager {
         use crate::llm_client;
         use crate::managers::prompt::{self, PromptManager};
         use crate::settings::get_settings;
-        use async_openai::types::{
-            ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-            ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
-        };
+        use async_openai::types::CreateChatCompletionRequestArgs;
         use std::sync::Arc;
 
         let settings = get_settings(&app_handle);
@@ -954,17 +1077,20 @@ impl HotwordManager {
         };
 
         let mut messages = Vec::new();
-        if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-            .content(system_prompt)
-            .build()
+        let prompt_role = crate::actions::post_process::resolve_prompt_message_role(
+            &settings,
+            &provider.id,
+            settings.selected_prompt_model_id.as_deref(),
+            &model,
+        );
+        if let Some(msg) =
+            crate::actions::post_process::build_instruction_message(prompt_role, system_prompt)
         {
-            messages.push(ChatCompletionRequestMessage::System(sys_msg));
+            messages.push(msg);
         }
-        if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-            .content("请分析上述修正对。")
-            .build()
+        if let Some(msg) = crate::actions::post_process::build_user_message("请分析上述修正对。")
         {
-            messages.push(ChatCompletionRequestMessage::User(user_msg));
+            messages.push(msg);
         }
 
         let req = match CreateChatCompletionRequestArgs::default()
