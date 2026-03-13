@@ -264,20 +264,8 @@ pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
     let settings = settings::get_settings(&app);
     let skill_manager = crate::managers::skill::SkillManager::new(&app);
 
-    // Collect builtin skills from settings (matching get_builtin_skills)
-    let builtin_skills: Vec<PromptInfo> = settings
-        .post_process_prompts
-        .iter()
-        .filter(|p| p.enabled)
-        .filter(|p| matches!(p.source, settings::SkillSource::Builtin))
-        .map(|p| PromptInfo {
-            id: p.id.clone(),
-            name: p.name.clone(),
-        })
-        .collect();
-
-    // Collect external skills from filesystem (matching get_all_skills)
-    let external_skills: Vec<PromptInfo> = skill_manager
+    // Only user-owned prompts are available for actual use.
+    let mut all_prompts: Vec<PromptInfo> = skill_manager
         .get_all_skills()
         .into_iter()
         .filter(|p| p.enabled)
@@ -286,18 +274,6 @@ pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
             name: p.name.clone(),
         })
         .collect();
-
-    // Merge: builtin first, then external
-    let mut all_prompts: Vec<PromptInfo> = Vec::new();
-    let mut seen_ids = std::collections::HashSet::new();
-    for p in builtin_skills
-        .into_iter()
-        .chain(external_skills.into_iter())
-    {
-        if seen_ids.insert(p.id.clone()) {
-            all_prompts.push(p);
-        }
-    }
 
     // Apply saved drag-and-drop ordering (same logic as SkillManager::apply_ordering)
     let order = skill_manager.load_order();

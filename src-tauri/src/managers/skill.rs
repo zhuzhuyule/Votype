@@ -300,7 +300,9 @@ impl SkillManager {
         let mut new_skill = skill.clone();
         new_skill.file_path = Some(file_path.clone());
         new_skill.source = SkillSource::User;
-        new_skill.id = format!("ext_{}", final_name.to_lowercase());
+        if new_skill.id.trim().is_empty() {
+            new_skill.id = format!("ext_{}", final_name.to_lowercase());
+        }
         // Update name if suffix was added
         if final_name != safe_name {
             new_skill.name = final_name.replace('_', " ");
@@ -486,6 +488,9 @@ impl SkillManager {
 
         // Construct frontmatter
         let mut frontmatter = String::from("---\n");
+        if !skill.id.trim().is_empty() {
+            frontmatter.push_str(&format!("id: \"{}\"\n", skill.id));
+        }
         frontmatter.push_str(&format!("name: \"{}\"\n", skill.name));
         if !skill.description.is_empty() {
             frontmatter.push_str(&format!("description: \"{}\"\n", skill.description));

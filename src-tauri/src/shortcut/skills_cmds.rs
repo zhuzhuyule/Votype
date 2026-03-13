@@ -22,7 +22,36 @@ pub fn create_skill(app: AppHandle, skill: Skill) -> Result<Skill, String> {
 #[specta::specta]
 pub fn delete_skill(app: AppHandle, id: String) -> Result<(), String> {
     let skill_manager = crate::managers::skill::SkillManager::new(&app);
-    skill_manager.delete_skill_file(&id)
+    let _ = skill_manager.delete_skill_file(&id);
+
+    let mut settings = settings::get_settings(&app);
+    let original_len = settings.post_process_prompts.len();
+    settings
+        .post_process_prompts
+        .retain(|prompt| prompt.id != id);
+
+    if settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .is_some_and(|selected_id| selected_id == &id)
+    {
+        settings.post_process_selected_prompt_id = None;
+    }
+
+    if settings.post_process_prompts.len() != original_len {
+        settings::write_settings(&app, settings);
+    }
+
+    let existing_order = skill_manager.load_order();
+    if existing_order.iter().any(|skill_id| skill_id == &id) {
+        let filtered_order: Vec<String> = existing_order
+            .into_iter()
+            .filter(|skill_id| skill_id != &id)
+            .collect();
+        skill_manager.save_order(&filtered_order)?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -92,20 +121,30 @@ pub fn get_skills_order(app: AppHandle) -> Vec<String> {
 #[tauri::command]
 #[specta::specta]
 pub fn get_builtin_skills(app: AppHandle) -> Vec<Skill> {
-    let settings = settings::get_settings(&app);
-    settings
-        .post_process_prompts
-        .into_iter()
-        .filter(|s| matches!(s.source, SkillSource::Builtin))
-        .collect()
+    let _ = app;
+    [
+        include_str!("../../resources/skills/builtin/default_correction.skill.md"),
+        include_str!("../../resources/skills/builtin/ai_chat.skill.md"),
+        include_str!("../../resources/skills/builtin/translation.skill.md"),
+        include_str!("../../resources/skills/builtin/summarize.skill.md"),
+        include_str!("../../resources/skills/builtin/memo.skill.md"),
+        include_str!("../../resources/skills/builtin/code_generate.skill.md"),
+        include_str!("../../resources/skills/builtin/code_explain.skill.md"),
+        include_str!("../../resources/skills/builtin/style_reply.skill.md"),
+        include_str!("../../resources/skills/builtin/reply_suggestion.skill.md"),
+        include_str!("../../resources/skills/builtin/votype_command.skill.md"),
+        include_str!("../../resources/skills/builtin/grammar_fix.skill.md"),
+        include_str!("../../resources/skills/builtin/smart_compose.skill.md"),
+    ]
+    .iter()
+    .filter_map(|content| crate::managers::skill::parse_builtin_skill_content(content))
+    .collect()
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn get_default_skill_content(app: AppHandle, skill_id: String) -> Option<Skill> {
-    let settings = settings::get_settings(&app);
-    settings
-        .post_process_prompts
+    get_builtin_skills(app)
         .into_iter()
         .find(|s| s.id == skill_id && matches!(s.source, SkillSource::Builtin))
 }
