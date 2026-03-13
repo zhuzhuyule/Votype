@@ -1,12 +1,10 @@
 use crate::managers::history::HistoryManager;
-use crate::settings::{AppSettings, MultiModelPostProcessItem};
-use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
-};
+use crate::settings::{AppSettings, LLMPrompt, MultiModelPostProcessItem};
+use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequestArgs};
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use log::{error, info};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
@@ -106,8 +104,51 @@ pub async fn multi_post_process_transcription(
         }),
     );
 
-    // Input data is now built per-model inside execute_single_model_post_process
-    // using PromptBuilder, which respects each skill's variable declarations.
+    // Pre-resolve prompts once (shared across all models using the same prompt_id)
+    let skill_manager = crate::managers::skill::SkillManager::new(_app_handle);
+    let external_skills = skill_manager.load_all_external_skills();
+    let mut all_prompts = settings.post_process_prompts.clone();
+    for file_skill in external_skills {
+        if !all_prompts.iter().any(|p| p.id == file_skill.id) {
+            all_prompts.push(file_skill);
+        }
+    }
+
+    let unique_prompt_ids: Vec<String> = {
+        let mut ids: Vec<String> = items.iter().map(|i| i.prompt_id.clone()).collect();
+        ids.sort();
+        ids.dedup();
+        ids
+    };
+
+    let mut resolved_prompts: HashMap<String, LLMPrompt> = HashMap::new();
+    for pid in &unique_prompt_ids {
+        match all_prompts.iter().find(|p| &p.id == pid) {
+            Some(p) => {
+                info!(
+                    "[MultiModel] Resolved prompt: id={}, name=\"{}\", instructions_len={}",
+                    p.id,
+                    p.name,
+                    p.instructions.len()
+                );
+                resolved_prompts.insert(pid.clone(), p.clone());
+            }
+            None => {
+                error!(
+                    "[MultiModel] Prompt not found: {}, available: {:?}",
+                    pid,
+                    all_prompts.iter().map(|p| &p.id).collect::<Vec<_>>()
+                );
+            }
+        }
+    }
+
+    if resolved_prompts.is_empty() {
+        error!("[MultiModel] No prompts could be resolved, aborting");
+        return Vec::new();
+    }
+
+    let resolved_prompts = Arc::new(resolved_prompts);
 
     // Build history context (shared across all models)
     let shared_history_entries: Vec<String> = if settings.post_process_context_enabled {
@@ -158,6 +199,7 @@ pub async fn multi_post_process_transcription(
             let streaming = streaming_transcription.map(|s| s.to_string());
             let history = shared_history_entries.clone();
             let batch_start_time = batch_start_time;
+            let prompts = Arc::clone(&resolved_prompts);
 
             async move {
                 let result = execute_single_model_post_process(
@@ -167,6 +209,7 @@ pub async fn multi_post_process_transcription(
                     &transcription,
                     streaming.as_deref(),
                     history.clone(),
+                    &prompts,
                 )
                 .await;
 
@@ -380,6 +423,7 @@ async fn execute_single_model_post_process(
     transcription: &str,
     streaming_transcription: Option<&str>,
     history_entries: Vec<String>,
+    resolved_prompts: &HashMap<String, LLMPrompt>,
 ) -> (Option<String>, Option<String>) {
     // Get provider
     let provider = match settings.post_process_provider(&item.provider_id) {
@@ -393,30 +437,13 @@ async fn execute_single_model_post_process(
     // Use the model_id from the item directly (each item specifies its own model)
     let model = item.model_id.clone();
 
-    // Get prompt — merge external skills so we can find prompts from filesystem too
-    let skill_manager = crate::managers::skill::SkillManager::new(_app_handle);
-    let external_skills = skill_manager.load_all_external_skills();
-    let mut all_prompts = settings.post_process_prompts.clone();
-    for file_skill in external_skills {
-        if !all_prompts.iter().any(|p| p.id == file_skill.id) {
-            all_prompts.push(file_skill);
-        }
-    }
-    let prompt = match all_prompts.iter().find(|p| p.id == item.prompt_id) {
-        Some(p) => {
-            info!(
-                "[MultiModel] Resolved prompt: id={}, name=\"{}\", instructions_len={}",
-                p.id,
-                p.name,
-                p.instructions.len()
-            );
-            p
-        }
+    // Use pre-resolved prompt
+    let prompt = match resolved_prompts.get(&item.prompt_id) {
+        Some(p) => p,
         None => {
             error!(
-                "[MultiModel] Prompt not found: {}, available: {:?}",
+                "[MultiModel] Prompt not found in pre-resolved map: {}",
                 item.prompt_id,
-                all_prompts.iter().map(|p| &p.id).collect::<Vec<_>>()
             );
             return (None, Some("Prompt not found".to_string()));
         }
@@ -441,23 +468,19 @@ async fn execute_single_model_post_process(
     // Build messages
     let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
 
-    // 1. Single system message
-    if !built.system_prompt.is_empty() {
-        if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-            .content(built.system_prompt)
-            .build()
-        {
-            messages.push(ChatCompletionRequestMessage::System(sys_msg));
+    // 1. Structured system messages
+    let prompt_role =
+        super::core::resolve_prompt_message_role(settings, &provider.id, None, &model);
+    for system_prompt in built.system_messages {
+        if let Some(msg) = super::core::build_instruction_message(prompt_role, system_prompt) {
+            messages.push(msg);
         }
     }
 
     // 2. Single user message
     if let Some(user_content) = built.user_message {
-        if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-            .content(user_content)
-            .build()
-        {
-            messages.push(ChatCompletionRequestMessage::User(user_msg));
+        if let Some(msg) = super::core::build_user_message(user_content) {
+            messages.push(msg);
         }
     }
 
@@ -478,6 +501,18 @@ async fn execute_single_model_post_process(
             return (None, Some(format!("Request build failed: {:?}", e)));
         }
     };
+
+    if let Ok(req_json) = serde_json::to_value(&req) {
+        info!(
+            "[MultiModel] Request prepared: item_id={} provider={} model={} url={}/chat/completions\n{}",
+            item.id,
+            provider.id,
+            model_id,
+            provider.base_url.trim_end_matches('/'),
+            serde_json::to_string_pretty(&req_json)
+                .unwrap_or_else(|_| req_json.to_string())
+        );
+    }
 
     // Create client and execute
     let client = match crate::llm_client::create_client(provider, api_key) {

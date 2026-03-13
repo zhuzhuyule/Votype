@@ -44,7 +44,7 @@ pub async fn post_process_text_with_prompt(
             let hotword_manager = HotwordManager::new(hm.db_path.clone());
             let scenario = super::pipeline::detect_scenario(&app_name);
             let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
-            match hotword_manager.build_llm_injection(effective_scenario, 40) {
+            match hotword_manager.build_llm_injection(effective_scenario, 40, Some(transcription)) {
                 Ok(injection) if !injection.is_empty() => {
                     debug!(
                         "[ManualPostProcess] Injected hotwords for scenario {:?}",
@@ -105,13 +105,13 @@ pub async fn post_process_text_with_prompt(
         .model_id
         .as_deref()
         .or(settings.selected_prompt_model_id.as_deref());
-    let (result, err, error_message) = super::core::execute_llm_request(
+    let (result, err, error_message) = super::core::execute_llm_request_with_messages(
         app_handle,
         settings,
         actual_provider,
         &model,
         cached_model_id,
-        &built.system_prompt,
+        &built.system_messages,
         built.user_message.as_deref(),
         app_name,
         window_title,

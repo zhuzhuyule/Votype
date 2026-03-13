@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 // Submodules
-mod confidence;
 mod core;
 mod extensions;
 mod manual;
@@ -10,7 +9,9 @@ pub(crate) mod prompt_builder;
 pub(crate) mod routing;
 
 // Re-export public functions
-pub use core::execute_llm_request;
+pub(crate) use core::{
+    build_instruction_message, build_user_message, execute_llm_request, resolve_prompt_message_role,
+};
 pub use extensions::{maybe_convert_chinese_variant, multi_post_process_transcription};
 pub use manual::post_process_text_with_prompt;
 pub use pipeline::maybe_post_process_transcription;

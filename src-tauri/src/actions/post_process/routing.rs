@@ -1,9 +1,7 @@
 use crate::managers::prompt::{self, PromptManager};
+use crate::settings;
 use crate::settings::{AppSettings, LLMPrompt, PostProcessProvider};
-use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
-    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
-};
+use async_openai::types::CreateChatCompletionRequestArgs;
 use log::info;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
@@ -116,18 +114,18 @@ pub(super) async fn perform_skill_routing(
 
     let mut messages = Vec::new();
 
-    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-        .content(routing_prompt)
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::System(sys_msg));
+    let prompt_role = super::core::resolve_prompt_message_role(
+        &settings::get_settings(_app_handle),
+        &provider.id,
+        None,
+        model,
+    );
+    if let Some(msg) = super::core::build_instruction_message(prompt_role, routing_prompt) {
+        messages.push(msg);
     }
 
-    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(transcription.to_string())
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    if let Some(msg) = super::core::build_user_message(transcription.to_string()) {
+        messages.push(msg);
     }
 
     let req = match CreateChatCompletionRequestArgs::default()
@@ -211,11 +209,14 @@ pub(super) async fn perform_skill_routing(
 /// This is a simplified version that only runs the default prompt.
 /// Returns the polished text or None if failed.
 pub(super) async fn execute_default_polish<'a>(
-    _app_handle: &AppHandle,
+    app_handle: &AppHandle,
     settings: &'a AppSettings,
     fallback_provider: &'a PostProcessProvider,
     default_prompt: &LLMPrompt,
     transcription: &str,
+    app_name: Option<String>,
+    window_title: Option<String>,
+    history_id: Option<i64>,
 ) -> Option<String> {
     let (actual_provider, model) =
         resolve_effective_model(settings, fallback_provider, default_prompt)?;
@@ -228,26 +229,78 @@ pub(super) async fn execute_default_polish<'a>(
 
     let client = crate::llm_client::create_client(actual_provider, api_key).ok()?;
 
+    let hotword_injection = if settings.post_process_hotword_injection_enabled {
+        if let Some(hm) =
+            app_handle.try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
+        {
+            let hotword_manager = crate::managers::hotword::HotwordManager::new(hm.db_path.clone());
+            let scenario = super::pipeline::detect_scenario(&app_name);
+            let effective_scenario = scenario.unwrap_or(crate::settings::HotwordScenario::Work);
+            match hotword_manager.build_llm_injection(effective_scenario, 40, Some(transcription)) {
+                Ok(injection) if !injection.is_empty() => Some(injection),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let history_entries = if settings.post_process_context_enabled {
+        if let Some(app) = &app_name {
+            if let Some(hm) =
+                app_handle.try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
+            {
+                hm.get_recent_history_texts_for_app(
+                    app,
+                    window_title.as_deref(),
+                    None,
+                    None,
+                    settings.post_process_context_limit as usize,
+                    history_id,
+                )
+                .unwrap_or_default()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
     // Use PromptBuilder for consistent variable processing
-    let built = super::prompt_builder::PromptBuilder::new(default_prompt, transcription).build();
+    let built = super::prompt_builder::PromptBuilder::new(default_prompt, transcription)
+        .app_name(app_name.as_deref())
+        .window_title(window_title.as_deref())
+        .history_entries(history_entries)
+        .hotword_injection(hotword_injection)
+        .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
+            settings,
+        ))
+        .build();
 
     let mut messages = Vec::new();
 
     // 1. Single system message
-    if let Ok(sys_msg) = ChatCompletionRequestSystemMessageArgs::default()
-        .content(built.system_prompt)
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::System(sys_msg));
+    let prompt_role = super::core::resolve_prompt_message_role(
+        settings,
+        &actual_provider.id,
+        default_prompt.model_id.as_deref(),
+        &model,
+    );
+    for system_prompt in built.system_messages {
+        if let Some(msg) = super::core::build_instruction_message(prompt_role, system_prompt) {
+            messages.push(msg);
+        }
     }
 
     // 2. Single user message
     if let Some(user_content) = built.user_message {
-        if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-            .content(user_content)
-            .build()
-        {
-            messages.push(ChatCompletionRequestMessage::User(user_msg));
+        if let Some(msg) = super::core::build_user_message(user_content) {
+            messages.push(msg);
         }
     }
 

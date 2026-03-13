@@ -1,6 +1,12 @@
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::apple_intelligence;
-use crate::settings::{AppSettings, PostProcessProvider, APPLE_INTELLIGENCE_PROVIDER_ID};
+use crate::settings::{
+    AppSettings, PostProcessProvider, PromptMessageRole, APPLE_INTELLIGENCE_PROVIDER_ID,
+};
+use async_openai::types::{
+    ChatCompletionRequestDeveloperMessageArgs, ChatCompletionRequestMessage,
+    ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs,
+};
 use log::{error, info};
 use tauri::{AppHandle, Emitter};
 
@@ -56,6 +62,54 @@ pub(super) fn extract_llm_text(content: &str) -> String {
     cleaned
 }
 
+pub(crate) fn resolve_prompt_message_role(
+    settings: &AppSettings,
+    provider_id: &str,
+    cached_model_id: Option<&str>,
+    model_id: &str,
+) -> PromptMessageRole {
+    settings
+        .cached_models
+        .iter()
+        .find(|m| {
+            cached_model_id
+                .map(|id| m.id == id && m.provider_id == provider_id)
+                .unwrap_or(false)
+                || (m.provider_id == provider_id && m.model_id == model_id)
+        })
+        .map(|m| m.prompt_message_role)
+        .unwrap_or_default()
+}
+
+pub(crate) fn build_instruction_message(
+    role: PromptMessageRole,
+    content: impl Into<String>,
+) -> Option<ChatCompletionRequestMessage> {
+    let content = content.into();
+    match role {
+        PromptMessageRole::Developer => ChatCompletionRequestDeveloperMessageArgs::default()
+            .content(content)
+            .build()
+            .ok()
+            .map(ChatCompletionRequestMessage::Developer),
+        PromptMessageRole::System => ChatCompletionRequestSystemMessageArgs::default()
+            .content(content)
+            .build()
+            .ok()
+            .map(ChatCompletionRequestMessage::System),
+    }
+}
+
+pub(crate) fn build_user_message(
+    content: impl Into<String>,
+) -> Option<ChatCompletionRequestMessage> {
+    ChatCompletionRequestUserMessageArgs::default()
+        .content(content.into())
+        .build()
+        .ok()
+        .map(ChatCompletionRequestMessage::User)
+}
+
 pub async fn execute_llm_request(
     app_handle: &AppHandle,
     settings: &AppSettings,
@@ -63,6 +117,36 @@ pub async fn execute_llm_request(
     model: &str,
     cached_model_id: Option<&str>,
     system_prompt: &str,
+    user_message: Option<&str>,
+    _app_name: Option<String>,
+    _window_title: Option<String>,
+    _match_pattern: Option<String>,
+    _match_type: Option<crate::settings::TitleMatchType>,
+) -> (Option<String>, bool, Option<String>) {
+    let prompts = vec![system_prompt.to_string()];
+    execute_llm_request_with_messages(
+        app_handle,
+        settings,
+        provider,
+        model,
+        cached_model_id,
+        &prompts,
+        user_message,
+        _app_name,
+        _window_title,
+        _match_pattern,
+        _match_type,
+    )
+    .await
+}
+
+pub async fn execute_llm_request_with_messages(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    cached_model_id: Option<&str>,
+    system_prompts: &[String],
     user_message: Option<&str>,
     _app_name: Option<String>,
     _window_title: Option<String>,
@@ -81,7 +165,7 @@ pub async fn execute_llm_request(
             }
 
             // Combine messages for Apple Intelligence
-            let mut final_prompt = system_prompt.to_string();
+            let mut final_prompt = system_prompts.join("\n\n---\n\n");
             if let Some(user_msg) = user_message {
                 final_prompt = format!("{}\n\n{}", final_prompt, user_msg);
             }
@@ -153,27 +237,21 @@ pub async fn execute_llm_request(
     };
 
     // Build messages list
-    let mut messages: Vec<async_openai::types::ChatCompletionRequestMessage> = Vec::new();
+    let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
+    let prompt_message_role =
+        resolve_prompt_message_role(settings, &provider.id, cached_model_id, model);
 
-    // 1. Single system message
-    if let Ok(sys_msg) = async_openai::types::ChatCompletionRequestSystemMessageArgs::default()
-        .content(system_prompt)
-        .build()
-    {
-        messages.push(async_openai::types::ChatCompletionRequestMessage::System(
-            sys_msg,
-        ));
+    // 1. Single instruction message (system / developer)
+    for system_prompt in system_prompts {
+        if let Some(msg) = build_instruction_message(prompt_message_role, system_prompt.clone()) {
+            messages.push(msg);
+        }
     }
 
     // 2. Single user message
     if let Some(user_content) = user_message {
-        if let Ok(user_msg) = async_openai::types::ChatCompletionRequestUserMessageArgs::default()
-            .content(user_content)
-            .build()
-        {
-            messages.push(async_openai::types::ChatCompletionRequestMessage::User(
-                user_msg,
-            ));
+        if let Some(msg) = build_user_message(user_content) {
+            messages.push(msg);
         }
     }
 
