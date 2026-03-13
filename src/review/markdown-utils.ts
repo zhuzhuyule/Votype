@@ -1,8 +1,8 @@
 // Pure markdown to HTML conversion functions
 // No React dependencies
 
-import hljs from "highlight.js";
 import { escapeHtml } from "../lib/utils/html";
+import { hljs } from "./highlight";
 
 // Helper function to process inline markdown elements
 const processInlineMarkdown = (text: string): string => {

@@ -17,6 +17,60 @@ export default defineConfig(async () => ({
         overlay: resolve(__dirname, "src/overlay/index.html"),
         review: resolve(__dirname, "src/review/index.html"),
       },
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+
+          if (id.includes("highlight.js")) {
+            return "vendor-highlight";
+          }
+
+          if (id.includes("@tiptap")) {
+            return "vendor-tiptap";
+          }
+
+          if (
+            id.includes("prosemirror") ||
+            id.includes("/orderedmap/") ||
+            id.includes("/w3c-keyname/")
+          ) {
+            return "vendor-prosemirror";
+          }
+
+          if (
+            id.includes("@radix-ui") ||
+            id.includes("tailwindcss") ||
+            id.includes("@tailwindcss")
+          ) {
+            return "vendor-ui";
+          }
+
+          if (
+            id.includes("react-i18next") ||
+            id.includes("i18next") ||
+            id.includes("react-markdown")
+          ) {
+            return "vendor-content";
+          }
+
+          if (
+            id.includes("@tauri-apps") ||
+            id.includes("zustand") ||
+            id.includes("sonner") ||
+            id.includes("zod")
+          ) {
+            return "vendor-app";
+          }
+
+          if (id.includes("@iconify") || id.includes("@tabler")) {
+            return "vendor-icons";
+          }
+
+          if (id.includes("react") || id.includes("scheduler")) {
+            return "vendor-react";
+          }
+        },
+      },
     },
   },
 

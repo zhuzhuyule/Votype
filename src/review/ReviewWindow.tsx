@@ -5,6 +5,7 @@ import { Button, Tooltip } from "@radix-ui/themes";
 import { IconCheck, IconClipboard, IconTextPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Extension, Mark } from "@tiptap/core";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -15,7 +16,6 @@ import {
   useEditor,
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import hljs from "highlight.js";
 import React, {
   useCallback,
   useEffect,
@@ -37,6 +37,7 @@ import {
   buildPlainViews,
   computeChangePercent,
 } from "./diff-utils";
+import { hljs } from "./highlight";
 import { simpleMarkdownToHtml } from "./markdown-utils";
 
 const DIFF_THRESHOLD = 50;
@@ -313,6 +314,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   >(multiCandidates);
   const [isRerunning, setIsRerunning] = useState(false);
   const [editedTexts, setEditedTexts] = useState<Record<string, string>>({});
+  const [showCandidateShortcutHints, setShowCandidateShortcutHints] =
+    useState(false);
   const [multiSortMode, setMultiSortMode] = useState<MultiSortMode>(() =>
     readMultiSortMode(),
   );
@@ -675,6 +678,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   );
 
   useEffect(() => {
+    // Skip render tracking in multi-candidate mode — the Tiptap editor is not used
+    if (isMultiCandidateMode.current) return;
     renderStartRef.current = performance.now();
     void log("[ReviewWindow] render_start", {
       sourceChars: initialData.source_text.length,
@@ -693,8 +698,18 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     showDiff,
   ]);
 
+  // Track whether this instance was mounted in multi-candidate mode.
+  // Stable across re-renders so it doesn't trigger effects on progress events.
+  const isMultiCandidateMode = useRef(
+    !!(multiCandidates && multiCandidates.length > 0),
+  );
+
   useEffect(() => {
     if (!editor) return;
+    // In multi-candidate mode the Tiptap editor is hidden behind
+    // MultiCandidateView. Skip content rebuilds to avoid wasted work
+    // on every progress event.
+    if (isMultiCandidateMode.current) return;
 
     let content = "";
     let nextSourceHtml = "";
@@ -726,31 +741,30 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       targetHtmlChars: content.length,
     });
     setSourceHtml(nextSourceHtml);
-    // Multi-model mode: backend already sized the window, skip frontend resize
-    if (!(multiCandidates && multiCandidates.length > 0)) {
-      setTimeout(() => measureAndResize(false), 16);
-    }
+    setTimeout(() => measureAndResize(false), 16);
   }, [
     editor,
     initialData.source_text,
     currentFinalText,
     initialData.output_mode,
     showDiff,
-    multiCandidates,
   ]);
 
   useEffect(() => {
     if (!editor) return;
     let disposed = false;
-    const focusTimer = window.setTimeout(() => {
-      if (disposed || editor.isDestroyed) return;
-      editor.commands.focus("end");
-    }, 50);
+    // In multi-candidate mode the Tiptap editor is hidden; skip focus
+    const focusTimer = isMultiCandidateMode.current
+      ? undefined
+      : window.setTimeout(() => {
+          if (disposed || editor.isDestroyed) return;
+          editor.commands.focus("end");
+        }, 50);
 
     // Multi-model mode: backend already sized and showed the window directly,
     // skip frontend measure/resize to avoid overriding the correct size.
     // Single-model/chat mode: measure DOM, resize, then notify backend to show.
-    const isMultiModel = multiCandidates && multiCandidates.length > 0;
+    const isMultiModel = isMultiCandidateMode.current;
     const readyTimer = window.setTimeout(async () => {
       if (disposed) return;
       if (!isMultiModel) {
@@ -901,6 +915,18 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     [initialData.history_id, onClose, isSubmitting],
   );
 
+  const handleInsertCandidateByIndex = useCallback(
+    (shortcutIndex: number) => {
+      if (!sortedCandidates || shortcutIndex < 1 || shortcutIndex > 5) return;
+      const candidate = sortedCandidates[shortcutIndex - 1];
+      if (!candidate || !candidate.ready || candidate.error) return;
+      const text = (editedTexts[candidate.id] ?? candidate.text).trim();
+      if (!text) return;
+      void handleDirectInsert(text, candidate.id);
+    },
+    [editedTexts, handleDirectInsert, sortedCandidates],
+  );
+
   // Translate current text with auto language detection and analysis
   const handleTranslate = useCallback(async () => {
     const currentText = getEditorText();
@@ -975,6 +1001,19 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     if (!sortedCandidates || sortedCandidates.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey) {
+        setShowCandidateShortcutHints(true);
+      }
+
+      if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        const digit = Number.parseInt(e.key, 10);
+        if (Number.isInteger(digit) && digit >= 1 && digit <= 5) {
+          e.preventDefault();
+          handleInsertCandidateByIndex(digit);
+          return;
+        }
+      }
+
       // Tab: insert original text
       if (e.key === "Tab" && !e.shiftKey) {
         e.preventDefault();
@@ -1018,14 +1057,31 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       }
     };
 
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Meta") {
+        setShowCandidateShortcutHints(false);
+      }
+    };
+
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
   }, [
+    handleInsertCandidateByIndex,
     sortedCandidates,
     editingCandidateId,
     selectedCandidateId,
     getNextReadyCandidate,
   ]);
+
+  useEffect(() => {
+    const handleWindowBlur = () => setShowCandidateShortcutHints(false);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => window.removeEventListener("blur", handleWindowBlur);
+  }, []);
 
   useEffect(() => {
     const bindingEntries = Object.entries(transcribeShortcuts).filter(
@@ -1077,7 +1133,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   const handleDrag = useCallback(async () => {
     try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const appWindow = getCurrentWindow();
       await appWindow.startDragging();
     } catch (e) {
@@ -1188,6 +1243,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           <MultiCandidateView
             sourceText={initialData.source_text}
             candidates={sortedCandidates}
+            showShortcutHints={showCandidateShortcutHints}
             rankStats={speedRankStats}
             selectedCandidateId={selectedCandidateId}
             editingCandidateId={editingCandidateId}

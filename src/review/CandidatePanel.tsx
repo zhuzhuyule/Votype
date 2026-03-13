@@ -18,6 +18,8 @@ export interface MultiModelCandidate {
 interface CandidatePanelProps {
   candidate: MultiModelCandidate;
   index: number;
+  shortcutIndex?: number;
+  showShortcutHint?: boolean;
   isSelected: boolean;
   isEditing: boolean;
   maxTime: number;
@@ -39,6 +41,8 @@ function formatProcessingTime(ms: number): string {
 export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   candidate,
   index,
+  shortcutIndex,
+  showShortcutHint = false,
   isSelected,
   isEditing,
   maxTime,
@@ -89,7 +93,12 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
               : undefined
           }
         />
-        <span className="candidate-label">{candidate.label}</span>
+        <span className="candidate-label">
+          {candidate.label}
+          {showShortcutHint && shortcutIndex != null && shortcutIndex <= 5 && (
+            <span className="candidate-shortcut-badge">{shortcutIndex}</span>
+          )}
+        </span>
         <div className="candidate-meta">
           {candidate.ready ? (
             <>

@@ -8,6 +8,7 @@ import { CandidatePanel, MultiModelCandidate } from "./CandidatePanel";
 interface MultiCandidateViewProps {
   sourceText: string;
   candidates: MultiModelCandidate[];
+  showShortcutHints?: boolean;
   rankStats?: Record<string, Partial<Record<1 | 2 | 3, number>>>;
   selectedCandidateId: string | null;
   editingCandidateId: string | null;
@@ -22,6 +23,7 @@ interface MultiCandidateViewProps {
 export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   sourceText,
   candidates,
+  showShortcutHints = false,
   rankStats,
   selectedCandidateId,
   editingCandidateId,
@@ -68,6 +70,8 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             key={candidate.id}
             candidate={candidate}
             index={index}
+            shortcutIndex={index + 1}
+            showShortcutHint={showShortcutHints}
             isSelected={selectedCandidateId === candidate.id}
             isEditing={editingCandidateId === candidate.id}
             maxTime={maxTime}
