@@ -364,7 +364,7 @@ impl AudioRecordingManager {
 
     /* ---------- recording --------------------------------------------------- */
 
-    pub fn try_start_recording(&self, binding_id: &str) -> bool {
+    pub fn try_start_recording(&self, binding_id: &str, skip_frames: usize) -> bool {
         let mut state = self.state.lock().unwrap();
 
         if let RecordingState::Idle = *state {
@@ -377,7 +377,7 @@ impl AudioRecordingManager {
             }
 
             if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
-                if rec.start().is_ok() {
+                if rec.start(skip_frames).is_ok() {
                     *self.is_recording.lock().unwrap() = true;
                     *state = RecordingState::Recording {
                         binding_id: binding_id.to_string(),

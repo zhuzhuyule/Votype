@@ -17,7 +17,7 @@ use crate::audio_toolkit::{
 };
 
 enum Cmd {
-    Start,
+    Start { skip_frames: usize },
     Stop(mpsc::Sender<Vec<f32>>),
     Shutdown,
 }
@@ -153,9 +153,9 @@ impl AudioRecorder {
         Ok(())
     }
 
-    pub fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start(&self, skip_frames: usize) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(tx) = &self.cmd_tx {
-            tx.send(Cmd::Start)?;
+            tx.send(Cmd::Start { skip_frames })?;
         }
         Ok(())
     }
@@ -280,6 +280,7 @@ fn run_consumer(
 
     let mut processed_samples = Vec::<f32>::new();
     let mut recording = false;
+    let mut skip_remaining: usize = 0;
 
     // ---------- spectrum visualisation setup ---------------------------- //
     const BUCKETS: usize = 16;
@@ -295,11 +296,18 @@ fn run_consumer(
     fn handle_frame(
         samples: &[f32],
         recording: bool,
+        skip_remaining: &mut usize,
         vad: &Option<Arc<Mutex<Box<dyn vad::VoiceActivityDetector>>>>,
         out_buf: &mut Vec<f32>,
         speech_cb: &Option<Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>>,
     ) {
         if !recording {
+            return;
+        }
+
+        // Skip initial frames to avoid capturing feedback sound
+        if *skip_remaining > 0 {
+            *skip_remaining -= 1;
             return;
         }
 
@@ -338,16 +346,24 @@ fn run_consumer(
 
         // ---------- existing pipeline ------------------------------------ //
         frame_resampler.push(&raw, &mut |frame: &[f32]| {
-            handle_frame(frame, recording, &vad, &mut processed_samples, &speech_cb)
+            handle_frame(
+                frame,
+                recording,
+                &mut skip_remaining,
+                &vad,
+                &mut processed_samples,
+                &speech_cb,
+            )
         });
 
         // non-blocking check for a command
         while let Ok(cmd) = cmd_rx.try_recv() {
             match cmd {
-                Cmd::Start => {
+                Cmd::Start { skip_frames } => {
                     processed_samples.clear();
                     recording = true;
-                    visualizer.reset(); // Reset visualization buffer
+                    skip_remaining = skip_frames;
+                    visualizer.reset();
                     if let Some(v) = &vad {
                         v.lock().unwrap().reset();
                     }
@@ -357,7 +373,14 @@ fn run_consumer(
 
                     frame_resampler.finish(&mut |frame: &[f32]| {
                         // we still want to process the last few frames
-                        handle_frame(frame, true, &vad, &mut processed_samples, &speech_cb)
+                        handle_frame(
+                            frame,
+                            true,
+                            &mut skip_remaining,
+                            &vad,
+                            &mut processed_samples,
+                            &speech_cb,
+                        )
                     });
 
                     let _ = reply_tx.send(std::mem::take(&mut processed_samples));

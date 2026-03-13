@@ -253,6 +253,14 @@ impl ShortcutAction for TranscribeAction {
             String::new()
         };
 
+        // When audio feedback is enabled, the "ding" sound can be picked up by
+        // the microphone and mis-recognised by ASR.  We tell the recorder to
+        // silently discard the first ~500 ms of frames so the feedback sound
+        // is never fed to VAD / transcription.  The sound itself is played in
+        // a background thread so we don't block the coordinator (which would
+        // break push-to-talk release handling).
+        let skip_frames: usize = if settings.audio_feedback { 17 } else { 0 }; // ~500 ms at 30 ms/frame
+
         let mut recording_started = false;
         if is_always_on {
             let rm_clone = Arc::clone(&rm);
@@ -262,11 +270,11 @@ impl ShortcutAction for TranscribeAction {
                 rm_clone.apply_mute();
             });
 
-            recording_started = rm.try_start_recording(&binding_id);
+            recording_started = rm.try_start_recording(&binding_id, skip_frames);
             debug!("Recording started: {}", recording_started);
         } else {
             let recording_start_time = Instant::now();
-            if rm.try_start_recording(&binding_id) {
+            if rm.try_start_recording(&binding_id, skip_frames) {
                 recording_started = true;
                 debug!("Recording started in {:?}", recording_start_time.elapsed());
                 let app_clone = app.clone();
@@ -576,13 +584,20 @@ impl ShortcutAction for TranscribeAction {
                                 return None;
                             }
 
-                            if let Err(e) = tm_for_secondary.load_model(&model_id_for_secondary) {
-                                log::warn!(
-                                    "Failed to load secondary model '{}': {}",
-                                    model_id_for_secondary,
-                                    e
-                                );
-                                return None;
+                            // Only load if a different model is needed; skip if already loaded
+                            let needs_load = tm_for_secondary
+                                .get_current_model()
+                                .map_or(true, |current| current != model_id_for_secondary);
+                            if needs_load {
+                                if let Err(e) = tm_for_secondary.load_model(&model_id_for_secondary)
+                                {
+                                    log::warn!(
+                                        "Failed to load secondary model '{}': {}",
+                                        model_id_for_secondary,
+                                        e
+                                    );
+                                    return None;
+                                }
                             }
 
                             match tm_for_secondary.transcribe(samples_for_secondary) {
@@ -751,7 +766,6 @@ impl ShortcutAction for TranscribeAction {
                         let settings_clone = settings.clone();
                         let rm_clone = Arc::clone(&rm);
                         let hm_clone = Arc::clone(&hm);
-                        let ppm_task = Arc::clone(&ppm);
                         let secondary_result_for_post = secondary_result.clone();
                         let incremental_result_for_post = incremental_result.clone();
 
