@@ -748,6 +748,10 @@
       }
     },
     "general": {
+      "audioInputAutoEnhance": {
+        "description": "录音时自动提升较小的人声并限制失真，改善识别输入；可能会改变录音回放听感。",
+        "label": "麦克风自动增强"
+      },
       "groups": {
         "recording": "录音设置",
         "transcription": "转录语言"

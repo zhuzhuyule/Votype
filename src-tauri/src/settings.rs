@@ -596,6 +596,8 @@ pub struct AppSettings {
     pub selected_prompt_model_id: Option<String>,
     #[serde(default)]
     pub mute_while_recording: bool,
+    #[serde(default = "default_audio_input_auto_enhance")]
+    pub audio_input_auto_enhance: bool,
     #[serde(default)]
     pub append_trailing_space: bool,
     #[serde(default = "default_punctuation_enabled")]
@@ -724,6 +726,10 @@ fn default_recording_retention_period() -> RecordingRetentionPeriod {
 
 fn default_audio_feedback_volume() -> f32 {
     1.0
+}
+
+fn default_audio_input_auto_enhance() -> bool {
+    true
 }
 
 fn default_sound_theme() -> SoundTheme {
@@ -1166,6 +1172,7 @@ pub fn get_default_settings() -> AppSettings {
         selected_asr_model_id: None,
         selected_prompt_model_id: None,
         mute_while_recording: false,
+        audio_input_auto_enhance: default_audio_input_auto_enhance(),
         append_trailing_space: false,
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),

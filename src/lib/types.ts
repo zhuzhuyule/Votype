@@ -249,6 +249,7 @@ export const SettingsSchema = z.object({
   selected_asr_model_id: z.string().nullable().optional(),
   selected_prompt_model_id: z.string().nullable().optional(),
   mute_while_recording: z.boolean().optional().default(false),
+  audio_input_auto_enhance: z.boolean().optional().default(true),
   append_trailing_space: z.boolean().optional().default(false),
   punctuation_enabled: z.boolean().optional().default(false),
   punctuation_model: z

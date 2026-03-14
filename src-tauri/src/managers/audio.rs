@@ -3,7 +3,10 @@ use crate::helpers::clamshell;
 use crate::settings::{get_settings, AppSettings};
 use crate::utils;
 use log::{debug, error, info};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc, Arc, Mutex,
+};
 use std::time::Instant;
 use tauri::Manager;
 
@@ -118,6 +121,7 @@ fn create_audio_recorder(
     vad_path: &str,
     app_handle: &tauri::AppHandle,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
+    auto_enhance_enabled: Arc<AtomicBool>,
 ) -> Result<AudioRecorder, anyhow::Error> {
     let silero = SileroVad::new(vad_path, 0.3)
         .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
@@ -138,7 +142,8 @@ fn create_audio_recorder(
             if let Some(tx) = speech_frame_tx.lock().unwrap().as_ref() {
                 let _ = tx.send(speech_frame);
             }
-        });
+        })
+        .with_auto_enhance_flag(auto_enhance_enabled);
 
     Ok(recorder)
 }
@@ -158,6 +163,7 @@ pub struct AudioRecordingManager {
     current_transcription_id: Arc<std::sync::atomic::AtomicU64>,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
     online_transcription_rx: Arc<Mutex<Option<mpsc::Receiver<anyhow::Result<String>>>>>,
+    auto_enhance_enabled: Arc<AtomicBool>,
 }
 
 impl AudioRecordingManager {
@@ -183,6 +189,7 @@ impl AudioRecordingManager {
             current_transcription_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             speech_frame_tx: Arc::new(Mutex::new(None)),
             online_transcription_rx: Arc::new(Mutex::new(None)),
+            auto_enhance_enabled: Arc::new(AtomicBool::new(settings.audio_input_auto_enhance)),
         };
 
         // Always-on?  Open immediately.
@@ -209,6 +216,10 @@ impl AudioRecordingManager {
         &self,
     ) -> Option<mpsc::Receiver<anyhow::Result<String>>> {
         self.online_transcription_rx.lock().unwrap().take()
+    }
+
+    pub fn set_auto_enhance_enabled(&self, enabled: bool) {
+        self.auto_enhance_enabled.store(enabled, Ordering::Relaxed);
     }
 
     /* ---------- helper methods --------------------------------------------- */
@@ -292,6 +303,7 @@ impl AudioRecordingManager {
                 vad_path.to_str().unwrap(),
                 &self.app_handle,
                 self.speech_frame_tx.clone(),
+                self.auto_enhance_enabled.clone(),
             )?);
         }
 

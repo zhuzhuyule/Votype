@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
+import { AudioInputAutoEnhance } from "../AudioInputAutoEnhance";
 import { AppendTrailingSpace } from "../AppendTrailingSpace";
 import { AudioFeedback } from "../AudioFeedback";
 import { AutostartToggle } from "../AutostartToggle";
@@ -46,6 +47,7 @@ export const GeneralSettings: React.FC = () => {
       {/* Voice Input/Output */}
       <SettingsGroup title={t("settings.general.groups.recording")}>
         <MicrophoneSelector descriptionMode="inline" grouped={true} />
+        <AudioInputAutoEnhance descriptionMode="inline" grouped={true} />
         <PushToTalk descriptionMode="inline" grouped={true} />
         {/* Expert only */}
         {expertMode && (

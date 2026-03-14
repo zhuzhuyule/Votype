@@ -712,6 +712,10 @@
       }
     },
     "general": {
+      "audioInputAutoEnhance": {
+        "description": "Automatically lift quiet voice input and limit distortion during recording. This may change playback sound.",
+        "label": "Microphone Auto Enhance"
+      },
       "groups": {
         "recording": "Recording",
         "transcription": "Transcription Language"

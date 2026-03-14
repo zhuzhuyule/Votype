@@ -1,6 +1,9 @@
 use std::{
     io::Error,
-    sync::{mpsc, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc, Mutex,
+    },
     time::Duration,
 };
 
@@ -10,7 +13,7 @@ use cpal::{
 };
 
 use crate::audio_toolkit::{
-    audio::{AudioVisualiser, FrameResampler},
+    audio::{AudioInputEnhancer, AudioVisualiser, FrameResampler},
     constants,
     vad::{self, VadFrame},
     VoiceActivityDetector,
@@ -29,6 +32,7 @@ pub struct AudioRecorder {
     vad: Option<Arc<Mutex<Box<dyn vad::VoiceActivityDetector>>>>,
     level_cb: Option<Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>>,
     speech_cb: Option<Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>>,
+    auto_enhance_flag: Option<Arc<AtomicBool>>,
 }
 
 impl AudioRecorder {
@@ -40,6 +44,7 @@ impl AudioRecorder {
             vad: None,
             level_cb: None,
             speech_cb: None,
+            auto_enhance_flag: None,
         })
     }
 
@@ -64,6 +69,11 @@ impl AudioRecorder {
         self
     }
 
+    pub fn with_auto_enhance_flag(mut self, flag: Arc<AtomicBool>) -> Self {
+        self.auto_enhance_flag = Some(flag);
+        self
+    }
+
     pub fn open(&mut self, device: Option<Device>) -> Result<(), Box<dyn std::error::Error>> {
         if self.worker_handle.is_some() {
             return Ok(()); // already open
@@ -85,6 +95,7 @@ impl AudioRecorder {
         // Move the optional level callback into the worker thread
         let level_cb = self.level_cb.clone();
         let speech_cb = self.speech_cb.clone();
+        let auto_enhance_flag = self.auto_enhance_flag.clone();
 
         let worker = std::thread::spawn(move || {
             let config = match AudioRecorder::get_preferred_config(&thread_device) {
@@ -107,21 +118,41 @@ impl AudioRecorder {
             );
 
             let stream_result = match config.sample_format() {
-                cpal::SampleFormat::U8 => {
-                    AudioRecorder::build_stream::<u8>(&thread_device, &config, sample_tx, channels)
-                }
-                cpal::SampleFormat::I8 => {
-                    AudioRecorder::build_stream::<i8>(&thread_device, &config, sample_tx, channels)
-                }
-                cpal::SampleFormat::I16 => {
-                    AudioRecorder::build_stream::<i16>(&thread_device, &config, sample_tx, channels)
-                }
-                cpal::SampleFormat::I32 => {
-                    AudioRecorder::build_stream::<i32>(&thread_device, &config, sample_tx, channels)
-                }
-                cpal::SampleFormat::F32 => {
-                    AudioRecorder::build_stream::<f32>(&thread_device, &config, sample_tx, channels)
-                }
+                cpal::SampleFormat::U8 => AudioRecorder::build_stream::<u8>(
+                    &thread_device,
+                    &config,
+                    sample_tx,
+                    channels,
+                    auto_enhance_flag.clone(),
+                ),
+                cpal::SampleFormat::I8 => AudioRecorder::build_stream::<i8>(
+                    &thread_device,
+                    &config,
+                    sample_tx,
+                    channels,
+                    auto_enhance_flag.clone(),
+                ),
+                cpal::SampleFormat::I16 => AudioRecorder::build_stream::<i16>(
+                    &thread_device,
+                    &config,
+                    sample_tx,
+                    channels,
+                    auto_enhance_flag.clone(),
+                ),
+                cpal::SampleFormat::I32 => AudioRecorder::build_stream::<i32>(
+                    &thread_device,
+                    &config,
+                    sample_tx,
+                    channels,
+                    auto_enhance_flag.clone(),
+                ),
+                cpal::SampleFormat::F32 => AudioRecorder::build_stream::<f32>(
+                    &thread_device,
+                    &config,
+                    sample_tx,
+                    channels,
+                    auto_enhance_flag.clone(),
+                ),
                 fmt => {
                     log::error!("Unsupported sample format: {:?}", fmt);
                     return;
@@ -184,12 +215,14 @@ impl AudioRecorder {
         config: &cpal::SupportedStreamConfig,
         sample_tx: mpsc::Sender<Vec<f32>>,
         channels: usize,
+        auto_enhance_flag: Option<Arc<AtomicBool>>,
     ) -> Result<cpal::Stream, cpal::BuildStreamError>
     where
         T: Sample + SizedSample + Send + 'static,
         f32: cpal::FromSample<T>,
     {
         let mut output_buffer = Vec::new();
+        let mut enhancer = AudioInputEnhancer::new();
 
         let stream_cb = move |data: &[T], _: &cpal::InputCallbackInfo| {
             output_buffer.clear();
@@ -210,6 +243,13 @@ impl AudioRecorder {
                         / channels as f32;
                     output_buffer.push(mono_sample);
                 }
+            }
+
+            if auto_enhance_flag
+                .as_ref()
+                .is_some_and(|flag| flag.load(Ordering::Relaxed))
+            {
+                enhancer.process(&mut output_buffer);
             }
 
             if sample_tx.send(output_buffer.clone()).is_err() {

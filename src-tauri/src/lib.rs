@@ -431,6 +431,7 @@ pub fn run() {
             shortcut::settings_cmds::change_auto_submit_setting,
             shortcut::settings_cmds::change_auto_submit_key_setting,
             shortcut::settings_cmds::change_mute_while_recording_setting,
+            shortcut::settings_cmds::change_audio_input_auto_enhance_setting,
             shortcut::settings_cmds::change_append_trailing_space_setting,
             shortcut::settings_cmds::change_show_tray_icon_setting,
             shortcut::settings_cmds::change_show_overlay_setting,
