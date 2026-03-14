@@ -8,11 +8,11 @@
 
 .recording-overlay {
   min-height: 36px;
-  width: 196px;
+  width: 208px;
   display: grid;
-  grid-template-columns: 24px minmax(88px, 1fr) 24px;
+  grid-template-columns: 24px minmax(104px, 1fr) 24px;
   align-items: center;
-  padding: 6px;
+  padding: 4px 8px;
   background: #000000cc;
   border-radius: 18px;
   opacity: 0;
@@ -52,24 +52,59 @@
   justify-content: flex-end;
 }
 
-.bars-container {
+.waveform-container {
+  position: relative;
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding-bottom: 0px;
-  height: 24px;
-  width: 78px;
-  overflow: hidden;
+  gap: 2px;
+  height: 30px;
+  width: 98px;
+  padding: 0 3px;
+  overflow: clip;
 }
 
-.bar {
-  width: 6px;
+.waveform-axis {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: calc(50% + 1px);
+  height: 1px;
+  transform: translateY(-50%);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 229, 238, 0.08) 0%,
+    rgba(255, 229, 238, 0.34) 50%,
+    rgba(255, 229, 238, 0.08) 100%
+  );
+}
+
+.waveform-segment {
+  width: 3px;
   background: #ffe5ee;
-  max-height: 20px;
-  border-radius: 2px;
-  transition: height 80ms linear;
-  min-height: 4px;
+  max-height: 30px;
+  border-radius: 999px;
+  transition:
+    height 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease-out,
+    box-shadow 180ms ease-out,
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  min-height: 0;
+  z-index: 1;
+  transform-origin: center;
+  will-change: height, opacity, transform;
+}
+
+.waveform-segment-center {
+  width: 4px;
+  background: color-mix(
+    in srgb,
+    var(--overlay-accent-color, #faa2ca) 72%,
+    white
+  );
+  box-shadow: 0 0 10px
+    color-mix(in srgb, var(--overlay-accent-color, #faa2ca) 45%, transparent);
+  transform: scaleX(1.05);
 }
 
 .recording-overlay.fade-in {
