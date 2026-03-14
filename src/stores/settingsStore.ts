@@ -134,7 +134,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
   favorite_transcription_models: [],
   realtime_transcription_enabled: false,
-  offline_vad_force_interval_ms: 2000,
+  offline_vad_force_interval_ms: 1000,
   offline_vad_force_window_seconds: 30,
   post_process_use_secondary_output: false,
   post_process_use_local_candidate_when_online_asr: false,
