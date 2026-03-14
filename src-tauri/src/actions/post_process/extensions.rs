@@ -150,6 +150,45 @@ pub async fn multi_post_process_transcription(
 
     let resolved_prompts = Arc::new(resolved_prompts);
 
+    // Build hotword injection (shared across all models)
+    let shared_hotword_injection = if settings.post_process_hotword_injection_enabled {
+        if let Some(hm) = _app_handle.try_state::<Arc<HistoryManager>>() {
+            let hotword_manager = crate::managers::hotword::HotwordManager::new(hm.db_path.clone());
+            let scenario = crate::actions::post_process::pipeline::detect_scenario(&app_name);
+            let effective_scenario = scenario.unwrap_or(crate::settings::HotwordScenario::Work);
+            match hotword_manager.build_injection(effective_scenario) {
+                Ok(injection)
+                    if !(injection.person_names.is_empty()
+                        && injection.product_names.is_empty()
+                        && injection.domain_terms.is_empty()
+                        && injection.hotwords.is_empty()) =>
+                {
+                    let total_terms = injection.person_names.len()
+                        + injection.product_names.len()
+                        + injection.domain_terms.len()
+                        + injection.hotwords.len();
+                    info!(
+                        "[MultiModel] Hotwords injected: scenario={:?}, terms={}",
+                        effective_scenario, total_terms
+                    );
+                    Some(injection)
+                }
+                Ok(_) => {
+                    info!("[MultiModel] Hotword injection skipped: no active matches");
+                    None
+                }
+                Err(e) => {
+                    error!("[MultiModel] Failed to build hotword injection: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     // Build history context (shared across all models)
     let shared_history_entries: Vec<String> = if settings.post_process_context_enabled {
         if let Some(app) = &app_name {
@@ -198,6 +237,7 @@ pub async fn multi_post_process_transcription(
             let transcription = transcription.to_string();
             let streaming = streaming_transcription.map(|s| s.to_string());
             let history = shared_history_entries.clone();
+            let hotwords = shared_hotword_injection.clone();
             let batch_start_time = batch_start_time;
             let prompts = Arc::clone(&resolved_prompts);
 
@@ -209,6 +249,7 @@ pub async fn multi_post_process_transcription(
                     &transcription,
                     streaming.as_deref(),
                     history.clone(),
+                    hotwords.clone(),
                     &prompts,
                 )
                 .await;
@@ -423,6 +464,7 @@ async fn execute_single_model_post_process(
     transcription: &str,
     streaming_transcription: Option<&str>,
     history_entries: Vec<String>,
+    hotword_injection: Option<crate::managers::hotword::HotwordInjection>,
     resolved_prompts: &HashMap<String, LLMPrompt>,
 ) -> (Option<String>, Option<String>) {
     // Get provider
@@ -460,6 +502,7 @@ async fn execute_single_model_post_process(
     let built = super::prompt_builder::PromptBuilder::new(prompt, transcription)
         .streaming_transcription(streaming_transcription)
         .history_entries(history_entries)
+        .hotword_injection(hotword_injection)
         .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
             settings,
         ))

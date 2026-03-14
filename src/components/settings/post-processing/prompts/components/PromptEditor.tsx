@@ -28,11 +28,9 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
       <ResizableEditor
         value={draftContent}
         onChange={setDraftContent}
-        label={t("settings.postProcessing.prompts.promptInstructions")}
+        label={t("settings.postProcessing.prompts.promptBody")}
         tipKey="settings.postProcessing.prompts.promptTip"
-        placeholder={t(
-          "settings.postProcessing.prompts.promptInstructionsPlaceholder",
-        )}
+        placeholder={t("settings.postProcessing.prompts.promptBodyPlaceholder")}
         className="h-full"
         onAiLoadingChange={onAiLoadingChange}
       />

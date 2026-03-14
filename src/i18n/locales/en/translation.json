@@ -1111,10 +1111,12 @@
           "polish": "Text Polish"
         },
         "promptInstructions": "Prompt Instructions",
+        "promptBody": "Task Body",
         "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
+        "promptBodyPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tip: The system now organizes input sources automatically. When there is only one main input, it sends plain text directly. When multiple sources are present, it sends clearly labeled sections such as User Input, Selected Text, Local ASR Reference, and History Context. Your prompt should focus on how to use these inputs, not on rebuilding the structure yourself.",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input, auxiliary ASR, hotwords, and history hints. Your prompt should focus on the processing goal, what may be changed, what must stay unchanged, and the final output requirements.",
         "refinementDescription": "Automatically corrects and formats the recognized text.",
         "reviewThreshold": "Review Threshold",
         "selectedPrompt": {

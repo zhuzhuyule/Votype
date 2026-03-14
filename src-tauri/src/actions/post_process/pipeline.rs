@@ -2,7 +2,7 @@ use crate::managers::history::HistoryManager;
 use crate::managers::HotwordManager;
 use crate::overlay::show_llm_processing_overlay;
 use crate::settings::{AppSettings, HotwordScenario};
-use log::{debug, error, info};
+use log::{error, info};
 use std::borrow::Cow;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
@@ -504,25 +504,40 @@ pub async fn maybe_post_process_transcription(
         // Keep prompt template as-is, only replace metadata variables
         // (PromptBuilder handles variable detection, stripping, and data injection)
 
-        // Build hotword injection (only for non-explicit/default prompts)
-        let hotword_injection = if !is_explicit && settings.post_process_hotword_injection_enabled {
+        // Build hotword injection
+        let hotword_injection = if settings.post_process_hotword_injection_enabled {
             if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
                 let hotword_manager = HotwordManager::new(hm.db_path.clone());
                 let scenario = detect_scenario(&app_name);
                 let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
-                match hotword_manager.build_llm_injection(
-                    effective_scenario,
-                    40,
-                    Some(transcription_content),
-                ) {
-                    Ok(injection) if !injection.is_empty() => {
-                        debug!(
-                            "[PostProcess] Injected hotwords into system prompt for scenario {:?}",
-                            effective_scenario
+                match hotword_manager.build_injection(effective_scenario) {
+                    Ok(injection)
+                        if !(injection.person_names.is_empty()
+                            && injection.product_names.is_empty()
+                            && injection.domain_terms.is_empty()
+                            && injection.hotwords.is_empty()) =>
+                    {
+                        let total_terms = injection.person_names.len()
+                            + injection.product_names.len()
+                            + injection.domain_terms.len()
+                            + injection.hotwords.len();
+                        info!(
+                            "[PostProcess] Hotwords injected into prompt: scenario={:?}, terms={}",
+                            effective_scenario, total_terms
                         );
                         Some(injection)
                     }
-                    _ => None,
+                    Ok(_) => {
+                        info!(
+                            "[PostProcess] Hotword injection skipped: scenario={:?}, no active matches or entries",
+                            effective_scenario
+                        );
+                        None
+                    }
+                    Err(e) => {
+                        error!("[PostProcess] Failed to build hotword injection: {}", e);
+                        None
+                    }
                 }
             } else {
                 None

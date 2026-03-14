@@ -7,7 +7,7 @@ use anyhow::Result;
 use chrono::Utc;
 use log::{debug, error, info, warn};
 use rusqlite::{params, Connection};
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 
 use tauri::{Emitter, Manager};
@@ -30,6 +30,20 @@ const TECHNICAL_SUFFIXES: &[&str] = &[
 /// Manages hotword vocabulary for transcription enhancement
 pub struct HotwordManager {
     db_path: PathBuf,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct HotwordInjection {
+    pub person_names: Vec<HotwordEntry>,
+    pub product_names: Vec<HotwordEntry>,
+    pub domain_terms: Vec<HotwordEntry>,
+    pub hotwords: Vec<HotwordEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HotwordEntry {
+    pub target: String,
+    pub aliases: Vec<String>,
 }
 
 impl HotwordManager {
@@ -489,211 +503,131 @@ impl HotwordManager {
 
     // ── LLM Injection ────────────────────────────────────────────────────
 
-    fn normalize_for_match(text: &str) -> String {
-        text.chars()
-            .filter(|ch| ch.is_alphanumeric() || ('\u{4E00}'..='\u{9FFF}').contains(ch))
-            .flat_map(|ch| ch.to_lowercase())
-            .collect()
+    fn normalize_hotword_bucket(category: &str) -> &'static str {
+        match category {
+            "person" => "person",
+            "brand" => "product",
+            "term" | "abbreviation" => "domain",
+            _ => "hotword",
+        }
     }
 
-    fn extract_ascii_tokens(text: &str) -> Vec<String> {
-        text.split(|ch: char| !ch.is_ascii_alphanumeric())
-            .map(str::trim)
-            .filter(|token| token.len() >= 2)
-            .map(|token| token.to_lowercase())
-            .collect()
-    }
+    fn merge_hotword_entry(
+        entries: &mut Vec<HotwordEntry>,
+        seen: &mut HashMap<String, usize>,
+        target: &str,
+        aliases: &[String],
+    ) {
+        let normalized_target = target.trim();
+        if normalized_target.is_empty() {
+            return;
+        }
 
-    fn find_priority_matches<'a>(
-        current_input: &str,
-        hotwords: &[&'a Hotword],
-    ) -> Vec<(&'a Hotword, String)> {
-        let normalized_input = Self::normalize_for_match(current_input);
-        let ascii_tokens = Self::extract_ascii_tokens(current_input);
-        let mut matches: Vec<(&Hotword, String, i32)> = Vec::new();
-
-        for hotword in hotwords {
-            let mut best: Option<(String, i32)> = None;
-
-            let variants = std::iter::once(hotword.target.as_str())
-                .chain(hotword.originals.iter().map(|s| s.as_str()));
-
-            for variant in variants {
-                let variant = variant.trim();
-                if variant.is_empty() {
+        if let Some(index) = seen.get(normalized_target).copied() {
+            let entry = &mut entries[index];
+            let mut alias_seen: BTreeSet<String> = entry.aliases.iter().cloned().collect();
+            for alias in aliases {
+                let alias = alias.trim();
+                if alias.is_empty() || alias.eq_ignore_ascii_case(normalized_target) {
                     continue;
                 }
-
-                let normalized_variant = Self::normalize_for_match(variant);
-                if normalized_variant.is_empty() {
-                    continue;
-                }
-
-                let is_target = variant.eq_ignore_ascii_case(&hotword.target);
-
-                if normalized_input.contains(&normalized_variant) {
-                    let note = if is_target {
-                        format!("当前输入中直接出现了词条“{}”", variant)
-                    } else {
-                        format!("当前输入中出现了易混形式“{}”", variant)
-                    };
-                    let score = if is_target { 120 } else { 140 };
-                    if best.as_ref().map(|(_, s)| *s).unwrap_or(-1) < score {
-                        best = Some((note, score));
-                    }
-                    continue;
-                }
-
-                if variant.is_ascii() {
-                    let variant_lower = variant.to_lowercase();
-                    for token in &ascii_tokens {
-                        if token == &variant_lower {
-                            let note = if is_target {
-                                format!("当前输入中直接出现了词条“{}”", variant)
-                            } else {
-                                format!("当前输入中出现了易混形式“{}”", variant)
-                            };
-                            let score = if is_target { 110 } else { 130 };
-                            if best.as_ref().map(|(_, s)| *s).unwrap_or(-1) < score {
-                                best = Some((note, score));
-                            }
-                            break;
-                        }
-
-                        if crate::phonetic_similarity::is_phonetically_similar(
-                            token,
-                            &variant_lower,
-                        ) {
-                            let note = if is_target {
-                                format!("当前输入中有与“{}”读音或拼写接近的词", variant)
-                            } else {
-                                format!("当前输入中有与易混形式“{}”读音或拼写接近的词", variant)
-                            };
-                            let score = if is_target { 80 } else { 95 };
-                            if best.as_ref().map(|(_, s)| *s).unwrap_or(-1) < score {
-                                best = Some((note, score));
-                            }
-                        }
-                    }
+                if alias_seen.insert(alias.to_string()) {
+                    entry.aliases.push(alias.to_string());
                 }
             }
+            return;
+        }
 
-            if let Some((note, score)) = best {
-                matches.push((hotword, note, score));
+        let mut alias_seen = BTreeSet::new();
+        let mut normalized_aliases = Vec::new();
+        for alias in aliases {
+            let alias = alias.trim();
+            if alias.is_empty() || alias.eq_ignore_ascii_case(normalized_target) {
+                continue;
+            }
+            if alias_seen.insert(alias.to_string()) {
+                normalized_aliases.push(alias.to_string());
             }
         }
 
-        matches.sort_by(|a, b| {
-            b.2.cmp(&a.2)
-                .then_with(|| b.0.use_count.cmp(&a.0.use_count))
+        let index = entries.len();
+        entries.push(HotwordEntry {
+            target: normalized_target.to_string(),
+            aliases: normalized_aliases,
         });
-        matches.truncate(8);
-        matches
-            .into_iter()
-            .map(|(hotword, note, _)| (hotword, note))
-            .collect()
+        seen.insert(normalized_target.to_string(), index);
     }
 
-    /// Build LLM injection text for a specific scenario.
-    /// Dynamically groups hotwords by category using DB-stored category metadata.
-    pub fn build_llm_injection(
-        &self,
-        scenario: HotwordScenario,
-        limit: usize,
-        current_input: Option<&str>,
-    ) -> Result<String> {
+    /// Build structured hotword injection data for a specific scenario.
+    /// Includes all active hotwords, grouped by category using DB-stored metadata.
+    pub fn build_injection(&self, scenario: HotwordScenario) -> Result<HotwordInjection> {
         let hotwords = self.get_by_scenario(scenario)?;
-        // Only inject confirmed (active) hotwords
         let hotwords: Vec<Hotword> = hotwords
             .into_iter()
             .filter(|h| h.status == "active")
             .collect();
 
         if hotwords.is_empty() {
-            return Ok(String::new());
+            return Ok(HotwordInjection::default());
         }
 
-        // Take top N by use_count (already sorted)
-        let hotwords: Vec<&Hotword> = hotwords.iter().take(limit).collect();
-
-        // Load categories from DB
         let categories = self.get_categories().unwrap_or_default();
         let cat_map: HashMap<String, HotwordCategoryMeta> =
             categories.into_iter().map(|c| (c.id.clone(), c)).collect();
 
-        // Group by category
-        let mut groups: HashMap<String, Vec<&Hotword>> = HashMap::new();
-        for h in &hotwords {
-            groups.entry(h.category.clone()).or_default().push(h);
-        }
+        let mut grouped_hotwords: Vec<&Hotword> = hotwords.iter().collect();
+        grouped_hotwords.sort_by_key(|h| {
+            cat_map
+                .get(&h.category)
+                .map(|m| m.sort_order)
+                .unwrap_or(999)
+        });
 
-        // Sort category keys by sort_order
-        let mut cat_keys: Vec<String> = groups.keys().cloned().collect();
-        cat_keys.sort_by_key(|k| cat_map.get(k).map(|m| m.sort_order).unwrap_or(999));
+        let mut injection = HotwordInjection::default();
+        let mut seen_person = HashMap::new();
+        let mut seen_product = HashMap::new();
+        let mut seen_domain = HashMap::new();
+        let mut seen_hotword = HashMap::new();
 
-        let priority_matches = current_input
-            .map(str::trim)
-            .filter(|text| !text.is_empty())
-            .map(|text| Self::find_priority_matches(text, &hotwords))
-            .unwrap_or_default();
-        let priority_map: HashMap<i64, String> = priority_matches
-            .iter()
-            .map(|(hotword, note)| (hotword.id, note.clone()))
-            .collect();
-        let mut output = String::new();
-
-        output.push_str("## 常用词汇与热词\n");
-        output.push_str("以下内容是高优先级词汇参考，可能包含人名、专业术语和缩写。若当前输入在语境、读音或拼写上与这些词接近，可优先判断是否应替换为这些目标词。\n");
-        output.push_str("若证据不足，不要强行替换；这些内容是参考，不是必须命中的规则。\n");
-        if !priority_matches.is_empty() {
-            output.push_str("标记为“优先留意”的词条，表示它与当前输入更接近，替换时应优先检查。\n");
-        }
-
-        for cat_id in &cat_keys {
-            let items = &groups[cat_id];
-            let label = cat_map
-                .get(cat_id)
-                .map(|m| m.label.as_str())
-                .unwrap_or(cat_id.as_str());
-
-            output.push_str(&format!("\n### {}\n", label));
-            for h in items {
-                if priority_map.contains_key(&h.id) {
-                    output.push_str(&format!("- {}（优先留意）\n", h.target));
-                } else {
-                    output.push_str(&format!("- {}\n", h.target));
-                }
-            }
-        }
-
-        let manual_pairs: Vec<String> = hotwords
-            .iter()
-            .filter(|h| h.source == "manual" && !h.originals.is_empty())
-            .flat_map(|h| {
-                h.originals
-                    .iter()
-                    .map(move |original| format!("- \"{}\" -> \"{}\"", original, h.target))
-            })
-            .take(20)
-            .collect();
-
-        if !manual_pairs.is_empty() {
-            output.push_str("\n\n## 历史手动替换词\n");
-            output.push_str("以下内容来自历史中的手动替换记录，会再次复述一遍，用于增强这些目标词在替换场景中的覆盖率。\n");
-            output.push_str("如果当前输入与这些替换对接近，可优先检查是否需要修正；其中目标词也已在上方的常用词汇与热词中体现。\n");
-            for pair in &manual_pairs {
-                output.push_str(pair);
-                output.push('\n');
+        for hotword in grouped_hotwords {
+            match Self::normalize_hotword_bucket(&hotword.category) {
+                "person" => Self::merge_hotword_entry(
+                    &mut injection.person_names,
+                    &mut seen_person,
+                    &hotword.target,
+                    &hotword.originals,
+                ),
+                "product" => Self::merge_hotword_entry(
+                    &mut injection.product_names,
+                    &mut seen_product,
+                    &hotword.target,
+                    &hotword.originals,
+                ),
+                "domain" => Self::merge_hotword_entry(
+                    &mut injection.domain_terms,
+                    &mut seen_domain,
+                    &hotword.target,
+                    &hotword.originals,
+                ),
+                _ => Self::merge_hotword_entry(
+                    &mut injection.hotwords,
+                    &mut seen_hotword,
+                    &hotword.target,
+                    &hotword.originals,
+                ),
             }
         }
 
         debug!(
-            "[Hotword] Built LLM injection for scenario {:?}: {} chars",
+            "[Hotword] Built structured injection for scenario {:?}: person={}, product={}, domain={}, hotwords={}",
             scenario,
-            output.len()
+            injection.person_names.len(),
+            injection.product_names.len(),
+            injection.domain_terms.len(),
+            injection.hotwords.len()
         );
 
-        Ok(output)
+        Ok(injection)
     }
 
     // ── Auto-learning ────────────────────────────────────────────────────

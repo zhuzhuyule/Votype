@@ -1133,10 +1133,12 @@
         },
         "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
+        "promptBody": "任务正文",
         "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
+        "promptBodyPlaceholder": "描述你希望模型如何处理输入文本、允许修改什么、禁止修改什么，以及最终输出要求。",
         "promptLabel": "提示词名称",
         "promptLabelPlaceholder": "输入提示词名称",
-        "promptTip": "提示：系统会自动整理输入来源。只有一个主输入时，会直接发送纯文本；存在多个输入源时，会按“用户输入 / 用户选中文本 / 本地 ASR 参考 / 历史上下文”等分段发送。提示词应重点描述“如何处理这些内容”，而不是自行组织输入结构。",
+        "promptTip": "提示：你现在编辑的是任务正文。系统会自动注入主输入、辅助 ASR、热词和历史摘要等字段；正文应重点描述处理目标、允许修改的范围、禁止修改的内容，以及最终输出要求。",
         "selectedPrompt": {
           "description": "选择用于优化转录的模板或创建新模板。系统会按当前规则自动注入主输入与参考信息；需要显式引用时，仍可使用 ${output}、${select}、${context} 等变量。",
           "title": "已选提示词"

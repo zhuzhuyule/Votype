@@ -857,7 +857,7 @@ fn default_favorite_transcription_models() -> Vec<String> {
 }
 
 fn default_offline_vad_force_interval_ms() -> u64 {
-    2000
+    1000
 }
 
 fn default_offline_vad_force_window_seconds() -> u64 {
@@ -1017,6 +1017,15 @@ fn normalize_app_review_policies(settings: &mut AppSettings) -> bool {
     }
 
     changed
+}
+
+fn normalize_offline_vad_force_interval(settings: &mut AppSettings) -> bool {
+    if settings.offline_vad_force_interval_ms == 2000 {
+        settings.offline_vad_force_interval_ms = default_offline_vad_force_interval_ms();
+        return true;
+    }
+
+    false
 }
 
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
@@ -1361,6 +1370,10 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
         store_set_settings(&store, &settings);
     }
 
+    if normalize_offline_vad_force_interval(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
     // Migration: Convert app_review_policies to app_profiles
     if !settings.app_review_policies.is_empty() {
         debug!("Migrating app_review_policies to app_profiles");
@@ -1429,6 +1442,10 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         store_set_settings(&store, &settings);
     }
 
+    if normalize_offline_vad_force_interval(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
     // Merge external skills from ~/.votype/skills/
     merge_external_skills(app, &mut settings);
 
@@ -1473,6 +1490,7 @@ fn merge_external_skills(app: &AppHandle, settings: &mut AppSettings) {
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {
     let mut settings = settings;
     normalize_app_review_policies(&mut settings);
+    normalize_offline_vad_force_interval(&mut settings);
 
     let store = app
         .store(SETTINGS_STORE_PATH)

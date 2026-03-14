@@ -2,7 +2,7 @@ use crate::managers::history::HistoryManager;
 use crate::managers::HotwordManager;
 use crate::overlay::show_llm_processing_overlay;
 use crate::settings::{AppSettings, HotwordScenario, LLMPrompt};
-use log::{debug, error, info};
+use log::{error, info};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
@@ -44,15 +44,37 @@ pub async fn post_process_text_with_prompt(
             let hotword_manager = HotwordManager::new(hm.db_path.clone());
             let scenario = super::pipeline::detect_scenario(&app_name);
             let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
-            match hotword_manager.build_llm_injection(effective_scenario, 40, Some(transcription)) {
-                Ok(injection) if !injection.is_empty() => {
-                    debug!(
-                        "[ManualPostProcess] Injected hotwords for scenario {:?}",
-                        effective_scenario
+            match hotword_manager.build_injection(effective_scenario) {
+                Ok(injection)
+                    if !(injection.person_names.is_empty()
+                        && injection.product_names.is_empty()
+                        && injection.domain_terms.is_empty()
+                        && injection.hotwords.is_empty()) =>
+                {
+                    let total_terms = injection.person_names.len()
+                        + injection.product_names.len()
+                        + injection.domain_terms.len()
+                        + injection.hotwords.len();
+                    info!(
+                        "[ManualPostProcess] Hotwords injected: scenario={:?}, terms={}",
+                        effective_scenario, total_terms
                     );
                     Some(injection)
                 }
-                _ => None,
+                Ok(_) => {
+                    info!(
+                        "[ManualPostProcess] Hotword injection skipped: scenario={:?}, no active matches or entries",
+                        effective_scenario
+                    );
+                    None
+                }
+                Err(e) => {
+                    error!(
+                        "[ManualPostProcess] Failed to build hotword injection: {}",
+                        e
+                    );
+                    None
+                }
             }
         } else {
             None
