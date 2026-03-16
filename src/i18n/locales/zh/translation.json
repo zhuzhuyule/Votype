@@ -1008,7 +1008,7 @@
       "disabledNotice": "后期处理当前已禁用。启用后即可进行配置。",
       "fusion": {
         "enabled": {
-          "description": "后期处理时同时提供两份转录：${output}（最终）和 ${streaming_output}（第二份）。",
+          "description": "后期处理时同时提供主转录和第二份实时转录，用于对比与消歧。",
           "label": "使用实时转录（融合）"
         },
         "secondaryModel": {
@@ -1134,13 +1134,13 @@
         "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
         "promptBody": "任务正文",
-        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
+        "promptInstructionsPlaceholder": "描述你希望模型如何处理输入文本、允许修改什么、禁止修改什么，以及最终输出要求。",
         "promptBodyPlaceholder": "描述你希望模型如何处理输入文本、允许修改什么、禁止修改什么，以及最终输出要求。",
         "promptLabel": "提示词名称",
         "promptLabelPlaceholder": "输入提示词名称",
-        "promptTip": "提示：你现在编辑的是任务正文。系统会自动注入主输入、辅助 ASR、热词和历史摘要等字段；正文应重点描述处理目标、允许修改的范围、禁止修改的内容，以及最终输出要求。",
+        "promptTip": "提示：你现在编辑的是任务正文。系统会自动注入主输入、辅助 ASR、热词、人名、产品名、选中文本和历史摘要；正文应重点描述处理目标、允许修改的范围、禁止修改的内容，以及最终输出要求。",
         "selectedPrompt": {
-          "description": "选择用于优化转录的模板或创建新模板。系统会按当前规则自动注入主输入与参考信息；需要显式引用时，仍可使用 ${output}、${select}、${context} 等变量。",
+          "description": "选择用于优化转录的模板或创建新模板。系统会自动注入主输入和辅助参考字段，因此正文只需描述任务目标、约束和输出要求。",
           "title": "已选提示词"
         },
         "selectPrompt": "选择提示词",

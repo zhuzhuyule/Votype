@@ -332,7 +332,7 @@
         "title": "프롬프트",
         "selectedPrompt": {
           "title": "선택된 프롬프트",
-          "description": "텍스트 변환을 개선하기 위한 템플릿을 선택하거나 새로 만드세요. 프롬프트 텍스트 내에서 ${output}를 사용하여 캡처된 텍스트를 참조하세요."
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
         },
         "noPrompts": "사용 가능한 프롬프트 없음",
         "selectPrompt": "프롬프트 선택",
@@ -340,8 +340,8 @@
         "promptLabel": "프롬프트 레이블",
         "promptLabelPlaceholder": "프롬프트 이름 입력",
         "promptInstructions": "프롬프트 지시사항",
-        "promptInstructionsPlaceholder": "텍스트 변환 후 실행할 지시사항을 작성하세요. 예: 다음 텍스트의 문법과 명확성을 개선하세요: ${output}",
-        "promptTip": "팁: 프롬프트에서 변환된 텍스트를 삽입하려면 <code>${output}</code>을 사용하세요.",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "프롬프트 업데이트",
         "deletePrompt": "프롬프트 삭제",
         "createPrompt": "프롬프트 만들기",

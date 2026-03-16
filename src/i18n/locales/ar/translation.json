@@ -310,7 +310,7 @@
         "title": "المطالبة",
         "selectedPrompt": {
           "title": "المطالبة المختارة",
-          "description": ".اختر قالباً لتحسين التفريغ الصوتي أو أنشئ قالباً جديداً. استخدم ${output} داخل نص المطالبة للإشارة إلى النص الملتقط"
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
         },
         "noPrompts": "لا توجد مطالبات متاحة",
         "selectPrompt": "اختر مطالبة",
@@ -318,8 +318,8 @@
         "promptLabel": "تسمية المطالبة",
         "promptLabelPlaceholder": "أدخل اسم المطالبة",
         "promptInstructions": "تعليمات المطالبة",
-        "promptInstructionsPlaceholder": ".اكتب التعليمات المراد تشغيلها بعد التفريغ الصوتي. مثال: قم بتحسين القواعد والوضوح للنص التالي: ${output}",
-        "promptTip": "تلميح: استخدم <code>${output}</code> لإدراج النص المفرغ في مطالبتك.",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "تحديث المطالبة",
         "deletePrompt": "حذف المطالبة",
         "createPrompt": "إنشاء مطالبة",

@@ -653,7 +653,7 @@
       "disabledNotice": "Die Nachbearbeitung ist derzeit deaktiviert. Aktiviere sie in den Debug-Einstellungen, um sie zu konfigurieren.",
       "fusion": {
         "enabled": {
-          "description": "Zwei Transkripte für den Nachbearbeitungs-Prompt bereitstellen: ${output} (final) und ${streaming_output} (sekundär).",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "Echtzeit-Transkript verwenden (Fusion)"
         },
         "secondaryModel": {
@@ -715,12 +715,12 @@
         "noPrompts": "Keine Prompts verfügbar",
         "promptInstructions": "Prompt-Anweisungen",
         "enableConfidenceCheck": "Enable Confidence Check",
-        "promptInstructionsPlaceholder": "Schreibe die Anweisungen, die nach der Transkription ausgeführt werden sollen. Beispiel: Basierend auf ${context}, korrigiere Fachbegriffe im folgenden Text: ${output}",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Prompt-Name",
         "promptLabelPlaceholder": "Prompt-Namen eingeben",
-        "promptTip": "Tipp: Die folgenden Variablen sind verfügbar (zum Kopieren anklicken):<br/><code>${output}</code>: Das endgültige transkribierte Textergebnis.<br/><code>${streaming_output}</code>: Zwischenergebnisse während der Echtzeit-Transkription.<br/><code>${prompt}</code>: Anzeigename des aktuell aktiven Prompt-Schemas.<br/><code>${context}</code>: Historische Chat-Informationen aus dem aktiven Fenster.<br/><b>Hinweis: Wenn dein Prompt die KI anweist, eine JSON-Struktur mit den Feldern `text` und `confidence` auszugeben, wird das Überprüfungsfenster automatisch ausgelöst.</b>",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "Wähle eine Vorlage zur Verfeinerung von Transkriptionen oder erstelle eine neue. Du kannst Variablen wie <code>${output}</code>, <code>${streaming_output}</code> usw. verwenden.",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "Ausgewählter Prompt"
         },
         "selectPrompt": "Prompt auswählen",

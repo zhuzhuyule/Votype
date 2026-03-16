@@ -223,6 +223,7 @@ impl AudioRecorder {
     {
         let mut output_buffer = Vec::new();
         let mut enhancer = AudioInputEnhancer::new();
+        let mut log_counter: u32 = 0;
 
         let stream_cb = move |data: &[T], _: &cpal::InputCallbackInfo| {
             output_buffer.clear();
@@ -245,11 +246,17 @@ impl AudioRecorder {
                 }
             }
 
-            if auto_enhance_flag
+            let enhance_active = auto_enhance_flag
                 .as_ref()
-                .is_some_and(|flag| flag.load(Ordering::Relaxed))
-            {
+                .is_some_and(|flag| flag.load(Ordering::Relaxed));
+            if enhance_active {
                 enhancer.process(&mut output_buffer);
+            }
+
+            // Log enhance state every ~5 seconds (assuming ~33 callbacks/sec for 30ms frames)
+            log_counter += 1;
+            if log_counter % 166 == 1 {
+                log::debug!("Audio enhance active: {}", enhance_active);
             }
 
             if sample_tx.send(output_buffer.clone()).is_err() {

@@ -879,7 +879,9 @@ impl ShortcutAction for TranscribeAction {
                                 );
 
                                 // Check if multi-model post-processing is enabled
-                                if settings_clone.multi_model_post_process_enabled {
+                                // When skill_mode is active, bypass multi-model and use single-model
+                                // with skill routing instead (user explicitly wants skill, not model comparison)
+                                if settings_clone.multi_model_post_process_enabled && !skill_mode {
                                     let multi_items =
                                         settings_clone.build_multi_model_items_from_selection();
                                     if !multi_items.is_empty() {

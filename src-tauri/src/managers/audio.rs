@@ -220,6 +220,7 @@ impl AudioRecordingManager {
 
     pub fn set_auto_enhance_enabled(&self, enabled: bool) {
         self.auto_enhance_enabled.store(enabled, Ordering::Relaxed);
+        log::info!("Audio auto-enhance set to: {}", enabled);
     }
 
     /* ---------- helper methods --------------------------------------------- */

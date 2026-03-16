@@ -1001,7 +1001,7 @@
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {
         "enabled": {
-          "description": "Provide two transcripts to the post-processing prompt: ${output} (final) and ${streaming_output} (secondary).",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "Use realtime transcript (fusion)"
         },
         "secondaryModel": {
@@ -1112,15 +1112,15 @@
         },
         "promptInstructions": "Prompt Instructions",
         "promptBody": "Task Body",
-        "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptBodyPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input, auxiliary ASR, hotwords, and history hints. Your prompt should focus on the processing goal, what may be changed, what must stay unchanged, and the final output requirements.",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input, auxiliary ASR, hotwords, names, selected text, and history hints. Focus on the processing goal, allowed changes, forbidden changes, and output requirements.",
         "refinementDescription": "Automatically corrects and formats the recognized text.",
         "reviewThreshold": "Review Threshold",
         "selectedPrompt": {
-          "description": "Choose the template used for post-processing, or create a new one. The system injects the main input and reference information automatically; when needed, you can still explicitly reference variables such as <code>${output}</code>, <code>${select}</code>, and <code>${context}</code>.",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "Selected Prompt"
         },
         "selectPrompt": "Select a prompt",

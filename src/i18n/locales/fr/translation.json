@@ -654,7 +654,7 @@
       "disabledNotice": "Le post-traitement est actuellement désactivé. Activez-le dans les paramètres de débogage pour le configurer.",
       "fusion": {
         "enabled": {
-          "description": "Fournir deux transcriptions au prompt de post-traitement : ${output} (final) et ${streaming_output} (secondaire).",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "Utiliser la transcription en temps réel (fusion)"
         },
         "secondaryModel": {
@@ -716,12 +716,12 @@
         "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "Aucun prompt disponible",
         "promptInstructions": "Instructions du prompt",
-        "promptInstructionsPlaceholder": "Écrivez les instructions à exécuter après la transcription. Exemple : En fonction de ${context}, corrigez les termes techniques dans le texte suivant : ${output}",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Libellé du prompt",
         "promptLabelPlaceholder": "Entrez le nom du prompt",
-        "promptTip": "Astuce : Les variables suivantes sont disponibles (cliquez pour copier) :<br/><code>${output}</code> : Le résultat final du texte transcrit.<br/><code>${streaming_output}</code> : Texte intermédiaire pendant la transcription en temps réel.<br/><code>${prompt}</code> : Nom du schéma de prompt actuellement actif.<br/><code>${context}</code> : Informations d'historique de chat de la fenêtre active.<br/><b>Remarque : Si votre prompt demande à l'IA de sortir une structure JSON avec les champs `text` et `confidence`, la fenêtre de révision s'activera automatiquement.</b>",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "Sélectionnez un modèle pour affiner les transcriptions ou créez-en un nouveau. Vous pouvez utiliser des variables comme <code>${output}</code>, <code>${streaming_output}</code>, etc.",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "Prompt sélectionné"
         },
         "selectPrompt": "Sélectionner un prompt",

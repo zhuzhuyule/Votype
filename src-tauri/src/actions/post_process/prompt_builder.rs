@@ -275,10 +275,6 @@ impl<'a> PromptBuilder<'a> {
     }
 
     /// Build the multi-message prompt structure.
-    ///
-    /// Message structure:
-    /// - [System/Developer] Stable task rules, input protocol, and polish constraints
-    /// - [User] Structured runtime fields such as INPUT_TEXT / ASR_REFERENCE / HOTWORDS
     pub fn build(self) -> BuiltPrompt {
         let template = &self.prompt.instructions;
         let transcription = strip_leading_decorative_markers(self.transcription);
@@ -303,83 +299,7 @@ impl<'a> PromptBuilder<'a> {
         } else {
             None
         };
-
-        // --- Phase 1: Build base system prompt ---
         let mut skill_prompt = template.replace("${prompt}", &self.prompt.name);
-
-        // Strip the "## 变量" section (backward compat with old templates)
-        skill_prompt = strip_variables_section(&skill_prompt);
-
-        // --- Phase 2: Detect explicit variable references in the STRIPPED template ---
-        let has_output_ref = skill_prompt.contains("${output}");
-        let has_streaming_ref = skill_prompt.contains("${streaming_output}");
-        let has_select_ref = skill_prompt.contains("${select}");
-        let has_raw_input_ref = skill_prompt.contains("${raw_input}");
-        let has_context_ref = skill_prompt.contains("${context}");
-        let has_app_name_ref = skill_prompt.contains("${app_name}");
-        let has_app_category_ref = skill_prompt.contains("${app_category}");
-        let has_window_title_ref = skill_prompt.contains("${window_title}");
-        let has_time_ref = skill_prompt.contains("${time}");
-
-        let has_streaming_data = streaming_transcription.is_some();
-        let has_select_data = self.selected_text.is_some();
-        let has_any_explicit_ref =
-            has_output_ref || has_streaming_ref || has_select_ref || has_raw_input_ref;
-
-        debug!(
-            "[PromptBuilder] Variable refs: output={}, streaming={}, select={}, raw_input={}, context={}",
-            has_output_ref, has_streaming_ref, has_select_ref, has_raw_input_ref, has_context_ref
-        );
-        debug!(
-            "[PromptBuilder] Available data: streaming={}, select={}",
-            has_streaming_data, has_select_data
-        );
-
-        // --- Phase 3: Clean inline variable markers ---
-        if has_output_ref {
-            skill_prompt = skill_prompt.replace("${output}", "output");
-        }
-        if has_streaming_ref {
-            skill_prompt = skill_prompt.replace("${streaming_output}", "streaming_output");
-        }
-        if has_select_ref {
-            skill_prompt = skill_prompt.replace("${select}", "select");
-        }
-        if has_raw_input_ref {
-            skill_prompt = skill_prompt.replace("${raw_input}", "raw_input");
-        }
-
-        // Inline-replace metadata variables
-        if has_app_name_ref {
-            if let Some(name) = self.app_name {
-                skill_prompt = skill_prompt.replace("${app_name}", name);
-            }
-        }
-        if has_app_category_ref {
-            let category = self
-                .app_name
-                .map(crate::app_category::from_app_name)
-                .unwrap_or("Other");
-            skill_prompt = skill_prompt.replace("${app_category}", category);
-        }
-        if has_window_title_ref {
-            if let Some(title) = self.window_title {
-                skill_prompt = skill_prompt.replace("${window_title}", title);
-            }
-        }
-        if has_time_ref {
-            let now = chrono::Local::now();
-            let time_str = now.format("%Y-%m-%d %H:%M:%S").to_string();
-            skill_prompt = skill_prompt.replace("${time}", &time_str);
-        }
-
-        // Handle ${context} — inline replace or defer to history
-        if !history_entries.is_empty() && has_context_ref && skill_prompt.contains("${context}") {
-            let context_block = render_history_hints_block(&history_entries)
-                .map(|block| format!("\n\n{}\n\n", block))
-                .unwrap_or_default();
-            skill_prompt = skill_prompt.replace("${context}", &context_block);
-        }
 
         // --- Phase 4: Precompute present fields for dynamic protocol ---
         let mut present_fields = Vec::new();
@@ -421,57 +341,18 @@ impl<'a> PromptBuilder<'a> {
             present_fields.push(FieldTag::InputText);
         }
 
-        // --- Phase 5: Append constraints to skill_prompt as a single system message ---
-        if self.prompt.output_mode == SkillOutputMode::Polish {
-            skill_prompt.push_str(&format!(
-                "\n\n---\n\n### 润色模式约束\n{}",
-                POLISH_MODE_NOTE
-            ));
-        }
-
-        // --- Phase 6: Build user message (code blocks or fallback) ---
-        if has_any_explicit_ref {
-            // Explicit variable templates define their own input format — skip protocol injection
-            let system_prompt = skill_prompt.clone();
-            let system_messages = vec![skill_prompt];
-
-            let mut input_data_parts: Vec<String> = Vec::new();
-            if !has_output_ref && !transcription.is_empty() {
-                input_data_parts.push(format!("```output\n{}\n```", transcription));
-            }
-            if !has_streaming_ref {
-                if let Some(streaming) = &streaming_transcription {
-                    input_data_parts.push(format!("```streaming_output\n{}\n```", streaming));
-                }
-            }
-            if !has_select_ref {
-                if let Some(text) = self.selected_text {
-                    input_data_parts.push(format!("```select\n{}\n```", text));
-                }
-            }
-            if has_raw_input_ref {
-                if let Some(raw) = &raw_transcription {
-                    input_data_parts.push(format!("```raw_input\n{}\n```", raw));
-                }
-            }
-            let user_message = if !input_data_parts.is_empty() {
-                Some(input_data_parts.join("\n\n"))
-            } else {
-                None
-            };
-
-            return BuiltPrompt {
-                system_messages,
-                system_prompt,
-                user_message,
-            };
-        }
-
-        // Standard path: inject dynamic protocol note
+        // --- Phase 5: Append protocol and constraints to the stable system message ---
         if !present_fields.is_empty() {
             skill_prompt.push_str(&format!(
                 "\n\n---\n\n### 输入协议\n{}",
                 build_input_protocol_note(&present_fields)
+            ));
+        }
+
+        if self.prompt.output_mode == SkillOutputMode::Polish {
+            skill_prompt.push_str(&format!(
+                "\n\n---\n\n### 润色模式约束\n{}",
+                POLISH_MODE_NOTE
             ));
         }
 
@@ -546,64 +427,6 @@ impl<'a> PromptBuilder<'a> {
     }
 }
 
-/// Strip the `## 变量` section from a prompt template.
-///
-/// This section is used as a declaration for the system to know which data blocks
-/// to inject. It typically looks like:
-///
-/// ```markdown
-/// ## 变量
-///
-/// ```output
-/// ${output}
-/// ```
-///
-/// ```streaming_output
-/// ${streaming_output}
-/// ```
-/// ```
-///
-/// We remove everything from `## 变量` to the end of the last code-block in that section.
-fn strip_variables_section(prompt: &str) -> String {
-    // Find the "## 变量" header
-    let marker = "## 变量";
-    let Some(section_start) = prompt.find(marker) else {
-        return prompt.to_string();
-    };
-
-    // Take everything before the marker
-    let before = prompt[..section_start].trim_end();
-
-    // Look at what comes after the ## 变量 section.
-    // We need to find the end: it's either:
-    // - The next ## heading (a new section)
-    // - The end of the string
-    let after_marker = &prompt[section_start + marker.len()..];
-
-    // Look for the next "## " heading that isn't "## 变量"
-    if let Some(next_heading_offset) = find_next_heading(after_marker) {
-        let after = &after_marker[next_heading_offset..];
-        format!("{}\n\n{}", before, after)
-    } else {
-        // ## 变量 is the last section — just trim
-        before.to_string()
-    }
-}
-
-/// Find the byte offset of the next markdown heading (`## ` or `# `) in the text.
-fn find_next_heading(text: &str) -> Option<usize> {
-    for (i, _) in text.char_indices() {
-        if i == 0 {
-            continue; // skip the start since we're inside ## 变量
-        }
-        let remaining = &text[i..];
-        if remaining.starts_with("\n## ") || remaining.starts_with("\n# ") {
-            return Some(i + 1); // +1 to skip the newline, point at the #
-        }
-    }
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -619,87 +442,7 @@ mod tests {
     }
 
     #[test]
-    fn test_strip_variables_section_at_end() {
-        let input = r#"# Expert
-Do something with `output`.
-
-## 变量
-
-```output
-${output}
-```
-
-```streaming_output
-${streaming_output}
-```"#;
-
-        let result = strip_variables_section(input);
-        assert_eq!(result, "# Expert\nDo something with `output`.");
-        assert!(!result.contains("## 变量"));
-        assert!(!result.contains("${output}"));
-    }
-
-    #[test]
-    fn test_strip_variables_section_in_middle() {
-        let input = r#"# Expert
-
-## 变量
-
-```output
-${output}
-```
-
-## 输出要求
-
-直接输出文本。"#;
-
-        let result = strip_variables_section(input);
-        assert!(result.contains("# Expert"));
-        assert!(result.contains("## 输出要求"));
-        assert!(!result.contains("## 变量"));
-        assert!(!result.contains("${output}"));
-    }
-
-    #[test]
-    fn test_strip_variables_section_not_present() {
-        let input = "# Expert\nDo something.";
-        let result = strip_variables_section(input);
-        assert_eq!(result, input);
-    }
-
-    #[test]
-    fn test_build_with_output_variable() {
-        // Old-style template with ## 变量 section — section gets stripped,
-        // no explicit refs remain in the body → fallback plain text.
-        let prompt = make_prompt(
-            r#"# Expert
-Process the `output` code block.
-
-## 变量
-
-```output
-${output}
-```"#,
-        );
-
-        let built = PromptBuilder::new(&prompt, "Hello world").build();
-
-        let sys_combined = built.system_prompt;
-        // System prompt should not contain ## 变量 or ${output}
-        assert!(!sys_combined.contains("## 变量"));
-        assert!(!sys_combined.contains("${output}"));
-        assert!(sys_combined.contains("Process the `output` code block."));
-
-        // Single-source input should still carry an explicit H3 title.
-        assert_eq!(
-            built.user_message.as_deref(),
-            Some("[INPUT_TEXT]\nHello world")
-        );
-    }
-
-    #[test]
     fn test_build_without_variables_plain_fallback() {
-        // No variables, no streaming, no select → plain text fallback
         let prompt = make_prompt("# Expert\nProcess the user's input.");
 
         let built = PromptBuilder::new(&prompt, "Hello world").build();
@@ -708,14 +451,12 @@ ${output}
             built.user_message.as_deref(),
             Some("[INPUT_TEXT]\nHello world")
         );
-        // No supplementary notes in system prompt
         let sys_combined = built.system_prompt;
         assert!(!sys_combined.contains("基于以下代码块的信息"));
     }
 
     #[test]
     fn test_build_with_streaming_auto_inject() {
-        // No variable refs, but streaming data available → structured titled sections
         let prompt = make_prompt("# Expert\nProcess the input.");
 
         let built = PromptBuilder::new(&prompt, "Final text")
@@ -733,7 +474,6 @@ ${output}
 
     #[test]
     fn test_build_with_select_auto_inject() {
-        // No variable refs, but select data available → structured titled sections
         let prompt = make_prompt("# Expert\nProcess the input.");
 
         let built = PromptBuilder::new(&prompt, "translate this")
@@ -747,67 +487,6 @@ ${output}
         assert!(input.contains("[SELECTED_TEXT]"));
         assert!(input.contains("Selected paragraph"));
         assert!(input.ends_with("[INPUT_TEXT]\ntranslate this"));
-    }
-
-    #[test]
-    fn test_build_with_select() {
-        let prompt = make_prompt(
-            r#"# Expert
-Process `select` if available, otherwise `output`.
-
-## 变量
-
-```output
-${output}
-```
-
-```select
-${select}
-```"#,
-        );
-
-        let built = PromptBuilder::new(&prompt, "voice command")
-            .selected_text(Some("Selected paragraph"))
-            .build();
-
-        let input = built.user_message.unwrap();
-        assert!(input.contains("[INPUT_TEXT]\nvoice command"));
-        assert!(input.contains("[SELECTED_TEXT]"));
-    }
-
-    #[test]
-    fn test_build_with_inline_variables() {
-        let prompt =
-            make_prompt("# Expert\nApp: ${app_name}, Window: ${window_title}, Time: ${time}");
-
-        let built = PromptBuilder::new(&prompt, "test")
-            .app_name(Some("VSCode"))
-            .window_title(Some("main.rs"))
-            .build();
-
-        let sys_combined = built.system_prompt;
-        assert!(sys_combined.contains("App: VSCode"));
-        assert!(sys_combined.contains("Window: main.rs"));
-        assert!(!sys_combined.contains("${app_name}"));
-        assert!(!sys_combined.contains("${window_title}"));
-        // ${time} should be replaced with actual time
-        assert!(!sys_combined.contains("${time}"));
-    }
-
-    #[test]
-    fn test_build_with_context_inline() {
-        let prompt = make_prompt("# Expert\nContext: ${context}\nProcess output.");
-
-        let built = PromptBuilder::new(&prompt, "test")
-            .history_entries(vec!["entry1".to_string(), "entry2".to_string()])
-            .build();
-
-        let sys_combined = built.system_prompt;
-        assert!(sys_combined.contains("[HISTORY_HINTS]"));
-        assert!(sys_combined.contains("- entry1"));
-        assert!(sys_combined.contains("- entry2"));
-        assert!(!sys_combined.contains("${context}"));
-        // History entries consumed inline through ${context}
     }
 
     #[test]
@@ -826,15 +505,12 @@ ${select}
 
         let input = built.user_message.unwrap();
         assert!(input.contains("[HISTORY_HINTS]"));
-        // Cleaned original text should pass through directly
         assert!(input.contains("- 旧协议样例"));
         assert!(input.contains("- 我们最近在排查 TTS 播报和语音播放问题"));
         assert!(input.contains("- 提示词和热词注入的效果还需要继续验证"));
         assert!(input.contains("- 这类字段标签也不应该原样进入"));
-        // Protocol noise should be filtered out from history hints
         assert!(!input.contains("### 用户的 ASR 结果"));
         assert!(!input.contains("```text"));
-        // [INPUT_TEXT] tag line should not leak into HISTORY_HINTS section
         let hints_section = input.split("[INPUT_TEXT]").next().unwrap();
         assert!(!hints_section.contains("[INPUT_TEXT]"));
     }
@@ -1022,18 +698,6 @@ ${select}
         assert!(!sys.contains("ASR_REFERENCE"));
         // Should include the "other fields" rule since we have auxiliary fields
         assert!(sys.contains("其他字段只能用于纠错和消歧"));
-    }
-
-    #[test]
-    fn test_protocol_explicit_ref_no_protocol() {
-        let prompt = make_prompt("# Expert\nProcess the ${output} code block carefully.");
-
-        let built = PromptBuilder::new(&prompt, "Hello world").build();
-
-        let sys = built.system_prompt;
-        // Explicit ref path should NOT contain the input protocol
-        assert!(!sys.contains("输入协议"));
-        assert!(!sys.contains("你将收到以下字段"));
     }
 
     #[test]
