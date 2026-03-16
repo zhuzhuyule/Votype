@@ -203,6 +203,8 @@ pub struct PostProcessProvider {
     pub allow_base_url_edit: bool,
     #[serde(default)]
     pub models_endpoint: Option<String>,
+    #[serde(default)]
+    pub supports_structured_output: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -760,6 +762,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             base_url: "https://api.openai.com/v1".to_string(),
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: true,
         },
         PostProcessProvider {
             id: "openrouter".to_string(),
@@ -767,6 +770,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             base_url: "https://openrouter.ai/api/v1".to_string(),
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: true,
         },
         PostProcessProvider {
             id: "anthropic".to_string(),
@@ -774,6 +778,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             base_url: "https://api.anthropic.com/v1".to_string(),
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: false,
         },
         PostProcessProvider {
             id: "custom".to_string(),
@@ -781,6 +786,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             base_url: "http://localhost:11434/v1".to_string(),
             allow_base_url_edit: true,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: false,
         },
         PostProcessProvider {
             id: "iflow".to_string(),
@@ -788,6 +794,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             base_url: "https://apis.iflow.cn/v1".to_string(),
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: false,
         },
         PostProcessProvider {
             id: "gitee".to_string(),
@@ -795,20 +802,31 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             base_url: "https://ai.gitee.com/v1".to_string(),
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: false,
+        },
+        PostProcessProvider {
+            id: "zai".to_string(),
+            label: "Z.AI".to_string(),
+            base_url: "https://api.z.ai/api/paas/v4".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: Some("/models".to_string()),
+            supports_structured_output: true,
         },
     ];
 
+    // On macOS ARM64, always include Apple Intelligence provider.
+    // Availability is checked at runtime in core.rs when actually invoking it.
+    // Calling check_apple_intelligence_availability() at startup can crash on macOS 26.x.
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     {
-        if crate::apple_intelligence::check_apple_intelligence_availability() {
-            providers.push(PostProcessProvider {
-                id: APPLE_INTELLIGENCE_PROVIDER_ID.to_string(),
-                label: "Apple Intelligence".to_string(),
-                base_url: "apple-intelligence://local".to_string(),
-                allow_base_url_edit: false,
-                models_endpoint: None,
-            });
-        }
+        providers.push(PostProcessProvider {
+            id: APPLE_INTELLIGENCE_PROVIDER_ID.to_string(),
+            label: "Apple Intelligence".to_string(),
+            base_url: "apple-intelligence://local".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: false,
+        });
     }
 
     providers
@@ -898,6 +916,18 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         {
             settings.post_process_providers.push(provider.clone());
             changed = true;
+        }
+
+        // Sync supports_structured_output for existing providers
+        if let Some(existing) = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == provider.id)
+        {
+            if existing.supports_structured_output != provider.supports_structured_output {
+                existing.supports_structured_output = provider.supports_structured_output;
+                changed = true;
+            }
         }
 
         if !settings.post_process_api_keys.contains_key(&provider.id) {

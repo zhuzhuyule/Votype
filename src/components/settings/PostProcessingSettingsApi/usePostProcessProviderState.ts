@@ -115,15 +115,37 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   }, [providers]);
 
   const handleProviderSelect = useCallback(
-    (providerId: string) => {
+    async (providerId: string) => {
       console.log("[DEBUG] handleProviderSelect called", {
         providerId,
         previousId: viewingProviderId,
       });
 
       setViewingProviderId(providerId);
+
+      await setPostProcessProvider(providerId);
+
+      // Auto-fetch available models for the new provider so the model dropdown
+      // reflects what's actually valid.
+      if (providerId !== APPLE_PROVIDER_ID) {
+        const provider = providers.find((p) => p.id === providerId);
+        const providerApiKey =
+          settings?.post_process_api_keys?.[providerId] ?? "";
+        const hasBaseUrl = (provider?.base_url ?? "").trim() !== "";
+        const hasApiKey = providerApiKey.trim() !== "";
+
+        if (provider?.id === "custom" ? hasBaseUrl : hasApiKey) {
+          void fetchPostProcessModels(providerId);
+        }
+      }
     },
-    [viewingProviderId, settings?.post_process_api_keys, removeCustomProvider],
+    [
+      viewingProviderId,
+      setPostProcessProvider,
+      fetchPostProcessModels,
+      providers,
+      settings?.post_process_api_keys,
+    ],
   );
 
   const handleBaseUrlChange = useCallback(

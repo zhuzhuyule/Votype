@@ -94,6 +94,17 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Initialize shortcuts after the app is ready.
+  // On macOS, shortcuts require accessibility permissions and are deferred
+  // from Rust startup. This call is idempotent (safe to call multiple times).
+  useEffect(() => {
+    if (showOnboarding === false) {
+      invoke("initialize_shortcuts").catch((e: unknown) => {
+        console.warn("Failed to initialize shortcuts:", e);
+      });
+    }
+  }, [showOnboarding]);
+
   useEffect(() => {
     checkOnboardingStatus();
   }, []);

@@ -53,6 +53,7 @@ pub fn add_custom_provider(
         base_url: crate::utils::normalize_base_url(&base_url),
         allow_base_url_edit: true,
         models_endpoint,
+        supports_structured_output: false,
     };
     settings.post_process_providers.push(provider.clone());
     settings::write_settings(&app, settings);

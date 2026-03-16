@@ -172,8 +172,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     let coordinator = transcription_coordinator::TranscriptionCoordinator::new(app_handle.clone());
     app_handle.manage(coordinator);
 
-    // Initialize the shortcuts
+    // Note: Shortcuts are NOT initialized here on macOS.
+    // The frontend calls the `initialize_shortcuts` command after
+    // accessibility permissions are confirmed, matching the pattern
+    // used for Enigo initialization.
+    #[cfg(not(target_os = "macos"))]
     shortcut::init_shortcuts(app_handle);
+    #[cfg(target_os = "macos")]
+    log::info!("Deferring shortcut initialization to frontend (macOS accessibility)");
 
     #[cfg(unix)]
     let signals = Signals::new([SIGUSR2]).unwrap();
@@ -533,6 +539,7 @@ pub fn run() {
             commands::log_to_console,
             commands::focus_overlay,
             commands::confirm_skill,
+            commands::initialize_shortcuts,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,

@@ -548,7 +548,12 @@ export const useSettingsStore = create<SettingsStore>()(
     },
 
     setPostProcessProvider: async (providerId) => {
-      const { settings, setUpdating, refreshSettings } = get();
+      const {
+        settings,
+        setUpdating,
+        refreshSettings,
+        setPostProcessModelOptions,
+      } = get();
       const updateKey = "post_process_provider_id";
       const previousId = settings?.post_process_provider_id ?? null;
 
@@ -561,6 +566,10 @@ export const useSettingsStore = create<SettingsStore>()(
             : null,
         }));
       }
+
+      // Clear cached model options for the new provider so the dropdown
+      // doesn't show stale models from a previous fetch or base_url.
+      setPostProcessModelOptions(providerId, []);
 
       try {
         await invoke("set_post_process_provider", { providerId });
@@ -621,7 +630,40 @@ export const useSettingsStore = create<SettingsStore>()(
     },
 
     updatePostProcessBaseUrl: async (providerId, baseUrl) => {
-      return get().updatePostProcessSetting("base_url", providerId, baseUrl);
+      const { setUpdating, refreshSettings } = get();
+      const updateKey = `post_process_base_url:${providerId}`;
+
+      setUpdating(updateKey, true);
+
+      try {
+        // Persist the new base URL first.
+        await invoke("change_post_process_base_url_setting", {
+          providerId,
+          baseUrl,
+        });
+
+        // Reset the stored model since the previous value is almost certainly
+        // invalid for the new endpoint.
+        await invoke("change_post_process_model_setting", {
+          providerId,
+          model: "",
+        });
+
+        // Clear cached model options after both backend writes succeed.
+        set((state) => ({
+          postProcessModelOptions: {
+            ...state.postProcessModelOptions,
+            [providerId]: [],
+          },
+        }));
+
+        // Single refresh after both backend writes.
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update post-process base URL:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
     },
 
     updatePostProcessApiKey: async (providerId, apiKey) => {

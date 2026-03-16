@@ -10,6 +10,9 @@ use async_openai::types::{
 use log::{error, info};
 use tauri::{AppHandle, Emitter};
 
+/// Field name for structured output JSON schema
+const TRANSCRIPTION_FIELD: &str = "transcription";
+
 pub(super) fn clean_response_content(content: &str) -> String {
     let mut text = content.to_string();
 
@@ -285,6 +288,33 @@ pub async fn execute_llm_request_with_messages(
         "messages": messages_json,
     });
 
+    // Add structured output response_format when supported
+    if provider.supports_structured_output {
+        if let Some(obj) = body.as_object_mut() {
+            obj.insert(
+                "response_format".to_string(),
+                serde_json::json!({
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "transcription_output",
+                        "strict": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                TRANSCRIPTION_FIELD: {
+                                    "type": "string",
+                                    "description": "The cleaned and processed transcription text"
+                                }
+                            },
+                            "required": [TRANSCRIPTION_FIELD],
+                            "additionalProperties": false
+                        }
+                    }
+                }),
+            );
+        }
+    }
+
     // Merge extra params if provided
     if let Some(extras) = extra_params {
         if let Some(obj) = body.as_object_mut() {
@@ -359,7 +389,39 @@ pub async fn execute_llm_request_with_messages(
                                     content
                                 );
 
-                                let text = extract_llm_text(&content);
+                                // When structured output is enabled, try to parse JSON
+                                // and extract the transcription field
+                                let text = if provider.supports_structured_output {
+                                    match serde_json::from_str::<serde_json::Value>(&content) {
+                                        Ok(json) => {
+                                            if let Some(t) = json
+                                                .get(TRANSCRIPTION_FIELD)
+                                                .and_then(|v| v.as_str())
+                                            {
+                                                info!(
+                                                    "[LLM] Structured output extracted '{}' field ({} chars)",
+                                                    TRANSCRIPTION_FIELD,
+                                                    t.len()
+                                                );
+                                                t.to_string()
+                                            } else {
+                                                log::warn!(
+                                                    "[LLM] Structured output missing '{}' field, falling back to text extraction",
+                                                    TRANSCRIPTION_FIELD
+                                                );
+                                                extract_llm_text(&content)
+                                            }
+                                        }
+                                        Err(_) => {
+                                            log::warn!(
+                                                "[LLM] Structured output JSON parse failed, falling back to text extraction"
+                                            );
+                                            extract_llm_text(&content)
+                                        }
+                                    }
+                                } else {
+                                    extract_llm_text(&content)
+                                };
                                 return (Some(text), false, None);
                             }
                             Err(e) => {
