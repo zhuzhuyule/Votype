@@ -1010,6 +1010,105 @@ impl ShortcutAction for TranscribeAction {
 
                                             if auto_pick_multi {
                                                 let final_text = best.text.clone();
+                                                info!(
+                                                    "[MultiModel] Auto-pick selected result id={}, model_name={}, text_len={}",
+                                                    best.id,
+                                                    model_name,
+                                                    final_text.len()
+                                                );
+
+                                                // Check if review is required based on app policy
+                                                let change_percent = compute_change_percent(
+                                                    &transcription_clone,
+                                                    &final_text,
+                                                );
+                                                let should_review = if output_mode
+                                                    == crate::settings::PromptOutputMode::Chat
+                                                {
+                                                    true
+                                                } else {
+                                                    match app_policy {
+                                                            crate::settings::AppReviewPolicy::Always => true,
+                                                            crate::settings::AppReviewPolicy::Never => false,
+                                                            crate::settings::AppReviewPolicy::Auto => {
+                                                                let (check_enabled, threshold) =
+                                                                    if let Some(pid) = effective_prompt_id {
+                                                                        settings_clone
+                                                                            .post_process_prompts
+                                                                            .iter()
+                                                                            .find(|p| &p.id == pid)
+                                                                            .map(|p| {
+                                                                                (
+                                                                                    p.confidence_check_enabled,
+                                                                                    p.confidence_threshold.unwrap_or(70),
+                                                                                )
+                                                                            })
+                                                                            .unwrap_or((false, 70))
+                                                                    } else {
+                                                                        (false, 70)
+                                                                    };
+                                                                if !check_enabled {
+                                                                    false
+                                                                } else {
+                                                                    change_percent >= threshold
+                                                                }
+                                                            }
+                                                        }
+                                                };
+
+                                                if should_review {
+                                                    info!(
+                                                        "[MultiModel] Auto-pick review required (policy={:?}, change_percent={}), showing review window",
+                                                        app_policy, change_percent
+                                                    );
+                                                    crate::review_window::set_last_active_window(
+                                                        active_window_snapshot_for_review.clone(),
+                                                    );
+                                                    // Persist result to history before review
+                                                    if let Some(hid) = history_id {
+                                                        if let Err(e) = hm_clone
+                                                            .save_post_processed_text(
+                                                                hid,
+                                                                final_text.clone(),
+                                                                Some(model_name.clone()),
+                                                                settings_clone
+                                                                    .post_process_selected_prompt_id
+                                                                    .clone(),
+                                                            )
+                                                            .await
+                                                        {
+                                                            error!(
+                                                                "Failed to save auto-picked multi-model result to history before review: {}",
+                                                                e
+                                                            );
+                                                        }
+                                                    }
+                                                    crate::review_window::show_review_window(
+                                                        &ah_clone,
+                                                        transcription_clone.clone(),
+                                                        final_text,
+                                                        change_percent,
+                                                        history_id,
+                                                        None,
+                                                        output_mode,
+                                                        None,
+                                                        effective_prompt_id.cloned(),
+                                                        Some(model_name),
+                                                    );
+                                                    utils::hide_recording_overlay(&ah_clone);
+                                                    change_tray_icon(
+                                                        &ah_clone,
+                                                        TrayIconState::Idle,
+                                                    );
+                                                    if let Some(coordinator) = ah_clone
+                                                        .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                                                    {
+                                                        coordinator.notify_processing_finished();
+                                                    }
+                                                    return;
+                                                }
+
+                                                // No review needed — direct paste
                                                 let final_text_for_history = final_text.clone();
                                                 let model_name_for_history = model_name.clone();
                                                 let prompt_id_for_history = settings_clone
@@ -1020,12 +1119,6 @@ impl ShortcutAction for TranscribeAction {
                                                 let ah_clone_inner = ah_clone.clone();
                                                 let last_active_window =
                                                     active_window_snapshot_for_review.clone();
-                                                info!(
-                                                    "[MultiModel] Auto-pick selected result id={}, model_name={}, text_len={}",
-                                                    best.id,
-                                                    model_name,
-                                                    final_text.len()
-                                                );
                                                 ah_clone
                                                     .run_on_main_thread(move || {
                                                         info!("[MultiModel] Entered auto-pick main-thread branch");
