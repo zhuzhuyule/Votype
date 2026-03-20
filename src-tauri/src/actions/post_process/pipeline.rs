@@ -574,6 +574,28 @@ pub async fn maybe_post_process_transcription(
             Vec::new()
         };
 
+        // Resolve convention-based references from Skill's references/ directory
+        let app_category = app_name
+            .as_deref()
+            .map(crate::app_category::from_app_name)
+            .unwrap_or("Other");
+        let resolved_refs = super::reference_resolver::resolve_references(
+            prompt.file_path.as_deref(),
+            app_name.as_deref(),
+            app_category,
+        );
+        let refs_content = if resolved_refs.count > 0 {
+            log::info!(
+                "[Reference] Injecting {} reference(s) for skill '{}': {:?}",
+                resolved_refs.count,
+                prompt.name,
+                resolved_refs.matched_files,
+            );
+            Some(resolved_refs.content)
+        } else {
+            None
+        };
+
         // Use PromptBuilder for unified variable processing
         let mut builder = super::prompt_builder::PromptBuilder::new(&prompt, transcription_content)
             .streaming_transcription(streaming_transcription)
@@ -582,6 +604,7 @@ pub async fn maybe_post_process_transcription(
             .window_title(window_title.as_deref())
             .history_entries(history_entries)
             .hotword_injection(hotword_injection)
+            .resolved_references(refs_content)
             .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
                 settings,
             ));

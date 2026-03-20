@@ -120,6 +120,8 @@ pub struct PromptBuilder<'a> {
     history_entries: Vec<String>,
     hotword_injection: Option<HotwordInjection>,
     injection_policy: InjectionPolicy,
+    /// Resolved reference content to append to system layer.
+    resolved_references: Option<String>,
 }
 
 fn sanitize_history_entry(entry: &str) -> Option<String> {
@@ -229,6 +231,7 @@ impl<'a> PromptBuilder<'a> {
             history_entries: Vec::new(),
             hotword_injection: None,
             injection_policy: InjectionPolicy::default(),
+            resolved_references: None,
         }
     }
 
@@ -271,6 +274,11 @@ impl<'a> PromptBuilder<'a> {
 
     pub fn injection_policy(mut self, policy: InjectionPolicy) -> Self {
         self.injection_policy = policy;
+        self
+    }
+
+    pub fn resolved_references(mut self, content: Option<String>) -> Self {
+        self.resolved_references = content.filter(|s| !s.is_empty());
         self
     }
 
@@ -323,6 +331,12 @@ impl<'a> PromptBuilder<'a> {
             let now = chrono::Local::now();
             skill_prompt =
                 skill_prompt.replace("${time}", &now.format("%Y-%m-%d %H:%M:%S").to_string());
+        }
+
+        // --- Phase 3.5: Inject resolved references ---
+        if let Some(ref refs_content) = self.resolved_references {
+            skill_prompt.push_str("\n\n---\n\n");
+            skill_prompt.push_str(refs_content);
         }
 
         // --- Phase 4: Precompute present fields for dynamic protocol ---
