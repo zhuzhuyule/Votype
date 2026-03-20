@@ -327,3 +327,155 @@ pub fn check_skill_id_conflict(
             .any(|s| s.id == skill_id))
     }
 }
+
+// ---- Reference management commands ----
+
+/// A reference file entry for a skill.
+#[derive(serde::Serialize, specta::Type)]
+pub struct SkillReferenceEntry {
+    /// Filename without extension (e.g. "_always", "CodeEditor", "Slack")
+    pub name: String,
+    /// Full filename (e.g. "_always.md")
+    pub filename: String,
+    /// File content
+    pub content: String,
+    /// Match type: "always", "app_name", or "app_category"
+    pub match_type: String,
+}
+
+/// List all reference files for a skill.
+#[tauri::command]
+#[specta::specta]
+pub fn get_skill_references(app: AppHandle, skill_id: String) -> Vec<SkillReferenceEntry> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = match skill_manager.find_skill_file_path(&skill_id) {
+        Some(p) => p,
+        None => return Vec::new(),
+    };
+    let skill_dir = match file_path.parent() {
+        Some(d) => d,
+        None => return Vec::new(),
+    };
+    let refs_dir = skill_dir.join("references");
+    if !refs_dir.is_dir() {
+        return Vec::new();
+    }
+
+    let categories = [
+        "CodeEditor",
+        "Terminal",
+        "InstantMessaging",
+        "Email",
+        "Notes",
+        "Browser",
+        "Other",
+    ];
+
+    let mut entries = Vec::new();
+    if let Ok(dir_entries) = std::fs::read_dir(&refs_dir) {
+        for entry in dir_entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            if path.extension().and_then(|e| e.to_str()) != Some("md") {
+                continue;
+            }
+            let filename = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("")
+                .to_string();
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+
+            let match_type = if stem == "_always" {
+                "always".to_string()
+            } else if categories
+                .iter()
+                .any(|c| c.to_lowercase() == stem.to_lowercase())
+            {
+                "app_category".to_string()
+            } else {
+                "app_name".to_string()
+            };
+
+            entries.push(SkillReferenceEntry {
+                name: stem,
+                filename,
+                content,
+                match_type,
+            });
+        }
+    }
+    // Sort: _always first, then alphabetically
+    entries.sort_by(|a, b| {
+        if a.name == "_always" {
+            std::cmp::Ordering::Less
+        } else if b.name == "_always" {
+            std::cmp::Ordering::Greater
+        } else {
+            a.name.cmp(&b.name)
+        }
+    });
+    entries
+}
+
+/// Save (create or update) a reference file for a skill.
+#[tauri::command]
+#[specta::specta]
+pub fn save_skill_reference(
+    app: AppHandle,
+    skill_id: String,
+    filename: String,
+    content: String,
+) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = skill_manager
+        .find_skill_file_path(&skill_id)
+        .ok_or_else(|| format!("Skill not found: {}", skill_id))?;
+    let skill_dir = file_path
+        .parent()
+        .ok_or_else(|| "Invalid skill path".to_string())?;
+    let refs_dir = skill_dir.join("references");
+
+    // Ensure references/ directory exists
+    if !refs_dir.exists() {
+        std::fs::create_dir_all(&refs_dir).map_err(|e| e.to_string())?;
+    }
+
+    // Validate filename
+    if !filename.ends_with(".md") || filename.contains('/') || filename.contains('\\') {
+        return Err("Invalid filename: must be a .md file without path separators".to_string());
+    }
+
+    std::fs::write(refs_dir.join(&filename), content).map_err(|e| e.to_string())
+}
+
+/// Delete a reference file for a skill.
+#[tauri::command]
+#[specta::specta]
+pub fn delete_skill_reference(
+    app: AppHandle,
+    skill_id: String,
+    filename: String,
+) -> Result<(), String> {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = skill_manager
+        .find_skill_file_path(&skill_id)
+        .ok_or_else(|| format!("Skill not found: {}", skill_id))?;
+    let skill_dir = file_path
+        .parent()
+        .ok_or_else(|| "Invalid skill path".to_string())?;
+    let target = skill_dir.join("references").join(&filename);
+
+    if target.exists() {
+        std::fs::remove_file(&target).map_err(|e| e.to_string())
+    } else {
+        Ok(()) // Already gone
+    }
+}
