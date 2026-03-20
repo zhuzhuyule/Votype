@@ -5,6 +5,7 @@ import {
   Dialog,
   Flex,
   IconButton,
+  Select,
   Text,
   TextArea,
   TextField,
@@ -41,14 +42,17 @@ interface ReferencesPanelProps {
   isDirectorySkill: boolean;
 }
 
-const MATCH_TYPE_CONFIG: Record<
-  string,
-  { label: string; color: "amber" | "blue" | "violet" }
-> = {
-  always: { label: "Always", color: "amber" },
-  app_category: { label: "Category", color: "violet" },
-  app_name: { label: "App", color: "blue" },
-};
+type CreateType = "always" | "category" | "app";
+
+const CATEGORY_OPTIONS = [
+  { value: "CodeEditor", label: "Code Editor" },
+  { value: "Terminal", label: "Terminal" },
+  { value: "InstantMessaging", label: "IM / Chat" },
+  { value: "Email", label: "Email" },
+  { value: "Notes", label: "Notes" },
+  { value: "Browser", label: "Browser" },
+  { value: "Other", label: "Other" },
+];
 
 function getIcon(entry: ReferenceEntry) {
   const name = entry.name.toLowerCase();
@@ -71,21 +75,43 @@ function getIcon(entry: ReferenceEntry) {
 }
 
 function getContentPreview(content: string): string {
-  // Strip markdown headers and get first meaningful line
   const lines = content
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l && !l.startsWith("#") && !l.startsWith("---"));
   const first = lines[0] || "";
-  // Strip leading "- " for list items
   const cleaned = first.replace(/^[-*]\s*/, "");
   return cleaned.length > 70 ? cleaned.slice(0, 70) + "..." : cleaned;
 }
 
-function getMatchLabel(entry: ReferenceEntry): string {
-  if (entry.match_type === "always") return "Always Injected";
-  if (entry.match_type === "app_category") return entry.name;
+/** User-friendly display name for a reference entry */
+function getDisplayName(
+  entry: ReferenceEntry,
+  t: (k: string, d: string) => string,
+): string {
+  if (entry.match_type === "always")
+    return t(
+      "settings.postProcessing.prompts.references.alwaysName",
+      "General Rules",
+    );
   return entry.name;
+}
+
+function getMatchBadge(
+  entry: ReferenceEntry,
+  t: (k: string, d: string) => string,
+): { label: string; color: "amber" | "blue" | "violet" } {
+  if (entry.match_type === "always")
+    return {
+      label: t(
+        "settings.postProcessing.prompts.references.badgeAlways",
+        "Always Active",
+      ),
+      color: "amber",
+    };
+  if (entry.match_type === "app_category")
+    return { label: entry.name, color: "violet" };
+  return { label: entry.name, color: "blue" };
 }
 
 export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
@@ -103,8 +129,12 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
     filename: string;
     content: string;
     isNew: boolean;
-    newName: string;
-  }>({ open: false, filename: "", content: "", isNew: false, newName: "" });
+  }>({ open: false, filename: "", content: "", isNew: false });
+
+  // Create dialog state (separate from edit)
+  const [createType, setCreateType] = useState<CreateType>("category");
+  const [createCategory, setCreateCategory] = useState("CodeEditor");
+  const [createAppName, setCreateAppName] = useState("");
 
   // Delete dialog state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -130,12 +160,27 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
     }
   }, [expanded, skillId, isDirectorySkill, loadReferences]);
 
+  const resolveFilename = (): string | null => {
+    if (!editDialog.isNew) return editDialog.filename;
+    switch (createType) {
+      case "always":
+        return "_always.md";
+      case "category":
+        return createCategory ? `${createCategory}.md` : null;
+      case "app":
+        return createAppName.trim() ? `${createAppName.trim()}.md` : null;
+    }
+  };
+
   const handleSave = async () => {
-    const filename = editDialog.isNew
-      ? `${editDialog.newName}.md`
-      : editDialog.filename;
-    if (!filename || filename === ".md") {
-      toast.error("Please enter a valid name");
+    const filename = resolveFilename();
+    if (!filename) {
+      toast.error(
+        t(
+          "settings.postProcessing.prompts.references.errorNoName",
+          "Please enter a name",
+        ),
+      );
       return;
     }
     try {
@@ -144,11 +189,23 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
         filename,
         content: editDialog.content,
       });
-      toast.success(editDialog.isNew ? "Reference created" : "Reference saved");
+      toast.success(
+        editDialog.isNew
+          ? t(
+              "settings.postProcessing.prompts.references.created",
+              "Reference created",
+            )
+          : t(
+              "settings.postProcessing.prompts.references.saved",
+              "Reference saved",
+            ),
+      );
       setEditDialog({ ...editDialog, open: false });
       loadReferences();
     } catch (e) {
-      toast.error(`Failed to save: ${e}`);
+      toast.error(
+        `${t("settings.postProcessing.prompts.references.errorSave", "Failed to save")}: ${e}`,
+      );
     }
   };
 
@@ -159,28 +216,45 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
         skillId,
         filename: deleteTarget,
       });
-      toast.success("Reference deleted");
+      toast.success(
+        t(
+          "settings.postProcessing.prompts.references.deleted",
+          "Reference deleted",
+        ),
+      );
       setDeleteTarget(null);
       loadReferences();
     } catch (e) {
-      toast.error(`Failed to delete: ${e}`);
+      toast.error(
+        `${t("settings.postProcessing.prompts.references.errorDelete", "Failed to delete")}: ${e}`,
+      );
     }
   };
 
-  if (!isDirectorySkill) {
-    return null;
-  }
+  const openCreate = () => {
+    setCreateType("category");
+    setCreateCategory("CodeEditor");
+    setCreateAppName("");
+    setEditDialog({ open: true, filename: "", content: "", isNew: true });
+  };
+
+  const openEdit = (ref: ReferenceEntry) => {
+    setEditDialog({
+      open: true,
+      filename: ref.filename,
+      content: ref.content,
+      isNew: false,
+    });
+  };
+
+  if (!isDirectorySkill) return null;
 
   return (
     <Box mt="3">
       <Flex
         align="center"
         gap="2"
-        style={{
-          cursor: "pointer",
-          userSelect: "none",
-          padding: "6px 0",
-        }}
+        style={{ cursor: "pointer", userSelect: "none", padding: "6px 0" }}
         onClick={() => setExpanded(!expanded)}
       >
         {expanded ? <IconChevronUp size={14} /> : <IconChevronDown size={14} />}
@@ -202,13 +276,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
             style={{ marginLeft: "auto" }}
             onClick={(e) => {
               e.stopPropagation();
-              setEditDialog({
-                open: true,
-                filename: "",
-                content: "",
-                isNew: true,
-                newName: "",
-              });
+              openCreate();
             }}
           >
             <IconPlus size={12} />
@@ -221,7 +289,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
         <Flex direction="column" gap="1" mt="1">
           {loading && (
             <Text size="1" style={{ color: "var(--gray-9)", padding: "8px 0" }}>
-              Loading...
+              {t("common.loading", "Loading...")}
             </Text>
           )}
           {!loading && references.length === 0 && (
@@ -238,22 +306,10 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
               <Text size="1" style={{ color: "var(--gray-9)" }}>
                 {t(
                   "settings.postProcessing.prompts.references.empty",
-                  "No scene references yet. Add references to adapt this skill's behavior per app.",
+                  "No scene references yet. Add references to adapt behavior per app.",
                 )}
               </Text>
-              <Button
-                size="1"
-                variant="soft"
-                onClick={() =>
-                  setEditDialog({
-                    open: true,
-                    filename: "",
-                    content: "",
-                    isNew: true,
-                    newName: "_always",
-                  })
-                }
-              >
+              <Button size="1" variant="soft" onClick={openCreate}>
                 <IconPlus size={12} />
                 {t(
                   "settings.postProcessing.prompts.references.createFirst",
@@ -263,8 +319,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
             </Flex>
           )}
           {references.map((ref) => {
-            const config =
-              MATCH_TYPE_CONFIG[ref.match_type] || MATCH_TYPE_CONFIG.app_name;
+            const badge = getMatchBadge(ref, t);
             const preview = getContentPreview(ref.content);
             return (
               <Flex
@@ -284,15 +339,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
                 onMouseLeave={(e) =>
                   (e.currentTarget.style.background = "transparent")
                 }
-                onClick={() =>
-                  setEditDialog({
-                    open: true,
-                    filename: ref.filename,
-                    content: ref.content,
-                    isNew: false,
-                    newName: "",
-                  })
-                }
+                onClick={() => openEdit(ref)}
               >
                 <Flex
                   align="center"
@@ -315,10 +362,10 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
                 >
                   <Flex align="center" gap="2">
                     <Text size="2" weight="medium">
-                      {ref.name}
+                      {getDisplayName(ref, t)}
                     </Text>
-                    <Badge size="1" variant="soft" color={config.color}>
-                      {getMatchLabel(ref)}
+                    <Badge size="1" variant="soft" color={badge.color}>
+                      {badge.label}
                     </Badge>
                   </Flex>
                   {preview && (
@@ -349,15 +396,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
                   <IconButton
                     size="1"
                     variant="ghost"
-                    onClick={() =>
-                      setEditDialog({
-                        open: true,
-                        filename: ref.filename,
-                        content: ref.content,
-                        isNew: false,
-                        newName: "",
-                      })
-                    }
+                    onClick={() => openEdit(ref)}
                   >
                     <IconPencil size={13} />
                   </IconButton>
@@ -376,12 +415,10 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
         </Flex>
       )}
 
-      {/* Hover styles for action buttons */}
-      <style>{`
-        .ref-item:hover .ref-actions { opacity: 1 !important; }
-      `}</style>
+      {/* Hover styles */}
+      <style>{`.ref-item:hover .ref-actions { opacity: 1 !important; }`}</style>
 
-      {/* Edit / Create Dialog */}
+      {/* Create / Edit Dialog */}
       <Dialog.Root
         open={editDialog.open}
         onOpenChange={(open) => setEditDialog({ ...editDialog, open })}
@@ -391,47 +428,76 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
             {editDialog.isNew
               ? t(
                   "settings.postProcessing.prompts.references.createTitle",
-                  "Create Reference",
+                  "Create Scene Reference",
                 )
               : t(
                   "settings.postProcessing.prompts.references.editTitle",
-                  "Edit Reference",
-                ) + ` — ${editDialog.filename.replace(".md", "")}`}
+                  "Edit Scene Reference",
+                ) +
+                ` \u2014 ${editDialog.filename.replace(".md", "").replace("_always", t("settings.postProcessing.prompts.references.alwaysName", "General Rules"))}`}
           </Dialog.Title>
           <Flex direction="column" gap="3" mt="3">
             {editDialog.isNew && (
-              <Flex direction="column" gap="1">
+              <Flex direction="column" gap="2">
                 <Text size="2" weight="medium">
                   {t(
-                    "settings.postProcessing.prompts.references.filename",
-                    "Name",
+                    "settings.postProcessing.prompts.references.matchType",
+                    "Match Type",
                   )}
                 </Text>
-                <Flex align="center" gap="2">
-                  <TextField.Root
-                    style={{ flex: 1 }}
-                    placeholder="_always, CodeEditor, Slack..."
-                    value={editDialog.newName}
-                    onChange={(e) =>
-                      setEditDialog({
-                        ...editDialog,
-                        newName: e.target.value,
-                      })
-                    }
-                  />
-                  <Text
-                    size="2"
-                    style={{ color: "var(--gray-9)", flexShrink: 0 }}
+                <Select.Root
+                  value={createType}
+                  onValueChange={(v) => setCreateType(v as CreateType)}
+                >
+                  <Select.Trigger style={{ width: "100%" }} />
+                  <Select.Content>
+                    <Select.Item value="always">
+                      {t(
+                        "settings.postProcessing.prompts.references.typeAlways",
+                        "General Rules (always active)",
+                      )}
+                    </Select.Item>
+                    <Select.Item value="category">
+                      {t(
+                        "settings.postProcessing.prompts.references.typeCategory",
+                        "By App Category",
+                      )}
+                    </Select.Item>
+                    <Select.Item value="app">
+                      {t(
+                        "settings.postProcessing.prompts.references.typeApp",
+                        "By App Name",
+                      )}
+                    </Select.Item>
+                  </Select.Content>
+                </Select.Root>
+
+                {createType === "category" && (
+                  <Select.Root
+                    value={createCategory}
+                    onValueChange={setCreateCategory}
                   >
-                    .md
-                  </Text>
-                </Flex>
-                <Text size="1" style={{ color: "var(--gray-9)" }}>
-                  {t(
-                    "settings.postProcessing.prompts.references.filenameHint",
-                    "_always = always active, app name (Slack, Obsidian) or category (CodeEditor, Email) for context matching",
-                  )}
-                </Text>
+                    <Select.Trigger style={{ width: "100%" }} />
+                    <Select.Content>
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <Select.Item key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                )}
+
+                {createType === "app" && (
+                  <TextField.Root
+                    placeholder={t(
+                      "settings.postProcessing.prompts.references.appNamePlaceholder",
+                      "e.g. Slack, Obsidian, WeChat",
+                    )}
+                    value={createAppName}
+                    onChange={(e) => setCreateAppName(e.target.value)}
+                  />
+                )}
               </Flex>
             )}
             <TextArea
@@ -444,7 +510,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
               }}
               placeholder={t(
                 "settings.postProcessing.prompts.references.contentPlaceholder",
-                "Enter scene-specific rules...\n\nExample:\n## Instant messaging rules\n- Keep conversational tone\n- Only fix obvious errors",
+                "Enter scene-specific rules for this context...\n\nExample:\n## IM/Chat Rules\n- Keep conversational tone\n- Only fix obvious errors\n- Preserve emoji",
               )}
               value={editDialog.content}
               onChange={(e) =>
@@ -478,8 +544,18 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
           <Dialog.Description size="2" mb="4">
             {t(
               "settings.postProcessing.prompts.references.deleteConfirm",
-              'Are you sure you want to delete "{{filename}}"?',
-              { filename: deleteTarget?.replace(".md", "") },
+              'Are you sure you want to delete "{{name}}"?',
+              {
+                name: deleteTarget
+                  ?.replace(".md", "")
+                  .replace(
+                    "_always",
+                    t(
+                      "settings.postProcessing.prompts.references.alwaysName",
+                      "General Rules",
+                    ),
+                  ),
+              },
             )}
           </Dialog.Description>
           <Flex gap="3" justify="end">
