@@ -159,6 +159,19 @@ function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
   return mainKeys.includes(getEventMainKey(event));
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Node)) return false;
+
+  const element = target instanceof HTMLElement ? target : target.parentElement;
+  if (!element) return false;
+
+  return Boolean(
+    element.closest(
+      'input, textarea, [contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"], .ProseMirror',
+    ),
+  );
+}
+
 const DiffMark = Mark.create({
   name: "diffMark",
   addAttributes() {
@@ -1091,6 +1104,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
     const handleShortcutKeyDown = (event: KeyboardEvent) => {
       if (event.repeat) return;
+      if (isEditableTarget(event.target)) return;
 
       for (const [bindingId, shortcut] of bindingEntries) {
         if (!matchesShortcut(event, shortcut)) continue;

@@ -3,13 +3,19 @@
 //! This module contains the common logic for handling shortcut events,
 //! used by both the Tauri and handy-keys implementations.
 
-use log::warn;
+use log::{debug, warn};
 use tauri::{AppHandle, Manager};
 
 use crate::actions::ACTION_MAP;
 use crate::settings::get_settings;
 use crate::transcription_coordinator::is_transcribe_binding;
 use crate::TranscriptionCoordinator;
+
+fn is_review_window_focused(app: &AppHandle) -> bool {
+    app.get_webview_window("review_window")
+        .and_then(|window| window.is_focused().ok())
+        .unwrap_or(false)
+}
 
 /// Handle a shortcut event from either implementation.
 ///
@@ -34,6 +40,14 @@ pub fn handle_shortcut_event(
 
     // Transcribe bindings are handled by the coordinator.
     if is_transcribe_binding(binding_id) {
+        if hotkey_string != "review-window-local" && is_review_window_focused(app) {
+            debug!(
+                "Ignoring global transcribe shortcut '{}' while review window is focused",
+                binding_id
+            );
+            return;
+        }
+
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
             coordinator.send_input(binding_id, hotkey_string, is_pressed, settings.push_to_talk);
         } else {
