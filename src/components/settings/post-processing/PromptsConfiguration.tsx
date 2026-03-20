@@ -758,7 +758,7 @@ const PromptsConfiguration: React.FC = () => {
                     {viewingPrompt && (
                       <ReferencesPanel
                         skillId={viewingPrompt.id}
-                        isDirectorySkill={viewingPrompt.source !== "builtin"}
+                        isBuiltin={viewingPrompt.source === "builtin"}
                       />
                     )}
                   </Flex>

@@ -328,6 +328,27 @@ pub fn check_skill_id_conflict(
     }
 }
 
+/// Check whether a skill lives in its own directory (supports references).
+/// Single-file skills (e.g. `user/my_skill.md`) return false.
+/// Directory skills (e.g. `user/my_skill/SKILL.md`) return true.
+#[tauri::command]
+#[specta::specta]
+pub fn is_directory_skill(app: AppHandle, skill_id: String) -> bool {
+    let skill_manager = crate::managers::skill::SkillManager::new(&app);
+    let file_path = match skill_manager.find_skill_file_path(&skill_id) {
+        Some(p) => p,
+        None => return false,
+    };
+    // A directory skill has its .md file inside a subdirectory, not directly in user/ or imported/
+    let parent = match file_path.parent() {
+        Some(p) => p,
+        None => return false,
+    };
+    let parent_name = parent.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    // If parent is "user" or "imported", it's a single-file skill
+    parent_name != "user" && parent_name != "imported"
+}
+
 // ---- Reference management commands ----
 
 /// A reference file entry for a skill.

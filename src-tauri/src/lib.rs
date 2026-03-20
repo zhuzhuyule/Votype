@@ -500,6 +500,7 @@ pub fn run() {
             shortcut::skills_cmds::open_skill_source_file,
             shortcut::skills_cmds::ai_generate_skill,
             shortcut::skills_cmds::check_skill_id_conflict,
+            shortcut::skills_cmds::is_directory_skill,
             shortcut::skills_cmds::get_skill_references,
             shortcut::skills_cmds::save_skill_reference,
             shortcut::skills_cmds::delete_skill_reference,

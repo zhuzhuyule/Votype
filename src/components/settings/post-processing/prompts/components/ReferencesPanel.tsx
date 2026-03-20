@@ -39,7 +39,7 @@ interface ReferenceEntry {
 
 interface ReferencesPanelProps {
   skillId: string;
-  isDirectorySkill: boolean;
+  isBuiltin: boolean;
 }
 
 type CreateType = "always" | "category" | "app";
@@ -116,12 +116,13 @@ function getMatchBadge(
 
 export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
   skillId,
-  isDirectorySkill,
+  isBuiltin,
 }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const [references, setReferences] = useState<ReferenceEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isDirectory, setIsDirectory] = useState<boolean | null>(null);
 
   // Edit dialog state
   const [editDialog, setEditDialog] = useState<{
@@ -140,25 +141,33 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const loadReferences = useCallback(async () => {
-    if (!skillId || !isDirectorySkill) return;
+    if (!skillId || isBuiltin) return;
     setLoading(true);
     try {
-      const refs = (await invoke("get_skill_references", {
+      const dirSkill = (await invoke("is_directory_skill", {
         skillId,
-      })) as ReferenceEntry[];
-      setReferences(refs);
+      })) as boolean;
+      setIsDirectory(dirSkill);
+      if (dirSkill) {
+        const refs = (await invoke("get_skill_references", {
+          skillId,
+        })) as ReferenceEntry[];
+        setReferences(refs);
+      } else {
+        setReferences([]);
+      }
     } catch (e) {
       console.warn("Failed to load references:", e);
     } finally {
       setLoading(false);
     }
-  }, [skillId, isDirectorySkill]);
+  }, [skillId, isBuiltin]);
 
   useEffect(() => {
-    if (expanded && isDirectorySkill) {
+    if (!isBuiltin) {
       loadReferences();
     }
-  }, [expanded, skillId, isDirectorySkill, loadReferences]);
+  }, [skillId, isBuiltin, loadReferences]);
 
   const resolveFilename = (): string | null => {
     if (!editDialog.isNew) return editDialog.filename;
@@ -247,7 +256,10 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
     });
   };
 
-  if (!isDirectorySkill) return null;
+  // Hide for builtin skills and single-file skills
+  if (isBuiltin || isDirectory === false) return null;
+  // Still loading the check
+  if (isDirectory === null) return null;
 
   return (
     <Box mt="3">
