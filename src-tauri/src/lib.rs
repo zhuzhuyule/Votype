@@ -173,14 +173,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     let coordinator = transcription_coordinator::TranscriptionCoordinator::new(app_handle.clone());
     app_handle.manage(coordinator);
 
-    // Note: Shortcuts are NOT initialized here on macOS.
-    // The frontend calls the `initialize_shortcuts` command after
-    // accessibility permissions are confirmed, matching the pattern
-    // used for Enigo initialization.
-    #[cfg(not(target_os = "macos"))]
+    // Initialize global shortcuts eagerly so they work even when the main
+    // window has not been shown yet (e.g. start_hidden mode).  Global
+    // shortcuts do NOT require macOS Accessibility permissions — only Enigo
+    // (key simulation for paste) does, and that is initialized separately.
+    // The frontend `initialize_shortcuts` call is idempotent and acts as a
+    // no-op if shortcuts are already registered.
     shortcut::init_shortcuts(app_handle);
-    #[cfg(target_os = "macos")]
-    log::info!("Deferring shortcut initialization to frontend (macOS accessibility)");
+    app_handle.manage(commands::ShortcutsInitialized);
 
     #[cfg(unix)]
     let signals = Signals::new([SIGUSR2]).unwrap();
