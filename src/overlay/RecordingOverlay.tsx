@@ -64,12 +64,16 @@ const WAVEFORM_CENTER_INDEX = Math.floor(WAVEFORM_POINTS / 2);
 const EMPTY_WAVEFORM = Array(WAVEFORM_POINTS).fill(0);
 const WAVEFORM_HISTORY_LENGTH = WAVEFORM_CENTER_INDEX + 4;
 const EMPTY_WAVEFORM_HISTORY = Array(WAVEFORM_HISTORY_LENGTH).fill(0);
-const WAVEFORM_DISPLAY_GAIN = 0.75;
 const WAVEFORM_HEADROOM = 0.68;
 const WAVEFORM_DISTANCE_DECAY = 0.98;
 const WAVEFORM_CENTER_ATTACK = 0.7;
 const WAVEFORM_CENTER_RELEASE = 0.45;
-const WAVEFORM_COMPRESSION = 0.55; // <1 compresses dynamic range (sqrt-like)
+// Adaptive gain: baseline tracks the recent average loudness so the
+// waveform shows *relative* volume changes rather than absolute level.
+const AGC_BASELINE_RISE = 0.012; // baseline rises slowly to match sustained loud speech
+const AGC_BASELINE_FALL = 0.06; // baseline drops faster when speech gets quieter
+const AGC_MIN_BASELINE = 0.06; // floor so silence still reads as silence
+const AGC_HEADROOM_RATIO = 1.6; // how much above baseline counts as "full scale"
 
 const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   initialState,
@@ -109,6 +113,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const waveformRef = useRef<number[]>(EMPTY_WAVEFORM);
   const waveformHistoryRef = useRef<number[]>(EMPTY_WAVEFORM_HISTORY);
   const amplitudeEnvelopeRef = useRef(0);
+  const agcBaselineRef = useRef(AGC_MIN_BASELINE);
   const animatedEllipsis = useAnimatedEllipsis(
     state === "recording" && realtimeText.trim().length > 0 && !realtimeIsFinal,
   );
@@ -124,6 +129,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     waveformRef.current = EMPTY_WAVEFORM;
     waveformHistoryRef.current = EMPTY_WAVEFORM_HISTORY;
     amplitudeEnvelopeRef.current = 0;
+    agcBaselineRef.current = AGC_MIN_BASELINE;
     setLevels(EMPTY_LEVELS.slice(0, 9));
     setWaveform(EMPTY_WAVEFORM);
     setRealtimeText("");
@@ -202,15 +208,27 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         const avgLevel =
           visibleLevels.reduce((sum, value) => sum + value, 0) /
           Math.max(visibleLevels.length, 1);
-        const rawAmplitude = Math.max(
-          0,
-          (maxLevel * 1.02 + avgLevel * 0.82) * WAVEFORM_DISPLAY_GAIN,
+        // Raw amplitude from mic levels
+        const rawAmplitude = Math.max(0, maxLevel * 0.65 + avgLevel * 0.35);
+
+        // Adaptive gain control: track a slow-moving baseline of the
+        // recent loudness so the display shows relative fluctuations.
+        const prevBaseline = agcBaselineRef.current;
+        const baselineRate =
+          rawAmplitude > prevBaseline ? AGC_BASELINE_RISE : AGC_BASELINE_FALL;
+        const nextBaseline = Math.max(
+          AGC_MIN_BASELINE,
+          prevBaseline + (rawAmplitude - prevBaseline) * baselineRate,
         );
-        // Apply compression: pow(<1) boosts quiet sounds, tames loud ones
-        const currentAmplitude = Math.min(
-          WAVEFORM_HEADROOM,
-          Math.pow(rawAmplitude, WAVEFORM_COMPRESSION),
+        agcBaselineRef.current = nextBaseline;
+
+        // Normalize: how far above the baseline is the current amplitude?
+        const ceiling = nextBaseline * AGC_HEADROOM_RATIO;
+        const normalized = Math.min(
+          1,
+          Math.max(0, (rawAmplitude - nextBaseline * 0.3) / ceiling),
         );
+        const currentAmplitude = normalized * WAVEFORM_HEADROOM;
         const previousEnvelope = amplitudeEnvelopeRef.current;
         const nextEnvelope =
           currentAmplitude >= previousEnvelope
@@ -244,7 +262,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         // Log sampled frames to avoid flooding (roughly once per second)
         if (micLevelCount % 50 === 0) {
           invoke("log_to_console", {
-            msg: `[waveform] #${micLevelCount} max=${maxLevel.toFixed(3)} avg=${avgLevel.toFixed(3)} raw=${rawAmplitude.toFixed(3)} amp=${currentAmplitude.toFixed(3)} env=${nextEnvelope.toFixed(3)}`,
+            msg: `[waveform] #${micLevelCount} max=${maxLevel.toFixed(3)} avg=${avgLevel.toFixed(3)} raw=${rawAmplitude.toFixed(3)} base=${nextBaseline.toFixed(3)} norm=${normalized.toFixed(3)} amp=${currentAmplitude.toFixed(3)} env=${nextEnvelope.toFixed(3)}`,
             level: "info",
           });
         }
