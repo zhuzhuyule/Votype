@@ -296,12 +296,34 @@ pub(super) async fn execute_default_polish<'a>(
         Vec::new()
     };
 
+    // Resolve convention-based references
+    let app_category = app_name
+        .as_deref()
+        .map(crate::app_category::from_app_name)
+        .unwrap_or("Other");
+    let resolved_refs = super::reference_resolver::resolve_references(
+        default_prompt.file_path.as_deref(),
+        app_name.as_deref(),
+        app_category,
+    );
+    let refs_content = if resolved_refs.count > 0 {
+        log::info!(
+            "[ParallelPolish] Injecting {} reference(s): {:?}",
+            resolved_refs.count,
+            resolved_refs.matched_files,
+        );
+        Some(resolved_refs.content)
+    } else {
+        None
+    };
+
     // Use PromptBuilder for consistent variable processing
     let built = super::prompt_builder::PromptBuilder::new(default_prompt, transcription)
         .app_name(app_name.as_deref())
         .window_title(window_title.as_deref())
         .history_entries(history_entries)
         .hotword_injection(hotword_injection)
+        .resolved_references(refs_content)
         .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
             settings,
         ))

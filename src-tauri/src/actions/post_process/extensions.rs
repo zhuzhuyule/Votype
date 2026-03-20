@@ -240,6 +240,7 @@ pub async fn multi_post_process_transcription(
             let hotwords = shared_hotword_injection.clone();
             let batch_start_time = batch_start_time;
             let prompts = Arc::clone(&resolved_prompts);
+            let app_name_clone = app_name.clone();
 
             async move {
                 let result = execute_single_model_post_process(
@@ -251,6 +252,7 @@ pub async fn multi_post_process_transcription(
                     history.clone(),
                     hotwords.clone(),
                     &prompts,
+                    app_name_clone.as_deref(),
                 )
                 .await;
 
@@ -466,6 +468,7 @@ async fn execute_single_model_post_process(
     history_entries: Vec<String>,
     hotword_injection: Option<crate::managers::hotword::HotwordInjection>,
     resolved_prompts: &HashMap<String, LLMPrompt>,
+    app_name: Option<&str>,
 ) -> (Option<String>, Option<String>) {
     // Get provider
     let provider = match settings.post_process_provider(&item.provider_id) {
@@ -498,11 +501,27 @@ async fn execute_single_model_post_process(
         .cloned()
         .unwrap_or_default();
 
+    // Resolve convention-based references
+    let app_category = app_name
+        .map(crate::app_category::from_app_name)
+        .unwrap_or("Other");
+    let resolved_refs = super::reference_resolver::resolve_references(
+        prompt.file_path.as_deref(),
+        app_name,
+        app_category,
+    );
+    let refs_content = if resolved_refs.count > 0 {
+        Some(resolved_refs.content)
+    } else {
+        None
+    };
+
     // Use PromptBuilder for unified variable processing
     let built = super::prompt_builder::PromptBuilder::new(prompt, transcription)
         .streaming_transcription(streaming_transcription)
         .history_entries(history_entries)
         .hotword_injection(hotword_injection)
+        .resolved_references(refs_content)
         .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
             settings,
         ))
