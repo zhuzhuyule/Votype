@@ -51,6 +51,74 @@ enum LoadedEngine {
     ZipformerCtc(ZipformerCtcEngine),
 }
 
+fn is_sentence_ending_punctuation(ch: char) -> bool {
+    matches!(ch, '。' | '！' | '？' | '!' | '?' | '.' | '…')
+}
+
+fn is_clause_punctuation(ch: char) -> bool {
+    matches!(ch, '，' | '、' | '；' | '：' | ',' | ';' | ':')
+}
+
+fn is_wrapping_punctuation(ch: char) -> bool {
+    matches!(
+        ch,
+        '"' | '\'' | ')' | ']' | '}' | '）' | '】' | '」' | '』' | '》' | '〉' | '”' | '’'
+    )
+}
+
+fn ends_with_sentence_punctuation(text: &str) -> bool {
+    let trimmed = text.trim_end();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    for ch in trimmed.chars().rev() {
+        if is_wrapping_punctuation(ch) {
+            continue;
+        }
+        return is_sentence_ending_punctuation(ch);
+    }
+
+    false
+}
+
+fn should_skip_auto_punctuation(text: &str) -> bool {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    if ends_with_sentence_punctuation(trimmed) {
+        return true;
+    }
+
+    let mut semantic_chars = 0usize;
+    let mut sentence_endings = 0usize;
+    let mut clause_marks = 0usize;
+
+    for ch in trimmed.chars() {
+        if ch.is_whitespace() || is_wrapping_punctuation(ch) {
+            continue;
+        }
+
+        if is_sentence_ending_punctuation(ch) {
+            sentence_endings += 1;
+        } else if is_clause_punctuation(ch) {
+            clause_marks += 1;
+        } else {
+            semantic_chars += 1;
+        }
+    }
+
+    if sentence_endings >= 2 || (sentence_endings >= 1 && clause_marks >= 1) {
+        return true;
+    }
+
+    // List-like or already segmented short content usually does not benefit from
+    // another punctuation pass and is more likely to be over-processed.
+    clause_marks >= 3 && semantic_chars <= 24
+}
+
 #[derive(Clone)]
 pub struct TranscriptionManager {
     engine: Arc<Mutex<Option<LoadedEngine>>>,
@@ -736,45 +804,55 @@ impl TranscriptionManager {
         // via a toggle — turning it on forces re-punctuation regardless of whether the
         // engine already produced punctuation.
         let final_result = if settings.punctuation_enabled && !filtered_result.trim().is_empty() {
-            let punct_model_id = &settings.punctuation_model;
-            if !punct_model_id.is_empty() {
-                if let Some(model_info) = self.model_manager.get_model_info(punct_model_id) {
-                    if model_info.is_downloaded {
-                        match self.model_manager.get_model_path(punct_model_id) {
-                            Ok(model_dir) => {
-                                let mut punct_guard =
-                                    self.punct_model.lock().unwrap_or_else(|e| e.into_inner());
-                                if punct_guard.is_none() {
-                                    info!(
-                                        "Loading punctuation model '{}' (first use)...",
-                                        punct_model_id
-                                    );
-                                    match transcribe_rs::punct::PunctModel::new(&model_dir) {
-                                        Ok(model) => {
-                                            *punct_guard = Some(model);
+            if should_skip_auto_punctuation(&filtered_result) {
+                debug!(
+                    "Skipping auto-punctuation because transcript already looks punctuated: {}",
+                    filtered_result
+                );
+                filtered_result
+            } else {
+                let punct_model_id = &settings.punctuation_model;
+                if !punct_model_id.is_empty() {
+                    if let Some(model_info) = self.model_manager.get_model_info(punct_model_id) {
+                        if model_info.is_downloaded {
+                            match self.model_manager.get_model_path(punct_model_id) {
+                                Ok(model_dir) => {
+                                    let mut punct_guard =
+                                        self.punct_model.lock().unwrap_or_else(|e| e.into_inner());
+                                    if punct_guard.is_none() {
+                                        info!(
+                                            "Loading punctuation model '{}' (first use)...",
+                                            punct_model_id
+                                        );
+                                        match transcribe_rs::punct::PunctModel::new(&model_dir) {
+                                            Ok(model) => {
+                                                *punct_guard = Some(model);
+                                            }
+                                            Err(e) => {
+                                                warn!("Failed to load punctuation model: {}", e);
+                                            }
                                         }
-                                        Err(e) => {
-                                            warn!("Failed to load punctuation model: {}", e);
+                                    }
+                                    if let Some(ref mut punct) = *punct_guard {
+                                        let punctuated = punct.add_punctuation(&filtered_result);
+                                        if punctuated != filtered_result {
+                                            info!(
+                                                "Auto-punctuation applied: [{}] -> [{}]",
+                                                filtered_result, punctuated
+                                            );
                                         }
+                                        punctuated
+                                    } else {
+                                        filtered_result
                                     }
                                 }
-                                if let Some(ref mut punct) = *punct_guard {
-                                    let punctuated = punct.add_punctuation(&filtered_result);
-                                    if punctuated != filtered_result {
-                                        info!(
-                                            "Auto-punctuation applied: [{}] -> [{}]",
-                                            filtered_result, punctuated
-                                        );
-                                    }
-                                    punctuated
-                                } else {
+                                Err(e) => {
+                                    warn!("Failed to locate punctuation model directory: {}", e);
                                     filtered_result
                                 }
                             }
-                            Err(e) => {
-                                warn!("Failed to locate punctuation model directory: {}", e);
-                                filtered_result
-                            }
+                        } else {
+                            filtered_result
                         }
                     } else {
                         filtered_result
@@ -782,8 +860,6 @@ impl TranscriptionManager {
                 } else {
                     filtered_result
                 }
-            } else {
-                filtered_result
             }
         } else {
             filtered_result
@@ -817,6 +893,9 @@ impl TranscriptionManager {
         let settings = get_settings(&self.app_handle);
         if !settings.punctuation_enabled {
             return None;
+        }
+        if should_skip_auto_punctuation(text) {
+            return Some(text.to_string());
         }
         if let Ok(mut guard) = self.punct_model.try_lock() {
             if let Some(ref mut punct) = *guard {
@@ -954,5 +1033,39 @@ impl Drop for TranscriptionManager {
                 debug!("Idle watcher thread joined successfully");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ends_with_sentence_punctuation, should_skip_auto_punctuation};
+
+    #[test]
+    fn detects_sentence_end_even_with_closing_quotes() {
+        assert!(ends_with_sentence_punctuation("你好。"));
+        assert!(ends_with_sentence_punctuation("你好。\""));
+        assert!(ends_with_sentence_punctuation("你好。）」"));
+    }
+
+    #[test]
+    fn skips_when_text_already_ends_cleanly() {
+        assert!(should_skip_auto_punctuation("今天天气不错。"));
+        assert!(should_skip_auto_punctuation("Hello, world."));
+        assert!(should_skip_auto_punctuation("可以开始了吗？"));
+    }
+
+    #[test]
+    fn skips_when_internal_punctuation_is_already_natural() {
+        assert!(should_skip_auto_punctuation("你好，世界。欢迎使用。"));
+        assert!(should_skip_auto_punctuation(
+            "第一点：买菜；第二点：做饭；第三点：洗碗"
+        ));
+    }
+
+    #[test]
+    fn keeps_unpunctuated_text_eligible_for_model_processing() {
+        assert!(!should_skip_auto_punctuation("今天天气不错我们出去走走"));
+        assert!(!should_skip_auto_punctuation("hello world this is a test"));
+        assert!(!should_skip_auto_punctuation("你好，今天怎么样"));
     }
 }
