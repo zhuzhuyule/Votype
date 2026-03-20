@@ -301,6 +301,30 @@ impl<'a> PromptBuilder<'a> {
         };
         let mut skill_prompt = template.replace("${prompt}", &self.prompt.name);
 
+        // --- Metadata variable substitution ---
+        if skill_prompt.contains("${app_name}") {
+            if let Some(name) = self.app_name {
+                skill_prompt = skill_prompt.replace("${app_name}", name);
+            }
+        }
+        if skill_prompt.contains("${app_category}") {
+            let category = self
+                .app_name
+                .map(crate::app_category::from_app_name)
+                .unwrap_or("Other");
+            skill_prompt = skill_prompt.replace("${app_category}", category);
+        }
+        if skill_prompt.contains("${window_title}") {
+            if let Some(title) = self.window_title {
+                skill_prompt = skill_prompt.replace("${window_title}", title);
+            }
+        }
+        if skill_prompt.contains("${time}") {
+            let now = chrono::Local::now();
+            skill_prompt =
+                skill_prompt.replace("${time}", &now.format("%Y-%m-%d %H:%M:%S").to_string());
+        }
+
         // --- Phase 4: Precompute present fields for dynamic protocol ---
         let mut present_fields = Vec::new();
 

@@ -1,5 +1,6 @@
 mod actions;
 mod active_window;
+mod app_category;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod apple_intelligence;
 mod audio_feedback;

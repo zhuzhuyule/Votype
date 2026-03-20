@@ -18,6 +18,14 @@ confidence_check_enabled: false
 - 如果输入明显是代码或命令，优先延续为代码或命令
 - 不要重复用户已经输入的内容
 
+场景适配（当前应用类别: ${app_category}）：
+
+- CodeEditor/Terminal: 续写代码或命令
+- InstantMessaging: 续写简短、口语化内容
+- Email: 续写正式、完整的段落
+- Notes: 续写结构化笔记内容
+- 其他场景: 根据上下文判断
+
 输出要求：
 
 - 直接输出续写结果，不要解释
