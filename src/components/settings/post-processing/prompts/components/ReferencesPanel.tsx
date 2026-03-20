@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -11,11 +12,17 @@ import {
 import {
   IconChevronDown,
   IconChevronUp,
-  IconFile,
+  IconCode,
+  IconDeviceDesktop,
+  IconMail,
+  IconMessage,
+  IconNote,
   IconPencil,
   IconPlus,
   IconStar,
+  IconTerminal,
   IconTrash,
+  IconWorld,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useState } from "react";
@@ -34,32 +41,51 @@ interface ReferencesPanelProps {
   isDirectorySkill: boolean;
 }
 
-const APP_CATEGORIES = [
-  "CodeEditor",
-  "Terminal",
-  "InstantMessaging",
-  "Email",
-  "Notes",
-  "Browser",
-  "Other",
-];
-
-const CATEGORY_ICONS: Record<string, string> = {
-  _always: "\u2605", // star
-  CodeEditor: "\uD83D\uDCBB", // laptop
-  Terminal: ">_",
-  InstantMessaging: "\uD83D\uDCAC", // speech bubble
-  Email: "\u2709", // envelope
-  Notes: "\uD83D\uDCDD", // memo
-  Browser: "\uD83C\uDF10", // globe
-  Other: "\uD83D\uDCC4", // page
+const MATCH_TYPE_CONFIG: Record<
+  string,
+  { label: string; color: "amber" | "blue" | "violet" }
+> = {
+  always: { label: "Always", color: "amber" },
+  app_category: { label: "Category", color: "violet" },
+  app_name: { label: "App", color: "blue" },
 };
+
+function getIcon(entry: ReferenceEntry) {
+  const name = entry.name.toLowerCase();
+  const size = 14;
+  if (entry.match_type === "always")
+    return <IconStar size={size} style={{ color: "var(--amber-9)" }} />;
+  if (name === "codeeditor")
+    return <IconCode size={size} style={{ color: "var(--blue-9)" }} />;
+  if (name === "terminal")
+    return <IconTerminal size={size} style={{ color: "var(--gray-10)" }} />;
+  if (name === "instantmessaging")
+    return <IconMessage size={size} style={{ color: "var(--green-9)" }} />;
+  if (name === "email")
+    return <IconMail size={size} style={{ color: "var(--orange-9)" }} />;
+  if (name === "notes")
+    return <IconNote size={size} style={{ color: "var(--yellow-9)" }} />;
+  if (name === "browser")
+    return <IconWorld size={size} style={{ color: "var(--cyan-9)" }} />;
+  return <IconDeviceDesktop size={size} style={{ color: "var(--gray-9)" }} />;
+}
+
+function getContentPreview(content: string): string {
+  // Strip markdown headers and get first meaningful line
+  const lines = content
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#") && !l.startsWith("---"));
+  const first = lines[0] || "";
+  // Strip leading "- " for list items
+  const cleaned = first.replace(/^[-*]\s*/, "");
+  return cleaned.length > 70 ? cleaned.slice(0, 70) + "..." : cleaned;
+}
 
 function getMatchLabel(entry: ReferenceEntry): string {
   if (entry.match_type === "always") return "Always Injected";
-  if (entry.match_type === "app_category")
-    return `app_category = ${entry.name}`;
-  return `app_name = ${entry.name}`;
+  if (entry.match_type === "app_category") return entry.name;
+  return entry.name;
 }
 
 export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
@@ -164,17 +190,11 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
             "Scene References",
           )}
         </Text>
-        <Text
-          size="1"
-          style={{
-            color: "var(--gray-9)",
-            background: "var(--gray-3)",
-            padding: "0 6px",
-            borderRadius: 10,
-          }}
-        >
-          {references.length}
-        </Text>
+        {references.length > 0 && (
+          <Badge size="1" variant="soft" color="gray">
+            {references.length}
+          </Badge>
+        )}
         {expanded && (
           <Button
             size="1"
@@ -198,7 +218,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
       </Flex>
 
       {expanded && (
-        <Flex direction="column" gap="1" mt="2">
+        <Flex direction="column" gap="1" mt="1">
           {loading && (
             <Text size="1" style={{ color: "var(--gray-9)", padding: "8px 0" }}>
               Loading...
@@ -218,7 +238,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
               <Text size="1" style={{ color: "var(--gray-9)" }}>
                 {t(
                   "settings.postProcessing.prompts.references.empty",
-                  "No scene references yet",
+                  "No scene references yet. Add references to adapt this skill's behavior per app.",
                 )}
               </Text>
               <Button
@@ -242,70 +262,124 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
               </Button>
             </Flex>
           )}
-          {references.map((ref) => (
-            <Flex
-              key={ref.filename}
-              align="center"
-              gap="2"
-              style={{
-                padding: "8px 12px",
-                background: "var(--gray-2)",
-                borderRadius: 8,
-                border: "1px solid var(--gray-4)",
-              }}
-            >
-              <Text size="2" style={{ width: 24, textAlign: "center" }}>
-                {ref.match_type === "always" ? (
-                  <IconStar size={14} style={{ color: "var(--amber-9)" }} />
-                ) : (
-                  <IconFile size={14} style={{ color: "var(--gray-9)" }} />
-                )}
-              </Text>
-              <Flex direction="column" style={{ flex: 1, minWidth: 0 }}>
-                <Text size="2" weight="medium">
-                  {ref.filename}
-                </Text>
-                <Text
-                  size="1"
+          {references.map((ref) => {
+            const config =
+              MATCH_TYPE_CONFIG[ref.match_type] || MATCH_TYPE_CONFIG.app_name;
+            const preview = getContentPreview(ref.content);
+            return (
+              <Flex
+                key={ref.filename}
+                align="start"
+                gap="2"
+                className="ref-item"
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "var(--gray-3)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
+                onClick={() =>
+                  setEditDialog({
+                    open: true,
+                    filename: ref.filename,
+                    content: ref.content,
+                    isNew: false,
+                    newName: "",
+                  })
+                }
+              >
+                <Flex
+                  align="center"
+                  justify="center"
                   style={{
-                    color: "var(--gray-9)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    width: 28,
+                    height: 28,
+                    borderRadius: 6,
+                    background: "var(--gray-3)",
+                    flexShrink: 0,
+                    marginTop: 1,
                   }}
                 >
-                  {getMatchLabel(ref)}
-                </Text>
-              </Flex>
-              <Flex gap="1" style={{ flexShrink: 0 }}>
-                <IconButton
-                  size="1"
-                  variant="ghost"
-                  onClick={() =>
-                    setEditDialog({
-                      open: true,
-                      filename: ref.filename,
-                      content: ref.content,
-                      isNew: false,
-                      newName: "",
-                    })
-                  }
+                  {getIcon(ref)}
+                </Flex>
+                <Flex
+                  direction="column"
+                  gap="1"
+                  style={{ flex: 1, minWidth: 0 }}
                 >
-                  <IconPencil size={14} />
-                </IconButton>
-                <IconButton
-                  size="1"
-                  variant="ghost"
-                  color="red"
-                  onClick={() => setDeleteTarget(ref.filename)}
+                  <Flex align="center" gap="2">
+                    <Text size="2" weight="medium">
+                      {ref.name}
+                    </Text>
+                    <Badge size="1" variant="soft" color={config.color}>
+                      {getMatchLabel(ref)}
+                    </Badge>
+                  </Flex>
+                  {preview && (
+                    <Text
+                      size="1"
+                      style={{
+                        color: "var(--gray-9)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {preview}
+                    </Text>
+                  )}
+                </Flex>
+                <Flex
+                  gap="1"
+                  className="ref-actions"
+                  style={{
+                    flexShrink: 0,
+                    opacity: 0,
+                    transition: "opacity 0.1s",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <IconTrash size={14} />
-                </IconButton>
+                  <IconButton
+                    size="1"
+                    variant="ghost"
+                    onClick={() =>
+                      setEditDialog({
+                        open: true,
+                        filename: ref.filename,
+                        content: ref.content,
+                        isNew: false,
+                        newName: "",
+                      })
+                    }
+                  >
+                    <IconPencil size={13} />
+                  </IconButton>
+                  <IconButton
+                    size="1"
+                    variant="ghost"
+                    color="red"
+                    onClick={() => setDeleteTarget(ref.filename)}
+                  >
+                    <IconTrash size={13} />
+                  </IconButton>
+                </Flex>
               </Flex>
-            </Flex>
-          ))}
+            );
+          })}
         </Flex>
       )}
+
+      {/* Hover styles for action buttons */}
+      <style>{`
+        .ref-item:hover .ref-actions { opacity: 1 !important; }
+      `}</style>
 
       {/* Edit / Create Dialog */}
       <Dialog.Root
@@ -322,7 +396,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
               : t(
                   "settings.postProcessing.prompts.references.editTitle",
                   "Edit Reference",
-                )}
+                ) + ` — ${editDialog.filename.replace(".md", "")}`}
           </Dialog.Title>
           <Flex direction="column" gap="3" mt="3">
             {editDialog.isNew && (
@@ -330,7 +404,7 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
                 <Text size="2" weight="medium">
                   {t(
                     "settings.postProcessing.prompts.references.filename",
-                    "Filename",
+                    "Name",
                   )}
                 </Text>
                 <Flex align="center" gap="2">
@@ -339,36 +413,35 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
                     placeholder="_always, CodeEditor, Slack..."
                     value={editDialog.newName}
                     onChange={(e) =>
-                      setEditDialog({ ...editDialog, newName: e.target.value })
+                      setEditDialog({
+                        ...editDialog,
+                        newName: e.target.value,
+                      })
                     }
                   />
-                  <Text size="2" style={{ color: "var(--gray-9)" }}>
+                  <Text
+                    size="2"
+                    style={{ color: "var(--gray-9)", flexShrink: 0 }}
+                  >
                     .md
                   </Text>
                 </Flex>
                 <Text size="1" style={{ color: "var(--gray-9)" }}>
                   {t(
                     "settings.postProcessing.prompts.references.filenameHint",
-                    "Use _always for always-on, app name (e.g. Slack) or category (e.g. CodeEditor) for context matching",
+                    "_always = always active, app name (Slack, Obsidian) or category (CodeEditor, Email) for context matching",
                   )}
                 </Text>
               </Flex>
             )}
-            {!editDialog.isNew && (
-              <Text size="2" style={{ color: "var(--gray-11)" }}>
-                {editDialog.filename} —{" "}
-                {getMatchLabel({
-                  name: editDialog.filename.replace(".md", ""),
-                  filename: editDialog.filename,
-                  content: "",
-                  match_type: editDialog.filename.startsWith("_always")
-                    ? "always"
-                    : "app_name",
-                })}
-              </Text>
-            )}
             <TextArea
-              style={{ minHeight: 200, fontFamily: "monospace", fontSize: 13 }}
+              style={{
+                minHeight: 240,
+                fontFamily:
+                  "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace",
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
               placeholder={t(
                 "settings.postProcessing.prompts.references.contentPlaceholder",
                 "Enter scene-specific rules...\n\nExample:\n## Instant messaging rules\n- Keep conversational tone\n- Only fix obvious errors",
@@ -405,8 +478,8 @@ export const ReferencesPanel: React.FC<ReferencesPanelProps> = ({
           <Dialog.Description size="2" mb="4">
             {t(
               "settings.postProcessing.prompts.references.deleteConfirm",
-              "Are you sure you want to delete {{filename}}?",
-              { filename: deleteTarget },
+              'Are you sure you want to delete "{{filename}}"?',
+              { filename: deleteTarget?.replace(".md", "") },
             )}
           </Dialog.Description>
           <Flex gap="3" justify="end">
