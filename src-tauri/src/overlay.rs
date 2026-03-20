@@ -348,6 +348,21 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
 }
 
 pub fn emit_levels(app_handle: &AppHandle, levels: &Vec<f32>) {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static EMIT_COUNT: AtomicU64 = AtomicU64::new(0);
+    let count = EMIT_COUNT.fetch_add(1, Ordering::Relaxed);
+    // Log every ~2 seconds (assuming ~30 emits/sec)
+    if count % 60 == 0 {
+        let max = levels.iter().cloned().fold(0.0f32, f32::max);
+        let has_overlay = app_handle.get_webview_window("recording_overlay").is_some();
+        log::debug!(
+            "[waveform-emit] #{} max_level={:.3} has_overlay={}",
+            count,
+            max,
+            has_overlay,
+        );
+    }
+
     // emit levels to main app
     let _ = app_handle.emit("mic-level", levels);
 
