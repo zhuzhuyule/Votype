@@ -205,8 +205,9 @@ impl ShortcutAction for TranscribeAction {
         // has a local model path that can produce partial text.
         // - Local ASR: always enable realtime preview
         // - Online ASR: enable only when a secondary local candidate is configured
-        let enable_realtime = !settings_for_load.online_asr_enabled
-            || settings_for_load.post_process_use_secondary_output;
+        let enable_realtime = settings_for_load.realtime_transcription_enabled
+            && (!settings_for_load.online_asr_enabled
+                || settings_for_load.post_process_use_secondary_output);
 
         if !settings_for_load.online_asr_enabled || enable_realtime {
             let tm = app.state::<Arc<TranscriptionManager>>();
@@ -253,14 +254,6 @@ impl ShortcutAction for TranscribeAction {
             String::new()
         };
 
-        // When audio feedback is enabled, the "ding" sound can be picked up by
-        // the microphone and mis-recognised by ASR.  We tell the recorder to
-        // silently discard the first ~500 ms of frames so the feedback sound
-        // is never fed to VAD / transcription.  The sound itself is played in
-        // a background thread so we don't block the coordinator (which would
-        // break push-to-talk release handling).
-        let skip_frames: usize = if settings.audio_feedback { 17 } else { 0 }; // ~500 ms at 30 ms/frame
-
         let mut recording_started = false;
         if is_always_on {
             let rm_clone = Arc::clone(&rm);
@@ -270,18 +263,16 @@ impl ShortcutAction for TranscribeAction {
                 rm_clone.apply_mute();
             });
 
-            recording_started = rm.try_start_recording(&binding_id, skip_frames);
+            recording_started = rm.try_start_recording(&binding_id, 0);
             debug!("Recording started: {}", recording_started);
         } else {
             let recording_start_time = Instant::now();
-            if rm.try_start_recording(&binding_id, skip_frames) {
+            if rm.try_start_recording(&binding_id, 0) {
                 recording_started = true;
                 debug!("Recording started in {:?}", recording_start_time.elapsed());
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
                 std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
                     play_feedback_sound_blocking(&app_clone, SoundType::Start);
                     rm_clone.apply_mute();
                 });
@@ -1357,6 +1348,10 @@ impl ShortcutAction for TranscribeAction {
                                     } else if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
                                         false
                                     }
+                                    // Skill mode always shows review window (user explicitly invoked a skill)
+                                    else if skill_mode {
+                                        true
+                                    }
                                     // Chat mode always shows review window
                                     else if output_mode == crate::settings::PromptOutputMode::Chat {
                                         true
@@ -1426,6 +1421,12 @@ impl ShortcutAction for TranscribeAction {
                                     }
 
                                     // Show the review window with the transcription
+                                    let skill_name_for_review =
+                                        if skill_mode && !post_process_prompt_name.is_empty() {
+                                            Some(post_process_prompt_name.clone())
+                                        } else {
+                                            None
+                                        };
                                     crate::review_window::show_review_window(
                                         &ah_clone,
                                         transcription_clone.clone(),
@@ -1434,7 +1435,7 @@ impl ShortcutAction for TranscribeAction {
                                         history_id,
                                         confidence_reason.clone(),
                                         output_mode,
-                                        None, // No skill_name for confidence review
+                                        skill_name_for_review,
                                         post_process_prompt_id
                                             .clone()
                                             .or(override_prompt_id.clone()),

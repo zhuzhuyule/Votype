@@ -64,11 +64,12 @@ const WAVEFORM_CENTER_INDEX = Math.floor(WAVEFORM_POINTS / 2);
 const EMPTY_WAVEFORM = Array(WAVEFORM_POINTS).fill(0);
 const WAVEFORM_HISTORY_LENGTH = WAVEFORM_CENTER_INDEX + 4;
 const EMPTY_WAVEFORM_HISTORY = Array(WAVEFORM_HISTORY_LENGTH).fill(0);
-const WAVEFORM_DISPLAY_GAIN = 0.82;
+const WAVEFORM_DISPLAY_GAIN = 0.75;
 const WAVEFORM_HEADROOM = 0.68;
 const WAVEFORM_DISTANCE_DECAY = 0.98;
-const WAVEFORM_CENTER_ATTACK = 0.9;
-const WAVEFORM_CENTER_RELEASE = 0.24;
+const WAVEFORM_CENTER_ATTACK = 0.7;
+const WAVEFORM_CENTER_RELEASE = 0.45;
+const WAVEFORM_COMPRESSION = 0.55; // <1 compresses dynamic range (sqrt-like)
 
 const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   initialState,
@@ -183,9 +184,12 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       }
       unlisteners.push(unlistenError);
 
-      // Listen for mic-level updates
+      // Listen for mic-level updates — log every frame to terminal
+      let micLevelCount = 0;
       const unlistenLevel = await listen<number[]>("mic-level", (event) => {
         const newLevels = event.payload as number[];
+        micLevelCount++;
+
         const smoothed = smoothedLevelsRef.current.map((prev, i) => {
           const target = newLevels[i] || 0;
           return prev * 0.7 + target * 0.3;
@@ -198,12 +202,14 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         const avgLevel =
           visibleLevels.reduce((sum, value) => sum + value, 0) /
           Math.max(visibleLevels.length, 1);
+        const rawAmplitude = Math.max(
+          0,
+          (maxLevel * 1.02 + avgLevel * 0.82) * WAVEFORM_DISPLAY_GAIN,
+        );
+        // Apply compression: pow(<1) boosts quiet sounds, tames loud ones
         const currentAmplitude = Math.min(
           WAVEFORM_HEADROOM,
-          Math.max(
-            0,
-            (maxLevel * 1.02 + avgLevel * 0.82) * WAVEFORM_DISPLAY_GAIN,
-          ),
+          Math.pow(rawAmplitude, WAVEFORM_COMPRESSION),
         );
         const previousEnvelope = amplitudeEnvelopeRef.current;
         const nextEnvelope =
@@ -212,6 +218,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               currentAmplitude * WAVEFORM_CENTER_ATTACK
             : previousEnvelope * (1 - WAVEFORM_CENTER_RELEASE) +
               currentAmplitude * WAVEFORM_CENTER_RELEASE;
+
         const nextHistory = [nextEnvelope, ...waveformHistoryRef.current].slice(
           0,
           WAVEFORM_HISTORY_LENGTH,
@@ -232,6 +239,14 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             0.76,
             propagated * (1 + centerWeight * 0.18),
           );
+        }
+
+        // Log sampled frames to avoid flooding (roughly once per second)
+        if (micLevelCount % 50 === 0) {
+          invoke("log_to_console", {
+            msg: `[waveform] #${micLevelCount} max=${maxLevel.toFixed(3)} avg=${avgLevel.toFixed(3)} raw=${rawAmplitude.toFixed(3)} amp=${currentAmplitude.toFixed(3)} env=${nextEnvelope.toFixed(3)}`,
+            level: "info",
+          });
         }
 
         smoothedLevelsRef.current = smoothed;
