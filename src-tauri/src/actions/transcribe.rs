@@ -1342,8 +1342,17 @@ impl ShortcutAction for TranscribeAction {
                                 };
 
                                 let should_review =
-                                    // If post-processing was skipped, never show review window
-                                    if post_process_failed {
+                                    // App policy "Always" takes highest priority — show review
+                                    // regardless of post-processing result or errors.
+                                    if app_policy == crate::settings::AppReviewPolicy::Always {
+                                        true
+                                    }
+                                    // App policy "Never" — never show review
+                                    else if app_policy == crate::settings::AppReviewPolicy::Never {
+                                        false
+                                    }
+                                    // If post-processing failed completely, skip review
+                                    else if post_process_failed {
                                         false
                                     } else if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
                                         false
@@ -1356,38 +1365,28 @@ impl ShortcutAction for TranscribeAction {
                                     else if output_mode == crate::settings::PromptOutputMode::Chat {
                                         true
                                     } else {
-                                        match app_policy {
-                                            crate::settings::AppReviewPolicy::Always => true,
-                                            crate::settings::AppReviewPolicy::Never => false,
-                                            crate::settings::AppReviewPolicy::Auto => {
-                                                // Gate Auto policy with PROMPT-level setting
-                                                // Find the prompt object used
-                                                let (check_enabled, threshold) =
-                                                    if let Some(pid) = &post_process_prompt_id {
-                                                        settings_clone
-                                                            .post_process_prompts
-                                                            .iter()
-                                                            .find(|p| &p.id == pid)
-                                                            .map(|p| {
-                                                                (
-                                                                    p.confidence_check_enabled,
-                                                                    p.confidence_threshold.unwrap_or(70),
-                                                                )
-                                                            })
-                                                            .unwrap_or((false, 70))
-                                                    } else {
-                                                        (false, 70)
-                                                    };
+                                        // Auto policy: gate with prompt-level confidence check
+                                        let (check_enabled, threshold) =
+                                            if let Some(pid) = &post_process_prompt_id {
+                                                settings_clone
+                                                    .post_process_prompts
+                                                    .iter()
+                                                    .find(|p| &p.id == pid)
+                                                    .map(|p| {
+                                                        (
+                                                            p.confidence_check_enabled,
+                                                            p.confidence_threshold.unwrap_or(70),
+                                                        )
+                                                    })
+                                                    .unwrap_or((false, 70))
+                                            } else {
+                                                (false, 70)
+                                            };
 
-                                                if !check_enabled {
-                                                    false
-                                                } else {
-                                                    // Only use deterministic local change_percent for auto review.
-                                                    // Confidence / hotword analysis is reserved for explicit
-                                                    // user edits in the review window.
-                                                    change_percent >= threshold
-                                                }
-                                            }
+                                        if !check_enabled {
+                                            false
+                                        } else {
+                                            change_percent >= threshold
                                         }
                                     };
 
@@ -1522,23 +1521,107 @@ impl ShortcutAction for TranscribeAction {
                         // alive (keeping Esc registered) during post-processing.
                         let _ = task.await;
                     } else {
-                        let ah_clone = ah.clone();
-                        ah.run_on_main_thread(move || {
+                        // Post-processing is disabled — check if app policy still
+                        // requires showing the review window before pasting.
+                        let (app_policy, resolved_prompt_id) = active_window_snapshot
+                            .as_ref()
+                            .and_then(|info| {
+                                let profile_id = settings
+                                    .app_to_profile
+                                    .iter()
+                                    .find(|(k, _)| k.eq_ignore_ascii_case(&info.app_name))
+                                    .map(|(_, v)| v);
+                                let profile = profile_id.and_then(|pid| {
+                                    settings.app_profiles.iter().find(|p| &p.id == pid)
+                                });
+                                profile.map(|p| {
+                                    // Check title rules for a more specific policy
+                                    let matched_rule = p
+                                        .rules
+                                        .iter()
+                                        .filter(|r| match r.match_type {
+                                            crate::settings::TitleMatchType::Text => info
+                                                .title
+                                                .to_lowercase()
+                                                .contains(&r.pattern.to_lowercase()),
+                                            crate::settings::TitleMatchType::Regex => {
+                                                regex::Regex::new(&r.pattern)
+                                                    .map(|re| re.is_match(&info.title))
+                                                    .unwrap_or(false)
+                                            }
+                                        })
+                                        .max_by_key(|r| r.pattern.chars().count());
+                                    let policy = matched_rule.map(|r| r.policy).unwrap_or(p.policy);
+                                    let prompt_id = matched_rule
+                                        .and_then(|r| r.prompt_id.clone())
+                                        .or_else(|| p.prompt_id.clone());
+                                    (policy, prompt_id)
+                                })
+                            })
+                            .unwrap_or((crate::settings::AppReviewPolicy::Auto, None));
+
+                        if app_policy == crate::settings::AppReviewPolicy::Always {
+                            // Resolve output_mode from the prompt configured for this app,
+                            // falling back to the global selected prompt.
+                            let effective_prompt_id = resolved_prompt_id
+                                .or_else(|| settings.post_process_selected_prompt_id.clone());
+                            let output_mode = effective_prompt_id
+                                .as_ref()
+                                .and_then(|pid| {
+                                    settings
+                                        .post_process_prompts
+                                        .iter()
+                                        .find(|p| &p.id == pid)
+                                        .map(|p| p.output_mode)
+                                })
+                                .unwrap_or(crate::settings::SkillOutputMode::Polish);
+
+                            info!(
+                                "[Transcribe] App policy is Always (no post-processing), showing review window (output_mode={:?})",
+                                output_mode
+                            );
+                            crate::review_window::set_last_active_window(
+                                active_window_snapshot.clone(),
+                            );
+                            let ah_clone = ah.clone();
+                            crate::review_window::show_review_window(
+                                &ah_clone,
+                                transcription_clone.clone(),
+                                transcription_clone.clone(),
+                                0,
+                                history_id,
+                                None,
+                                output_mode,
+                                None,
+                                effective_prompt_id,
+                                None,
+                            );
                             utils::hide_recording_overlay(&ah_clone);
                             change_tray_icon(&ah_clone, TrayIconState::Idle);
-
-                            // Notify coordinator that processing is finished
                             if let Some(coordinator) = ah_clone
                                 .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
                             {
                                 coordinator.notify_processing_finished();
                             }
+                        } else {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
 
-                            if let Err(e) = utils::paste(transcription_clone, ah_clone) {
-                                error!("Failed to paste transcription: {}", e);
-                            }
-                        })
-                        .unwrap_or_else(|e| error!("Failed to run paste on main thread: {:?}", e));
+                                // Notify coordinator that processing is finished
+                                if let Some(coordinator) = ah_clone
+                                    .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                                {
+                                    coordinator.notify_processing_finished();
+                                }
+
+                                if let Err(e) = utils::paste(transcription_clone, ah_clone) {
+                                    error!("Failed to paste transcription: {}", e);
+                                }
+                            })
+                            .unwrap_or_else(|e| error!("Failed to run paste on main thread: {:?}", e));
+                        }
                     }
                 } else {
                     let err_msg = primary_error.unwrap_or_else(|| "unknown".to_string());
