@@ -954,12 +954,44 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         }
     }
 
+    // Collect user-customized builtin skill IDs before removing
+    let customized_ids: std::collections::HashSet<String> = settings
+        .post_process_prompts
+        .iter()
+        .filter(|p| p.source == SkillSource::Builtin && p.customized)
+        .map(|p| p.id.clone())
+        .collect();
+
     let original_len = settings.post_process_prompts.len();
     settings
         .post_process_prompts
         .retain(|prompt| prompt.source != SkillSource::Builtin);
     if settings.post_process_prompts.len() != original_len {
         changed = true;
+    }
+
+    // Re-insert latest builtin skills (skip user-customized ones)
+    let builtin_contents: &[&str] = &[
+        include_str!("../resources/skills/builtin/default_correction.skill.md"),
+        include_str!("../resources/skills/builtin/ai_chat.skill.md"),
+        include_str!("../resources/skills/builtin/translation.skill.md"),
+        include_str!("../resources/skills/builtin/summarize.skill.md"),
+        include_str!("../resources/skills/builtin/memo.skill.md"),
+        include_str!("../resources/skills/builtin/code_generate.skill.md"),
+        include_str!("../resources/skills/builtin/code_explain.skill.md"),
+        include_str!("../resources/skills/builtin/style_reply.skill.md"),
+        include_str!("../resources/skills/builtin/reply_suggestion.skill.md"),
+        include_str!("../resources/skills/builtin/votype_command.skill.md"),
+        include_str!("../resources/skills/builtin/grammar_fix.skill.md"),
+        include_str!("../resources/skills/builtin/smart_compose.skill.md"),
+    ];
+    for content in builtin_contents {
+        if let Some(skill) = crate::managers::skill::parse_builtin_skill_content(content) {
+            if !customized_ids.contains(&skill.id) {
+                settings.post_process_prompts.insert(0, skill);
+                changed = true;
+            }
+        }
     }
 
     if !settings.builtin_prompt_resource_hashes.is_empty() {
