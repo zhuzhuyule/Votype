@@ -46,24 +46,29 @@ export function useExternalSkills() {
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
       const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtinSkills);
 
-      const combined: LLMPrompt[] = [];
-      // Builtin skills first
-      if (parsedBuiltin.success) {
-        combined.push(...parsedBuiltin.data);
-      }
-      // Then user/imported skills (may override builtin with same ID)
-      if (parsedUser.success) {
-        for (const skill of parsedUser.data) {
-          const existingIdx = combined.findIndex((s) => s.id === skill.id);
-          if (existingIdx >= 0) {
-            combined[existingIdx] = skill; // External overrides builtin
-          } else {
-            combined.push(skill);
-          }
-        }
-      } else {
+      // Merge: user skills first (take priority), then fill in builtins
+      // that don't have a user equivalent (by ID or by name).
+      const userList = parsedUser.success ? parsedUser.data : [];
+      const builtinList = parsedBuiltin.success ? parsedBuiltin.data : [];
+
+      if (!parsedUser.success) {
         console.error("Failed to parse user skills:", parsedUser.error);
         setError("Failed to parse user skills");
+      }
+
+      const combined: LLMPrompt[] = [...userList];
+      const usedIds = new Set(userList.map((s) => s.id));
+      const usedNames = new Set(
+        userList.map((s) => s.name.trim().toLowerCase()),
+      );
+
+      for (const builtin of builtinList) {
+        // Skip if user already has a skill with the same ID or same name
+        if (usedIds.has(builtin.id)) continue;
+        if (usedNames.has(builtin.name.trim().toLowerCase())) continue;
+        combined.push(builtin);
+        usedIds.add(builtin.id);
+        usedNames.add(builtin.name.trim().toLowerCase());
       }
 
       setExternalSkills(combined);
@@ -91,19 +96,17 @@ export function useExternalSkills() {
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
       const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtinSkills);
 
-      const combined: LLMPrompt[] = [];
-      if (parsedBuiltin.success) {
-        combined.push(...parsedBuiltin.data);
-      }
-      if (parsedUser.success) {
-        for (const skill of parsedUser.data) {
-          const existingIdx = combined.findIndex((s) => s.id === skill.id);
-          if (existingIdx >= 0) {
-            combined[existingIdx] = skill;
-          } else {
-            combined.push(skill);
-          }
-        }
+      const userList = parsedUser.success ? parsedUser.data : [];
+      const builtinList = parsedBuiltin.success ? parsedBuiltin.data : [];
+      const combined: LLMPrompt[] = [...userList];
+      const usedIds = new Set(userList.map((s) => s.id));
+      const usedNames = new Set(
+        userList.map((s) => s.name.trim().toLowerCase()),
+      );
+      for (const builtin of builtinList) {
+        if (usedIds.has(builtin.id)) continue;
+        if (usedNames.has(builtin.name.trim().toLowerCase())) continue;
+        combined.push(builtin);
       }
       setExternalSkills(combined);
       if (Array.isArray(savedOrder)) {
