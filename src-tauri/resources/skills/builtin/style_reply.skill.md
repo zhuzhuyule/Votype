@@ -1,7 +1,7 @@
 ---
 id: "style_reply"
 name: "风格回复"
-description: "结合用户风格画像,生成更像本人语气的回复"
+description: "结合用户风格画像，生成更像本人语气的回复。当用户说"用我的风格回复""帮我回"时触发。"
 output_mode: chat
 icon: "IconMessageReply"
 locked: false
