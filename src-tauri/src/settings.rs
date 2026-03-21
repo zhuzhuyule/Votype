@@ -985,14 +985,35 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         include_str!("../resources/skills/builtin/grammar_fix.skill.md"),
         include_str!("../resources/skills/builtin/smart_compose.skill.md"),
     ];
+    let mut inserted_count = 0;
     for content in builtin_contents {
         if let Some(skill) = crate::managers::skill::parse_builtin_skill_content(content) {
-            if !customized_ids.contains(&skill.id) {
+            if customized_ids.contains(&skill.id) {
+                log::debug!(
+                    "[BuiltinSync] Skipping customized builtin skill: {} ({})",
+                    skill.name,
+                    skill.id
+                );
+            } else {
+                log::info!(
+                    "[BuiltinSync] Inserting builtin skill: {} ({})",
+                    skill.name,
+                    skill.id
+                );
                 settings.post_process_prompts.insert(0, skill);
+                inserted_count += 1;
                 changed = true;
             }
+        } else {
+            log::warn!("[BuiltinSync] Failed to parse a builtin skill content");
         }
     }
+    log::info!(
+        "[BuiltinSync] Inserted {} builtin skills, {} customized skipped, total prompts: {}",
+        inserted_count,
+        customized_ids.len(),
+        settings.post_process_prompts.len()
+    );
 
     if !settings.builtin_prompt_resource_hashes.is_empty() {
         settings.builtin_prompt_resource_hashes.clear();

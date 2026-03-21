@@ -37,19 +37,36 @@ export function useExternalSkills() {
     setIsLoading(true);
     setError(null);
     try {
-      const [userSkills, savedOrder] = await Promise.all([
+      const [userSkills, builtinSkills, savedOrder] = await Promise.all([
         invoke("get_all_skills"),
+        invoke("get_builtin_skills"),
         invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
+      const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtinSkills);
 
+      const combined: LLMPrompt[] = [];
+      // Builtin skills first
+      if (parsedBuiltin.success) {
+        combined.push(...parsedBuiltin.data);
+      }
+      // Then user/imported skills (may override builtin with same ID)
       if (parsedUser.success) {
-        setExternalSkills(parsedUser.data);
+        for (const skill of parsedUser.data) {
+          const existingIdx = combined.findIndex((s) => s.id === skill.id);
+          if (existingIdx >= 0) {
+            combined[existingIdx] = skill; // External overrides builtin
+          } else {
+            combined.push(skill);
+          }
+        }
       } else {
         console.error("Failed to parse user skills:", parsedUser.error);
         setError("Failed to parse user skills");
       }
+
+      setExternalSkills(combined);
 
       if (Array.isArray(savedOrder)) {
         setSkillOrder(savedOrder);
@@ -65,16 +82,30 @@ export function useExternalSkills() {
   const refreshExternalSkills = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [userSkills, savedOrder] = await Promise.all([
+      const [userSkills, builtinSkills, savedOrder] = await Promise.all([
         invoke("get_all_skills"),
+        invoke("get_builtin_skills"),
         invoke<string[]>("get_skills_order"),
       ]);
 
       const parsedUser = ExternalSkillsArraySchema.safeParse(userSkills);
+      const parsedBuiltin = ExternalSkillsArraySchema.safeParse(builtinSkills);
 
-      if (parsedUser.success) {
-        setExternalSkills(parsedUser.data);
+      const combined: LLMPrompt[] = [];
+      if (parsedBuiltin.success) {
+        combined.push(...parsedBuiltin.data);
       }
+      if (parsedUser.success) {
+        for (const skill of parsedUser.data) {
+          const existingIdx = combined.findIndex((s) => s.id === skill.id);
+          if (existingIdx >= 0) {
+            combined[existingIdx] = skill;
+          } else {
+            combined.push(skill);
+          }
+        }
+      }
+      setExternalSkills(combined);
       if (Array.isArray(savedOrder)) {
         setSkillOrder(savedOrder);
       }
