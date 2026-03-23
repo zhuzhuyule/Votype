@@ -83,21 +83,46 @@ pub fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
 }
 
 #[tauri::command]
-pub fn set_selected_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
+pub fn set_selected_microphone(
+    app: AppHandle,
+    device_name: String,
+) -> Result<SetMicrophoneResult, String> {
+    let mic_key = device_name.clone();
     let mut settings = get_settings(&app);
     settings.selected_microphone = if device_name == "default" {
         None
     } else {
         Some(device_name)
     };
+
+    // Look up per-mic enhance preference; fall back to app default (true)
+    // when this microphone has never been configured.
+    let enhance = settings
+        .mic_enhance_preferences
+        .get(&mic_key)
+        .copied()
+        .unwrap_or(true);
+    settings.audio_input_auto_enhance = enhance;
     write_settings(&app, settings);
+
+    // Apply the enhance preference to the audio manager.
+    if let Some(audio_manager) = app.try_state::<std::sync::Arc<AudioRecordingManager>>() {
+        audio_manager.set_auto_enhance_enabled(enhance);
+    }
 
     // Update the audio manager to use the new device
     let rm = app.state::<Arc<AudioRecordingManager>>();
     rm.update_selected_device()
         .map_err(|e| format!("Failed to update selected device: {}", e))?;
 
-    Ok(())
+    Ok(SetMicrophoneResult {
+        audio_input_auto_enhance: enhance,
+    })
+}
+
+#[derive(Serialize)]
+pub struct SetMicrophoneResult {
+    pub audio_input_auto_enhance: bool,
 }
 
 #[tauri::command]

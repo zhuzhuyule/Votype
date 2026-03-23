@@ -125,6 +125,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   recording_retention_period: "preserve_limit",
   mute_while_recording: false,
   audio_input_auto_enhance: true,
+  mic_enhance_preferences: {},
   append_trailing_space: false,
   cached_models: [],
   online_asr_enabled: false,
@@ -171,10 +172,20 @@ const settingUpdaters: {
   autostart_enabled: (value) =>
     invoke("change_autostart_setting", { enabled: value }),
   push_to_talk: (value) => invoke("change_ptt_setting", { enabled: value }),
-  selected_microphone: (value) =>
-    invoke("set_selected_microphone", {
+  selected_microphone: async (value) => {
+    const result = (await invoke("set_selected_microphone", {
       deviceName: value === "Default" ? "default" : value,
-    }),
+    })) as { audio_input_auto_enhance: boolean };
+    // Apply the per-mic enhance preference returned by the backend.
+    useSettingsStore.setState((state) => ({
+      settings: state.settings
+        ? {
+            ...state.settings,
+            audio_input_auto_enhance: result.audio_input_auto_enhance,
+          }
+        : null,
+    }));
+  },
   clamshell_microphone: (value) =>
     invoke("set_clamshell_microphone", {
       deviceName: value === "Default" ? "default" : value,

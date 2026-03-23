@@ -600,6 +600,10 @@ pub struct AppSettings {
     pub mute_while_recording: bool,
     #[serde(default = "default_audio_input_auto_enhance")]
     pub audio_input_auto_enhance: bool,
+    /// Per-microphone enhance preference.  Key is the device name (or
+    /// "default" for the system default device).
+    #[serde(default)]
+    pub mic_enhance_preferences: HashMap<String, bool>,
     #[serde(default)]
     pub append_trailing_space: bool,
     #[serde(default = "default_punctuation_enabled")]
@@ -1265,6 +1269,7 @@ pub fn get_default_settings() -> AppSettings {
         selected_prompt_model_id: None,
         mute_while_recording: false,
         audio_input_auto_enhance: default_audio_input_auto_enhance(),
+        mic_enhance_preferences: HashMap::new(),
         append_trailing_space: false,
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),

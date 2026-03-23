@@ -240,6 +240,14 @@ pub fn change_audio_input_auto_enhance_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.audio_input_auto_enhance = enabled;
+
+    // Bind the preference to the currently selected microphone.
+    let mic_key = settings
+        .selected_microphone
+        .clone()
+        .unwrap_or_else(|| "default".to_string());
+    settings.mic_enhance_preferences.insert(mic_key, enabled);
+
     settings::write_settings(&app, settings);
 
     if let Some(audio_manager) =
