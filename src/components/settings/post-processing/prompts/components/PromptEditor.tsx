@@ -15,6 +15,7 @@ interface PromptEditorProps {
   draftContent: string;
   setDraftContent: (value: string) => void;
   onAiLoadingChange?: (loading: boolean) => void;
+  skillId?: string;
 }
 
 export const PromptEditor: React.FC<PromptEditorProps> = ({
@@ -22,6 +23,7 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
   draftContent,
   setDraftContent,
   onAiLoadingChange,
+  skillId,
 }) => {
   return (
     <Box className="h-full">
@@ -33,6 +35,7 @@ export const PromptEditor: React.FC<PromptEditorProps> = ({
         placeholder={t("settings.postProcessing.prompts.promptBodyPlaceholder")}
         className="h-full"
         onAiLoadingChange={onAiLoadingChange}
+        skillId={skillId}
       />
     </Box>
   );

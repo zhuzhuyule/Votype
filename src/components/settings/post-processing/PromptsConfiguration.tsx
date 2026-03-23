@@ -751,6 +751,7 @@ const PromptsConfiguration: React.FC = () => {
                         draftContent={draftContent}
                         setDraftContent={setDraftContent}
                         onAiLoadingChange={setIsInstructionGenerating}
+                        skillId={viewingPrompt?.id}
                       />
                     </Box>
 

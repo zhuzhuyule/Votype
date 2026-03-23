@@ -49,6 +49,7 @@ interface ResizableEditorProps {
   maxAutoLines?: number;
   loading?: boolean;
   onAiLoadingChange?: (loading: boolean) => void;
+  skillId?: string;
 }
 
 const INLINE_VARS = [
@@ -154,6 +155,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   maxAutoLines = 4,
   loading = false,
   onAiLoadingChange,
+  skillId,
 }) => {
   const { t } = useTranslation();
   const [height, setHeight] = useState(defaultHeight);
@@ -292,6 +294,7 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
       const optimizedText = await invoke<string>("optimize_text_with_llm", {
         text: value,
         instruction: aiInstruction || undefined,
+        skillId: skillId || undefined,
       });
       onChange(optimizedText);
       setAiInstruction("");

@@ -11,6 +11,7 @@ pub async fn optimize_text_with_llm(
     prompt_manager: State<'_, Arc<PromptManager>>,
     text: String,
     instruction: Option<String>,
+    skill_id: Option<String>,
 ) -> Result<String, String> {
     let settings = settings::get_settings(&app_handle);
     let provider_id = &settings.post_process_provider_id;
@@ -29,19 +30,74 @@ pub async fn optimize_text_with_llm(
         .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
 
     log::info!(
-        "Optimizing text with LLM: provider={}, model={}, instruction={:?}",
+        "Optimizing text with LLM: provider={}, model={}, instruction={:?}, skill_id={:?}",
         provider.label,
         model,
-        instruction
+        instruction,
+        skill_id,
     );
 
     let system_prompt = prompt_manager
         .get_prompt(&app_handle, "system_text_optimization")
         .map_err(|e| format!("Failed to load system prompt: {}", e))?;
 
+    // If skill_id is provided, load its reference files as context
+    let references_context = if let Some(ref sid) = skill_id {
+        let skill_manager = crate::managers::skill::SkillManager::new(&app_handle);
+        if let Some(skill_path) = skill_manager.find_skill_file_path(sid) {
+            // Load ALL references for this skill (regardless of current app)
+            let refs_dir = skill_path.parent().map(|d| d.join("references"));
+            if let Some(refs_dir) = refs_dir.filter(|d| d.is_dir()) {
+                let mut ref_contents = Vec::new();
+                if let Ok(entries) = std::fs::read_dir(&refs_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("md")
+                        {
+                            let name = path
+                                .file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("unknown");
+                            if let Ok(content) = std::fs::read_to_string(&path) {
+                                let content = content.trim();
+                                if !content.is_empty() {
+                                    ref_contents
+                                        .push(format!("### Reference: {}\n\n{}", name, content));
+                                }
+                            }
+                        }
+                    }
+                }
+                if !ref_contents.is_empty() {
+                    log::info!(
+                        "Loaded {} reference(s) for optimization context",
+                        ref_contents.len()
+                    );
+                    Some(ref_contents.join("\n\n---\n\n"))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let user_instruction =
         instruction.unwrap_or_else(|| "优化这个提示词，使其更专业、结构更清晰。".to_string());
-    let user_content = format!("{}\n\n待优化的提示词内容：\n\n{}", user_instruction, text);
+
+    let user_content = if let Some(ref refs) = references_context {
+        format!(
+            "{}\n\n## 待优化的 Skill 正文\n\n{}\n\n## 该 Skill 已有的场景 Reference 文件\n\n以下是该 Skill 的 reference 文件内容，优化正文时请确保与这些场景规则保持一致性（不要在正文中重复 reference 里的内容）：\n\n{}",
+            user_instruction, text, refs
+        )
+    } else {
+        format!("{}\n\n待优化的提示词内容：\n\n{}", user_instruction, text)
+    };
 
     let (optimized_text, _err, _error_message) = post_process::execute_llm_request(
         &app_handle,
@@ -50,7 +106,7 @@ pub async fn optimize_text_with_llm(
         model,
         None,
         &system_prompt,      // System message: optimization instructions
-        Some(&user_content), // User message: text to optimize
+        Some(&user_content), // User message: text to optimize + references context
         None,
         None,
         None,
