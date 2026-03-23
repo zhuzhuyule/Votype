@@ -1,10 +1,20 @@
 use rustfft::{num_complex::Complex32, Fft, FftPlanner};
 use std::sync::Arc;
 
-const DB_MIN: f32 = -72.0;
 const DB_MAX: f32 = -18.0;
 const GAIN: f32 = 1.8;
 const CURVE_POWER: f32 = 0.6;
+
+// --- Adaptive noise-gate mode (amplify OFF) ---
+/// How many dB above the noise floor counts as "zero" for the visualiser.
+const NOISE_GATE_MARGIN: f32 = 6.0;
+/// How quickly the noise floor adapts (higher = faster).
+const NOISE_ALPHA: f32 = 0.015;
+/// Absolute minimum floor so the gate never drops unreasonably low.
+const NOISE_FLOOR_MIN: f32 = -60.0;
+
+// --- Amplified mode (amplify ON) — original fixed-range behaviour ---
+const AMPLIFIED_DB_MIN: f32 = -72.0;
 
 pub struct AudioVisualiser {
     fft: Arc<dyn Fft<f32>>,
@@ -72,7 +82,11 @@ impl AudioVisualiser {
         }
     }
 
-    pub fn feed(&mut self, samples: &[f32]) -> Option<Vec<f32>> {
+    /// When `amplified` is true, uses the original fixed-range normalisation
+    /// (DB_MIN → DB_MAX) which makes even quiet ambient noise visible.
+    /// When false, normalises relative to the tracked noise floor so that
+    /// ambient noise reads ≈ 0.
+    pub fn feed(&mut self, samples: &[f32], amplified: bool) -> Option<Vec<f32>> {
         self.buffer.extend_from_slice(samples);
 
         let mut latest_buckets = None;
@@ -108,13 +122,27 @@ impl AudioVisualiser {
                     -80.0
                 };
 
+                // Update noise floor estimate (only when signal is close to or
+                // below the current floor — speech won't raise it).
                 if db < self.noise_floor[bucket_idx] + 10.0 {
-                    const NOISE_ALPHA: f32 = 0.001;
-                    self.noise_floor[bucket_idx] =
-                        NOISE_ALPHA * db + (1.0 - NOISE_ALPHA) * self.noise_floor[bucket_idx];
+                    self.noise_floor[bucket_idx] = (NOISE_ALPHA * db
+                        + (1.0 - NOISE_ALPHA) * self.noise_floor[bucket_idx])
+                        .max(NOISE_FLOOR_MIN);
                 }
 
-                let normalized = ((db - DB_MIN) / (DB_MAX - DB_MIN)).clamp(0.0, 1.0);
+                let normalized = if amplified {
+                    // Amplified mode: fixed range, everything is visible.
+                    ((db - AMPLIFIED_DB_MIN) / (DB_MAX - AMPLIFIED_DB_MIN)).clamp(0.0, 1.0)
+                } else {
+                    // Adaptive mode: normalise relative to noise floor.
+                    let floor = self.noise_floor[bucket_idx] + NOISE_GATE_MARGIN;
+                    let range = DB_MAX - floor;
+                    if range > 1.0 {
+                        ((db - floor) / range).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    }
+                };
                 buckets[bucket_idx] = (normalized * GAIN).powf(CURVE_POWER).clamp(0.0, 1.0);
             }
 

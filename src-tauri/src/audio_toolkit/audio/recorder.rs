@@ -173,7 +173,15 @@ impl AudioRecorder {
             }
 
             // keep the stream alive while we process samples
-            run_consumer(sample_rate, vad, sample_rx, cmd_rx, level_cb, speech_cb);
+            run_consumer(
+                sample_rate,
+                vad,
+                sample_rx,
+                cmd_rx,
+                level_cb,
+                speech_cb,
+                auto_enhance_flag,
+            );
             // stream is dropped here, after run_consumer returns
         });
 
@@ -351,6 +359,7 @@ fn run_consumer(
     cmd_rx: mpsc::Receiver<Cmd>,
     level_cb: Option<Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>>,
     speech_cb: Option<Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>>,
+    auto_enhance_flag: Option<Arc<AtomicBool>>,
 ) {
     let mut frame_resampler = FrameResampler::new(
         in_sample_rate as usize,
@@ -443,7 +452,10 @@ fn run_consumer(
         last_recv_raw_len = raw.len();
 
         // ---------- spectrum processing ---------------------------------- //
-        if let Some(buckets) = visualizer.feed(&raw) {
+        let amplified = auto_enhance_flag
+            .as_ref()
+            .is_some_and(|f| f.load(Ordering::Relaxed));
+        if let Some(buckets) = visualizer.feed(&raw, amplified) {
             emit_count += 1;
 
             if let Some(cb) = &level_cb {
