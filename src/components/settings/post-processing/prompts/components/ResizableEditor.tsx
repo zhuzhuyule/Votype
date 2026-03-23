@@ -51,14 +51,39 @@ interface ResizableEditorProps {
   onAiLoadingChange?: (loading: boolean) => void;
 }
 
+const INLINE_VARS = [
+  {
+    name: "${app_name}",
+    descKey: "settings.postProcessing.prompts.varAppNameDesc",
+    descFallback: "Current app name",
+  },
+  {
+    name: "${app_category}",
+    descKey: "settings.postProcessing.prompts.varAppCategoryDesc",
+    descFallback: "App category (CodeEditor, Email, etc.)",
+  },
+  {
+    name: "${window_title}",
+    descKey: "settings.postProcessing.prompts.varWindowTitleDesc",
+    descFallback: "Current window title",
+  },
+  {
+    name: "${time}",
+    descKey: "settings.postProcessing.prompts.varTimeDesc",
+    descFallback: "Current time",
+  },
+  {
+    name: "${prompt}",
+    descKey: "settings.postProcessing.prompts.varPromptDesc",
+    descFallback: "Skill display name",
+  },
+];
+
 const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
   tipKey,
   t,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  // Common variables shown when collapsed
-  const commonVars = ["${output}", "${select}", "${context}"];
 
   return (
     <Box className="mt-1">
@@ -69,71 +94,43 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <Text size="1" color="gray" className="font-medium">
-          {isExpanded ? "▼" : "▶"} {t("common.variables")}:
+          {isExpanded ? "▼" : "▶"}{" "}
+          {t(
+            "settings.postProcessing.prompts.inlineVarsLabel",
+            "Inline Variables",
+          )}
+          :
         </Text>
         {!isExpanded && (
           <Text size="1" color="gray" className="font-mono opacity-70">
-            {commonVars.join(" ")}
+            {INLINE_VARS.map((v) => v.name).join("  ")}
           </Text>
         )}
       </Flex>
 
       {isExpanded && (
-        <Box className="mt-2 pl-3 border-l-2 border-gray-200 dark:border-gray-700 space-y-1">
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${output}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varOutputDesc")}
+        <Box className="mt-2 pl-3 border-l-2 border-gray-200 dark:border-gray-700 space-y-1.5">
+          <Text
+            size="1"
+            color="gray"
+            className="block"
+            style={{ lineHeight: 1.4 }}
+          >
+            {t(
+              "settings.postProcessing.prompts.autoInjectedNote",
+              "Input text, selected text, hotwords, history and ASR references are automatically injected by the system — no need to reference them in the prompt.",
+            )}
           </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${raw_input}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varRawInputDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${select}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varSelectDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${streaming_output}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varStreamingDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${context}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varContextDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${app_name}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varAppNameDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${window_title}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varWindowTitleDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${time}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varTimeDesc")}
-          </Text>
-          <Text size="1" color="gray" className="block">
-            <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-              {"${prompt}"}
-            </code>{" "}
-            {t("settings.postProcessing.prompts.varPromptDesc")}
-          </Text>
+          <Box className="space-y-1 mt-1">
+            {INLINE_VARS.map((v) => (
+              <Text key={v.name} size="1" color="gray" className="block">
+                <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+                  {v.name}
+                </code>{" "}
+                {t(v.descKey, v.descFallback)}
+              </Text>
+            ))}
+          </Box>
         </Box>
       )}
     </Box>
