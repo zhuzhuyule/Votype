@@ -1,5 +1,5 @@
 use crate::settings::{Skill, SkillOutputMode, SkillSource, SkillType};
-use log::{debug, error};
+use log::{debug, error, info};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -24,7 +24,7 @@ struct SkillFrontmatter {
 }
 
 /// Template for creating new skills
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct SkillTemplate {
     pub id: String,
     pub name: String,
@@ -165,15 +165,33 @@ impl SkillManager {
     }
 
     /// Get all skills from all sources (user, imported)
-    /// Skills are ordered according to the saved order file
+    /// Skills are ordered according to the saved order file.
+    /// Deduplicates by ID — if multiple files share the same ID, only the first is kept.
     pub fn get_all_skills(&self) -> Vec<Skill> {
         let mut skills = Vec::new();
+        let mut seen_ids = std::collections::HashSet::new();
 
-        // Load from ~/.votype/skills/user/
-        skills.extend(self.load_from_subdir("user", SkillSource::User));
+        for skill in self.load_from_subdir("user", SkillSource::User) {
+            if seen_ids.insert(skill.id.clone()) {
+                skills.push(skill);
+            } else {
+                debug!(
+                    "Skipping duplicate skill ID '{}' (file: {:?})",
+                    skill.id, skill.file_path
+                );
+            }
+        }
 
-        // Load from ~/.votype/skills/imported/
-        skills.extend(self.load_from_subdir("imported", SkillSource::Imported));
+        for skill in self.load_from_subdir("imported", SkillSource::Imported) {
+            if seen_ids.insert(skill.id.clone()) {
+                skills.push(skill);
+            } else {
+                debug!(
+                    "Skipping duplicate skill ID '{}' (file: {:?})",
+                    skill.id, skill.file_path
+                );
+            }
+        }
 
         // Apply saved ordering
         self.apply_ordering(&mut skills);
@@ -303,6 +321,10 @@ impl SkillManager {
         if new_skill.id.trim().is_empty() {
             new_skill.id = format!("ext_{}", final_name.to_lowercase());
         }
+
+        // Ensure the ID is unique across all existing skills (file-based + builtin)
+        new_skill.id = self.ensure_unique_id(&new_skill.id);
+
         // Update name if suffix was added
         if final_name != safe_name {
             new_skill.name = final_name.replace('_', " ");
@@ -313,14 +335,63 @@ impl SkillManager {
         Ok(new_skill)
     }
 
+    /// Ensure a skill ID is unique across all existing file-based skills.
+    /// If the ID already exists, appends a numeric suffix (e.g., `_2`, `_3`).
+    fn ensure_unique_id(&self, base_id: &str) -> String {
+        let existing_skills = self.get_all_skills();
+        let existing_ids: std::collections::HashSet<&str> =
+            existing_skills.iter().map(|s| s.id.as_str()).collect();
+
+        if !existing_ids.contains(base_id) {
+            return base_id.to_string();
+        }
+
+        debug!(
+            "Skill ID conflict detected: '{}', generating unique ID",
+            base_id
+        );
+
+        let mut suffix = 2;
+        loop {
+            let candidate = format!("{}_{}", base_id, suffix);
+            if !existing_ids.contains(candidate.as_str()) {
+                debug!("Resolved ID conflict: '{}' -> '{}'", base_id, candidate);
+                return candidate;
+            }
+            suffix += 1;
+            if suffix > 100 {
+                // Fallback: append timestamp
+                let ts = chrono::Utc::now().timestamp();
+                return format!("{}_{}", base_id, ts);
+            }
+        }
+    }
+
     pub fn load_all_external_skills(&self) -> Vec<Skill> {
         let mut skills = Vec::new();
+        let mut seen_ids = std::collections::HashSet::new();
 
-        // Load from ~/.votype/skills/user/
-        skills.extend(self.load_from_subdir("user", SkillSource::User));
+        for skill in self.load_from_subdir("user", SkillSource::User) {
+            if seen_ids.insert(skill.id.clone()) {
+                skills.push(skill);
+            } else {
+                debug!(
+                    "Skipping duplicate skill ID '{}' in external skills (file: {:?})",
+                    skill.id, skill.file_path
+                );
+            }
+        }
 
-        // Load from ~/.votype/skills/imported/
-        skills.extend(self.load_from_subdir("imported", SkillSource::Imported));
+        for skill in self.load_from_subdir("imported", SkillSource::Imported) {
+            if seen_ids.insert(skill.id.clone()) {
+                skills.push(skill);
+            } else {
+                debug!(
+                    "Skipping duplicate skill ID '{}' in external skills (file: {:?})",
+                    skill.id, skill.file_path
+                );
+            }
+        }
 
         skills
     }
@@ -570,6 +641,93 @@ impl SkillManager {
         };
 
         self.create_skill_file(&skill)
+    }
+
+    /// Seed default directory-based skills that ship with the app.
+    /// These are skills that need a `references/` directory and thus cannot
+    /// be pure builtin `include_str!` skills.
+    ///
+    /// Each default skill is only seeded once — if the SKILL.md already exists
+    /// in the user's directory, it is left untouched to preserve customizations.
+    pub fn seed_default_skills(&self) {
+        self.seed_smart_polish();
+    }
+
+    fn seed_smart_polish(&self) {
+        let skill_dir = self.base_dir.join("user").join("smart_polish");
+        let skill_file = skill_dir.join("SKILL.md");
+
+        // Already exists — don't overwrite user customizations
+        if skill_file.exists() {
+            return;
+        }
+
+        info!("[SkillSeed] Seeding default skill: smart_polish");
+
+        if let Err(e) = fs::create_dir_all(&skill_dir) {
+            error!("[SkillSeed] Failed to create dir {:?}: {}", skill_dir, e);
+            return;
+        }
+
+        let refs_dir = skill_dir.join("references");
+        if let Err(e) = fs::create_dir_all(&refs_dir) {
+            error!("[SkillSeed] Failed to create references dir: {}", e);
+            return;
+        }
+
+        // Write SKILL.md
+        let skill_content = include_str!("../../resources/skills/defaults/smart_polish/SKILL.md");
+        if let Err(e) = fs::write(&skill_file, skill_content) {
+            error!("[SkillSeed] Failed to write SKILL.md: {}", e);
+            return;
+        }
+
+        // Write reference files
+        let references: &[(&str, &str)] = &[
+            (
+                "_always.md",
+                include_str!("../../resources/skills/defaults/smart_polish/references/_always.md"),
+            ),
+            (
+                "Browser.md",
+                include_str!("../../resources/skills/defaults/smart_polish/references/Browser.md"),
+            ),
+            (
+                "CodeEditor.md",
+                include_str!(
+                    "../../resources/skills/defaults/smart_polish/references/CodeEditor.md"
+                ),
+            ),
+            (
+                "Email.md",
+                include_str!("../../resources/skills/defaults/smart_polish/references/Email.md"),
+            ),
+            (
+                "InstantMessaging.md",
+                include_str!(
+                    "../../resources/skills/defaults/smart_polish/references/InstantMessaging.md"
+                ),
+            ),
+            (
+                "Notes.md",
+                include_str!("../../resources/skills/defaults/smart_polish/references/Notes.md"),
+            ),
+            (
+                "Terminal.md",
+                include_str!("../../resources/skills/defaults/smart_polish/references/Terminal.md"),
+            ),
+        ];
+
+        for (filename, content) in references {
+            if let Err(e) = fs::write(refs_dir.join(filename), content) {
+                error!("[SkillSeed] Failed to write reference {}: {}", filename, e);
+            }
+        }
+
+        info!(
+            "[SkillSeed] Successfully seeded smart_polish with {} references",
+            references.len()
+        );
     }
 }
 
