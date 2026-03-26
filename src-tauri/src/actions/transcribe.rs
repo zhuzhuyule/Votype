@@ -342,21 +342,32 @@ impl ShortcutAction for TranscribeAction {
         let ppm_outer = Arc::clone(&ppm);
 
         let pipeline_handle = tauri::async_runtime::spawn(async move {
-            // RAII guard to unregister the cancel shortcut when the async block
-            // exits — whether normally or via abort.
-            struct CancelShortcutGuard {
+            // RAII guard that fires on every exit path of this async block —
+            // whether it returns normally, is aborted, or panics.
+            struct FinishGuard {
                 app: AppHandle,
                 transcription_id: u64,
             }
-            impl Drop for CancelShortcutGuard {
+            impl Drop for FinishGuard {
                 fn drop(&mut self) {
                     let rm = self.app.state::<Arc<AudioRecordingManager>>();
                     if rm.get_current_transcription_id() == self.transcription_id {
                         shortcut::unregister_cancel_shortcut(&self.app);
                     }
+
+                    // Always notify coordinator that processing is done
+                    if let Some(coordinator) =
+                        self.app.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                    {
+                        coordinator.notify_processing_finished();
+                    }
+
+                    // Clean up UI state
+                    utils::hide_recording_overlay(&self.app);
+                    change_tray_icon(&self.app, TrayIconState::Idle);
                 }
             }
-            let _cancel_guard = CancelShortcutGuard {
+            let _finish_guard = FinishGuard {
                 app: ah.clone(),
                 transcription_id: current_transcription_id,
             };
@@ -374,14 +385,6 @@ impl ShortcutAction for TranscribeAction {
                         "Recording too short or empty ({} samples), skipping transcription and error.",
                         samples.len()
                     );
-                    utils::hide_recording_overlay(&ah);
-                    change_tray_icon(&ah, TrayIconState::Idle);
-
-                    if let Some(coordinator) =
-                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                    {
-                        coordinator.notify_processing_finished();
-                    }
                     return;
                 }
 
@@ -744,11 +747,6 @@ impl ShortcutAction for TranscribeAction {
                                     rm.get_current_transcription_id(),
                                     current_transcription_id
                                 );
-                        utils::hide_recording_overlay(&ah);
-                        change_tray_icon(&ah, TrayIconState::Idle);
-                        if let Some(coordinator) = ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                            coordinator.notify_processing_finished();
-                        }
                         return;
                     }
 
@@ -1086,16 +1084,6 @@ impl ShortcutAction for TranscribeAction {
                                                         effective_prompt_id.cloned(),
                                                         Some(model_name),
                                                     );
-                                                    utils::hide_recording_overlay(&ah_clone);
-                                                    change_tray_icon(
-                                                        &ah_clone,
-                                                        TrayIconState::Idle,
-                                                    );
-                                                    if let Some(coordinator) = ah_clone
-                                                        .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                                                    {
-                                                        coordinator.notify_processing_finished();
-                                                    }
                                                     return;
                                                 }
 
@@ -1121,12 +1109,6 @@ impl ShortcutAction for TranscribeAction {
                                                             &ah_clone_inner,
                                                             TrayIconState::Idle,
                                                         );
-                                                        if let Some(coordinator) = ah_clone_inner
-                                                            .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                                                        {
-                                                            coordinator
-                                                                .notify_processing_finished();
-                                                        }
                                                         if let Some(info) = last_active_window {
                                                             if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
                                                                 error!(
@@ -1215,11 +1197,6 @@ impl ShortcutAction for TranscribeAction {
                                                         &ah_clone_inner,
                                                         TrayIconState::Idle,
                                                     );
-                                                    if let Some(coordinator) = ah_clone_inner
-                                                        .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                                                    {
-                                                        coordinator.notify_processing_finished();
-                                                    }
                                                     if let Some(info) = last_active_window {
                                                         if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
                                                             error!(
@@ -1255,9 +1232,6 @@ impl ShortcutAction for TranscribeAction {
                                             return;
                                         }
 
-                                        if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                            coordinator.notify_processing_finished();
-                                        }
                                         return;
                                     }
                                 }
@@ -1290,9 +1264,6 @@ impl ShortcutAction for TranscribeAction {
                                 // Check if pending skill confirmation - skip all subsequent processing
                                 if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
                                     info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
-                                    if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                        coordinator.notify_processing_finished();
-                                    }
                                     // Don't hide overlay, don't paste - wait for user confirmation via confirm_skill
                                     return;
                                 }
@@ -1443,9 +1414,6 @@ impl ShortcutAction for TranscribeAction {
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);
                                     change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                    if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                        coordinator.notify_processing_finished();
-                                    }
                                     return;
                                 }
                                 if post_process_failed {
@@ -1479,11 +1447,6 @@ impl ShortcutAction for TranscribeAction {
                                 info!(
                                     "New recording started during post-processing; skipping paste."
                                 );
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                    coordinator.notify_processing_finished();
-                                }
                                 return;
                             }
 
@@ -1501,10 +1464,6 @@ impl ShortcutAction for TranscribeAction {
                                             utils::hide_recording_overlay(&ah_delayed);
                                             change_tray_icon(&ah_delayed, TrayIconState::Idle);
                                         });
-                                    }
-
-                                    if let Some(coordinator) = ah_clone_inner.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                        coordinator.notify_processing_finished();
                                     }
 
                                     if let Err(e) = utils::paste(final_text, ah_clone_inner) {
@@ -1598,29 +1557,19 @@ impl ShortcutAction for TranscribeAction {
                             );
                             utils::hide_recording_overlay(&ah_clone);
                             change_tray_icon(&ah_clone, TrayIconState::Idle);
-                            if let Some(coordinator) = ah_clone
-                                .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                            {
-                                coordinator.notify_processing_finished();
-                            }
                         } else {
                             let ah_clone = ah.clone();
                             ah.run_on_main_thread(move || {
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
 
-                                // Notify coordinator that processing is finished
-                                if let Some(coordinator) = ah_clone
-                                    .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                                {
-                                    coordinator.notify_processing_finished();
-                                }
-
                                 if let Err(e) = utils::paste(transcription_clone, ah_clone) {
                                     error!("Failed to paste transcription: {}", e);
                                 }
                             })
-                            .unwrap_or_else(|e| error!("Failed to run paste on main thread: {:?}", e));
+                            .unwrap_or_else(|e| {
+                                error!("Failed to run paste on main thread: {:?}", e)
+                            });
                         }
                     }
                 } else {
@@ -1665,24 +1614,9 @@ impl ShortcutAction for TranscribeAction {
 
                     // Give the user a moment to see the failure state, then close the overlay.
                     sleep(Duration::from_millis(2500)).await;
-                    utils::hide_recording_overlay(&ah);
-                    change_tray_icon(&ah, TrayIconState::Idle);
-
-                    if let Some(coordinator) =
-                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                    {
-                        coordinator.notify_processing_finished();
-                    }
                 }
             } else {
                 debug!("No samples retrieved from recording stop");
-                utils::hide_recording_overlay(&ah);
-                change_tray_icon(&ah, TrayIconState::Idle);
-                if let Some(coordinator) =
-                    ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                {
-                    coordinator.notify_processing_finished();
-                }
             }
         });
 
