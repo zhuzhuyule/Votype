@@ -1476,7 +1476,7 @@ impl ShortcutAction for TranscribeAction {
                         });
 
                         ppm.set_current_task(task.abort_handle());
-                        // Await the inner task so the CancelShortcutGuard stays
+                        // Await the inner task so the FinishGuard stays
                         // alive (keeping Esc registered) during post-processing.
                         let _ = task.await;
                     } else {
