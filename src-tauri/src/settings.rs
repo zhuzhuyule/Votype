@@ -205,6 +205,10 @@ pub struct PostProcessProvider {
     pub models_endpoint: Option<String>,
     #[serde(default)]
     pub supports_structured_output: bool,
+    /// Custom HTTP headers to include in every request to this provider
+    /// e.g. {"X-Custom-Auth": "token123"}
+    #[serde(default)]
+    pub custom_headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -269,6 +273,133 @@ pub struct CachedModel {
     /// 例如: {"extended_thinking": true, "thinking_budget_tokens": 10000}
     #[serde(default)]
     pub extra_params: Option<HashMap<String, serde_json::Value>>,
+    /// 额外的请求头（会合并到 HTTP 请求头中）
+    /// 例如: {"X-Custom-Token": "abc123"}
+    #[serde(default)]
+    pub extra_headers: Option<HashMap<String, String>>,
+}
+
+/// Returns the appropriate `extra_params` for enabling/disabling thinking mode
+/// based on model name pattern matching. Checks model_id plus optional aliases
+/// (name, custom_label). Returns `None` if the model is not recognized.
+pub fn thinking_extra_params(
+    model_id: &str,
+    provider_id: &str,
+    enable: bool,
+) -> Option<HashMap<String, serde_json::Value>> {
+    thinking_extra_params_with_aliases(model_id, provider_id, enable, &[])
+}
+
+pub fn thinking_extra_params_with_aliases(
+    model_id: &str,
+    provider_id: &str,
+    enable: bool,
+    aliases: &[&str],
+) -> Option<HashMap<String, serde_json::Value>> {
+    // Check model_id and all aliases
+    let candidates: Vec<String> = std::iter::once(model_id)
+        .chain(aliases.iter().copied())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_lowercase())
+        .collect();
+
+    let matches = |pattern: &str| candidates.iter().any(|c| c.contains(pattern));
+
+    // DeepSeek: R1, reasoner
+    if matches("deepseek") && (matches("r1") || matches("reasoner")) {
+        let mut m = HashMap::new();
+        m.insert(
+            "thinking".to_string(),
+            serde_json::json!({"type": if enable { "enabled" } else { "disabled" }}),
+        );
+        return Some(m);
+    }
+
+    // Qwen3 hybrid models
+    if matches("qwen3") && !matches("instruct-2507") {
+        let mut m = HashMap::new();
+        if provider_id == "iflow" {
+            m.insert("enable_thinking".to_string(), serde_json::json!(enable));
+        } else {
+            m.insert(
+                "chat_template_kwargs".to_string(),
+                serde_json::json!({"enable_thinking": enable}),
+            );
+        }
+        return Some(m);
+    }
+
+    // QwQ (Qwen reasoning model)
+    if matches("qwq") {
+        let mut m = HashMap::new();
+        m.insert(
+            "chat_template_kwargs".to_string(),
+            serde_json::json!({"enable_thinking": enable}),
+        );
+        return Some(m);
+    }
+
+    // OpenAI o-series reasoning models
+    if candidates
+        .iter()
+        .any(|c| c.starts_with("o1") || c.starts_with("o3") || c.starts_with("o4"))
+    {
+        let mut m = HashMap::new();
+        m.insert(
+            "reasoning_effort".to_string(),
+            serde_json::json!(if enable { "high" } else { "low" }),
+        );
+        return Some(m);
+    }
+
+    // Anthropic Claude
+    if matches("claude") {
+        let mut m = HashMap::new();
+        if enable {
+            m.insert(
+                "thinking".to_string(),
+                serde_json::json!({"type": "enabled", "budget_tokens": 10000}),
+            );
+        } else {
+            m.insert(
+                "thinking".to_string(),
+                serde_json::json!({"type": "disabled"}),
+            );
+        }
+        return Some(m);
+    }
+
+    // Google Gemini 2.5 / 3 thinking models
+    if matches("gemini") && (matches("2.5") || matches("2-5") || matches("3")) {
+        let mut m = HashMap::new();
+        m.insert(
+            "reasoning_effort".to_string(),
+            serde_json::json!(if enable { "high" } else { "low" }),
+        );
+        return Some(m);
+    }
+
+    // GLM 4.6 / 4.7 / Z1
+    if matches("glm") && (matches("4.6") || matches("4.7") || matches("z1")) {
+        let mut m = HashMap::new();
+        m.insert(
+            "thinking".to_string(),
+            serde_json::json!({"type": if enable { "enabled" } else { "disabled" }}),
+        );
+        return Some(m);
+    }
+
+    // Generic fallback: any candidate contains "thinking" or "reasoner"
+    if matches("thinking") || matches("reasoner") {
+        let mut m = HashMap::new();
+        m.insert(
+            "thinking".to_string(),
+            serde_json::json!({"type": if enable { "enabled" } else { "disabled" }}),
+        );
+        return Some(m);
+    }
+
+    None
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
@@ -490,13 +621,59 @@ fn default_show_tray_icon() -> bool {
     true
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivationMode {
+    Toggle,
+    Hold,
+    HoldOrToggle,
+}
+
+impl Default for ActivationMode {
+    fn default() -> Self {
+        Self::Toggle
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ActivationMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ActivationModeVisitor;
+        impl<'de> serde::de::Visitor<'de> for ActivationModeVisitor {
+            type Value = ActivationMode;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a string (\"toggle\", \"hold\", \"hold_or_toggle\") or boolean")
+            }
+            fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<Self::Value, E> {
+                Ok(if v {
+                    ActivationMode::Hold
+                } else {
+                    ActivationMode::Toggle
+                })
+            }
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                match v {
+                    "toggle" => Ok(ActivationMode::Toggle),
+                    "hold" => Ok(ActivationMode::Hold),
+                    "hold_or_toggle" => Ok(ActivationMode::HoldOrToggle),
+                    _ => Err(E::unknown_variant(v, &["toggle", "hold", "hold_or_toggle"])),
+                }
+            }
+        }
+        deserializer.deserialize_any(ActivationModeVisitor)
+    }
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
     pub bindings: HashMap<String, ShortcutBinding>,
     #[serde(default = "default_app_language")]
     pub app_language: String,
-    pub push_to_talk: bool,
+    #[serde(default, alias = "push_to_talk")]
+    pub activation_mode: ActivationMode,
     pub audio_feedback: bool,
     #[serde(default = "default_audio_feedback_volume")]
     pub audio_feedback_volume: f32,
@@ -767,6 +944,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            custom_headers: None,
         },
         PostProcessProvider {
             id: "openrouter".to_string(),
@@ -775,6 +953,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            custom_headers: None,
         },
         PostProcessProvider {
             id: "anthropic".to_string(),
@@ -783,6 +962,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
+            custom_headers: None,
         },
         PostProcessProvider {
             id: "custom".to_string(),
@@ -791,6 +971,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: true,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
+            custom_headers: None,
         },
         PostProcessProvider {
             id: "iflow".to_string(),
@@ -799,6 +980,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
+            custom_headers: None,
         },
         PostProcessProvider {
             id: "gitee".to_string(),
@@ -807,6 +989,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
+            custom_headers: None,
         },
         PostProcessProvider {
             id: "zai".to_string(),
@@ -815,6 +998,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            custom_headers: None,
         },
     ];
 
@@ -830,6 +1014,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: None,
             supports_structured_output: false,
+            custom_headers: None,
         });
     }
 
@@ -1219,7 +1404,7 @@ pub fn get_default_settings() -> AppSettings {
     AppSettings {
         bindings,
         app_language: default_app_language(),
-        push_to_talk: false,
+        activation_mode: ActivationMode::default(),
         audio_feedback: true,
         audio_feedback_volume: default_audio_feedback_volume(),
         sound_theme: default_sound_theme(),
@@ -1384,6 +1569,13 @@ fn store_set_settings(store: &tauri_plugin_store::Store<tauri::Wry>, settings: &
 }
 
 pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
+    // Seed default directory-based skills (e.g. smart_polish with references).
+    // Run before store init so seeded skills are visible in the first merge.
+    {
+        let skill_manager = crate::managers::skill::SkillManager::new(app);
+        skill_manager.seed_default_skills();
+    }
+
     // Initialize store
     let store = app
         .store(SETTINGS_STORE_PATH)

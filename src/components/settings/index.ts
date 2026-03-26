@@ -16,7 +16,7 @@ export { ClamshellMicrophoneSelector } from "./ClamshellMicrophoneSelector";
 export { MicrophoneSelector } from "./MicrophoneSelector";
 export { OutputDeviceSelector } from "./OutputDeviceSelector";
 export { PostProcessingToggle } from "./PostProcessingToggle";
-export { PushToTalk } from "./PushToTalk";
+export { ActivationMode, PushToTalk } from "./PushToTalk";
 export { ShowOverlay } from "./ShowOverlay";
 export { TranslateToEnglish } from "./TranslateToEnglish";
 export { UpdateChecksToggle } from "./UpdateChecksToggle";

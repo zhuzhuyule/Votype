@@ -187,7 +187,12 @@
       "deviationMinor": "轻微偏差",
       "deviationMajor": "偏差较大",
       "insertTranslation": "插入翻译结果",
-      "skipPostProcess": "不使用润色"
+      "skipPostProcess": "不使用润色",
+      "restoreOrder": "恢复原顺序",
+      "sortBySpeed": "按反应速率排序",
+      "speedSorted": "速度优先",
+      "sortBySpeedShort": "按速度",
+      "rankCount": "第{{rank}}名 {{count}}次"
     }
   },
   "errors": {
@@ -768,9 +773,18 @@
         "searchPlaceholder": "搜索语言...",
         "title": "语言"
       },
-      "pushToTalk": {
-        "description": "按住录制，松开停止",
-        "label": "按住说话"
+      "activationMode": {
+        "label": "激活方式",
+        "descriptions": {
+          "toggle": "按一次开始，再按一次停止",
+          "hold": "按住录制，松开停止",
+          "hold_or_toggle": "快按切换录制，长按松开停止"
+        },
+        "options": {
+          "toggle": "切换",
+          "hold": "按住",
+          "holdOrToggle": "智能"
+        }
       },
       "shortcut": {
         "bindings": {
@@ -1075,7 +1089,9 @@
           "local": "本地模型",
           "remote": "在线模型"
         },
-        "title": "模型"
+        "title": "模型",
+        "setAsDefault": "设为默认",
+        "invalidJson": "无效的 JSON 格式"
       },
       "prompts": {
         "activeSet": "已设为默认提示词",
@@ -1095,6 +1111,10 @@
           "description": "此操作无法撤销。该提示词将被永久删除。",
           "title": "删除提示词？"
         },
+        "createFailed": "创建技能失败",
+        "nameAndContentRequired": "名称和内容不能为空",
+        "fillNameAndInstructionsFirst": "建议先填写名称和指令，以便 AI 更好地总结。",
+        "userOwnedPrompts": "我的提示词",
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
@@ -1152,7 +1172,10 @@
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
         "updateSuccess": "提示词更新成功",
+        "inlineVarsLabel": "内联变量",
+        "autoInjectedNote": "输入文本、选中文本、热词、历史记录和 ASR 参考由系统自动注入，无需在提示词中引用。",
         "varAppNameDesc": "当前活跃应用名称。",
+        "varAppCategoryDesc": "应用类别（CodeEditor、Email 等）。",
         "varContextDesc": "来自活动窗口的历史上下文。",
         "varOutputDesc": "最终转录文本。",
         "varPromptDesc": "当前提示词方案的显示名称。",
@@ -1173,6 +1196,13 @@
           "start": "生成",
           "menuItem": "语音输入",
           "success": "技能创建成功"
+        },
+        "templates": {
+          "template_polish": "默认润色",
+          "template_translate": "翻译",
+          "template_summary": "总结",
+          "template_chat": "AI 问答",
+          "template_blank": "空白技能"
         }
       },
       "skills": {
@@ -1204,7 +1234,14 @@
         "multiHint": "多模型并行对比",
         "defaultModelDescription": "默认模型",
         "noModelSelected": "未选择模型",
-        "multiDescription": "在下方模型列表中勾选参与并行对比的模型"
+        "multiDescription": "在下方模型列表中勾选参与并行对比的模型",
+        "multiStrategy": "多模型策略",
+        "multiStrategyManual": "手动",
+        "multiStrategyManualHint": "展示所有候选，手动选择",
+        "multiStrategyRace": "极速",
+        "multiStrategyRaceHint": "谁先返回可用结果就直接采用",
+        "multiStrategyLazy": "懒惰",
+        "multiStrategyLazyHint": "优先等默认模型 3 秒，超时后按偏好自动选择"
       },
       "lengthRouting": {
         "enableLabel": "按文本长度自动选择模型",

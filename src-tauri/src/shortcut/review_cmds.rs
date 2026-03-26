@@ -162,13 +162,13 @@ pub fn dispatch_transcribe_binding_from_review(
             &binding_id,
             "review-window-local",
             is_pressed,
-            settings.push_to_talk,
+            settings.activation_mode.clone(),
         );
         log::info!(
-            "dispatch_transcribe_binding_from_review: binding_id={}, is_pressed={}, push_to_talk={}",
+            "dispatch_transcribe_binding_from_review: binding_id={}, is_pressed={}, activation_mode={:?}",
             binding_id,
             is_pressed,
-            settings.push_to_talk
+            settings.activation_mode
         );
         Ok(())
     } else {

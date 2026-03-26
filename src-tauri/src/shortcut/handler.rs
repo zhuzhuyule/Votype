@@ -49,7 +49,12 @@ pub fn handle_shortcut_event(
         }
 
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-            coordinator.send_input(binding_id, hotkey_string, is_pressed, settings.push_to_talk);
+            coordinator.send_input(
+                binding_id,
+                hotkey_string,
+                is_pressed,
+                settings.activation_mode.clone(),
+            );
         } else {
             warn!("TranscriptionCoordinator is not initialized");
         }

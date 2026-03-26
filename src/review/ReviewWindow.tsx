@@ -309,7 +309,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const [transcribeShortcuts, setTranscribeShortcuts] = useState<ShortcutMap>(
     {},
   );
-  const [isPushToTalk, setIsPushToTalk] = useState(false);
+  const [activationMode, setActivationMode] = useState<string>("toggle");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
     multiCandidates && multiCandidates.length > 0
       ? multiCandidates[0].id
@@ -396,10 +396,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     invoke("get_app_settings")
       .then((settings) => {
         const typed = settings as {
-          push_to_talk?: boolean;
+          activation_mode?: string;
           bindings?: Record<string, { current_binding?: string }>;
         };
-        setIsPushToTalk(Boolean(typed.push_to_talk));
+        setActivationMode(typed.activation_mode || "toggle");
         setTranscribeShortcuts({
           transcribe: typed.bindings?.transcribe?.current_binding,
           transcribe_with_post_process:
@@ -1123,7 +1123,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     };
 
     const handleShortcutKeyUp = (event: KeyboardEvent) => {
-      if (!isPushToTalk || !activeShortcutRef.current) return;
+      if (activationMode === "toggle" || !activeShortcutRef.current) return;
 
       event.preventDefault();
       event.stopPropagation();
@@ -1143,7 +1143,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       document.removeEventListener("keydown", handleShortcutKeyDown, true);
       document.removeEventListener("keyup", handleShortcutKeyUp, true);
     };
-  }, [isPushToTalk, transcribeShortcuts]);
+  }, [activationMode, transcribeShortcuts]);
 
   const handleDrag = useCallback(async () => {
     try {

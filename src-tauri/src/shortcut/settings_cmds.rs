@@ -461,6 +461,121 @@ pub fn change_cached_model_prompt_message_role(
 
 #[tauri::command]
 #[specta::specta]
+pub fn update_cached_model(
+    app: AppHandle,
+    id: String,
+    custom_label: Option<String>,
+    extra_params: Option<String>,
+    extra_headers: Option<String>,
+    is_thinking_model: Option<bool>,
+    prompt_message_role: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if let Some(m) = settings.cached_models.iter_mut().find(|m| m.id == id) {
+        if let Some(label) = custom_label {
+            m.custom_label = if label.trim().is_empty() {
+                None
+            } else {
+                Some(label.trim().to_string())
+            };
+        }
+        if let Some(params_str) = extra_params {
+            if params_str.trim().is_empty() {
+                m.extra_params = None;
+            } else {
+                match serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(
+                    &params_str,
+                ) {
+                    Ok(params) => {
+                        m.extra_params = if params.is_empty() {
+                            None
+                        } else {
+                            Some(params)
+                        };
+                    }
+                    Err(e) => return Err(format!("Invalid extra params JSON: {}", e)),
+                }
+            }
+        }
+        if let Some(headers_str) = extra_headers {
+            if headers_str.trim().is_empty() {
+                m.extra_headers = None;
+            } else {
+                match serde_json::from_str::<std::collections::HashMap<String, String>>(
+                    &headers_str,
+                ) {
+                    Ok(hdrs) => {
+                        m.extra_headers = if hdrs.is_empty() { None } else { Some(hdrs) };
+                    }
+                    Err(e) => return Err(format!("Invalid extra headers JSON: {}", e)),
+                }
+            }
+        }
+        if let Some(thinking) = is_thinking_model {
+            m.is_thinking_model = thinking;
+        }
+        if let Some(role) = prompt_message_role {
+            m.prompt_message_role = match role.as_str() {
+                "developer" => settings::PromptMessageRole::Developer,
+                _ => settings::PromptMessageRole::System,
+            };
+        }
+        settings::write_settings(&app, settings);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_thinking_config(
+    model_id: String,
+    provider_id: String,
+    enabled: bool,
+    model_name: Option<String>,
+    custom_label: Option<String>,
+) -> Option<String> {
+    let aliases: Vec<&str> = [model_name.as_deref(), custom_label.as_deref()]
+        .into_iter()
+        .flatten()
+        .collect();
+    settings::thinking_extra_params_with_aliases(&model_id, &provider_id, enabled, &aliases)
+        .and_then(|params| serde_json::to_string_pretty(&params).ok())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn toggle_cached_model_thinking(
+    app: AppHandle,
+    id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if let Some(m) = settings.cached_models.iter_mut().find(|m| m.id == id) {
+        m.is_thinking_model = enabled;
+        let aliases: Vec<&str> = [m.name.as_str(), m.custom_label.as_deref().unwrap_or("")]
+            .into_iter()
+            .filter(|s| !s.is_empty())
+            .collect();
+        if let Some(params) = settings::thinking_extra_params_with_aliases(
+            &m.model_id,
+            &m.provider_id,
+            enabled,
+            &aliases,
+        ) {
+            let extra = m
+                .extra_params
+                .get_or_insert_with(std::collections::HashMap::new);
+            for (k, v) in params {
+                extra.insert(k, v);
+            }
+        }
+        settings::write_settings(&app, settings);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn remove_cached_model(app: AppHandle, id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.cached_models.retain(|m| m.id != id);
@@ -630,12 +745,16 @@ pub fn change_length_routing_long_model_setting(
     Ok(())
 }
 
-// Group: PTT and Audio Settings
+// Group: Activation Mode and Audio Settings
 #[tauri::command]
 #[specta::specta]
-pub fn change_ptt_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+pub fn change_activation_mode_setting(app: AppHandle, mode: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.push_to_talk = enabled;
+    settings.activation_mode = match mode.as_str() {
+        "hold" => settings::ActivationMode::Hold,
+        "hold_or_toggle" => settings::ActivationMode::HoldOrToggle,
+        _ => settings::ActivationMode::Toggle,
+    };
     settings::write_settings(&app, settings);
     Ok(())
 }

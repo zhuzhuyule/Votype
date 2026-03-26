@@ -65,6 +65,10 @@ interface SettingsStore {
     modelId: string,
     role: "system" | "developer",
   ) => Promise<void>;
+  toggleCachedModelThinking: (
+    modelId: string,
+    enabled: boolean,
+  ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
   selectAsrModel: (modelId: string | null) => Promise<void>;
@@ -111,7 +115,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   sound_theme: "marimba",
   start_hidden: false,
   autostart_enabled: false,
-  push_to_talk: false,
+  activation_mode: "toggle",
   selected_microphone: "Default",
   clamshell_microphone: "Default",
   selected_output_device: "Default",
@@ -171,7 +175,8 @@ const settingUpdaters: {
     invoke("change_start_hidden_setting", { enabled: value }),
   autostart_enabled: (value) =>
     invoke("change_autostart_setting", { enabled: value }),
-  push_to_talk: (value) => invoke("change_ptt_setting", { enabled: value }),
+  activation_mode: (value) =>
+    invoke("change_activation_mode_setting", { mode: value }),
   selected_microphone: async (value) => {
     const result = (await invoke("set_selected_microphone", {
       deviceName: value === "Default" ? "default" : value,
@@ -916,6 +921,23 @@ export const useSettingsStore = create<SettingsStore>()(
           "Failed to update cached model prompt message role:",
           error,
         );
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    toggleCachedModelThinking: async (modelId, enabled) => {
+      const updateKey = `cached_model_thinking:${modelId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("toggle_cached_model_thinking", {
+          id: modelId,
+          enabled,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to toggle thinking mode:", error);
       } finally {
         setUpdating(updateKey, false);
       }

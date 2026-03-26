@@ -14,7 +14,7 @@ import { MicrophoneSelector } from "../MicrophoneSelector";
 import { MuteWhileRecording } from "../MuteWhileRecording";
 import { OutputDeviceSelector } from "../OutputDeviceSelector";
 import { PasteMethodSetting } from "../PasteMethod";
-import { PushToTalk } from "../PushToTalk";
+import { ActivationMode } from "../PushToTalk";
 import { ShowOverlay } from "../ShowOverlay";
 import { SoundPicker } from "../SoundPicker";
 import { StartHidden } from "../StartHidden";
@@ -48,7 +48,7 @@ export const GeneralSettings: React.FC = () => {
       <SettingsGroup title={t("settings.general.groups.recording")}>
         <MicrophoneSelector descriptionMode="inline" grouped={true} />
         <AudioInputAutoEnhance descriptionMode="inline" grouped={true} />
-        <PushToTalk descriptionMode="inline" grouped={true} />
+        <ActivationMode descriptionMode="inline" grouped={true} />
         {/* Expert only */}
         {expertMode && (
           <>

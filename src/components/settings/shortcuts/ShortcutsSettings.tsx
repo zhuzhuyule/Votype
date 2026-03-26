@@ -9,7 +9,7 @@ export const ShortcutsSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting, settings } = useSettings();
 
-  const pushToTalk = getSetting("push_to_talk") || false;
+  const activationMode = getSetting("activation_mode") || "toggle";
   const debugMode = settings?.debug_mode ?? false;
 
   return (
@@ -45,7 +45,7 @@ export const ShortcutsSettings: React.FC = () => {
             shortcutId="cancel"
             descriptionMode="inline"
             grouped={true}
-            disabled={pushToTalk}
+            disabled={activationMode === "hold"}
           />
         ) : null}
       </SettingsGroup>

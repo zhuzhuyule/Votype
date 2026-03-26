@@ -148,6 +148,8 @@ export const CachedModelSchema = z.object({
     .default("system"),
   // 额外的请求参数（JSON 格式，会合并到 LLM 请求体中）
   extra_params: z.record(z.string(), z.unknown()).optional(),
+  // 额外的请求头（会合并到 HTTP 请求头中）
+  extra_headers: z.record(z.string(), z.string()).optional(),
 });
 
 export type CachedModel = z.infer<typeof CachedModelSchema>;
@@ -181,7 +183,9 @@ export type PostProcessProvider = z.infer<typeof PostProcessProviderSchema>;
 
 export const SettingsSchema = z.object({
   bindings: ShortcutBindingsMapSchema,
-  push_to_talk: z.boolean(),
+  activation_mode: z
+    .enum(["toggle", "hold", "hold_or_toggle"])
+    .default("toggle"),
   audio_feedback: z.boolean(),
   audio_feedback_volume: z.number().optional().default(1.0),
   sound_theme: z

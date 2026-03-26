@@ -732,9 +732,18 @@
         "searchPlaceholder": "Search languages...",
         "title": "Language"
       },
-      "pushToTalk": {
-        "description": "Hold to record, release to stop",
-        "label": "Push To Talk"
+      "activationMode": {
+        "label": "Activation Mode",
+        "descriptions": {
+          "toggle": "Press to start, press again to stop",
+          "hold": "Hold to record, release to stop",
+          "hold_or_toggle": "Quick press to toggle, hold to push-to-talk"
+        },
+        "options": {
+          "toggle": "Toggle",
+          "hold": "Hold",
+          "holdOrToggle": "Hold or Toggle"
+        }
       },
       "shortcut": {
         "bindings": {
@@ -985,7 +994,14 @@
         "multiHint": "Parallel comparison",
         "defaultModelDescription": "Default model",
         "noModelSelected": "No model selected",
-        "multiDescription": "Select models in the list below for parallel comparison"
+        "multiDescription": "Select models in the list below for parallel comparison",
+        "multiStrategy": "Multi-model Strategy",
+        "multiStrategyManual": "Manual",
+        "multiStrategyManualHint": "Show all candidates for manual selection",
+        "multiStrategyRace": "Ultra-fast",
+        "multiStrategyRaceHint": "Use the first available result",
+        "multiStrategyLazy": "Lazy",
+        "multiStrategyLazyHint": "Wait 3s for default model, auto-select by preference on timeout"
       },
       "lengthRouting": {
         "enableLabel": "Auto-select model by text length",
@@ -1063,7 +1079,9 @@
           "local": "Local Models",
           "remote": "Online Models"
         },
-        "title": "Models"
+        "title": "Models",
+        "setAsDefault": "Set as Default",
+        "invalidJson": "Invalid JSON format"
       },
       "prompts": {
         "activeSet": "Set as default prompt",
@@ -1076,6 +1094,10 @@
           "description": "Are you sure you want to delete this prompt? This action cannot be undone.",
           "title": "Delete Prompt"
         },
+        "createFailed": "Failed to create skill",
+        "nameAndContentRequired": "Name and content cannot be empty",
+        "fillNameAndInstructionsFirst": "Please fill in the name and instructions first so AI can generate a better summary.",
+        "userOwnedPrompts": "My Prompts",
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
         "deleteSuccess": "Prompt deleted successfully",
@@ -1130,7 +1152,10 @@
         "updateFailed": "Update failed",
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully",
+        "inlineVarsLabel": "Inline Variables",
+        "autoInjectedNote": "Input text, selected text, hotwords, history and ASR references are automatically injected by the system — no need to reference them in the prompt.",
         "varAppNameDesc": "Active application name.",
+        "varAppCategoryDesc": "App category (CodeEditor, Email, etc.).",
         "varContextDesc": "Historical context from the active window.",
         "varOutputDesc": "Final transcribed text.",
         "varPromptDesc": "Current prompt scheme's display name.",
@@ -1151,6 +1176,13 @@
           "start": "Generate",
           "menuItem": "Voice Input",
           "success": "Skill created successfully"
+        },
+        "templates": {
+          "template_polish": "Default Polish",
+          "template_translate": "Translation",
+          "template_summary": "Summary",
+          "template_chat": "AI Chat",
+          "template_blank": "Blank Skill"
         }
       },
       "skills": {
@@ -1382,7 +1414,12 @@
       "deviationMajor": "Significant Changes",
       "insertTranslation": "Insert translation",
       "multiModel": "Multi-model Results",
-      "processing": "Processing..."
+      "processing": "Processing...",
+      "restoreOrder": "Restore Original Order",
+      "sortBySpeed": "Sort by Response Speed",
+      "speedSorted": "Speed First",
+      "sortBySpeedShort": "By Speed",
+      "rankCount": "#{{rank}} ({{count}} times)"
     }
   }
 }
