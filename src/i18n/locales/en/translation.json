@@ -742,7 +742,7 @@
         "options": {
           "toggle": "Toggle",
           "hold": "Hold",
-          "holdOrToggle": "Hold or Toggle"
+          "holdOrToggle": "Auto"
         }
       },
       "shortcut": {

@@ -783,7 +783,7 @@
         "options": {
           "toggle": "切换",
           "hold": "按住",
-          "holdOrToggle": "智能"
+          "holdOrToggle": "自动"
         }
       },
       "shortcut": {
