@@ -734,10 +734,13 @@
       },
       "activationMode": {
         "label": "Activation Mode",
+        "tooltip": {
+          "summary": "Choose how the recording shortcut is triggered"
+        },
         "descriptions": {
-          "toggle": "Press the shortcut to start recording, press again to stop",
-          "hold": "Hold the shortcut to record, release to stop automatically",
-          "hold_or_toggle": "Quick press enters toggle mode, hold over 300ms stops on release"
+          "toggle": "Press to start, press again to stop",
+          "hold": "Hold to record, release to stop",
+          "hold_or_toggle": "Quick press toggles, hold 300ms+ stops on release"
         },
         "options": {
           "toggle": "Toggle",
