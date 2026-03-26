@@ -19,6 +19,11 @@ interface ActivationModeProps {
 
 const ACTIVATION_OPTIONS = [
   {
+    value: "hold_or_toggle",
+    labelKey: "settings.general.activationMode.options.holdOrToggle",
+    descKey: "settings.general.activationMode.descriptions.hold_or_toggle",
+  },
+  {
     value: "toggle",
     labelKey: "settings.general.activationMode.options.toggle",
     descKey: "settings.general.activationMode.descriptions.toggle",
@@ -27,11 +32,6 @@ const ACTIVATION_OPTIONS = [
     value: "hold",
     labelKey: "settings.general.activationMode.options.hold",
     descKey: "settings.general.activationMode.descriptions.hold",
-  },
-  {
-    value: "hold_or_toggle",
-    labelKey: "settings.general.activationMode.options.holdOrToggle",
-    descKey: "settings.general.activationMode.descriptions.hold_or_toggle",
   },
 ] as const;
 
