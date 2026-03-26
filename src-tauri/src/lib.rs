@@ -5,6 +5,7 @@ mod app_category;
 mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
+mod cli;
 mod clipboard;
 mod commands;
 pub mod error;
@@ -348,8 +349,8 @@ pub fn run() {
     }
 
     builder
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = utils::show_or_create_main_window(app, Some("dashboard"));
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            cli::handle_cli_args(app, &args);
         }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
@@ -368,13 +369,17 @@ pub fn run() {
         .setup(move |app| {
             ensure_runtime_dirs(app.handle());
 
+            // Parse CLI args for first-launch flags
+            let cli_args = cli::CliArgs::try_parse_from_args(&std::env::args().collect::<Vec<_>>());
+
             let settings = settings::get_settings(app.handle());
             let file_log_level: log::Level = settings.log_level.clone().into();
             // Store the file log level in the atomic for the filter to use
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
 
-            // Initialize console log level based on debug_mode
-            let console_level = if settings.debug_mode {
+            // Apply debug mode from CLI or settings
+            let debug_mode = cli_args.as_ref().map_or(settings.debug_mode, |a| a.debug || settings.debug_mode);
+            let console_level = if debug_mode {
                 log::LevelFilter::Debug
             } else {
                 log::LevelFilter::Info
@@ -385,8 +390,9 @@ pub fn run() {
 
             initialize_core_logic(&app_handle);
 
-            // Show main window only if not starting hidden
-            if !settings.start_hidden {
+            // Show main window unless hidden by CLI flag or settings
+            let start_hidden = cli_args.as_ref().map_or(settings.start_hidden, |a| a.start_hidden || settings.start_hidden);
+            if !start_hidden {
                 let _ = utils::show_or_create_main_window(&app_handle, Some("dashboard"));
             }
 
@@ -478,6 +484,9 @@ pub fn run() {
             shortcut::settings_cmds::add_cached_model,
             shortcut::settings_cmds::update_cached_model_capability,
             shortcut::settings_cmds::change_cached_model_prompt_message_role,
+            shortcut::settings_cmds::update_cached_model,
+            shortcut::settings_cmds::get_thinking_config,
+            shortcut::settings_cmds::toggle_cached_model_thinking,
             shortcut::settings_cmds::remove_cached_model,
             shortcut::settings_cmds::toggle_online_asr,
             shortcut::settings_cmds::select_asr_model,
