@@ -54,6 +54,7 @@ pub fn add_custom_provider(
         allow_base_url_edit: true,
         models_endpoint,
         supports_structured_output: false,
+        custom_headers: None,
     };
     settings.post_process_providers.push(provider.clone());
     settings::write_settings(&app, settings);
@@ -92,9 +93,30 @@ pub fn update_custom_provider(
 #[specta::specta]
 pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
+
+    // Remove the provider
     settings
         .post_process_providers
         .retain(|p| p.id != provider_id);
+
+    // If the active provider was the deleted one, reset to first available
+    if settings.post_process_provider_id == provider_id {
+        settings.post_process_provider_id = settings
+            .post_process_providers
+            .first()
+            .map(|p| p.id.clone())
+            .unwrap_or_else(|| "openai".to_string());
+    }
+
+    // Clean up cached models that belong to the deleted provider
+    settings
+        .cached_models
+        .retain(|m| m.provider_id != provider_id);
+
+    // Clean up api keys and model selections for the deleted provider
+    settings.post_process_api_keys.remove(&provider_id);
+    settings.post_process_models.remove(&provider_id);
+
     settings::write_settings(&app, settings);
     Ok(())
 }

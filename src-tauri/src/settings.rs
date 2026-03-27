@@ -1726,6 +1726,22 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         store_set_settings(&store, &settings);
     }
 
+    // Clean up orphaned cached models whose provider no longer exists
+    {
+        let valid_provider_ids: std::collections::HashSet<&str> = settings
+            .post_process_providers
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        let before = settings.cached_models.len();
+        settings
+            .cached_models
+            .retain(|m| valid_provider_ids.contains(m.provider_id.as_str()));
+        if settings.cached_models.len() != before {
+            store_set_settings(&store, &settings);
+        }
+    }
+
     // Merge external skills from ~/.votype/skills/
     merge_external_skills(app, &mut settings);
 
