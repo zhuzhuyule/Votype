@@ -21,6 +21,7 @@ struct SkillFrontmatter {
     #[serde(default)]
     confidence_check_enabled: bool,
     confidence_threshold: Option<u8>,
+    param_preset: Option<String>,
 }
 
 /// Template for creating new skills
@@ -494,6 +495,7 @@ impl SkillManager {
                 enabled: true,
                 customized: false,
                 locked: false,
+                param_preset: None,
                 file_path: Some(file_path.to_path_buf()),
             });
         }
@@ -535,6 +537,7 @@ impl SkillManager {
             enabled: true,
             customized: false,
             locked: fm.locked,
+            param_preset: fm.param_preset,
             file_path: Some(file_path.to_path_buf()),
         })
     }
@@ -637,6 +640,7 @@ impl SkillManager {
             enabled: true,
             customized: false,
             locked: false,
+            param_preset: None,
             file_path: None,
         };
 
@@ -776,6 +780,7 @@ pub fn parse_builtin_skill_content(content: &str) -> Option<Skill> {
         enabled: true,
         customized: false,
         locked: fm.locked,
+        param_preset: fm.param_preset,
         file_path: None,
     })
 }

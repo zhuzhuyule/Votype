@@ -78,6 +78,7 @@ impl Default for Skill {
             enabled: true,
             customized: false,
             locked: false,
+            param_preset: None,
             file_path: None,
         }
     }
@@ -188,6 +189,10 @@ pub struct Skill {
     /// Whether this skill is locked (prevents editing/deletion)
     #[serde(default)]
     pub locked: bool,
+    /// 参数预设标识，用于匹配模型族的预设参数
+    /// 例如: "accurate", "balanced", "creative"
+    #[serde(default)]
+    pub param_preset: Option<String>,
     /// File path for external skills (user/imported source only)
     /// Skipped from serialization (runtime only)
     #[serde(skip)]
@@ -266,6 +271,10 @@ pub struct CachedModel {
     /// 是否为 Thinking 模式（深度推理）模型
     #[serde(default)]
     pub is_thinking_model: bool,
+    /// 模型族标识，用于自动匹配参数预设
+    /// 例如: "qwen3", "gpt-4o", "claude", "deepseek"
+    #[serde(default)]
+    pub model_family: Option<String>,
     /// LLM 指令消息角色（system / developer）
     #[serde(default)]
     pub prompt_message_role: PromptMessageRole,
@@ -1143,23 +1152,8 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         }
     }
 
-    // Collect user-customized builtin skill IDs before removing
-    let customized_ids: std::collections::HashSet<String> = settings
-        .post_process_prompts
-        .iter()
-        .filter(|p| p.source == SkillSource::Builtin && p.customized)
-        .map(|p| p.id.clone())
-        .collect();
-
-    let original_len = settings.post_process_prompts.len();
-    settings
-        .post_process_prompts
-        .retain(|prompt| prompt.source != SkillSource::Builtin);
-    if settings.post_process_prompts.len() != original_len {
-        changed = true;
-    }
-
-    // Re-insert latest builtin skills (skip user-customized ones)
+    // Sync builtin skills: only insert missing ones or update changed ones.
+    // Skip user-customized builtin skills entirely.
     let builtin_contents: &[&str] = &[
         include_str!("../resources/skills/builtin/default_correction.skill.md"),
         include_str!("../resources/skills/builtin/ai_chat.skill.md"),
@@ -1175,15 +1169,50 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         include_str!("../resources/skills/builtin/smart_compose.skill.md"),
     ];
     let mut inserted_count = 0;
+    let mut updated_count = 0;
     for content in builtin_contents {
         if let Some(skill) = crate::managers::skill::parse_builtin_skill_content(content) {
-            if customized_ids.contains(&skill.id) {
-                log::debug!(
-                    "[BuiltinSync] Skipping customized builtin skill: {} ({})",
+            if let Some(existing) = settings
+                .post_process_prompts
+                .iter()
+                .find(|p| p.id == skill.id && p.source == SkillSource::Builtin)
+            {
+                if existing.customized {
+                    log::debug!(
+                        "[BuiltinSync] Skipping customized builtin skill: {} ({})",
+                        skill.name,
+                        skill.id
+                    );
+                    continue;
+                }
+                // Check if content has changed
+                if existing.name == skill.name
+                    && existing.instructions == skill.instructions
+                    && existing.prompt == skill.prompt
+                    && existing.description == skill.description
+                    && existing.skill_type == skill.skill_type
+                    && existing.output_mode == skill.output_mode
+                    && existing.confidence_check_enabled == skill.confidence_check_enabled
+                    && existing.confidence_threshold == skill.confidence_threshold
+                {
+                    continue; // No changes needed
+                }
+                // Update in place
+                let pos = settings
+                    .post_process_prompts
+                    .iter()
+                    .position(|p| p.id == skill.id && p.source == SkillSource::Builtin)
+                    .unwrap();
+                log::info!(
+                    "[BuiltinSync] Updating builtin skill: {} ({})",
                     skill.name,
                     skill.id
                 );
+                settings.post_process_prompts[pos] = skill;
+                updated_count += 1;
+                changed = true;
             } else {
+                // Not present — insert at front
                 log::info!(
                     "[BuiltinSync] Inserting builtin skill: {} ({})",
                     skill.name,
@@ -1197,12 +1226,30 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
             log::warn!("[BuiltinSync] Failed to parse a builtin skill content");
         }
     }
-    log::info!(
-        "[BuiltinSync] Inserted {} builtin skills, {} customized skipped, total prompts: {}",
-        inserted_count,
-        customized_ids.len(),
-        settings.post_process_prompts.len()
-    );
+
+    // Remove stale builtin skills that no longer exist in builtin_contents
+    let valid_builtin_ids: std::collections::HashSet<String> = builtin_contents
+        .iter()
+        .filter_map(|content| {
+            crate::managers::skill::parse_builtin_skill_content(content).map(|s| s.id)
+        })
+        .collect();
+    let before_len = settings.post_process_prompts.len();
+    settings
+        .post_process_prompts
+        .retain(|p| p.source != SkillSource::Builtin || valid_builtin_ids.contains(&p.id));
+    if settings.post_process_prompts.len() != before_len {
+        changed = true;
+    }
+
+    if inserted_count > 0 || updated_count > 0 {
+        log::info!(
+            "[BuiltinSync] Inserted {}, updated {} builtin skills, total prompts: {}",
+            inserted_count,
+            updated_count,
+            settings.post_process_prompts.len()
+        );
+    }
 
     if !settings.builtin_prompt_resource_hashes.is_empty() {
         settings.builtin_prompt_resource_hashes.clear();

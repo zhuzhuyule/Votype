@@ -142,6 +142,7 @@ export const CachedModelSchema = z.object({
   custom_label: z.string().optional(),
   // Thinking Mode 标记
   is_thinking_model: z.boolean().optional().default(false),
+  model_family: z.string().optional(),
   prompt_message_role: z
     .enum(["system", "developer"])
     .optional()
