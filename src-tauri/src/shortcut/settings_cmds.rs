@@ -538,6 +538,26 @@ pub fn update_cached_model(
                 _ => settings::PromptMessageRole::System,
             };
         }
+        // Re-detect model_family whenever custom_label changes, unless user has manually set it
+        let presets_config =
+            app.try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+        if let Some(config) = presets_config {
+            let detected = crate::managers::model_preset::detect_model_family_with_label(
+                &m.model_id,
+                m.custom_label.as_deref(),
+                &config,
+            );
+            if detected != m.model_family {
+                log::info!(
+                    "[ModelPreset] Re-detected family for '{}' (label={:?}): {:?} → {:?}",
+                    m.model_id,
+                    m.custom_label,
+                    m.model_family,
+                    detected
+                );
+                m.model_family = detected;
+            }
+        }
         settings::write_settings(&app, settings);
     }
     Ok(())
@@ -877,11 +897,11 @@ pub fn change_post_process_use_secondary_output_setting(
 // Group: Model Preset Commands
 #[tauri::command]
 #[specta::specta]
-pub fn get_model_families(app: AppHandle) -> Result<Vec<String>, String> {
+pub fn get_model_families(app: AppHandle) -> Result<Vec<(String, String)>, String> {
     let config = app
         .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>()
         .ok_or("Model presets not loaded".to_string())?;
-    Ok(config.family_ids())
+    Ok(config.family_options())
 }
 
 #[tauri::command]

@@ -633,6 +633,7 @@ pub async fn maybe_post_process_transcription(
             let preset_params = crate::managers::model_preset::resolve_preset_params(
                 prompt.param_preset.as_deref(),
                 cached_model_for_preset.and_then(|m| m.model_family.as_deref()),
+                &model,
                 &config,
             );
 

@@ -167,6 +167,7 @@ pub async fn post_process_text_with_prompt(
         let preset_params = crate::managers::model_preset::resolve_preset_params(
             prompt.param_preset.as_deref(),
             cached_model.and_then(|m| m.model_family.as_deref()),
+            &model,
             &config,
         );
 

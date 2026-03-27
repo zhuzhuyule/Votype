@@ -6,8 +6,12 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelFamilyConfig {
     pub id: String,
+    #[serde(default)]
+    pub display_name: Option<String>,
     pub match_patterns: Vec<String>,
     pub default_preset: String,
+    #[serde(default)]
+    pub source: Option<String>,
     pub presets: HashMap<String, HashMap<String, serde_json::Value>>,
 }
 
@@ -36,6 +40,17 @@ impl ModelPresetsConfig {
     /// Get all family ids (for UI dropdown)
     pub fn family_ids(&self) -> Vec<String> {
         self.families.iter().map(|f| f.id.clone()).collect()
+    }
+
+    /// Get all families as (id, display_name) pairs for UI dropdown
+    pub fn family_options(&self) -> Vec<(String, String)> {
+        self.families
+            .iter()
+            .map(|f| {
+                let display = f.display_name.clone().unwrap_or_else(|| f.id.clone());
+                (f.id.clone(), display)
+            })
+            .collect()
     }
 }
 
@@ -73,12 +88,16 @@ pub fn detect_model_family_with_label(
 pub fn resolve_preset_params(
     param_preset: Option<&str>,
     model_family: Option<&str>,
+    model_id: &str,
     config: &ModelPresetsConfig,
 ) -> HashMap<String, serde_json::Value> {
     let family_id = match model_family {
         Some(f) => f,
         None => {
-            log::debug!("No model family, skipping preset params");
+            log::debug!(
+                "[ModelPreset] model_id='{}' has no family, skipping preset params",
+                model_id
+            );
             return HashMap::new();
         }
     };
@@ -86,7 +105,11 @@ pub fn resolve_preset_params(
     let family_config = match config.find_family(family_id) {
         Some(fc) => fc,
         None => {
-            log::warn!("Model family '{}' not found in presets config", family_id);
+            log::warn!(
+                "[ModelPreset] model_id='{}' family='{}' not found in presets config",
+                model_id,
+                family_id
+            );
             return HashMap::new();
         }
     };
@@ -95,18 +118,21 @@ pub fn resolve_preset_params(
 
     let params = family_config.presets.get(preset_name).or_else(|| {
         log::warn!(
-            "Preset '{}' not found for family '{}', falling back to '{}'",
-            preset_name,
+            "[ModelPreset] model_id='{}' family='{}' preset='{}' not found, falling back to '{}'",
+            model_id,
             family_id,
+            preset_name,
             family_config.default_preset
         );
         family_config.presets.get(&family_config.default_preset)
     });
 
-    log::debug!(
-        "Resolved preset: family='{}', preset='{}'",
+    log::info!(
+        "[ModelPreset] model_id='{}' family='{}' preset='{}' → {:?}",
+        model_id,
         family_id,
-        preset_name
+        preset_name,
+        params
     );
 
     params.cloned().unwrap_or_default()

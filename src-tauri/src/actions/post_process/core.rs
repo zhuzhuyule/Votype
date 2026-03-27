@@ -329,19 +329,19 @@ pub async fn execute_llm_request_with_messages(
         }
     }
 
-    // Log request summary (without full message content to avoid noise)
-    let extra_keys: Vec<&str> = body
+    // Log request summary with actual parameter values
+    let param_snapshot: std::collections::HashMap<&str, &serde_json::Value> = body
         .as_object()
         .map(|obj| {
-            obj.keys()
-                .filter(|k| *k != "model" && *k != "messages" && *k != "response_format")
-                .map(|k| k.as_str())
+            obj.iter()
+                .filter(|(k, _)| *k != "messages" && *k != "response_format")
+                .map(|(k, v)| (k.as_str(), v))
                 .collect()
         })
         .unwrap_or_default();
     info!(
-        "[LLM] Request: provider={} model={} extra_params={:?}",
-        provider.id, model, extra_keys
+        "[LLM] Request: provider={} model={} cached_model_id={:?} body_params={:?}",
+        provider.id, model, cached_model_id, param_snapshot
     );
 
     // Manual HTTP request to allow arbitrary parameters and handle response flexibly

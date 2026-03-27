@@ -38,7 +38,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
   );
-  const [modelFamilies, setModelFamilies] = React.useState<string[]>([]);
+  const [modelFamilies, setModelFamilies] = React.useState<[string, string][]>(
+    [],
+  );
   const [presetParamsHint, setPresetParamsHint] = React.useState<string>("");
 
   // Auto-detect thinking support
@@ -61,7 +63,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 
   // Load model families on mount
   React.useEffect(() => {
-    invoke<string[]>("get_model_families")
+    invoke<[string, string][]>("get_model_families")
       .then(setModelFamilies)
       .catch(() => setModelFamilies([]));
   }, []);
@@ -206,9 +208,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
               <Select.Trigger className="w-full" />
               <Select.Content>
                 <Select.Item value="__unknown__">未知</Select.Item>
-                {modelFamilies.map((f) => (
-                  <Select.Item key={f} value={f}>
-                    {f}
+                {modelFamilies.map(([id, displayName]) => (
+                  <Select.Item key={id} value={id}>
+                    {displayName}
                   </Select.Item>
                 ))}
               </Select.Content>

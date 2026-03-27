@@ -1,24 +1,70 @@
 {
-  "version": 1,
+  "version": 2,
   "presets": ["accurate", "balanced", "creative"],
   "families": [
     {
+      "id": "qwen3.5",
+      "display_name": "Qwen3.5",
+      "match_patterns": ["qwen3.5", "qwen-3.5"],
+      "default_preset": "balanced",
+      "source": "Based on Qwen3 official params (HuggingFace model card)",
+      "presets": {
+        "accurate": {
+          "temperature": 0.3,
+          "top_p": 0.7,
+          "top_k": 20,
+          "min_p": 0
+        },
+        "balanced": {
+          "temperature": 0.7,
+          "top_p": 0.8,
+          "top_k": 20,
+          "min_p": 0
+        },
+        "creative": {
+          "temperature": 0.9,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0
+        }
+      }
+    },
+    {
       "id": "qwen3",
+      "display_name": "Qwen3",
       "match_patterns": ["qwen3", "qwen-3"],
       "default_preset": "balanced",
+      "source": "HuggingFace Qwen3-235B-A22B model card: non-thinking mode temp=0.7, top_p=0.8, top_k=20",
       "presets": {
-        "accurate": { "temperature": 0.2, "top_p": 0.7, "top_k": 20 },
-        "balanced": { "temperature": 0.6, "top_p": 0.95, "top_k": 20 },
-        "creative": { "temperature": 0.9, "top_p": 0.95, "top_k": 20 }
+        "accurate": {
+          "temperature": 0.3,
+          "top_p": 0.7,
+          "top_k": 20,
+          "min_p": 0
+        },
+        "balanced": {
+          "temperature": 0.7,
+          "top_p": 0.8,
+          "top_k": 20,
+          "min_p": 0
+        },
+        "creative": {
+          "temperature": 0.9,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0
+        }
       }
     },
     {
       "id": "qwen2.5",
+      "display_name": "Qwen2.5",
       "match_patterns": ["qwen2.5", "qwen-2.5"],
       "default_preset": "balanced",
+      "source": "HuggingFace Qwen2.5-72B-Instruct generation_config.json: temp=0.7, top_p=0.8, top_k=20, rep_penalty=1.05",
       "presets": {
         "accurate": {
-          "temperature": 0.2,
+          "temperature": 0.3,
           "top_p": 0.7,
           "top_k": 20,
           "repetition_penalty": 1.05
@@ -29,57 +75,179 @@
           "top_k": 20,
           "repetition_penalty": 1.05
         },
+        "creative": {
+          "temperature": 0.9,
+          "top_p": 0.95,
+          "top_k": 20
+        }
+      }
+    },
+    {
+      "id": "qwen",
+      "display_name": "Qwen (通用)",
+      "match_patterns": ["qwen"],
+      "default_preset": "balanced",
+      "source": "Fallback for qwen-max/plus/turbo; uses Qwen3 non-thinking defaults",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7, "top_k": 20 },
+        "balanced": { "temperature": 0.7, "top_p": 0.8, "top_k": 20 },
         "creative": { "temperature": 0.9, "top_p": 0.95, "top_k": 20 }
       }
     },
     {
-      "id": "gpt-4o",
-      "match_patterns": ["gpt-4o"],
+      "id": "deepseek-r1",
+      "display_name": "DeepSeek-R1",
+      "match_patterns": ["deepseek-r1", "deepseek_r1"],
       "default_preset": "balanced",
+      "source": "DeepSeek-R1 GitHub README: temp=0.6, top_p=0.95; do not use temp=0",
       "presets": {
-        "accurate": { "temperature": 0.3, "top_p": 0.7 },
-        "balanced": { "temperature": 0.7, "top_p": 0.9 },
-        "creative": { "temperature": 1.0, "top_p": 0.95 }
-      }
-    },
-    {
-      "id": "gpt",
-      "match_patterns": ["gpt"],
-      "default_preset": "balanced",
-      "presets": {
-        "accurate": { "temperature": 0.3, "top_p": 0.7 },
-        "balanced": { "temperature": 0.7, "top_p": 0.9 },
-        "creative": { "temperature": 1.0, "top_p": 0.95 }
-      }
-    },
-    {
-      "id": "claude",
-      "match_patterns": ["claude"],
-      "default_preset": "balanced",
-      "presets": {
-        "accurate": { "temperature": 0.3, "top_p": 0.7 },
-        "balanced": { "temperature": 0.7, "top_p": 0.9 },
-        "creative": { "temperature": 1.0, "top_p": 0.95 }
+        "accurate": { "temperature": 0.0 },
+        "balanced": { "temperature": 0.6, "top_p": 0.95 },
+        "creative": { "temperature": 1.3 }
       }
     },
     {
       "id": "deepseek",
+      "display_name": "DeepSeek",
       "match_patterns": ["deepseek"],
       "default_preset": "balanced",
+      "source": "DeepSeek API docs: code=0.0, data_analysis=1.0, conversation=1.3, translation=1.3, creative=1.5",
+      "presets": {
+        "accurate": { "temperature": 0.0 },
+        "balanced": { "temperature": 1.0 },
+        "creative": { "temperature": 1.3 }
+      }
+    },
+    {
+      "id": "glm-5",
+      "display_name": "GLM-5 / 4.7 / 4.6 (智谱最新)",
+      "match_patterns": ["glm-5", "glm-4.7", "glm-4.6"],
+      "default_preset": "balanced",
+      "source": "Z.AI API docs: GLM-5/4.7/4.6 default temp=1.0, top_p=0.95",
       "presets": {
         "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 1.0, "top_p": 0.95 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "glm-4.5",
+      "display_name": "GLM-4.5 (智谱)",
+      "match_patterns": ["glm-4.5"],
+      "default_preset": "balanced",
+      "source": "Z.AI API docs: GLM-4.5 default temp=0.6, top_p=0.95",
+      "presets": {
+        "accurate": { "temperature": 0.2, "top_p": 0.7 },
+        "balanced": { "temperature": 0.6, "top_p": 0.95 },
+        "creative": { "temperature": 0.9, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "glm-4",
+      "display_name": "GLM-4 (智谱)",
+      "match_patterns": ["glm-4"],
+      "default_preset": "balanced",
+      "source": "Z.AI API docs: GLM-4 default temp=0.75, top_p=0.9",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.75, "top_p": 0.9 },
+        "creative": { "temperature": 0.95, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "glm",
+      "display_name": "GLM (智谱通用)",
+      "match_patterns": ["glm"],
+      "default_preset": "balanced",
+      "source": "Fallback for unknown GLM versions; uses GLM-5 defaults",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 1.0, "top_p": 0.95 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "llama",
+      "display_name": "Llama (Meta)",
+      "match_patterns": ["llama"],
+      "default_preset": "balanced",
+      "source": "HuggingFace Meta-Llama-3-8B-Instruct model card: temp=0.6, top_p=0.9",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.6, "top_p": 0.9 },
+        "creative": { "temperature": 0.9, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "mistral",
+      "display_name": "Mistral / Mixtral",
+      "match_patterns": ["mistral", "mixtral"],
+      "default_preset": "balanced",
+      "source": "No official sampling params found; conservative general defaults",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.8 },
         "balanced": { "temperature": 0.7, "top_p": 0.9 },
         "creative": { "temperature": 1.0, "top_p": 0.95 }
       }
     },
     {
+      "id": "gemma",
+      "display_name": "Gemma (Google)",
+      "match_patterns": ["gemma"],
+      "default_preset": "balanced",
+      "source": "HuggingFace example uses temp=1.0; no official sampling table",
+      "presets": {
+        "accurate": { "temperature": 0.5, "top_p": 0.8, "top_k": 20 },
+        "balanced": { "temperature": 1.0, "top_p": 0.95, "top_k": 40 },
+        "creative": { "temperature": 1.0, "top_p": 0.95, "top_k": 64 }
+      }
+    },
+    {
+      "id": "gpt-4o",
+      "display_name": "GPT-4o",
+      "match_patterns": ["gpt-4o"],
+      "default_preset": "balanced",
+      "source": "OpenAI API: default temp=1.0, range 0-2; no task-specific table; top_k not supported",
+      "presets": {
+        "accurate": { "temperature": 0.2 },
+        "balanced": { "temperature": 0.7, "top_p": 0.95 },
+        "creative": { "temperature": 1.0 }
+      }
+    },
+    {
+      "id": "gpt",
+      "display_name": "GPT (通用)",
+      "match_patterns": ["gpt"],
+      "default_preset": "balanced",
+      "source": "OpenAI API: default temp=1.0; fallback for non-4o GPT models",
+      "presets": {
+        "accurate": { "temperature": 0.2 },
+        "balanced": { "temperature": 0.7, "top_p": 0.95 },
+        "creative": { "temperature": 1.0 }
+      }
+    },
+    {
+      "id": "claude",
+      "display_name": "Claude (Anthropic)",
+      "match_patterns": ["claude"],
+      "default_preset": "balanced",
+      "source": "Anthropic API: default temp=1.0, range 0-1; 'closer to 0 for analytical, closer to 1 for creative'",
+      "presets": {
+        "accurate": { "temperature": 0.2, "top_k": 40 },
+        "balanced": { "temperature": 0.7 },
+        "creative": { "temperature": 1.0 }
+      }
+    },
+    {
       "id": "gemini",
+      "display_name": "Gemini (Google)",
       "match_patterns": ["gemini"],
       "default_preset": "balanced",
+      "source": "Google AI docs: default temp=1.0; WARNING: 'strongly recommend keeping default, lowering may cause looping'",
       "presets": {
-        "accurate": { "temperature": 0.3, "top_p": 0.7 },
-        "balanced": { "temperature": 0.7, "top_p": 0.9 },
-        "creative": { "temperature": 1.0, "top_p": 0.95 }
+        "accurate": { "temperature": 0.7, "top_p": 0.9, "top_k": 20 },
+        "balanced": { "temperature": 1.0, "top_p": 0.95, "top_k": 40 },
+        "creative": { "temperature": 1.0, "top_p": 0.95, "top_k": 64 }
       }
     }
   ]

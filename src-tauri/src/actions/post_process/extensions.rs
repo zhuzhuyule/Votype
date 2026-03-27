@@ -280,9 +280,15 @@ pub async fn multi_post_process_transcription(
     let strategy = settings.multi_model_strategy.as_str();
     let preferred_model_id = if strategy == "lazy" {
         settings
-            .selected_prompt_model_id
+            .multi_model_preferred_id
             .clone()
             .filter(|id| items.iter().any(|item| item.id == *id))
+            .or_else(|| {
+                settings
+                    .selected_prompt_model_id
+                    .clone()
+                    .filter(|id| items.iter().any(|item| item.id == *id))
+            })
     } else {
         None
     };
@@ -570,6 +576,7 @@ async fn execute_single_model_post_process(
         let preset_params = crate::managers::model_preset::resolve_preset_params(
             prompt.param_preset.as_deref(),
             cached_model.and_then(|m| m.model_family.as_deref()),
+            &model,
             &config,
         );
         if preset_params.is_empty() {
