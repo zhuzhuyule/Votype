@@ -166,33 +166,33 @@ export const TextModelModeSettings: React.FC = () => {
       value: "manual" as const,
       label: t(
         "settings.postProcessing.textModelMode.multiStrategyManual",
-        "手动",
+        "Manual",
       ),
       hint: t(
         "settings.postProcessing.textModelMode.multiStrategyManualHint",
-        "展示所有候选，手动选择",
+        "Show all candidates for manual selection",
       ),
     },
     {
       value: "race" as const,
       label: t(
         "settings.postProcessing.textModelMode.multiStrategyRaceShort",
-        "极速",
+        "Ultra-fast",
       ),
       hint: t(
         "settings.postProcessing.textModelMode.multiStrategyRaceHint",
-        "谁先返回可用结果就直接采用",
+        "Use the first available result",
       ),
     },
     {
       value: "lazy" as const,
       label: t(
         "settings.postProcessing.textModelMode.multiStrategyLazyShort",
-        "懒惰",
+        "Lazy",
       ),
       hint: t(
         "settings.postProcessing.textModelMode.multiStrategyLazyHint",
-        "优先等默认模型 3 秒，超时后按偏好自动选择",
+        "Wait 3s for default model, auto-select by preference on timeout",
       ),
     },
   ];
@@ -200,61 +200,57 @@ export const TextModelModeSettings: React.FC = () => {
   // Count selected models for multi mode
   const selectedMultiCount = multiModelSelectedIds.length;
 
+  const modeSelector = (
+    <Flex align="center" gap="0" className="rounded-lg bg-(--gray-a3) p-0.5">
+      {modes.map((m) => {
+        const isActive = mode === m.value;
+        return (
+          <button
+            key={m.value}
+            type="button"
+            onClick={() => handleModeChange(m.value)}
+            className={`
+              rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap
+              ${
+                isActive
+                  ? "bg-white shadow-sm px-5 py-1.5 text-sm font-semibold text-(--gray-12)"
+                  : "px-4 py-1.5 text-sm font-medium text-(--gray-9) hover:text-(--gray-11)"
+              }
+            `}
+          >
+            {m.label}
+          </button>
+        );
+      })}
+    </Flex>
+  );
+
   return (
     <SettingsGroup
-      title={t(
-        "settings.postProcessing.textModelMode.title",
-        "Text Model Mode",
-      )}
+      title={
+        <Flex align="center" gap="3">
+          <span>
+            {t(
+              "settings.postProcessing.textModelMode.title",
+              "Post-processing Mode",
+            )}
+          </span>
+          {modeSelector}
+        </Flex>
+      }
     >
-      {/* Mode selector */}
-      <Grid columns="3" gap="2" className="mb-3">
-        {modes.map((m) => {
-          const isSelected = mode === m.value;
-          return (
-            <Box
-              key={m.value}
-              onClick={() => handleModeChange(m.value)}
-              className={`
-                cursor-pointer rounded-lg border p-2 transition-colors text-center
-                ${
-                  isSelected
-                    ? "bg-(--accent-3) border-(--accent-8)"
-                    : "bg-(--gray-2) border-transparent hover:bg-(--gray-4)"
-                }
-              `}
-            >
-              <Text
-                size="2"
-                weight={isSelected ? "bold" : "medium"}
-                color={isSelected ? "blue" : undefined}
-                as="div"
-              >
-                {m.label}
-              </Text>
-              <Text
-                size="1"
-                color="gray"
-                as="div"
-                style={{ lineHeight: "1.2" }}
-              >
-                {m.hint}
-              </Text>
-            </Box>
-          );
-        })}
-      </Grid>
-
-      {/* Single model mode — label + select right-aligned in 1/3 width */}
+      {/* Single model mode — label row + action row, select max 50% width */}
       {mode === "single" && (
-        <Flex align="center" justify="end" gap="2">
-          <Text size="2" weight="medium" color="gray">
+        <Grid columns="3" gap="3">
+          <Text size="2" weight="medium" color="gray" as="div">
             {t(
               "settings.postProcessing.textModelMode.defaultModelDescription",
               "Default model",
             )}
           </Text>
-          <Box style={{ width: "33.33%" }}>
+          <Box style={{ gridColumn: "2 / 4" }} />
+
+          <Box>
             {renderModelSelect(
               defaultModelId,
               handleDefaultModelChange,
@@ -264,52 +260,57 @@ export const TextModelModeSettings: React.FC = () => {
               ),
             )}
           </Box>
-        </Flex>
+        </Grid>
       )}
 
-      {/* Length routing mode — 3 columns: threshold | short model | long model */}
+      {/* Length routing mode — label row + action row (3 columns) */}
       {mode === "length" && (
-        <Grid columns="3" gap="3" align="end">
-          <Box>
-            <Text size="2" weight="medium" color="gray" mb="1" as="div">
-              {t(
-                "settings.postProcessing.lengthRouting.thresholdLabel",
-                "Character threshold",
-              )}
-            </Text>
-            <Flex align="center" gap="2" style={{ height: "var(--space-6)" }}>
-              <Box style={{ flex: 1 }}>
-                <RadixSlider
-                  value={[threshold]}
-                  onValueChange={(v) => handleThresholdChange(v[0])}
-                  size="1"
-                  min={10}
-                  max={500}
-                  step={10}
-                />
-              </Box>
-              <Text
-                size="2"
-                weight="medium"
-                style={{
-                  width: "2rem",
-                  textAlign: "right",
-                  flexShrink: 0,
-                }}
-              >
-                {Math.round(threshold)}
-              </Text>
-            </Flex>
-          </Box>
+        <Grid columns="3" gap="3">
+          <Text size="2" weight="medium" color="gray" as="div">
+            {t(
+              "settings.postProcessing.lengthRouting.thresholdLabel",
+              "Character threshold",
+            )}
+          </Text>
+          <Text size="2" weight="medium" color="gray" as="div">
+            {t(
+              "settings.postProcessing.lengthRouting.shortModelLabel",
+              "Short text",
+            )}{" "}
+            ≤ {threshold}
+          </Text>
+          <Text size="2" weight="medium" color="gray" as="div">
+            {t(
+              "settings.postProcessing.lengthRouting.longModelLabel",
+              "Long text",
+            )}{" "}
+            &gt; {threshold}
+          </Text>
 
-          <Box>
-            <Text size="2" weight="medium" color="gray" mb="1" as="div">
-              {t(
-                "settings.postProcessing.lengthRouting.shortModelLabel",
-                "Short text",
-              )}{" "}
-              ≤ {threshold}
+          <Flex align="center" gap="2">
+            <Box style={{ flex: 1 }}>
+              <RadixSlider
+                value={[threshold]}
+                onValueChange={(v) => handleThresholdChange(v[0])}
+                size="1"
+                min={10}
+                max={500}
+                step={10}
+              />
+            </Box>
+            <Text
+              size="2"
+              weight="medium"
+              style={{
+                width: "2rem",
+                textAlign: "right",
+                flexShrink: 0,
+              }}
+            >
+              {Math.round(threshold)}
             </Text>
+          </Flex>
+          <Box>
             {renderModelSelect(
               shortModelId,
               handleShortModelChange,
@@ -319,15 +320,7 @@ export const TextModelModeSettings: React.FC = () => {
               ),
             )}
           </Box>
-
           <Box>
-            <Text size="2" weight="medium" color="gray" mb="1" as="div">
-              {t(
-                "settings.postProcessing.lengthRouting.longModelLabel",
-                "Long text",
-              )}{" "}
-              &gt; {threshold}
-            </Text>
             {renderModelSelect(
               longModelId,
               handleLongModelChange,
@@ -340,22 +333,18 @@ export const TextModelModeSettings: React.FC = () => {
         </Grid>
       )}
 
-      {/* Multi model mode */}
+      {/* Multi model mode — label row + action row + selected models */}
       {mode === "multi" && (
-        <Box>
-          <Text size="2" color="gray" as="div">
-            {t(
-              "settings.postProcessing.textModelMode.multiDescription",
-              "Select models in the list below for parallel comparison",
-            )}
-          </Text>
-          <Box mt="3">
-            <Text size="2" weight="medium" color="gray" mb="2" as="div">
+        <Flex direction="column" gap="3">
+          <Grid columns="3" gap="3">
+            <Text size="2" weight="medium" color="gray" as="div">
               {t(
                 "settings.postProcessing.textModelMode.multiStrategy",
-                "多模型策略",
+                "Multi-model Strategy",
               )}
             </Text>
+            <Box style={{ gridColumn: "2 / 4" }} />
+
             <Flex
               align="center"
               gap="1"
@@ -386,9 +375,9 @@ export const TextModelModeSettings: React.FC = () => {
                 );
               })}
             </Flex>
-          </Box>
+          </Grid>
           {selectedMultiCount > 0 && (
-            <Flex gap="1" mt="2" wrap="wrap">
+            <Flex gap="1" wrap="wrap" align="center">
               {multiModelSelectedIds.map((id) => {
                 const model = textModels.find((m) => m.id === id);
                 if (!model) return null;
@@ -400,7 +389,7 @@ export const TextModelModeSettings: React.FC = () => {
               })}
             </Flex>
           )}
-        </Box>
+        </Flex>
       )}
     </SettingsGroup>
   );

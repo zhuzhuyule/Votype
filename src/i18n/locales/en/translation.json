@@ -988,7 +988,7 @@
         "title": "Auto-Review Sensitivity"
       },
       "textModelMode": {
-        "title": "Text Model Mode",
+        "title": "Post-processing Mode",
         "single": "Single Model",
         "singleHint": "One model for all text",
         "length": "Smart",

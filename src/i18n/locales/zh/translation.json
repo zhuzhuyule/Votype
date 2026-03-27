@@ -1232,7 +1232,7 @@
         "thresholdHint": "低于此分数的转录将提示用户审阅"
       },
       "textModelMode": {
-        "title": "文本模型模式",
+        "title": "后处理模式",
         "single": "单个模型",
         "singleHint": "所有文本使用同一模型",
         "length": "智能模型",
