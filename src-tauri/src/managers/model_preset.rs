@@ -125,3 +125,51 @@ pub fn merge_params(
     }
     base
 }
+
+const CURRENT_VERSION: u32 = 1;
+
+/// Load model presets config, checking user data dir first, then built-in resources.
+pub fn load_model_presets(app_handle: &tauri::AppHandle) -> Result<ModelPresetsConfig, String> {
+    use tauri::Manager;
+
+    // 1. Check user app data directory for override
+    if let Ok(data_dir) = app_handle.path().app_data_dir() {
+        let user_path = data_dir.join("model_presets.json");
+        if user_path.exists() {
+            log::info!("Loading user model_presets.json from {:?}", user_path);
+            let user_config = ModelPresetsConfig::load_from_file(&user_path)?;
+            if user_config.version < CURRENT_VERSION {
+                log::warn!(
+                    "User model_presets.json (v{}) is older than built-in (v{}). User file takes precedence.",
+                    user_config.version, CURRENT_VERSION
+                );
+            }
+            return Ok(user_config);
+        }
+    }
+
+    // 2. Fall back to built-in resource
+    let resource_rel = "resources/model_presets.json";
+    if let Ok(path) = app_handle
+        .path()
+        .resolve(resource_rel, tauri::path::BaseDirectory::Resource)
+    {
+        if path.exists() {
+            log::info!("Loading built-in model_presets.json from {:?}", path);
+            return ModelPresetsConfig::load_from_file(&path);
+        }
+    }
+
+    // 3. Development fallback
+    if let Some(path) = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+        .map(|dir| dir.join("../../resources/model_presets.json"))
+        .and_then(|p| p.canonicalize().ok())
+    {
+        log::info!("Loading dev model_presets.json from {:?}", path);
+        return ModelPresetsConfig::load_from_file(&path);
+    }
+
+    Err("model_presets.json not found in any location".to_string())
+}

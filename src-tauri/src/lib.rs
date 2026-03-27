@@ -164,6 +164,16 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(hotword_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
     app_handle.manage(prompt_manager.clone());
+    let presets_config = crate::managers::model_preset::load_model_presets(app_handle)
+        .unwrap_or_else(|e| {
+            log::warn!("Failed to load model presets: {}. Using empty config.", e);
+            crate::managers::model_preset::ModelPresetsConfig {
+                version: 0,
+                presets: vec![],
+                families: vec![],
+            }
+        });
+    app_handle.manage(Arc::new(presets_config));
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));
