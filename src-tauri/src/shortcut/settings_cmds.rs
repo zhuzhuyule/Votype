@@ -416,7 +416,25 @@ pub fn change_auto_submit_key_setting(app: AppHandle, key: String) -> Result<(),
 
 #[tauri::command]
 #[specta::specta]
-pub fn add_cached_model(app: AppHandle, model: settings::CachedModel) -> Result<(), String> {
+pub fn add_cached_model(app: AppHandle, mut model: settings::CachedModel) -> Result<(), String> {
+    let presets_config =
+        app.try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+    if let Some(config) = presets_config {
+        if model.model_family.is_none() {
+            model.model_family = crate::managers::model_preset::detect_model_family_with_label(
+                &model.model_id,
+                model.custom_label.as_deref(),
+                &config,
+            );
+            if let Some(ref family) = model.model_family {
+                log::info!(
+                    "Auto-detected model family '{}' for model '{}'",
+                    family,
+                    model.model_id
+                );
+            }
+        }
+    }
     let mut settings = settings::get_settings(&app);
     if !settings.cached_models.iter().any(|m| m.id == model.id) {
         settings.cached_models.push(model);

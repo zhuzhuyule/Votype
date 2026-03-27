@@ -174,6 +174,36 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             }
         });
     app_handle.manage(Arc::new(presets_config));
+
+    // Migration: detect model_family for existing cached models that don't have one set
+    {
+        let presets_cfg =
+            app_handle.state::<Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+        let mut settings = settings::get_settings(app_handle);
+        let mut changed = false;
+        for model in settings.cached_models.iter_mut() {
+            if model.model_family.is_none() {
+                let detected = crate::managers::model_preset::detect_model_family_with_label(
+                    &model.model_id,
+                    model.custom_label.as_deref(),
+                    &presets_cfg,
+                );
+                if detected.is_some() {
+                    log::info!(
+                        "Migration: detected model family '{:?}' for existing model '{}'",
+                        detected,
+                        model.model_id
+                    );
+                    model.model_family = detected;
+                    changed = true;
+                }
+            }
+        }
+        if changed {
+            settings::write_settings(app_handle, settings);
+        }
+    }
+
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));
