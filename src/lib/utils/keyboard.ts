@@ -172,6 +172,253 @@ export const formatKeyCombination = (
   return combination.replace(/ ?\+ ?/g, " + ");
 };
 
+export interface KeyToken {
+  /** Raw key name */
+  raw: string;
+  /** Display label (symbol, icon glyph, or text) */
+  label: string;
+  /** Whether this is a modifier key */
+  isModifier: boolean;
+  /** Left/Right side indicator, if specified by backend */
+  side?: "L" | "R";
+}
+
+/**
+ * Platform-specific modifier display.
+ *
+ * Key symbols reference:
+ *   ⌘  Command (macOS)           ⌃  Control
+ *   ⌥  Option / Alt              ⇧  Shift
+ *   ⊞  Windows logo key          ❖  Super / Meta (Linux)
+ *
+ * macOS:   ⌃  ⌥  ⇧  ⌘              (pure Apple symbols)
+ * Windows: Ctrl  ⌥ Alt  ⇧  ⊞ Win    (symbol + text for clarity)
+ * Linux:   Ctrl  Alt  ⇧  ❖ Super    (symbol + text)
+ */
+const MODIFIER_LABELS: Record<OSType, Record<string, string>> = {
+  macos: {
+    command: "⌘",
+    cmd: "⌘",
+    meta: "⌘",
+    option: "⌥",
+    alt: "⌥",
+    shift: "⇧",
+    ctrl: "⌃",
+    control: "⌃",
+  },
+  windows: {
+    ctrl: "Ctrl",
+    control: "Ctrl",
+    alt: "⌥ Alt",
+    option: "⌥ Alt",
+    shift: "⇧",
+    meta: "⊞ Win",
+    command: "⊞ Win",
+    cmd: "⊞ Win",
+    super: "⊞ Win",
+  },
+  linux: {
+    ctrl: "Ctrl",
+    control: "Ctrl",
+    alt: "Alt",
+    option: "Alt",
+    shift: "⇧",
+    meta: "❖ Super",
+    command: "❖ Super",
+    cmd: "❖ Super",
+    super: "❖ Super",
+  },
+  unknown: {
+    ctrl: "Ctrl",
+    control: "Ctrl",
+    alt: "Alt",
+    option: "Alt",
+    shift: "⇧ Shift",
+    meta: "Meta",
+    command: "Meta",
+    cmd: "Meta",
+    super: "Super",
+  },
+};
+
+/**
+ * Platform-aware labels for special (non-modifier) keys.
+ * Symbols are used where universally recognizable; text otherwise.
+ */
+const SPECIAL_KEY_LABELS: Record<string, string> = {
+  space: "␣",
+  enter: "↩",
+  backspace: "⌫",
+  delete: "⌦",
+  tab: "⇥",
+  esc: "Esc",
+  escape: "Esc",
+  up: "↑",
+  down: "↓",
+  left: "←",
+  right: "→",
+  "caps lock": "⇪",
+  home: "Home",
+  end: "End",
+  "page up": "PgUp",
+  "page down": "PgDn",
+  insert: "Ins",
+  "print screen": "PrtSc",
+  "scroll lock": "ScrLk",
+  pause: "Pause",
+  menu: "☰",
+  "num lock": "NumLk",
+};
+
+/** Canonical modifier names for matching */
+const MODIFIER_NAMES = new Set([
+  "ctrl",
+  "control",
+  "alt",
+  "option",
+  "shift",
+  "command",
+  "cmd",
+  "meta",
+  "super",
+]);
+
+/**
+ * Modifier sort order per platform.
+ * macOS: ⌃ ⌥ ⇧ ⌘  (Apple HIG)
+ * Windows/Linux: ⊞/Super  Ctrl  Alt  ⇧  (Microsoft convention)
+ */
+const MODIFIER_ORDER: Record<OSType, string[]> = {
+  macos: [
+    "ctrl",
+    "control",
+    "alt",
+    "option",
+    "shift",
+    "command",
+    "cmd",
+    "meta",
+  ],
+  windows: [
+    "meta",
+    "command",
+    "cmd",
+    "super",
+    "ctrl",
+    "control",
+    "alt",
+    "option",
+    "shift",
+  ],
+  linux: [
+    "meta",
+    "command",
+    "cmd",
+    "super",
+    "ctrl",
+    "control",
+    "alt",
+    "option",
+    "shift",
+  ],
+  unknown: [
+    "meta",
+    "command",
+    "cmd",
+    "super",
+    "ctrl",
+    "control",
+    "alt",
+    "option",
+    "shift",
+  ],
+};
+
+/**
+ * Parse a key combination string into structured tokens for rendering.
+ * Handles platform-specific symbols, modifier ordering, and special keys.
+ */
+export const parseKeyCombination = (
+  combination: string = "",
+  osType: OSType = "macos",
+): KeyToken[] => {
+  if (!combination) return [];
+
+  if (combination.startsWith("double_")) {
+    const key = combination.replace("double_", "");
+    const capitalizedKey = key.charAt(0).toUpperCase() + key.slice(1);
+    return [
+      { raw: "double", label: "2×", isModifier: true },
+      { raw: key, label: capitalizedKey, isModifier: false },
+    ];
+  }
+
+  const parts = combination
+    .split(/\s?\+\s?/)
+    .map((k) => k.trim().toLowerCase());
+  const modLabels = MODIFIER_LABELS[osType] || MODIFIER_LABELS.unknown;
+  const order = MODIFIER_ORDER[osType] || MODIFIER_ORDER.unknown;
+
+  const modifiers: KeyToken[] = [];
+  const keys: KeyToken[] = [];
+
+  for (const part of parts) {
+    if (!part) continue;
+
+    // Detect left/right modifier variants:
+    //   "option_left", "command_right"  (handy_keys backend format)
+    //   "left option", "right command"  (browser fallback format)
+    let side: "L" | "R" | undefined;
+    let baseName = part;
+
+    const underscoreMatch = part.match(/^(.+)_(left|right)$/);
+    const spaceMatch = part.match(/^(left|right)\s+(.+)$/);
+    if (underscoreMatch) {
+      const [, base, sideStr] = underscoreMatch;
+      if (MODIFIER_NAMES.has(base)) {
+        side = sideStr === "left" ? "L" : "R";
+        baseName = base;
+      }
+    } else if (spaceMatch) {
+      const [, sideStr, base] = spaceMatch;
+      if (MODIFIER_NAMES.has(base)) {
+        side = sideStr === "left" ? "L" : "R";
+        baseName = base;
+      }
+    }
+
+    const isModifier = MODIFIER_NAMES.has(baseName);
+
+    let label: string;
+    if (isModifier && modLabels[baseName]) {
+      label = modLabels[baseName];
+    } else if (SPECIAL_KEY_LABELS[baseName]) {
+      label = SPECIAL_KEY_LABELS[baseName];
+    } else if (/^f\d+$/.test(baseName)) {
+      label = baseName.toUpperCase();
+    } else if (/^numpad\s?.+$/.test(baseName)) {
+      label = baseName.replace(/^numpad\s?/, "Num ");
+    } else {
+      label =
+        baseName.length === 1
+          ? baseName.toUpperCase()
+          : baseName.charAt(0).toUpperCase() + baseName.slice(1);
+    }
+
+    const token: KeyToken = { raw: baseName, label, isModifier, side };
+    if (isModifier) {
+      modifiers.push(token);
+    } else {
+      keys.push(token);
+    }
+  }
+
+  // Sort modifiers in platform-specific order
+  modifiers.sort((a, b) => order.indexOf(a.raw) - order.indexOf(b.raw));
+
+  return [...modifiers, ...keys];
+};
+
 /**
  * Normalize modifier keys to handle left/right variants
  */

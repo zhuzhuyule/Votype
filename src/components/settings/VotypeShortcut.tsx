@@ -1,4 +1,4 @@
-import { Kbd } from "@radix-ui/themes";
+import { Flex } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { type } from "@tauri-apps/plugin-os";
@@ -7,10 +7,11 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useSettings } from "../../hooks/useSettings";
 import {
-  formatKeyCombination,
   getKeyName,
+  type KeyToken,
   normalizeKey,
   type OSType,
+  parseKeyCombination,
 } from "../../lib/utils/keyboard";
 import { ActionWrapper } from "../ui";
 import { SettingContainer } from "../ui/SettingContainer";
@@ -342,43 +343,77 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
     setRecordedKeys([]);
   };
 
-  // Format the current shortcut keys being recorded
-  const formatCurrentKeys = (): string => {
-    if (recordedKeys.length === 0)
-      return t("settings.general.shortcut.pressKeys");
-
-    // Use the same formatting as the display to ensure consistency
-    return formatKeyCombination(recordedKeys.join(" + "), osType);
+  // Parse the current shortcut keys being recorded
+  const currentTokens = (): KeyToken[] => {
+    if (recordedKeys.length === 0) return [];
+    return parseKeyCombination(recordedKeys.join("+"), osType);
   };
 
-  const className = "w-53 py-2! flex align-baseline";
+  function renderKeyBadge(token: KeyToken, index: number) {
+    // Build display text: prepend L/R side indicator for left/right modifiers
+    const displayLabel = token.side
+      ? `${token.side} ${token.label}`
+      : token.label;
+    // Single-char symbols (macOS ⌘⌥⇧⌃, arrows, etc.) get uniform square sizing;
+    // multi-char labels (Ctrl, Alt, ⊞ Win, L ⌘, etc.) get extra horizontal padding.
+    const isCompact = displayLabel.length <= 2;
+    return (
+      <Flex
+        key={index}
+        align="center"
+        justify="center"
+        className={`h-7 rounded-md border text-xs select-none leading-none ${
+          isCompact ? "w-7" : "px-2"
+        } ${
+          token.isModifier
+            ? "bg-(--gray-2) border-(--gray-5) text-(--gray-11) font-medium"
+            : "bg-(--accent-3) border-(--accent-6) text-(--accent-11) font-mono"
+        }`}
+      >
+        {displayLabel}
+      </Flex>
+    );
+  }
 
   function renderKeys() {
     if (isLoading) {
       return (
-        <Kbd className={className}>
+        <Flex align="center" className="h-9 text-sm text-(--gray-8)">
           {t("settings.general.shortcut.loading")}
-        </Kbd>
+        </Flex>
       );
     }
 
     if (!binding) {
       return (
-        <Kbd className={className}>{t("settings.general.shortcut.none")}</Kbd>
+        <Flex align="center" className="h-9 text-sm text-(--gray-8)">
+          {t("settings.general.shortcut.none")}
+        </Flex>
       );
     }
 
     const isSame = editingShortcutId === shortcutId;
+    const tokens = isSame
+      ? currentTokens()
+      : parseKeyCombination(binding.current_binding, osType);
+
     return (
-      <Kbd
-        className={className}
+      <Flex
+        align="center"
+        justify="end"
+        gap="1"
+        className="h-9 cursor-pointer"
         data-shortcut-id={shortcutId}
         onClick={() => startRecording(shortcutId)}
       >
-        {isSame
-          ? formatCurrentKeys()
-          : formatKeyCombination(binding.current_binding, osType)}
-      </Kbd>
+        {tokens.length === 0 ? (
+          <span className="text-sm text-(--gray-8) animate-pulse">
+            {t("settings.general.shortcut.pressKeys")}
+          </span>
+        ) : (
+          tokens.map((token, i) => renderKeyBadge(token, i))
+        )}
+      </Flex>
     );
   }
 

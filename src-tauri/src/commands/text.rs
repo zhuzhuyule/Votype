@@ -25,8 +25,7 @@ pub async fn optimize_text_with_llm(
 
     // Find the model for the current provider
     let model = settings
-        .post_process_models
-        .get(provider_id)
+        .resolve_model_for_provider(provider_id)
         .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
 
     log::info!(
@@ -103,7 +102,7 @@ pub async fn optimize_text_with_llm(
         &app_handle,
         &settings,
         provider,
-        model,
+        &model,
         None,
         &system_prompt,      // System message: optimization instructions
         Some(&user_content), // User message: text to optimize + references context
@@ -135,8 +134,7 @@ pub async fn generate_skill_description(
         .ok_or_else(|| "Post-processing provider not found".to_string())?;
 
     let model = settings
-        .post_process_models
-        .get(provider_id)
+        .resolve_model_for_provider(provider_id)
         .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
 
     log::info!(
@@ -172,7 +170,7 @@ pub async fn generate_skill_description(
         &app_handle,
         &settings,
         provider,
-        model,
+        &model,
         None,
         &system_prompt,      // System message: generation instructions
         Some(&user_content), // User message: skill name + instructions
@@ -202,100 +200,46 @@ pub async fn translate_review_text(
 ) -> Result<TranslationResult, String> {
     let settings = settings::get_settings(&app_handle);
 
-    // Try to use intent model (fast model) first for quick translation
-    let (provider, model) = if let Some(intent_model_id) = &settings.post_process_intent_model_id {
-        if let Some(cached_model) = settings
-            .cached_models
-            .iter()
-            .find(|cached| cached.id == *intent_model_id)
-        {
-            if cached_model.model_type == crate::settings::ModelType::Text {
-                if let Some(intent_provider) =
-                    settings.post_process_provider(&cached_model.provider_id)
-                {
-                    let model_id = cached_model.model_id.trim().to_string();
-                    if !model_id.is_empty() {
-                        log::info!(
-                            "Using intent model for translation: provider={}, model={}",
-                            intent_provider.label,
-                            model_id
-                        );
-                        (intent_provider, model_id)
-                    } else {
-                        // Fallback to standard model
-                        let provider_id = &settings.post_process_provider_id;
-                        let provider = settings
-                            .post_process_providers
-                            .iter()
-                            .find(|p| p.id == *provider_id)
-                            .ok_or_else(|| "Post-processing provider not found".to_string())?;
-                        let model =
-                            settings
-                                .post_process_models
-                                .get(provider_id)
-                                .ok_or_else(|| {
-                                    format!("No model configured for provider {}", provider_id)
-                                })?;
-                        (provider, model.clone())
-                    }
-                } else {
-                    // Fallback to standard model
-                    let provider_id = &settings.post_process_provider_id;
-                    let provider = settings
-                        .post_process_providers
-                        .iter()
-                        .find(|p| p.id == *provider_id)
-                        .ok_or_else(|| "Post-processing provider not found".to_string())?;
-                    let model = settings
-                        .post_process_models
-                        .get(provider_id)
-                        .ok_or_else(|| {
-                            format!("No model configured for provider {}", provider_id)
-                        })?;
-                    (provider, model.clone())
-                }
-            } else {
-                // Not a text model, fallback
-                let provider_id = &settings.post_process_provider_id;
-                let provider = settings
-                    .post_process_providers
-                    .iter()
-                    .find(|p| p.id == *provider_id)
-                    .ok_or_else(|| "Post-processing provider not found".to_string())?;
-                let model = settings
-                    .post_process_models
-                    .get(provider_id)
-                    .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
-                (provider, model.clone())
-            }
-        } else {
-            // Intent model not found in cache, fallback
-            let provider_id = &settings.post_process_provider_id;
-            let provider = settings
-                .post_process_providers
-                .iter()
-                .find(|p| p.id == *provider_id)
-                .ok_or_else(|| "Post-processing provider not found".to_string())?;
-            let model = settings
-                .post_process_models
-                .get(provider_id)
-                .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
-            (provider, model.clone())
-        }
-    } else {
-        // No intent model configured, use standard model
+    // Try to use intent model (fast model) first, then fall back to standard model
+    let resolve_standard = || -> Result<(&settings::PostProcessProvider, String), String> {
         let provider_id = &settings.post_process_provider_id;
         let provider = settings
-            .post_process_providers
-            .iter()
-            .find(|p| p.id == *provider_id)
+            .post_process_provider(provider_id)
             .ok_or_else(|| "Post-processing provider not found".to_string())?;
         let model = settings
-            .post_process_models
-            .get(provider_id)
+            .resolve_model_for_provider(provider_id)
             .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
-        (provider, model.clone())
+        Ok((provider, model))
     };
+
+    let (provider, model) = (|| -> Result<_, String> {
+        let intent_model_id = match &settings.post_process_intent_model_id {
+            Some(id) => id,
+            None => return resolve_standard(),
+        };
+        let cached_model = match settings
+            .cached_models
+            .iter()
+            .find(|c| c.id == *intent_model_id)
+        {
+            Some(cm) if cm.model_type == crate::settings::ModelType::Text => cm,
+            _ => return resolve_standard(),
+        };
+        let intent_provider = match settings.post_process_provider(&cached_model.provider_id) {
+            Some(p) => p,
+            None => return resolve_standard(),
+        };
+        let model_id = cached_model.model_id.trim().to_string();
+        if model_id.is_empty() {
+            return resolve_standard();
+        }
+        log::info!(
+            "Using intent model for translation: provider={}, model={}",
+            intent_provider.label,
+            model_id
+        );
+        Ok((intent_provider, model_id))
+    })()?;
 
     log::info!(
         "Translating review text: provider={}, model={}, user_locale={}",
@@ -375,8 +319,7 @@ pub async fn generate_skill_metadata(
         .ok_or_else(|| "Post-processing provider not found".to_string())?;
 
     let model = settings
-        .post_process_models
-        .get(provider_id)
+        .resolve_model_for_provider(provider_id)
         .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
 
     log::info!(
@@ -410,7 +353,7 @@ pub async fn generate_skill_metadata(
         &app_handle,
         &settings,
         provider,
-        model,
+        &model,
         None,
         &system_prompt,
         None,

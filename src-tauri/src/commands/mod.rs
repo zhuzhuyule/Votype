@@ -283,9 +283,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 prompt.name.clone(),
                                 Some(prompt.id.clone()),
                                 settings
-                                    .post_process_models
-                                    .get(&settings.post_process_provider_id)
-                                    .cloned(),
+                                    .resolve_model_for_provider(&settings.post_process_provider_id),
                             )
                             .await;
                         log::info!(
@@ -458,9 +456,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 prompt.name.clone(),
                                 Some(prompt.id.clone()),
                                 settings
-                                    .post_process_models
-                                    .get(&settings.post_process_provider_id)
-                                    .cloned(),
+                                    .resolve_model_for_provider(&settings.post_process_provider_id),
                             )
                             .await;
                         log::info!(
