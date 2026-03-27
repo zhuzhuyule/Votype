@@ -617,6 +617,38 @@ pub async fn maybe_post_process_transcription(
             .as_deref()
             .or(settings.selected_prompt_model_id.as_deref());
 
+        // Resolve preset parameters
+        let presets_config = app_handle
+            .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+        let merged_extra_params = if let Some(config) = presets_config {
+            let cached_model_for_preset = cached_model_id
+                .and_then(|id| settings.cached_models.iter().find(|m| m.id == id))
+                .or_else(|| {
+                    settings
+                        .cached_models
+                        .iter()
+                        .find(|m| m.model_id == model && m.provider_id == actual_provider.id)
+                });
+
+            let preset_params = crate::managers::model_preset::resolve_preset_params(
+                prompt.param_preset.as_deref(),
+                cached_model_for_preset.and_then(|m| m.model_family.as_deref()),
+                &config,
+            );
+
+            if preset_params.is_empty() {
+                None
+            } else {
+                let merged = crate::managers::model_preset::merge_params(
+                    preset_params,
+                    cached_model_for_preset.and_then(|m| m.extra_params.as_ref()),
+                );
+                Some(merged)
+            }
+        } else {
+            None
+        };
+
         // Single-model request: apply a 10s timeout.
         // If the LLM takes too long, skip post-processing and return the original text.
         let llm_future = super::core::execute_llm_request_with_messages(
@@ -631,6 +663,7 @@ pub async fn maybe_post_process_transcription(
             window_title.clone(),
             match_pattern.clone(),
             match_type,
+            merged_extra_params.as_ref(),
         );
 
         let (result, err, error_message) = match tokio::time::timeout(

@@ -8,6 +8,7 @@ use async_openai::types::{
     ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs,
 };
 use log::{error, info};
+use std::collections::HashMap;
 use tauri::{AppHandle, Emitter};
 
 /// Field name for structured output JSON schema
@@ -139,6 +140,7 @@ pub async fn execute_llm_request(
         _window_title,
         _match_pattern,
         _match_type,
+        None,
     )
     .await
 }
@@ -155,6 +157,7 @@ pub async fn execute_llm_request_with_messages(
     _window_title: Option<String>,
     _match_pattern: Option<String>,
     _match_type: Option<crate::settings::TitleMatchType>,
+    override_extra_params: Option<&HashMap<String, serde_json::Value>>,
 ) -> (Option<String>, bool, Option<String>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -275,7 +278,8 @@ pub async fn execute_llm_request_with_messages(
             .iter()
             .find(|m| m.model_id == model && m.provider_id == provider.id)
     });
-    let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
+    let extra_params =
+        override_extra_params.or_else(|| cached_model.and_then(|m| m.extra_params.as_ref()));
     let extra_headers = cached_model.and_then(|m| m.extra_headers.as_ref());
 
     // Build the request body JSON

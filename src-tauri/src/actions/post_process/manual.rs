@@ -162,6 +162,7 @@ pub async fn post_process_text_with_prompt(
         window_title,
         None,
         None,
+        None,
     )
     .await;
 
