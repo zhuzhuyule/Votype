@@ -96,9 +96,7 @@ interface ReviewWindowProps {
   onClose: () => void;
 }
 
-type ShortcutMap = Partial<
-  Record<"transcribe" | "transcribe_with_post_process" | "invoke_skill", string>
->;
+type ShortcutMap = Partial<Record<"transcribe" | "invoke_skill", string>>;
 
 function normalizeShortcutPart(part: string): string {
   const value = part.trim().toLowerCase();
@@ -408,8 +406,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         setActivationMode(typed.activation_mode || "toggle");
         setTranscribeShortcuts({
           transcribe: typed.bindings?.transcribe?.current_binding,
-          transcribe_with_post_process:
-            typed.bindings?.transcribe_with_post_process?.current_binding,
           invoke_skill: typed.bindings?.invoke_skill?.current_binding,
         });
       })

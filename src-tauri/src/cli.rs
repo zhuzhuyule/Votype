@@ -11,10 +11,6 @@ pub struct CliArgs {
     #[arg(long)]
     pub toggle_transcription: bool,
 
-    /// Toggle transcription with post-processing
-    #[arg(long)]
-    pub toggle_post_process: bool,
-
     /// Cancel current recording/processing
     #[arg(long)]
     pub cancel: bool,
@@ -44,11 +40,7 @@ impl CliArgs {
 
     /// Returns true if any action flag is set (not just startup flags)
     pub fn has_action(&self) -> bool {
-        self.toggle_transcription
-            || self.toggle_post_process
-            || self.cancel
-            || self.show
-            || self.skill.is_some()
+        self.toggle_transcription || self.cancel || self.show || self.skill.is_some()
     }
 }
 
@@ -71,18 +63,6 @@ pub fn handle_cli_args(app: &AppHandle, args: &[String]) {
             info!("CLI: toggle transcription");
             coordinator.send_input(
                 "transcribe",
-                "CLI",
-                true,
-                crate::settings::ActivationMode::Toggle,
-            );
-        }
-    }
-
-    if cli_args.toggle_post_process {
-        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-            info!("CLI: toggle transcription with post-process");
-            coordinator.send_input(
-                "transcribe_with_post_process",
                 "CLI",
                 true,
                 crate::settings::ActivationMode::Toggle,

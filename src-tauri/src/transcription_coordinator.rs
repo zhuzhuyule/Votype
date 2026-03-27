@@ -41,7 +41,7 @@ pub struct TranscriptionCoordinator {
 }
 
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process" || id == "invoke_skill"
+    id == "transcribe" || id == "invoke_skill"
 }
 
 impl TranscriptionCoordinator {

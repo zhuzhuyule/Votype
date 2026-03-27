@@ -1362,15 +1362,6 @@ pub fn get_default_settings() -> AppSettings {
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     let default_shortcut = "alt+space";
 
-    #[cfg(target_os = "windows")]
-    let default_post_process_shortcut = "ctrl+shift+space";
-    #[cfg(target_os = "macos")]
-    let default_post_process_shortcut = "option+shift+space";
-    #[cfg(target_os = "linux")]
-    let default_post_process_shortcut = "ctrl+shift+space";
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    let default_post_process_shortcut = "alt+shift+space";
-
     let mut bindings = HashMap::new();
     bindings.insert(
         "transcribe".to_string(),
@@ -1380,17 +1371,6 @@ pub fn get_default_settings() -> AppSettings {
             description: "Converts your speech into text.".to_string(),
             default_binding: default_shortcut.to_string(),
             current_binding: default_shortcut.to_string(),
-        },
-    );
-    bindings.insert(
-        "transcribe_with_post_process".to_string(),
-        ShortcutBinding {
-            id: "transcribe_with_post_process".to_string(),
-            name: "Transcribe with Post-Processing".to_string(),
-            description: "Converts your speech into text and applies AI post-processing."
-                .to_string(),
-            default_binding: default_post_process_shortcut.to_string(),
-            current_binding: default_post_process_shortcut.to_string(),
         },
     );
     bindings.insert(
@@ -1570,6 +1550,33 @@ impl AppSettings {
     /// Get cached model by ID
     pub fn get_cached_model(&self, model_id: &str) -> Option<&CachedModel> {
         self.cached_models.iter().find(|m| m.id == model_id)
+    }
+
+    /// Resolve the effective model ID string for a given provider.
+    ///
+    /// Resolution order:
+    /// 1. `selected_prompt_model_id` → look up in `cached_models` (must match provider)
+    /// 2. `post_process_models` legacy map
+    ///
+    /// Returns `None` if no non-empty model can be found.
+    pub fn resolve_model_for_provider(&self, provider_id: &str) -> Option<String> {
+        // Try selected_prompt_model_id via cached_models first
+        if let Some(ref cm_id) = self.selected_prompt_model_id {
+            if let Some(cm) = self.cached_models.iter().find(|m| m.id == *cm_id) {
+                if cm.provider_id == provider_id {
+                    let model_id = cm.model_id.trim().to_string();
+                    if !model_id.is_empty() {
+                        return Some(model_id);
+                    }
+                }
+            }
+        }
+
+        // Fallback to legacy post_process_models map
+        self.post_process_models
+            .get(provider_id)
+            .filter(|m| !m.trim().is_empty())
+            .cloned()
     }
 
     /// Build MultiModelPostProcessItem list from multi_model_selected_ids.

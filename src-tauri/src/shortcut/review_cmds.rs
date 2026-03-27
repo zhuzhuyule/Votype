@@ -147,10 +147,7 @@ pub fn dispatch_transcribe_binding_from_review(
     binding_id: String,
     is_pressed: bool,
 ) -> Result<(), String> {
-    if binding_id != "transcribe"
-        && binding_id != "transcribe_with_post_process"
-        && binding_id != "invoke_skill"
-    {
+    if binding_id != "transcribe" && binding_id != "invoke_skill" {
         return Err(format!("Unsupported binding id: {}", binding_id));
     }
 
