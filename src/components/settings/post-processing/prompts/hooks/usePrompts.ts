@@ -246,7 +246,7 @@ export const usePrompts = (
     }
 
     if (!draftName.trim() || !draftContent.trim()) {
-      toast.error("名称和内容不能为空");
+      toast.error(t("settings.postProcessing.prompts.nameAndContentRequired"));
       return;
     }
 

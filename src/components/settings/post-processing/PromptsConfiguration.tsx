@@ -179,12 +179,41 @@ const PromptsConfiguration: React.FC = () => {
     [currentTab, isGenerating, isDirty, setCurrentTab, t],
   );
 
-  // Handle creating skill from template
+  // Handle creating skill from template — use localized name
   const handleCreateFromTemplate = async (templateId: string) => {
     setShowTemplateMenu(false);
-    const newSkill = await createSkillFromTemplate(templateId);
-    if (newSkill) {
-      setCurrentTab(newSkill.id);
+    const template = templates.find((tmpl) => tmpl.id === templateId);
+    if (!template) return;
+
+    const localizedName = t(
+      `settings.postProcessing.prompts.templates.${templateId}`,
+      template.name,
+    );
+
+    try {
+      const createdSkill = await invoke<LLMPrompt>("create_skill", {
+        skill: {
+          id: "",
+          name: localizedName,
+          instructions: template.instructions,
+          prompt: template.instructions,
+          description: template.description,
+          icon: template.icon,
+          skill_type: "text",
+          source: "user",
+          output_mode: template.output_mode,
+          confidence_check_enabled: false,
+          confidence_threshold: 70,
+          enabled: true,
+          customized: false,
+          locked: false,
+        },
+      });
+      await refreshSkills();
+      setCurrentTab(createdSkill.id);
+    } catch (e) {
+      console.error("Failed to create skill from template:", e);
+      toast.error(t("settings.postProcessing.prompts.createFailed"));
     }
   };
 
@@ -288,7 +317,10 @@ const PromptsConfiguration: React.FC = () => {
                           key={template.id}
                           onClick={() => handleCreateFromTemplate(template.id)}
                         >
-                          {template.name}
+                          {t(
+                            `settings.postProcessing.prompts.templates.${template.id}`,
+                            template.name,
+                          )}
                         </DropdownMenu.Item>
                       ))}
                       <DropdownMenu.Separator />
@@ -694,7 +726,9 @@ const PromptsConfiguration: React.FC = () => {
                             onClick={async () => {
                               if (!draftName || !draftContent) {
                                 toast.error(
-                                  "建议先填写名称和指令，以便 AI 更好地总结。",
+                                  t(
+                                    "settings.postProcessing.prompts.fillNameAndInstructionsFirst",
+                                  ),
                                 );
                                 return;
                               }

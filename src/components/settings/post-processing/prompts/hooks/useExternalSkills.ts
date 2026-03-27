@@ -209,7 +209,7 @@ export function useExternalSkills() {
         return result;
       } catch (e) {
         console.error("Failed to create skill from template:", e);
-        toast.error("创建技能失败");
+        toast.error("Failed to create skill from template");
         return null;
       }
     },
@@ -232,7 +232,7 @@ export function useExternalSkills() {
         });
       } catch (e) {
         console.error("Failed to reorder skills:", e);
-        toast.error("排序失败");
+        toast.error("Failed to reorder skills");
       }
     },
   };
