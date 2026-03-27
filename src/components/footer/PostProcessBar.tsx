@@ -12,18 +12,24 @@ import {
   IconChevronRight,
   IconLanguage,
   IconPlayerPlay,
+  IconSettings,
   IconSparkles,
   IconTextGrammar,
   IconWand,
 } from "@tabler/icons-react";
-import React, { useMemo, useState } from "react";
+import { emit } from "@tauri-apps/api/event";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
+
+type TextModelMode = "single" | "length" | "multi";
 
 export const PostProcessBar: React.FC = () => {
   const { t } = useTranslation();
   const { settings, getSetting, updateSetting, isUpdating, selectPromptModel } =
     useSettings();
+  const [open, setOpen] = useState(false);
+  const [tooltipLocked, setTooltipLocked] = useState(false);
   const [showModelList, setShowModelList] = useState(false);
 
   const realtimeEnabled = getSetting("realtime_transcription_enabled") || false;
@@ -53,19 +59,187 @@ export const PostProcessBar: React.FC = () => {
     [settings?.cached_models],
   );
 
+  // Current mode
+  const multiModelEnabled = settings?.multi_model_post_process_enabled ?? false;
+  const lengthRoutingEnabled = settings?.length_routing_enabled ?? false;
+  const mode: TextModelMode = multiModelEnabled
+    ? "multi"
+    : lengthRoutingEnabled
+      ? "length"
+      : "single";
+
+  // Single mode
   const selectedModelId = settings?.selected_prompt_model_id ?? "";
   const selectedModel = textModels.find((m) => m.id === selectedModelId);
   const selectedModelLabel = selectedModel
     ? selectedModel.custom_label || selectedModel.model_id
     : "";
 
+  // Multi-model
+  const multiModelStrategy = settings?.multi_model_strategy ?? "manual";
+
+  const handleModeChange = useCallback(
+    async (newMode: TextModelMode) => {
+      if (newMode === mode) return;
+      if (mode === "length")
+        await updateSetting("length_routing_enabled", false);
+      else if (mode === "multi")
+        await updateSetting("multi_model_post_process_enabled", false);
+      if (newMode === "length")
+        await updateSetting("length_routing_enabled", true);
+      else if (newMode === "multi")
+        await updateSetting("multi_model_post_process_enabled", true);
+    },
+    [mode, updateSetting],
+  );
+
+  const navigateToModels = useCallback(() => {
+    setOpen(false);
+    emit("navigate-to-settings", "models");
+  }, []);
+
+  const strategies = ["manual", "race", "lazy"] as const;
+  const strategyLabel = (s: string) => {
+    switch (s) {
+      case "manual":
+        return t(
+          "settings.postProcessing.textModelMode.multiStrategyManual",
+          "Manual",
+        );
+      case "race":
+        return t(
+          "settings.postProcessing.textModelMode.multiStrategyRaceShort",
+          "Ultra-fast",
+        );
+      case "lazy":
+        return t(
+          "settings.postProcessing.textModelMode.multiStrategyLazyShort",
+          "Lazy",
+        );
+      default:
+        return s;
+    }
+  };
+
+  const modes: { value: TextModelMode; label: string }[] = [
+    {
+      value: "single",
+      label: t("settings.postProcessing.textModelMode.single", "Single"),
+    },
+    {
+      value: "length",
+      label: t("settings.postProcessing.textModelMode.length", "Smart"),
+    },
+    {
+      value: "multi",
+      label: t("settings.postProcessing.textModelMode.multi", "Multi"),
+    },
+  ];
+
+  const renderModelSection = () => {
+    if (!llmEnabled || textModels.length === 0) return null;
+
+    return (
+      <Flex direction="column" gap="2">
+        {/* Mode selector */}
+        <Flex align="center" justify="between">
+          <Flex
+            align="center"
+            gap="0"
+            className="rounded-full bg-(--gray-a3) p-0.5"
+          >
+            {modes.map((m) => {
+              const isActive = mode === m.value;
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => handleModeChange(m.value)}
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-(--color-background) shadow-sm text-(--gray-12)"
+                      : "text-(--gray-9) hover:text-(--gray-11)"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              );
+            })}
+          </Flex>
+          <Tooltip content={t("footer.postProcess.openSettings", "Settings")}>
+            <button
+              onClick={navigateToModels}
+              className="p-1 rounded-full hover:bg-(--gray-a3) transition-colors cursor-pointer"
+            >
+              <IconSettings size={12} className="text-(--gray-9)" />
+            </button>
+          </Tooltip>
+        </Flex>
+
+        {/* Single: model picker */}
+        {mode === "single" && (
+          <button
+            onClick={() => setShowModelList(!showModelList)}
+            className="flex items-center justify-between w-full rounded-md px-2 py-1 cursor-pointer transition-colors bg-(--gray-a3) hover:bg-(--gray-a4)"
+          >
+            <Text size="1" color="gray" truncate>
+              {selectedModelLabel || t("footer.postProcess.selectModel")}
+            </Text>
+            <IconChevronRight
+              size={12}
+              className="text-(--gray-9) flex-shrink-0"
+            />
+          </button>
+        )}
+
+        {/* Multi: strategy pills */}
+        {mode === "multi" && (
+          <Flex
+            align="center"
+            gap="0"
+            className="rounded-full bg-(--gray-a3) p-0.5"
+          >
+            {strategies.map((s) => {
+              const isActive = multiModelStrategy === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => updateSetting("multi_model_strategy", s)}
+                  disabled={isUpdating("multi_model_strategy")}
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                    isActive
+                      ? "bg-(--accent-9) text-white shadow-sm"
+                      : "text-(--gray-9) hover:text-(--gray-11)"
+                  }`}
+                >
+                  {strategyLabel(s)}
+                </button>
+              );
+            })}
+          </Flex>
+        )}
+      </Flex>
+    );
+  };
+
   return (
     <Popover.Root
-      onOpenChange={(open) => {
-        if (!open) setShowModelList(false);
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) {
+          setTooltipLocked(true);
+        } else {
+          setShowModelList(false);
+          setTimeout(() => setTooltipLocked(false), 300);
+        }
       }}
     >
-      <Tooltip content={t("footer.postProcess.title")}>
+      <Tooltip
+        content={t("footer.postProcess.title")}
+        open={tooltipLocked ? false : undefined}
+      >
         <Popover.Trigger>
           <IconButton
             variant="ghost"
@@ -151,24 +325,10 @@ export const PostProcessBar: React.FC = () => {
               />
             </Flex>
 
-            {/* Selected model row - shown when LLM is enabled */}
-            {llmEnabled && textModels.length > 0 && (
-              <button
-                onClick={() => setShowModelList(!showModelList)}
-                className="flex items-center justify-between w-full rounded-md px-2 py-1.5 cursor-pointer transition-colors bg-(--gray-a3) hover:bg-(--gray-a4)"
-              >
-                <Text size="1" color="gray" truncate>
-                  {selectedModelLabel || t("footer.postProcess.selectModel")}
-                </Text>
-                <IconChevronRight
-                  size={12}
-                  className="text-(--gray-9) flex-shrink-0"
-                />
-              </button>
-            )}
+            {renderModelSection()}
           </Flex>
 
-          {/* Model list side panel - bottom aligned */}
+          {/* Model list side panel */}
           {showModelList && (
             <div
               className="absolute left-full bottom-0 ml-3 bg-(--color-panel-solid) border border-(--gray-a6) shadow-lg z-50"
