@@ -93,3 +93,12 @@ pub fn remove_multi_model_post_process_item(app: AppHandle, item_id: String) -> 
     settings::write_settings(&app, settings);
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_multi_model_preferred_id(app: AppHandle, id: Option<String>) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.multi_model_preferred_id = id;
+    settings::write_settings(&app, settings);
+    Ok(())
+}

@@ -771,6 +771,9 @@ pub struct AppSettings {
     /// Multi-model strategy: manual | race | lazy
     #[serde(default = "default_multi_model_strategy")]
     pub multi_model_strategy: String,
+    /// Preferred model id for multi-model mode (used by lazy strategy)
+    #[serde(default)]
+    pub multi_model_preferred_id: Option<String>,
     /// Counts of manual candidate picks by cached_model_id
     #[serde(default)]
     pub multi_model_manual_pick_counts: HashMap<String, u32>,
@@ -1494,6 +1497,7 @@ pub fn get_default_settings() -> AppSettings {
         multi_model_post_process_items: Vec::new(),
         multi_model_selected_ids: Vec::new(),
         multi_model_strategy: default_multi_model_strategy(),
+        multi_model_preferred_id: None,
         multi_model_manual_pick_counts: HashMap::new(),
         cached_models: Vec::new(),
         online_asr_enabled: false,

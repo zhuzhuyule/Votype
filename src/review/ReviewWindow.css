@@ -1154,6 +1154,19 @@
   color: var(--gray-9);
 }
 
+/* Model badge shown in multi-candidate header */
+.review-model-badge {
+  font-size: 10px;
+  color: var(--gray-11);
+  background: var(--gray-a3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Shared panel base */
 .review-panel {
   display: flex;

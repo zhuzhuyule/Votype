@@ -1246,9 +1246,13 @@
         "multiStrategyManual": "手动",
         "multiStrategyManualHint": "展示所有候选，手动选择",
         "multiStrategyRace": "极速",
+        "multiStrategyRaceShort": "极速",
         "multiStrategyRaceHint": "谁先返回可用结果就直接采用",
         "multiStrategyLazy": "懒惰",
-        "multiStrategyLazyHint": "优先等默认模型 3 秒，超时后按偏好自动选择"
+        "multiStrategyLazyShort": "懒惰",
+        "multiStrategyLazyHint": "优先等偏好模型 3 秒，超时后自动选择",
+        "preferredModel": "偏好模型",
+        "setAsPreferred": "设为偏好模型"
       },
       "lengthRouting": {
         "enableLabel": "按文本长度自动选择模型",

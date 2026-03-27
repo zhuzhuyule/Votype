@@ -556,7 +556,7 @@ async changePostProcessUseSecondaryOutputSetting(enabled: boolean) : Promise<Res
     else return { status: "error", error: e  as any };
 }
 },
-async getModelFamilies() : Promise<Result<string[], string>> {
+async getModelFamilies() : Promise<Result<([string, string])[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_model_families") };
 } catch (e) {
@@ -634,6 +634,14 @@ async updateMultiModelPostProcessItem(item: MultiModelPostProcessItem) : Promise
 async removeMultiModelPostProcessItem(itemId: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("remove_multi_model_post_process_item", { itemId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setMultiModelPreferredId(id: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_multi_model_preferred_id", { id }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

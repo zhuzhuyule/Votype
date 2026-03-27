@@ -259,6 +259,8 @@ const settingUpdaters: {
     invoke("change_multi_model_strategy_setting", {
       strategy: value,
     }),
+  multi_model_preferred_id: (value) =>
+    invoke("set_multi_model_preferred_id", { id: value }),
   multi_model_post_process_items: () => Promise.resolve(), // Handled separately
   post_process_selected_prompt_id: (value) =>
     invoke("set_post_process_selected_prompt", { id: value }),

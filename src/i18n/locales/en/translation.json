@@ -1002,9 +1002,13 @@
         "multiStrategyManual": "Manual",
         "multiStrategyManualHint": "Show all candidates for manual selection",
         "multiStrategyRace": "Ultra-fast",
+        "multiStrategyRaceShort": "Ultra-fast",
         "multiStrategyRaceHint": "Use the first available result",
         "multiStrategyLazy": "Lazy",
-        "multiStrategyLazyHint": "Wait 3s for default model, auto-select by preference on timeout"
+        "multiStrategyLazyShort": "Lazy",
+        "multiStrategyLazyHint": "Wait 3s for preferred model, auto-select on timeout",
+        "preferredModel": "Preferred model",
+        "setAsPreferred": "Set as preferred model"
       },
       "lengthRouting": {
         "enableLabel": "Auto-select model by text length",

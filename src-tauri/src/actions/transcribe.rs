@@ -1082,7 +1082,7 @@ impl ShortcutAction for TranscribeAction {
                                                         output_mode,
                                                         None,
                                                         effective_prompt_id.cloned(),
-                                                        Some(model_name),
+                                                        Some(best.id.clone()),
                                                     );
                                                     return;
                                                 }

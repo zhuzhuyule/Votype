@@ -248,6 +248,7 @@ export const SettingsSchema = z.object({
     .enum(["manual", "race", "lazy"])
     .optional()
     .default("manual"),
+  multi_model_preferred_id: z.string().nullable().optional().default(null),
   multi_model_manual_pick_counts: z.record(z.number()).optional().default({}),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),

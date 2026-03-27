@@ -54,6 +54,8 @@ interface ReviewHeaderProps {
   onRerunResult?: (text: string) => void;
   multiSortMode?: "default" | "speed";
   onMultiSortModeChange?: (mode: "default" | "speed") => void;
+  /** Label of the currently selected candidate in multi mode */
+  selectedCandidateLabel?: string | null;
 }
 
 export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
@@ -83,6 +85,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
   onRerunResult,
   multiSortMode,
   onMultiSortModeChange,
+  selectedCandidateLabel,
 }) => {
   const { t } = useTranslation();
 
@@ -178,6 +181,9 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           ) : prompts.length === 1 ? (
             <span className="review-prompt-badge">{prompts[0].name}</span>
           ) : null}
+          {selectedCandidateLabel && (
+            <span className="review-model-badge">{selectedCandidateLabel}</span>
+          )}
           <button
             type="button"
             className={`review-multi-sort-btn ${multiSortMode === "speed" ? "active" : ""}`}

@@ -378,12 +378,18 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       }>("get_review_model_options").then((resp) => {
         setModelOptions(resp.models);
         // Prioritize the model_id from initialData
+        // Backend may pass a CachedModel UUID or a model_id string (e.g. "gpt-4o")
         if (initialData.model_id) {
-          setSelectedModelId(initialData.model_id);
-          const selectedModel = resp.models.find(
-            (m) => m.id === initialData.model_id,
-          );
-          if (selectedModel) setCurrentModelName(selectedModel.label);
+          const selectedModel =
+            resp.models.find((m) => m.id === initialData.model_id) ||
+            resp.models.find((m) => m.model_id === initialData.model_id);
+          if (selectedModel) {
+            setSelectedModelId(selectedModel.id);
+            setCurrentModelName(selectedModel.label);
+          } else {
+            // No matching cached model — use the raw value as display name
+            setCurrentModelName(initialData.model_id);
+          }
         } else if (resp.default_model_id) {
           const dm = resp.models.find((m) => m.id === resp.default_model_id);
           if (dm) setDefaultModelLabel(dm.label);
@@ -485,6 +491,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       if (first) setSelectedCandidateId(first.id);
     }
   }, [isRerunning, localCandidates]);
+
+  // Derive the label of the currently selected candidate for the header
+  const selectedCandidateLabel = useMemo(() => {
+    if (!selectedCandidateId) return null;
+    const all = localCandidates || multiCandidates;
+    const found = all?.find((c) => c.id === selectedCandidateId);
+    return found?.label ?? null;
+  }, [selectedCandidateId, localCandidates, multiCandidates]);
 
   // The candidates to render (local state, updated by progress events)
   const displayCandidates = localCandidates || multiCandidates;
@@ -1250,6 +1264,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }}
             multiSortMode={multiSortMode}
             onMultiSortModeChange={setMultiSortMode}
+            selectedCandidateLabel={selectedCandidateLabel}
           />
         </div>
 

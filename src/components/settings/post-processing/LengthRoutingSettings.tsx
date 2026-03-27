@@ -39,6 +39,7 @@ export const TextModelModeSettings: React.FC = () => {
     [settings?.multi_model_selected_ids],
   );
   const multiModelStrategy = settings?.multi_model_strategy ?? "manual";
+  const multiModelPreferredId = settings?.multi_model_preferred_id ?? null;
 
   const textModels: CachedModel[] = useMemo(
     () =>
@@ -381,10 +382,41 @@ export const TextModelModeSettings: React.FC = () => {
               {multiModelSelectedIds.map((id) => {
                 const model = textModels.find((m) => m.id === id);
                 if (!model) return null;
+                const isPreferred =
+                  multiModelPreferredId === id ||
+                  (!multiModelPreferredId && multiModelSelectedIds[0] === id);
                 return (
-                  <Badge key={id} color="blue" variant="soft" size="1">
-                    {model.custom_label || model.model_id}
-                  </Badge>
+                  <Tooltip
+                    key={id}
+                    content={
+                      isPreferred
+                        ? t(
+                            "settings.postProcessing.textModelMode.preferredModel",
+                            "Preferred model",
+                          )
+                        : t(
+                            "settings.postProcessing.textModelMode.setAsPreferred",
+                            "Set as preferred model",
+                          )
+                    }
+                  >
+                    <Badge
+                      color={isPreferred ? "amber" : "blue"}
+                      variant={isPreferred ? "solid" : "soft"}
+                      size="1"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        if (isPreferred && multiModelPreferredId) {
+                          updateSetting("multi_model_preferred_id", null);
+                        } else {
+                          updateSetting("multi_model_preferred_id", id);
+                        }
+                      }}
+                    >
+                      {isPreferred ? "★ " : ""}
+                      {model.custom_label || model.model_id}
+                    </Badge>
+                  </Tooltip>
                 );
               })}
             </Flex>
