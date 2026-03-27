@@ -76,9 +76,14 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   // Settings are guaranteed to have providers after migration
   const providers = settings?.post_process_providers || [];
 
-  // Determine the active provider from settings
+  // Determine the active provider from settings, ensuring it exists
   const activeProviderId = useMemo(() => {
-    return settings?.post_process_provider_id || providers[0]?.id || "openai";
+    const savedId = settings?.post_process_provider_id;
+    // Verify the saved provider still exists in the list
+    if (savedId && providers.some((p) => p.id === savedId)) {
+      return savedId;
+    }
+    return providers[0]?.id || "openai";
   }, [providers, settings?.post_process_provider_id]);
 
   // Local state for which provider is currently being viewed/edited
@@ -116,11 +121,6 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   const handleProviderSelect = useCallback(
     async (providerId: string) => {
-      console.log("[DEBUG] handleProviderSelect called", {
-        providerId,
-        previousId: viewingProviderId,
-      });
-
       setViewingProviderId(providerId);
 
       await setPostProcessProvider(providerId);
@@ -210,24 +210,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   );
 
   const handleRefreshModels = useCallback(() => {
-    console.log("[DEBUG] handleRefreshModels called", {
-      viewingProviderId,
-      isAppleProvider,
-    });
     if (isAppleProvider) return;
-    fetchPostProcessModels(viewingProviderId)
-      .then((models) => {
-        console.log("[DEBUG] fetchPostProcessModels success", {
-          viewingProviderId,
-          models,
-        });
-      })
-      .catch((error) => {
-        console.error("[DEBUG] fetchPostProcessModels failed", {
-          viewingProviderId,
-          error,
-        });
-      });
+    fetchPostProcessModels(viewingProviderId).catch((error) => {
+      console.error("Failed to fetch models:", error);
+    });
   }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
 
   const [verifiedProviderIds, setVerifiedProviderIds] = useState<Set<string>>(
@@ -291,12 +277,6 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   } | null>(null);
 
   const availableModelsRaw = postProcessModelOptions[viewingProviderId] || [];
-  console.log("[DEBUG] modelOptions computed", {
-    viewingProviderId,
-    availableModelsRaw,
-    allOptions: postProcessModelOptions,
-  });
-
   const modelOptions = useMemo<ModelOption[]>(() => {
     const seen = new Set<string>();
     const options: ModelOption[] = [];
