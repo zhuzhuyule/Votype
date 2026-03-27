@@ -6,6 +6,7 @@ output_mode: chat
 icon: "IconMessage"
 locked: false
 confidence_check_enabled: false
+param_preset: "creative"
 ---
 
 请根据输入内容生成恰当、得体的回复建议。

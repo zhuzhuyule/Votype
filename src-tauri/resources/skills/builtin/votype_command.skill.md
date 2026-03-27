@@ -6,6 +6,7 @@ output_mode: chat
 icon: "IconTerminal"
 locked: false
 confidence_check_enabled: false
+param_preset: "accurate"
 ---
 
 请根据输入任务直接产出最终可用结果。

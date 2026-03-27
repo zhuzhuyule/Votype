@@ -7,6 +7,7 @@ icon: "IconLanguage"
 locked: false
 confidence_check_enabled: false
 confidence_threshold: 70
+param_preset: "accurate"
 ---
 
 请将输入文本翻译成目标语言。

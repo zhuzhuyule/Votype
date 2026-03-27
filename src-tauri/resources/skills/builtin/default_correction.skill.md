@@ -7,6 +7,7 @@ icon: "IconShieldCheck"
 locked: false
 confidence_check_enabled: true
 confidence_threshold: 70
+param_preset: "accurate"
 ---
 
 请对输入文本做最小必要修正，提升可读性，同时保持原始语义、语气和信息完整性。

@@ -7,6 +7,7 @@ icon: "IconListDetails"
 locked: false
 confidence_check_enabled: false
 confidence_threshold: 70
+param_preset: "accurate"
 ---
 
 请对输入文本进行精炼总结，提取核心信息。

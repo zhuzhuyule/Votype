@@ -6,6 +6,7 @@ output_mode: polish
 icon: "IconSparkles"
 locked: false
 confidence_check_enabled: false
+param_preset: "accurate"
 ---
 
 请修正输入文本中的语法错误、口语化冗余和明显不自然表达，使其更通顺自然。

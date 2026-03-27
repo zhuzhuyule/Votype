@@ -7,6 +7,7 @@ icon: "IconMessageSparkle"
 locked: false
 confidence_check_enabled: false
 confidence_threshold: 70
+param_preset: "balanced"
 ---
 
 请根据输入内容给出直接、准确、有帮助的回答。

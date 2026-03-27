@@ -6,6 +6,7 @@ output_mode: chat
 icon: "IconCode"
 locked: false
 confidence_check_enabled: false
+param_preset: "accurate"
 ---
 
 请根据输入需求生成高质量、可运行的代码或脚本。

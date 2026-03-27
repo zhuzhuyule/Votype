@@ -6,6 +6,7 @@ output_mode: polish
 icon: "IconPencil"
 locked: false
 confidence_check_enabled: false
+param_preset: "creative"
 ---
 
 请根据输入内容和当前语境，续写用户最可能想表达的后续内容。

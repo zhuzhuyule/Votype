@@ -6,6 +6,7 @@ output_mode: chat
 icon: "IconFileSearch"
 locked: false
 confidence_check_enabled: false
+param_preset: "balanced"
 ---
 
 请用清晰、易懂的语言解释输入代码的功能、逻辑和设计思路。

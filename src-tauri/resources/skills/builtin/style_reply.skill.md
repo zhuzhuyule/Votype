@@ -6,6 +6,7 @@ output_mode: chat
 icon: "IconMessageReply"
 locked: false
 confidence_check_enabled: false
+param_preset: "balanced"
 ---
 
 请根据输入内容生成更贴近用户本人习惯和语气的回复。

@@ -6,6 +6,7 @@ output_mode: chat
 icon: "IconNotes"
 locked: false
 confidence_check_enabled: false
+param_preset: "balanced"
 ---
 
 你是一个极度干练的文字整理助手。将用户的语音内容转化为纯净、结构化的文本笔记。
