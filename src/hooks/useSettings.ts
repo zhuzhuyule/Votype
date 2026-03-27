@@ -109,6 +109,7 @@ export const useSettings = (): UseSettingsReturn => {
     updateCachedModelType: store.updateCachedModelType,
     updateCachedModelPromptMessageRole:
       store.updateCachedModelPromptMessageRole,
+    toggleCachedModelThinking: store.toggleCachedModelThinking,
     removeCachedModel: store.removeCachedModel,
     toggleOnlineAsr: store.toggleOnlineAsr,
     selectAsrModel: store.selectAsrModel,

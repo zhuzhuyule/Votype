@@ -122,6 +122,8 @@ pub struct PromptBuilder<'a> {
     injection_policy: InjectionPolicy,
     /// Resolved reference content to append to system layer.
     resolved_references: Option<String>,
+    /// UI language code (e.g. "zh", "en") for output language constraint.
+    app_language: Option<&'a str>,
 }
 
 fn sanitize_history_entry(entry: &str) -> Option<String> {
@@ -232,6 +234,7 @@ impl<'a> PromptBuilder<'a> {
             hotword_injection: None,
             injection_policy: InjectionPolicy::default(),
             resolved_references: None,
+            app_language: None,
         }
     }
 
@@ -279,6 +282,13 @@ impl<'a> PromptBuilder<'a> {
 
     pub fn resolved_references(mut self, content: Option<String>) -> Self {
         self.resolved_references = content.filter(|s| !s.is_empty());
+        self
+    }
+
+    pub fn app_language(mut self, lang: &'a str) -> Self {
+        if !lang.is_empty() {
+            self.app_language = Some(lang);
+        }
         self
     }
 
@@ -392,6 +402,38 @@ impl<'a> PromptBuilder<'a> {
                 "\n\n---\n\n### 润色模式约束\n{}",
                 POLISH_MODE_NOTE
             ));
+        }
+
+        // --- Language output constraint ---
+        // Skip for translation skills (they determine target language themselves)
+        if let Some(lang) = self.app_language {
+            let is_translation_skill = {
+                let name = self.prompt.name.to_lowercase();
+                let desc = self.prompt.description.to_lowercase();
+                name.contains("翻译")
+                    || name.contains("translat")
+                    || desc.contains("翻译")
+                    || desc.contains("translat")
+            };
+
+            if !is_translation_skill {
+                let lang_note = if lang.starts_with("zh") {
+                    "输出语言必须为中文。"
+                } else if lang.starts_with("en") {
+                    "Output MUST be in English."
+                } else if lang.starts_with("ja") {
+                    "出力は日本語でなければなりません。"
+                } else if lang.starts_with("ko") {
+                    "출력은 한국어여야 합니다."
+                } else {
+                    // Generic fallback
+                    ""
+                };
+
+                if !lang_note.is_empty() {
+                    skill_prompt.push_str(&format!("\n\n---\n\n### 输出语言\n{}", lang_note));
+                }
+            }
         }
 
         let mut sections: Vec<String> = Vec::new();

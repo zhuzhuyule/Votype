@@ -324,6 +324,7 @@ pub(super) async fn execute_default_polish<'a>(
         .history_entries(history_entries)
         .hotword_injection(hotword_injection)
         .resolved_references(refs_content)
+        .app_language(&settings.app_language)
         .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
             settings,
         ))

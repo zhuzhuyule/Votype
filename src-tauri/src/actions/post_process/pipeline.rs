@@ -605,6 +605,7 @@ pub async fn maybe_post_process_transcription(
             .history_entries(history_entries)
             .hotword_injection(hotword_injection)
             .resolved_references(refs_content)
+            .app_language(&settings.app_language)
             .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
                 settings,
             ));
@@ -615,7 +616,10 @@ pub async fn maybe_post_process_transcription(
             .model_id
             .as_deref()
             .or(settings.selected_prompt_model_id.as_deref());
-        let (result, err, error_message) = super::core::execute_llm_request_with_messages(
+
+        // Single-model request: apply a 10s timeout.
+        // If the LLM takes too long, skip post-processing and return the original text.
+        let llm_future = super::core::execute_llm_request_with_messages(
             app_handle,
             settings,
             actual_provider,
@@ -627,8 +631,26 @@ pub async fn maybe_post_process_transcription(
             window_title.clone(),
             match_pattern.clone(),
             match_type,
+        );
+
+        let (result, err, error_message) = match tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            llm_future,
         )
-        .await;
+        .await
+        {
+            Ok(llm_result) => llm_result,
+            Err(_) => {
+                log::warn!(
+                    "[PostProcess] Single-model LLM request timed out (>10s), returning original transcription"
+                );
+                (
+                    Some(current_input_content.clone()),
+                    false,
+                    Some("LLM request timed out".to_string()),
+                )
+            }
+        };
 
         final_result = result;
         last_model = Some(model);
