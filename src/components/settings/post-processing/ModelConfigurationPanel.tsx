@@ -11,19 +11,20 @@ import {
   Checkbox,
   Dialog,
   Flex,
+  Grid,
   IconButton,
-  SegmentedControl,
   Switch,
   Text,
   TextArea,
   TextField,
+  Tooltip,
 } from "@radix-ui/themes";
 import {
   IconBrain,
   IconCircleCheckFilled,
   IconEdit,
   IconPlayerPlay,
-  IconPlus,
+  IconTag,
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -64,7 +65,9 @@ const renderModelSection = ({
   onToggleMultiModel?: (id: string, selected: boolean) => void;
   onEditModel?: (model: CachedModel) => void;
 }) => {
-  const models = allModels.filter((m) => m.model_type === type);
+  const models = allModels.filter(
+    (m) => m.model_type === type && providerMap[m.provider_id] !== undefined,
+  );
 
   if (hideIfEmpty && models.length === 0) {
     return (
@@ -104,17 +107,18 @@ const renderModelSection = ({
                   : ""
               }
             >
-              {/* Minimal Provider Header - Uppercase small label */}
+              {/* Provider Header */}
               <Text
-                size="1"
+                size="2"
                 weight="bold"
-                className="px-1 mb-2 block uppercase text-xs opacity-60 tracking-wider text-gray-500 dark:text-gray-400"
+                className="block uppercase tracking-wider text-gray-600 dark:text-gray-300"
+                style={{ paddingLeft: 8, marginBottom: 6 }}
               >
                 {providerMap[providerId] ?? providerId}
               </Text>
 
-              {/* Models list for this provider */}
-              <Box className="">
+              {/* Models grid for this provider */}
+              <Grid columns="2" gap="1">
                 {providerModels.map((model, index) => {
                   const isRemoving = isUpdating(
                     `cached_model_remove:${model.id}`,
@@ -129,9 +133,10 @@ const renderModelSection = ({
                       align="center"
                       justify="between"
                       className={`
-                      px-2 py-2 transition-colors cursor-pointer group rounded-md
+                      relative py-2.5 transition-colors cursor-pointer group rounded-md min-w-0
                       ${isSelected ? "bg-indigo-50/50 dark:bg-indigo-500/20" : "hover:bg-gray-100/50 dark:hover:bg-white/5"}
                     `}
+                      style={{ paddingLeft: 8, paddingRight: 8 }}
                       onClick={async () => {
                         if (allowSelection && !isRemoving) {
                           try {
@@ -145,7 +150,7 @@ const renderModelSection = ({
                         }
                       }}
                     >
-                      <Flex align="center" gap="3" className="flex-1 min-w-0">
+                      <Flex align="center" gap="2" className="flex-1 min-w-0">
                         {/* Multi-model checkbox for text models */}
                         {type === "text" &&
                           multiModelSelectedIds &&
@@ -158,55 +163,58 @@ const renderModelSection = ({
                               onClick={(e) => e.stopPropagation()}
                             />
                           )}
-                        <Box className="flex-1 min-w-0">
-                          <Flex align="center" gap="2" wrap="wrap">
-                            <Text
-                              size="2"
-                              weight={isSelected ? "bold" : "medium"}
-                              className="text-gray-900 dark:text-gray-200 truncate block leading-snug"
-                            >
-                              {model.custom_label || model.model_id}
-                            </Text>
-                            {model.custom_label && (
-                              <Badge
-                                size="1"
-                                color="gray"
-                                variant="soft"
-                                radius="full"
+                        {model.custom_label ? (
+                          <Tooltip content={model.model_id} delayDuration={300}>
+                            <Flex align="center" gap="1" className="min-w-0">
+                              <Text
+                                size="2"
+                                weight={isSelected ? "bold" : "medium"}
+                                className="text-gray-900 dark:text-gray-200 truncate block"
                               >
-                                {model.model_id}
-                              </Badge>
-                            )}
-                            {isSelected && (
-                              <Badge
-                                size="1"
-                                variant="solid"
-                                className="bg-(--accent-a3) text-(--accent-11) uppercase font-bold tracking-wider rounded"
-                              >
-                                {t("common.default", "默认")}
-                              </Badge>
-                            )}
-                          </Flex>
-                        </Box>
+                                {model.custom_label}
+                              </Text>
+                              <IconTag
+                                size={13}
+                                className="text-amber-500 shrink-0"
+                              />
+                            </Flex>
+                          </Tooltip>
+                        ) : (
+                          <Text
+                            size="2"
+                            weight={isSelected ? "bold" : "medium"}
+                            className="text-gray-900 dark:text-gray-200 truncate block"
+                          >
+                            {model.model_id}
+                          </Text>
+                        )}
+                        {isSelected && (
+                          <Badge
+                            size="1"
+                            variant="solid"
+                            className="bg-(--accent-a3) text-(--accent-11) uppercase font-bold tracking-wider rounded shrink-0"
+                          >
+                            {t("common.default", "默认")}
+                          </Badge>
+                        )}
                         {model.is_thinking_model && (
                           <IconBrain
                             size={14}
-                            className="text-purple-500 ml-1 shrink-0"
+                            className="text-purple-500 shrink-0"
                           />
                         )}
                       </Flex>
                       {/* Actions - Visible on Hover */}
                       <Flex
-                        gap="3"
+                        gap="1"
                         align="center"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity pl-2"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 invisible group-hover:visible bg-inherit rounded-md px-1 py-0.5"
                       >
                         {allowSelection && !isSelected && (
-                          <Button
+                          <IconButton
                             size="1"
-                            variant="soft"
+                            variant="ghost"
                             color="gray"
-                            className="cursor-pointer"
                             onClick={async (e) => {
                               e.stopPropagation();
                               if (!isRemoving) {
@@ -220,13 +228,13 @@ const renderModelSection = ({
                                 }
                               }
                             }}
-                          >
-                            <IconCircleCheckFilled size={14} />
-                            {t(
+                            title={t(
                               "settings.postProcessing.models.setAsDefault",
                               "Set as Default",
                             )}
-                          </Button>
+                          >
+                            <IconCircleCheckFilled size={14} />
+                          </IconButton>
                         )}
                         <IconButton
                           size="1"
@@ -393,7 +401,7 @@ const renderModelSection = ({
                     </Flex>
                   );
                 })}
-              </Box>
+              </Grid>
             </Box>
           ),
         )}
@@ -406,16 +414,14 @@ export interface ModelListPanelProps {
   targetType: ModelType | ModelType[];
   allowSelection?: boolean;
   showMultiModelCheckboxes?: boolean;
-  onAddModel?: () => void;
-  showTypeFilter?: boolean;
+  activeFilter?: ModelType;
 }
 
 export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   targetType,
   allowSelection: allowSelectionProp,
   showMultiModelCheckboxes: showMultiModelCheckboxesProp,
-  onAddModel,
-  showTypeFilter,
+  activeFilter,
 }) => {
   const { settings, removeCachedModel, isUpdating, refreshSettings } =
     useSettings();
@@ -423,9 +429,6 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
 
   // Edit model dialog state
   const [editingModel, setEditingModel] = useState<CachedModel | null>(null);
-
-  // Type filter state
-  const [activeFilter, setActiveFilter] = useState<"all" | ModelType>("all");
 
   const { t } = useTranslation();
   const cachedModels = settings?.cached_models ?? [];
@@ -460,74 +463,52 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   const typesToRender = Array.isArray(targetType) ? targetType : [targetType];
 
   const filteredTypes = useMemo(() => {
-    if (!showTypeFilter || activeFilter === "all") {
+    if (!activeFilter) {
       return typesToRender;
     }
     if (activeFilter === "asr") {
       return typesToRender.filter((t) => t === "asr" || t === "other");
     }
     return typesToRender.filter((t) => t === activeFilter);
-  }, [showTypeFilter, activeFilter, typesToRender]);
+  }, [activeFilter, typesToRender]);
+
+  const renderModelsForFilter = () =>
+    filteredTypes.map((type) => (
+      <Box key={type} className="mb-4 last:mb-0">
+        {renderModelSection({
+          type,
+          allModels: cachedModels,
+          providerMap: providerNameMap,
+          settings,
+          isUpdating,
+          handleRemove: handleRemoveModel,
+          t,
+          refreshSettings,
+          allowSelection:
+            allowSelectionProp !== undefined
+              ? allowSelectionProp
+              : type === "text",
+          hideIfEmpty: false,
+          multiModelSelectedIds:
+            type === "text" &&
+            (showMultiModelCheckboxesProp ??
+              settings?.multi_model_post_process_enabled)
+              ? multiModelSelectedIds
+              : undefined,
+          onToggleMultiModel:
+            type === "text" &&
+            (showMultiModelCheckboxesProp ??
+              settings?.multi_model_post_process_enabled)
+              ? handleToggleMultiModel
+              : undefined,
+          onEditModel: setEditingModel,
+        })}
+      </Box>
+    ));
 
   return (
     <Box>
-      {showTypeFilter && (
-        <Flex align="center" justify="between" mb="3">
-          <SegmentedControl.Root
-            value={activeFilter}
-            onValueChange={(v) => setActiveFilter(v as "all" | ModelType)}
-            size="1"
-          >
-            <SegmentedControl.Item value="all">
-              {t("settings.postProcessing.models.filter.all")}
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="text">
-              {t("settings.postProcessing.models.modelTypes.text.label")}
-            </SegmentedControl.Item>
-            <SegmentedControl.Item value="asr">
-              {t("settings.postProcessing.models.modelTypes.asr.label")}
-            </SegmentedControl.Item>
-          </SegmentedControl.Root>
-          {onAddModel && (
-            <Button variant="outline" size="1" onClick={onAddModel}>
-              <IconPlus size={14} />
-              {t("settings.postProcessing.models.selectModel.addButton")}
-            </Button>
-          )}
-        </Flex>
-      )}
-      {filteredTypes.map((type) => (
-        <Box key={type} className="mb-4 last:mb-0">
-          {renderModelSection({
-            type,
-            allModels: cachedModels,
-            providerMap: providerNameMap,
-            settings,
-            isUpdating,
-            handleRemove: handleRemoveModel,
-            t,
-            refreshSettings,
-            allowSelection:
-              allowSelectionProp !== undefined
-                ? allowSelectionProp
-                : type === "text",
-            hideIfEmpty: false,
-            multiModelSelectedIds:
-              type === "text" &&
-              (showMultiModelCheckboxesProp ??
-                settings?.multi_model_post_process_enabled)
-                ? multiModelSelectedIds
-                : undefined,
-            onToggleMultiModel:
-              type === "text" &&
-              (showMultiModelCheckboxesProp ??
-                settings?.multi_model_post_process_enabled)
-                ? handleToggleMultiModel
-                : undefined,
-            onEditModel: setEditingModel,
-          })}
-        </Box>
-      ))}
+      {renderModelsForFilter()}
       {editingModel && (
         <EditModelDialog
           model={editingModel}
