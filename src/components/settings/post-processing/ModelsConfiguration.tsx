@@ -1,4 +1,4 @@
-import { Flex, Grid } from "@radix-ui/themes";
+import { Flex } from "@radix-ui/themes";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -30,25 +30,15 @@ export const ModelsConfiguration: React.FC = () => {
       {/* 2. Default Model / Length Routing (expert mode) */}
       {settings?.expert_mode && <TextModelModeSettings />}
 
-      {/* 3. Models Grid (Side-by-Side) */}
-      <Grid columns="2" gap="4">
-        {/* Text Models */}
-        <SettingsGroup
-          title={t("settings.postProcessing.models.modelTypes.text.label")}
-        >
-          <ModelListPanel
-            targetType="text"
-            allowSelection={!settings?.expert_mode}
-          />
-        </SettingsGroup>
-
-        {/* ASR Models */}
-        <SettingsGroup
-          title={t("settings.postProcessing.models.modelTypes.asr.label")}
-        >
-          <ModelListPanel targetType={["asr", "other"]} />
-        </SettingsGroup>
-      </Grid>
+      {/* 3. Unified Models Panel */}
+      <SettingsGroup title={t("settings.postProcessing.models.title")}>
+        <ModelListPanel
+          targetType={["text", "asr", "other"]}
+          allowSelection={!settings?.expert_mode}
+          showTypeFilter={true}
+          onAddModel={() => setIsModelPickerOpen(true)}
+        />
+      </SettingsGroup>
 
       <AddModelDialog
         open={isModelPickerOpen}

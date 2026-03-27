@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { EditModelDialog } from "./dialogs/EditModelDialog";
 import { useSettingsStore } from "../../../stores/settingsStore";
 
@@ -12,6 +12,7 @@ import {
   Dialog,
   Flex,
   IconButton,
+  SegmentedControl,
   Switch,
   Text,
   TextArea,
@@ -22,6 +23,7 @@ import {
   IconCircleCheckFilled,
   IconEdit,
   IconPlayerPlay,
+  IconPlus,
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -404,21 +406,26 @@ export interface ModelListPanelProps {
   targetType: ModelType | ModelType[];
   allowSelection?: boolean;
   showMultiModelCheckboxes?: boolean;
+  onAddModel?: () => void;
+  showTypeFilter?: boolean;
 }
 
 export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   targetType,
   allowSelection: allowSelectionProp,
   showMultiModelCheckboxes: showMultiModelCheckboxesProp,
+  onAddModel,
+  showTypeFilter,
 }) => {
   const { settings, removeCachedModel, isUpdating, refreshSettings } =
     useSettings();
   const { toggleMultiModelSelection } = useSettingsStore();
 
   // Edit model dialog state
-  const [editingModel, setEditingModel] = React.useState<CachedModel | null>(
-    null,
-  );
+  const [editingModel, setEditingModel] = useState<CachedModel | null>(null);
+
+  // Type filter state
+  const [activeFilter, setActiveFilter] = useState<"all" | ModelType>("all");
 
   const { t } = useTranslation();
   const cachedModels = settings?.cached_models ?? [];
@@ -452,9 +459,44 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
 
   const typesToRender = Array.isArray(targetType) ? targetType : [targetType];
 
+  const filteredTypes = useMemo(() => {
+    if (!showTypeFilter || activeFilter === "all") {
+      return typesToRender;
+    }
+    if (activeFilter === "asr") {
+      return typesToRender.filter((t) => t === "asr" || t === "other");
+    }
+    return typesToRender.filter((t) => t === activeFilter);
+  }, [showTypeFilter, activeFilter, typesToRender]);
+
   return (
     <Box>
-      {typesToRender.map((type) => (
+      {showTypeFilter && (
+        <Flex align="center" justify="between" mb="3">
+          <SegmentedControl.Root
+            value={activeFilter}
+            onValueChange={(v) => setActiveFilter(v as "all" | ModelType)}
+            size="1"
+          >
+            <SegmentedControl.Item value="all">
+              {t("settings.postProcessing.models.filter.all")}
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="text">
+              {t("settings.postProcessing.models.modelTypes.text.label")}
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="asr">
+              {t("settings.postProcessing.models.modelTypes.asr.label")}
+            </SegmentedControl.Item>
+          </SegmentedControl.Root>
+          {onAddModel && (
+            <Button variant="outline" size="1" onClick={onAddModel}>
+              <IconPlus size={14} />
+              {t("settings.postProcessing.models.selectModel.addButton")}
+            </Button>
+          )}
+        </Flex>
+      )}
+      {filteredTypes.map((type) => (
         <Box key={type} className="mb-4 last:mb-0">
           {renderModelSection({
             type,

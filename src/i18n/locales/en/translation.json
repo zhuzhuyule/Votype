@@ -1060,6 +1060,7 @@
           }
         },
         "selectModel": {
+          "addButton": "Add Model",
           "customLabelPlaceholder": "Enter label...",
           "customLabelTitle": "Custom Label",
           "customModelPlaceholder": "Enter model id...",
@@ -1072,6 +1073,9 @@
           },
           "title": "Select Model",
           "usageTypeTitle": "Usage Type"
+        },
+        "filter": {
+          "all": "All"
         },
         "stats": {
           "asr": "ASR: {{count}}",

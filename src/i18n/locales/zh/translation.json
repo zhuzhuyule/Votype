@@ -1065,6 +1065,7 @@
           }
         },
         "selectModel": {
+          "addButton": "添加模型",
           "advancedOptions": "高级配置",
           "customLabel": "模型别名 / 标签 (可选)",
           "customLabelPlaceholder": "输入标签...",
@@ -1082,6 +1083,9 @@
           "selectLabel": "可用模型",
           "title": "选择模型",
           "usageTypeTitle": "用途类型"
+        },
+        "filter": {
+          "all": "全部"
         },
         "stats": {
           "asr": "ASR: {{count}}",
