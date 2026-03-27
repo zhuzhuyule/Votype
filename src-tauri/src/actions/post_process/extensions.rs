@@ -563,7 +563,28 @@ async fn execute_single_model_post_process(
                 .iter()
                 .find(|m| m.model_id == model && m.provider_id == provider.id)
         });
-    let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
+    // Resolve preset params
+    let presets_config = _app_handle
+        .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+    let effective_extra_params = if let Some(config) = presets_config {
+        let preset_params = crate::managers::model_preset::resolve_preset_params(
+            prompt.param_preset.as_deref(),
+            cached_model.and_then(|m| m.model_family.as_deref()),
+            &config,
+        );
+        if preset_params.is_empty() {
+            cached_model.and_then(|m| m.extra_params.clone())
+        } else {
+            Some(crate::managers::model_preset::merge_params(
+                preset_params,
+                cached_model.and_then(|m| m.extra_params.as_ref()),
+            ))
+        }
+    } else {
+        cached_model.and_then(|m| m.extra_params.clone())
+    };
+
+    let extra_params = effective_extra_params.as_ref();
 
     // Build request body JSON (same approach as core.rs for extra_params support)
     let messages_json: Vec<serde_json::Value> = messages
