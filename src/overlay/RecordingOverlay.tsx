@@ -259,14 +259,6 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           );
         }
 
-        // Log sampled frames to avoid flooding (roughly once per second)
-        if (micLevelCount % 50 === 0) {
-          invoke("log_to_console", {
-            msg: `[waveform] #${micLevelCount} max=${maxLevel.toFixed(3)} avg=${avgLevel.toFixed(3)} raw=${rawAmplitude.toFixed(3)} base=${nextBaseline.toFixed(3)} norm=${normalized.toFixed(3)} amp=${currentAmplitude.toFixed(3)} env=${nextEnvelope.toFixed(3)}`,
-            level: "info",
-          });
-        }
-
         smoothedLevelsRef.current = smoothed;
         waveformRef.current = nextWaveform;
         waveformHistoryRef.current = nextHistory;

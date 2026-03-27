@@ -3,6 +3,7 @@
 import { ScrollArea } from "@radix-ui/themes";
 import { IconTextPlus } from "@tabler/icons-react";
 import React, { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { CandidatePanel, MultiModelCandidate } from "./CandidatePanel";
 
 interface MultiCandidateViewProps {
@@ -34,6 +35,7 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   onInsert,
   onInsertOriginal,
 }) => {
+  const { t } = useTranslation();
   const [isSourceHovered, setIsSourceHovered] = useState(false);
   const maxTime = Math.max(...candidates.map((c) => c.processing_time_ms), 1);
 
@@ -58,7 +60,7 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             <button
               className="review-source-insert-btn"
               onClick={onInsertOriginal}
-              title="插入原文 (Tab)"
+              title={t("transcription.review.insertOriginal")}
             >
               <IconTextPlus size={16} />
             </button>

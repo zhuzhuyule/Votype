@@ -36,7 +36,7 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
           <button
             className="review-source-insert-btn"
             onClick={onInsertOriginal}
-            title="插入原文 (Tab)"
+            title={t("transcription.review.insertOriginal")}
           >
             <IconTextPlus size={16} />
           </button>

@@ -27,6 +27,10 @@ export class ErrorBoundary extends React.Component<
     console.error("ErrorBoundary caught:", error, errorInfo);
   }
 
+  private handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
@@ -47,6 +51,19 @@ export class ErrorBoundary extends React.Component<
           <pre style={{ fontSize: 11, overflow: "auto" }}>
             {this.state.error?.toString()}
           </pre>
+          <button
+            onClick={this.handleRetry}
+            style={{
+              marginTop: 12,
+              padding: "6px 16px",
+              cursor: "pointer",
+              borderRadius: 4,
+              border: "1px solid #ccc",
+              background: "#f5f5f5",
+            }}
+          >
+            Retry
+          </button>
         </div>
       );
     }
