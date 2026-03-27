@@ -22,13 +22,26 @@ pub fn create_skill(app: AppHandle, skill: Skill) -> Result<Skill, String> {
 #[specta::specta]
 pub fn delete_skill(app: AppHandle, id: String) -> Result<(), String> {
     let skill_manager = crate::managers::skill::SkillManager::new(&app);
-    let _ = skill_manager.delete_skill_file(&id);
+
+    // Try to delete the file-based skill first
+    let file_deleted = skill_manager.delete_skill_file(&id).is_ok();
 
     let mut settings = settings::get_settings(&app);
-    let original_len = settings.post_process_prompts.len();
-    settings
-        .post_process_prompts
-        .retain(|prompt| prompt.id != id);
+    let mut settings_changed = false;
+
+    // Only remove from post_process_prompts if NO file was found/deleted.
+    // File-based skills (user/imported) and settings-based skills (builtin
+    // customizations) are separate stores — deleting a file-based skill must
+    // not wipe out a builtin customization that happens to share the same ID.
+    if !file_deleted {
+        let original_len = settings.post_process_prompts.len();
+        settings
+            .post_process_prompts
+            .retain(|prompt| prompt.id != id);
+        if settings.post_process_prompts.len() != original_len {
+            settings_changed = true;
+        }
+    }
 
     if settings
         .post_process_selected_prompt_id
@@ -36,9 +49,10 @@ pub fn delete_skill(app: AppHandle, id: String) -> Result<(), String> {
         .is_some_and(|selected_id| selected_id == &id)
     {
         settings.post_process_selected_prompt_id = None;
+        settings_changed = true;
     }
 
-    if settings.post_process_prompts.len() != original_len {
+    if settings_changed {
         settings::write_settings(&app, settings);
     }
 
