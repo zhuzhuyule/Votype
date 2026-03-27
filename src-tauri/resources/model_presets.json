@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "presets": ["accurate", "balanced", "creative"],
+  "families": [
+    {
+      "id": "qwen3",
+      "match_patterns": ["qwen3", "qwen-3"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": { "temperature": 0.2, "top_p": 0.7, "top_k": 20 },
+        "balanced": { "temperature": 0.6, "top_p": 0.95, "top_k": 20 },
+        "creative": { "temperature": 0.9, "top_p": 0.95, "top_k": 20 }
+      }
+    },
+    {
+      "id": "qwen2.5",
+      "match_patterns": ["qwen2.5", "qwen-2.5"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": {
+          "temperature": 0.2,
+          "top_p": 0.7,
+          "top_k": 20,
+          "repetition_penalty": 1.05
+        },
+        "balanced": {
+          "temperature": 0.7,
+          "top_p": 0.8,
+          "top_k": 20,
+          "repetition_penalty": 1.05
+        },
+        "creative": { "temperature": 0.9, "top_p": 0.95, "top_k": 20 }
+      }
+    },
+    {
+      "id": "gpt-4o",
+      "match_patterns": ["gpt-4o"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.7, "top_p": 0.9 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "gpt",
+      "match_patterns": ["gpt"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.7, "top_p": 0.9 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "claude",
+      "match_patterns": ["claude"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.7, "top_p": 0.9 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "deepseek",
+      "match_patterns": ["deepseek"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.7, "top_p": 0.9 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    },
+    {
+      "id": "gemini",
+      "match_patterns": ["gemini"],
+      "default_preset": "balanced",
+      "presets": {
+        "accurate": { "temperature": 0.3, "top_p": 0.7 },
+        "balanced": { "temperature": 0.7, "top_p": 0.9 },
+        "creative": { "temperature": 1.0, "top_p": 0.95 }
+      }
+    }
+  ]
+}
