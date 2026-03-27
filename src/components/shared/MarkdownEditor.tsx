@@ -4,14 +4,20 @@ import "./MarkdownEditor.css";
 interface MarkdownEditorProps {
   value: string;
   onChange: (value: string) => void;
+  onChangeMeta?: (
+    value: string,
+    selection: { start: number; end: number },
+  ) => void;
   placeholder?: string;
   className?: string;
   style?: React.CSSProperties;
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onSelectionChange?: (selection: { start: number; end: number }) => void;
 }
 
 export interface MarkdownEditorRef {
   insertText: (before: string, after: string) => void;
+  replaceRange: (start: number, end: number, text: string) => void;
   focus: () => void;
   getSelection: () => { start: number; end: number };
 }
@@ -21,7 +27,16 @@ export const MarkdownEditor = forwardRef<
   MarkdownEditorProps
 >(
   (
-    { value, onChange, placeholder = "", className = "", style, onKeyDown },
+    {
+      value,
+      onChange,
+      onChangeMeta,
+      placeholder = "",
+      className = "",
+      style,
+      onKeyDown,
+      onSelectionChange,
+    },
     ref,
   ) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -33,6 +48,10 @@ export const MarkdownEditor = forwardRef<
       if (textareaRef.current) {
         lastSelectionStart.current = textareaRef.current.selectionStart;
         lastSelectionEnd.current = textareaRef.current.selectionEnd;
+        onSelectionChange?.({
+          start: lastSelectionStart.current,
+          end: lastSelectionEnd.current,
+        });
       }
     };
 
@@ -69,6 +88,21 @@ export const MarkdownEditor = forwardRef<
           );
         }, 0);
       },
+      replaceRange: (start: number, end: number, text: string) => {
+        if (!textareaRef.current) return;
+        const textarea = textareaRef.current;
+        const newText = value.substring(0, start) + text + value.substring(end);
+        onChange(newText);
+        onChangeMeta?.(newText, {
+          start: start + text.length,
+          end: start + text.length,
+        });
+
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + text.length, start + text.length);
+        }, 0);
+      },
       focus: () => {
         textareaRef.current?.focus();
       },
@@ -85,7 +119,15 @@ export const MarkdownEditor = forwardRef<
           ref={textareaRef}
           className="markdown-editor-textarea"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            const nextValue = e.target.value;
+            const selection = {
+              start: e.target.selectionStart,
+              end: e.target.selectionEnd,
+            };
+            onChange(nextValue);
+            onChangeMeta?.(nextValue, selection);
+          }}
           placeholder={placeholder}
           onKeyDown={onKeyDown}
           onBlur={saveSelection}

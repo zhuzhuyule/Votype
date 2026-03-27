@@ -52,33 +52,88 @@ interface ResizableEditorProps {
   skillId?: string;
 }
 
+const KEY_FIELDS = [
+  {
+    name: "{{input-text}}",
+    descKey: "settings.postProcessing.prompts.fieldInputTextDesc",
+    descFallback: "Primary input text to process",
+  },
+  {
+    name: "{{selected-text}}",
+    descKey: "settings.postProcessing.prompts.fieldSelectedTextDesc",
+    descFallback: "Selected text as weak context",
+  },
+];
+
+const REFERENCE_FIELDS = [
+  {
+    name: "{{asr-reference}}",
+    descKey: "settings.postProcessing.prompts.fieldAsrReferenceDesc",
+    descFallback:
+      "Auxiliary ASR reference used for correction and disambiguation",
+  },
+  {
+    name: "{{person-names}}",
+    descKey: "settings.postProcessing.prompts.fieldPersonNamesDesc",
+    descFallback: "Known person names",
+  },
+  {
+    name: "{{product-names}}",
+    descKey: "settings.postProcessing.prompts.fieldProductNamesDesc",
+    descFallback: "Known product or brand names",
+  },
+  {
+    name: "{{domain-terms}}",
+    descKey: "settings.postProcessing.prompts.fieldDomainTermsDesc",
+    descFallback: "Domain terms and abbreviations",
+  },
+  {
+    name: "{{hotwords}}",
+    descKey: "settings.postProcessing.prompts.fieldHotwordsDesc",
+    descFallback: "Other prioritized hotwords",
+  },
+  {
+    name: "{{history-hints}}",
+    descKey: "settings.postProcessing.prompts.fieldHistoryHintsDesc",
+    descFallback: "Weak history hints",
+  },
+];
+
 const INLINE_VARS = [
   {
-    name: "${app_name}",
+    name: "{{app-name}}",
     descKey: "settings.postProcessing.prompts.varAppNameDesc",
     descFallback: "Current app name",
   },
   {
-    name: "${app_category}",
+    name: "{{app-category}}",
     descKey: "settings.postProcessing.prompts.varAppCategoryDesc",
     descFallback: "App category (CodeEditor, Email, etc.)",
   },
   {
-    name: "${window_title}",
+    name: "{{window-title}}",
     descKey: "settings.postProcessing.prompts.varWindowTitleDesc",
     descFallback: "Current window title",
   },
   {
-    name: "${time}",
+    name: "{{time}}",
     descKey: "settings.postProcessing.prompts.varTimeDesc",
     descFallback: "Current time",
   },
   {
-    name: "${prompt}",
+    name: "{{prompt}}",
     descKey: "settings.postProcessing.prompts.varPromptDesc",
     descFallback: "Skill display name",
   },
 ];
+
+const FIELD_SUGGESTIONS = [...KEY_FIELDS, ...REFERENCE_FIELDS, ...INLINE_VARS];
+
+interface PlaceholderMatch {
+  start: number;
+  end: number;
+  query: string;
+}
 
 const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
   tipKey,
@@ -96,15 +151,11 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
       >
         <Text size="1" color="gray" className="font-medium">
           {isExpanded ? "▼" : "▶"}{" "}
-          {t(
-            "settings.postProcessing.prompts.inlineVarsLabel",
-            "Inline Variables",
-          )}
-          :
+          {t("settings.postProcessing.prompts.inlineVarsLabel", "可引用字段")}:
         </Text>
         {!isExpanded && (
           <Text size="1" color="gray" className="font-mono opacity-70">
-            {INLINE_VARS.map((v) => v.name).join("  ")}
+            {KEY_FIELDS.map((v) => v.name).join("  ")}
           </Text>
         )}
       </Flex>
@@ -119,10 +170,59 @@ const CollapsibleTips: React.FC<{ tipKey: string; t: any }> = ({
           >
             {t(
               "settings.postProcessing.prompts.autoInjectedNote",
-              "Input text, selected text, hotwords, history and ASR references are automatically injected by the system — no need to reference them in the prompt.",
+              "The system injects the main input and supporting references automatically. You can also explicitly reference key fields when you need precise control.",
             )}
           </Text>
           <Box className="space-y-1 mt-1">
+            <Text size="1" color="gray" className="block font-medium">
+              {t(
+                "settings.postProcessing.prompts.primaryFieldsLabel",
+                "关键信息",
+              )}
+            </Text>
+            {KEY_FIELDS.map((v) => (
+              <Text key={v.name} size="1" color="gray" className="block">
+                <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+                  {v.name}
+                </code>{" "}
+                {t(v.descKey, v.descFallback)}
+              </Text>
+            ))}
+            <Text
+              size="1"
+              color="gray"
+              className="block"
+              style={{ lineHeight: 1.4 }}
+            >
+              {t(
+                "settings.postProcessing.prompts.explicitReferenceNote",
+                "If you explicitly reference a field above, the system will not append the same field again at the end of the prompt.",
+              )}
+            </Text>
+          </Box>
+          <Box className="space-y-1 mt-1">
+            <Text size="1" color="gray" className="block font-medium">
+              {t(
+                "settings.postProcessing.prompts.referenceFieldsLabel",
+                "参考信息",
+              )}
+            </Text>
+            {REFERENCE_FIELDS.map((v) => (
+              <Text key={v.name} size="1" color="gray" className="block">
+                <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
+                  {v.name}
+                </code>{" "}
+                {t(v.descKey, v.descFallback)}
+              </Text>
+            ))}
+          </Box>
+          <Box className="space-y-1 mt-1">
+            <Text size="1" color="gray" className="block font-medium">
+              {t(
+                "settings.postProcessing.prompts.inlineVarsSecondaryLabel",
+                "Secondary inline variables",
+              )}
+            </Text>
             {INLINE_VARS.map((v) => (
               <Text key={v.name} size="1" color="gray" className="block">
                 <code className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
@@ -162,11 +262,119 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [aiInstruction, setAiInstruction] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  const [suggestionQuery, setSuggestionQuery] = useState("");
+  const [suggestionRange, setSuggestionRange] = useState<{
+    start: number;
+    end: number;
+  } | null>(null);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const isDragging = useRef(false);
   const isManualResized = useRef(false);
   const startY = useRef(0);
   const startHeight = useRef(0);
   const editorRef = useRef<MarkdownEditorRef>(null);
+
+  const filteredSuggestions = FIELD_SUGGESTIONS.filter((field) =>
+    field.name
+      .replace(/[{}]/g, "")
+      .toLowerCase()
+      .includes(suggestionQuery.toLowerCase()),
+  );
+
+  const closeSuggestions = useCallback(() => {
+    setIsSuggestionOpen(false);
+    setSuggestionQuery("");
+    setSuggestionRange(null);
+    setActiveSuggestionIndex(0);
+  }, []);
+
+  const openSuggestions = useCallback((match: PlaceholderMatch) => {
+    setIsSuggestionOpen(true);
+    setSuggestionQuery(match.query);
+    setSuggestionRange({ start: match.start, end: match.end });
+    setActiveSuggestionIndex(0);
+  }, []);
+
+  const findPlaceholderMatch = useCallback(
+    (text: string, start: number, end: number): PlaceholderMatch | null => {
+      if (start !== end) return null;
+
+      const completedPattern = /\{\{([a-z-]+)\}\}/g;
+      for (const match of text.matchAll(completedPattern)) {
+        const token = match[0];
+        const tokenStart = match.index ?? 0;
+        const tokenEnd = tokenStart + token.length;
+        if (start >= tokenStart && start <= tokenEnd) {
+          return {
+            start: tokenStart,
+            end: tokenEnd,
+            query: match[1] ?? "",
+          };
+        }
+      }
+
+      const before = text.slice(0, start);
+      const partial = before.match(/\{\{([a-z-]*)$/);
+      if (!partial || partial.index == null) {
+        return null;
+      }
+
+      return {
+        start: partial.index,
+        end: start,
+        query: partial[1] ?? "",
+      };
+    },
+    [],
+  );
+
+  const applySuggestion = useCallback(
+    (fieldName: string) => {
+      if (!editorRef.current || !suggestionRange) return;
+      editorRef.current.replaceRange(
+        suggestionRange.start,
+        suggestionRange.end,
+        fieldName,
+      );
+      closeSuggestions();
+    },
+    [closeSuggestions, suggestionRange],
+  );
+
+  const handleEditorSelectionChange = useCallback(
+    (selection: { start: number; end: number }) => {
+      const match = findPlaceholderMatch(value, selection.start, selection.end);
+      if (match) {
+        openSuggestions(match);
+      } else if (isSuggestionOpen) {
+        closeSuggestions();
+      }
+    },
+    [
+      closeSuggestions,
+      findPlaceholderMatch,
+      isSuggestionOpen,
+      openSuggestions,
+      value,
+    ],
+  );
+
+  const handleEditorChange = useCallback(
+    (nextValue: string, selection: { start: number; end: number }) => {
+      const match = findPlaceholderMatch(
+        nextValue,
+        selection.start,
+        selection.end,
+      );
+      if (match) {
+        openSuggestions(match);
+      } else if (isSuggestionOpen) {
+        closeSuggestions();
+      }
+    },
+    [closeSuggestions, findPlaceholderMatch, isSuggestionOpen, openSuggestions],
+  );
 
   // Auto-height logic
   useEffect(() => {
@@ -245,18 +453,6 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
     document.body.style.userSelect = "none";
   };
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        if (isFullscreen) {
-          setIsFullscreen(false);
-        }
-      }
-    },
-    [isFullscreen],
-  );
-
   const handleFormat = (type: string) => {
     if (!editorRef.current) return;
     switch (type) {
@@ -310,6 +506,155 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
     }
   };
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLElement>) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        if (isFullscreen) {
+          setIsFullscreen(false);
+        }
+        return;
+      }
+
+      if (!isSuggestionOpen) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActiveSuggestionIndex((prev) =>
+          filteredSuggestions.length === 0
+            ? 0
+            : (prev + 1) % filteredSuggestions.length,
+        );
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActiveSuggestionIndex((prev) =>
+          filteredSuggestions.length === 0
+            ? 0
+            : (prev - 1 + filteredSuggestions.length) %
+              filteredSuggestions.length,
+        );
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "Tab") {
+        if (filteredSuggestions.length === 0) return;
+        e.preventDefault();
+        applySuggestion(filteredSuggestions[activeSuggestionIndex].name);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeSuggestions();
+      }
+    },
+    [
+      activeSuggestionIndex,
+      applySuggestion,
+      closeSuggestions,
+      filteredSuggestions,
+      isSuggestionOpen,
+      isFullscreen,
+    ],
+  );
+
+  const renderSuggestionPanel = () => {
+    if (!isSuggestionOpen) return null;
+
+    const groupedSuggestions = [
+      {
+        title: t(
+          "settings.postProcessing.prompts.primaryFieldsLabel",
+          "关键信息",
+        ),
+        items: filteredSuggestions.filter((field) =>
+          KEY_FIELDS.some((candidate) => candidate.name === field.name),
+        ),
+      },
+      {
+        title: t(
+          "settings.postProcessing.prompts.referenceFieldsLabel",
+          "参考信息",
+        ),
+        items: filteredSuggestions.filter((field) =>
+          REFERENCE_FIELDS.some((candidate) => candidate.name === field.name),
+        ),
+      },
+      {
+        title: t(
+          "settings.postProcessing.prompts.inlineVarsSecondaryLabel",
+          "元数据变量",
+        ),
+        items: filteredSuggestions.filter((field) =>
+          INLINE_VARS.some((candidate) => candidate.name === field.name),
+        ),
+      },
+    ].filter((group) => group.items.length > 0);
+
+    return (
+      <Box className="absolute right-3 top-3 z-20 w-[320px] rounded-xl border border-[var(--gray-6)] bg-[var(--color-background)] p-2 shadow-[0_16px_40px_-18px_rgba(0,0,0,0.35)]">
+        <Text size="1" color="gray" className="block px-2 pb-2 font-medium">
+          {t(
+            "settings.postProcessing.prompts.fieldAutocompleteTitle",
+            "字段补全",
+          )}
+        </Text>
+        <Box className="max-h-72 overflow-auto">
+          {filteredSuggestions.length === 0 ? (
+            <Text size="1" color="gray" className="block px-2 py-2">
+              {t(
+                "settings.postProcessing.prompts.fieldAutocompleteEmpty",
+                "没有匹配的字段",
+              )}
+            </Text>
+          ) : (
+            groupedSuggestions.map((group) => (
+              <Box key={group.title} className="mb-2 last:mb-0">
+                <Text
+                  size="1"
+                  color="gray"
+                  className="block px-2 pb-1 pt-1 font-medium"
+                >
+                  {group.title}
+                </Text>
+                {group.items.map((field) => {
+                  const itemIndex = filteredSuggestions.findIndex(
+                    (candidate) => candidate.name === field.name,
+                  );
+                  return (
+                    <button
+                      key={field.name}
+                      type="button"
+                      className={`w-full rounded-lg px-2 py-2 text-left transition-colors ${
+                        itemIndex === activeSuggestionIndex
+                          ? "bg-[var(--gray-4)]"
+                          : "hover:bg-[var(--gray-3)]"
+                      }`}
+                      onMouseDown={(evt) => {
+                        evt.preventDefault();
+                        applySuggestion(field.name);
+                      }}
+                    >
+                      <Text size="1" className="block font-mono">
+                        {field.name}
+                      </Text>
+                      <Text size="1" color="gray" className="block mt-1">
+                        {t(field.descKey, field.descFallback)}
+                      </Text>
+                    </button>
+                  );
+                })}
+              </Box>
+            ))
+          )}
+        </Box>
+      </Box>
+    );
+  };
+
   return (
     <Flex direction="column" gap="2" className={className} style={style}>
       {showLabel && (
@@ -361,10 +706,13 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
           ref={isFullscreen ? null : editorRef}
           value={value}
           onChange={onChange}
+          onChangeMeta={handleEditorChange}
+          onSelectionChange={handleEditorSelectionChange}
           placeholder={placeholder}
           style={{ height }}
           onKeyDown={handleKeyDown}
         />
+        {renderSuggestionPanel()}
 
         {/* Resize Handle - v4 refined icon */}
         <Box
@@ -536,11 +884,14 @@ export const ResizableEditor: React.FC<ResizableEditorProps> = ({
               ref={isFullscreen ? editorRef : null}
               value={value}
               onChange={onChange}
+              onChangeMeta={handleEditorChange}
+              onSelectionChange={handleEditorSelectionChange}
               placeholder={placeholder}
               className="markdown-editor-fullscreen"
               style={{ height: "100%", border: "none" }}
               onKeyDown={handleKeyDown}
             />
+            {renderSuggestionPanel()}
 
             {/* Quick Save Floating Button */}
             <Box className="absolute bottom-8 right-12 z-20">

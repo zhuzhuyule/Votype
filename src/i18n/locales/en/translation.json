@@ -1180,7 +1180,7 @@
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully",
         "inlineVarsLabel": "Reference Fields",
-        "autoInjectedNote": "The system automatically injects the main input and supporting reference fields. The key fields are usually {{input-text}} and {{selected-text}} (which may be empty). If you need more precise control, you can explicitly reference them in the task body.",
+        "autoInjectedNote": "The system automatically injects the main input and supporting reference fields. If you need more precise control, you can explicitly reference them in the task body.",
         "primaryFieldsLabel": "Key fields",
         "referenceFieldsLabel": "Reference fields",
         "explicitReferenceNote": "If you explicitly reference a field above, the system will not append the same field again later in the prompt.",

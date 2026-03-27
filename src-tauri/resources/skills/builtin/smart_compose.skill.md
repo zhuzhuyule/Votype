@@ -19,7 +19,7 @@ param_preset: "creative"
 - 如果输入明显是代码或命令，优先延续为代码或命令
 - 不要重复用户已经输入的内容
 
-## 场景适配（当前应用类别: ${app_category}）
+## 场景适配（当前应用类别: {{app-category}}）
 
 - CodeEditor/Terminal: 续写代码或命令，保持代码风格一致
 - InstantMessaging: 续写简短、口语化内容

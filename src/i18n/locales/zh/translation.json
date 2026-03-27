@@ -1196,7 +1196,7 @@
         "updatePrompt": "更新提示词",
         "updateSuccess": "提示词更新成功",
         "inlineVarsLabel": "可引用字段",
-        "autoInjectedNote": "系统会自动注入主输入和辅助参考字段。关键信息通常是 {{input-text}} 和 {{selected-text}}（可能为空）；如果你需要更精确的控制，也可以在正文中显式引用它们。",
+        "autoInjectedNote": "系统会自动注入主输入和辅助参考字段；如果你需要更精确的控制，也可以在正文中显式引用它们。",
         "primaryFieldsLabel": "关键信息",
         "referenceFieldsLabel": "参考信息",
         "explicitReferenceNote": "如果你在正文中显式引用了上面的字段，系统就不会在后续重复追加同一字段。",

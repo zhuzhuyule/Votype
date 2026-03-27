@@ -19,7 +19,7 @@ param_preset: "balanced"
 - 若缺少足够风格线索，默认输出自然、克制、符合场景的回复
 - 高风险沟通优先清楚、稳妥
 
-场景适配（当前应用类别: ${app_category}）：
+场景适配（当前应用类别: {{app-category}}）：
 
 - InstantMessaging: 更随意，贴近日常聊天
 - Email: 更正式，保持礼貌

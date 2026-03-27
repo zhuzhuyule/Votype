@@ -19,7 +19,7 @@ param_preset: "accurate"
 - 自动检测源语言，翻译为最合理的目标语言
 - 如果输入已经是目标语言，翻译为最可能的源语言（如：中文用户输入英文 → 翻译为中文）
 
-## 场景适配（当前应用类别: ${app_category}）
+## 场景适配（当前应用类别: {{app-category}}）
 
 - CodeEditor/Terminal: 代码注释和技术文档翻译时保留术语原文
 - InstantMessaging: 保持口语化风格

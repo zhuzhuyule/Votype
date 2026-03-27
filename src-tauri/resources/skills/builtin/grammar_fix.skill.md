@@ -39,7 +39,7 @@ param_preset: "accurate"
 - 合并过短的碎片
 - 理顺逻辑关系
 
-## 场景适配（当前应用类别: ${app_category}）
+## 场景适配（当前应用类别: {{app-category}}）
 
 - CodeEditor/Terminal: 保留技术术语和代码片段，仅修正自然语言部分
 - InstantMessaging: 保持自然口语感，仅修正卡壳词和明显语法错误

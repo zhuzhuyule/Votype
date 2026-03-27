@@ -3,7 +3,7 @@ use crate::settings::{LLMPrompt, SkillOutputMode};
 use log::debug;
 use std::collections::BTreeSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum FieldTag {
     SelectedText,
     PersonNames,
@@ -18,14 +18,27 @@ enum FieldTag {
 impl FieldTag {
     fn description(self) -> &'static str {
         match self {
-            FieldTag::InputText => "INPUT_TEXT：当前唯一需要处理的主文本",
-            FieldTag::AsrReference => "ASR_REFERENCE：辅助参考，仅用于纠错和消歧",
-            FieldTag::PersonNames => "PERSON_NAMES：人名参考",
-            FieldTag::ProductNames => "PRODUCT_NAMES：产品名、品牌名或组织名参考",
-            FieldTag::DomainTerms => "DOMAIN_TERMS：领域术语、缩写或专有技术词",
-            FieldTag::Hotwords => "HOTWORDS：其他高优先级词汇参考",
-            FieldTag::SelectedText => "SELECTED_TEXT：局部选中文本，仅用于弱参考",
-            FieldTag::HistoryHints => "HISTORY_HINTS：历史上下文，仅用于术语一致性和弱消歧",
+            FieldTag::InputText => "input-text：当前唯一需要处理的主文本",
+            FieldTag::AsrReference => "asr-reference：辅助参考，仅用于纠错和消歧",
+            FieldTag::PersonNames => "person-names：人名参考",
+            FieldTag::ProductNames => "product-names：产品名、品牌名或组织名参考",
+            FieldTag::DomainTerms => "domain-terms：领域术语、缩写或专有技术词",
+            FieldTag::Hotwords => "hotwords：其他高优先级词汇参考",
+            FieldTag::SelectedText => "selected-text：局部选中文本，仅用于弱参考",
+            FieldTag::HistoryHints => "history-hints：历史上下文，仅用于术语一致性和弱消歧",
+        }
+    }
+
+    fn placeholder(self) -> &'static str {
+        match self {
+            FieldTag::SelectedText => "{{selected-text}}",
+            FieldTag::PersonNames => "{{person-names}}",
+            FieldTag::ProductNames => "{{product-names}}",
+            FieldTag::DomainTerms => "{{domain-terms}}",
+            FieldTag::Hotwords => "{{hotwords}}",
+            FieldTag::HistoryHints => "{{history-hints}}",
+            FieldTag::AsrReference => "{{asr-reference}}",
+            FieldTag::InputText => "{{input-text}}",
         }
     }
 }
@@ -42,14 +55,14 @@ fn build_input_protocol_note(fields: &[FieldTag]) -> String {
     parts.push(format!("你将收到以下字段：\n{}", field_lines.join("\n")));
 
     let mut rules = Vec::new();
-    rules.push("- 始终以 INPUT_TEXT 为唯一主输入".to_string());
+    rules.push("- 始终以 input-text 为唯一主输入".to_string());
     rules.push(
         "- 仅在明显存在识别错误、错别字、断句错误、标点错误或术语误识别时，做最小必要修改"
             .to_string(),
     );
     if has_auxiliary_fields {
         rules.push(
-            "- 其他字段只能用于纠错和消歧，不得覆盖 INPUT_TEXT 原意，不得补充新信息".to_string(),
+            "- 其他字段只能用于纠错和消歧，不得覆盖 input-text 原意，不得补充新信息".to_string(),
         );
     }
 
@@ -136,14 +149,14 @@ fn sanitize_history_entry(entry: &str) -> Option<String> {
                 && !trimmed.starts_with("```")
                 && !trimmed.starts_with("## ")
                 && !trimmed.starts_with("# ")
-                && !trimmed.starts_with("[INPUT_TEXT]")
-                && !trimmed.starts_with("[ASR_REFERENCE]")
-                && !trimmed.starts_with("[HOTWORDS]")
-                && !trimmed.starts_with("[DOMAIN_TERMS]")
-                && !trimmed.starts_with("[PRODUCT_NAMES]")
-                && !trimmed.starts_with("[PERSON_NAMES]")
-                && !trimmed.starts_with("[SELECTED_TEXT]")
-                && !trimmed.starts_with("[HISTORY_HINTS]")
+                && !trimmed.starts_with("[input-text]")
+                && !trimmed.starts_with("[asr-reference]")
+                && !trimmed.starts_with("[hotwords]")
+                && !trimmed.starts_with("[domain-terms]")
+                && !trimmed.starts_with("[product-names]")
+                && !trimmed.starts_with("[person-names]")
+                && !trimmed.starts_with("[selected-text]")
+                && !trimmed.starts_with("[history-hints]")
                 && !trimmed.contains("${")
         })
         .collect::<Vec<_>>()
@@ -213,11 +226,19 @@ fn render_history_hints_block(entries: &[String]) -> Option<String> {
         .filter_map(|entry| sanitize_history_entry(entry))
         .filter(|entry| seen.insert(entry.clone()))
         .collect();
-    render_list_block("HISTORY_HINTS", &cleaned)
+    render_list_block("history-hints", &cleaned)
 }
 
 fn render_asr_reference_block(items: &[String]) -> Option<String> {
-    render_list_block("ASR_REFERENCE", items)
+    render_list_block("asr-reference", items)
+}
+
+fn render_plain_list(items: &[String]) -> Option<String> {
+    if items.is_empty() {
+        None
+    } else {
+        Some(items.join("\n"))
+    }
 }
 
 impl<'a> PromptBuilder<'a> {
@@ -317,30 +338,30 @@ impl<'a> PromptBuilder<'a> {
         } else {
             None
         };
-        let mut skill_prompt = template.replace("${prompt}", &self.prompt.name);
+        let mut skill_prompt = template.replace("{{prompt}}", &self.prompt.name);
 
         // --- Metadata variable substitution ---
-        if skill_prompt.contains("${app_name}") {
+        if skill_prompt.contains("{{app-name}}") {
             if let Some(name) = self.app_name {
-                skill_prompt = skill_prompt.replace("${app_name}", name);
+                skill_prompt = skill_prompt.replace("{{app-name}}", name);
             }
         }
-        if skill_prompt.contains("${app_category}") {
+        if skill_prompt.contains("{{app-category}}") {
             let category = self
                 .app_name
                 .map(crate::app_category::from_app_name)
                 .unwrap_or("Other");
-            skill_prompt = skill_prompt.replace("${app_category}", category);
+            skill_prompt = skill_prompt.replace("{{app-category}}", category);
         }
-        if skill_prompt.contains("${window_title}") {
+        if skill_prompt.contains("{{window-title}}") {
             if let Some(title) = self.window_title {
-                skill_prompt = skill_prompt.replace("${window_title}", title);
+                skill_prompt = skill_prompt.replace("{{window-title}}", title);
             }
         }
-        if skill_prompt.contains("${time}") {
+        if skill_prompt.contains("{{time}}") {
             let now = chrono::Local::now();
             skill_prompt =
-                skill_prompt.replace("${time}", &now.format("%Y-%m-%d %H:%M:%S").to_string());
+                skill_prompt.replace("{{time}}", &now.format("%Y-%m-%d %H:%M:%S").to_string());
         }
 
         // --- Phase 3.5: Inject resolved references ---
@@ -349,44 +370,109 @@ impl<'a> PromptBuilder<'a> {
             skill_prompt.push_str(refs_content);
         }
 
-        // --- Phase 4: Precompute present fields for dynamic protocol ---
-        let mut present_fields = Vec::new();
+        let mut asr_reference_items = Vec::new();
+        if let Some(raw) = raw_transcription.as_ref() {
+            asr_reference_items.push(raw.clone());
+        }
+        if let Some(streaming) = streaming_transcription.as_ref() {
+            asr_reference_items.push(streaming.clone());
+        }
+        let history_hint_items: Vec<String> = {
+            let mut seen = BTreeSet::new();
+            history_entries
+                .iter()
+                .filter_map(|entry| sanitize_history_entry(entry))
+                .filter(|entry| seen.insert(entry.clone()))
+                .collect()
+        };
 
+        let person_names = hotword_injection
+            .as_ref()
+            .map(|h| h.person_names.clone())
+            .unwrap_or_default();
+        let product_names = hotword_injection
+            .as_ref()
+            .map(|h| h.product_names.clone())
+            .unwrap_or_default();
+        let domain_terms = hotword_injection
+            .as_ref()
+            .map(|h| h.domain_terms.clone())
+            .unwrap_or_default();
+        let hotwords = hotword_injection
+            .as_ref()
+            .map(|h| h.hotwords.clone())
+            .unwrap_or_default();
+
+        let mut present_fields = Vec::new();
         if self.selected_text.is_some() {
             present_fields.push(FieldTag::SelectedText);
         }
-        if hotword_injection
-            .as_ref()
-            .map_or(false, |h| !h.person_names.is_empty())
-        {
+        if !person_names.is_empty() {
             present_fields.push(FieldTag::PersonNames);
         }
-        if hotword_injection
-            .as_ref()
-            .map_or(false, |h| !h.product_names.is_empty())
-        {
+        if !product_names.is_empty() {
             present_fields.push(FieldTag::ProductNames);
         }
-        if hotword_injection
-            .as_ref()
-            .map_or(false, |h| !h.domain_terms.is_empty())
-        {
+        if !domain_terms.is_empty() {
             present_fields.push(FieldTag::DomainTerms);
         }
-        if hotword_injection
-            .as_ref()
-            .map_or(false, |h| !h.hotwords.is_empty())
-        {
+        if !hotwords.is_empty() {
             present_fields.push(FieldTag::Hotwords);
         }
-        if !history_entries.is_empty() {
+        if !history_hint_items.is_empty() {
             present_fields.push(FieldTag::HistoryHints);
         }
-        if raw_transcription.is_some() || streaming_transcription.is_some() {
+        if !asr_reference_items.is_empty() {
             present_fields.push(FieldTag::AsrReference);
         }
         if !transcription.is_empty() {
             present_fields.push(FieldTag::InputText);
+        }
+
+        let explicit_field_references: BTreeSet<FieldTag> = present_fields
+            .iter()
+            .copied()
+            .filter(|field| skill_prompt.contains(field.placeholder()))
+            .collect();
+
+        for field in &explicit_field_references {
+            let replacement = match field {
+                FieldTag::SelectedText => self
+                    .selected_text
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string),
+                FieldTag::PersonNames => render_plain_list(
+                    &person_names
+                        .iter()
+                        .map(render_hotword_entry)
+                        .collect::<Vec<_>>(),
+                ),
+                FieldTag::ProductNames => render_plain_list(
+                    &product_names
+                        .iter()
+                        .map(render_hotword_entry)
+                        .collect::<Vec<_>>(),
+                ),
+                FieldTag::DomainTerms => render_plain_list(
+                    &domain_terms
+                        .iter()
+                        .map(render_hotword_entry)
+                        .collect::<Vec<_>>(),
+                ),
+                FieldTag::Hotwords => render_plain_list(
+                    &hotwords
+                        .iter()
+                        .map(render_hotword_entry)
+                        .collect::<Vec<_>>(),
+                ),
+                FieldTag::HistoryHints => render_plain_list(&history_hint_items),
+                FieldTag::AsrReference => render_plain_list(&asr_reference_items),
+                FieldTag::InputText => Some(transcription.clone()),
+            }
+            .unwrap_or_default();
+
+            skill_prompt = skill_prompt.replace(field.placeholder(), replacement.trim());
         }
 
         // --- Phase 5: Append protocol and constraints to the stable system message ---
@@ -437,8 +523,11 @@ impl<'a> PromptBuilder<'a> {
         }
 
         let mut sections: Vec<String> = Vec::new();
-        if let Some(text) = self.selected_text {
-            if let Some(block) = render_text_block("SELECTED_TEXT", text) {
+        if self.selected_text.is_some()
+            && !explicit_field_references.contains(&FieldTag::SelectedText)
+        {
+            let text = self.selected_text.unwrap();
+            if let Some(block) = render_text_block("selected-text", text) {
                 sections.push(block);
             }
         }
@@ -451,36 +540,41 @@ impl<'a> PromptBuilder<'a> {
                 injection.hotwords.len(),
             );
 
-            if let Some(block) = render_term_block("PERSON_NAMES", &injection.person_names) {
-                sections.push(block);
+            if !explicit_field_references.contains(&FieldTag::PersonNames) {
+                if let Some(block) = render_term_block("person-names", &person_names) {
+                    sections.push(block);
+                }
             }
-            if let Some(block) = render_term_block("PRODUCT_NAMES", &injection.product_names) {
-                sections.push(block);
+            if !explicit_field_references.contains(&FieldTag::ProductNames) {
+                if let Some(block) = render_term_block("product-names", &product_names) {
+                    sections.push(block);
+                }
             }
-            if let Some(block) = render_term_block("DOMAIN_TERMS", &injection.domain_terms) {
-                sections.push(block);
+            if !explicit_field_references.contains(&FieldTag::DomainTerms) {
+                if let Some(block) = render_term_block("domain-terms", &domain_terms) {
+                    sections.push(block);
+                }
             }
-            if let Some(block) = render_term_block("HOTWORDS", &injection.hotwords) {
-                sections.push(block);
+            if !explicit_field_references.contains(&FieldTag::Hotwords) {
+                if let Some(block) = render_term_block("hotwords", &hotwords) {
+                    sections.push(block);
+                }
             }
         } else {
             debug!("[PromptBuilder] No hotword injection provided");
         }
-        if let Some(block) = render_history_hints_block(&history_entries) {
-            sections.push(block);
+        if !explicit_field_references.contains(&FieldTag::HistoryHints) {
+            if let Some(block) = render_history_hints_block(&history_entries) {
+                sections.push(block);
+            }
         }
-        let mut asr_reference_items = Vec::new();
-        if let Some(raw) = raw_transcription {
-            asr_reference_items.push(raw);
+        if !explicit_field_references.contains(&FieldTag::AsrReference) {
+            if let Some(block) = render_asr_reference_block(&asr_reference_items) {
+                sections.push(block);
+            }
         }
-        if let Some(streaming) = streaming_transcription {
-            asr_reference_items.push(streaming);
-        }
-        if let Some(block) = render_asr_reference_block(&asr_reference_items) {
-            sections.push(block);
-        }
-        if !transcription.is_empty() {
-            sections.push(format!("[INPUT_TEXT]\n{}", transcription));
+        if !transcription.is_empty() && !explicit_field_references.contains(&FieldTag::InputText) {
+            sections.push(format!("[input-text]\n{}", transcription));
         }
 
         let section_tags: Vec<&str> = sections
@@ -529,7 +623,7 @@ mod tests {
 
         assert_eq!(
             built.user_message.as_deref(),
-            Some("[INPUT_TEXT]\nHello world")
+            Some("[input-text]\nHello world")
         );
         let sys_combined = built.system_prompt;
         assert!(!sys_combined.contains("基于以下代码块的信息"));
@@ -547,9 +641,9 @@ mod tests {
         assert!(!sys_combined.contains("变量说明"));
 
         let input = built.user_message.unwrap();
-        assert!(input.contains("[ASR_REFERENCE]"));
+        assert!(input.contains("[asr-reference]"));
         assert!(input.contains("- Fianl txt"));
-        assert!(input.ends_with("[INPUT_TEXT]\nFinal text"));
+        assert!(input.ends_with("[input-text]\nFinal text"));
     }
 
     #[test]
@@ -564,9 +658,9 @@ mod tests {
         assert!(!sys_combined.contains("变量说明"));
 
         let input = built.user_message.unwrap();
-        assert!(input.contains("[SELECTED_TEXT]"));
+        assert!(input.contains("[selected-text]"));
         assert!(input.contains("Selected paragraph"));
-        assert!(input.ends_with("[INPUT_TEXT]\ntranslate this"));
+        assert!(input.ends_with("[input-text]\ntranslate this"));
     }
 
     #[test]
@@ -579,20 +673,20 @@ mod tests {
                 "我们最近在排查 TTS 播报和语音播放问题".to_string(),
                 "提示词和热词注入的效果还需要继续验证".to_string(),
                 "```text\n不应该进入摘要\n```".to_string(),
-                "[INPUT_TEXT]\n这类字段标签也不应该原样进入".to_string(),
+                "[input-text]\n这类字段标签也不应该原样进入".to_string(),
             ])
             .build();
 
         let input = built.user_message.unwrap();
-        assert!(input.contains("[HISTORY_HINTS]"));
+        assert!(input.contains("[history-hints]"));
         assert!(input.contains("- 旧协议样例"));
         assert!(input.contains("- 我们最近在排查 TTS 播报和语音播放问题"));
         assert!(input.contains("- 提示词和热词注入的效果还需要继续验证"));
         assert!(input.contains("- 这类字段标签也不应该原样进入"));
         assert!(!input.contains("### 用户的 ASR 结果"));
         assert!(!input.contains("```text"));
-        let hints_section = input.split("[INPUT_TEXT]").next().unwrap();
-        assert!(!hints_section.contains("[INPUT_TEXT]"));
+        let hints_section = input.split("[input-text]").next().unwrap();
+        assert!(!hints_section.contains("[input-text]"));
     }
 
     #[test]
@@ -621,11 +715,11 @@ mod tests {
             .build();
 
         let input = built.user_message.unwrap();
-        assert!(input.contains("[PERSON_NAMES]\nMatt（常见误识别：mat、mata）"));
-        assert!(input.contains("[PRODUCT_NAMES]\nVotype（常见误识别：vo type、vtype）"));
-        assert!(input.contains("[DOMAIN_TERMS]\nASR"));
-        assert!(input.contains("[HOTWORDS]\nGhost Type（常见误识别：ghosttype）"));
-        assert!(input.ends_with("[INPUT_TEXT]\n看看 vo type 和 matt"));
+        assert!(input.contains("[person-names]\nMatt（常见误识别：mat、mata）"));
+        assert!(input.contains("[product-names]\nVotype（常见误识别：vo type、vtype）"));
+        assert!(input.contains("[domain-terms]\nASR"));
+        assert!(input.contains("[hotwords]\nGhost Type（常见误识别：ghosttype）"));
+        assert!(input.ends_with("[input-text]\n看看 vo type 和 matt"));
     }
 
     #[test]
@@ -654,20 +748,20 @@ mod tests {
             .build();
 
         let input = built.user_message.unwrap();
-        assert!(input.contains("[PERSON_NAMES]"));
+        assert!(input.contains("[person-names]"));
         assert!(input.contains("Matt（常见误识别：mat、mata）"));
-        assert!(input.contains("[PRODUCT_NAMES]"));
+        assert!(input.contains("[product-names]"));
         assert!(input.contains("Votype（常见误识别：vo type）"));
-        assert!(input.contains("[DOMAIN_TERMS]"));
+        assert!(input.contains("[domain-terms]"));
         assert!(input.contains("ASR"));
-        assert!(input.contains("[HOTWORDS]"));
+        assert!(input.contains("[hotwords]"));
         assert!(input.contains("Ghost Type（常见误识别：ghosttype）"));
     }
 
     #[test]
     fn test_render_term_block_without_bullets() {
         let block = render_term_block(
-            "PERSON_NAMES",
+            "person-names",
             &[HotwordEntry {
                 target: "Matt".to_string(),
                 aliases: vec!["mat".to_string(), "mata".to_string()],
@@ -675,13 +769,13 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(block, "[PERSON_NAMES]\nMatt（常见误识别：mat、mata）");
+        assert_eq!(block, "[person-names]\nMatt（常见误识别：mat、mata）");
     }
 
     #[test]
     fn test_render_term_block_without_aliases() {
         let block = render_term_block(
-            "DOMAIN_TERMS",
+            "domain-terms",
             &[HotwordEntry {
                 target: "ASR".to_string(),
                 aliases: Vec::new(),
@@ -689,7 +783,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(block, "[DOMAIN_TERMS]\nASR");
+        assert_eq!(block, "[domain-terms]\nASR");
     }
 
     #[test]
@@ -701,10 +795,10 @@ mod tests {
             .build();
 
         let input = built.user_message.unwrap();
-        assert!(input.contains("[HISTORY_HINTS]"));
+        assert!(input.contains("[history-hints]"));
         assert!(input.contains("- entry1"));
         assert!(input.contains("- entry2"));
-        assert!(input.ends_with("[INPUT_TEXT]\nmain text"));
+        assert!(input.ends_with("[input-text]\nmain text"));
     }
 
     #[test]
@@ -720,9 +814,9 @@ mod tests {
         assert!(!input.contains("🎼"));
         assert!(!input.contains("🎵"));
         assert!(!input.contains("♪"));
-        assert!(input.contains("[ASR_REFERENCE]"));
+        assert!(input.contains("[asr-reference]"));
         assert!(input.contains("- 你好"));
-        assert!(input.ends_with("[INPUT_TEXT]\n你好，世界"));
+        assert!(input.ends_with("[input-text]\n你好，世界"));
     }
 
     #[test]
@@ -733,15 +827,15 @@ mod tests {
 
         let sys = built.system_prompt;
         assert!(sys.contains("你将收到以下字段："));
-        assert!(sys.contains("INPUT_TEXT"));
+        assert!(sys.contains("input-text"));
         // Should NOT mention auxiliary fields
-        assert!(!sys.contains("ASR_REFERENCE"));
-        assert!(!sys.contains("PERSON_NAMES"));
-        assert!(!sys.contains("PRODUCT_NAMES"));
-        assert!(!sys.contains("DOMAIN_TERMS"));
-        assert!(!sys.contains("HOTWORDS"));
-        assert!(!sys.contains("SELECTED_TEXT"));
-        assert!(!sys.contains("HISTORY_HINTS"));
+        assert!(!sys.contains("asr-reference"));
+        assert!(!sys.contains("person-names"));
+        assert!(!sys.contains("product-names"));
+        assert!(!sys.contains("domain-terms"));
+        assert!(!sys.contains("hotwords"));
+        assert!(!sys.contains("selected-text"));
+        assert!(!sys.contains("history-hints"));
         // Should NOT include the "other fields" rule
         assert!(!sys.contains("其他字段只能用于纠错和消歧"));
     }
@@ -767,15 +861,15 @@ mod tests {
 
         let sys = built.system_prompt;
         assert!(sys.contains("你将收到以下字段："));
-        assert!(sys.contains("PERSON_NAMES"));
-        assert!(sys.contains("DOMAIN_TERMS"));
-        assert!(sys.contains("INPUT_TEXT"));
+        assert!(sys.contains("person-names"));
+        assert!(sys.contains("domain-terms"));
+        assert!(sys.contains("input-text"));
         // Should NOT mention fields that aren't present
-        assert!(!sys.contains("PRODUCT_NAMES"));
-        assert!(!sys.contains("HOTWORDS："));
-        assert!(!sys.contains("SELECTED_TEXT"));
-        assert!(!sys.contains("HISTORY_HINTS"));
-        assert!(!sys.contains("ASR_REFERENCE"));
+        assert!(!sys.contains("product-names"));
+        assert!(!sys.contains("hotwords："));
+        assert!(!sys.contains("selected-text"));
+        assert!(!sys.contains("history-hints"));
+        assert!(!sys.contains("asr-reference"));
         // Should include the "other fields" rule since we have auxiliary fields
         assert!(sys.contains("其他字段只能用于纠错和消歧"));
     }
@@ -811,14 +905,63 @@ mod tests {
 
         let sys = built.system_prompt;
         assert!(sys.contains("你将收到以下字段："));
-        assert!(sys.contains("INPUT_TEXT"));
-        assert!(sys.contains("ASR_REFERENCE"));
-        assert!(sys.contains("PERSON_NAMES"));
-        assert!(sys.contains("PRODUCT_NAMES"));
-        assert!(sys.contains("DOMAIN_TERMS"));
-        assert!(sys.contains("HOTWORDS"));
-        assert!(sys.contains("SELECTED_TEXT"));
-        assert!(sys.contains("HISTORY_HINTS"));
+        assert!(sys.contains("input-text"));
+        assert!(sys.contains("asr-reference"));
+        assert!(sys.contains("person-names"));
+        assert!(sys.contains("product-names"));
+        assert!(sys.contains("domain-terms"));
+        assert!(sys.contains("hotwords"));
+        assert!(sys.contains("selected-text"));
+        assert!(sys.contains("history-hints"));
         assert!(sys.contains("其他字段只能用于纠错和消歧"));
+    }
+
+    #[test]
+    fn test_explicit_input_text_placeholder_skips_auto_append() {
+        let prompt = make_prompt("请直接处理以下文本：\n{{input-text}}");
+
+        let built = PromptBuilder::new(&prompt, "看看 vo type").build();
+
+        assert!(built.system_prompt.contains("看看 vo type"));
+        assert!(!built.system_prompt.contains("{{input-text}}"));
+        assert!(built.user_message.is_none());
+    }
+
+    #[test]
+    fn test_explicit_reference_placeholders_skip_duplicate_sections() {
+        let prompt = make_prompt(
+            "请结合这些内容判断术语：\n{{asr-reference}}\n\n术语参考：\n{{product-names}}\n{{person-names}}",
+        );
+
+        let built = PromptBuilder::new(&prompt, "看看 vo type 和 matt")
+            .raw_transcription("看看 vtype 和 mat")
+            .hotword_injection(Some(HotwordInjection {
+                person_names: vec![HotwordEntry {
+                    target: "Matt".to_string(),
+                    aliases: vec!["mat".to_string()],
+                }],
+                product_names: vec![HotwordEntry {
+                    target: "Votype".to_string(),
+                    aliases: vec!["vo type".to_string()],
+                }],
+                domain_terms: vec![],
+                hotwords: vec![],
+            }))
+            .build();
+
+        assert!(built.system_prompt.contains("看看 vtype 和 mat"));
+        assert!(built
+            .system_prompt
+            .contains("Votype（常见误识别：vo type）"));
+        assert!(built.system_prompt.contains("Matt（常见误识别：mat）"));
+        assert!(!built.system_prompt.contains("{{asr-reference}}"));
+        assert!(!built.system_prompt.contains("{{product-names}}"));
+        assert!(!built.system_prompt.contains("{{person-names}}"));
+
+        let input = built.user_message.unwrap();
+        assert!(!input.contains("[asr-reference]"));
+        assert!(!input.contains("[product-names]"));
+        assert!(!input.contains("[person-names]"));
+        assert!(input.ends_with("[input-text]\n看看 vo type 和 matt"));
     }
 }
