@@ -25,7 +25,6 @@ import React, {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { escapeHtml } from "../lib/utils/html";
-import { log } from "../lib/utils/logging";
 import { MultiModelCandidate } from "./CandidatePanel";
 import { DiffViewPanel } from "./DiffViewPanel";
 import { MultiCandidateView } from "./MultiCandidateView";
@@ -301,7 +300,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const renderStartRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transcribeShortcuts, setTranscribeShortcuts] = useState<ShortcutMap>(
@@ -700,27 +698,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     [t],
   );
 
-  useEffect(() => {
-    // Skip render tracking in multi-candidate mode — the Tiptap editor is not used
-    if (isMultiCandidateMode.current) return;
-    renderStartRef.current = performance.now();
-    void log("[ReviewWindow] render_start", {
-      sourceChars: initialData.source_text.length,
-      targetChars: currentFinalText.length,
-      outputMode: initialData.output_mode ?? "polish",
-      changePercent: initialData.change_percent,
-      showDiff,
-      historyId: initialData.history_id,
-    });
-  }, [
-    initialData.source_text,
-    currentFinalText,
-    initialData.output_mode,
-    initialData.change_percent,
-    initialData.history_id,
-    showDiff,
-  ]);
-
   // Track whether this instance was mounted in multi-candidate mode.
   // Stable across re-renders so it doesn't trigger effects on progress events.
   const isMultiCandidateMode = useRef(
@@ -736,7 +713,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
     let content = "";
     let nextSourceHtml = "";
-    const buildStart = performance.now();
 
     if (initialData.output_mode === "chat") {
       content = simpleMarkdownToHtml(currentFinalText.trim());
@@ -747,22 +723,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       nextSourceHtml = views.sourceHtml;
     }
 
-    const buildDurationMs = Math.round(performance.now() - buildStart);
-    void log("[ReviewWindow] content_build_done", {
-      outputMode: initialData.output_mode ?? "polish",
-      showDiff,
-      buildDurationMs,
-      targetHtmlChars: content.length,
-      sourceHtmlChars: nextSourceHtml.length,
-    });
-
-    const setStart = performance.now();
     editor.commands.setContent(content, { emitUpdate: false });
-    const setDurationMs = Math.round(performance.now() - setStart);
-    void log("[ReviewWindow] editor_set_content_done", {
-      setDurationMs,
-      targetHtmlChars: content.length,
-    });
     setSourceHtml(nextSourceHtml);
     setTimeout(() => measureAndResize(false), 16);
   }, [
@@ -796,14 +757,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         } catch (e) {
           console.error("Failed to measure/resize:", e);
         }
-        const renderStart = renderStartRef.current;
-        const renderDurationMs = renderStart
-          ? Math.round(performance.now() - renderStart)
-          : null;
-        void log("[ReviewWindow] content_ready", {
-          renderDurationMs,
-          outputMode: initialData.output_mode ?? "polish",
-        });
         invoke("review_window_content_ready").catch((e) => {
           console.error("Failed to notify content ready:", e);
         });
