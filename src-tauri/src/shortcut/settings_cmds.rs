@@ -873,3 +873,58 @@ pub fn change_post_process_use_secondary_output_setting(
     settings::write_settings(&app, settings);
     Ok(())
 }
+
+// Group: Model Preset Commands
+#[tauri::command]
+#[specta::specta]
+pub fn get_model_families(app: AppHandle) -> Result<Vec<String>, String> {
+    let config = app
+        .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>()
+        .ok_or("Model presets not loaded".to_string())?;
+    Ok(config.family_ids())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn detect_model_family_cmd(
+    app: AppHandle,
+    model_id: String,
+    custom_label: Option<String>,
+) -> Option<String> {
+    let config =
+        app.try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>()?;
+    crate::managers::model_preset::detect_model_family_with_label(
+        &model_id,
+        custom_label.as_deref(),
+        &config,
+    )
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_preset_params(
+    app: AppHandle,
+    family_id: String,
+    preset_name: String,
+) -> Result<std::collections::HashMap<String, serde_json::Value>, String> {
+    let config = app
+        .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>()
+        .ok_or("Model presets not loaded".to_string())?;
+    let family = config
+        .find_family(&family_id)
+        .ok_or(format!("Family '{}' not found", family_id))?;
+    Ok(family
+        .presets
+        .get(&preset_name)
+        .cloned()
+        .unwrap_or_default())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_available_presets(app: AppHandle) -> Result<Vec<String>, String> {
+    let config = app
+        .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>()
+        .ok_or("Model presets not loaded".to_string())?;
+    Ok(config.presets.clone())
+}
