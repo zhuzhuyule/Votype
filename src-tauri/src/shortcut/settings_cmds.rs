@@ -928,3 +928,18 @@ pub fn get_available_presets(app: AppHandle) -> Result<Vec<String>, String> {
         .ok_or("Model presets not loaded".to_string())?;
     Ok(config.presets.clone())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn update_cached_model_family(
+    app: AppHandle,
+    id: String,
+    model_family: Option<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    if let Some(m) = settings.cached_models.iter_mut().find(|m| m.id == id) {
+        m.model_family = model_family.filter(|s| !s.trim().is_empty());
+        settings::write_settings(&app, settings);
+    }
+    Ok(())
+}

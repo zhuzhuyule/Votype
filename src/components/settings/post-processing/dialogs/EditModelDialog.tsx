@@ -4,6 +4,7 @@ import {
   Button,
   Dialog,
   Flex,
+  Select,
   Switch,
   Text,
   TextArea,
@@ -34,6 +35,11 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const [thinking, setThinking] = React.useState(model.is_thinking_model);
   const [role, setRole] = React.useState(model.prompt_message_role || "system");
   const [saving, setSaving] = React.useState(false);
+  const [modelFamily, setModelFamily] = React.useState<string>(
+    model.model_family || "",
+  );
+  const [modelFamilies, setModelFamilies] = React.useState<string[]>([]);
+  const [presetParamsHint, setPresetParamsHint] = React.useState<string>("");
 
   // Auto-detect thinking support
   const [supportsThinking, setSupportsThinking] = React.useState(false);
@@ -52,6 +58,36 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     model.custom_label,
     label,
   ]);
+
+  // Load model families on mount
+  React.useEffect(() => {
+    invoke<string[]>("get_model_families")
+      .then(setModelFamilies)
+      .catch(() => setModelFamilies([]));
+  }, []);
+
+  // Load preset params hint when family changes
+  React.useEffect(() => {
+    if (!modelFamily) {
+      setPresetParamsHint("");
+      return;
+    }
+    invoke<Record<string, unknown>>("get_preset_params", {
+      familyId: modelFamily,
+      presetName: "balanced",
+    })
+      .then((params) => {
+        const entries = Object.entries(params);
+        if (entries.length === 0) {
+          setPresetParamsHint("");
+        } else {
+          setPresetParamsHint(
+            entries.map(([k, v]) => `${k}: ${v}`).join(" | "),
+          );
+        }
+      })
+      .catch(() => setPresetParamsHint(""));
+  }, [modelFamily]);
 
   const handleThinkingToggle = async (enabled: boolean) => {
     setThinking(enabled);
@@ -86,6 +122,10 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
         extraHeaders: extraHeaders.trim() || null,
         isThinkingModel: thinking,
         promptMessageRole: role,
+      });
+      await invoke("update_cached_model_family", {
+        id: model.id,
+        modelFamily: modelFamily.trim() || null,
       });
       await onSave();
     } catch (e) {
@@ -152,6 +192,34 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             </Flex>
           )}
 
+          {/* Model Family */}
+          <Flex direction="column" gap="1">
+            <Text size="2" weight="medium" color="gray">
+              模型系列
+            </Text>
+            <Select.Root
+              value={modelFamily || "__unknown__"}
+              onValueChange={(v) =>
+                setModelFamily(v === "__unknown__" ? "" : v)
+              }
+            >
+              <Select.Trigger className="w-full" />
+              <Select.Content>
+                <Select.Item value="__unknown__">未知</Select.Item>
+                {modelFamilies.map((f) => (
+                  <Select.Item key={f} value={f}>
+                    {f}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+            {presetParamsHint && (
+              <Text size="1" color="gray" mt="1" as="div">
+                {presetParamsHint}
+              </Text>
+            )}
+          </Flex>
+
           {/* Extra Params (Body) */}
           <Flex direction="column" gap="1">
             <Flex justify="between" align="baseline">
@@ -169,6 +237,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
               className="font-mono text-xs bg-(--gray-2)"
               rows={3}
             />
+            <Text size="1" color="gray" mt="1" as="div">
+              手动设置的参数将覆盖预设值
+            </Text>
           </Flex>
 
           {/* Extra Headers */}

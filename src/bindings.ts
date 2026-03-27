@@ -556,6 +556,41 @@ async changePostProcessUseSecondaryOutputSetting(enabled: boolean) : Promise<Res
     else return { status: "error", error: e  as any };
 }
 },
+async getModelFamilies() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_model_families") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async detectModelFamilyCmd(modelId: string, customLabel: string | null) : Promise<string | null> {
+    return await TAURI_INVOKE("detect_model_family_cmd", { modelId, customLabel });
+},
+async getPresetParams(familyId: string, presetName: string) : Promise<Result<Partial<{ [key in string]: JsonValue }>, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_preset_params", { familyId, presetName }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getAvailablePresets() : Promise<Result<string[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_available_presets") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateCachedModelFamily(id: string, modelFamily: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_cached_model_family", { id, modelFamily }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async toggleMultiModelSelection(cachedModelId: string, selected: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("toggle_multi_model_selection", { cachedModelId, selected }) };
@@ -894,6 +929,11 @@ export type CachedModel = { id: string; name: string; model_type: ModelType; pro
  */
 is_thinking_model?: boolean; 
 /**
+ * 模型族标识，用于自动匹配参数预设
+ * 例如: "qwen3", "gpt-4o", "claude", "deepseek"
+ */
+model_family?: string | null; 
+/**
  * LLM 指令消息角色（system / developer）
  */
 prompt_message_role?: PromptMessageRole; 
@@ -975,7 +1015,12 @@ customized?: boolean;
 /**
  * Whether this skill is locked (prevents editing/deletion)
  */
-locked?: boolean }
+locked?: boolean; 
+/**
+ * 参数预设标识，用于匹配模型族的预设参数
+ * 例如: "accurate", "balanced", "creative"
+ */
+param_preset?: string | null }
 export type SkillOutputMode = 
 /**
  * Polish mode: ASR result -> AI refinement -> Insert. UI shows Diff.

@@ -78,6 +78,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [supportsThinking, setSupportsThinking] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
+  const [modelFamily, setModelFamily] = useState<string | undefined>();
 
   const cachedModels = settings?.cached_models ?? [];
   const configuredIds = useMemo(
@@ -174,8 +175,16 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   useEffect(() => {
     if (pendingModelId) {
       updateThinkingConfig(pendingModelId, thinkingEnabled);
+      // Auto-detect model family
+      invoke<string | null>("detect_model_family_cmd", {
+        modelId: pendingModelId,
+        customLabel: customTypeLabel || null,
+      })
+        .then((family) => setModelFamily(family ?? undefined))
+        .catch(() => setModelFamily(undefined));
     } else {
       setSupportsThinking(false);
+      setModelFamily(undefined);
     }
   }, [pendingModelId, providerState.selectedProviderId]);
 
@@ -277,6 +286,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
       is_thinking_model: thinkingEnabled,
       prompt_message_role: developerMode ? "developer" : "system",
       extra_params,
+      model_family: modelFamily,
     };
     await addCachedModel(newModel);
     onOpenChange(false);
@@ -287,6 +297,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     setThinkingEnabled(false);
     setSupportsThinking(false);
     setDeveloperMode(false);
+    setModelFamily(undefined);
   };
 
   return (
@@ -349,6 +360,11 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                     className="w-full"
                     enableFilter={true}
                   />
+                  {modelFamily && (
+                    <Text size="1" color="blue" mt="1" as="div">
+                      已识别为 {modelFamily} 系列，将自动应用推荐参数
+                    </Text>
+                  )}
                 </Box>
               </Box>
             </Tabs.Content>
