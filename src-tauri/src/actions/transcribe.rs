@@ -1179,55 +1179,133 @@ impl ShortcutAction for TranscribeAction {
                                                 }
                                             }
                                         } else if auto_pick_multi {
+                                            // All multi-model candidates failed — fallback to single-model post-processing
                                             info!(
-                                                "[MultiModel] Auto-pick multi-model produced no successful result, falling back to original transcription"
+                                                "[MultiModel] Auto-pick multi-model produced no successful result, falling back to single-model post-processing"
                                             );
-                                            let fallback_text = chinese_converted_text.clone();
+                                            ah_clone
+                                                .emit(
+                                                    "post-process-status",
+                                                    "多模型全部失败，正在使用单模型兜底...",
+                                                )
+                                                .ok();
+
+                                            let (
+                                                fallback_result,
+                                                fallback_model,
+                                                _fb_prompt_id,
+                                                fb_err,
+                                                _fb_error_msg,
+                                            ) = maybe_post_process_transcription(
+                                                &ah_clone,
+                                                &settings_clone,
+                                                &chinese_converted_text,
+                                                secondary.as_deref(),
+                                                true,
+                                                override_prompt_id.clone(),
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.app_name.clone()),
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.title.clone()),
+                                                matched_rule.map(|r| r.pattern.clone()),
+                                                matched_rule.map(|r| r.match_type),
+                                                history_id,
+                                                false,
+                                                selected_text.clone(),
+                                            )
+                                            .await;
+
+                                            let fallback_text = if fb_err
+                                                || fallback_result.is_none()
+                                            {
+                                                info!("[MultiModel] Single-model fallback also failed, using original transcription");
+                                                chinese_converted_text.clone()
+                                            } else {
+                                                info!(
+                                                    "[MultiModel] Single-model fallback succeeded (model={:?})",
+                                                    fallback_model
+                                                );
+                                                fallback_result.unwrap()
+                                            };
+
+                                            // Check if review is needed
+                                            let change_percent = compute_change_percent(
+                                                &transcription_clone,
+                                                &fallback_text,
+                                            );
+                                            let should_review = match app_policy {
+                                                crate::settings::AppReviewPolicy::Always => true,
+                                                crate::settings::AppReviewPolicy::Never => false,
+                                                crate::settings::AppReviewPolicy::Auto => {
+                                                    let (check_enabled, threshold) =
+                                                        if let Some(pid) = effective_prompt_id {
+                                                            settings_clone
+                                                                .post_process_prompts
+                                                                .iter()
+                                                                .find(|p| &p.id == pid)
+                                                                .map(|p| {
+                                                                    (
+                                                                        p.confidence_check_enabled,
+                                                                        p.confidence_threshold
+                                                                            .unwrap_or(70),
+                                                                    )
+                                                                })
+                                                                .unwrap_or((false, 70))
+                                                        } else {
+                                                            (false, 70)
+                                                        };
+                                                    if !check_enabled {
+                                                        false
+                                                    } else {
+                                                        change_percent >= threshold
+                                                    }
+                                                }
+                                            };
+
+                                            if should_review {
+                                                crate::review_window::set_last_active_window(
+                                                    active_window_snapshot_for_review.clone(),
+                                                );
+                                                crate::review_window::show_review_window(
+                                                    &ah_clone,
+                                                    transcription_clone.clone(),
+                                                    fallback_text,
+                                                    change_percent,
+                                                    history_id,
+                                                    None,
+                                                    output_mode,
+                                                    None,
+                                                    effective_prompt_id.cloned(),
+                                                    fallback_model,
+                                                );
+                                                return;
+                                            }
+
+                                            // No review — direct paste
                                             let ah_clone_inner = ah_clone.clone();
                                             let last_active_window =
                                                 active_window_snapshot_for_review.clone();
                                             ah_clone
                                                 .run_on_main_thread(move || {
-                                                    info!("[MultiModel] Entered auto-pick fallback main-thread branch");
-                                                    utils::hide_recording_overlay(
-                                                        &ah_clone_inner,
-                                                    );
-                                                    info!("[MultiModel] Overlay hidden for auto-pick fallback");
-                                                    change_tray_icon(
-                                                        &ah_clone_inner,
-                                                        TrayIconState::Idle,
-                                                    );
+                                                    utils::hide_recording_overlay(&ah_clone_inner);
+                                                    change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
                                                     if let Some(info) = last_active_window {
                                                         if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
-                                                            error!(
-                                                                "Failed to refocus target app before auto-pick fallback paste: {}",
-                                                                e
-                                                            );
+                                                            error!("Failed to refocus target app before fallback paste: {}", e);
                                                         } else {
-                                                            info!("[MultiModel] Refocused target app before auto-pick fallback paste");
                                                             std::thread::sleep(std::time::Duration::from_millis(120));
                                                         }
                                                     }
-                                                    info!("[MultiModel] Invoking auto-pick fallback paste");
-                                                    if let Err(e) = utils::paste(
-                                                        fallback_text,
-                                                        ah_clone_inner,
-                                                    ) {
-                                                        error!(
-                                                            "Failed to paste auto-pick multi-model fallback transcription: {}",
-                                                            e
-                                                        );
+                                                    if let Err(e) = utils::paste(fallback_text, ah_clone_inner) {
+                                                        error!("Failed to paste fallback transcription: {}", e);
                                                     } else {
-                                                        info!(
-                                                            "[MultiModel] Auto-pick fallback paste completed"
-                                                        );
+                                                        info!("[MultiModel] Fallback paste completed");
                                                     }
                                                 })
                                                 .unwrap_or_else(|e| {
-                                                    error!(
-                                                        "Failed to run auto-pick multi-model fallback paste on main thread: {:?}",
-                                                        e
-                                                    )
+                                                    error!("Failed to run fallback paste on main thread: {:?}", e)
                                                 });
                                             return;
                                         }
