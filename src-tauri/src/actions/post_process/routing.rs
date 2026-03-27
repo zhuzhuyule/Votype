@@ -221,14 +221,6 @@ pub(super) async fn execute_default_polish<'a>(
     let (actual_provider, model) =
         resolve_effective_model(settings, fallback_provider, default_prompt)?;
 
-    let api_key = settings
-        .post_process_api_keys
-        .get(&actual_provider.id)
-        .cloned()
-        .unwrap_or_default();
-
-    let client = crate::llm_client::create_client(actual_provider, api_key).ok()?;
-
     let hotword_injection = if settings.post_process_hotword_injection_enabled {
         if let Some(hm) =
             app_handle.try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
@@ -330,51 +322,66 @@ pub(super) async fn execute_default_polish<'a>(
         ))
         .build();
 
-    let mut messages = Vec::new();
+    let cached_model_id = default_prompt
+        .model_id
+        .as_deref()
+        .or(settings.selected_prompt_model_id.as_deref());
 
-    // 1. Single system message
-    let prompt_role = super::core::resolve_prompt_message_role(
+    // Resolve preset parameters
+    let presets_config =
+        app_handle.try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+    let merged_extra_params = if let Some(config) = presets_config {
+        let cached_model = cached_model_id
+            .and_then(|id| settings.cached_models.iter().find(|m| m.id == id))
+            .or_else(|| {
+                settings
+                    .cached_models
+                    .iter()
+                    .find(|m| m.model_id == model && m.provider_id == actual_provider.id)
+            });
+
+        let preset_params = crate::managers::model_preset::resolve_preset_params(
+            default_prompt.param_preset.as_deref(),
+            cached_model.and_then(|m| m.model_family.as_deref()),
+            &config,
+        );
+
+        if preset_params.is_empty() {
+            None
+        } else {
+            let merged = crate::managers::model_preset::merge_params(
+                preset_params,
+                cached_model.and_then(|m| m.extra_params.as_ref()),
+            );
+            Some(merged)
+        }
+    } else {
+        None
+    };
+
+    let (result, _err, _error_message) = super::core::execute_llm_request_with_messages(
+        app_handle,
         settings,
-        &actual_provider.id,
-        default_prompt.model_id.as_deref(),
+        actual_provider,
         &model,
-    );
-    for system_prompt in built.system_messages {
-        if let Some(msg) = super::core::build_instruction_message(prompt_role, system_prompt) {
-            messages.push(msg);
-        }
+        cached_model_id,
+        &built.system_messages,
+        built.user_message.as_deref(),
+        app_name,
+        window_title,
+        None,
+        None,
+        merged_extra_params.as_ref(),
+    )
+    .await;
+
+    if let Some(ref text) = result {
+        info!(
+            "[ParallelPolish] Default polish completed, result length: {}",
+            text.len()
+        );
     }
-
-    // 2. Single user message
-    if let Some(user_content) = built.user_message {
-        if let Some(msg) = super::core::build_user_message(user_content) {
-            messages.push(msg);
-        }
-    }
-
-    if messages.is_empty() {
-        return None;
-    }
-
-    let req = CreateChatCompletionRequestArgs::default()
-        .model(model)
-        .messages(messages)
-        .build()
-        .ok()?;
-
-    let response = client.chat().create(req).await.ok()?;
-    let content = response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())?;
-
-    let text = super::core::extract_llm_text(&content);
-
-    info!(
-        "[ParallelPolish] Default polish completed, result length: {}",
-        text.len()
-    );
-    Some(text)
+    result
 }
 
 pub(super) fn resolve_effective_model<'a>(
