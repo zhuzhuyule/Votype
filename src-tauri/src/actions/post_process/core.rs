@@ -276,6 +276,7 @@ pub async fn execute_llm_request_with_messages(
             .find(|m| m.model_id == model && m.provider_id == provider.id)
     });
     let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
+    let extra_headers = cached_model.and_then(|m| m.extra_headers.as_ref());
 
     // Build the request body JSON
     let messages_json: Vec<serde_json::Value> = messages
@@ -324,12 +325,19 @@ pub async fn execute_llm_request_with_messages(
         }
     }
 
+    // Log request summary (without full message content to avoid noise)
+    let extra_keys: Vec<&str> = body
+        .as_object()
+        .map(|obj| {
+            obj.keys()
+                .filter(|k| *k != "model" && *k != "messages" && *k != "response_format")
+                .map(|k| k.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
     info!(
-        "[LLM] Post-process request: provider={}, model={}, url={}/chat/completions\n{}",
-        provider.id,
-        model,
-        provider.base_url.trim_end_matches('/'),
-        serde_json::to_string_pretty(&body).unwrap_or_else(|_| body.to_string())
+        "[LLM] Request: provider={} model={} extra_params={:?}",
+        provider.id, model, extra_keys
     );
 
     // Manual HTTP request to allow arbitrary parameters and handle response flexibly
@@ -353,6 +361,28 @@ pub async fn execute_llm_request_with_messages(
             reqwest::header::HeaderValue::from_static("2023-06-01"),
         );
     }
+    // Apply provider-level custom headers
+    if let Some(custom) = &provider.custom_headers {
+        for (k, v) in custom {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                reqwest::header::HeaderValue::from_str(v),
+            ) {
+                headers.insert(name, val);
+            }
+        }
+    }
+    // Apply model-level extra headers
+    if let Some(custom) = extra_headers {
+        for (k, v) in custom {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                reqwest::header::HeaderValue::from_str(v),
+            ) {
+                headers.insert(name, val);
+            }
+        }
+    }
     let http_client = reqwest::Client::builder()
         .default_headers(headers)
         .timeout(std::time::Duration::from_secs(60)) // Increase timeout for Thinking models
@@ -375,18 +405,22 @@ pub async fn execute_llm_request_with_messages(
                                     .replace('\u{200D}', "") // Zero-Width Joiner
                                     .replace('\u{FEFF}', ""); // Byte Order Mark / Zero-Width No-Break Space
 
-                                // Check reasoning_content for thinking mode models
-                                let reasoning = json_resp["choices"][0]["message"]
-                                    ["reasoning_content"]
-                                    .as_str();
-                                if let Some(r) = reasoning {
-                                    info!("[LLM] Received reasoning content (len={})", r.len());
-                                }
+                                // Detect thinking mode from response
+                                let message_obj = &json_resp["choices"][0]["message"];
+                                let reasoning = message_obj["reasoning_content"]
+                                    .as_str()
+                                    .or_else(|| message_obj["reasoning"].as_str())
+                                    .or_else(|| message_obj["thinking"].as_str());
+                                let has_think_tags =
+                                    content.contains("<think>") || content.contains("</think>");
+                                let is_thinking = reasoning.is_some() || has_think_tags;
 
                                 info!(
-                                    "[LLM] Post-process raw response ({} chars):\n{}",
+                                    "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
+                                    model,
                                     content.len(),
-                                    content
+                                    is_thinking,
+                                    reasoning.map(|r| r.len()).unwrap_or(0)
                                 );
 
                                 // When structured output is enabled, try to parse JSON

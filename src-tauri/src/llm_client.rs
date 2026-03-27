@@ -170,10 +170,21 @@ pub async fn send_chat_completion(
     model: &str,
     prompt: String,
 ) -> Result<InferenceResult, String> {
+    send_chat_completion_with_params(provider, api_key, model, prompt, None, None).await
+}
+
+pub async fn send_chat_completion_with_params(
+    provider: &PostProcessProvider,
+    api_key: String,
+    model: &str,
+    prompt: String,
+    extra_params: Option<&std::collections::HashMap<String, serde_json::Value>>,
+    extra_headers: Option<&std::collections::HashMap<String, String>>,
+) -> Result<InferenceResult, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
-    debug!("[ChatCompletion] {} model={}", url, model);
+    info!("[TestInference] >>> {} model={}", url, model);
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -191,29 +202,77 @@ pub async fn send_chat_completion(
             );
         }
     }
+    // Apply provider-level custom headers
+    if let Some(custom) = &provider.custom_headers {
+        for (k, v) in custom {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                HeaderValue::from_str(v),
+            ) {
+                headers.insert(name, val);
+            }
+        }
+    }
+    // Apply model-level extra headers
+    if let Some(custom) = extra_headers {
+        for (k, v) in custom {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                HeaderValue::from_str(v),
+            ) {
+                headers.insert(name, val);
+            }
+        }
+    }
+
+    // Detect thinking model from extra_params to set appropriate timeout
+    let is_thinking = extra_params.map_or(false, |p| {
+        p.contains_key("thinking")
+            || p.contains_key("reasoning_effort")
+            || p.get("chat_template_kwargs")
+                .and_then(|v| v.get("enable_thinking"))
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            || p.get("enable_thinking")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+    });
+    let timeout_secs = if is_thinking { 120 } else { 30 };
 
     let client = reqwest::Client::builder()
         .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
         .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
 
-    let request_body = ChatCompletionRequest {
-        model: model.to_string(),
-        messages: vec![ChatMessage {
-            role: "user".to_string(),
-            content: prompt,
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": [{
+            "role": "user",
+            "content": prompt,
         }],
-    };
+    });
 
-    let response = client
-        .post(&url)
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| {
-            warn!("[ChatCompletion] Request failed: {}", e);
-            format!("HTTP request failed: {}", e)
-        })?;
+    // Merge extra params if provided
+    if let Some(extras) = extra_params {
+        if let Some(obj) = body.as_object_mut() {
+            for (k, v) in extras {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+    }
+
+    info!(
+        "[TestInference] Request body:\n{}",
+        serde_json::to_string_pretty(&body).unwrap_or_else(|_| body.to_string())
+    );
+
+    let request_start = std::time::Instant::now();
+
+    let response = client.post(&url).json(&body).send().await.map_err(|e| {
+        warn!("[TestInference] Request failed: {}", e);
+        format!("HTTP request failed: {}", e)
+    })?;
 
     let status = response.status();
 
@@ -230,29 +289,62 @@ pub async fn send_chat_completion(
         ));
     }
 
-    let completion: ChatCompletionResponse = serde_json::from_str(&body_text).map_err(|e| {
+    // Parse response as raw JSON first to detect thinking fields
+    let raw_response: serde_json::Value = serde_json::from_str(&body_text).map_err(|e| {
         warn!("[ChatCompletion] Failed to parse JSON: {}", e);
         format!("Failed to parse API response: {}", e)
     })?;
 
-    let result = completion
-        .choices
-        .first()
-        .map(|choice| InferenceResult {
-            content: choice.message.content.clone(),
-            reasoning_content: choice.message.reasoning_content.clone(),
-        })
-        .unwrap_or(InferenceResult {
-            content: None,
-            reasoning_content: None,
-        });
+    // Detect thinking content from the raw response (different providers use different field names)
+    let first_choice = raw_response
+        .get("choices")
+        .and_then(|c| c.as_array())
+        .and_then(|a| a.first());
+    let message = first_choice.and_then(|c| c.get("message"));
 
-    let content_len = result.content.as_ref().map(|s| s.len()).unwrap_or(0);
-    let has_reasoning = result.reasoning_content.is_some();
+    let content = message
+        .and_then(|m| m.get("content"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    // Check multiple possible thinking field names across providers
+    let reasoning_content = message
+        .and_then(|m| {
+            m.get("reasoning_content") // DeepSeek, OpenAI-compatible
+                .or_else(|| m.get("reasoning")) // Some providers
+                .or_else(|| m.get("thinking")) // Alternative naming
+        })
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    // Also detect <think> tags embedded in content
+    let has_think_tags = content
+        .as_ref()
+        .map(|c| c.contains("<think>") || c.contains("</think>"))
+        .unwrap_or(false);
+
+    let has_thinking = reasoning_content.is_some() || has_think_tags;
+    let elapsed = request_start.elapsed();
+
+    let content_len = content.as_ref().map(|s| s.len()).unwrap_or(0);
+    let reasoning_len = reasoning_content.as_ref().map(|s| s.len()).unwrap_or(0);
     info!(
-        "[ChatCompletion] OK model={} content_len={} has_reasoning={}",
-        model, content_len, has_reasoning
+        "[TestInference] <<< model={} elapsed={:.1}s content_len={} thinking={} reasoning_len={}",
+        model,
+        elapsed.as_secs_f64(),
+        content_len,
+        has_thinking,
+        reasoning_len
     );
+    info!(
+        "[TestInference] Response body:\n{}",
+        serde_json::to_string_pretty(&raw_response).unwrap_or_else(|_| body_text.clone())
+    );
+
+    let result = InferenceResult {
+        content,
+        reasoning_content,
+    };
 
     Ok(result)
 }

@@ -9,6 +9,7 @@ pub async fn test_post_process_model_inference(
     app: AppHandle,
     model_id: String,
     provider_id: String,
+    cached_model_id: Option<String>,
 ) -> Result<crate::llm_client::InferenceResult, String> {
     let settings = settings::get_settings(&app);
     let provider = settings
@@ -22,11 +23,20 @@ pub async fn test_post_process_model_inference(
         .cloned()
         .unwrap_or_default();
 
-    let result = crate::llm_client::send_chat_completion(
+    // Look up CachedModel to get extra_params
+    let cached_model = cached_model_id
+        .as_ref()
+        .and_then(|id| settings.cached_models.iter().find(|m| &m.id == id));
+    let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
+    let extra_headers = cached_model.and_then(|m| m.extra_headers.as_ref());
+
+    let result = crate::llm_client::send_chat_completion_with_params(
         provider,
         api_key,
         &model_id,
         "你是啥模型？".to_string(),
+        extra_params,
+        extra_headers,
     )
     .await?;
 

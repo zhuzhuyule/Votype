@@ -1,6 +1,6 @@
 use crate::managers::history::HistoryManager;
 use crate::settings::{AppSettings, LLMPrompt, MultiModelPostProcessItem};
-use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequestArgs};
+use async_openai::types::ChatCompletionRequestMessage;
 use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use log::{error, info};
@@ -522,6 +522,7 @@ async fn execute_single_model_post_process(
         .history_entries(history_entries)
         .hotword_injection(hotword_injection)
         .resolved_references(refs_content)
+        .app_language(&settings.app_language)
         .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
             settings,
         ))
@@ -550,42 +551,111 @@ async fn execute_single_model_post_process(
         return (None, Some("Failed to build messages".to_string()));
     }
 
-    // Build request
-    let model_id = model.clone();
-    let req = match CreateChatCompletionRequestArgs::default()
-        .model(model_id.clone())
-        .messages(messages)
-        .build()
-    {
-        Ok(r) => r,
-        Err(e) => {
-            error!("[MultiModel] Failed to build request: {:?}", e);
-            return (None, Some(format!("Request build failed: {:?}", e)));
-        }
-    };
+    // Resolve CachedModel to get extra_params
+    // item.id equals cached_model.id (set in build_multi_model_items_from_selection)
+    let cached_model = settings
+        .cached_models
+        .iter()
+        .find(|m| m.id == item.id)
+        .or_else(|| {
+            settings
+                .cached_models
+                .iter()
+                .find(|m| m.model_id == model && m.provider_id == provider.id)
+        });
+    let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
 
-    if let Ok(req_json) = serde_json::to_value(&req) {
-        info!(
-            "[MultiModel] Request prepared: item_id={} provider={} model={} url={}/chat/completions\n{}",
-            item.id,
-            provider.id,
-            model_id,
-            provider.base_url.trim_end_matches('/'),
-            serde_json::to_string_pretty(&req_json)
-                .unwrap_or_else(|_| req_json.to_string())
-        );
+    // Build request body JSON (same approach as core.rs for extra_params support)
+    let messages_json: Vec<serde_json::Value> = messages
+        .into_iter()
+        .filter_map(|m| serde_json::to_value(m).ok())
+        .collect();
+
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages_json,
+    });
+
+    // Merge extra params if provided
+    if let Some(extras) = extra_params {
+        if let Some(obj) = body.as_object_mut() {
+            for (k, v) in extras {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
     }
 
-    // Create client and execute
-    let client = match crate::llm_client::create_client(provider, api_key) {
+    let extra_keys: Vec<&str> = body
+        .as_object()
+        .map(|obj| {
+            obj.keys()
+                .filter(|k| *k != "model" && *k != "messages")
+                .map(|k| k.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    info!(
+        "[MultiModel] Request: item_id={} provider={} model={} extra_params={:?}",
+        item.id, provider.id, model, extra_keys
+    );
+
+    // Manual HTTP request (supports extra_params and longer timeout for thinking models)
+    let base_url = provider.base_url.trim_end_matches('/');
+    let url = format!("{}/chat/completions", base_url);
+
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
+            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
+    );
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        reqwest::header::HeaderValue::from_static("application/json"),
+    );
+    if provider.id == "anthropic" {
+        headers.insert(
+            "anthropic-version",
+            reqwest::header::HeaderValue::from_static("2023-06-01"),
+        );
+    }
+    if let Some(custom) = &provider.custom_headers {
+        for (k, v) in custom {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                reqwest::header::HeaderValue::from_str(v),
+            ) {
+                headers.insert(name, val);
+            }
+        }
+    }
+    if let Some(custom) = cached_model.and_then(|m| m.extra_headers.as_ref()) {
+        for (k, v) in custom {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                reqwest::header::HeaderValue::from_str(v),
+            ) {
+                headers.insert(name, val);
+            }
+        }
+    }
+
+    let is_thinking_model = cached_model.map(|m| m.is_thinking_model).unwrap_or(false);
+    let timeout_secs = if is_thinking_model { 120 } else { 60 };
+
+    let http_client = match reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+    {
         Ok(c) => c,
         Err(e) => {
-            error!("[MultiModel] Failed to create LLM client: {:?}", e);
+            error!("[MultiModel] Failed to create HTTP client: {:?}", e);
             return (None, Some(format!("Client creation failed: {:?}", e)));
         }
     };
 
-    let response = match client.chat().create(req).await {
+    let resp = match http_client.post(&url).json(&body).send().await {
         Ok(r) => r,
         Err(e) => {
             error!("[MultiModel] LLM request failed: {:?}", e);
@@ -593,23 +663,49 @@ async fn execute_single_model_post_process(
         }
     };
 
-    let content = match response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())
-    {
-        Some(c) => c,
-        None => {
-            return (None, Some("Empty response".to_string()));
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let error_text = resp.text().await.unwrap_or_default();
+        error!("[MultiModel] API error ({}): {}", status, error_text);
+        return (
+            None,
+            Some(format!("API error ({}): {}", status, error_text)),
+        );
+    }
+
+    let json_resp: serde_json::Value = match resp.json().await {
+        Ok(j) => j,
+        Err(e) => {
+            error!("[MultiModel] Failed to parse response: {:?}", e);
+            return (None, Some(format!("Response parse failed: {:?}", e)));
         }
     };
 
-    let text = super::core::extract_llm_text(&content);
+    let message_obj = &json_resp["choices"][0]["message"];
+    let raw_content = message_obj["content"]
+        .as_str()
+        .unwrap_or_default()
+        .replace('\u{200B}', "")
+        .replace('\u{200C}', "")
+        .replace('\u{200D}', "")
+        .replace('\u{FEFF}', "");
+
+    // Detect thinking mode from response
+    let reasoning = message_obj["reasoning_content"]
+        .as_str()
+        .or_else(|| message_obj["reasoning"].as_str())
+        .or_else(|| message_obj["thinking"].as_str());
+    let has_think_tags = raw_content.contains("<think>") || raw_content.contains("</think>");
+    let is_thinking = reasoning.is_some() || has_think_tags;
+
+    let text = super::core::extract_llm_text(&raw_content);
 
     info!(
-        "[MultiModel] Model {} completed, text length: {}",
+        "[MultiModel] Model {} completed: len={} thinking={} reasoning_len={}",
         item.id,
         text.len(),
+        is_thinking,
+        reasoning.map(|r| r.len()).unwrap_or(0),
     );
 
     (Some(text), None)
