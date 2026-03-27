@@ -28,13 +28,11 @@ import { AdvancedSettings } from "./AdvancedSettings";
 import { SidebarItem } from "./SidebarItem";
 
 interface ApiSettingsProps {
-  onAddModel: () => void;
   isFetchingModels: boolean;
   providerState: PostProcessProviderState;
 }
 
 export const ApiSettings: React.FC<ApiSettingsProps> = ({
-  onAddModel,
   isFetchingModels,
   providerState: state,
 }) => {
@@ -249,8 +247,16 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                           <Button
                             color="red"
                             className="cursor-pointer"
-                            onClick={() => {
-                              removeCustomProvider(state.selectedProviderId);
+                            onClick={async () => {
+                              const deletedId = state.selectedProviderId;
+                              // Switch to first available provider before deleting
+                              const fallback = state.providerOptions.find(
+                                (p) => p.value !== deletedId,
+                              );
+                              if (fallback) {
+                                state.handleProviderSelect(fallback.value);
+                              }
+                              await removeCustomProvider(deletedId);
                             }}
                           >
                             {t("common.delete")}
@@ -498,19 +504,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               modelsEndpoint={state.modelsEndpoint}
               onModelsEndpointChange={state.handleModelsEndpointChange}
             />
-
-            {/* Add Model Button */}
-            <Box className="pt-4 border-t border-gray-100 dark:border-gray-800">
-              <Button
-                variant="surface"
-                className="w-full cursor-pointer"
-                onClick={onAddModel}
-                disabled={isFetchingModels}
-              >
-                <IconPlus size={16} />
-                {t("settings.postProcessing.models.addModel")}
-              </Button>
-            </Box>
           </Box>
         </Flex>
       </Grid>

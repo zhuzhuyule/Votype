@@ -22,7 +22,6 @@ export const ModelsConfiguration: React.FC = () => {
     <Flex direction="column" gap="6" className="max-w-5xl w-full mx-auto">
       {/* 1. API Configuration */}
       <ApiSettings
-        onAddModel={() => setIsModelPickerOpen(true)}
         isFetchingModels={providerState.isFetchingModels}
         providerState={providerState}
       />
