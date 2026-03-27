@@ -1,7 +1,7 @@
 ---
 id: "grammar_fix"
 name: "语法修正"
-description: "修正语法错误，去除口语化表达，优化文本流畅度。当用户说"修正""改改语法""润一下"时触发。"
+description: '修正语法错误，去除口语化表达，优化文本流畅度。当用户说"修正""改改语法""润一下"时触发。'
 output_mode: polish
 icon: "IconSparkles"
 locked: false

@@ -1,7 +1,7 @@
 ---
 id: "memo"
 name: "随心记"
-description: "将语音内容整理为结构化笔记。适用于会议记录、灵感捕捉、待办事项等场景。当用户说"记一下""备忘"时触发。"
+description: '将语音内容整理为结构化笔记。适用于会议记录、灵感捕捉、待办事项等场景。当用户说"记一下""备忘"时触发。'
 output_mode: chat
 icon: "IconNotes"
 locked: false

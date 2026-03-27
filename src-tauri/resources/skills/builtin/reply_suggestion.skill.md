@@ -1,7 +1,7 @@
 ---
 id: "reply_suggestion"
 name: "智能回复"
-description: "根据上下文生成合适的回复建议。当用户说"帮我回复""怎么回"时触发。"
+description: '根据上下文生成合适的回复建议。当用户说"帮我回复""怎么回"时触发。'
 output_mode: chat
 icon: "IconMessage"
 locked: false

@@ -1,7 +1,7 @@
 ---
 id: "smart_compose"
 name: "智能续写"
-description: "根据上下文智能续写文本，适配不同应用场景。当用户说"续写""接着写""继续"时触发。"
+description: '根据上下文智能续写文本，适配不同应用场景。当用户说"续写""接着写""继续"时触发。'
 output_mode: polish
 icon: "IconPencil"
 locked: false

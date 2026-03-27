@@ -1,7 +1,7 @@
 ---
 id: "votype_command"
 name: "万能助手"
-description: "万能 AI 助手，根据语音指令直接生成内容。适用于写作、编程、计算、翻译、总结等任何文本生成任务。当用户说"帮我写""生成""计算"时触发。"
+description: '万能 AI 助手，根据语音指令直接生成内容。适用于写作、编程、计算、翻译、总结等任何文本生成任务。当用户说"帮我写""生成""计算"时触发。'
 output_mode: chat
 icon: "IconTerminal"
 locked: false
