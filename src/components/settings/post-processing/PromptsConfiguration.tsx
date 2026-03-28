@@ -652,46 +652,7 @@ const PromptsConfiguration: React.FC = () => {
                             </SegmentedControl.Root>
                           </Box>
 
-                          {/* 4. Confidence check (only for polish mode) - Single row */}
-                          {draftOutputMode === "polish" && (
-                            <Box>
-                              <label className="text-xs font-medium text-gray-500 mb-1 block">
-                                {t(
-                                  "settings.postProcessing.prompts.enableConfidenceCheck",
-                                )}
-                              </label>
-                              <Flex align="center" gap="3" className="mt-1.5">
-                                <Switch
-                                  size="1"
-                                  checked={draftConfidenceCheck}
-                                  onCheckedChange={setDraftConfidenceCheck}
-                                  className="cursor-pointer shrink-0"
-                                />
-                                {draftConfidenceCheck && (
-                                  <>
-                                    <Slider
-                                      value={[draftConfidenceThreshold]}
-                                      onValueChange={(val: number[]) =>
-                                        setDraftConfidenceThreshold(val[0])
-                                      }
-                                      min={0}
-                                      max={100}
-                                      step={1}
-                                      size="1"
-                                      className="flex-1 min-w-20"
-                                    />
-                                    <Text
-                                      size="1"
-                                      weight="medium"
-                                      className="shrink-0 w-12 text-right tabular-nums"
-                                    >
-                                      {draftConfidenceThreshold}%
-                                    </Text>
-                                  </>
-                                )}
-                              </Flex>
-                            </Box>
-                          )}
+                          {/* Confidence check UI hidden — feature not fully implemented yet */}
                         </Grid>
                       </Flex>
                     )}

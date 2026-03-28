@@ -46,24 +46,27 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
       </div>
       <div className="review-footer-actions">
         {!isMultiModel && (
-          <>
+          <div
+            className="review-history-group"
+            aria-label="revision history controls"
+          >
             <button
-              className="review-btn-secondary"
+              className="review-btn-history review-btn-history-left"
               onClick={onUndo}
               disabled={isSubmitting || !canUndo}
             >
               <IconArrowBackUp size={14} />
-              {t("common.undo", "Undo")}
+              <span>{t("common.undo", "Undo")}</span>
             </button>
             <button
-              className="review-btn-secondary"
+              className="review-btn-history review-btn-history-right"
               onClick={onRedo}
               disabled={isSubmitting || !canRedo}
             >
               <IconArrowForwardUp size={14} />
-              {t("common.redo", "Redo")}
+              <span>{t("common.redo", "Redo")}</span>
             </button>
-          </>
+          </div>
         )}
         {outputMode === "chat" && (
           <button
