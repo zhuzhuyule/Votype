@@ -174,6 +174,11 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 families: vec![],
             }
         });
+    log::info!(
+        "[ModelPreset] Loaded {} families, {} presets",
+        presets_config.families.len(),
+        presets_config.presets.len(),
+    );
     app_handle.manage(Arc::new(presets_config));
 
     // Migration: detect model_family for existing cached models that don't have one set
@@ -667,6 +672,10 @@ pub fn run() {
             shortcut::settings_cmds::change_cached_model_prompt_message_role,
             shortcut::settings_cmds::update_cached_model,
             shortcut::settings_cmds::update_cached_model_family,
+            shortcut::settings_cmds::get_model_families,
+            shortcut::settings_cmds::detect_model_family_cmd,
+            shortcut::settings_cmds::get_preset_params,
+            shortcut::settings_cmds::get_available_presets,
             shortcut::settings_cmds::get_thinking_config,
             shortcut::settings_cmds::toggle_cached_model_thinking,
             shortcut::settings_cmds::remove_cached_model,

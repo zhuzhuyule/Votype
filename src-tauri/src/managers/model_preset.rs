@@ -49,13 +49,20 @@ impl ModelPresetsConfig {
     }
 }
 
+/// Normalize a string for fuzzy matching: lowercase, remove dots and hyphens.
+fn normalize_for_match(s: &str) -> String {
+    s.to_lowercase().replace(['.', '-'], "")
+}
+
 /// Detect model family from a model identifier string.
 /// Checks against match_patterns in order (first match wins).
+/// Matching is done after normalizing both sides (lowercase, strip dots/hyphens).
 pub fn detect_model_family(model_identifier: &str, config: &ModelPresetsConfig) -> Option<String> {
-    let lower = model_identifier.to_lowercase();
+    let normalized = normalize_for_match(model_identifier);
     for family in &config.families {
         for pattern in &family.match_patterns {
-            if lower.contains(pattern) {
+            let normalized_pattern = normalize_for_match(pattern);
+            if normalized.contains(&normalized_pattern) {
                 return Some(family.id.clone());
             }
         }
@@ -157,11 +164,11 @@ pub fn load_model_presets(app_handle: &tauri::AppHandle) -> Result<ModelPresetsC
     if let Ok(data_dir) = app_handle.path().app_data_dir() {
         let user_path = data_dir.join("model_presets.json");
         if user_path.exists() {
-            log::info!("Loading user model_presets.json from {:?}", user_path);
+            log::info!("[ModelPreset] Loading user override from {:?}", user_path);
             let user_config = ModelPresetsConfig::load_from_file(&user_path)?;
             if user_config.version < CURRENT_VERSION {
                 log::warn!(
-                    "User model_presets.json (v{}) is older than built-in (v{}). User file takes precedence.",
+                    "[ModelPreset] User file (v{}) is older than built-in (v{}). User file takes precedence.",
                     user_config.version, CURRENT_VERSION
                 );
             }
@@ -176,20 +183,38 @@ pub fn load_model_presets(app_handle: &tauri::AppHandle) -> Result<ModelPresetsC
         .resolve(resource_rel, tauri::path::BaseDirectory::Resource)
     {
         if path.exists() {
-            log::info!("Loading built-in model_presets.json from {:?}", path);
+            log::info!("[ModelPreset] Loading built-in from {:?}", path);
             return ModelPresetsConfig::load_from_file(&path);
+        } else {
+            log::warn!(
+                "[ModelPreset] Resource path resolved but file missing: {:?}",
+                path
+            );
         }
     }
 
-    // 3. Development fallback
+    // 3. Development fallback: relative to executable
     if let Some(path) = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
         .map(|dir| dir.join("../../resources/model_presets.json"))
         .and_then(|p| p.canonicalize().ok())
     {
-        log::info!("Loading dev model_presets.json from {:?}", path);
+        log::info!("[ModelPreset] Loading dev (exe-relative) from {:?}", path);
         return ModelPresetsConfig::load_from_file(&path);
+    }
+
+    // 4. Development fallback: relative to CARGO_MANIFEST_DIR (compile-time)
+    {
+        let manifest_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/model_presets.json");
+        if manifest_path.exists() {
+            log::info!(
+                "[ModelPreset] Loading dev (manifest-relative) from {:?}",
+                manifest_path
+            );
+            return ModelPresetsConfig::load_from_file(&manifest_path);
+        }
     }
 
     Err("model_presets.json not found in any location".to_string())
