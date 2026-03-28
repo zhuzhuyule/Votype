@@ -297,6 +297,7 @@ pub async fn retranscribe_history_entry(
                 None,
                 Some(id),
                 false, // skill_mode
+                false, // review_editor_active
                 None,  // selected_text
             )
             .await;

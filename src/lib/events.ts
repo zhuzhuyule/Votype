@@ -78,6 +78,15 @@ export const HISTORY_UPDATED = "history-updated";
 /** Trigger update check */
 export const CHECK_FOR_UPDATES = "check-for-updates";
 
+/** Insert processed text back into the focused element inside the main Votype window */
+export const VOTYPE_LOCAL_INSERT = "votype-local-insert";
+
+/** Apply processed text directly to the Review window editor */
+export const REVIEW_WINDOW_INLINE_APPLY = "review-window-inline-apply";
+
+/** Refocus the currently active editable control inside a Votype-owned window */
+export const VOTYPE_REFOCUS_ACTIVE_INPUT = "votype-refocus-active-input";
+
 // =============================================================================
 // Event Type Map (for generic use)
 // =============================================================================
@@ -111,6 +120,9 @@ export const TauriEvents = {
 
   // Application
   CHECK_FOR_UPDATES,
+  VOTYPE_LOCAL_INSERT,
+  REVIEW_WINDOW_INLINE_APPLY,
+  VOTYPE_REFOCUS_ACTIVE_INPUT,
 } as const;
 
 export type TauriEventName = (typeof TauriEvents)[keyof typeof TauriEvents];

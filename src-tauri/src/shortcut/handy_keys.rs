@@ -193,6 +193,34 @@ impl HandyKeysState {
         binding_id: &str,
         hotkey_string: &str,
     ) -> Result<(), String> {
+        if let Some(existing_id) = binding_to_hotkey.get(binding_id).copied() {
+            if let Some((_, existing_hotkey)) = hotkey_to_binding.get(&existing_id) {
+                if existing_hotkey == hotkey_string {
+                    debug!(
+                        "Shortcut already registered for binding '{}': {}",
+                        binding_id, hotkey_string
+                    );
+                    return Ok(());
+                }
+            }
+
+            manager
+                .unregister(existing_id)
+                .map_err(|e| format!("Failed to replace existing hotkey: {}", e))?;
+            binding_to_hotkey.remove(binding_id);
+            hotkey_to_binding.remove(&existing_id);
+        }
+
+        if let Some((existing_binding_id, _)) = hotkey_to_binding
+            .values()
+            .find(|(_, registered_hotkey)| registered_hotkey == hotkey_string)
+        {
+            return Err(format!(
+                "Shortcut '{}' is already in use by binding '{}'",
+                hotkey_string, existing_binding_id
+            ));
+        }
+
         let hotkey: Hotkey = hotkey_string
             .parse()
             .map_err(|e| format!("Failed to parse hotkey '{}': {}", hotkey_string, e))?;

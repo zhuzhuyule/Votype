@@ -43,6 +43,7 @@ pub async fn maybe_post_process_transcription(
     match_type: Option<crate::settings::TitleMatchType>,
     history_id: Option<i64>,
     skill_mode: bool,
+    review_editor_active: bool,
     selected_text: Option<String>,
 ) -> (
     Option<String>,
@@ -156,13 +157,40 @@ pub async fn maybe_post_process_transcription(
     // --- Smart Routing Phase ---
     // Only perform LLM-based routing if skill_mode is enabled (dedicated shortcut pressed - Mode B)
     // For selected text (Mode C), we need user confirmation before executing skills
-    let has_selected_text = selected_text
+    let votype_mode = crate::window_context::resolve_votype_input_mode(
+        app_name.as_deref(),
+        window_title.as_deref(),
+        review_editor_active,
+    );
+    let effective_skill_mode = match votype_mode {
+        crate::window_context::VotypeInputMode::MainPolishInput
+        | crate::window_context::VotypeInputMode::ReviewPolishInput => false,
+        crate::window_context::VotypeInputMode::ReviewSkill => true,
+        crate::window_context::VotypeInputMode::ExternalDefault => skill_mode,
+    };
+    let effective_selected_text = match votype_mode {
+        crate::window_context::VotypeInputMode::MainPolishInput
+        | crate::window_context::VotypeInputMode::ReviewPolishInput => None,
+        crate::window_context::VotypeInputMode::ReviewSkill
+        | crate::window_context::VotypeInputMode::ExternalDefault => selected_text.clone(),
+    };
+
+    info!(
+        "[ModeRouting] app={:?}, title={:?}, review_editor_active={}, original_skill_mode={}, resolved_mode={:?}",
+        app_name,
+        window_title,
+        review_editor_active,
+        skill_mode,
+        votype_mode
+    );
+
+    let has_selected_text = effective_selected_text
         .as_ref()
         .map(|s| !s.trim().is_empty())
         .unwrap_or(false);
 
     // Mode B: Skill shortcut pressed - do LLM routing and execute
-    if skill_mode
+    if effective_skill_mode
         && !is_explicit
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
@@ -178,7 +206,7 @@ pub async fn maybe_post_process_transcription(
                     route_provider,
                     &route_model,
                     transcription,
-                    selected_text.as_deref(),
+                    effective_selected_text.as_deref(),
                 )
                 .await
                 {
@@ -196,7 +224,7 @@ pub async fn maybe_post_process_transcription(
 
                         // Use input_source to determine which content to use
                         initial_content = match route_response.input_source.as_deref() {
-                            Some("select") => selected_text.clone().unwrap_or_default(),
+                            Some("select") => effective_selected_text.clone().unwrap_or_default(),
                             Some("extract") => route_response
                                 .extracted_content
                                 .clone()
@@ -223,10 +251,10 @@ pub async fn maybe_post_process_transcription(
     // DEBUG: Log condition checks
     info!(
         "[PostProcess] Intent detection conditions: skill_mode={}, is_explicit={}, override_prompt_id={:?}, transcription_empty={}, has_selected_text={}",
-        skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty(), has_selected_text
+        effective_skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty(), has_selected_text
     );
 
-    if !skill_mode
+    if !effective_skill_mode
         && !is_explicit
         && override_prompt_id.is_none()
         && !transcription.trim().is_empty()
@@ -262,7 +290,7 @@ pub async fn maybe_post_process_transcription(
                         route_provider,
                         &route_model,
                         transcription,
-                        selected_text.as_deref(),
+                        effective_selected_text.as_deref(),
                     ),
                     // Default polish
                     super::routing::execute_default_polish(
@@ -339,7 +367,7 @@ pub async fn maybe_post_process_transcription(
                         }
 
                         // [DEBUG] Log selected text content before showing confirmation
-                        match &selected_text {
+                        match &effective_selected_text {
                             Some(text) if !text.trim().is_empty() => {
                                 let preview: String = text.chars().take(100).collect();
                                 let suffix = if text.chars().count() > 100 {
@@ -381,7 +409,7 @@ pub async fn maybe_post_process_transcription(
                                     skill_id: Some(skill_id.clone()),
                                     skill_name: Some(routed_prompt.name.clone()),
                                     transcription: Some(transcription.to_string()),
-                                    selected_text: selected_text.clone(),
+                                    selected_text: effective_selected_text.clone(),
                                     override_prompt_id: override_prompt_id.clone(),
                                     app_name: app_name.clone(),
                                     window_title: window_title.clone(),

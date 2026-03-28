@@ -40,18 +40,21 @@ pub fn handle_shortcut_event(
 
     // Transcribe bindings are handled by the coordinator.
     if is_transcribe_binding(binding_id) {
-        if hotkey_string != "review-window-local" && is_review_window_focused(app) {
-            debug!(
-                "Ignoring global transcribe shortcut '{}' while review window is focused",
-                binding_id
-            );
-            return;
-        }
+        let effective_hotkey =
+            if hotkey_string != "review-window-local" && is_review_window_focused(app) {
+                debug!(
+                    "Routing global transcribe shortcut '{}' through review-window-local",
+                    binding_id
+                );
+                "review-window-local"
+            } else {
+                hotkey_string
+            };
 
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
             coordinator.send_input(
                 binding_id,
-                hotkey_string,
+                effective_hotkey,
                 is_pressed,
                 settings.activation_mode.clone(),
             );

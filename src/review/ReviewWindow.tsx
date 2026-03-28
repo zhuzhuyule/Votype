@@ -7,6 +7,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Extension, Mark } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
@@ -31,6 +32,10 @@ import { MultiCandidateView } from "./MultiCandidateView";
 import { ReviewFooter } from "./ReviewFooter";
 import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
 import "./ReviewWindow.css";
+import {
+  REVIEW_WINDOW_INLINE_APPLY,
+  VOTYPE_REFOCUS_ACTIVE_INPUT,
+} from "../lib/events";
 import {
   buildDiffViews,
   buildPlainViews,
@@ -93,67 +98,6 @@ interface ReviewWindowProps {
   initialData: ReviewData;
   multiCandidates?: MultiModelCandidate[];
   onClose: () => void;
-}
-
-type ShortcutMap = Partial<Record<"transcribe" | "invoke_skill", string>>;
-
-function normalizeShortcutPart(part: string): string {
-  const value = part.trim().toLowerCase();
-  switch (value) {
-    case "cmd":
-    case "command":
-    case "meta":
-    case "super":
-    case "win":
-    case "windows":
-      return "meta";
-    case "ctrl":
-    case "control":
-      return "ctrl";
-    case "alt":
-    case "option":
-      return "alt";
-    case "shift":
-      return "shift";
-    case "space":
-    case "spacebar":
-      return "space";
-    case "esc":
-      return "escape";
-    default:
-      return value;
-  }
-}
-
-function getEventMainKey(event: KeyboardEvent): string {
-  const key = event.key.toLowerCase();
-  switch (key) {
-    case " ":
-    case "spacebar":
-      return "space";
-    case "os":
-      return "meta";
-    default:
-      return key;
-  }
-}
-
-function matchesShortcut(event: KeyboardEvent, shortcut: string): boolean {
-  const parts = shortcut.split("+").map(normalizeShortcutPart).filter(Boolean);
-  if (parts.length === 0) return false;
-
-  const required = new Set(parts);
-  const mainKeys = [...required].filter(
-    (part) => !["meta", "ctrl", "alt", "shift"].includes(part),
-  );
-
-  if (required.has("meta") !== event.metaKey) return false;
-  if (required.has("ctrl") !== event.ctrlKey) return false;
-  if (required.has("alt") !== event.altKey) return false;
-  if (required.has("shift") !== event.shiftKey) return false;
-  if (mainKeys.length === 0) return false;
-
-  return mainKeys.includes(getEventMainKey(event));
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -302,10 +246,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [transcribeShortcuts, setTranscribeShortcuts] = useState<ShortcutMap>(
-    {},
-  );
-  const [activationMode, setActivationMode] = useState<string>("toggle");
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
     multiCandidates && multiCandidates.length > 0
       ? multiCandidates[0].id
@@ -332,7 +272,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     readSpeedRankStats(),
   );
   const lastRecordedRaceKeyRef = useRef<string | null>(null);
-  const activeShortcutRef = useRef<keyof ShortcutMap | null>(null);
+  const pendingInlineRangeRef = useRef<{ from: number; to: number } | null>(
+    null,
+  );
 
   useEffect(() => {
     writeMultiSortMode(multiSortMode);
@@ -392,24 +334,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         }
       });
     }
-  }, []);
-
-  useEffect(() => {
-    invoke("get_app_settings")
-      .then((settings) => {
-        const typed = settings as {
-          activation_mode?: string;
-          bindings?: Record<string, { current_binding?: string }>;
-        };
-        setActivationMode(typed.activation_mode || "toggle");
-        setTranscribeShortcuts({
-          transcribe: typed.bindings?.transcribe?.current_binding,
-          invoke_skill: typed.bindings?.invoke_skill?.current_binding,
-        });
-      })
-      .catch((e) => {
-        console.error("Failed to load review window shortcuts:", e);
-      });
   }, []);
 
   // Sync external multiCandidates prop into local state
@@ -784,6 +708,34 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     return editor.getText({ blockSeparator: "\n" });
   }, [editor, sortedCandidates, selectedCandidateId, editedTexts]);
 
+  const applyInlineTextToEditor = useCallback(
+    (text: string) => {
+      if (!editor || isMultiCandidateMode.current) return;
+
+      const currentSelection = editor.state.selection;
+      const pendingRange = pendingInlineRangeRef.current ?? {
+        from: currentSelection.from,
+        to: currentSelection.to,
+      };
+
+      editor
+        .chain()
+        .focus()
+        .command(({ tr, dispatch }) => {
+          tr.insertText(text, pendingRange.from, pendingRange.to);
+          const cursor = pendingRange.from + text.length;
+          tr.setSelection(TextSelection.create(tr.doc, cursor));
+          dispatch?.(tr);
+          return true;
+        })
+        .run();
+
+      pendingInlineRangeRef.current = null;
+      window.setTimeout(() => measureAndResize(false), 16);
+    },
+    [editor, measureAndResize],
+  );
+
   const getOriginalReviewText = useCallback(() => {
     if (sortedCandidates && selectedCandidateId) {
       return (
@@ -1060,53 +1012,104 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, []);
 
   useEffect(() => {
-    const bindingEntries = Object.entries(transcribeShortcuts).filter(
-      (entry): entry is [keyof ShortcutMap, string] => Boolean(entry[1]),
-    );
-    if (bindingEntries.length === 0) return;
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
 
-    const handleShortcutKeyDown = (event: KeyboardEvent) => {
-      if (event.repeat) return;
-      if (isEditableTarget(event.target)) return;
+    const setupListener = async () => {
+      const detach = await listen<string>(
+        REVIEW_WINDOW_INLINE_APPLY,
+        (event) => {
+          applyInlineTextToEditor(event.payload);
+        },
+      );
 
-      for (const [bindingId, shortcut] of bindingEntries) {
-        if (!matchesShortcut(event, shortcut)) continue;
-
-        event.preventDefault();
-        event.stopPropagation();
-        activeShortcutRef.current = bindingId;
-        void invoke("dispatch_transcribe_binding_from_review", {
-          bindingId,
-          isPressed: true,
-        }).catch((e) => {
-          console.error("Failed to dispatch review transcribe shortcut:", e);
-        });
+      if (disposed) {
+        detach();
         return;
       }
+
+      unlisten = detach;
     };
 
-    const handleShortcutKeyUp = (event: KeyboardEvent) => {
-      if (activationMode === "toggle" || !activeShortcutRef.current) return;
+    void setupListener();
 
-      event.preventDefault();
-      event.stopPropagation();
-      const bindingId = activeShortcutRef.current;
-      activeShortcutRef.current = null;
-      void invoke("dispatch_transcribe_binding_from_review", {
-        bindingId,
-        isPressed: false,
-      }).catch((e) => {
-        console.error("Failed to release review transcribe shortcut:", e);
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [applyInlineTextToEditor]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen(VOTYPE_REFOCUS_ACTIVE_INPUT, () => {
+        if (!editor || isMultiCandidateMode.current) return;
+        editor.commands.focus();
+      });
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    const syncEditorActive = (active: boolean) => {
+      void invoke("set_review_editor_active_state", { active }).catch((e) => {
+        console.error("Failed to sync review editor active state:", e);
       });
     };
 
-    document.addEventListener("keydown", handleShortcutKeyDown, true);
-    document.addEventListener("keyup", handleShortcutKeyUp, true);
-    return () => {
-      document.removeEventListener("keydown", handleShortcutKeyDown, true);
-      document.removeEventListener("keyup", handleShortcutKeyUp, true);
+    const updateEditorStateFromTarget = (target: EventTarget | null) => {
+      const editorActive = isEditableTarget(target);
+
+      if (editorActive && editor) {
+        pendingInlineRangeRef.current = {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+        };
+      }
+
+      syncEditorActive(editorActive);
     };
-  }, [activationMode, transcribeShortcuts]);
+
+    const handleFocusIn = (event: FocusEvent) => {
+      updateEditorStateFromTarget(event.target);
+    };
+
+    const handleSelectionChange = () => {
+      updateEditorStateFromTarget(document.activeElement);
+    };
+
+    const handleWindowBlur = () => {
+      syncEditorActive(false);
+    };
+
+    updateEditorStateFromTarget(document.activeElement);
+
+    document.addEventListener("focusin", handleFocusIn, true);
+    document.addEventListener("selectionchange", handleSelectionChange);
+    window.addEventListener("blur", handleWindowBlur);
+
+    return () => {
+      syncEditorActive(false);
+      document.removeEventListener("focusin", handleFocusIn, true);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [editor]);
 
   const handleDrag = useCallback(async () => {
     try {
@@ -1244,7 +1247,24 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           />
         ) : (
           <div className="review-content-area">
-            <div className="review-section review-section-final review-section-no-title">
+            <div
+              className="review-section review-section-final review-section-no-title"
+              onMouseDown={(event) => {
+                if (!(event.target instanceof HTMLElement)) {
+                  return;
+                }
+
+                if (event.target.closest("button")) {
+                  return;
+                }
+
+                if (event.target.closest(".ProseMirror")) {
+                  return;
+                }
+                event.preventDefault();
+                editor?.commands.focus();
+              }}
+            >
               <EditorContent editor={editor} className="flex-1 min-h-0" />
             </div>
           </div>

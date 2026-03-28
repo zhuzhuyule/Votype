@@ -663,13 +663,8 @@ async cancelTranscriptionReview(text: string | null, historyId: number | null) :
     else return { status: "error", error: e  as any };
 }
 },
-async dispatchTranscribeBindingFromReview(bindingId: string, isPressed: boolean) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("dispatch_transcribe_binding_from_review", { bindingId, isPressed }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
+async setReviewEditorActiveState(active: boolean) : Promise<void> {
+    await TAURI_INVOKE("set_review_editor_active_state", { active });
 },
 async rerunSingleWithPrompt(promptId: string, sourceText: string, historyId: number | null, modelId: string | null) : Promise<Result<RerunSingleResult, string>> {
     try {

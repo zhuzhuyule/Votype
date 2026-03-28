@@ -26,6 +26,7 @@ pub mod transcription_coordinator;
 pub use transcription_coordinator::TranscriptionCoordinator;
 mod tray;
 mod utils;
+mod window_context;
 
 use env_filter::Builder as EnvFilterBuilder;
 use managers::audio::AudioRecordingManager;
@@ -434,7 +435,7 @@ pub fn run() {
             shortcut::multi_model_cmds::set_multi_model_preferred_id,
             shortcut::review_cmds::confirm_reviewed_transcription,
             shortcut::review_cmds::cancel_transcription_review,
-            shortcut::review_cmds::dispatch_transcribe_binding_from_review,
+            shortcut::review_cmds::set_review_editor_active_state,
             shortcut::review_cmds::rerun_single_with_prompt,
             shortcut::review_cmds::get_post_process_prompts,
             shortcut::review_cmds::get_review_model_options,
@@ -706,7 +707,7 @@ pub fn run() {
             shortcut::settings_cmds::set_app_to_profile,
             shortcut::review_cmds::confirm_reviewed_transcription,
             shortcut::review_cmds::cancel_transcription_review,
-            shortcut::review_cmds::dispatch_transcribe_binding_from_review,
+            shortcut::review_cmds::set_review_editor_active_state,
             shortcut::test_cmds::test_post_process_model_inference,
             shortcut::test_cmds::test_asr_model_inference,
             shortcut::handy_keys::start_handy_keys_recording,

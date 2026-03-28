@@ -161,6 +161,48 @@ fn position_on_monitor(monitor: &tauri::Monitor, overlay_position: OverlayPositi
     (x, y)
 }
 
+fn focused_votype_window_label(app_handle: &AppHandle) -> Option<&'static str> {
+    for label in ["review_window", "main"] {
+        if app_handle
+            .get_webview_window(label)
+            .and_then(|window| window.is_focused().ok())
+            .unwrap_or(false)
+        {
+            return Some(label);
+        }
+    }
+
+    None
+}
+
+fn restore_votype_focus_after_overlay_show(app_handle: &AppHandle, label: Option<&'static str>) {
+    let Some(label) = label else {
+        return;
+    };
+
+    if let Some(window) = app_handle.get_webview_window(label) {
+        let _ = window.set_focus();
+        let _ = window.emit("votype-refocus-active-input", ());
+    }
+
+    let app_handle = app_handle.clone();
+    std::thread::spawn(move || {
+        for delay_ms in [40_u64, 120_u64] {
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            if let Some(window) = app_handle.get_webview_window(label) {
+                let _ = window.set_focus();
+                let _ = window.emit("votype-refocus-active-input", ());
+            }
+        }
+    });
+}
+
+pub fn set_overlay_interactive(app_handle: &AppHandle, interactive: bool) {
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.set_ignore_cursor_events(!interactive);
+    }
+}
+
 /// Creates the recording overlay window and keeps it hidden by default
 #[cfg(not(target_os = "macos"))]
 pub fn create_recording_overlay(app_handle: &AppHandle) {
@@ -188,6 +230,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
         .build()
         {
             Ok(_window) => {
+                set_overlay_interactive(app_handle, false);
                 debug!("Recording overlay window created successfully (hidden)");
             }
             Err(e) => {
@@ -225,6 +268,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
             .build()
         {
             Ok(panel) => {
+                set_overlay_interactive(app_handle, false);
                 let _ = panel.hide();
             }
             Err(e) => {
@@ -242,6 +286,8 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
         return;
     }
 
+    let refocus_target = focused_votype_window_label(app_handle);
+
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         // Update position before showing to prevent flicker from position changes
         if let Some((x, y)) = calculate_overlay_position(app_handle) {
@@ -249,6 +295,7 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
                 .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
         }
 
+        let _ = overlay_window.set_ignore_cursor_events(true);
         let _ = overlay_window.show();
 
         // On Windows, aggressively re-assert "topmost" in the native Z-order after showing
@@ -256,6 +303,7 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
         force_overlay_topmost(&overlay_window);
 
         emit_overlay_state_with_retry(overlay_window, "recording");
+        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
     }
 }
 
@@ -267,12 +315,15 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
         return;
     }
 
+    let refocus_target = focused_votype_window_label(app_handle);
+
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         // Only update position if the overlay is not currently visible
         if !overlay_window.is_visible().unwrap_or(false) {
             update_overlay_position(app_handle);
         }
 
+        let _ = overlay_window.set_ignore_cursor_events(true);
         let _ = overlay_window.show();
 
         // On Windows, aggressively re-assert "topmost" in the native Z-order after showing
@@ -280,6 +331,7 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
         force_overlay_topmost(&overlay_window);
 
         emit_overlay_state_with_retry(overlay_window, "transcribing");
+        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
     }
 }
 
@@ -290,14 +342,18 @@ pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
         return;
     }
 
+    let refocus_target = focused_votype_window_label(app_handle);
+
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         // Only update position if the overlay is not currently visible
         if !overlay_window.is_visible().unwrap_or(false) {
             update_overlay_position(app_handle);
         }
 
+        let _ = overlay_window.set_ignore_cursor_events(true);
         let _ = overlay_window.show();
         emit_overlay_state_with_retry(overlay_window, "llm");
+        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
     }
 }
 
@@ -327,6 +383,7 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
     // Always hide the overlay regardless of settings - if setting was changed while recording,
     // we still want to hide it properly
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.set_ignore_cursor_events(true);
         // Emit event to trigger fade-out animation
         let _ = overlay_window.emit("hide-overlay", ());
         // Hide the window after a short delay to allow animation to complete
@@ -384,6 +441,7 @@ pub fn focus_recording_overlay(app_handle: &AppHandle) {
 
     let app_handle_inner = app_handle.clone();
     let _ = app_handle.run_on_main_thread(move || {
+        set_overlay_interactive(&app_handle_inner, true);
         // First, activate the current app to force macOS to give us focus
         unsafe {
             // Get current process ID
@@ -417,6 +475,7 @@ pub fn focus_recording_overlay(app_handle: &AppHandle) {
 #[cfg(not(target_os = "macos"))]
 pub fn focus_recording_overlay(app_handle: &AppHandle) {
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.set_ignore_cursor_events(false);
         let _ = overlay_window.set_focus();
     }
 }

@@ -142,35 +142,8 @@ pub fn cancel_transcription_review(
 
 #[tauri::command]
 #[specta::specta]
-pub fn dispatch_transcribe_binding_from_review(
-    app: AppHandle,
-    binding_id: String,
-    is_pressed: bool,
-) -> Result<(), String> {
-    if binding_id != "transcribe" && binding_id != "invoke_skill" {
-        return Err(format!("Unsupported binding id: {}", binding_id));
-    }
-
-    let settings = settings::get_settings(&app);
-    if let Some(coordinator) =
-        app.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-    {
-        coordinator.send_input(
-            &binding_id,
-            "review-window-local",
-            is_pressed,
-            settings.activation_mode.clone(),
-        );
-        log::info!(
-            "dispatch_transcribe_binding_from_review: binding_id={}, is_pressed={}, activation_mode={:?}",
-            binding_id,
-            is_pressed,
-            settings.activation_mode
-        );
-        Ok(())
-    } else {
-        Err("TranscriptionCoordinator not initialized".to_string())
-    }
+pub fn set_review_editor_active_state(active: bool) {
+    crate::review_window::set_review_editor_active(active);
 }
 
 // Group: Single-Model Rerun with Prompt

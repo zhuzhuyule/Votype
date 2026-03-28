@@ -610,18 +610,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           )}
         </Flex>
 
-        <Flex className="overlay-right">
-          {state === "recording" && (
-            <Box
-              className="cancel-button"
-              onClick={() => {
-                invoke("cancel_operation");
-              }}
-            >
-              <CancelIcon />
-            </Box>
-          )}
-        </Flex>
+        <Flex className="overlay-right" />
       </Box>
     </Box>
   );

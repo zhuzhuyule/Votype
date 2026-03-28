@@ -23,6 +23,10 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
   const { t } = useTranslation();
   const [isSourceHovered, setIsSourceHovered] = useState(false);
 
+  const focusEditor = () => {
+    editor?.commands.focus();
+  };
+
   return (
     <div className="review-content-area review-panels-layout">
       {/* Source text — simple inline frame with hover insert button */}
@@ -52,7 +56,24 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
             <span className="review-model-tag">{currentModelName}</span>
           )}
         </div>
-        <div className="review-panel-body review-output-content">
+        <div
+          className="review-panel-body review-output-content"
+          onMouseDown={(event) => {
+            if (!(event.target instanceof HTMLElement)) {
+              return;
+            }
+
+            if (event.target.closest("button")) {
+              return;
+            }
+
+            if (event.target.closest(".ProseMirror")) {
+              return;
+            }
+            event.preventDefault();
+            focusEditor();
+          }}
+        >
           {isRerunning ? (
             <div className="candidate-loading-shimmer" />
           ) : (

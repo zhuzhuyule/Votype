@@ -13,6 +13,7 @@ use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils;
+use crate::window_context::VotypeInputMode;
 use log::{debug, error, info};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -314,7 +315,7 @@ impl ShortcutAction for TranscribeAction {
         );
     }
 
-    fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
+    fn stop(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str) {
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
@@ -338,6 +339,9 @@ impl ShortcutAction for TranscribeAction {
 
         let current_transcription_id = rm.get_current_transcription_id();
         let binding_id = binding_id.to_string();
+        let shortcut_str = shortcut_str.to_string();
+        let review_editor_active = shortcut_str == "review-window-local"
+            && crate::review_window::is_review_editor_active();
         let skill_mode = self.skill_mode;
         let ppm_outer = Arc::clone(&ppm);
 
@@ -404,6 +408,23 @@ impl ShortcutAction for TranscribeAction {
                         info.app_name, info.title, info.process_id, info.window_id
                     );
                 }
+                let votype_mode = if shortcut_str == "review-window-local" {
+                    if review_editor_active {
+                        VotypeInputMode::ReviewPolishInput
+                    } else {
+                        VotypeInputMode::ReviewSkill
+                    }
+                } else {
+                    crate::window_context::resolve_votype_input_mode(
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.app_name.as_str()),
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.title.as_str()),
+                        review_editor_active,
+                    )
+                };
 
                 // Capture selected text for Mode C (auto-routing)
                 let selected_text = crate::clipboard::get_selected_text(&ah).ok();
@@ -870,7 +891,14 @@ impl ShortcutAction for TranscribeAction {
                                 // Check if multi-model post-processing is enabled
                                 // When skill_mode is active, bypass multi-model and use single-model
                                 // with skill routing instead (user explicitly wants skill, not model comparison)
-                                if settings_clone.multi_model_post_process_enabled && !skill_mode {
+                                if settings_clone.multi_model_post_process_enabled
+                                    && !skill_mode
+                                    && !matches!(
+                                        votype_mode,
+                                        VotypeInputMode::MainPolishInput
+                                            | VotypeInputMode::ReviewPolishInput
+                                    )
+                                {
                                     let multi_items =
                                         settings_clone.build_multi_model_items_from_selection();
                                     if !multi_items.is_empty() {
@@ -1213,6 +1241,7 @@ impl ShortcutAction for TranscribeAction {
                                                 matched_rule.map(|r| r.match_type),
                                                 history_id,
                                                 false,
+                                                review_editor_active,
                                                 selected_text.clone(),
                                             )
                                             .await;
@@ -1332,6 +1361,7 @@ impl ShortcutAction for TranscribeAction {
                                         matched_rule.map(|r| r.match_type),
                                         history_id,
                                         skill_mode, // Pass skill_mode to control LLM routing
+                                        review_editor_active,
                                         selected_text.clone(), // Pass captured context for Mode C
                                     )
                                     .await;
@@ -1390,54 +1420,62 @@ impl ShortcutAction for TranscribeAction {
                                     crate::settings::PromptOutputMode::default()
                                 };
 
-                                let should_review =
-                                    // App policy "Always" takes highest priority — show review
-                                    // regardless of post-processing result or errors.
-                                    if app_policy == crate::settings::AppReviewPolicy::Always {
-                                        true
-                                    }
-                                    // App policy "Never" — never show review
-                                    else if app_policy == crate::settings::AppReviewPolicy::Never {
-                                        false
-                                    }
-                                    // If post-processing failed completely, skip review
-                                    else if post_process_failed {
-                                        false
-                                    } else if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
-                                        false
-                                    }
-                                    // Skill mode always shows review window (user explicitly invoked a skill)
-                                    else if skill_mode {
-                                        true
-                                    }
-                                    // Chat mode always shows review window
-                                    else if output_mode == crate::settings::PromptOutputMode::Chat {
-                                        true
-                                    } else {
-                                        // Auto policy: gate with prompt-level confidence check
-                                        let (check_enabled, threshold) =
-                                            if let Some(pid) = &post_process_prompt_id {
-                                                settings_clone
-                                                    .post_process_prompts
-                                                    .iter()
-                                                    .find(|p| &p.id == pid)
-                                                    .map(|p| {
-                                                        (
-                                                            p.confidence_check_enabled,
-                                                            p.confidence_threshold.unwrap_or(70),
-                                                        )
-                                                    })
-                                                    .unwrap_or((false, 70))
-                                            } else {
-                                                (false, 70)
-                                            };
-
-                                        if !check_enabled {
-                                            false
+                                let should_review = if matches!(
+                                    votype_mode,
+                                    VotypeInputMode::MainPolishInput
+                                        | VotypeInputMode::ReviewPolishInput
+                                ) {
+                                    false
+                                } else
+                                // App policy "Always" takes highest priority — show review
+                                // regardless of post-processing result or errors.
+                                if app_policy == crate::settings::AppReviewPolicy::Always {
+                                    true
+                                }
+                                // App policy "Never" — never show review
+                                else if app_policy == crate::settings::AppReviewPolicy::Never {
+                                    false
+                                }
+                                // If post-processing failed completely, skip review
+                                else if post_process_failed {
+                                    false
+                                } else if override_prompt_id.as_deref()
+                                    == Some("__SKIP_POST_PROCESS__")
+                                {
+                                    false
+                                }
+                                // Skill mode always shows review window (user explicitly invoked a skill)
+                                else if skill_mode {
+                                    true
+                                }
+                                // Chat mode always shows review window
+                                else if output_mode == crate::settings::PromptOutputMode::Chat {
+                                    true
+                                } else {
+                                    // Auto policy: gate with prompt-level confidence check
+                                    let (check_enabled, threshold) =
+                                        if let Some(pid) = &post_process_prompt_id {
+                                            settings_clone
+                                                .post_process_prompts
+                                                .iter()
+                                                .find(|p| &p.id == pid)
+                                                .map(|p| {
+                                                    (
+                                                        p.confidence_check_enabled,
+                                                        p.confidence_threshold.unwrap_or(70),
+                                                    )
+                                                })
+                                                .unwrap_or((false, 70))
                                         } else {
-                                            change_percent >= threshold
-                                        }
-                                    };
+                                            (false, 70)
+                                        };
+
+                                    if !check_enabled {
+                                        false
+                                    } else {
+                                        change_percent >= threshold
+                                    }
+                                };
 
                                 if should_review {
                                     log::info!(
@@ -1528,6 +1566,21 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
+                            if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
+                                return;
+                            }
+
+                            if matches!(votype_mode, VotypeInputMode::ReviewPolishInput) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ =
+                                    ah_clone.emit("review-window-inline-apply", final_text.clone());
+                                return;
+                            }
+
                             let ah_clone_inner = ah_clone.clone();
                             ah_clone
                                 .run_on_main_thread(move || {
@@ -1560,6 +1613,23 @@ impl ShortcutAction for TranscribeAction {
                     } else {
                         // Post-processing is disabled — check if app policy still
                         // requires showing the review window before pasting.
+                        let votype_mode = if shortcut_str == "review-window-local" {
+                            if review_editor_active {
+                                VotypeInputMode::ReviewPolishInput
+                            } else {
+                                VotypeInputMode::ReviewSkill
+                            }
+                        } else {
+                            crate::window_context::resolve_votype_input_mode(
+                                active_window_snapshot
+                                    .as_ref()
+                                    .map(|info| info.app_name.as_str()),
+                                active_window_snapshot
+                                    .as_ref()
+                                    .map(|info| info.title.as_str()),
+                                review_editor_active,
+                            )
+                        };
                         let (app_policy, resolved_prompt_id) = active_window_snapshot
                             .as_ref()
                             .and_then(|info| {
@@ -1597,7 +1667,28 @@ impl ShortcutAction for TranscribeAction {
                             })
                             .unwrap_or((crate::settings::AppReviewPolicy::Auto, None));
 
-                        if app_policy == crate::settings::AppReviewPolicy::Always {
+                        if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", transcription_clone);
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to emit local insert on main thread: {:?}", e)
+                            });
+                        } else if matches!(votype_mode, VotypeInputMode::ReviewPolishInput) {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone
+                                    .emit("review-window-inline-apply", transcription_clone);
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to emit review inline apply on main thread: {:?}", e)
+                            });
+                        } else if app_policy == crate::settings::AppReviewPolicy::Always {
                             // Resolve output_mode from the prompt configured for this app,
                             // falling back to the global selected prompt.
                             let effective_prompt_id = resolved_prompt_id

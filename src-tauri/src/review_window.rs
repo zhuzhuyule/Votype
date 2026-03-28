@@ -78,6 +78,7 @@ static LAST_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
 static LAST_ACTIVE_WINDOW: Lazy<Mutex<Option<ActiveWindowInfo>>> = Lazy::new(|| Mutex::new(None));
+static REVIEW_EDITOR_ACTIVE: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
 
 fn emit_review_payload(app_handle: &AppHandle, payload: ReviewWindowPayload) -> bool {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
@@ -528,6 +529,19 @@ pub fn set_last_active_window(info: Option<ActiveWindowInfo>) {
 pub fn get_last_active_window() -> Option<ActiveWindowInfo> {
     let last_window = LAST_ACTIVE_WINDOW.lock().unwrap();
     last_window.clone()
+}
+
+pub fn set_review_editor_active(active: bool) {
+    if let Ok(mut guard) = REVIEW_EDITOR_ACTIVE.lock() {
+        *guard = active;
+    }
+}
+
+pub fn is_review_editor_active() -> bool {
+    REVIEW_EDITOR_ACTIVE
+        .lock()
+        .map(|guard| *guard)
+        .unwrap_or(false)
 }
 
 /// Shows the review window with multiple model candidates for selection

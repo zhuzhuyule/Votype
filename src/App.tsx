@@ -16,6 +16,7 @@ import {
 import { CompactModeProvider } from "./components/theme/CompactModeProvider";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
+import { VOTYPE_LOCAL_INSERT, VOTYPE_REFOCUS_ACTIVE_INPUT } from "./lib/events";
 
 // 懒加载非关键组件以改善首屏加载性能
 const AccessibilityPermissions = lazy(
@@ -72,6 +73,25 @@ function App() {
 
   // Sidebar collapsed state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const lastEditableRef = useRef<HTMLElement | null>(null);
+
+  const getEditableElement = (
+    target: EventTarget | null,
+  ): HTMLElement | null => {
+    if (!(target instanceof HTMLElement)) return null;
+
+    if (
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target.isContentEditable
+    ) {
+      return target;
+    }
+
+    return target.closest(
+      'input, textarea, [contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"]',
+    );
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed");
@@ -149,6 +169,76 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen<string>(VOTYPE_LOCAL_INSERT, (event) => {
+        if (!insertIntoActiveElement(event.payload)) {
+          console.warn(
+            "[VotypeLocalInsert] No active editable element accepted the text",
+          );
+        }
+      });
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleFocusIn = (event: FocusEvent) => {
+      const editable = getEditableElement(event.target);
+      if (editable) {
+        lastEditableRef.current = editable;
+      }
+    };
+
+    document.addEventListener("focusin", handleFocusIn, true);
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn, true);
+    };
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen(VOTYPE_REFOCUS_ACTIVE_INPUT, () => {
+        const editable =
+          getEditableElement(document.activeElement) ?? lastEditableRef.current;
+        editable?.focus();
+      });
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
   // Handle keyboard shortcuts for settings navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -208,6 +298,56 @@ function App() {
       console.error("Failed to check onboarding status:", error);
       setShowOnboarding(true);
     }
+  };
+
+  const insertIntoActiveElement = (text: string) => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return false;
+
+    if (
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement
+    ) {
+      const start = active.selectionStart ?? active.value.length;
+      const end = active.selectionEnd ?? start;
+      active.focus();
+      active.setRangeText(text, start, end, "end");
+      active.dispatchEvent(new Event("input", { bubbles: true }));
+      active.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }
+
+    if (active.isContentEditable) {
+      active.focus();
+      const selection = window.getSelection();
+      if (!selection) return false;
+
+      let range: Range;
+      if (
+        selection.rangeCount > 0 &&
+        active.contains(selection.getRangeAt(0).commonAncestorContainer)
+      ) {
+        range = selection.getRangeAt(0);
+      } else {
+        range = document.createRange();
+        range.selectNodeContents(active);
+        range.collapse(false);
+      }
+
+      range.deleteContents();
+      const textNode = document.createTextNode(text);
+      range.insertNode(textNode);
+      range.setStartAfter(textNode);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      active.dispatchEvent(
+        new InputEvent("input", { bubbles: true, data: text }),
+      );
+      return true;
+    }
+
+    return false;
   };
 
   const handleModelSelected = () => {
