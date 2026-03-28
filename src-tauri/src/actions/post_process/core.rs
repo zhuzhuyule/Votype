@@ -66,6 +66,12 @@ pub(super) fn extract_llm_text(content: &str) -> String {
     cleaned
 }
 
+pub(super) fn extract_rewrite_response(content: &str) -> Option<super::RewriteResponse> {
+    let cleaned = clean_response_content(content);
+    let json = extract_json_block(&cleaned).unwrap_or(cleaned);
+    serde_json::from_str::<super::RewriteResponse>(&json).ok()
+}
+
 pub(crate) fn resolve_prompt_message_role(
     settings: &AppSettings,
     provider_id: &str,
@@ -159,6 +165,15 @@ pub async fn execute_llm_request_with_messages(
     _match_type: Option<crate::settings::TitleMatchType>,
     override_extra_params: Option<&HashMap<String, serde_json::Value>>,
 ) -> (Option<String>, bool, Option<String>) {
+    fn preview_multiline(label: &str, content: &str) {
+        log::info!(
+            "[LLM] {} (len={}):\n{}",
+            label,
+            content.chars().count(),
+            content
+        );
+    }
+
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -265,6 +280,21 @@ pub async fn execute_llm_request_with_messages(
         return (None, false, None);
     }
 
+    log::info!(
+        "[LLM] PromptContext: provider={} model={} cached_model_id={:?} system_prompts={} user_message={}",
+        provider.id,
+        model,
+        cached_model_id,
+        system_prompts.len(),
+        user_message.is_some()
+    );
+    for (index, prompt) in system_prompts.iter().enumerate() {
+        preview_multiline(&format!("SystemPrompt[{}]", index), prompt);
+    }
+    if let Some(user_content) = user_message {
+        preview_multiline("UserMessage", user_content);
+    }
+
     // Resolve CachedModel to get extra_params and is_thinking_model
     let cached_model = cached_model_id.and_then(|id| {
         settings
@@ -343,6 +373,12 @@ pub async fn execute_llm_request_with_messages(
         "[LLM] Request: provider={} model={} cached_model_id={:?} body_params={:?}",
         provider.id, model, cached_model_id, param_snapshot
     );
+    if let Ok(pretty_body) = serde_json::to_string_pretty(&body) {
+        info!(
+            "[LLM] RequestBody provider={} model={}:\n{}",
+            provider.id, model, pretty_body
+        );
+    }
 
     // Manual HTTP request to allow arbitrary parameters and handle response flexibly
     let base_url = provider.base_url.trim_end_matches('/');
@@ -386,6 +422,25 @@ pub async fn execute_llm_request_with_messages(
                 headers.insert(name, val);
             }
         }
+    }
+    let sanitized_headers: Vec<(String, String)> = headers
+        .iter()
+        .map(|(name, value)| {
+            let header_name = name.as_str().to_string();
+            let header_value = if header_name.eq_ignore_ascii_case("authorization") {
+                "Bearer ***".to_string()
+            } else {
+                value.to_str().unwrap_or("<non-utf8>").to_string()
+            };
+            (header_name, header_value)
+        })
+        .collect();
+    info!(
+        "[LLM] RequestMeta provider={} model={} url={}",
+        provider.id, model, url
+    );
+    for (name, value) in sanitized_headers {
+        info!("[LLM] Header {}: {}", name, value);
     }
     let http_client = reqwest::Client::builder()
         .default_headers(headers)

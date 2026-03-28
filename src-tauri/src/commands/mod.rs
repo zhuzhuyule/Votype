@@ -205,13 +205,14 @@ pub fn focus_overlay(app: AppHandle) {
         active_window.as_ref().map(|info| info.app_name.as_str()),
         active_window.as_ref().map(|info| info.title.as_str()),
         crate::review_window::is_review_editor_active(),
+        false,
     );
 
     if matches!(
         votype_mode,
         crate::window_context::VotypeInputMode::MainPolishInput
-            | crate::window_context::VotypeInputMode::ReviewPolishInput
-            | crate::window_context::VotypeInputMode::ReviewSkill
+            | crate::window_context::VotypeInputMode::MainSelectedEdit
+            | crate::window_context::VotypeInputMode::ReviewRewrite
     ) {
         log::info!(
             "[Overlay] Skip focus_overlay while Votype window is active (mode={:?})",
@@ -366,6 +367,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 true, // skill_mode
                 false,
                 pending.selected_text.clone(),
+                None,
             )
             .await;
 
@@ -508,6 +510,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     false, // Not skill_mode
                     false,
                     None, // Ignore selected text for polish
+                    None,
                 )
                 .await;
 

@@ -1,29 +1,43 @@
 // Bottom action bar for review window
 
-import { IconCopy } from "@tabler/icons-react";
+import {
+  IconArrowBackUp,
+  IconArrowForwardUp,
+  IconCopy,
+} from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
 
 interface ReviewFooterProps {
   reason?: string | null;
   outputMode?: "polish" | "chat";
+  modelName?: string | null;
   isSubmitting: boolean;
   hasText: boolean;
+  canUndo?: boolean;
+  canRedo?: boolean;
   insertShortcut: string;
   isMultiModel?: boolean;
   onCopy: () => void;
   onInsert: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export const ReviewFooter: React.FC<ReviewFooterProps> = ({
   reason,
   outputMode,
+  modelName,
   isSubmitting,
   hasText,
+  canUndo,
+  canRedo,
   insertShortcut,
   isMultiModel,
   onCopy,
   onInsert,
+  onUndo,
+  onRedo,
 }) => {
   const { t } = useTranslation();
 
@@ -31,8 +45,31 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
     <div className="review-footer">
       <div className="review-footer-left">
         {reason?.trim() ? <span className="reason-text">{reason}</span> : null}
+        {modelName?.trim() ? (
+          <span className="review-model-badge">{modelName}</span>
+        ) : null}
       </div>
       <div className="review-footer-actions">
+        {!isMultiModel && (
+          <>
+            <button
+              className="review-btn-secondary"
+              onClick={onUndo}
+              disabled={isSubmitting || !canUndo}
+            >
+              <IconArrowBackUp size={14} />
+              {t("common.undo", "Undo")}
+            </button>
+            <button
+              className="review-btn-secondary"
+              onClick={onRedo}
+              disabled={isSubmitting || !canRedo}
+            >
+              <IconArrowForwardUp size={14} />
+              {t("common.redo", "Redo")}
+            </button>
+          </>
+        )}
         {outputMode === "chat" && (
           <button
             className="review-btn-secondary"

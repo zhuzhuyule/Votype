@@ -146,6 +146,12 @@ pub fn set_review_editor_active_state(active: bool) {
     crate::review_window::set_review_editor_active(active);
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn set_review_editor_content_state(text: String) {
+    crate::review_window::set_review_editor_content(text);
+}
+
 // Group: Single-Model Rerun with Prompt
 
 #[derive(Serialize, Clone, Type)]

@@ -84,6 +84,9 @@ export const VOTYPE_LOCAL_INSERT = "votype-local-insert";
 /** Apply processed text directly to the Review window editor */
 export const REVIEW_WINDOW_INLINE_APPLY = "review-window-inline-apply";
 
+/** Replace the entire Review window document with rewritten text */
+export const REVIEW_WINDOW_REWRITE_APPLY = "review-window-rewrite-apply";
+
 /** Refocus the currently active editable control inside a Votype-owned window */
 export const VOTYPE_REFOCUS_ACTIVE_INPUT = "votype-refocus-active-input";
 
@@ -122,6 +125,7 @@ export const TauriEvents = {
   CHECK_FOR_UPDATES,
   VOTYPE_LOCAL_INSERT,
   REVIEW_WINDOW_INLINE_APPLY,
+  REVIEW_WINDOW_REWRITE_APPLY,
   VOTYPE_REFOCUS_ACTIVE_INPUT,
 } as const;
 

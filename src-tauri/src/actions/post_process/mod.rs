@@ -23,6 +23,21 @@ pub(super) struct LlmReviewResponse {
     pub text: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub(super) struct RewriteChange {
+    pub from: String,
+    pub to: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct RewriteResponse {
+    pub normalized_instruction: String,
+    pub operation: String,
+    pub rewritten_text: String,
+    pub changes: Vec<RewriteChange>,
+}
+
 /// Response from LLM for skill routing intent recognition
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SkillRouteResponse {

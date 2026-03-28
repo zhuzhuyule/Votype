@@ -1,7 +1,7 @@
 use crate::managers::history::HistoryManager;
 use crate::managers::HotwordManager;
 use crate::overlay::show_llm_processing_overlay;
-use crate::settings::{AppSettings, HotwordScenario};
+use crate::settings::{AppSettings, HotwordScenario, LLMPrompt, PostProcessProvider};
 use log::{error, info};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -30,6 +30,179 @@ pub(super) fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenar
     None // Both scenarios apply
 }
 
+async fn execute_votype_rewrite_prompt(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    fallback_provider: &PostProcessProvider,
+    prompt: &LLMPrompt,
+    input_text: &str,
+    target_text: &str,
+    app_name: Option<String>,
+    window_title: Option<String>,
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<String>,
+) {
+    info!(
+        "[VotypeRewrite] app={:?} title={:?} prompt_id={} target_len={} instruction_len={}",
+        app_name,
+        window_title,
+        prompt.id,
+        target_text.chars().count(),
+        input_text.chars().count()
+    );
+    info!("[VotypeRewrite] TargetText:\n{}", target_text);
+    info!("[VotypeRewrite] SpokenInstruction:\n{}", input_text);
+
+    let Some((actual_provider, model)) =
+        super::routing::resolve_effective_model(settings, fallback_provider, prompt)
+    else {
+        return (
+            None,
+            None,
+            None,
+            true,
+            Some("未找到可用的后处理模型".to_string()),
+        );
+    };
+
+    let system_prompts = vec![
+        "你是一个高保真的文稿编辑助手。\n\n你的唯一任务是：根据 spoken_instruction 理解用户真实意图，并修改 current_document。\n\n输入说明：\n- current_document：本次录音开始时冻结的最新完整文稿。它不是历史初稿，而是这一次必须直接编辑的当前结果。\n- spoken_instruction：用户本次口述的编辑指令，由 ASR 转写而来，可能包含口语化表达、识别错误、术语误识别、大小写错误、缩写错误、同音词错误。\n- term_reference：给你的少量术语参考，已经按类别筛选，只保留与当前文稿或本次指令更相关的热词、自定义词和常见误识别。\n- app_context：弱上下文，只用于帮助理解当前是在执行窗口中持续改写文稿。\n\n工作要求：\n1. 先在心里纠正 spoken_instruction 中的 ASR 噪声，并归一化成明确、简洁、忠实于用户原意的编辑意图。\n2. 再依据归一化后的意图，对 current_document 执行对应编辑。\n3. 你处理的是“对当前文稿继续修改”，不是生成全新文章；如果执行窗口连续多次录音，每次都必须只基于这次输入提供的 current_document 继续修改。\n4. current_document 是唯一主文本。理解术语、实体、缩写、大小写、语言风格和上下文时，优先级永远高于 spoken_instruction 的字面形式。\n5. 如果 spoken_instruction 中提到的词在 current_document 中没有完全一致的匹配，你必须结合 current_document 和 term_reference 找到最可能对应的近似术语、误识别形式或同音词，再执行修改。\n6. term_reference 只是纠错参考，不是强制替换表；只有当它能帮助你更准确理解用户意图时才使用，不要被无关热词干扰。\n7. 用户意图可能是 rewrite、expand、format、translate 或 polish。你必须先判断最合适的操作，再执行编辑。\n8. 除非用户明确要求切换语言或翻译，否则 rewritten_text 必须保持与 current_document 主语言一致。\n9. 只做与用户意图直接相关的修改，尽量保留未被要求修改的内容、结构、语气和有效信息；不要无关扩写，不要擅自增加新观点。\n10. 如果指令含糊不清，优先选择改动最小但最符合字面意图的编辑方式。\n11. 不要输出解释，不要输出 markdown，不要输出额外文本。\n\n输出要求：\n你必须只返回合法 JSON，对象结构如下：\n- normalized_instruction: 纠错并归一化后的用户编辑意图\n- operation: 你判断的操作类型，只能是 rewrite、expand、format、translate、polish 之一\n- rewritten_text: 编辑后的完整文稿\n- changes: 数组，列出主要修改项；每项包含 from、to、reason\n\n除了这个 JSON 对象，不要输出任何其他内容。".to_string(),
+    ];
+    let term_reference = build_rewrite_term_reference(
+        app_handle,
+        settings,
+        target_text,
+        input_text,
+        app_name.as_deref(),
+    );
+    let user_message = format!(
+        "[current_document]\n{}\n\n[spoken_instruction]\n{}\n\n[term_reference]\n{}\n\n[app_context]\napp={:?}\nwindow={:?}",
+        target_text.trim(),
+        input_text.trim(),
+        term_reference,
+        app_name,
+        window_title
+    );
+    let cached_model_id = prompt
+        .model_id
+        .as_deref()
+        .or(settings.selected_prompt_model_id.as_deref());
+
+    let (result, err, error_message) = super::core::execute_llm_request_with_messages(
+        app_handle,
+        settings,
+        actual_provider,
+        &model,
+        cached_model_id,
+        &system_prompts,
+        Some(&user_message),
+        app_name,
+        window_title,
+        None,
+        None,
+        None,
+    )
+    .await;
+
+    if let Some(raw) = result.as_deref() {
+        if let Some(parsed) = super::core::extract_rewrite_response(raw) {
+            info!(
+                "[VotypeRewrite] ParsedResponse operation={} normalized_instruction={}",
+                parsed.operation, parsed.normalized_instruction
+            );
+            for change in &parsed.changes {
+                info!(
+                    "[VotypeRewrite] Change from='{}' to='{}' reason='{}'",
+                    change.from, change.to, change.reason
+                );
+            }
+            return (
+                Some(parsed.rewritten_text),
+                Some(model),
+                Some(prompt.id.clone()),
+                false,
+                None,
+            );
+        }
+    }
+
+    (
+        result,
+        Some(model),
+        Some(prompt.id.clone()),
+        err,
+        error_message,
+    )
+}
+
+fn build_rewrite_term_reference(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    target_text: &str,
+    input_text: &str,
+    app_name: Option<&str>,
+) -> String {
+    let document_terms = extract_ascii_terms(target_text, 8);
+    let spoken_terms = extract_ascii_terms(input_text, 8);
+
+    let mut domain_terms: Vec<String> = Vec::new();
+
+    let push_unique = |bucket: &mut Vec<String>, item: String| {
+        let item = item.trim().to_string();
+        if !item.is_empty() && !bucket.iter().any(|existing| existing == &item) {
+            bucket.push(item);
+        }
+    };
+
+    for token in &settings.custom_words {
+        let token_lower = token.trim().to_lowercase();
+        if !token_lower.is_empty()
+            && (target_text.to_lowercase().contains(&token_lower)
+                || input_text.to_lowercase().contains(&token_lower))
+        {
+            push_unique(&mut domain_terms, token.clone());
+        }
+    }
+
+    let mut sections: Vec<String> = Vec::new();
+    if !document_terms.is_empty() {
+        sections.push(format!("[当前文稿术语]\n- {}", document_terms.join("\n- ")));
+    }
+    if !spoken_terms.is_empty() {
+        sections.push(format!("[本次口述术语]\n- {}", spoken_terms.join("\n- ")));
+    }
+    if !domain_terms.is_empty() {
+        sections.push(format!("[自定义词]\n- {}", domain_terms.join("\n- ")));
+    }
+
+    if sections.is_empty() {
+        "(none)".to_string()
+    } else {
+        sections.join("\n\n")
+    }
+}
+
+fn extract_ascii_terms(text: &str, limit: usize) -> Vec<String> {
+    let mut terms = Vec::new();
+    for token in text
+        .split(|ch: char| !(ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'))
+        .filter(|token| token.len() >= 2 && token.chars().any(|ch| ch.is_ascii_alphabetic()))
+    {
+        let token = token.trim().to_string();
+        if !token.is_empty() && !terms.iter().any(|existing| existing == &token) {
+            terms.push(token);
+        }
+        if terms.len() >= limit {
+            break;
+        }
+    }
+    terms
+}
+
 pub async fn maybe_post_process_transcription(
     app_handle: &AppHandle,
     settings: &AppSettings,
@@ -45,6 +218,7 @@ pub async fn maybe_post_process_transcription(
     skill_mode: bool,
     review_editor_active: bool,
     selected_text: Option<String>,
+    review_document_text: Option<String>,
 ) -> (
     Option<String>,
     Option<String>,
@@ -161,17 +335,21 @@ pub async fn maybe_post_process_transcription(
         app_name.as_deref(),
         window_title.as_deref(),
         review_editor_active,
+        selected_text
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false),
     );
     let effective_skill_mode = match votype_mode {
         crate::window_context::VotypeInputMode::MainPolishInput
-        | crate::window_context::VotypeInputMode::ReviewPolishInput => false,
-        crate::window_context::VotypeInputMode::ReviewSkill => true,
+        | crate::window_context::VotypeInputMode::MainSelectedEdit
+        | crate::window_context::VotypeInputMode::ReviewRewrite => false,
         crate::window_context::VotypeInputMode::ExternalDefault => skill_mode,
     };
     let effective_selected_text = match votype_mode {
         crate::window_context::VotypeInputMode::MainPolishInput
-        | crate::window_context::VotypeInputMode::ReviewPolishInput => None,
-        crate::window_context::VotypeInputMode::ReviewSkill
+        | crate::window_context::VotypeInputMode::ReviewRewrite => None,
+        crate::window_context::VotypeInputMode::MainSelectedEdit
         | crate::window_context::VotypeInputMode::ExternalDefault => selected_text.clone(),
     };
 
@@ -183,6 +361,64 @@ pub async fn maybe_post_process_transcription(
         skill_mode,
         votype_mode
     );
+    if let Some(text) = selected_text.as_deref() {
+        info!(
+            "[ModeRouting] RawSelectedText (len={}):\n{}",
+            text.chars().count(),
+            text
+        );
+    }
+    if let Some(text) = review_document_text.as_deref() {
+        info!(
+            "[ModeRouting] ReviewDocumentText (len={}):\n{}",
+            text.chars().count(),
+            text
+        );
+    }
+
+    if matches!(
+        votype_mode,
+        crate::window_context::VotypeInputMode::MainSelectedEdit
+    ) {
+        if let (Some(rewrite_prompt), Some(target_text)) = (
+            initial_prompt_opt.as_ref().or(default_prompt),
+            selected_text.as_deref(),
+        ) {
+            return execute_votype_rewrite_prompt(
+                app_handle,
+                settings,
+                fallback_provider,
+                rewrite_prompt,
+                transcription,
+                target_text,
+                app_name,
+                window_title,
+            )
+            .await;
+        }
+    }
+
+    if matches!(
+        votype_mode,
+        crate::window_context::VotypeInputMode::ReviewRewrite
+    ) {
+        if let (Some(rewrite_prompt), Some(target_text)) = (
+            initial_prompt_opt.as_ref().or(default_prompt),
+            review_document_text.as_deref(),
+        ) {
+            return execute_votype_rewrite_prompt(
+                app_handle,
+                settings,
+                fallback_provider,
+                rewrite_prompt,
+                transcription,
+                target_text,
+                app_name,
+                window_title,
+            )
+            .await;
+        }
+    }
 
     let has_selected_text = effective_selected_text
         .as_ref()

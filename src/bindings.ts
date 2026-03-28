@@ -666,6 +666,9 @@ async cancelTranscriptionReview(text: string | null, historyId: number | null) :
 async setReviewEditorActiveState(active: boolean) : Promise<void> {
     await TAURI_INVOKE("set_review_editor_active_state", { active });
 },
+async setReviewEditorContentState(text: string) : Promise<void> {
+    await TAURI_INVOKE("set_review_editor_content_state", { text });
+},
 async rerunSingleWithPrompt(promptId: string, sourceText: string, historyId: number | null, modelId: string | null) : Promise<Result<RerunSingleResult, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("rerun_single_with_prompt", { promptId, sourceText, historyId, modelId }) };

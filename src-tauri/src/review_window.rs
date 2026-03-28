@@ -79,6 +79,8 @@ static LAST_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
 static LAST_ACTIVE_WINDOW: Lazy<Mutex<Option<ActiveWindowInfo>>> = Lazy::new(|| Mutex::new(None));
 static REVIEW_EDITOR_ACTIVE: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+static REVIEW_EDITOR_CONTENT: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
+static FROZEN_REVIEW_EDITOR_CONTENT: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
 fn emit_review_payload(app_handle: &AppHandle, payload: ReviewWindowPayload) -> bool {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
@@ -542,6 +544,34 @@ pub fn is_review_editor_active() -> bool {
         .lock()
         .map(|guard| *guard)
         .unwrap_or(false)
+}
+
+pub fn set_review_editor_content(text: String) {
+    if let Ok(mut guard) = REVIEW_EDITOR_CONTENT.lock() {
+        *guard = text;
+    }
+}
+
+pub fn current_review_editor_content() -> Option<String> {
+    REVIEW_EDITOR_CONTENT
+        .lock()
+        .ok()
+        .map(|guard| guard.trim().to_string())
+        .filter(|text| !text.is_empty())
+}
+
+pub fn freeze_review_editor_content_snapshot() {
+    let snapshot = current_review_editor_content();
+    if let Ok(mut guard) = FROZEN_REVIEW_EDITOR_CONTENT.lock() {
+        *guard = snapshot;
+    }
+}
+
+pub fn take_frozen_review_editor_content() -> Option<String> {
+    FROZEN_REVIEW_EDITOR_CONTENT
+        .lock()
+        .ok()
+        .and_then(|mut guard| guard.take())
 }
 
 /// Shows the review window with multiple model candidates for selection

@@ -51,6 +51,10 @@ pub fn handle_shortcut_event(
                 hotkey_string
             };
 
+        if effective_hotkey == "review-window-local" && is_pressed {
+            crate::review_window::freeze_review_editor_content_snapshot();
+        }
+
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
             coordinator.send_input(
                 binding_id,

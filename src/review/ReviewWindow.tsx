@@ -34,6 +34,7 @@ import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
 import "./ReviewWindow.css";
 import {
   REVIEW_WINDOW_INLINE_APPLY,
+  REVIEW_WINDOW_REWRITE_APPLY,
   VOTYPE_REFOCUS_ACTIVE_INPUT,
 } from "../lib/events";
 import {
@@ -290,6 +291,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const [isTranslationHovered, setIsTranslationHovered] = useState(false);
+  const [revisionHistory, setRevisionHistory] = useState<string[]>([
+    initialData.final_text,
+  ]);
+  const [revisionIndex, setRevisionIndex] = useState(0);
+  const revisionIndexRef = useRef(0);
 
   // Fetch prompts and model options on mount
   // NOTE: dependency is [] because ReviewWindow is re-mounted via key when new data arrives.
@@ -648,6 +654,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
 
     editor.commands.setContent(content, { emitUpdate: false });
+    void invoke("set_review_editor_content_state", {
+      text: editor.getText({ blockSeparator: "\n" }),
+    }).catch((e) => {
+      console.error("Failed to sync review editor content state:", e);
+    });
     setSourceHtml(nextSourceHtml);
     setTimeout(() => measureAndResize(false), 16);
   }, [
@@ -735,6 +746,45 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     },
     [editor, measureAndResize],
   );
+
+  const replaceEditorDocument = useCallback(
+    (text: string) => {
+      if (isMultiCandidateMode.current) return;
+      setCurrentFinalText(text);
+      setRevisionHistory((prev) => {
+        const base = prev.slice(0, revisionIndexRef.current + 1);
+        if (base[base.length - 1] === text) {
+          return base;
+        }
+        const next = [...base, text];
+        setRevisionIndex(next.length - 1);
+        return next;
+      });
+      pendingInlineRangeRef.current = null;
+      window.setTimeout(() => measureAndResize(false), 16);
+    },
+    [measureAndResize],
+  );
+
+  useEffect(() => {
+    revisionIndexRef.current = revisionIndex;
+  }, [revisionIndex]);
+
+  useEffect(() => {
+    if (isMultiCandidateMode.current) return;
+    const nextText = revisionHistory[revisionIndex];
+    if (typeof nextText === "string" && nextText !== currentFinalText) {
+      setCurrentFinalText(nextText);
+    }
+  }, [currentFinalText, revisionHistory, revisionIndex]);
+
+  const handleUndoRevision = useCallback(() => {
+    setRevisionIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const handleRedoRevision = useCallback(() => {
+    setRevisionIndex((prev) => Math.min(revisionHistory.length - 1, prev + 1));
+  }, [revisionHistory.length]);
 
   const getOriginalReviewText = useCallback(() => {
     if (sortedCandidates && selectedCandidateId) {
@@ -1044,6 +1094,35 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     let disposed = false;
 
     const setupListener = async () => {
+      const detach = await listen<string>(
+        REVIEW_WINDOW_REWRITE_APPLY,
+        (event) => {
+          setShowDiff(true);
+          replaceEditorDocument(event.payload);
+        },
+      );
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [replaceEditorDocument]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
       const detach = await listen(VOTYPE_REFOCUS_ACTIVE_INPUT, () => {
         if (!editor || isMultiCandidateMode.current) return;
         editor.commands.focus();
@@ -1069,6 +1148,15 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     const syncEditorActive = (active: boolean) => {
       void invoke("set_review_editor_active_state", { active }).catch((e) => {
         console.error("Failed to sync review editor active state:", e);
+      });
+    };
+
+    const syncEditorContent = () => {
+      if (!editor || isMultiCandidateMode.current) return;
+      void invoke("set_review_editor_content_state", {
+        text: editor.getText({ blockSeparator: "\n" }),
+      }).catch((e) => {
+        console.error("Failed to sync review editor content state:", e);
       });
     };
 
@@ -1098,13 +1186,24 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     };
 
     updateEditorStateFromTarget(document.activeElement);
+    syncEditorContent();
 
     document.addEventListener("focusin", handleFocusIn, true);
     document.addEventListener("selectionchange", handleSelectionChange);
     window.addEventListener("blur", handleWindowBlur);
 
+    let offUpdate: (() => void) | undefined;
+    if (editor) {
+      const handler = () => {
+        syncEditorContent();
+      };
+      editor.on("update", handler);
+      offUpdate = () => editor.off("update", handler);
+    }
+
     return () => {
       syncEditorActive(false);
+      offUpdate?.();
       document.removeEventListener("focusin", handleFocusIn, true);
       document.removeEventListener("selectionchange", handleSelectionChange);
       window.removeEventListener("blur", handleWindowBlur);
@@ -1212,7 +1311,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             onRerunResult={(text: string) => {
               const cp = computeChangePercent(initialData.source_text, text);
               setShowDiff(cp < DIFF_THRESHOLD);
-              setCurrentFinalText(text);
+              replaceEditorDocument(text);
             }}
             multiSortMode={multiSortMode}
             onMultiSortModeChange={setMultiSortMode}
@@ -1310,12 +1409,17 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         <ReviewFooter
           reason={initialData.reason}
           outputMode={initialData.output_mode}
+          modelName={currentModelName}
           isSubmitting={isSubmitting}
           hasText={!!getEditorText().trim()}
+          canUndo={revisionIndex > 0}
+          canRedo={revisionIndex < revisionHistory.length - 1}
           insertShortcut={insertShortcut}
           isMultiModel={!!sortedCandidates && sortedCandidates.length > 0}
           onCopy={handleCopy}
           onInsert={handleInsert}
+          onUndo={handleUndoRevision}
+          onRedo={handleRedoRevision}
         />
       </div>
     </div>

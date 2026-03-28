@@ -408,12 +408,15 @@ impl ShortcutAction for TranscribeAction {
                         info.app_name, info.title, info.process_id, info.window_id
                     );
                 }
+                let selected_text = crate::clipboard::get_selected_text(&ah).ok();
+                let review_document_text = if shortcut_str == "review-window-local" {
+                    crate::review_window::take_frozen_review_editor_content()
+                        .or_else(crate::review_window::current_review_editor_content)
+                } else {
+                    None
+                };
                 let votype_mode = if shortcut_str == "review-window-local" {
-                    if review_editor_active {
-                        VotypeInputMode::ReviewPolishInput
-                    } else {
-                        VotypeInputMode::ReviewSkill
-                    }
+                    VotypeInputMode::ReviewRewrite
                 } else {
                     crate::window_context::resolve_votype_input_mode(
                         active_window_snapshot
@@ -423,11 +426,14 @@ impl ShortcutAction for TranscribeAction {
                             .as_ref()
                             .map(|info| info.title.as_str()),
                         review_editor_active,
+                        selected_text
+                            .as_ref()
+                            .map(|text| !text.trim().is_empty())
+                            .unwrap_or(false),
                     )
                 };
 
                 // Capture selected text for Mode C (auto-routing)
-                let selected_text = crate::clipboard::get_selected_text(&ah).ok();
                 // [DEBUG] Log selected text at recording stop
                 match &selected_text {
                     Some(text) if !text.trim().is_empty() => {
@@ -779,7 +785,28 @@ impl ShortcutAction for TranscribeAction {
                         let secondary_result_for_post = secondary_result.clone();
                         let incremental_result_for_post = incremental_result.clone();
 
-                        let active_window_snapshot_for_review = active_window_snapshot.clone();
+                        let mut active_window_snapshot_for_review = active_window_snapshot.clone();
+                        if shortcut_str == "review-window-local" {
+                            if let Some(info) = active_window_snapshot_for_review.as_mut() {
+                                info.app_name = "Votype".to_string();
+                                info.title = "Votype Review".to_string();
+                            } else {
+                                active_window_snapshot_for_review =
+                                    Some(crate::active_window::ActiveWindowInfo {
+                                        title: "Votype Review".to_string(),
+                                        app_name: "Votype".to_string(),
+                                        window_id: "review_window".to_string(),
+                                        process_id: std::process::id() as u64,
+                                        process_path: String::new(),
+                                        position: crate::active_window::WindowPosition {
+                                            x: 0.0,
+                                            y: 0.0,
+                                            width: 0.0,
+                                            height: 0.0,
+                                        },
+                                    });
+                            }
+                        }
                         let task = tokio::spawn(async move {
                             let mut final_text = transcription_clone.clone();
                             let mut post_process_prompt_text = String::new();
@@ -896,7 +923,8 @@ impl ShortcutAction for TranscribeAction {
                                     && !matches!(
                                         votype_mode,
                                         VotypeInputMode::MainPolishInput
-                                            | VotypeInputMode::ReviewPolishInput
+                                            | VotypeInputMode::MainSelectedEdit
+                                            | VotypeInputMode::ReviewRewrite
                                     )
                                 {
                                     let multi_items =
@@ -1243,6 +1271,7 @@ impl ShortcutAction for TranscribeAction {
                                                 false,
                                                 review_editor_active,
                                                 selected_text.clone(),
+                                                review_document_text.clone(),
                                             )
                                             .await;
 
@@ -1327,7 +1356,10 @@ impl ShortcutAction for TranscribeAction {
                                                             std::thread::sleep(std::time::Duration::from_millis(120));
                                                         }
                                                     }
-                                                    if let Err(e) = utils::paste(fallback_text, ah_clone_inner) {
+                                                    if let Err(e) = utils::paste(
+                                                        fallback_text,
+                                                        ah_clone_inner,
+                                                    ) {
                                                         error!("Failed to paste fallback transcription: {}", e);
                                                     } else {
                                                         info!("[MultiModel] Fallback paste completed");
@@ -1363,6 +1395,7 @@ impl ShortcutAction for TranscribeAction {
                                         skill_mode, // Pass skill_mode to control LLM routing
                                         review_editor_active,
                                         selected_text.clone(), // Pass captured context for Mode C
+                                        review_document_text.clone(),
                                     )
                                     .await;
 
@@ -1423,7 +1456,8 @@ impl ShortcutAction for TranscribeAction {
                                 let should_review = if matches!(
                                     votype_mode,
                                     VotypeInputMode::MainPolishInput
-                                        | VotypeInputMode::ReviewPolishInput
+                                        | VotypeInputMode::MainSelectedEdit
+                                        | VotypeInputMode::ReviewRewrite
                                 ) {
                                     false
                                 } else
@@ -1573,11 +1607,18 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            if matches!(votype_mode, VotypeInputMode::ReviewPolishInput) {
+                            if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                let _ =
-                                    ah_clone.emit("review-window-inline-apply", final_text.clone());
+                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
+                                return;
+                            }
+
+                            if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone
+                                    .emit("review-window-rewrite-apply", final_text.clone());
                                 return;
                             }
 
@@ -1614,11 +1655,7 @@ impl ShortcutAction for TranscribeAction {
                         // Post-processing is disabled — check if app policy still
                         // requires showing the review window before pasting.
                         let votype_mode = if shortcut_str == "review-window-local" {
-                            if review_editor_active {
-                                VotypeInputMode::ReviewPolishInput
-                            } else {
-                                VotypeInputMode::ReviewSkill
-                            }
+                            VotypeInputMode::ReviewRewrite
                         } else {
                             crate::window_context::resolve_votype_input_mode(
                                 active_window_snapshot
@@ -1628,6 +1665,10 @@ impl ShortcutAction for TranscribeAction {
                                     .as_ref()
                                     .map(|info| info.title.as_str()),
                                 review_editor_active,
+                                selected_text
+                                    .as_ref()
+                                    .map(|text| !text.trim().is_empty())
+                                    .unwrap_or(false),
                             )
                         };
                         let (app_policy, resolved_prompt_id) = active_window_snapshot
@@ -1677,16 +1718,29 @@ impl ShortcutAction for TranscribeAction {
                             .unwrap_or_else(|e| {
                                 error!("Failed to emit local insert on main thread: {:?}", e)
                             });
-                        } else if matches!(votype_mode, VotypeInputMode::ReviewPolishInput) {
+                        } else if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
                             let ah_clone = ah.clone();
                             ah.run_on_main_thread(move || {
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                let _ = ah_clone
-                                    .emit("review-window-inline-apply", transcription_clone);
+                                log::warn!(
+                                    "Selected-edit mode requires post-processing; skipping raw insertion"
+                                );
                             })
                             .unwrap_or_else(|e| {
-                                error!("Failed to emit review inline apply on main thread: {:?}", e)
+                                error!("Failed to finish selected-edit fallback on main thread: {:?}", e)
+                            });
+                        } else if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                log::warn!(
+                                    "Review rewrite mode requires post-processing; skipping raw document replacement"
+                                );
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to finish review rewrite fallback on main thread: {:?}", e)
                             });
                         } else if app_policy == crate::settings::AppReviewPolicy::Always {
                             // Resolve output_mode from the prompt configured for this app,

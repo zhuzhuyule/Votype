@@ -1348,14 +1348,14 @@ span[data-diff-level] {
 
 .diff-minor,
 span[data-diff-level="minor"] {
-  background: color-mix(in srgb, var(--amber-4) 80%, transparent);
-  color: var(--amber-11);
+  background: color-mix(in srgb, var(--green-4) 78%, transparent);
+  color: var(--green-11);
 }
 
 .diff-major,
 span[data-diff-level="major"] {
-  background: color-mix(in srgb, var(--ruby-4) 80%, transparent);
-  color: var(--ruby-11);
+  background: color-mix(in srgb, var(--green-5) 82%, transparent);
+  color: var(--green-12);
 }
 
 .diff-delete {
