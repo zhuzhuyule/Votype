@@ -331,6 +331,8 @@ static MIGRATIONS: &[M] = &[
          ALTER TABLE hotwords ADD COLUMN scenario_usage_stats TEXT NOT NULL DEFAULT '{}';
          CREATE INDEX IF NOT EXISTS idx_hotwords_recent_use_count ON hotwords(recent_use_count DESC);",
     ),
+    // Migration 30: Add token_count for LLM usage tracking
+    M::up("ALTER TABLE transcription_history ADD COLUMN token_count INTEGER NOT NULL DEFAULT 0;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -364,6 +366,7 @@ pub struct HistoryEntry {
     pub app_name: Option<String>,
     pub window_title: Option<String>,
     pub post_process_history: Option<String>, // JSON array of PostProcessStep
+    pub token_count: Option<i64>,
     pub deleted: bool,
 }
 
@@ -1477,7 +1480,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -1503,6 +1506,7 @@ impl HistoryManager {
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
                 post_process_history: row.get("post_process_history")?,
+                token_count: row.get("token_count")?,
                 deleted: row.get("deleted")?,
             })
         })?;
@@ -1553,7 +1557,7 @@ impl HistoryManager {
 
         // Build paginated query
         let query_sql = format!(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             where_clause, limit, offset
         );
 
@@ -1583,6 +1587,7 @@ impl HistoryManager {
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
                 post_process_history: row.get("post_process_history")?,
+                token_count: row.get("token_count")?,
                 deleted: row.get("deleted")?,
             })
         };
@@ -1634,7 +1639,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -1662,6 +1667,7 @@ impl HistoryManager {
                     app_name: row.get("app_name")?,
                     window_title: row.get("window_title")?,
                     post_process_history: row.get("post_process_history")?,
+                    token_count: row.get("token_count")?,
                     deleted: row.get("deleted")?,
                 })
             })
