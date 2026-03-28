@@ -461,7 +461,6 @@ export const Dashboard: React.FC = () => {
       <DashboardSummaryCards
         summary={summary}
         trends={trends}
-        numberFormat={numberFormat}
         formatDurationMs={formatDurationMs}
       />
 
