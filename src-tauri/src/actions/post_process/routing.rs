@@ -369,21 +369,22 @@ pub(super) async fn execute_default_polish<'a>(
         None
     };
 
-    let (result, _err, _error_message) = super::core::execute_llm_request_with_messages(
-        app_handle,
-        settings,
-        actual_provider,
-        &model,
-        cached_model_id,
-        &built.system_messages,
-        built.user_message.as_deref(),
-        app_name,
-        window_title,
-        None,
-        None,
-        merged_extra_params.as_ref(),
-    )
-    .await;
+    let (result, _err, _error_message, _token_count) =
+        super::core::execute_llm_request_with_messages(
+            app_handle,
+            settings,
+            actual_provider,
+            &model,
+            cached_model_id,
+            &built.system_messages,
+            built.user_message.as_deref(),
+            app_name,
+            window_title,
+            None,
+            None,
+            merged_extra_params.as_ref(),
+        )
+        .await;
 
     if let Some(ref text) = result {
         info!(

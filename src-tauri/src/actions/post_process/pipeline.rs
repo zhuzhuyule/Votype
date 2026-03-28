@@ -45,6 +45,7 @@ async fn execute_votype_rewrite_prompt(
     Option<String>,
     bool,
     Option<String>,
+    Option<i64>,
 ) {
     info!(
         "[VotypeRewrite] app={:?} title={:?} prompt_id={} target_len={} instruction_len={}",
@@ -66,6 +67,7 @@ async fn execute_votype_rewrite_prompt(
             None,
             true,
             Some("未找到可用的后处理模型".to_string()),
+            None,
         );
     };
 
@@ -85,21 +87,35 @@ async fn execute_votype_rewrite_prompt(
         .as_deref()
         .or(settings.selected_prompt_model_id.as_deref());
 
-    let (result, err, error_message) = super::core::execute_llm_request_with_messages(
-        app_handle,
-        settings,
-        actual_provider,
-        &model,
-        cached_model_id,
-        &system_prompts,
-        Some(&user_message),
-        app_name,
-        window_title,
-        None,
-        None,
-        None,
-    )
-    .await;
+    let (result, err, error_message, api_token_count) =
+        super::core::execute_llm_request_with_messages(
+            app_handle,
+            settings,
+            actual_provider,
+            &model,
+            cached_model_id,
+            &system_prompts,
+            Some(&user_message),
+            app_name,
+            window_title,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    let prompt_text = format!("{}\n{}", system_prompts.join("\n"), user_message);
+    let token_count: i64 = api_token_count.unwrap_or_else(|| match tiktoken_rs::cl100k_base() {
+        Ok(bpe) => {
+            let prompt_tokens = bpe.encode_with_special_tokens(&prompt_text).len() as i64;
+            let response_tokens = result
+                .as_ref()
+                .map(|r| bpe.encode_with_special_tokens(r).len() as i64)
+                .unwrap_or(0);
+            prompt_tokens + response_tokens
+        }
+        Err(_) => 0,
+    });
 
     if let Some(raw) = result.as_deref() {
         if let Some(parsed) = super::core::extract_rewrite_response(raw) {
@@ -119,6 +135,7 @@ async fn execute_votype_rewrite_prompt(
                 Some(prompt.id.clone()),
                 false,
                 None,
+                Some(token_count),
             );
         }
     }
@@ -129,6 +146,7 @@ async fn execute_votype_rewrite_prompt(
         Some(prompt.id.clone()),
         err,
         error_message,
+        Some(token_count),
     )
 }
 
@@ -198,15 +216,16 @@ pub async fn maybe_post_process_transcription(
     Option<String>,
     bool,
     Option<String>,
+    Option<i64>,
 ) {
     if !settings.post_process_enabled {
-        return (None, None, None, false, None);
+        return (None, None, None, false, None, None);
     }
 
     // Check for skip post-process marker
     if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
         info!("[PostProcess] Skipping post-processing due to app rule override");
-        return (None, None, None, false, None);
+        return (None, None, None, false, None, None);
     }
 
     // Length routing: override selected_prompt_model_id based on text length
@@ -236,7 +255,7 @@ pub async fn maybe_post_process_transcription(
 
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None),
+        None => return (None, None, None, false, None, None),
     };
 
     // Load external skills (Phase 9)
@@ -570,6 +589,7 @@ pub async fn maybe_post_process_transcription(
                                     Some(routed_prompt.id.clone()),
                                     false,
                                     None,
+                                    None,
                                 );
                             }
                             // If polish failed, fall through to standard processing
@@ -659,6 +679,7 @@ pub async fn maybe_post_process_transcription(
                             None,
                             false,
                             None,
+                            None,
                         );
                     }
                 }
@@ -675,6 +696,7 @@ pub async fn maybe_post_process_transcription(
                         None,
                         Some(default_prompt.id.clone()),
                         false,
+                        None,
                         None,
                     );
                 }
@@ -696,7 +718,14 @@ pub async fn maybe_post_process_transcription(
             log::info!(
                 "[PostProcess] No user-owned prompt is configured. Skipping post-processing and returning original transcription."
             );
-            return (Some(transcription.to_string()), None, None, false, None);
+            return (
+                Some(transcription.to_string()),
+                None,
+                None,
+                false,
+                None,
+                None,
+            );
         }
     };
 
@@ -709,6 +738,7 @@ pub async fn maybe_post_process_transcription(
     let last_prompt_id;
     let last_err;
     let last_error_message;
+    let last_token_count;
 
     loop {
         let prompt = current_prompt.clone();
@@ -730,7 +760,7 @@ pub async fn maybe_post_process_transcription(
             }
             None => {
                 log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
-                return (None, None, Some(prompt.id.clone()), false, None);
+                return (None, None, Some(prompt.id.clone()), false, None, None);
             }
         };
 
@@ -908,7 +938,7 @@ pub async fn maybe_post_process_transcription(
             merged_extra_params.as_ref(),
         );
 
-        let (result, err, error_message) = match tokio::time::timeout(
+        let (result, err, error_message, api_token_count) = match tokio::time::timeout(
             std::time::Duration::from_secs(10),
             llm_future,
         )
@@ -923,15 +953,35 @@ pub async fn maybe_post_process_transcription(
                     Some(current_input_content.clone()),
                     false,
                     Some("LLM request timed out".to_string()),
+                    None,
                 )
             }
         };
+
+        let prompt_text = format!(
+            "{}\n{}",
+            built.system_messages.join("\n"),
+            built.user_message.as_deref().unwrap_or_default()
+        );
+        let computed_token_count: i64 =
+            api_token_count.unwrap_or_else(|| match tiktoken_rs::cl100k_base() {
+                Ok(bpe) => {
+                    let prompt_tokens = bpe.encode_with_special_tokens(&prompt_text).len() as i64;
+                    let response_tokens = result
+                        .as_ref()
+                        .map(|r| bpe.encode_with_special_tokens(r).len() as i64)
+                        .unwrap_or(0);
+                    prompt_tokens + response_tokens
+                }
+                Err(_) => 0,
+            });
 
         final_result = result;
         last_model = Some(model);
         last_prompt_id = Some(prompt.id.clone());
         last_err = err;
         last_error_message = error_message;
+        last_token_count = Some(computed_token_count);
 
         if let Some(final_text) = final_result.as_deref() {
             info!(
@@ -957,6 +1007,7 @@ pub async fn maybe_post_process_transcription(
         last_prompt_id,
         last_err,
         last_error_message,
+        last_token_count,
     )
 }
 

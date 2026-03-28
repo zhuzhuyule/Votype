@@ -98,7 +98,7 @@ pub async fn optimize_text_with_llm(
         format!("{}\n\n待优化的提示词内容：\n\n{}", user_instruction, text)
     };
 
-    let (optimized_text, _err, _error_message) = post_process::execute_llm_request(
+    let (optimized_text, _err, _error_message, _token_count) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -166,7 +166,7 @@ pub async fn generate_skill_description(
 
     let user_content = format!("Skill 名称：{}\nSkill 指令：\n{}", name, instructions);
 
-    let (description, _err, _error_message) = post_process::execute_llm_request(
+    let (description, _err, _error_message, _token_count) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -273,7 +273,7 @@ pub async fn translate_review_text(
     let _ = original_text;
     let user_content = text;
 
-    let (response, _err, _error_message) = post_process::execute_llm_request(
+    let (response, _err, _error_message, _token_count) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
@@ -349,7 +349,7 @@ pub async fn generate_skill_metadata(
     vars.insert("INSTRUCTIONS", instructions);
     let system_prompt = prompt::substitute_variables(&template, &vars);
 
-    let (response, _err, _error_message) = post_process::execute_llm_request(
+    let (response, _err, _error_message, _token_count) = post_process::execute_llm_request(
         &app_handle,
         &settings,
         provider,
