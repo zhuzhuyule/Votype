@@ -5,6 +5,7 @@ import {
   Dialog,
   Flex,
   Grid,
+  Select,
   Switch,
   Tabs,
   Text,
@@ -79,6 +80,10 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   const [supportsThinking, setSupportsThinking] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
   const [modelFamily, setModelFamily] = useState<string | undefined>();
+  const [modelFamilies, setModelFamilies] = useState<[string, string][]>([]);
+  const [autoDetectedFamily, setAutoDetectedFamily] = useState<
+    string | undefined
+  >();
 
   const cachedModels = settings?.cached_models ?? [];
   const configuredIds = useMemo(
@@ -172,6 +177,19 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     [providerState.selectedProviderId],
   );
 
+  // Load model families on mount
+  useEffect(() => {
+    invoke<[string, string][]>("get_model_families")
+      .then((families) => {
+        console.log("[AddModelDialog] model families loaded:", families);
+        setModelFamilies(families);
+      })
+      .catch((e) => {
+        console.error("[AddModelDialog] get_model_families failed:", e);
+        setModelFamilies([]);
+      });
+  }, []);
+
   useEffect(() => {
     if (pendingModelId) {
       updateThinkingConfig(pendingModelId, thinkingEnabled);
@@ -180,10 +198,17 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
         modelId: pendingModelId,
         customLabel: customTypeLabel || null,
       })
-        .then((family) => setModelFamily(family ?? undefined))
-        .catch(() => setModelFamily(undefined));
+        .then((family) => {
+          setAutoDetectedFamily(family ?? undefined);
+          setModelFamily(family ?? undefined);
+        })
+        .catch(() => {
+          setAutoDetectedFamily(undefined);
+          setModelFamily(undefined);
+        });
     } else {
       setSupportsThinking(false);
+      setAutoDetectedFamily(undefined);
       setModelFamily(undefined);
     }
   }, [pendingModelId, providerState.selectedProviderId]);
@@ -298,6 +323,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     setSupportsThinking(false);
     setDeveloperMode(false);
     setModelFamily(undefined);
+    setAutoDetectedFamily(undefined);
   };
 
   return (
@@ -360,11 +386,6 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                     className="w-full"
                     enableFilter={true}
                   />
-                  {modelFamily && (
-                    <Text size="1" color="blue" mt="1" as="div">
-                      已识别为 {modelFamily} 系列，将自动应用推荐参数
-                    </Text>
-                  )}
                 </Box>
               </Box>
             </Tabs.Content>
@@ -389,6 +410,41 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
               </Box>
             </Tabs.Content>
           </Tabs.Root>
+
+          {/* Model Family */}
+          {pendingModelId && (
+            <Box>
+              <Text size="2" weight="medium" mb="2" color="gray">
+                {t("settings.postProcessing.models.modelFamily", "模型系列")}
+              </Text>
+              <Select.Root
+                value={modelFamily || "__unknown__"}
+                onValueChange={(v) =>
+                  setModelFamily(v === "__unknown__" ? undefined : v)
+                }
+              >
+                <Select.Trigger className="w-full" />
+                <Select.Content>
+                  <Select.Item value="__unknown__">
+                    {t("settings.postProcessing.models.familyUnknown", "未知")}
+                  </Select.Item>
+                  {modelFamilies.map(([id, displayName]) => (
+                    <Select.Item key={id} value={id}>
+                      {displayName}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
+              {autoDetectedFamily && modelFamily === autoDetectedFamily && (
+                <Text size="1" color="blue" mt="1" as="div">
+                  {t(
+                    "settings.postProcessing.models.familyAutoDetected",
+                    "已自动识别，将应用推荐参数",
+                  )}
+                </Text>
+              )}
+            </Box>
+          )}
 
           {/* Model Type - Always visible but styled better */}
           <Box>

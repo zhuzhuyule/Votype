@@ -64,8 +64,14 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   // Load model families on mount
   React.useEffect(() => {
     invoke<[string, string][]>("get_model_families")
-      .then(setModelFamilies)
-      .catch(() => setModelFamilies([]));
+      .then((families) => {
+        console.log("[EditModelDialog] model families loaded:", families);
+        setModelFamilies(families);
+      })
+      .catch((e) => {
+        console.error("[EditModelDialog] get_model_families failed:", e);
+        setModelFamilies([]);
+      });
   }, []);
 
   // Load preset params hint when family changes
