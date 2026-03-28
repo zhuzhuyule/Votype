@@ -248,6 +248,10 @@ pub(super) async fn execute_default_polish<'a>(
                         "[ParallelPolish] Hotwords injected: scenario={:?}, terms={}",
                         effective_scenario, total_terms
                     );
+                    info!(
+                        "[ParallelPolish] Hotword summary:\n{}",
+                        crate::managers::hotword::HotwordManager::summarize_injection(&injection)
+                    );
                     Some(injection)
                 }
                 Ok(_) => {

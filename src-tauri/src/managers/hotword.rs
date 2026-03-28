@@ -114,45 +114,10 @@ struct HotwordContext<'a> {
     weight: i64,
 }
 
-#[derive(Debug, Clone, Copy)]
-struct InjectionProfile {
-    person_limit: usize,
-    product_limit: usize,
-    domain_limit: usize,
-    hotword_limit: usize,
-    alias_limit: usize,
-    alias_threshold: i64,
-}
-
-impl InjectionProfile {
-    fn prompt() -> Self {
-        Self {
-            person_limit: 3,
-            product_limit: 3,
-            domain_limit: 5,
-            hotword_limit: 3,
-            alias_limit: 1,
-            alias_threshold: 200,
-        }
-    }
-
-    fn rewrite() -> Self {
-        Self {
-            person_limit: 2,
-            product_limit: 2,
-            domain_limit: 4,
-            hotword_limit: 2,
-            alias_limit: 2,
-            alias_threshold: 240,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 struct RankedHotword {
     hotword: Hotword,
     score: i64,
-    relevance_score: i64,
 }
 
 impl HotwordManager {
@@ -841,21 +806,19 @@ impl HotwordManager {
             .into_iter()
             .filter(|hotword| hotword.status == "active")
             .map(|hotword| {
-                let relevance_score = Self::score_contextual_relevance(&hotword, contexts);
-                let telemetry_score = Self::telemetry_score(&hotword, app_name, scenario);
-                let score = relevance_score + telemetry_score;
-                RankedHotword {
-                    hotword,
-                    score,
-                    relevance_score,
-                }
+                let score = if contexts.is_empty() && app_name.is_none() {
+                    hotword.use_count
+                } else {
+                    Self::score_contextual_relevance(&hotword, contexts)
+                        + Self::telemetry_score(&hotword, app_name, scenario)
+                };
+                RankedHotword { hotword, score }
             })
             .collect();
 
         ranked.sort_by(|a, b| {
             b.score
                 .cmp(&a.score)
-                .then_with(|| b.relevance_score.cmp(&a.relevance_score))
                 .then_with(|| {
                     Self::hotword_source_score(&b.hotword.source)
                         .cmp(&Self::hotword_source_score(&a.hotword.source))
@@ -881,233 +844,123 @@ impl HotwordManager {
         Ok(ranked)
     }
 
-    fn alias_limit_for_score(score: i64, profile: &InjectionProfile) -> usize {
-        if score >= profile.alias_threshold {
-            profile.alias_limit
-        } else {
-            0
-        }
-    }
-
-    fn select_aliases_for_display(
-        hotword: &Hotword,
-        contexts: &[HotwordContext<'_>],
-        alias_limit: usize,
-    ) -> Vec<String> {
-        if alias_limit == 0 {
-            return Vec::new();
-        }
-
-        let mut scored_aliases: Vec<(i64, usize, String)> = hotword
-            .originals
-            .iter()
-            .enumerate()
-            .filter_map(|(index, alias)| {
-                let alias = alias.trim();
-                if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
-                    return None;
-                }
-
-                let score = contexts.iter().fold(0, |acc, context| {
-                    if count_hotword_occurrences(context.text, alias) > 0 {
-                        acc + context.weight
-                    } else {
-                        acc
-                    }
-                });
-
-                Some((score, index, alias.to_string()))
-            })
-            .collect();
-
-        scored_aliases.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
-
-        let mut selected: Vec<String> = scored_aliases
-            .iter()
-            .filter(|(score, _, _)| *score > 0)
-            .take(alias_limit)
-            .map(|(_, _, alias)| alias.clone())
-            .collect();
-
-        if selected.is_empty() {
-            selected = hotword
-                .originals
-                .iter()
-                .filter_map(|alias| {
-                    let alias = alias.trim();
-                    if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
-                        None
-                    } else {
-                        Some(alias.to_string())
-                    }
-                })
-                .take(alias_limit)
-                .collect();
-        } else if selected.len() < alias_limit {
-            for alias in hotword.originals.iter().filter_map(|alias| {
-                let alias = alias.trim();
-                if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
-                    None
-                } else {
-                    Some(alias.to_string())
-                }
-            }) {
-                if selected.len() >= alias_limit {
-                    break;
-                }
-                if !selected
-                    .iter()
-                    .any(|existing| existing.eq_ignore_ascii_case(&alias))
-                {
-                    selected.push(alias);
-                }
-            }
-        }
-
-        selected
-    }
-
     fn format_hotword_entry(entry: &HotwordEntry) -> String {
-        if entry.aliases.is_empty() {
-            entry.target.clone()
+        entry.target.clone()
+    }
+
+    pub fn summarize_injection(injection: &HotwordInjection) -> String {
+        let mut sections = Vec::new();
+
+        if !injection.person_names.is_empty() {
+            sections.push(format!(
+                "人名类热词：{}",
+                injection
+                    .person_names
+                    .iter()
+                    .map(Self::format_hotword_entry)
+                    .collect::<Vec<_>>()
+                    .join("、")
+            ));
+        }
+
+        if !injection.product_names.is_empty() {
+            sections.push(format!(
+                "产品品牌类热词：{}",
+                injection
+                    .product_names
+                    .iter()
+                    .map(Self::format_hotword_entry)
+                    .collect::<Vec<_>>()
+                    .join("、")
+            ));
+        }
+
+        if !injection.domain_terms.is_empty() {
+            sections.push(format!(
+                "术语缩写类热词：{}",
+                injection
+                    .domain_terms
+                    .iter()
+                    .map(Self::format_hotword_entry)
+                    .collect::<Vec<_>>()
+                    .join("、")
+            ));
+        }
+
+        if !injection.hotwords.is_empty() {
+            sections.push(format!(
+                "其他热词：{}",
+                injection
+                    .hotwords
+                    .iter()
+                    .map(Self::format_hotword_entry)
+                    .collect::<Vec<_>>()
+                    .join("、")
+            ));
+        }
+
+        if sections.is_empty() {
+            "(none)".to_string()
         } else {
-            format!(
-                "{}（常见误识别：{}）",
-                entry.target,
-                entry.aliases.join("、")
-            )
+            sections.join("\n")
         }
     }
 
-    fn render_group_section(title: &str, entries: &[HotwordEntry]) -> Option<String> {
-        if entries.is_empty() {
-            return None;
-        }
-
-        Some(format!(
-            "[{}]\n- {}",
-            title,
-            entries
-                .iter()
-                .map(Self::format_hotword_entry)
-                .collect::<Vec<_>>()
-                .join("\n- ")
-        ))
-    }
-
-    fn build_injection_from_ranked(
-        &self,
-        ranked: &[RankedHotword],
-        profile: InjectionProfile,
-        contexts: &[HotwordContext<'_>],
-    ) -> HotwordInjection {
-        let has_context = contexts
-            .iter()
-            .any(|context| context.weight > 0 && !context.text.trim().is_empty());
+    fn build_injection_from_ranked(&self, ranked: &[RankedHotword]) -> HotwordInjection {
         let mut injection = HotwordInjection::default();
         let mut seen_person = HashMap::new();
         let mut seen_product = HashMap::new();
         let mut seen_domain = HashMap::new();
         let mut seen_hotword = HashMap::new();
 
-        let mut person_count = 0usize;
-        let mut product_count = 0usize;
-        let mut domain_count = 0usize;
-        let mut hotword_count = 0usize;
-
         for ranked_hotword in ranked {
-            if ranked_hotword.score <= 0 {
-                continue;
-            }
-            if has_context
-                && ranked_hotword.relevance_score <= 0
-                && !ranked_hotword.hotword.user_override
-                && !matches!(
-                    ranked_hotword.hotword.source.as_str(),
-                    "manual" | "auto_learned"
-                )
-            {
-                continue;
-            }
-
-            let alias_limit = Self::alias_limit_for_score(ranked_hotword.score, &profile);
-            let aliases =
-                Self::select_aliases_for_display(&ranked_hotword.hotword, contexts, alias_limit);
-
             match Self::normalize_hotword_bucket(&ranked_hotword.hotword.category) {
-                "person" if person_count < profile.person_limit => {
+                "person" => {
                     Self::merge_hotword_entry(
                         &mut injection.person_names,
                         &mut seen_person,
                         &ranked_hotword.hotword.target,
-                        &aliases,
+                        &[],
                     );
-                    person_count += 1;
                 }
-                "product" if product_count < profile.product_limit => {
+                "product" => {
                     Self::merge_hotword_entry(
                         &mut injection.product_names,
                         &mut seen_product,
                         &ranked_hotword.hotword.target,
-                        &aliases,
+                        &[],
                     );
-                    product_count += 1;
                 }
-                "domain" if domain_count < profile.domain_limit => {
+                "domain" => {
                     Self::merge_hotword_entry(
                         &mut injection.domain_terms,
                         &mut seen_domain,
                         &ranked_hotword.hotword.target,
-                        &aliases,
+                        &[],
                     );
-                    domain_count += 1;
                 }
-                _ if hotword_count < profile.hotword_limit => {
+                _ => {
                     Self::merge_hotword_entry(
                         &mut injection.hotwords,
                         &mut seen_hotword,
                         &ranked_hotword.hotword.target,
-                        &aliases,
+                        &[],
                     );
-                    hotword_count += 1;
                 }
-                _ => {}
             }
         }
 
         injection
     }
 
-    fn render_ranked_term_reference(
-        &self,
-        ranked: &[RankedHotword],
-        profile: InjectionProfile,
-        contexts: &[HotwordContext<'_>],
-    ) -> String {
-        let injection = self.build_injection_from_ranked(ranked, profile, contexts);
-        let mut sections = Vec::new();
+    fn render_ranked_term_reference(&self, ranked: &[RankedHotword]) -> String {
+        let injection = self.build_injection_from_ranked(ranked);
+        let summary = Self::summarize_injection(&injection);
 
-        if let Some(section) = Self::render_group_section("人名类热词", &injection.person_names)
-        {
-            sections.push(section);
-        }
-        if let Some(section) =
-            Self::render_group_section("产品品牌类热词", &injection.product_names)
-        {
-            sections.push(section);
-        }
-        if let Some(section) = Self::render_group_section("术语缩写类热词", &injection.domain_terms)
-        {
-            sections.push(section);
-        }
-        if let Some(section) = Self::render_group_section("其他热词", &injection.hotwords) {
-            sections.push(section);
-        }
-
-        if sections.is_empty() {
+        if summary == "(none)" {
             "(none)".to_string()
         } else {
-            sections.join("\n\n")
+            format!("[热词 reference]\n{}", summary)
         }
     }
 
@@ -1177,8 +1030,7 @@ impl HotwordManager {
             },
         ];
         let ranked = self.rank_hotwords(scenario, &contexts, app_name)?;
-        let injection =
-            self.build_injection_from_ranked(&ranked, InjectionProfile::prompt(), &contexts);
+        let injection = self.build_injection_from_ranked(&ranked);
 
         debug!(
             "[Hotword] Built contextual injection for scenario {:?}: person={}, product={}, domain={}, hotwords={}",
@@ -1194,7 +1046,8 @@ impl HotwordManager {
 
     #[allow(dead_code)]
     pub fn build_injection(&self, scenario: HotwordScenario) -> Result<HotwordInjection> {
-        self.build_contextual_injection(scenario, "", "", None)
+        let ranked = self.rank_hotwords(scenario, &[], None)?;
+        Ok(self.build_injection_from_ranked(&ranked))
     }
 
     /// Build a compact ranked term reference for rewrite prompts.
@@ -1216,8 +1069,7 @@ impl HotwordManager {
             },
         ];
         let ranked = self.rank_hotwords(scenario, &contexts, app_name)?;
-        let reference =
-            self.render_ranked_term_reference(&ranked, InjectionProfile::rewrite(), &contexts);
+        let reference = self.render_ranked_term_reference(&ranked);
 
         debug!(
             "[Hotword] Built ranked term reference for scenario {:?}: len={}",
@@ -1938,13 +1790,13 @@ mod tests {
 
         let first_entry = reference
             .lines()
-            .find(|line| line.starts_with("- "))
+            .find(|line| line.contains("ContextualManual"))
             .expect("first entry");
 
         assert!(first_entry.contains("ContextualManual"));
         assert!(reference.contains("ContextualManual"));
-        assert!(reference.contains("ctx manual"));
-        assert!(!reference.contains("FrequentNoise"));
+        assert!(reference.contains("术语缩写类热词"));
+        assert!(reference.contains("FrequentNoise"));
     }
 
     #[test]
@@ -1984,10 +1836,9 @@ mod tests {
             .expect("build ranked term reference");
 
         assert!(reference.contains("VotypePro"));
-        assert!(reference.contains("vo type"));
-        assert!(reference.contains("vtype"));
-        assert!(!reference.contains("votypeee"));
-        assert!(!reference.contains("Noise1"));
+        assert!(!reference.contains("vo type"));
+        assert!(!reference.contains("vtype"));
+        assert!(reference.contains("Noise1"));
     }
 
     #[test]
@@ -2028,9 +1879,73 @@ mod tests {
             .collect();
 
         assert!(rendered.iter().any(|entry| entry.contains("GSON")));
-        assert!(rendered
+        assert!(rendered.iter().any(|entry| entry.contains("NoiseHotword")));
+        assert!(!rendered
             .iter()
             .any(|entry| entry.contains("Jason") || entry.contains("GASON")));
-        assert!(!rendered.iter().any(|entry| entry.contains("NoiseHotword")));
+    }
+
+    #[test]
+    fn test_build_injection_keeps_zero_count_manual_hotwords() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', 'term', '[\"work\"]', 0.5, 1, 0, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params!["ZeroCountTerm"],
+        )
+        .expect("insert zero-count hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let injection = manager
+            .build_injection(HotwordScenario::Work)
+            .expect("build injection");
+
+        let rendered: Vec<String> = injection
+            .person_names
+            .iter()
+            .chain(injection.product_names.iter())
+            .chain(injection.domain_terms.iter())
+            .chain(injection.hotwords.iter())
+            .map(HotwordManager::format_hotword_entry)
+            .collect();
+
+        assert!(rendered.iter().any(|entry| entry == "ZeroCountTerm"));
+    }
+
+    #[test]
+    fn test_summarize_injection_uses_grouped_single_line_sections() {
+        let summary = HotwordManager::summarize_injection(&HotwordInjection {
+            person_names: vec![
+                HotwordEntry {
+                    target: "Matt".to_string(),
+                    aliases: vec![],
+                },
+                HotwordEntry {
+                    target: "Nate".to_string(),
+                    aliases: vec![],
+                },
+            ],
+            product_names: vec![HotwordEntry {
+                target: "Votype".to_string(),
+                aliases: vec![],
+            }],
+            domain_terms: vec![HotwordEntry {
+                target: "ASR".to_string(),
+                aliases: vec![],
+            }],
+            hotwords: vec![HotwordEntry {
+                target: "悬浮窗".to_string(),
+                aliases: vec![],
+            }],
+        });
+
+        assert!(summary.contains("人名类热词：Matt、Nate"));
+        assert!(summary.contains("产品品牌类热词：Votype"));
+        assert!(summary.contains("术语缩写类热词：ASR"));
+        assert!(summary.contains("其他热词：悬浮窗"));
     }
 }
