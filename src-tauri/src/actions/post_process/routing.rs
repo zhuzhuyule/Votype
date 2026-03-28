@@ -228,7 +228,12 @@ pub(super) async fn execute_default_polish<'a>(
             let hotword_manager = crate::managers::hotword::HotwordManager::new(hm.db_path.clone());
             let scenario = super::pipeline::detect_scenario(&app_name);
             let effective_scenario = scenario.unwrap_or(crate::settings::HotwordScenario::Work);
-            match hotword_manager.build_injection(effective_scenario) {
+            match hotword_manager.build_contextual_injection(
+                effective_scenario,
+                transcription,
+                transcription,
+                app_name.as_deref(),
+            ) {
                 Ok(injection)
                     if !(injection.person_names.is_empty()
                         && injection.product_names.is_empty()

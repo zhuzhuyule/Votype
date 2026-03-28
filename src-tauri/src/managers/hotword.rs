@@ -7,6 +7,7 @@ use anyhow::Result;
 use chrono::Utc;
 use log::{debug, error, info, warn};
 use rusqlite::{params, Connection};
+use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::path::PathBuf;
 
@@ -27,6 +28,67 @@ const TECHNICAL_SUFFIXES: &[&str] = &[
     "Provider",
 ];
 
+fn parse_json_or_default<T>(value: Option<String>) -> T
+where
+    T: DeserializeOwned + Default,
+{
+    value
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn serialize_json<T: Serialize>(value: &T) -> Result<String> {
+    Ok(serde_json::to_string(value)?)
+}
+
+fn detect_scenario_from_app_name(app_name: Option<&str>) -> Option<HotwordScenario> {
+    let work_apps = [
+        "Code", "VSCode", "Cursor", "Terminal", "iTerm", "Slack", "Notion", "Figma", "Xcode",
+        "IntelliJ",
+    ];
+    let casual_apps = ["WeChat", "Messages", "Telegram", "WhatsApp", "Discord"];
+
+    let name = app_name?;
+    for app in work_apps {
+        if name.contains(app) {
+            return Some(HotwordScenario::Work);
+        }
+    }
+    for app in casual_apps {
+        if name.contains(app) {
+            return Some(HotwordScenario::Casual);
+        }
+    }
+    None
+}
+
+fn count_hotword_occurrences(text: &str, target: &str) -> usize {
+    let text = text.trim();
+    let target = target.trim();
+    if text.is_empty() || target.is_empty() {
+        return 0;
+    }
+
+    if target
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_')
+    {
+        let pattern = format!(r"(?i)\b{}\b", regex::escape(target));
+        return regex::Regex::new(&pattern)
+            .map(|re| re.find_iter(text).count())
+            .unwrap_or(0);
+    }
+
+    if target.is_ascii() {
+        let pattern = format!(r"(?i){}", regex::escape(target));
+        return regex::Regex::new(&pattern)
+            .map(|re| re.find_iter(text).count())
+            .unwrap_or(0);
+    }
+
+    text.match_indices(target).count()
+}
+
 /// Manages hotword vocabulary for transcription enhancement
 pub struct HotwordManager {
     db_path: PathBuf,
@@ -44,6 +106,53 @@ pub struct HotwordInjection {
 pub struct HotwordEntry {
     pub target: String,
     pub aliases: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct HotwordContext<'a> {
+    text: &'a str,
+    weight: i64,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct InjectionProfile {
+    person_limit: usize,
+    product_limit: usize,
+    domain_limit: usize,
+    hotword_limit: usize,
+    alias_limit: usize,
+    alias_threshold: i64,
+}
+
+impl InjectionProfile {
+    fn prompt() -> Self {
+        Self {
+            person_limit: 3,
+            product_limit: 3,
+            domain_limit: 5,
+            hotword_limit: 3,
+            alias_limit: 1,
+            alias_threshold: 200,
+        }
+    }
+
+    fn rewrite() -> Self {
+        Self {
+            person_limit: 2,
+            product_limit: 2,
+            domain_limit: 4,
+            hotword_limit: 2,
+            alias_limit: 2,
+            alias_threshold: 240,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct RankedHotword {
+    hotword: Hotword,
+    score: i64,
+    relevance_score: i64,
 }
 
 impl HotwordManager {
@@ -110,6 +219,14 @@ impl HotwordManager {
         let scenarios_json: String = row.get("scenarios")?;
         let status: String = row.get("status").unwrap_or_else(|_| "active".to_string());
         let source: String = row.get("source").unwrap_or_else(|_| "manual".to_string());
+        let app_usage_stats = row
+            .get::<_, Option<String>>("app_usage_stats")
+            .ok()
+            .flatten();
+        let scenario_usage_stats = row
+            .get::<_, Option<String>>("scenario_usage_stats")
+            .ok()
+            .flatten();
 
         Ok(Hotword {
             id: row.get("id")?,
@@ -119,6 +236,9 @@ impl HotwordManager {
             scenarios: serde_json::from_str(&scenarios_json).unwrap_or_default(),
             user_override: row.get("user_override")?,
             use_count: row.get("use_count")?,
+            recent_use_count: row.get("recent_use_count").unwrap_or(0),
+            app_usage_stats: parse_json_or_default(app_usage_stats),
+            scenario_usage_stats: parse_json_or_default(scenario_usage_stats),
             last_used_at: row.get("last_used_at")?,
             false_positive_count: row.get("false_positive_count")?,
             created_at: row.get("created_at")?,
@@ -127,13 +247,14 @@ impl HotwordManager {
         })
     }
 
-    /// Get all hotwords from the database (both active and suggested)
-    pub fn get_all(&self) -> Result<Vec<Hotword>> {
+    /// Get all hotwords from the database, including usage telemetry fields.
+    pub fn get_all_with_usage_stats(&self) -> Result<Vec<Hotword>> {
         let conn = self.get_connection()?;
 
         let mut stmt = conn.prepare(
             "SELECT id, target, originals, category, scenarios,
-                    user_override, use_count, last_used_at, false_positive_count, created_at, status, source
+                    user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats,
+                    last_used_at, false_positive_count, created_at, status, source
              FROM hotwords
              ORDER BY use_count DESC, created_at DESC",
         )?;
@@ -147,6 +268,11 @@ impl HotwordManager {
 
         debug!("[Hotword] Retrieved {} hotwords", hotwords.len());
         Ok(hotwords)
+    }
+
+    /// Get all hotwords from the database (both active and suggested).
+    pub fn get_all(&self) -> Result<Vec<Hotword>> {
+        self.get_all_with_usage_stats()
     }
 
     /// Get hotwords filtered by scenario
@@ -177,14 +303,31 @@ impl HotwordManager {
         let now = Utc::now().timestamp();
 
         // Case-insensitive duplicate check
-        let existing: Option<(i64, String, String, String, String, bool, i64, Option<i64>, i64, i64, String, String)> = conn
+        let existing: Option<(
+            i64,
+            String,
+            String,
+            String,
+            String,
+            bool,
+            i64,
+            i64,
+            String,
+            String,
+            Option<i64>,
+            i64,
+            i64,
+            String,
+            String,
+        )> = conn
             .query_row(
-                "SELECT id, target, originals, category, scenarios, user_override, use_count, last_used_at, false_positive_count, created_at, status, source FROM hotwords WHERE LOWER(target) = LOWER(?1)",
+                "SELECT id, target, originals, category, scenarios, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, last_used_at, false_positive_count, created_at, status, source FROM hotwords WHERE LOWER(target) = LOWER(?1)",
                 params![target],
                 |row| Ok((
                     row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
                     row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?,
                     row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?,
+                    row.get(12)?, row.get(13)?, row.get(14)?,
                 )),
             )
             .ok();
@@ -197,6 +340,9 @@ impl HotwordManager {
             existing_scenarios_json,
             existing_user_override,
             existing_use_count,
+            existing_recent_use_count,
+            existing_app_usage_stats_json,
+            existing_scenario_usage_stats_json,
             existing_last_used_at,
             existing_fp_count,
             existing_created_at,
@@ -234,6 +380,11 @@ impl HotwordManager {
                 scenarios: existing_scenarios,
                 user_override: existing_user_override,
                 use_count: existing_use_count,
+                recent_use_count: existing_recent_use_count,
+                app_usage_stats: parse_json_or_default(Some(existing_app_usage_stats_json)),
+                scenario_usage_stats: parse_json_or_default(Some(
+                    existing_scenario_usage_stats_json,
+                )),
                 last_used_at: existing_last_used_at,
                 false_positive_count: existing_fp_count,
                 created_at: existing_created_at,
@@ -283,6 +434,9 @@ impl HotwordManager {
             scenarios: final_scenarios,
             user_override,
             use_count: 0,
+            recent_use_count: 0,
+            app_usage_stats: HashMap::new(),
+            scenario_usage_stats: HashMap::new(),
             last_used_at: None,
             false_positive_count: 0,
             created_at: now,
@@ -340,12 +494,93 @@ impl HotwordManager {
         let now = Utc::now().timestamp();
 
         conn.execute(
-            "UPDATE hotwords SET use_count = use_count + 1, last_used_at = ?1 WHERE id = ?2",
+            "UPDATE hotwords SET use_count = use_count + 1, recent_use_count = recent_use_count + 1, last_used_at = ?1 WHERE id = ?2",
             params![now, id],
         )?;
 
         debug!("[Hotword] Incremented use count for hotword id={}", id);
         Ok(())
+    }
+
+    /// Record hotword hits from a finalized output text.
+    ///
+    /// This is intended for final landing text only, not raw ASR fragments.
+    /// The caller is responsible for invoking it once per finalized output.
+    pub fn record_final_output_usage(
+        &self,
+        finalized_text: &str,
+        app_name: Option<&str>,
+    ) -> Result<usize> {
+        let finalized_text = finalized_text.trim();
+        if finalized_text.is_empty() {
+            return Ok(0);
+        }
+
+        let resolved_scenario =
+            detect_scenario_from_app_name(app_name).unwrap_or(HotwordScenario::Work);
+        let app_name = app_name.map(str::trim).filter(|name| !name.is_empty());
+        let now = Utc::now().timestamp();
+        let mut total_hits = 0usize;
+
+        let hotwords: Vec<Hotword> = self
+            .get_all_with_usage_stats()?
+            .into_iter()
+            .filter(|hotword| hotword.status == "active")
+            .collect();
+
+        if hotwords.is_empty() {
+            return Ok(0);
+        }
+
+        let conn = self.get_connection()?;
+
+        for hotword in hotwords {
+            let hit_count = count_hotword_occurrences(finalized_text, &hotword.target);
+            if hit_count == 0 {
+                continue;
+            }
+
+            let mut app_usage_stats = hotword.app_usage_stats.clone();
+            if let Some(app_name) = app_name {
+                *app_usage_stats.entry(app_name.to_string()).or_insert(0) += hit_count as i64;
+            }
+
+            let mut scenario_usage_stats = hotword.scenario_usage_stats.clone();
+            *scenario_usage_stats.entry(resolved_scenario).or_insert(0) += hit_count as i64;
+
+            conn.execute(
+                "UPDATE hotwords
+                 SET use_count = use_count + ?1,
+                     recent_use_count = recent_use_count + ?1,
+                     last_used_at = ?2,
+                     app_usage_stats = ?3,
+                     scenario_usage_stats = ?4
+                 WHERE id = ?5",
+                params![
+                    hit_count as i64,
+                    now,
+                    serialize_json(&app_usage_stats)?,
+                    serialize_json(&scenario_usage_stats)?,
+                    hotword.id
+                ],
+            )?;
+
+            total_hits += hit_count;
+        }
+
+        if total_hits > 0 {
+            info!(
+                "[Hotword] Recorded {} final-output hotword hit(s) for app={:?} scenario={:?}",
+                total_hits, app_name, resolved_scenario
+            );
+        } else {
+            debug!(
+                "[Hotword] No final-output hotword hits found for app={:?} scenario={:?}",
+                app_name, resolved_scenario
+            );
+        }
+
+        Ok(total_hits)
     }
 
     /// Increment false positive count for a hotword
@@ -512,6 +747,370 @@ impl HotwordManager {
         }
     }
 
+    fn hotword_source_score(source: &str) -> i64 {
+        match source {
+            "manual" => 180,
+            "auto_learned" => 120,
+            "ai_extracted" => 80,
+            _ => 0,
+        }
+    }
+
+    fn telemetry_score(
+        hotword: &Hotword,
+        app_name: Option<&str>,
+        scenario: HotwordScenario,
+    ) -> i64 {
+        let app_name = app_name.map(str::trim).filter(|name| !name.is_empty());
+        let recent_score = hotword.recent_use_count.min(6) * 12;
+        let use_score = ((hotword.use_count as f64).sqrt() * 8.0).round() as i64;
+        let app_score = app_name
+            .and_then(|name| hotword.app_usage_stats.get(name))
+            .copied()
+            .unwrap_or(0)
+            .min(4)
+            * 20;
+        let scenario_score = hotword
+            .scenario_usage_stats
+            .get(&scenario)
+            .copied()
+            .unwrap_or(0)
+            .min(4)
+            * 16;
+        let false_positive_penalty = hotword.false_positive_count.min(4) * 45;
+
+        Self::hotword_source_score(&hotword.source)
+            + if hotword.user_override { 30 } else { 0 }
+            + recent_score
+            + use_score
+            + app_score
+            + scenario_score
+            - false_positive_penalty
+    }
+
+    fn score_contextual_relevance(hotword: &Hotword, contexts: &[HotwordContext<'_>]) -> i64 {
+        if contexts.is_empty() {
+            return 0;
+        }
+
+        let mut total = 0;
+        let mut matched_contexts = 0;
+
+        for context in contexts {
+            let text = context.text.trim();
+            if text.is_empty() || context.weight <= 0 {
+                continue;
+            }
+
+            let mut context_score = 0;
+            if count_hotword_occurrences(text, &hotword.target) > 0 {
+                context_score += 120 * context.weight;
+            }
+
+            for alias in &hotword.originals {
+                let alias = alias.trim();
+                if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
+                    continue;
+                }
+                if count_hotword_occurrences(text, alias) > 0 {
+                    context_score += 80 * context.weight;
+                }
+            }
+
+            if context_score > 0 {
+                matched_contexts += 1;
+                total += context_score;
+            }
+        }
+
+        if matched_contexts >= 2 {
+            total += 60;
+        }
+
+        total
+    }
+
+    fn rank_hotwords(
+        &self,
+        scenario: HotwordScenario,
+        contexts: &[HotwordContext<'_>],
+        app_name: Option<&str>,
+    ) -> Result<Vec<RankedHotword>> {
+        let mut ranked: Vec<RankedHotword> = self
+            .get_by_scenario(scenario)?
+            .into_iter()
+            .filter(|hotword| hotword.status == "active")
+            .map(|hotword| {
+                let relevance_score = Self::score_contextual_relevance(&hotword, contexts);
+                let telemetry_score = Self::telemetry_score(&hotword, app_name, scenario);
+                let score = relevance_score + telemetry_score;
+                RankedHotword {
+                    hotword,
+                    score,
+                    relevance_score,
+                }
+            })
+            .collect();
+
+        ranked.sort_by(|a, b| {
+            b.score
+                .cmp(&a.score)
+                .then_with(|| b.relevance_score.cmp(&a.relevance_score))
+                .then_with(|| {
+                    Self::hotword_source_score(&b.hotword.source)
+                        .cmp(&Self::hotword_source_score(&a.hotword.source))
+                })
+                .then_with(|| b.hotword.recent_use_count.cmp(&a.hotword.recent_use_count))
+                .then_with(|| b.hotword.use_count.cmp(&a.hotword.use_count))
+                .then_with(|| {
+                    a.hotword
+                        .false_positive_count
+                        .cmp(&b.hotword.false_positive_count)
+                })
+                .then_with(|| b.hotword.created_at.cmp(&a.hotword.created_at))
+                .then_with(|| a.hotword.target.cmp(&b.hotword.target))
+        });
+
+        debug!(
+            "[Hotword] Ranked {} hotwords for scenario {:?} (contexts={})",
+            ranked.len(),
+            scenario,
+            contexts.len()
+        );
+
+        Ok(ranked)
+    }
+
+    fn alias_limit_for_score(score: i64, profile: &InjectionProfile) -> usize {
+        if score >= profile.alias_threshold {
+            profile.alias_limit
+        } else {
+            0
+        }
+    }
+
+    fn select_aliases_for_display(
+        hotword: &Hotword,
+        contexts: &[HotwordContext<'_>],
+        alias_limit: usize,
+    ) -> Vec<String> {
+        if alias_limit == 0 {
+            return Vec::new();
+        }
+
+        let mut scored_aliases: Vec<(i64, usize, String)> = hotword
+            .originals
+            .iter()
+            .enumerate()
+            .filter_map(|(index, alias)| {
+                let alias = alias.trim();
+                if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
+                    return None;
+                }
+
+                let score = contexts.iter().fold(0, |acc, context| {
+                    if count_hotword_occurrences(context.text, alias) > 0 {
+                        acc + context.weight
+                    } else {
+                        acc
+                    }
+                });
+
+                Some((score, index, alias.to_string()))
+            })
+            .collect();
+
+        scored_aliases.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.cmp(&b.1)));
+
+        let mut selected: Vec<String> = scored_aliases
+            .iter()
+            .filter(|(score, _, _)| *score > 0)
+            .take(alias_limit)
+            .map(|(_, _, alias)| alias.clone())
+            .collect();
+
+        if selected.is_empty() {
+            selected = hotword
+                .originals
+                .iter()
+                .filter_map(|alias| {
+                    let alias = alias.trim();
+                    if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
+                        None
+                    } else {
+                        Some(alias.to_string())
+                    }
+                })
+                .take(alias_limit)
+                .collect();
+        } else if selected.len() < alias_limit {
+            for alias in hotword.originals.iter().filter_map(|alias| {
+                let alias = alias.trim();
+                if alias.is_empty() || alias.eq_ignore_ascii_case(&hotword.target) {
+                    None
+                } else {
+                    Some(alias.to_string())
+                }
+            }) {
+                if selected.len() >= alias_limit {
+                    break;
+                }
+                if !selected
+                    .iter()
+                    .any(|existing| existing.eq_ignore_ascii_case(&alias))
+                {
+                    selected.push(alias);
+                }
+            }
+        }
+
+        selected
+    }
+
+    fn format_hotword_entry(entry: &HotwordEntry) -> String {
+        if entry.aliases.is_empty() {
+            entry.target.clone()
+        } else {
+            format!(
+                "{}（常见误识别：{}）",
+                entry.target,
+                entry.aliases.join("、")
+            )
+        }
+    }
+
+    fn render_group_section(title: &str, entries: &[HotwordEntry]) -> Option<String> {
+        if entries.is_empty() {
+            return None;
+        }
+
+        Some(format!(
+            "[{}]\n- {}",
+            title,
+            entries
+                .iter()
+                .map(Self::format_hotword_entry)
+                .collect::<Vec<_>>()
+                .join("\n- ")
+        ))
+    }
+
+    fn build_injection_from_ranked(
+        &self,
+        ranked: &[RankedHotword],
+        profile: InjectionProfile,
+        contexts: &[HotwordContext<'_>],
+    ) -> HotwordInjection {
+        let has_context = contexts
+            .iter()
+            .any(|context| context.weight > 0 && !context.text.trim().is_empty());
+        let mut injection = HotwordInjection::default();
+        let mut seen_person = HashMap::new();
+        let mut seen_product = HashMap::new();
+        let mut seen_domain = HashMap::new();
+        let mut seen_hotword = HashMap::new();
+
+        let mut person_count = 0usize;
+        let mut product_count = 0usize;
+        let mut domain_count = 0usize;
+        let mut hotword_count = 0usize;
+
+        for ranked_hotword in ranked {
+            if ranked_hotword.score <= 0 {
+                continue;
+            }
+            if has_context
+                && ranked_hotword.relevance_score <= 0
+                && !ranked_hotword.hotword.user_override
+                && !matches!(
+                    ranked_hotword.hotword.source.as_str(),
+                    "manual" | "auto_learned"
+                )
+            {
+                continue;
+            }
+
+            let alias_limit = Self::alias_limit_for_score(ranked_hotword.score, &profile);
+            let aliases =
+                Self::select_aliases_for_display(&ranked_hotword.hotword, contexts, alias_limit);
+
+            match Self::normalize_hotword_bucket(&ranked_hotword.hotword.category) {
+                "person" if person_count < profile.person_limit => {
+                    Self::merge_hotword_entry(
+                        &mut injection.person_names,
+                        &mut seen_person,
+                        &ranked_hotword.hotword.target,
+                        &aliases,
+                    );
+                    person_count += 1;
+                }
+                "product" if product_count < profile.product_limit => {
+                    Self::merge_hotword_entry(
+                        &mut injection.product_names,
+                        &mut seen_product,
+                        &ranked_hotword.hotword.target,
+                        &aliases,
+                    );
+                    product_count += 1;
+                }
+                "domain" if domain_count < profile.domain_limit => {
+                    Self::merge_hotword_entry(
+                        &mut injection.domain_terms,
+                        &mut seen_domain,
+                        &ranked_hotword.hotword.target,
+                        &aliases,
+                    );
+                    domain_count += 1;
+                }
+                _ if hotword_count < profile.hotword_limit => {
+                    Self::merge_hotword_entry(
+                        &mut injection.hotwords,
+                        &mut seen_hotword,
+                        &ranked_hotword.hotword.target,
+                        &aliases,
+                    );
+                    hotword_count += 1;
+                }
+                _ => {}
+            }
+        }
+
+        injection
+    }
+
+    fn render_ranked_term_reference(
+        &self,
+        ranked: &[RankedHotword],
+        profile: InjectionProfile,
+        contexts: &[HotwordContext<'_>],
+    ) -> String {
+        let injection = self.build_injection_from_ranked(ranked, profile, contexts);
+        let mut sections = Vec::new();
+
+        if let Some(section) = Self::render_group_section("人名类热词", &injection.person_names)
+        {
+            sections.push(section);
+        }
+        if let Some(section) =
+            Self::render_group_section("产品品牌类热词", &injection.product_names)
+        {
+            sections.push(section);
+        }
+        if let Some(section) = Self::render_group_section("术语缩写类热词", &injection.domain_terms)
+        {
+            sections.push(section);
+        }
+        if let Some(section) = Self::render_group_section("其他热词", &injection.hotwords) {
+            sections.push(section);
+        }
+
+        if sections.is_empty() {
+            "(none)".to_string()
+        } else {
+            sections.join("\n\n")
+        }
+    }
+
     fn merge_hotword_entry(
         entries: &mut Vec<HotwordEntry>,
         seen: &mut HashMap<String, usize>,
@@ -559,67 +1158,30 @@ impl HotwordManager {
     }
 
     /// Build structured hotword injection data for a specific scenario.
-    /// Includes all active hotwords, grouped by category using DB-stored metadata.
-    pub fn build_injection(&self, scenario: HotwordScenario) -> Result<HotwordInjection> {
-        let hotwords = self.get_by_scenario(scenario)?;
-        let hotwords: Vec<Hotword> = hotwords
-            .into_iter()
-            .filter(|h| h.status == "active")
-            .collect();
-
-        if hotwords.is_empty() {
-            return Ok(HotwordInjection::default());
-        }
-
-        let categories = self.get_categories().unwrap_or_default();
-        let cat_map: HashMap<String, HotwordCategoryMeta> =
-            categories.into_iter().map(|c| (c.id.clone(), c)).collect();
-
-        let mut grouped_hotwords: Vec<&Hotword> = hotwords.iter().collect();
-        grouped_hotwords.sort_by_key(|h| {
-            cat_map
-                .get(&h.category)
-                .map(|m| m.sort_order)
-                .unwrap_or(999)
-        });
-
-        let mut injection = HotwordInjection::default();
-        let mut seen_person = HashMap::new();
-        let mut seen_product = HashMap::new();
-        let mut seen_domain = HashMap::new();
-        let mut seen_hotword = HashMap::new();
-
-        for hotword in grouped_hotwords {
-            match Self::normalize_hotword_bucket(&hotword.category) {
-                "person" => Self::merge_hotword_entry(
-                    &mut injection.person_names,
-                    &mut seen_person,
-                    &hotword.target,
-                    &hotword.originals,
-                ),
-                "product" => Self::merge_hotword_entry(
-                    &mut injection.product_names,
-                    &mut seen_product,
-                    &hotword.target,
-                    &hotword.originals,
-                ),
-                "domain" => Self::merge_hotword_entry(
-                    &mut injection.domain_terms,
-                    &mut seen_domain,
-                    &hotword.target,
-                    &hotword.originals,
-                ),
-                _ => Self::merge_hotword_entry(
-                    &mut injection.hotwords,
-                    &mut seen_hotword,
-                    &hotword.target,
-                    &hotword.originals,
-                ),
-            }
-        }
+    /// Uses ranked hotwords so the prompt stays compact and telemetry-aware.
+    pub fn build_contextual_injection(
+        &self,
+        scenario: HotwordScenario,
+        current_document: &str,
+        spoken_instruction: &str,
+        app_name: Option<&str>,
+    ) -> Result<HotwordInjection> {
+        let contexts = [
+            HotwordContext {
+                text: current_document,
+                weight: 4,
+            },
+            HotwordContext {
+                text: spoken_instruction,
+                weight: 5,
+            },
+        ];
+        let ranked = self.rank_hotwords(scenario, &contexts, app_name)?;
+        let injection =
+            self.build_injection_from_ranked(&ranked, InjectionProfile::prompt(), &contexts);
 
         debug!(
-            "[Hotword] Built structured injection for scenario {:?}: person={}, product={}, domain={}, hotwords={}",
+            "[Hotword] Built contextual injection for scenario {:?}: person={}, product={}, domain={}, hotwords={}",
             scenario,
             injection.person_names.len(),
             injection.product_names.len(),
@@ -628,6 +1190,42 @@ impl HotwordManager {
         );
 
         Ok(injection)
+    }
+
+    #[allow(dead_code)]
+    pub fn build_injection(&self, scenario: HotwordScenario) -> Result<HotwordInjection> {
+        self.build_contextual_injection(scenario, "", "", None)
+    }
+
+    /// Build a compact ranked term reference for rewrite prompts.
+    pub fn build_ranked_term_reference(
+        &self,
+        scenario: HotwordScenario,
+        current_document: &str,
+        spoken_instruction: &str,
+        app_name: Option<&str>,
+    ) -> Result<String> {
+        let contexts = [
+            HotwordContext {
+                text: current_document,
+                weight: 4,
+            },
+            HotwordContext {
+                text: spoken_instruction,
+                weight: 5,
+            },
+        ];
+        let ranked = self.rank_hotwords(scenario, &contexts, app_name)?;
+        let reference =
+            self.render_ranked_term_reference(&ranked, InjectionProfile::rewrite(), &contexts);
+
+        debug!(
+            "[Hotword] Built ranked term reference for scenario {:?}: len={}",
+            scenario,
+            reference.chars().count()
+        );
+
+        Ok(reference)
     }
 
     // ── Auto-learning ────────────────────────────────────────────────────
@@ -778,6 +1376,9 @@ impl HotwordManager {
                     scenarios: vec![HotwordScenario::Work, HotwordScenario::Casual],
                     user_override: false,
                     use_count: 0,
+                    recent_use_count: 0,
+                    app_usage_stats: HashMap::new(),
+                    scenario_usage_stats: HashMap::new(),
                     last_used_at: None,
                     false_positive_count: 0,
                     created_at: now,
@@ -801,7 +1402,8 @@ impl HotwordManager {
 
         let mut stmt = conn.prepare(
             "SELECT id, target, originals, category, scenarios,
-                    user_override, use_count, last_used_at, false_positive_count, created_at, status, source
+                    user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats,
+                    last_used_at, false_positive_count, created_at, status, source
              FROM hotwords
              WHERE status = 'suggested'
              ORDER BY created_at DESC",
@@ -1189,6 +1791,41 @@ fn extract_json_block_standalone(content: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
+
+    fn init_hotword_db(path: &std::path::Path) {
+        let conn = Connection::open(path).expect("open temp db");
+        conn.execute_batch(
+            r#"
+            CREATE TABLE hotwords (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                target TEXT NOT NULL UNIQUE,
+                originals TEXT NOT NULL DEFAULT '[]',
+                category TEXT NOT NULL DEFAULT 'term',
+                scenarios TEXT NOT NULL DEFAULT '["work","casual"]',
+                confidence REAL NOT NULL DEFAULT 0.5,
+                user_override BOOLEAN NOT NULL DEFAULT 0,
+                use_count INTEGER NOT NULL DEFAULT 0,
+                recent_use_count INTEGER NOT NULL DEFAULT 0,
+                app_usage_stats TEXT NOT NULL DEFAULT '{}',
+                scenario_usage_stats TEXT NOT NULL DEFAULT '{}',
+                last_used_at INTEGER,
+                false_positive_count INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                source TEXT NOT NULL DEFAULT 'manual'
+            );
+            "#,
+        )
+        .expect("create hotwords table");
+
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', 'term', '[\"work\",\"casual\"]', 0.5, 0, 0, 0, '{}', '{}', 0, 1, 'active', 'manual')",
+            params!["Votype"],
+        )
+        .expect("insert hotword");
+    }
 
     #[test]
     fn test_infer_category_abbreviation() {
@@ -1237,5 +1874,163 @@ mod tests {
     fn test_infer_category_mixed_case_not_abbreviation() {
         let category = HotwordManager::infer_category("Api");
         assert_ne!(category, "abbreviation");
+    }
+
+    #[test]
+    fn test_record_final_output_usage_updates_telemetry_and_is_readable() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let manager = HotwordManager::new(db_path.clone());
+        let hits = manager
+            .record_final_output_usage("Votype lands twice: Votype.", Some("Code"))
+            .expect("record hotword usage");
+
+        assert_eq!(hits, 2);
+
+        let hotwords = manager
+            .get_all_with_usage_stats()
+            .expect("read hotwords with telemetry");
+        assert_eq!(hotwords.len(), 1);
+
+        let hotword = &hotwords[0];
+        assert_eq!(hotword.target, "Votype");
+        assert_eq!(hotword.use_count, 2);
+        assert_eq!(hotword.recent_use_count, 2);
+        assert_eq!(hotword.app_usage_stats.get("Code"), Some(&2));
+        assert_eq!(
+            hotword.scenario_usage_stats.get(&HotwordScenario::Work),
+            Some(&2)
+        );
+        assert!(hotword.last_used_at.is_some());
+    }
+
+    #[test]
+    fn test_ranked_retrieval_prefers_contextual_manual_over_high_use_count() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, 'term', '[\"work\"]', 0.5, 1, 1, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params!["ContextualManual", serde_json::to_string(&vec!["ctx manual"]).unwrap()],
+        )
+        .expect("insert contextual hotword");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, 'term', '[\"work\"]', 0.5, 0, 120, 10, '{}', '{}', 0, 3, 'active', 'ai_extracted')",
+            params!["FrequentNoise", serde_json::to_string(&vec!["freq noise"]).unwrap()],
+        )
+        .expect("insert noisy hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let reference = manager
+            .build_ranked_term_reference(
+                HotwordScenario::Work,
+                "ContextualManual should be preserved in the document",
+                "please keep contextual manual intact",
+                None,
+            )
+            .expect("build ranked term reference");
+
+        let first_entry = reference
+            .lines()
+            .find(|line| line.starts_with("- "))
+            .expect("first entry");
+
+        assert!(first_entry.contains("ContextualManual"));
+        assert!(reference.contains("ContextualManual"));
+        assert!(reference.contains("ctx manual"));
+        assert!(!reference.contains("FrequentNoise"));
+    }
+
+    #[test]
+    fn test_ranked_injection_keeps_only_a_small_number_of_aliases_and_noise_terms() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, 'term', '[\"work\"]', 0.5, 1, 20, 6, '{}', '{}', 0, 2, 'active', 'manual')",
+            params![
+                "VotypePro",
+                serde_json::to_string(&vec!["vo type", "vtype", "votypeee"]).unwrap()
+            ],
+        )
+        .expect("insert hotword with aliases");
+
+        for idx in 0..6 {
+            conn.execute(
+                "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+                 VALUES (?1, '[]', 'term', '[\"work\"]', 0.5, 0, 0, 0, '{}', '{}', 0, ?2, 'active', 'ai_extracted')",
+                params![format!("Noise{}", idx + 1), 10 + idx as i64],
+            )
+            .expect("insert noise hotword");
+        }
+
+        let manager = HotwordManager::new(db_path);
+        let reference = manager
+            .build_ranked_term_reference(
+                HotwordScenario::Work,
+                "The document mentions VotypePro directly",
+                "please keep vo type and vtype in the output",
+                None,
+            )
+            .expect("build ranked term reference");
+
+        assert!(reference.contains("VotypePro"));
+        assert!(reference.contains("vo type"));
+        assert!(reference.contains("vtype"));
+        assert!(!reference.contains("votypeee"));
+        assert!(!reference.contains("Noise1"));
+    }
+
+    #[test]
+    fn test_contextual_injection_prefers_document_and_instruction_matches() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, 'term', '[\"work\"]', 0.5, 1, 2, 1, '{}', '{}', 0, 2, 'active', 'manual')",
+            params!["GSON", serde_json::to_string(&vec!["Jason", "GASON"]).unwrap()],
+        )
+        .expect("insert contextual hotword");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', 'term', '[\"work\"]', 0.5, 0, 80, 10, '{}', '{}', 0, 3, 'active', 'ai_extracted')",
+            params!["NoiseHotword"],
+        )
+        .expect("insert noisy hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let injection = manager
+            .build_contextual_injection(
+                HotwordScenario::Work,
+                "当前文稿里已经提到 Jason 这个术语",
+                "请把 GASON 改成 GSON",
+                Some("Code"),
+            )
+            .expect("build contextual injection");
+
+        let rendered: Vec<String> = injection
+            .domain_terms
+            .iter()
+            .chain(injection.hotwords.iter())
+            .map(HotwordManager::format_hotword_entry)
+            .collect();
+
+        assert!(rendered.iter().any(|entry| entry.contains("GSON")));
+        assert!(rendered
+            .iter()
+            .any(|entry| entry.contains("Jason") || entry.contains("GASON")));
+        assert!(!rendered.iter().any(|entry| entry.contains("NoiseHotword")));
     }
 }

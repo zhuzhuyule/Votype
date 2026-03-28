@@ -324,6 +324,13 @@ static MIGRATIONS: &[M] = &[
         INSERT OR IGNORE INTO hotword_categories VALUES ('brand', '品牌', 'blue', 'IconBuildingStore', 2, 1, strftime('%s','now'));
         INSERT OR IGNORE INTO hotword_categories VALUES ('abbreviation', '缩写', 'purple', 'IconAbc', 3, 1, strftime('%s','now'));",
     ),
+    // Migration 29: Add hotword telemetry for final-output usage tracking
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN recent_use_count INTEGER NOT NULL DEFAULT 0;
+         ALTER TABLE hotwords ADD COLUMN app_usage_stats TEXT NOT NULL DEFAULT '{}';
+         ALTER TABLE hotwords ADD COLUMN scenario_usage_stats TEXT NOT NULL DEFAULT '{}';
+         CREATE INDEX IF NOT EXISTS idx_hotwords_recent_use_count ON hotwords(recent_use_count DESC);",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -864,6 +871,29 @@ impl HistoryManager {
         Ok(id)
     }
 
+    fn record_final_hotword_usage(&self, text: &str, app_name: Option<&str>) {
+        if text.trim().is_empty() {
+            return;
+        }
+
+        let hotword_manager = crate::managers::hotword::HotwordManager::new(self.db_path.clone());
+        if let Err(e) = hotword_manager.record_final_output_usage(text, app_name) {
+            error!("[History] Failed to record final hotword usage: {}", e);
+        }
+    }
+
+    fn should_record_final_hotword_usage(original_text: Option<&str>, new_text: &str) -> bool {
+        let new_text = new_text.trim();
+        if new_text.is_empty() {
+            return false;
+        }
+
+        match original_text.map(str::trim) {
+            Some(original) => original != new_text,
+            None => true,
+        }
+    }
+
     #[allow(dead_code)]
     pub async fn update_reviewed_text(
         &self,
@@ -874,6 +904,13 @@ impl HistoryManager {
     ) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;
+        let app_name: Option<String> = conn
+            .query_row(
+                "SELECT app_name FROM transcription_history WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .ok();
 
         // Get the old corrected_char_count to calculate delta for global stats
         let old_corrected_char_count: i64 = conn
@@ -900,12 +937,12 @@ impl HistoryManager {
         // Selecting a model output / inserting original / inserting translation
         // should update history but must not be treated as a correction-learning event.
         if learn_from_edit {
-            if let Some(original) = original_text_opt {
+            if let Some(ref original) = original_text_opt {
                 use crate::managers::hotword::HotwordManager;
                 use crate::managers::vocabulary::VocabularyManager;
                 use crate::phonetic_similarity::calculate_phonetic_similarity;
 
-                let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
+                let diffs = VocabularyManager::analyze_edit_diff(original, &post_processed_text);
                 if !diffs.is_empty() {
                     let vocab_manager = VocabularyManager::new(self.db_path.clone());
 
@@ -963,6 +1000,13 @@ impl HistoryManager {
             error!("Failed to emit history-updated event: {}", e);
         }
 
+        if Self::should_record_final_hotword_usage(
+            original_text_opt.as_deref(),
+            &post_processed_text,
+        ) {
+            self.record_final_hotword_usage(&post_processed_text, app_name.as_deref());
+        }
+
         Ok(())
     }
 
@@ -1012,7 +1056,7 @@ impl HistoryManager {
         field: &str,
         new_text: String,
         step_index: Option<usize>,
-        _app_name: Option<String>,
+        app_name: Option<String>,
     ) -> Result<()> {
         use crate::managers::vocabulary::VocabularyManager;
 
@@ -1118,6 +1162,9 @@ impl HistoryManager {
                 "UPDATE transcription_history SET post_processed_text = ?1, corrected_char_count = ?2 WHERE id = ?3",
                 params![new_text, corrected_char_count, id],
             )?;
+            if Self::should_record_final_hotword_usage(original_text.as_deref(), &new_text) {
+                self.record_final_hotword_usage(&new_text, app_name.as_deref());
+            }
         } else if field == "streaming_text" {
             // For streaming_text, just update the field
             conn.execute(
@@ -1165,6 +1212,9 @@ impl HistoryManager {
                     "UPDATE transcription_history SET post_process_history = ?1, post_processed_text = ?2, corrected_char_count = ?3 WHERE id = ?4",
                     params![history_json, new_text, corrected_char_count, id],
                 )?;
+                if Self::should_record_final_hotword_usage(original_text.as_deref(), &new_text) {
+                    self.record_final_hotword_usage(&new_text, app_name.as_deref());
+                }
             } else {
                 conn.execute(
                     "UPDATE transcription_history SET post_process_history = ?1 WHERE id = ?2",

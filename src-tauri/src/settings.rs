@@ -111,7 +111,7 @@ pub struct HotwordCategoryMeta {
 }
 
 /// Usage scenario for hotwords
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum HotwordScenario {
     /// Work context (meetings, documents, code)
@@ -136,6 +136,12 @@ pub struct Hotword {
     pub user_override: bool,
     /// Usage statistics
     pub use_count: i64,
+    #[serde(default)]
+    pub recent_use_count: i64,
+    #[serde(default)]
+    pub app_usage_stats: HashMap<String, i64>,
+    #[serde(default)]
+    pub scenario_usage_stats: HashMap<HotwordScenario, i64>,
     pub last_used_at: Option<i64>,
     pub false_positive_count: i64,
     pub created_at: i64,
