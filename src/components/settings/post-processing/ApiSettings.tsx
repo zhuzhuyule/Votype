@@ -46,17 +46,9 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const builtinProviders = [
-    "openai",
-    "anthropic",
-    "apple_intelligence",
-    "iflow",
-    "gitee",
-  ];
-  const isSelectedBuiltin = builtinProviders.includes(state.selectedProviderId);
-  const selectedProviderLabel =
-    (state.providerOptions.find((p) => p.value === state.selectedProviderId)
-      ?.label as string) || "";
+  const selectedProviderLabel = state.selectedProvider?.label ?? "";
+  const isSelectedBuiltin = state.selectedProvider?.builtin ?? false;
+  const isSelectedDeletable = state.selectedProvider?.deletable ?? true;
 
   // Update local state when provider changes
   useEffect(() => {
@@ -93,24 +85,17 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   // Find if there's already an empty custom provider (no API key configured)
   const emptyCustomProvider = useMemo(() => {
-    const builtins = [
-      "openai",
-      "anthropic",
-      "apple_intelligence",
-      "iflow",
-      "gitee",
-    ];
-    return state.providerOptions.find((p) => {
-      if (builtins.includes(p.value)) return false;
-      const apiKey = state.apiKeys?.[p.value] ?? "";
+    return state.providers.find((provider) => {
+      if (provider.builtin) return false;
+      const apiKey = state.apiKeys?.[provider.id] ?? "";
       return !apiKey.trim();
     });
-  }, [state.providerOptions, state.apiKeys]);
+  }, [state.providers, state.apiKeys]);
 
   const handleAddProvider = async () => {
     // If there's already an empty custom provider, select it instead of creating a new one
     if (emptyCustomProvider) {
-      state.handleProviderSelect(emptyCustomProvider.value);
+      void state.handleProviderSelect(emptyCustomProvider.id);
       return;
     }
     await addCustomProvider({
@@ -121,14 +106,18 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   // Sort providers: Built-in first
   const sortedOptions = useMemo(() => {
+    const providerMap = new Map(
+      state.providers.map((provider) => [provider.id, provider]),
+    );
+
     return [...state.providerOptions].sort((a, b) => {
-      const aBuiltin = builtinProviders.includes(a.value);
-      const bBuiltin = builtinProviders.includes(b.value);
+      const aBuiltin = providerMap.get(a.value)?.builtin ?? false;
+      const bBuiltin = providerMap.get(b.value)?.builtin ?? false;
       if (aBuiltin && !bBuiltin) return -1;
       if (!aBuiltin && bBuiltin) return 1;
       return 0;
     });
-  }, [state.providerOptions]);
+  }, [state.providerOptions, state.providers]);
 
   return (
     <Card className="p-0! overflow-hidden">
@@ -162,7 +151,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 key={option.value}
                 option={option}
                 isSelected={state.selectedProviderId === option.value}
-                isLocked={builtinProviders.includes(option.value)}
+                isLocked={
+                  state.providers.find(
+                    (provider) => provider.id === option.value,
+                  )?.builtin ?? false
+                }
                 isVerified={state.verifiedProviderIds.has(option.value)}
                 onClick={() => state.handleProviderSelect(option.value)}
                 onActivate={() => state.activateProvider(option.value)}
@@ -178,17 +171,83 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           <Box className="pt-6 px-8 pb-2 shrink-0">
             <Flex justify="between" align="center" width="100%">
               {isSelectedBuiltin ? (
-                <Flex align="center" gap="2">
-                  <Text size="4" weight="bold">
-                    {selectedProviderLabel}
-                  </Text>
-                  <Box
-                    title={t(
-                      "settings.postProcessing.api.provider.builtinTooltip",
-                    )}
-                  >
-                    <IconLock size={16} className="text-gray-400" />
-                  </Box>
+                <Flex align="center" justify="between" width="100%">
+                  <Flex align="center" gap="2">
+                    <Text size="4" weight="bold">
+                      {selectedProviderLabel}
+                    </Text>
+                    <Box
+                      title={t(
+                        "settings.postProcessing.api.provider.builtinTooltip",
+                      )}
+                    >
+                      <IconLock size={16} className="text-gray-400" />
+                    </Box>
+                  </Flex>
+                  {isSelectedDeletable && (
+                    <Dialog.Root
+                      open={showDeleteConfirm}
+                      onOpenChange={setShowDeleteConfirm}
+                    >
+                      <Dialog.Trigger>
+                        <IconButton
+                          variant="ghost"
+                          color="red"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="cursor-pointer ml-2"
+                          title={t(
+                            "settings.postProcessing.api.provider.deleteAction",
+                          )}
+                        >
+                          <IconTrash size={18} />
+                        </IconButton>
+                      </Dialog.Trigger>
+                      <Dialog.Content maxWidth="450px">
+                        <Dialog.Title>
+                          {t(
+                            "settings.postProcessing.api.provider.deleteTitle",
+                          )}
+                        </Dialog.Title>
+                        <Dialog.Description size="2" mb="4">
+                          {t(
+                            "settings.postProcessing.api.provider.deleteConfirmation",
+                            { name: selectedProviderLabel },
+                          )}
+                        </Dialog.Description>
+                        <Flex gap="3" mt="4" justify="end">
+                          <Dialog.Close>
+                            <Button
+                              variant="soft"
+                              color="gray"
+                              className="cursor-pointer"
+                            >
+                              {t("common.cancel")}
+                            </Button>
+                          </Dialog.Close>
+                          <Dialog.Close>
+                            <Button
+                              color="red"
+                              className="cursor-pointer"
+                              onClick={async () => {
+                                const deletedId = state.selectedProviderId;
+                                const fallback = state.providerOptions.find(
+                                  (p) => p.value !== deletedId,
+                                );
+                                if (fallback) {
+                                  void state.handleProviderSelect(
+                                    fallback.value,
+                                  );
+                                }
+                                await removeCustomProvider(deletedId);
+                              }}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </Dialog.Close>
+                        </Flex>
+                      </Dialog.Content>
+                    </Dialog.Root>
+                  )}
                 </Flex>
               ) : (
                 <>

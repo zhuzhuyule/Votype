@@ -6,6 +6,7 @@ import type { ModelOption } from "./types";
 
 export type PostProcessProviderState = {
   enabled: boolean;
+  providers: PostProcessProvider[];
   providerOptions: DropdownOption[];
   selectedProviderId: string;
   selectedProvider: PostProcessProvider | undefined;
@@ -47,14 +48,6 @@ export type PostProcessProviderState = {
 };
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
-
-const BUILTIN_PROVIDER_IDS = [
-  "openai",
-  "anthropic",
-  "apple_intelligence",
-  "iflow",
-  "gitee",
-];
 
 export const usePostProcessProviderState = (): PostProcessProviderState => {
   const {
@@ -319,6 +312,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   return {
     enabled,
+    providers,
     providerOptions,
     selectedProviderId: viewingProviderId, // Keep for compatibility or rename
     activeProviderId,

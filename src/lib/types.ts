@@ -172,8 +172,11 @@ export const PostProcessProviderSchema = z.object({
   id: z.string(),
   label: z.string(),
   base_url: z.string(),
+  builtin: z.boolean().optional().default(false),
+  deletable: z.boolean().optional().default(true),
   allow_base_url_edit: z.boolean().optional().default(false),
   models_endpoint: z.string().nullable().optional(),
+  supports_structured_output: z.boolean().optional().default(false),
   kind: z
     .enum(["openai_compatible", "anthropic"])
     .optional()

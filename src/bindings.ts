@@ -987,7 +987,7 @@ custom_label?: string | null;
  * Whether this item is enabled
  */
 enabled?: boolean }
-export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
+export type PostProcessProvider = { id: string; label: string; base_url: string; builtin?: boolean; deletable?: boolean; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
 /**
  * Custom HTTP headers to include in every request to this provider
  * e.g. {"X-Custom-Auth": "token123"}

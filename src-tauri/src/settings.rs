@@ -211,6 +211,10 @@ pub struct PostProcessProvider {
     pub label: String,
     pub base_url: String,
     #[serde(default)]
+    pub builtin: bool,
+    #[serde(default = "default_true")]
+    pub deletable: bool,
+    #[serde(default)]
     pub allow_base_url_edit: bool,
     #[serde(default)]
     pub models_endpoint: Option<String>,
@@ -942,71 +946,88 @@ fn default_post_process_provider_id() -> String {
     "openai".to_string()
 }
 
+fn builtin_post_process_provider(
+    id: &str,
+    label: &str,
+    base_url: &str,
+    models_endpoint: Option<&str>,
+    supports_structured_output: bool,
+    deletable: bool,
+) -> PostProcessProvider {
+    PostProcessProvider {
+        id: id.to_string(),
+        label: label.to_string(),
+        base_url: base_url.to_string(),
+        builtin: true,
+        deletable,
+        allow_base_url_edit: false,
+        models_endpoint: models_endpoint.map(str::to_string),
+        supports_structured_output,
+        custom_headers: None,
+    }
+}
+
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
     let mut providers = vec![
-        PostProcessProvider {
-            id: "openai".to_string(),
-            label: "OpenAI".to_string(),
-            base_url: "https://api.openai.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-            custom_headers: None,
-        },
-        PostProcessProvider {
-            id: "openrouter".to_string(),
-            label: "OpenRouter".to_string(),
-            base_url: "https://openrouter.ai/api/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-            custom_headers: None,
-        },
-        PostProcessProvider {
-            id: "anthropic".to_string(),
-            label: "Anthropic".to_string(),
-            base_url: "https://api.anthropic.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: false,
-            custom_headers: None,
-        },
+        builtin_post_process_provider(
+            "openai",
+            "OpenAI",
+            "https://api.openai.com/v1",
+            Some("/models"),
+            true,
+            false,
+        ),
+        builtin_post_process_provider(
+            "openrouter",
+            "OpenRouter",
+            "https://openrouter.ai/api/v1",
+            Some("/models"),
+            true,
+            true,
+        ),
+        builtin_post_process_provider(
+            "anthropic",
+            "Anthropic",
+            "https://api.anthropic.com/v1",
+            Some("/models"),
+            false,
+            false,
+        ),
         PostProcessProvider {
             id: "custom".to_string(),
             label: "Custom".to_string(),
             base_url: "http://localhost:11434/v1".to_string(),
+            builtin: true,
+            deletable: false,
             allow_base_url_edit: true,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
             custom_headers: None,
         },
-        PostProcessProvider {
-            id: "iflow".to_string(),
-            label: "iflow".to_string(),
-            base_url: "https://apis.iflow.cn/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: false,
-            custom_headers: None,
-        },
-        PostProcessProvider {
-            id: "gitee".to_string(),
-            label: "Gitee".to_string(),
-            base_url: "https://ai.gitee.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: false,
-            custom_headers: None,
-        },
-        PostProcessProvider {
-            id: "zai".to_string(),
-            label: "Z.AI".to_string(),
-            base_url: "https://api.z.ai/api/paas/v4".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-            supports_structured_output: true,
-            custom_headers: None,
-        },
+        builtin_post_process_provider(
+            "iflow",
+            "iflow",
+            "https://apis.iflow.cn/v1",
+            Some("/models"),
+            false,
+            false,
+        ),
+        builtin_post_process_provider(
+            "gitee",
+            "Gitee",
+            "https://ai.gitee.com/v1",
+            Some("/models"),
+            false,
+            false,
+        ),
+        builtin_post_process_provider(
+            "zai",
+            "Z.AI",
+            "https://api.z.ai/api/paas/v4",
+            Some("/models"),
+            true,
+            true,
+        ),
     ];
 
     // On macOS ARM64, always include Apple Intelligence provider.
@@ -1018,6 +1039,8 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             id: APPLE_INTELLIGENCE_PROVIDER_ID.to_string(),
             label: "Apple Intelligence".to_string(),
             base_url: "apple-intelligence://local".to_string(),
+            builtin: true,
+            deletable: false,
             allow_base_url_edit: false,
             models_endpoint: None,
             supports_structured_output: false,
@@ -1105,28 +1128,44 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
     for provider in default_post_process_providers() {
+        let should_restore_if_missing = provider.builtin && !provider.deletable;
+
         if settings
             .post_process_providers
             .iter()
             .all(|existing| existing.id != provider.id)
+            && should_restore_if_missing
         {
             settings.post_process_providers.push(provider.clone());
             changed = true;
         }
 
-        // Sync supports_structured_output for existing providers
+        // Sync metadata for existing builtin providers.
         if let Some(existing) = settings
             .post_process_providers
             .iter_mut()
             .find(|p| p.id == provider.id)
         {
+            if existing.builtin != provider.builtin {
+                existing.builtin = provider.builtin;
+                changed = true;
+            }
+            if existing.deletable != provider.deletable {
+                existing.deletable = provider.deletable;
+                changed = true;
+            }
             if existing.supports_structured_output != provider.supports_structured_output {
                 existing.supports_structured_output = provider.supports_structured_output;
                 changed = true;
             }
         }
 
-        if !settings.post_process_api_keys.contains_key(&provider.id) {
+        let provider_exists = settings
+            .post_process_providers
+            .iter()
+            .any(|existing| existing.id == provider.id);
+
+        if provider_exists && !settings.post_process_api_keys.contains_key(&provider.id) {
             settings
                 .post_process_api_keys
                 .insert(provider.id.clone(), String::new());
@@ -1134,18 +1173,20 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         }
 
         let default_model = default_model_for_provider(&provider.id);
-        match settings.post_process_models.get_mut(&provider.id) {
-            Some(existing) => {
-                if existing.is_empty() && !default_model.is_empty() {
-                    *existing = default_model.clone();
+        if provider_exists {
+            match settings.post_process_models.get_mut(&provider.id) {
+                Some(existing) => {
+                    if existing.is_empty() && !default_model.is_empty() {
+                        *existing = default_model.clone();
+                        changed = true;
+                    }
+                }
+                None => {
+                    settings
+                        .post_process_models
+                        .insert(provider.id.clone(), default_model);
                     changed = true;
                 }
-            }
-            None => {
-                settings
-                    .post_process_models
-                    .insert(provider.id.clone(), default_model);
-                changed = true;
             }
         }
     }
@@ -1884,5 +1925,44 @@ mod tests {
         let settings = get_default_settings();
         assert!(!settings.auto_submit);
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_restores_required_builtin_provider() {
+        let mut settings = get_default_settings();
+        settings
+            .post_process_providers
+            .retain(|provider| provider.id != "openai");
+
+        let changed = ensure_post_process_defaults(&mut settings);
+
+        assert!(changed);
+        assert!(settings
+            .post_process_providers
+            .iter()
+            .any(|provider| provider.id == "openai"));
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_does_not_restore_deletable_builtin_provider() {
+        let mut settings = get_default_settings();
+        settings
+            .post_process_providers
+            .retain(|provider| provider.id != "openrouter" && provider.id != "zai");
+        settings.post_process_api_keys.remove("openrouter");
+        settings.post_process_api_keys.remove("zai");
+        settings.post_process_models.remove("openrouter");
+        settings.post_process_models.remove("zai");
+
+        ensure_post_process_defaults(&mut settings);
+
+        assert!(settings
+            .post_process_providers
+            .iter()
+            .all(|provider| provider.id != "openrouter" && provider.id != "zai"));
+        assert!(!settings.post_process_api_keys.contains_key("openrouter"));
+        assert!(!settings.post_process_api_keys.contains_key("zai"));
+        assert!(!settings.post_process_models.contains_key("openrouter"));
+        assert!(!settings.post_process_models.contains_key("zai"));
     }
 }

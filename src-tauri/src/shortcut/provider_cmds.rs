@@ -51,6 +51,8 @@ pub fn add_custom_provider(
         id: id.clone(),
         label: label.trim().to_string(),
         base_url: crate::utils::normalize_base_url(&base_url),
+        builtin: false,
+        deletable: true,
         allow_base_url_edit: true,
         models_endpoint,
         supports_structured_output: false,
@@ -93,6 +95,15 @@ pub fn update_custom_provider(
 #[specta::specta]
 pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
+    let provider = settings
+        .post_process_providers
+        .iter()
+        .find(|p| p.id == provider_id)
+        .ok_or("Provider not found")?;
+
+    if provider.builtin && !provider.deletable {
+        return Err("Built-in provider cannot be deleted".to_string());
+    }
 
     // Remove the provider
     settings
