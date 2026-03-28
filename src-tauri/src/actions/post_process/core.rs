@@ -78,7 +78,87 @@ pub(super) fn extract_llm_text(content: &str) -> String {
 pub(super) fn extract_rewrite_response(content: &str) -> Option<super::RewriteResponse> {
     let cleaned = clean_response_content(content);
     let json = extract_json_block(&cleaned).unwrap_or(cleaned);
-    serde_json::from_str::<super::RewriteResponse>(&json).ok()
+    if let Ok(parsed) = serde_json::from_str::<super::RewriteResponse>(&json) {
+        return Some(parsed);
+    }
+
+    salvage_rewrite_response(&json)
+}
+
+fn extract_json_string_field(content: &str, field_name: &str) -> Option<String> {
+    let field_pattern = format!(r#""{}"\s*:\s*""#, regex::escape(field_name));
+    let re = regex::Regex::new(&field_pattern).ok()?;
+    let mat = re.find(content)?;
+    let start = mat.end();
+    let mut escaped = false;
+    let mut result = String::new();
+
+    for ch in content[start..].chars() {
+        if escaped {
+            result.push(match ch {
+                'n' => '\n',
+                'r' => '\r',
+                't' => '\t',
+                '"' => '"',
+                '\\' => '\\',
+                other => other,
+            });
+            escaped = false;
+            continue;
+        }
+
+        match ch {
+            '\\' => escaped = true,
+            '"' => return Some(result),
+            other => result.push(other),
+        }
+    }
+
+    None
+}
+
+fn salvage_rewrite_response(content: &str) -> Option<super::RewriteResponse> {
+    let rewritten_text = extract_json_string_field(content, "rewritten_text")?;
+    let normalized_instruction =
+        extract_json_string_field(content, "normalized_instruction").unwrap_or_default();
+    let operation =
+        extract_json_string_field(content, "operation").unwrap_or_else(|| "rewrite".to_string());
+
+    Some(super::RewriteResponse {
+        normalized_instruction,
+        operation,
+        rewritten_text,
+        changes: Vec::new(),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::extract_rewrite_response;
+
+    #[test]
+    fn test_extract_rewrite_response_salvages_invalid_json_with_rewritten_text() {
+        let raw = r#"{
+"normalized_instruction": "没有 token 消耗，不是头坑。",
+"operation": "rewrite",
+"rewritten_text": "我怎么看着他这块显示的还是之前你给显示的那种内容呢？没有 token 消耗呢？",
+此文稿中“没有头可能消耗呢？”应为“没有 token 消耗呢？”，结合上下文及术语参考中的“usage”“LLM”等词，用户实际想表达的是大模型调用中未显示 token 消耗情况，而非字面“头坑”（ASR 误识别）。",
+"changes": [
+{
+"from": "没有头可能消耗呢？",
+"to": "没有 token 消耗呢？",
+"reason": "根据 spoken_instruction 判断为 ASR 错误"
+}
+]
+}"#;
+
+        let parsed = extract_rewrite_response(raw).expect("should salvage rewritten_text");
+        assert_eq!(parsed.operation, "rewrite");
+        assert_eq!(
+            parsed.rewritten_text,
+            "我怎么看着他这块显示的还是之前你给显示的那种内容呢？没有 token 消耗呢？"
+        );
+    }
 }
 
 pub(crate) fn resolve_prompt_message_role(
