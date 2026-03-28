@@ -463,27 +463,20 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
           {trends && <TrendIndicator value={trends.llmCalls} />}
         </Flex>
         <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
-          {numberFormat.format(summary.llmCalls)}
-        </Heading>
-        <Flex direction="column" gap="0">
-          <Text size="2" className="opacity-60">
-            {t("dashboard.summary.llm.details", {
-              hitRate: `${(summary.llmHitRate * 100).toFixed(1)}%`,
-            })}
+          {summary.totalTokens >= 1_000_000
+            ? `${(summary.totalTokens / 1_000_000).toFixed(1)}M`
+            : summary.totalTokens >= 1_000
+              ? `${(summary.totalTokens / 1_000).toFixed(1)}k`
+              : numberFormat.format(summary.totalTokens)}{" "}
+          <Text size="4" weight="medium" className="opacity-60">
+            tokens
           </Text>
-          {summary.totalTokens > 0 && (
-            <Text size="2" className="opacity-60 tabular-nums">
-              {t("dashboard.summary.llm.tokens", {
-                count:
-                  summary.totalTokens >= 1_000_000
-                    ? `${(summary.totalTokens / 1_000_000).toFixed(1)}M`
-                    : summary.totalTokens >= 1_000
-                      ? `${(summary.totalTokens / 1_000).toFixed(1)}k`
-                      : `${summary.totalTokens}`,
-              })}
-            </Text>
-          )}
-        </Flex>
+        </Heading>
+        <Text size="2" className="opacity-60">
+          {t("dashboard.summary.llm.calls", {
+            count: summary.llmCalls,
+          })}
+        </Text>
       </PremiumCard>
 
       {/* Top Apps Card - Grid */}

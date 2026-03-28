@@ -142,9 +142,8 @@
         "top3": "Top 3"
       },
       "llm": {
-        "details": "Hit rate: {{hitRate}}",
+        "calls": "{{count}} model calls",
         "title": "LLM usage",
-        "tokens": "{{count}} tokens consumed",
         "unknownApp": "Unknown"
       },
       "recording": {
