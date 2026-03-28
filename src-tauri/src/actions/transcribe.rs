@@ -827,6 +827,7 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             // 2. Apply LLM post-processing if enabled
+                            let mut token_count: Option<i64> = None;
                             {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
@@ -1252,6 +1253,7 @@ impl ShortcutAction for TranscribeAction {
                                                 _fb_prompt_id,
                                                 fb_err,
                                                 _fb_error_msg,
+                                                _fb_token_count,
                                             ) = maybe_post_process_transcription(
                                                 &ah_clone,
                                                 &settings_clone,
@@ -1375,30 +1377,37 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
 
-                                let (processed_text, model, prompt_id, err, error_message) =
-                                    maybe_post_process_transcription(
-                                        &ah_clone,
-                                        &settings_clone,
-                                        &chinese_converted_text,
-                                        secondary.as_deref(),
-                                        true,
-                                        override_prompt_id.clone(),
-                                        active_window_snapshot_for_review
-                                            .as_ref()
-                                            .map(|info| info.app_name.clone()),
-                                        active_window_snapshot_for_review
-                                            .as_ref()
-                                            .map(|info| info.title.clone()),
-                                        matched_rule.map(|r| r.pattern.clone()),
-                                        matched_rule.map(|r| r.match_type),
-                                        history_id,
-                                        skill_mode, // Pass skill_mode to control LLM routing
-                                        review_editor_active,
-                                        selected_text.clone(), // Pass captured context for Mode C
-                                        review_document_text.clone(),
-                                    )
-                                    .await;
+                                let (
+                                    processed_text,
+                                    model,
+                                    prompt_id,
+                                    err,
+                                    error_message,
+                                    inner_token_count,
+                                ) = maybe_post_process_transcription(
+                                    &ah_clone,
+                                    &settings_clone,
+                                    &chinese_converted_text,
+                                    secondary.as_deref(),
+                                    true,
+                                    override_prompt_id.clone(),
+                                    active_window_snapshot_for_review
+                                        .as_ref()
+                                        .map(|info| info.app_name.clone()),
+                                    active_window_snapshot_for_review
+                                        .as_ref()
+                                        .map(|info| info.title.clone()),
+                                    matched_rule.map(|r| r.pattern.clone()),
+                                    matched_rule.map(|r| r.match_type),
+                                    history_id,
+                                    skill_mode, // Pass skill_mode to control LLM routing
+                                    review_editor_active,
+                                    selected_text.clone(), // Pass captured context for Mode C
+                                    review_document_text.clone(),
+                                )
+                                .await;
 
+                                token_count = inner_token_count;
                                 let post_process_failed = err && processed_text.is_none();
                                 let post_process_error_message = error_message;
 
@@ -1530,6 +1539,7 @@ impl ShortcutAction for TranscribeAction {
                                                 post_process_prompt_name.clone(),
                                                 post_process_prompt_id.clone(),
                                                 used_model.clone(),
+                                                token_count,
                                             )
                                             .await
                                         {
@@ -1583,6 +1593,7 @@ impl ShortcutAction for TranscribeAction {
                                         post_process_prompt_name,
                                         post_process_prompt_id,
                                         used_model,
+                                        token_count,
                                     )
                                     .await
                                 {

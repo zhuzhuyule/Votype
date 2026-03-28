@@ -278,6 +278,7 @@ pub async fn retranscribe_history_entry(
                     "OpenCC".to_string(),
                     None,
                     Some("OpenCC".to_string()),
+                    None,
                 )
                 .await
                 .map_err(|e| e.to_string())?;
@@ -325,6 +326,7 @@ pub async fn retranscribe_history_entry(
                         post_process_prompt_name,
                         prompt_id,
                         used_model,
+                        None,
                     )
                     .await
                     .map_err(|e| e.to_string())?;
@@ -393,6 +395,7 @@ pub async fn reprocess_history_entry(
                 prompt.name.clone(),
                 used_prompt_id,
                 used_model,
+                None,
             )
             .await
             .map_err(|e| e.to_string())?;

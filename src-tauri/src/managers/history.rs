@@ -1244,6 +1244,7 @@ impl HistoryManager {
         prompt_name: String,
         post_process_prompt_id: Option<String>,
         post_process_model: Option<String>,
+        token_count: Option<i64>,
     ) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;
@@ -1281,8 +1282,8 @@ impl HistoryManager {
         let history_json = serde_json::to_string(&history)?;
 
         conn.execute(
-            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5, post_process_history = ?6 WHERE id = ?7",
-            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, history_json, id],
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5, post_process_history = ?6, token_count = COALESCE(token_count, 0) + COALESCE(?8, 0) WHERE id = ?7",
+            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, history_json, id, token_count],
         )?;
 
         let _ = if had_post_processing { 0 } else { 1 };
