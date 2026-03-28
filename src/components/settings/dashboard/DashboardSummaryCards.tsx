@@ -15,6 +15,7 @@ interface DashboardSummary {
   llmHitRate: number;
   charsPerMinute: number;
   topApps: [string, number][];
+  totalTokens: number;
 }
 
 interface DashboardTrends {
@@ -464,11 +465,25 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
           {numberFormat.format(summary.llmCalls)}
         </Heading>
-        <Text size="2" className="opacity-60">
-          {t("dashboard.summary.llm.details", {
-            hitRate: `${(summary.llmHitRate * 100).toFixed(1)}%`,
-          })}
-        </Text>
+        <Flex direction="column" gap="0">
+          <Text size="2" className="opacity-60">
+            {t("dashboard.summary.llm.details", {
+              hitRate: `${(summary.llmHitRate * 100).toFixed(1)}%`,
+            })}
+          </Text>
+          {summary.totalTokens > 0 && (
+            <Text size="2" className="opacity-60 tabular-nums">
+              {t("dashboard.summary.llm.tokens", {
+                count:
+                  summary.totalTokens >= 1_000_000
+                    ? `${(summary.totalTokens / 1_000_000).toFixed(1)}M`
+                    : summary.totalTokens >= 1_000
+                      ? `${(summary.totalTokens / 1_000).toFixed(1)}k`
+                      : `${summary.totalTokens}`,
+              })}
+            </Text>
+          )}
+        </Flex>
       </PremiumCard>
 
       {/* Top Apps Card - Grid */}

@@ -309,6 +309,7 @@ export const Dashboard: React.FC = () => {
     let savedCount = 0;
     let llmCalls = 0;
     let llmHits = 0;
+    let totalTokens = 0;
     const appCounts = new Map<string, number>();
 
     for (const entry of entries) {
@@ -319,6 +320,7 @@ export const Dashboard: React.FC = () => {
       if (entry.saved) savedCount += 1;
       if (entry.post_process_prompt?.trim()) llmCalls += 1;
       if (entry.post_processed_text?.trim()) llmHits += 1;
+      totalTokens += (entry as any).token_count ?? 0;
 
       const appName = entry.app_name?.trim();
       if (appName) {
@@ -352,6 +354,7 @@ export const Dashboard: React.FC = () => {
       llmHitRate,
       charsPerMinute,
       topApps,
+      totalTokens,
     };
   }, []);
 

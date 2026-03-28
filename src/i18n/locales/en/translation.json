@@ -74,7 +74,9 @@
       "minutesAgo": "{{count}} min ago",
       "hoursAgo": "{{count}} hr ago",
       "daysAgo": "{{count}} days ago"
-    }
+    },
+    "history": "History",
+    "latest": "Latest"
   },
   "dashboard": {
     "actions": {
@@ -142,6 +144,7 @@
       "llm": {
         "details": "Hit rate: {{hitRate}}",
         "title": "LLM usage",
+        "tokens": "{{count}} tokens consumed",
         "unknownApp": "Unknown"
       },
       "recording": {
@@ -383,7 +386,8 @@
     "status": {
       "llm": "Post Processing...",
       "recording": "Recording...",
-      "transcribing": "Transcribing..."
+      "transcribing": "Transcribing...",
+      "review": "Review..."
     }
   },
   "settings": {
@@ -1092,7 +1096,12 @@
             "selectModel": "Select"
           },
           "title": "Select Model",
-          "usageTypeTitle": "Usage Type"
+          "usageTypeTitle": "Usage Type",
+          "advancedOptions": "Advanced Options",
+          "customLabel": "Custom Label",
+          "extraParams": "Extra Parameters",
+          "manualLabel": "Manual Label",
+          "selectLabel": "Select Label"
         },
         "filter": {
           "all": "All"
@@ -1224,7 +1233,17 @@
           "template_summary": "Summary",
           "template_chat": "AI Chat",
           "template_blank": "Blank Skill"
-        }
+        },
+        "aliasDuplicate": "Alias already exists",
+        "aliasLabel": "Alias",
+        "aliasPlaceholder": "e.g., /translate",
+        "cancel": "Cancel",
+        "commandPrefixDescription": "Command prefix to trigger this prompt",
+        "commandPrefixPlaceholder": "e.g., /",
+        "commandPrefixTitle": "Command Prefix",
+        "noAliases": "No aliases configured",
+        "noPrefixes": "No prefixes configured",
+        "prefixesSaved": "Prefixes saved"
       },
       "skills": {
         "advancedSkills": "Advanced Skills",
@@ -1294,7 +1313,12 @@
     "prompts": "Prompts",
     "shortcuts": "Shortcuts",
     "summary": "Summary",
-    "vocabulary": "Vocabulary"
+    "vocabulary": "Vocabulary",
+    "asrModels": "ASR Models",
+    "debug": "Debug",
+    "history": "History",
+    "postProcessing": "Post Processing",
+    "dailyVocabulary": "Daily Vocabulary"
   },
   "soundPicker": {
     "custom": "Custom",

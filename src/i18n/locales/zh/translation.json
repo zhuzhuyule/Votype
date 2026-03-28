@@ -144,6 +144,7 @@
       "llm": {
         "details": "命中率：{{hitRate}}",
         "title": "大模型消耗情况",
+        "tokens": "消耗 {{count}} tokens",
         "unknownApp": "未知应用"
       },
       "recording": {
