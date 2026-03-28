@@ -17,4 +17,8 @@ export const LANGUAGE_METADATA: Record<
   de: { name: "German", nativeName: "Deutsch", priority: 5 },
   ja: { name: "Japanese", nativeName: "日本語", priority: 6 },
   vi: { name: "Vietnamese", nativeName: "Tiếng Việt", priority: 7 },
+  it: { name: "Italian", nativeName: "Italiano", priority: 8 },
+  pt: { name: "Portuguese", nativeName: "Português", priority: 9 },
+  tr: { name: "Turkish", nativeName: "Türkçe", priority: 10 },
+  uk: { name: "Ukrainian", nativeName: "Українська", priority: 11 },
 };

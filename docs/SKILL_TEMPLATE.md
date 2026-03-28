@@ -411,7 +411,7 @@ fn test_smart_compose_skill() {
 
 在约束和示例中明确：
 
-````markdown
+```markdown
 # Constraints
 
 4. 如果是代码，直接输出代码，不要用 `代码块` 包裹
@@ -426,7 +426,7 @@ fn test_smart_compose_skill() {
 - 项目 1
 - 项目 2
 - 项目 3
-````
+```
 
 ## 最佳实践
 
