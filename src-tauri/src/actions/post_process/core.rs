@@ -14,6 +14,15 @@ use tauri::{AppHandle, Emitter};
 /// Field name for structured output JSON schema
 const TRANSCRIPTION_FIELD: &str = "transcription";
 
+pub(crate) fn preview_multiline(label: &str, content: &str) {
+    log::info!(
+        "[LLM] {} (len={}):\n{}",
+        label,
+        content.chars().count(),
+        content
+    );
+}
+
 pub(super) fn clean_response_content(content: &str) -> String {
     let mut text = content.to_string();
 
@@ -165,15 +174,6 @@ pub async fn execute_llm_request_with_messages(
     _match_type: Option<crate::settings::TitleMatchType>,
     override_extra_params: Option<&HashMap<String, serde_json::Value>>,
 ) -> (Option<String>, bool, Option<String>) {
-    fn preview_multiline(label: &str, content: &str) {
-        log::info!(
-            "[LLM] {} (len={}):\n{}",
-            label,
-            content.chars().count(),
-            content
-        );
-    }
-
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -454,6 +454,9 @@ pub async fn execute_llm_request_with_messages(
                     if resp.status().is_success() {
                         match resp.json::<serde_json::Value>().await {
                             Ok(json_resp) => {
+                                if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
+                                    preview_multiline("ResponseBody", &pretty_resp);
+                                }
                                 // Extract content from OpenAI-compatible response
                                 let raw_content = &json_resp["choices"][0]["message"]["content"];
                                 let content = raw_content
@@ -481,6 +484,10 @@ pub async fn execute_llm_request_with_messages(
                                     is_thinking,
                                     reasoning.map(|r| r.len()).unwrap_or(0)
                                 );
+                                preview_multiline("ResponseContentRaw", &content);
+                                if let Some(reasoning_text) = reasoning {
+                                    preview_multiline("ResponseReasoning", reasoning_text);
+                                }
 
                                 // When structured output is enabled, try to parse JSON
                                 // and extract the transcription field
@@ -515,6 +522,7 @@ pub async fn execute_llm_request_with_messages(
                                 } else {
                                     extract_llm_text(&content)
                                 };
+                                preview_multiline("ResponseText", &text);
                                 return (Some(text), false, None);
                             }
                             Err(e) => {

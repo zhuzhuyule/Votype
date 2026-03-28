@@ -176,6 +176,10 @@ pub async fn multi_post_process_transcription(
                         "[MultiModel] Hotwords injected: scenario={:?}, terms={}",
                         effective_scenario, total_terms
                     );
+                    info!(
+                        "[MultiModel] Hotword summary:\n{}",
+                        crate::managers::hotword::HotwordManager::summarize_injection(&injection)
+                    );
                     Some(injection)
                 }
                 Ok(_) => {
@@ -631,6 +635,12 @@ async fn execute_single_model_post_process(
         "[MultiModel] Request: item_id={} provider={} model={} extra_params={:?}",
         item.id, provider.id, model, extra_keys
     );
+    if let Ok(pretty_body) = serde_json::to_string_pretty(&body) {
+        info!(
+            "[MultiModel] RequestBody item_id={} provider={} model={}:\n{}",
+            item.id, provider.id, model, pretty_body
+        );
+    }
 
     // Manual HTTP request (supports extra_params and longer timeout for thinking models)
     let base_url = provider.base_url.trim_end_matches('/');
@@ -713,6 +723,12 @@ async fn execute_single_model_post_process(
             return (None, Some(format!("Response parse failed: {:?}", e)));
         }
     };
+    if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
+        info!(
+            "[MultiModel] ResponseBody item_id={} provider={} model={}:\n{}",
+            item.id, provider.id, model, pretty_resp
+        );
+    }
 
     let message_obj = &json_resp["choices"][0]["message"];
     let raw_content = message_obj["content"]
@@ -740,6 +756,15 @@ async fn execute_single_model_post_process(
         is_thinking,
         reasoning.map(|r| r.len()).unwrap_or(0),
     );
+    info!(
+        "[MultiModel] FinalResult item_id={} provider={} model={}",
+        item.id, provider.id, model
+    );
+    super::core::preview_multiline("MultiModelResponseContentRaw", &raw_content);
+    if let Some(reasoning_text) = reasoning {
+        super::core::preview_multiline("MultiModelResponseReasoning", reasoning_text);
+    }
+    super::core::preview_multiline("MultiModelResponseText", &text);
 
     (Some(text), None)
 }

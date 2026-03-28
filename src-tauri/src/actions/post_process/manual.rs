@@ -64,6 +64,10 @@ pub async fn post_process_text_with_prompt(
                         "[ManualPostProcess] Hotwords injected: scenario={:?}, terms={}",
                         effective_scenario, total_terms
                     );
+                    info!(
+                        "[ManualPostProcess] Hotword summary:\n{}",
+                        HotwordManager::summarize_injection(&injection)
+                    );
                     Some(injection)
                 }
                 Ok(_) => {
@@ -207,10 +211,10 @@ pub async fn post_process_text_with_prompt(
 
     if let Some(res) = &result {
         info!(
-            "Manual LLM Task Completed | Model: {} | Result: {}...",
-            model,
-            res.chars().take(50).collect::<String>()
+            "[ManualPostProcess] FinalResult model={} prompt_id={}",
+            model, prompt.id
         );
+        super::core::preview_multiline("ManualPostProcessFinalText", res);
     }
 
     (
