@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 interface ReviewFooterProps {
   reason?: string | null;
   outputMode?: "polish" | "chat";
-  modelName?: string | null;
   isSubmitting: boolean;
   hasText: boolean;
   canUndo?: boolean;
@@ -27,7 +26,6 @@ interface ReviewFooterProps {
 export const ReviewFooter: React.FC<ReviewFooterProps> = ({
   reason,
   outputMode,
-  modelName,
   isSubmitting,
   hasText,
   canUndo,
@@ -45,9 +43,6 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
     <div className="review-footer">
       <div className="review-footer-left">
         {reason?.trim() ? <span className="reason-text">{reason}</span> : null}
-        {modelName?.trim() ? (
-          <span className="review-model-badge">{modelName}</span>
-        ) : null}
       </div>
       <div className="review-footer-actions">
         {!isMultiModel && (

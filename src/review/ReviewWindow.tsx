@@ -1409,7 +1409,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         <ReviewFooter
           reason={initialData.reason}
           outputMode={initialData.output_mode}
-          modelName={currentModelName}
           isSubmitting={isSubmitting}
           hasText={!!getEditorText().trim()}
           canUndo={revisionIndex > 0}
