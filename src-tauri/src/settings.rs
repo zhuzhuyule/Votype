@@ -294,17 +294,6 @@ pub struct CachedModel {
     pub extra_headers: Option<HashMap<String, String>>,
 }
 
-/// Returns the appropriate `extra_params` for enabling/disabling thinking mode
-/// based on model name pattern matching. Checks model_id plus optional aliases
-/// (name, custom_label). Returns `None` if the model is not recognized.
-pub fn thinking_extra_params(
-    model_id: &str,
-    provider_id: &str,
-    enable: bool,
-) -> Option<HashMap<String, serde_json::Value>> {
-    thinking_extra_params_with_aliases(model_id, provider_id, enable, &[])
-}
-
 pub fn thinking_extra_params_with_aliases(
     model_id: &str,
     provider_id: &str,

@@ -37,11 +37,6 @@ impl ModelPresetsConfig {
         self.families.iter().find(|f| f.id == family_id)
     }
 
-    /// Get all family ids (for UI dropdown)
-    pub fn family_ids(&self) -> Vec<String> {
-        self.families.iter().map(|f| f.id.clone()).collect()
-    }
-
     /// Get all families as (id, display_name) pairs for UI dropdown
     pub fn family_options(&self) -> Vec<(String, String)> {
         self.families

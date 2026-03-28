@@ -383,7 +383,7 @@ fn run_consumer(
     let mut recv_count: u64 = 0;
     let mut emit_count: u64 = 0;
     let mut last_waveform_log = std::time::Instant::now();
-    let mut last_recv_raw_len: usize = 0;
+    let mut last_recv_raw_len;
 
     // ---------- spectrum visualisation setup ---------------------------- //
     const BUCKETS: usize = 16;
