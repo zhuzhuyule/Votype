@@ -141,7 +141,7 @@ pub async fn execute_llm_request(
     _window_title: Option<String>,
     _match_pattern: Option<String>,
     _match_type: Option<crate::settings::TitleMatchType>,
-) -> (Option<String>, bool, Option<String>) {
+) -> (Option<String>, bool, Option<String>, Option<i64>) {
     let prompts = vec![system_prompt.to_string()];
     execute_llm_request_with_messages(
         app_handle,
@@ -173,7 +173,7 @@ pub async fn execute_llm_request_with_messages(
     _match_pattern: Option<String>,
     _match_type: Option<crate::settings::TitleMatchType>,
     override_extra_params: Option<&HashMap<String, serde_json::Value>>,
-) -> (Option<String>, bool, Option<String>) {
+) -> (Option<String>, bool, Option<String>, Option<i64>) {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -182,7 +182,12 @@ pub async fn execute_llm_request_with_messages(
                     "overlay-error",
                     serde_json::json!({ "code": "apple_intelligence_unavailable" }),
                 );
-                return (None, true, Some("Apple Intelligence 不可用".to_string()));
+                return (
+                    None,
+                    true,
+                    Some("Apple Intelligence 不可用".to_string()),
+                    None,
+                );
             }
 
             // Combine messages for Apple Intelligence
@@ -198,7 +203,7 @@ pub async fn execute_llm_request_with_messages(
 
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
             return match apple_intelligence::process_text(&final_prompt, token_limit) {
-                Ok(result) => (Some(result), false, None),
+                Ok(result) => (Some(result), false, None, None),
                 Err(err) => {
                     error!("Apple Intelligence failed: {}", err);
                     let _ = app_handle.emit(
@@ -212,12 +217,13 @@ pub async fn execute_llm_request_with_messages(
                         None,
                         true,
                         Some(format!("Apple Intelligence 请求失败: {}", err)),
+                        None,
                     )
                 }
             };
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        return (None, false, None);
+        return (None, false, None, None);
     }
 
     let api_key = settings
@@ -253,6 +259,7 @@ pub async fn execute_llm_request_with_messages(
                     provider.base_url.trim_end_matches('/'),
                     e
                 )),
+                None,
             );
         }
     };
@@ -277,7 +284,7 @@ pub async fn execute_llm_request_with_messages(
     }
 
     if messages.is_empty() {
-        return (None, false, None);
+        return (None, false, None, None);
     }
 
     log::info!(
@@ -523,7 +530,11 @@ pub async fn execute_llm_request_with_messages(
                                     extract_llm_text(&content)
                                 };
                                 preview_multiline("ResponseText", &text);
-                                return (Some(text), false, None);
+                                let token_count = json_resp
+                                    .get("usage")
+                                    .and_then(|u| u.get("total_tokens"))
+                                    .and_then(|t| t.as_i64());
+                                return (Some(text), false, None, token_count);
                             }
                             Err(e) => {
                                 error!("Failed to parse LLM JSON response: {:?}", e);
@@ -538,7 +549,7 @@ pub async fn execute_llm_request_with_messages(
                                         "message": detail,
                                     }),
                                 );
-                                return (None, true, Some(detail));
+                                return (None, true, Some(detail), None);
                             }
                         }
                     } else {
@@ -556,7 +567,7 @@ pub async fn execute_llm_request_with_messages(
                                 "message": detail,
                             }),
                         );
-                        return (None, true, Some(detail));
+                        return (None, true, Some(detail), None);
                     }
                 }
                 Err(err) => {
@@ -572,7 +583,7 @@ pub async fn execute_llm_request_with_messages(
                             "message": detail,
                         }),
                     );
-                    return (None, true, Some(detail));
+                    return (None, true, Some(detail), None);
                 }
             }
         }
@@ -589,7 +600,7 @@ pub async fn execute_llm_request_with_messages(
                     "message": detail,
                 }),
             );
-            return (None, true, Some(detail));
+            return (None, true, Some(detail), None);
         }
     }
 }
