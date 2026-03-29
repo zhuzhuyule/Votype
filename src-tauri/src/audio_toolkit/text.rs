@@ -202,8 +202,8 @@ const FILLER_WORDS: &[&str] = &[
 
 static MULTI_SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s{2,}").unwrap());
 
-/// Collapses repeated 1-2 letter words (3+ repetitions) to a single instance.
-/// E.g., "wh wh wh wh" -> "wh", "I I I I" -> "I"
+/// Collapses repeated words (3+ repetitions) to a single instance.
+/// E.g., "wh wh wh wh" -> "wh", "I I I I" -> "I", "doc doc doc doc" -> "doc"
 fn collapse_stutters(text: &str) -> String {
     let words: Vec<&str> = text.split_whitespace().collect();
     if words.is_empty() {
@@ -217,8 +217,7 @@ fn collapse_stutters(text: &str) -> String {
         let word = words[i];
         let word_lower = word.to_lowercase();
 
-        // Only process 1-2 letter words
-        if word_lower.len() <= 2 && word_lower.chars().all(|c| c.is_alphabetic()) {
+        if word_lower.chars().all(|c| c.is_alphabetic()) {
             // Count consecutive repetitions (case-insensitive)
             let mut count = 1;
             while i + count < words.len() && words[i + count].to_lowercase() == word_lower {
@@ -257,7 +256,7 @@ static FILLER_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
 ///
 /// This function cleans up raw transcription text by:
 /// 1. Removing filler words (uh, um, hmm, etc.)
-/// 2. Collapsing repeated 1-2 letter stutters (e.g., "wh wh wh" -> "wh")
+/// 2. Collapsing repeated stutters (e.g., "wh wh wh" -> "wh", "doc doc doc" -> "doc")
 /// 3. Cleaning up excess whitespace
 ///
 /// # Arguments
@@ -273,7 +272,7 @@ pub fn filter_transcription_output(text: &str) -> String {
         filtered = pattern.replace_all(&filtered, "").to_string();
     }
 
-    // Collapse repeated 1-2 letter words (stutter artifacts like "wh wh wh wh")
+    // Collapse repeated words (stutter artifacts like "wh wh wh wh", "doc doc doc doc")
     filtered = collapse_stutters(&filtered);
 
     // Clean up multiple spaces to single space
@@ -400,6 +399,13 @@ mod tests {
         let text = "no no is fine";
         let result = filter_transcription_output(text);
         assert_eq!(result, "no no is fine");
+    }
+
+    #[test]
+    fn test_filter_stutter_longer_words() {
+        let text = "doc doc doc doc is a test";
+        let result = filter_transcription_output(text);
+        assert_eq!(result, "doc is a test");
     }
 
     #[test]
