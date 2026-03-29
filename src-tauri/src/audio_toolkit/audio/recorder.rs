@@ -316,25 +316,34 @@ impl AudioRecorder {
     fn get_preferred_config(
         device: &cpal::Device,
     ) -> Result<cpal::SupportedStreamConfig, Box<dyn std::error::Error>> {
-        let supported_configs = device.supported_input_configs()?;
+        // Get the device's native default config as our baseline
+        let default_config = device.default_input_config()?;
+        let target_rate = default_config.sample_rate();
+
+        // Try to find a config matching the device's native rate with the best format
+        let supported_configs = match device.supported_input_configs() {
+            Ok(configs) => configs,
+            Err(e) => {
+                log::warn!("Could not enumerate input configs ({e}), using device default");
+                return Ok(default_config);
+            }
+        };
+
         let mut best_config: Option<cpal::SupportedStreamConfigRange> = None;
 
-        // Try to find a config that supports 16kHz, prioritizing better formats
         for config_range in supported_configs {
-            if config_range.min_sample_rate().0 <= constants::WHISPER_SAMPLE_RATE
-                && config_range.max_sample_rate().0 >= constants::WHISPER_SAMPLE_RATE
+            if config_range.min_sample_rate() <= target_rate
+                && config_range.max_sample_rate() >= target_rate
             {
                 match best_config {
                     None => best_config = Some(config_range),
                     Some(ref current) => {
-                        // Prioritize F32 > I16 > I32 > others
                         let score = |fmt: cpal::SampleFormat| match fmt {
                             cpal::SampleFormat::F32 => 4,
                             cpal::SampleFormat::I16 => 3,
                             cpal::SampleFormat::I32 => 2,
                             _ => 1,
                         };
-
                         if score(config_range.sample_format()) > score(current.sample_format()) {
                             best_config = Some(config_range);
                         }
@@ -344,11 +353,12 @@ impl AudioRecorder {
         }
 
         if let Some(config) = best_config {
-            return Ok(config.with_sample_rate(cpal::SampleRate(constants::WHISPER_SAMPLE_RATE)));
+            return Ok(config.with_sample_rate(target_rate));
         }
 
-        // If no config supports 16kHz, fall back to default
-        Ok(device.default_input_config()?)
+        // If no config matched the native rate, fall back to default
+        log::warn!("No config matched device native rate, using default config");
+        Ok(default_config)
     }
 }
 
