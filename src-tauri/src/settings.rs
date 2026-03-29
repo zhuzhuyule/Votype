@@ -786,6 +786,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub custom_words: Vec<String>,
     #[serde(default)]
+    pub custom_filler_words: Option<Vec<String>>,
+    #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
     pub post_process_intent_model_id: Option<String>,
@@ -1576,6 +1578,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_streaming_output_enabled: default_post_process_streaming_output_enabled(),
         post_process_hotword_injection_enabled: default_post_process_hotword_injection_enabled(),
         custom_words: Vec::new(),
+        custom_filler_words: None,
         expert_mode: false,
         experimental_enabled: false,
         keyboard_implementation: KeyboardImplementation::default(),

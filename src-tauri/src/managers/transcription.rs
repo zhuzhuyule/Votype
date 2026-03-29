@@ -819,7 +819,11 @@ impl TranscriptionManager {
         };
 
         // Filter out filler words and hallucinations
-        let filtered_result = filter_transcription_output(&corrected_result);
+        let filtered_result = filter_transcription_output(
+            &corrected_result,
+            &settings.app_language,
+            &settings.custom_filler_words,
+        );
 
         // Punctuation post-processing: when enabled, always apply the CT-Transformer
         // punct model to format the text with proper punctuation. The user controls this
