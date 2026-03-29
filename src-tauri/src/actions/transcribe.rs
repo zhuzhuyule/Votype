@@ -741,93 +741,111 @@ impl ShortcutAction for TranscribeAction {
                                 let (tx, rx) = tokio::sync::oneshot::channel::<String>();
                                 {
                                     let state = ah.state::<crate::AsrTimeoutResponseSender>();
-                                    let mut guard = state.lock().unwrap();
+                                    let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
                                     *guard = Some(tx);
                                 }
 
-                                match rx.await {
-                                    Ok(action) => match action.as_str() {
-                                        "continue" | "retry" => {
-                                            log::info!("[ASR] User chose to {} online ASR", action);
-                                            // Re-send the online ASR request (original handle was consumed by timeout)
-                                            if let Some(cached) = cached_model_for_retry.as_ref() {
-                                                let provider_info = settings
-                                                    .post_process_providers
-                                                    .iter()
-                                                    .find(|p| p.id == cached.provider_id)
-                                                    .cloned();
-                                                let api_key = settings
-                                                    .post_process_api_keys
-                                                    .get(&cached.provider_id)
-                                                    .cloned();
-                                                let remote_model_id = cached.model_id.clone();
-                                                let language = settings.selected_language.clone();
-                                                let samples_retry = samples.clone();
+                                // Give user up to 120s to respond; auto-cancel if no response
+                                match timeout(Duration::from_secs(120), rx).await {
+                                    Err(_elapsed) => {
+                                        log::warn!("[ASR] User did not respond to timeout prompt within 120s, auto-cancelling");
+                                        (
+                                            Err(anyhow::anyhow!("ASR timeout: no user response")),
+                                            None,
+                                        )
+                                    }
+                                    Ok(channel_result) => match channel_result {
+                                        Ok(action) => match action.as_str() {
+                                            "continue" | "retry" => {
+                                                log::info!(
+                                                    "[ASR] User chose to {} online ASR",
+                                                    action
+                                                );
+                                                // Re-send the online ASR request (original handle was consumed by timeout)
+                                                if let Some(cached) =
+                                                    cached_model_for_retry.as_ref()
+                                                {
+                                                    let provider_info = settings
+                                                        .post_process_providers
+                                                        .iter()
+                                                        .find(|p| p.id == cached.provider_id)
+                                                        .cloned();
+                                                    let api_key = settings
+                                                        .post_process_api_keys
+                                                        .get(&cached.provider_id)
+                                                        .cloned();
+                                                    let remote_model_id = cached.model_id.clone();
+                                                    let language =
+                                                        settings.selected_language.clone();
+                                                    let samples_retry = samples.clone();
 
-                                                let retry_handle = tokio::task::spawn_blocking(
-                                                    move || -> anyhow::Result<String> {
-                                                        let provider =
-                                                            provider_info.ok_or_else(|| {
-                                                                anyhow::anyhow!(
+                                                    let retry_handle = tokio::task::spawn_blocking(
+                                                        move || -> anyhow::Result<String> {
+                                                            let provider = provider_info
+                                                                .ok_or_else(|| {
+                                                                    anyhow::anyhow!(
                                                                     "Online ASR provider not found"
                                                                 )
-                                                            })?;
-                                                        let client = OnlineAsrClient::new(
-                                                            16000,
-                                                            Duration::from_secs(120),
-                                                        );
-                                                        let lang = if language == "auto" {
-                                                            None
-                                                        } else {
-                                                            Some(language.as_str())
-                                                        };
-                                                        client.transcribe(
-                                                            &provider,
-                                                            api_key,
-                                                            &remote_model_id,
-                                                            lang,
-                                                            &samples_retry,
-                                                        )
-                                                    },
-                                                );
-                                                let primary = match retry_handle.await {
-                                                    Ok(res) => res,
-                                                    Err(e) => Err(anyhow::anyhow!(
-                                                        "Online ASR {} failed: {}",
-                                                        action,
-                                                        e
-                                                    )),
-                                                };
-                                                (primary, None)
-                                            } else {
+                                                                })?;
+                                                            let client = OnlineAsrClient::new(
+                                                                16000,
+                                                                Duration::from_secs(120),
+                                                            );
+                                                            let lang = if language == "auto" {
+                                                                None
+                                                            } else {
+                                                                Some(language.as_str())
+                                                            };
+                                                            client.transcribe(
+                                                                &provider,
+                                                                api_key,
+                                                                &remote_model_id,
+                                                                lang,
+                                                                &samples_retry,
+                                                            )
+                                                        },
+                                                    );
+                                                    let primary = match retry_handle.await {
+                                                        Ok(res) => res,
+                                                        Err(e) => Err(anyhow::anyhow!(
+                                                            "Online ASR {} failed: {}",
+                                                            action,
+                                                            e
+                                                        )),
+                                                    };
+                                                    (primary, None)
+                                                } else {
+                                                    (
+                                                        Err(anyhow::anyhow!(
+                                                            "No cached model for retry"
+                                                        )),
+                                                        None,
+                                                    )
+                                                }
+                                            }
+                                            _ => {
+                                                // "cancel" or unknown
+                                                log::info!("[ASR] User cancelled online ASR");
                                                 (
                                                     Err(anyhow::anyhow!(
-                                                        "No cached model for retry"
+                                                        "User cancelled online ASR"
                                                     )),
                                                     None,
                                                 )
                                             }
-                                        }
-                                        _ => {
-                                            // "cancel" or unknown
-                                            log::info!("[ASR] User cancelled online ASR");
+                                        },
+                                        Err(_) => {
+                                            log::warn!(
+                                            "[ASR] Timeout response channel dropped, cancelling"
+                                        );
                                             (
-                                                Err(anyhow::anyhow!("User cancelled online ASR")),
+                                                Err(anyhow::anyhow!(
+                                                    "ASR timeout response channel dropped"
+                                                )),
                                                 None,
                                             )
                                         }
                                     },
-                                    Err(_) => {
-                                        log::warn!(
-                                            "[ASR] Timeout response channel dropped, cancelling"
-                                        );
-                                        (
-                                            Err(anyhow::anyhow!(
-                                                "ASR timeout response channel dropped"
-                                            )),
-                                            None,
-                                        )
-                                    }
                                 }
                             }
                         }
