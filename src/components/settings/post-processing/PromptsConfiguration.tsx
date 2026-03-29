@@ -276,22 +276,28 @@ const PromptsConfiguration: React.FC = () => {
   return (
     <Box className="w-full max-w-5xl mx-auto">
       <Flex direction="column" gap="5">
-        {/* Top Section: Global Configuration (全局配置) */}
+        {/* Unified Post-processing Settings */}
         <SettingsGroup
-          title={t("settings.postProcessing.prompts.globalConfigTitle")}
+          title={
+            <Flex align="center" justify="between" width="100%">
+              <span>
+                {t("settings.postProcessing.prompts.globalConfigTitle")}
+              </span>
+              <PostProcessingToggle grouped={true} />
+            </Flex>
+          }
         >
-          <Flex direction="column" gap="2">
-            <PostProcessingToggle grouped={true} />
-            <IntentModelSelection />
-            <AppProfilesContextSettings
-              descriptionMode="inline"
-              grouped={true}
-            />
-          </Flex>
+          {enabled && (
+            <Flex direction="column" gap="2">
+              <TextModelModeSettings />
+              <IntentModelSelection />
+              <AppProfilesContextSettings
+                descriptionMode="inline"
+                grouped={true}
+              />
+            </Flex>
+          )}
         </SettingsGroup>
-
-        {/* Post-processing Mode (smart routing + model selection) */}
-        {enabled && <TextModelModeSettings />}
 
         {/* Bottom Section: Skill Management Area - Unified View */}
         {enabled && (

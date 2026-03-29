@@ -2,19 +2,18 @@ import {
   Badge,
   Box,
   Flex,
-  Grid,
   Select,
-  Separator,
-  Slider as RadixSlider,
   Switch,
   Text,
+  TextField,
   Tooltip,
 } from "@radix-ui/themes";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel } from "../../../lib/types";
-import { SettingsGroup } from "../../ui/SettingsGroup";
+import { SettingContainer } from "../../ui/SettingContainer";
+import { ActionWrapper } from "../../ui";
 
 type ModelMode = "single" | "multi";
 
@@ -81,8 +80,11 @@ export const TextModelModeSettings: React.FC = () => {
   );
 
   const handleThresholdChange = useCallback(
-    async (value: number) => {
-      await updateSetting("length_routing_threshold", Math.round(value));
+    async (value: string) => {
+      const num = parseInt(value, 10);
+      if (!isNaN(num) && num >= 1 && num <= 9999) {
+        await updateSetting("length_routing_threshold", num);
+      }
     },
     [updateSetting],
   );
@@ -185,8 +187,8 @@ export const TextModelModeSettings: React.FC = () => {
               rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap
               ${
                 isActive
-                  ? "bg-white shadow-sm px-5 py-1.5 text-sm font-semibold text-(--gray-12)"
-                  : "px-4 py-1.5 text-sm font-medium text-(--gray-9) hover:text-(--gray-11)"
+                  ? "bg-white shadow-sm px-4 py-1 text-xs font-semibold text-(--gray-12)"
+                  : "px-3 py-1 text-xs font-medium text-(--gray-9) hover:text-(--gray-11)"
               }
             `}
           >
@@ -198,177 +200,166 @@ export const TextModelModeSettings: React.FC = () => {
   );
 
   return (
-    <SettingsGroup
-      title={t(
-        "settings.postProcessing.textModelMode.title",
-        "Post-processing Mode",
-      )}
-    >
-      <Flex direction="column" gap="3">
-        {/* ─── Smart Routing Toggle ─── */}
-        <Flex align="center" justify="between">
-          <Flex align="center" gap="2">
-            <Text size="2" weight="medium">
-              {t("settings.postProcessing.smartRouting.title", "Smart Routing")}
-            </Text>
-            <Text size="1" color="gray">
-              {t(
-                "settings.postProcessing.smartRouting.description",
-                "Auto-detect intent, reuse history, reduce token cost",
-              )}
-            </Text>
-          </Flex>
-          <Switch
-            size="1"
-            checked={smartRoutingEnabled}
-            onCheckedChange={handleSmartRoutingToggle}
-          />
-        </Flex>
-
-        {/* Smart Routing config (only when enabled) */}
-        {smartRoutingEnabled && (
-          <Flex gap="3" align="end" pl="1">
-            <Flex direction="column" gap="1" style={{ flex: 1 }}>
-              <Text size="1" color="gray">
-                {t(
-                  "settings.postProcessing.lengthRouting.thresholdLabel",
-                  "Threshold",
-                )}{" "}
-                ({threshold})
-              </Text>
-              <RadixSlider
-                value={[threshold]}
-                onValueChange={(v) => handleThresholdChange(v[0])}
-                size="1"
-                min={10}
-                max={500}
-                step={10}
-              />
-            </Flex>
-            <Flex direction="column" gap="1" style={{ flex: 1 }}>
-              <Text size="1" color="gray">
-                {t(
-                  "settings.postProcessing.lengthRouting.shortModelLabel",
-                  "Short text model",
-                )}{" "}
-                ≤ {threshold}
-              </Text>
-              {renderModelSelect(
-                shortModelId,
-                handleShortModelChange,
-                t(
-                  "settings.postProcessing.lengthRouting.useDefault",
-                  "Use default",
-                ),
-              )}
-            </Flex>
-          </Flex>
+    <>
+      {/* Smart Routing — uses SettingContainer for consistent look */}
+      <SettingContainer
+        title={t("settings.postProcessing.smartRouting.title", "Smart Routing")}
+        description={t(
+          "settings.postProcessing.smartRouting.description",
+          "Auto-detect intent, reuse history, reduce token cost",
         )}
-
-        <Separator size="4" />
-
-        {/* ─── Model Selection ─── */}
-        <Flex align="center" justify="between">
-          <Text size="2" weight="medium">
-            {t("settings.postProcessing.textModelMode.modelSelection", "Model")}
-          </Text>
-          {modelModePills}
-        </Flex>
-
-        {/* Single model config */}
-        {modelMode === "single" && (
-          <Box pl="1" style={{ maxWidth: "50%" }}>
-            {renderModelSelect(
-              defaultModelId,
-              handleDefaultModelChange,
-              t(
-                "settings.postProcessing.textModelMode.noModelSelected",
-                "No model selected",
-              ),
+        descriptionMode="tooltip"
+        grouped={true}
+      >
+        <ActionWrapper>
+          <Flex align="center" gap="3">
+            <Switch
+              size="1"
+              checked={smartRoutingEnabled}
+              onCheckedChange={handleSmartRoutingToggle}
+            />
+            {smartRoutingEnabled && (
+              <>
+                <Text size="1" color="gray" style={{ whiteSpace: "nowrap" }}>
+                  ≤
+                </Text>
+                <TextField.Root
+                  size="1"
+                  type="number"
+                  value={String(threshold)}
+                  onChange={(e) => handleThresholdChange(e.target.value)}
+                  style={{ width: 60 }}
+                  min={1}
+                  max={9999}
+                />
+                <Box style={{ minWidth: 160 }}>
+                  {renderModelSelect(
+                    shortModelId,
+                    handleShortModelChange,
+                    t(
+                      "settings.postProcessing.lengthRouting.useDefault",
+                      "Use default",
+                    ),
+                  )}
+                </Box>
+              </>
             )}
-          </Box>
-        )}
+          </Flex>
+        </ActionWrapper>
+      </SettingContainer>
 
-        {/* Multi model config */}
-        {modelMode === "multi" && (
-          <Flex direction="column" gap="2" pl="1">
-            <Flex
-              align="center"
-              gap="1"
-              className="w-fit rounded-full border border-(--gray-6) bg-(--gray-2) p-1"
-            >
-              {multiStrategyOptions.map((item) => {
-                const selected = multiModelStrategy === item.value;
-                return (
-                  <Tooltip key={item.value} content={item.hint}>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateSetting("multi_model_strategy", item.value)
-                      }
-                      disabled={isUpdating("multi_model_strategy")}
-                      className={`
-                        min-w-[66px] rounded-full px-3 py-1.5 text-xs font-medium transition-colors
-                        ${
-                          selected
-                            ? "bg-(--accent-9) text-white"
-                            : "text-(--gray-11) hover:bg-(--gray-4)"
-                        }
-                      `}
-                    >
-                      {item.label}
-                    </button>
-                  </Tooltip>
-                );
-              })}
+      {/* Model Selection — uses SettingContainer for consistent look */}
+      <SettingContainer
+        title={t(
+          "settings.postProcessing.textModelMode.modelSelection",
+          "Model",
+        )}
+        description={t(
+          "settings.postProcessing.textModelMode.title",
+          "Post-processing model selection",
+        )}
+        descriptionMode="tooltip"
+        grouped={true}
+      >
+        <ActionWrapper>
+          <Flex direction="column" gap="2">
+            <Flex align="center" gap="3">
+              {modelModePills}
+              {modelMode === "single" && (
+                <Box style={{ minWidth: 180 }}>
+                  {renderModelSelect(
+                    defaultModelId,
+                    handleDefaultModelChange,
+                    t(
+                      "settings.postProcessing.textModelMode.noModelSelected",
+                      "No model selected",
+                    ),
+                  )}
+                </Box>
+              )}
             </Flex>
-            {selectedMultiCount > 0 && (
-              <Flex gap="1" wrap="wrap" align="center">
-                {multiModelSelectedIds.map((id) => {
-                  const model = textModels.find((m) => m.id === id);
-                  if (!model) return null;
-                  const isPreferred =
-                    multiModelPreferredId === id ||
-                    (!multiModelPreferredId && multiModelSelectedIds[0] === id);
-                  return (
-                    <Tooltip
-                      key={id}
-                      content={
-                        isPreferred
-                          ? t(
-                              "settings.postProcessing.textModelMode.preferredModel",
-                              "Preferred model",
-                            )
-                          : t(
-                              "settings.postProcessing.textModelMode.setAsPreferred",
-                              "Set as preferred model",
-                            )
-                      }
-                    >
-                      <Badge
-                        color={isPreferred ? "amber" : "blue"}
-                        variant={isPreferred ? "solid" : "soft"}
-                        size="1"
-                        style={{ cursor: "pointer" }}
-                        onClick={() => {
-                          if (isPreferred && multiModelPreferredId) {
-                            updateSetting("multi_model_preferred_id", null);
-                          } else {
-                            updateSetting("multi_model_preferred_id", id);
+            {modelMode === "multi" && (
+              <Flex direction="column" gap="2">
+                <Flex
+                  align="center"
+                  gap="1"
+                  className="w-fit rounded-full border border-(--gray-6) bg-(--gray-2) p-0.5"
+                >
+                  {multiStrategyOptions.map((item) => {
+                    const selected = multiModelStrategy === item.value;
+                    return (
+                      <Tooltip key={item.value} content={item.hint}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateSetting("multi_model_strategy", item.value)
                           }
-                        }}
-                      >
-                        {isPreferred ? "★ " : ""}
-                        {model.custom_label || model.model_id}
-                      </Badge>
-                    </Tooltip>
-                  );
-                })}
+                          disabled={isUpdating("multi_model_strategy")}
+                          className={`
+                            min-w-[56px] rounded-full px-2.5 py-1 text-xs font-medium transition-colors
+                            ${
+                              selected
+                                ? "bg-(--accent-9) text-white"
+                                : "text-(--gray-11) hover:bg-(--gray-4)"
+                            }
+                          `}
+                        >
+                          {item.label}
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
+                </Flex>
+                {selectedMultiCount > 0 && (
+                  <Flex gap="1" wrap="wrap" align="center">
+                    {multiModelSelectedIds.map((id) => {
+                      const model = textModels.find((m) => m.id === id);
+                      if (!model) return null;
+                      const isPreferred =
+                        multiModelPreferredId === id ||
+                        (!multiModelPreferredId &&
+                          multiModelSelectedIds[0] === id);
+                      return (
+                        <Tooltip
+                          key={id}
+                          content={
+                            isPreferred
+                              ? t(
+                                  "settings.postProcessing.textModelMode.preferredModel",
+                                  "Preferred model",
+                                )
+                              : t(
+                                  "settings.postProcessing.textModelMode.setAsPreferred",
+                                  "Set as preferred model",
+                                )
+                          }
+                        >
+                          <Badge
+                            color={isPreferred ? "amber" : "blue"}
+                            variant={isPreferred ? "solid" : "soft"}
+                            size="1"
+                            style={{ cursor: "pointer" }}
+                            onClick={() => {
+                              if (isPreferred && multiModelPreferredId) {
+                                updateSetting("multi_model_preferred_id", null);
+                              } else {
+                                updateSetting("multi_model_preferred_id", id);
+                              }
+                            }}
+                          >
+                            {isPreferred ? "★ " : ""}
+                            {model.custom_label || model.model_id}
+                          </Badge>
+                        </Tooltip>
+                      );
+                    })}
+                  </Flex>
+                )}
               </Flex>
             )}
           </Flex>
-        )}
-      </Flex>
-    </SettingsGroup>
+        </ActionWrapper>
+      </SettingContainer>
+    </>
   );
 };
