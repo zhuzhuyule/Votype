@@ -46,6 +46,7 @@ async fn execute_votype_rewrite_prompt(
     bool,
     Option<String>,
     Option<i64>,
+    Option<i64>, // llm_call_count
 ) {
     info!(
         "[VotypeRewrite] app={:?} title={:?} prompt_id={} target_len={} instruction_len={}",
@@ -67,6 +68,7 @@ async fn execute_votype_rewrite_prompt(
             None,
             true,
             Some("未找到可用的后处理模型".to_string()),
+            None,
             None,
         );
     };
@@ -136,6 +138,7 @@ async fn execute_votype_rewrite_prompt(
                 false,
                 None,
                 Some(token_count),
+                Some(1),
             );
         }
     }
@@ -147,6 +150,7 @@ async fn execute_votype_rewrite_prompt(
         err,
         error_message,
         Some(token_count),
+        Some(1),
     )
 }
 
@@ -211,21 +215,22 @@ pub async fn maybe_post_process_transcription(
     selected_text: Option<String>,
     review_document_text: Option<String>,
 ) -> (
-    Option<String>,
-    Option<String>,
-    Option<String>,
-    bool,
-    Option<String>,
-    Option<i64>,
+    Option<String>, // processed text
+    Option<String>, // model name
+    Option<String>, // prompt id
+    bool,           // error
+    Option<String>, // error message
+    Option<i64>,    // token count (total across all LLM calls)
+    Option<i64>,    // llm call count
 ) {
     if !settings.post_process_enabled {
-        return (None, None, None, false, None, None);
+        return (None, None, None, false, None, None, None);
     }
 
     // Check for skip post-process marker
     if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
         info!("[PostProcess] Skipping post-processing due to app rule override");
-        return (None, None, None, false, None, None);
+        return (None, None, None, false, None, None, None);
     }
 
     // Length routing: override selected_prompt_model_id based on text length
@@ -253,9 +258,13 @@ pub async fn maybe_post_process_transcription(
     };
     let settings = settings.as_ref();
 
+    // Track token usage from auxiliary LLM calls (routing, parallel polish, etc.)
+    let mut routing_token_count: i64 = 0;
+    let mut routing_call_count: i64 = 0;
+
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None, None),
+        None => return (None, None, None, false, None, None, None),
     };
 
     // Load external skills (Phase 9)
@@ -427,7 +436,7 @@ pub async fn maybe_post_process_transcription(
             if let Some((route_provider, route_model, route_api_key)) =
                 super::routing::resolve_intent_routing_model(settings, fallback_provider, p)
             {
-                if let Some(route_response) = super::routing::perform_skill_routing(
+                if let Some(routing_result) = super::routing::perform_skill_routing(
                     app_handle,
                     route_api_key,
                     &all_prompts,
@@ -438,6 +447,12 @@ pub async fn maybe_post_process_transcription(
                 )
                 .await
                 {
+                    // Accumulate routing token cost
+                    if let Some(tc) = routing_result.token_count {
+                        routing_token_count += tc;
+                        routing_call_count += 1;
+                    }
+                    let route_response = routing_result.response;
                     let skill_id = &route_response.skill_id;
                     if let Some(routed_prompt) = all_prompts.iter().find(|p| &p.id == skill_id) {
                         // If routed to "default", we likely already have the default prompt selected in initial_prompt_opt
@@ -533,23 +548,41 @@ pub async fn maybe_post_process_transcription(
                     )
                 );
 
+                // Accumulate token costs from both parallel requests
+                if let Some(ref ir) = intent_result {
+                    if let Some(tc) = ir.token_count {
+                        routing_token_count += tc;
+                    }
+                    routing_call_count += 1;
+                }
+                if let Some(ref pr) = polish_result {
+                    if let Some(tc) = pr.token_count {
+                        routing_token_count += tc;
+                    }
+                    routing_call_count += 1;
+                }
+
+                // Extract inner values for downstream use
+                let intent_response = intent_result.map(|r| r.response);
+                let polish_text = polish_result.map(|r| r.text);
+
                 // Log results for debugging concurrency issues
-                let intent_ok = intent_result.is_some();
-                let polish_ok = polish_result.is_some();
+                let intent_ok = intent_response.is_some();
+                let polish_ok = polish_text.is_some();
                 info!(
                     "[PostProcess] Parallel requests completed - Intent: {} (skill: {:?}), Polish: {} (len: {})",
                     if intent_ok { "OK" } else { "FAILED" },
-                    intent_result.as_ref().map(|r| &r.skill_id),
+                    intent_response.as_ref().map(|r| &r.skill_id),
                     if polish_ok { "OK" } else { "FAILED" },
-                    polish_result.as_ref().map(|s| s.len()).unwrap_or(0)
+                    polish_text.as_ref().map(|s| s.len()).unwrap_or(0)
                 );
 
                 // Handle different result combinations:
-                // 1. Intent matched + Polish OK/Failed -> Show confirmation (polish_result may be None)
+                // 1. Intent matched + Polish OK/Failed -> Show confirmation (polish_text may be None)
                 // 2. Intent failed + Polish OK -> Use polish result directly
                 // 3. Both failed -> Fall through to standard processing
 
-                if let Some(route_response) = intent_result {
+                if let Some(route_response) = intent_response {
                     let skill_id = &route_response.skill_id;
 
                     info!(
@@ -582,14 +615,25 @@ pub async fn maybe_post_process_transcription(
                                 "[PostProcess] Matched skill is the default skill, skipping confirmation and using polish result"
                             );
                             // Use polish result directly without confirmation
-                            if let Some(polished) = polish_result {
+                            if let Some(ref polished) = polish_text {
+                                let total_tokens = if routing_token_count > 0 {
+                                    Some(routing_token_count)
+                                } else {
+                                    None
+                                };
+                                let total_calls = if routing_call_count > 0 {
+                                    Some(routing_call_count)
+                                } else {
+                                    None
+                                };
                                 return (
-                                    Some(polished),
+                                    Some(polished.clone()),
                                     None,
                                     Some(routed_prompt.id.clone()),
                                     false,
                                     None,
-                                    None,
+                                    total_tokens,
+                                    total_calls,
                                 );
                             }
                             // If polish failed, fall through to standard processing
@@ -644,7 +688,7 @@ pub async fn maybe_post_process_transcription(
                                     window_title: window_title.clone(),
                                     history_id,
                                     process_id: active_pid,
-                                    polish_result: polish_result.clone(), // May be None if parallel polish failed!
+                                    polish_result: polish_text.clone(), // May be None if parallel polish failed!
                                     is_ui_visible: false,
                                 };
                             }
@@ -666,38 +710,61 @@ pub async fn maybe_post_process_transcription(
                                     skill_id: skill_id.clone(),
                                     skill_name: routed_prompt.name.clone(),
                                     transcription: transcription.to_string(),
-                                    polish_result, // Frontend should handle None case (show loading or N/A)
+                                    polish_result: polish_text, // Frontend should handle None case (show loading or N/A)
                                 },
                             )
                             .ok();
 
                         // Return early with special model marker to signal pending confirmation
                         // Caller should check for this and skip paste/hide operations
+                        // Include routing token costs even though confirmation is pending
+                        let total_tokens = if routing_token_count > 0 {
+                            Some(routing_token_count)
+                        } else {
+                            None
+                        };
+                        let total_calls = if routing_call_count > 0 {
+                            Some(routing_call_count)
+                        } else {
+                            None
+                        };
                         return (
                             None,
                             Some("__PENDING_SKILL_CONFIRMATION__".to_string()),
                             None,
                             false,
                             None,
-                            None,
+                            total_tokens,
+                            total_calls,
                         );
                     }
                 }
 
                 // No skill matched - use the polish result directly if available
                 // IMPORTANT: Return the default_prompt.id so caller can get correct output_mode
-                if let Some(polished) = polish_result {
+                if let Some(polished) = polish_text {
                     info!(
                         "[PostProcess] No skill matched, using parallel polish result with default prompt: {} (id={})",
                         default_prompt.name, default_prompt.id
                     );
+                    let total_tokens = if routing_token_count > 0 {
+                        Some(routing_token_count)
+                    } else {
+                        None
+                    };
+                    let total_calls = if routing_call_count > 0 {
+                        Some(routing_call_count)
+                    } else {
+                        None
+                    };
                     return (
                         Some(polished),
                         None,
                         Some(default_prompt.id.clone()),
                         false,
                         None,
-                        None,
+                        total_tokens,
+                        total_calls,
                     );
                 }
 
@@ -723,6 +790,7 @@ pub async fn maybe_post_process_transcription(
                 None,
                 None,
                 false,
+                None,
                 None,
                 None,
             );
@@ -760,7 +828,7 @@ pub async fn maybe_post_process_transcription(
             }
             None => {
                 log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
-                return (None, None, Some(prompt.id.clone()), false, None, None);
+                return (None, None, Some(prompt.id.clone()), false, None, None, None);
             }
         };
 
@@ -981,7 +1049,7 @@ pub async fn maybe_post_process_transcription(
         last_prompt_id = Some(prompt.id.clone());
         last_err = err;
         last_error_message = error_message;
-        last_token_count = Some(computed_token_count);
+        last_token_count = Some(computed_token_count + routing_token_count);
 
         if let Some(final_text) = final_result.as_deref() {
             info!(
@@ -1001,6 +1069,9 @@ pub async fn maybe_post_process_transcription(
         break;
     }
 
+    // 1 for the main LLM call + any routing/polish calls
+    let total_call_count = Some(1 + routing_call_count);
+
     (
         final_result,
         last_model,
@@ -1008,6 +1079,7 @@ pub async fn maybe_post_process_transcription(
         last_err,
         last_error_message,
         last_token_count,
+        total_call_count,
     )
 }
 

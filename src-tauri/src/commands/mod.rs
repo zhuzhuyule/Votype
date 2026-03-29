@@ -306,6 +306,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 settings
                                     .resolve_model_for_provider(&settings.post_process_provider_id),
                                 None,
+                                Some(1),
                             )
                             .await;
                         log::info!(
@@ -352,7 +353,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 .ok();
         }
 
-        let (result, model, prompt_id, _err, _error_message, _token_count) =
+        let (result, model, prompt_id, _err, _error_message, _token_count, _call_count) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
@@ -394,6 +395,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 prompt_id.clone(),
                                 model.clone(),
                                 None,
+                                Some(1),
                             )
                             .await;
                         log::info!(
@@ -483,6 +485,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 settings
                                     .resolve_model_for_provider(&settings.post_process_provider_id),
                                 None,
+                                Some(1),
                             )
                             .await;
                         log::info!(
@@ -497,7 +500,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         } else {
             // Fallback: execute default polish (should not happen with parallel requests)
             log::warn!("[SkillConfirmation] No cached polish result, executing default polish");
-            let (result, _model, _prompt_id, _err, _error_message, _token_count) =
+            let (result, _model, _prompt_id, _err, _error_message, _token_count, _call_count) =
                 crate::actions::post_process::maybe_post_process_transcription(
                     &app,
                     &settings,

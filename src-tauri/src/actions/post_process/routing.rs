@@ -78,6 +78,12 @@ pub(super) fn parse_skill_route_response(content: &str) -> Option<super::SkillRo
 
 /// Perform asynchronous skill routing using LLM
 /// Returns the full routing response including skill_id, confidence, input_source and extracted_content
+/// Result from skill routing that includes token usage
+pub(super) struct SkillRoutingResult {
+    pub response: super::SkillRouteResponse,
+    pub token_count: Option<i64>,
+}
+
 pub(super) async fn perform_skill_routing(
     _app_handle: &AppHandle,
     api_key: String,
@@ -86,7 +92,7 @@ pub(super) async fn perform_skill_routing(
     model: &str,
     transcription: &str,
     selected_text: Option<&str>,
-) -> Option<super::SkillRouteResponse> {
+) -> Option<SkillRoutingResult> {
     let client = match crate::llm_client::create_client(provider, api_key) {
         Ok(c) => c,
         Err(e) => {
@@ -148,6 +154,9 @@ pub(super) async fn perform_skill_routing(
         }
     };
 
+    // Extract token count from usage
+    let token_count = response.usage.as_ref().map(|u| u.total_tokens as i64);
+
     let content = match response
         .choices
         .first()
@@ -201,13 +210,22 @@ pub(super) async fn perform_skill_routing(
             "[SkillRouter] Routed to skill: {} (Confidence: {} -> {}, InputSource: {:?})",
             route.skill_id, raw_confidence, adjusted_confidence, route.input_source
         );
-        Some(route)
+        Some(SkillRoutingResult {
+            response: route,
+            token_count,
+        })
     }
+}
+
+/// Result from default polish that includes token usage
+pub(super) struct DefaultPolishResult {
+    pub text: String,
+    pub token_count: Option<i64>,
 }
 
 /// Execute default polish request for parallel processing.
 /// This is a simplified version that only runs the default prompt.
-/// Returns the polished text or None if failed.
+/// Returns the polished text with token count, or None if failed.
 pub(super) async fn execute_default_polish<'a>(
     app_handle: &AppHandle,
     settings: &'a AppSettings,
@@ -217,7 +235,7 @@ pub(super) async fn execute_default_polish<'a>(
     app_name: Option<String>,
     window_title: Option<String>,
     history_id: Option<i64>,
-) -> Option<String> {
+) -> Option<DefaultPolishResult> {
     let (actual_provider, model) =
         resolve_effective_model(settings, fallback_provider, default_prompt)?;
 
@@ -369,7 +387,7 @@ pub(super) async fn execute_default_polish<'a>(
         None
     };
 
-    let (result, _err, _error_message, _token_count) =
+    let (result, _err, _error_message, api_token_count) =
         super::core::execute_llm_request_with_messages(
             app_handle,
             settings,
@@ -392,7 +410,10 @@ pub(super) async fn execute_default_polish<'a>(
             text.len()
         );
     }
-    result
+    result.map(|text| DefaultPolishResult {
+        text,
+        token_count: api_token_count,
+    })
 }
 
 pub(super) fn resolve_effective_model<'a>(

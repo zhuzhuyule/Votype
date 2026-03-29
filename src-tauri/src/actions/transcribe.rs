@@ -828,6 +828,7 @@ impl ShortcutAction for TranscribeAction {
 
                             // 2. Apply LLM post-processing if enabled
                             let mut token_count: Option<i64> = None;
+                            let mut llm_call_count: Option<i64> = None;
                             {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
@@ -1040,6 +1041,26 @@ impl ShortcutAction for TranscribeAction {
                                             results.len()
                                         );
 
+                                        // Aggregate token counts from ALL models (not just the winner)
+                                        let multi_total_tokens: Option<i64> = {
+                                            let sum: i64 =
+                                                results.iter().filter_map(|r| r.token_count).sum();
+                                            if sum > 0 {
+                                                Some(sum)
+                                            } else {
+                                                None
+                                            }
+                                        };
+                                        // Count actual API calls (any result that was attempted, regardless of success)
+                                        let multi_llm_call_count: Option<i64> = {
+                                            let count = results.len() as i64;
+                                            if count > 0 {
+                                                Some(count)
+                                            } else {
+                                                None
+                                            }
+                                        };
+
                                         // Save the best result to history (without creating PostProcessStep)
                                         let best_result =
                                             results.iter().find(|r| r.ready && r.error.is_none());
@@ -1120,6 +1141,8 @@ impl ShortcutAction for TranscribeAction {
                                                                 settings_clone
                                                                     .post_process_selected_prompt_id
                                                                     .clone(),
+                                                                multi_total_tokens,
+                                                                multi_llm_call_count,
                                                             )
                                                             .await
                                                         {
@@ -1152,6 +1175,8 @@ impl ShortcutAction for TranscribeAction {
                                                     .clone();
                                                 let hm_for_history = hm_clone.clone();
                                                 let history_id_for_save = history_id;
+                                                let tokens_for_history = multi_total_tokens;
+                                                let calls_for_history = multi_llm_call_count;
                                                 let ah_clone_inner = ah_clone.clone();
                                                 let last_active_window =
                                                     active_window_snapshot_for_review.clone();
@@ -1204,6 +1229,8 @@ impl ShortcutAction for TranscribeAction {
                                                                 final_text_for_history,
                                                                 Some(model_name_for_history),
                                                                 prompt_id_for_history,
+                                                                tokens_for_history,
+                                                                calls_for_history,
                                                             )
                                                             .await
                                                         {
@@ -1226,6 +1253,8 @@ impl ShortcutAction for TranscribeAction {
                                                         settings_clone
                                                             .post_process_selected_prompt_id
                                                             .clone(),
+                                                        multi_total_tokens,
+                                                        multi_llm_call_count,
                                                     )
                                                     .await
                                                 {
@@ -1254,6 +1283,7 @@ impl ShortcutAction for TranscribeAction {
                                                 fb_err,
                                                 _fb_error_msg,
                                                 _fb_token_count,
+                                                _fb_call_count,
                                             ) = maybe_post_process_transcription(
                                                 &ah_clone,
                                                 &settings_clone,
@@ -1384,6 +1414,7 @@ impl ShortcutAction for TranscribeAction {
                                     err,
                                     error_message,
                                     inner_token_count,
+                                    inner_llm_call_count,
                                 ) = maybe_post_process_transcription(
                                     &ah_clone,
                                     &settings_clone,
@@ -1408,6 +1439,7 @@ impl ShortcutAction for TranscribeAction {
                                 .await;
 
                                 token_count = inner_token_count;
+                                llm_call_count = inner_llm_call_count;
                                 let post_process_failed = err && processed_text.is_none();
                                 let post_process_error_message = error_message;
 
@@ -1540,6 +1572,7 @@ impl ShortcutAction for TranscribeAction {
                                                 post_process_prompt_id.clone(),
                                                 used_model.clone(),
                                                 token_count,
+                                                llm_call_count,
                                             )
                                             .await
                                         {
@@ -1594,6 +1627,7 @@ impl ShortcutAction for TranscribeAction {
                                         post_process_prompt_id,
                                         used_model,
                                         token_count,
+                                        llm_call_count,
                                     )
                                     .await
                                 {

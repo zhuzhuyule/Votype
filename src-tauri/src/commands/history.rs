@@ -279,13 +279,14 @@ pub async fn retranscribe_history_entry(
                     None,
                     Some("OpenCC".to_string()),
                     None,
+                    None,
                 )
                 .await
                 .map_err(|e| e.to_string())?;
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            let (llm_result, used_model, prompt_id, _, _, _) = maybe_post_process_transcription(
+            let (llm_result, used_model, prompt_id, _, _, _, _) = maybe_post_process_transcription(
                 &app,
                 &settings,
                 &transcription_text,
@@ -327,6 +328,7 @@ pub async fn retranscribe_history_entry(
                         prompt_id,
                         used_model,
                         None,
+                        Some(1),
                     )
                     .await
                     .map_err(|e| e.to_string())?;
@@ -396,6 +398,7 @@ pub async fn reprocess_history_entry(
                 used_prompt_id,
                 used_model,
                 None,
+                Some(1),
             )
             .await
             .map_err(|e| e.to_string())?;

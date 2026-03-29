@@ -27,6 +27,8 @@ export interface HistoryEntry {
   app_name?: string | null;
   window_title?: string | null;
   post_process_history?: string | null; // JSON string of PostProcessStep[]
+  token_count?: number | null;
+  llm_call_count?: number | null;
   deleted: boolean;
 }
 

@@ -318,9 +318,13 @@ export const Dashboard: React.FC = () => {
       transcriptionMs += entry.transcription_ms ?? 0;
 
       if (entry.saved) savedCount += 1;
-      if (entry.post_process_prompt?.trim()) llmCalls += 1;
+      if (entry.llm_call_count && entry.llm_call_count > 0) {
+        llmCalls += entry.llm_call_count;
+      } else if (entry.post_process_prompt?.trim()) {
+        llmCalls += 1;
+      }
       if (entry.post_processed_text?.trim()) llmHits += 1;
-      totalTokens += (entry as any).token_count ?? 0;
+      totalTokens += entry.token_count ?? 0;
 
       const appName = entry.app_name?.trim();
       if (appName) {

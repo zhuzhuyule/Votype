@@ -73,6 +73,8 @@ pub struct MultiModelPostProcessResult {
     pub error: Option<String>,
     /// Whether this result is ready
     pub ready: bool,
+    /// Token count from API usage or estimated via tiktoken
+    pub token_count: Option<i64>,
 }
 
 /// Event emitted during multi-model post-processing progress
