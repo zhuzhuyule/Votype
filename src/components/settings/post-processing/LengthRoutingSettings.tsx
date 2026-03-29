@@ -24,12 +24,10 @@ export const TextModelModeSettings: React.FC = () => {
 
   const smartRoutingEnabled = settings?.length_routing_enabled ?? false;
   const multiModelEnabled = settings?.multi_model_post_process_enabled ?? false;
-
   const modelMode: ModelMode = multiModelEnabled ? "multi" : "single";
 
   const threshold = settings?.length_routing_threshold ?? 100;
   const shortModelId = settings?.length_routing_short_model_id ?? null;
-  const longModelId = settings?.length_routing_long_model_id ?? null;
   const defaultModelId = settings?.selected_prompt_model_id ?? null;
   const multiModelSelectedIds = useMemo(
     () => settings?.multi_model_selected_ids ?? [],
@@ -94,16 +92,6 @@ export const TextModelModeSettings: React.FC = () => {
     async (value: string) => {
       await updateSetting(
         "length_routing_short_model_id",
-        value === "__none__" ? null : value,
-      );
-    },
-    [updateSetting],
-  );
-
-  const handleLongModelChange = useCallback(
-    async (value: string) => {
-      await updateSetting(
-        "length_routing_long_model_id",
         value === "__none__" ? null : value,
       );
     },
@@ -185,7 +173,7 @@ export const TextModelModeSettings: React.FC = () => {
 
   const selectedMultiCount = multiModelSelectedIds.length;
 
-  // --- Model mode selector (Level 2) ---
+  // --- Model mode selector pills ---
   const modelModeSelector = (
     <Flex align="center" gap="0" className="rounded-lg bg-(--gray-a3) p-0.5">
       {modelModes.map((m) => {
@@ -212,18 +200,30 @@ export const TextModelModeSettings: React.FC = () => {
   );
 
   return (
-    <Flex direction="column" gap="4">
-      {/* Level 1: Smart Routing Toggle */}
-      <SettingsGroup
-        title={
-          <Flex align="center" justify="between" width="100%">
+    <SettingsGroup
+      title={
+        <Flex align="center" gap="3">
+          <span>
+            {t(
+              "settings.postProcessing.textModelMode.title",
+              "Post-processing Mode",
+            )}
+          </span>
+          {modelModeSelector}
+        </Flex>
+      }
+    >
+      <Flex direction="column" gap="4">
+        {/* Smart Routing: toggle + inline config */}
+        <Flex direction="column" gap="3">
+          <Flex align="center" justify="between">
             <Flex align="center" gap="2">
-              <span>
+              <Text size="2" weight="medium">
                 {t(
                   "settings.postProcessing.smartRouting.title",
                   "Smart Routing",
                 )}
-              </span>
+              </Text>
               <Text size="1" color="gray">
                 {t(
                   "settings.postProcessing.smartRouting.description",
@@ -237,103 +237,70 @@ export const TextModelModeSettings: React.FC = () => {
               onCheckedChange={handleSmartRoutingToggle}
             />
           </Flex>
-        }
-      >
-        {smartRoutingEnabled && (
-          <Grid columns="3" gap="3">
-            <Text size="2" weight="medium" color="gray" as="div">
-              {t(
-                "settings.postProcessing.lengthRouting.thresholdLabel",
-                "Character threshold",
-              )}
-            </Text>
-            <Text size="2" weight="medium" color="gray" as="div">
-              {t(
-                "settings.postProcessing.lengthRouting.shortModelLabel",
-                "Short text",
-              )}{" "}
-              ≤ {threshold}
-            </Text>
-            <Text size="2" weight="medium" color="gray" as="div">
-              {t(
-                "settings.postProcessing.lengthRouting.longModelLabel",
-                "Long text",
-              )}{" "}
-              &gt; {threshold}
-            </Text>
 
-            <Flex align="center" gap="2">
-              <Box style={{ flex: 1 }}>
-                <RadixSlider
-                  value={[threshold]}
-                  onValueChange={(v) => handleThresholdChange(v[0])}
-                  size="1"
-                  min={10}
-                  max={500}
-                  step={10}
-                />
-              </Box>
-              <Text
-                size="2"
-                weight="medium"
-                style={{
-                  width: "2rem",
-                  textAlign: "right",
-                  flexShrink: 0,
-                }}
-              >
-                {Math.round(threshold)}
+          {smartRoutingEnabled && (
+            <Grid columns="2" gap="3" pl="1">
+              <Text size="2" color="gray" as="div">
+                {t(
+                  "settings.postProcessing.lengthRouting.thresholdLabel",
+                  "Character threshold",
+                )}
               </Text>
-            </Flex>
-            <Box>
-              {renderModelSelect(
-                shortModelId,
-                handleShortModelChange,
-                t(
-                  "settings.postProcessing.lengthRouting.useDefault",
-                  "Use global default",
-                ),
-              )}
-            </Box>
-            <Box>
-              {renderModelSelect(
-                longModelId,
-                handleLongModelChange,
-                t(
-                  "settings.postProcessing.lengthRouting.useDefault",
-                  "Use global default",
-                ),
-              )}
-            </Box>
-          </Grid>
-        )}
-      </SettingsGroup>
+              <Text size="2" color="gray" as="div">
+                {t(
+                  "settings.postProcessing.lengthRouting.shortModelLabel",
+                  "Short text model",
+                )}{" "}
+                ≤ {threshold}
+              </Text>
 
-      {/* Level 2: Model Selection */}
-      <SettingsGroup
-        title={
-          <Flex align="center" gap="3">
-            <span>
-              {t(
-                "settings.postProcessing.textModelMode.title",
-                "Model Selection",
-              )}
-            </span>
-            {modelModeSelector}
-          </Flex>
-        }
-      >
-        {/* Single model mode */}
+              <Flex align="center" gap="2">
+                <Box style={{ flex: 1 }}>
+                  <RadixSlider
+                    value={[threshold]}
+                    onValueChange={(v) => handleThresholdChange(v[0])}
+                    size="1"
+                    min={10}
+                    max={500}
+                    step={10}
+                  />
+                </Box>
+                <Text
+                  size="2"
+                  weight="medium"
+                  style={{
+                    width: "2rem",
+                    textAlign: "right",
+                    flexShrink: 0,
+                  }}
+                >
+                  {Math.round(threshold)}
+                </Text>
+              </Flex>
+              <Box>
+                {renderModelSelect(
+                  shortModelId,
+                  handleShortModelChange,
+                  t(
+                    "settings.postProcessing.lengthRouting.useDefault",
+                    "Use global default",
+                  ),
+                )}
+              </Box>
+            </Grid>
+          )}
+        </Flex>
+
+        {/* Model Selection: single or multi */}
         {modelMode === "single" && (
-          <Grid columns="3" gap="3">
-            <Text size="2" weight="medium" color="gray" as="div">
+          <Flex direction="column" gap="2">
+            <Text size="2" weight="medium" color="gray">
               {t(
                 "settings.postProcessing.textModelMode.defaultModelDescription",
                 "Default model",
               )}
             </Text>
-            <Box style={{ gridColumn: "2 / 4" }} />
-            <Box>
+            <Box style={{ maxWidth: "50%" }}>
               {renderModelSelect(
                 defaultModelId,
                 handleDefaultModelChange,
@@ -343,21 +310,18 @@ export const TextModelModeSettings: React.FC = () => {
                 ),
               )}
             </Box>
-          </Grid>
+          </Flex>
         )}
 
-        {/* Multi model mode */}
         {modelMode === "multi" && (
           <Flex direction="column" gap="3">
-            <Grid columns="3" gap="3">
-              <Text size="2" weight="medium" color="gray" as="div">
+            <Flex direction="column" gap="2">
+              <Text size="2" weight="medium" color="gray">
                 {t(
                   "settings.postProcessing.textModelMode.multiStrategy",
                   "Multi-model Strategy",
                 )}
               </Text>
-              <Box style={{ gridColumn: "2 / 4" }} />
-
               <Flex
                 align="center"
                 gap="1"
@@ -388,7 +352,7 @@ export const TextModelModeSettings: React.FC = () => {
                   );
                 })}
               </Flex>
-            </Grid>
+            </Flex>
             {selectedMultiCount > 0 && (
               <Flex gap="1" wrap="wrap" align="center">
                 {multiModelSelectedIds.map((id) => {
@@ -435,7 +399,7 @@ export const TextModelModeSettings: React.FC = () => {
             )}
           </Flex>
         )}
-      </SettingsGroup>
-    </Flex>
+      </Flex>
+    </SettingsGroup>
   );
 };
