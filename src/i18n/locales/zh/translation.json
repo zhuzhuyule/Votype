@@ -87,6 +87,7 @@
       "openRecordings": "录音目录",
       "reprocessFailed": "AI 重新处理失败",
       "retranscribe": "使用原音频重新转录",
+      "rejectPolish": "拒绝润色结果",
       "retranscribeFailed": "重新转录失败",
       "retranscribing": "重新转录中..."
     },

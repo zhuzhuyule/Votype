@@ -87,6 +87,7 @@
       "openRecordings": "Recordings",
       "reprocessFailed": "AI reprocessing failed",
       "retranscribe": "Re-transcribe using audio",
+      "rejectPolish": "Reject polish result",
       "retranscribeFailed": "Re-transcription failed",
       "retranscribing": "Retranscribing..."
     },
