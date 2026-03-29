@@ -219,7 +219,7 @@ export const PostProcessBar: React.FC = () => {
                   disabled={isUpdating("multi_model_strategy")}
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                     isActive
-                      ? "bg-(--accent-9) text-white shadow-sm"
+                      ? "bg-(--color-background) shadow-sm text-(--gray-12)"
                       : "text-(--gray-9) hover:text-(--gray-11)"
                   }`}
                 >
