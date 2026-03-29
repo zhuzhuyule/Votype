@@ -387,6 +387,15 @@ pub fn change_paste_delay_ms_setting(app: AppHandle, delay_ms: u64) -> Result<()
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_extra_recording_buffer_setting(app: AppHandle, buffer_ms: u64) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.extra_recording_buffer_ms = buffer_ms;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_clipboard_handling_setting(app: AppHandle, handling: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     let parsed = match handling.as_str() {

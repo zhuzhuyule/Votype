@@ -864,6 +864,8 @@ pub struct AppSettings {
     #[serde(default = "default_paste_delay_ms")]
     pub paste_delay_ms: u64,
     #[serde(default)]
+    pub extra_recording_buffer_ms: u64,
+    #[serde(default)]
     pub typing_tool: TypingTool,
     #[serde(default)]
     pub external_script_path: Option<String>,
@@ -1579,6 +1581,7 @@ pub fn get_default_settings() -> AppSettings {
         keyboard_implementation: KeyboardImplementation::default(),
         show_tray_icon: default_show_tray_icon(),
         paste_delay_ms: default_paste_delay_ms(),
+        extra_recording_buffer_ms: 0,
         typing_tool: TypingTool::default(),
         external_script_path: None,
         length_routing_enabled: false,
