@@ -12,6 +12,7 @@ import {
   IconChevronRight,
   IconLanguage,
   IconPlayerPlay,
+  IconRoute,
   IconSettings,
   IconSparkles,
   IconTextGrammar,
@@ -22,7 +23,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 
-type TextModelMode = "single" | "length" | "multi";
+type ModelMode = "single" | "multi";
 
 export const PostProcessBar: React.FC = () => {
   const { t } = useTranslation();
@@ -59,14 +60,12 @@ export const PostProcessBar: React.FC = () => {
     [settings?.cached_models],
   );
 
-  // Current mode
+  // Smart routing (Level 1)
+  const smartRoutingEnabled = settings?.length_routing_enabled ?? false;
+
+  // Model mode (Level 2)
   const multiModelEnabled = settings?.multi_model_post_process_enabled ?? false;
-  const lengthRoutingEnabled = settings?.length_routing_enabled ?? false;
-  const mode: TextModelMode = multiModelEnabled
-    ? "multi"
-    : lengthRoutingEnabled
-      ? "length"
-      : "single";
+  const modelMode: ModelMode = multiModelEnabled ? "multi" : "single";
 
   // Single mode
   const selectedModelId = settings?.selected_prompt_model_id ?? "";
@@ -78,24 +77,22 @@ export const PostProcessBar: React.FC = () => {
   // Multi-model
   const multiModelStrategy = settings?.multi_model_strategy ?? "manual";
 
-  const handleModeChange = useCallback(
-    async (newMode: TextModelMode) => {
-      if (newMode === mode) return;
-      if (mode === "length")
-        await updateSetting("length_routing_enabled", false);
-      else if (mode === "multi")
+  const handleModelModeChange = useCallback(
+    async (newMode: ModelMode) => {
+      if (newMode === modelMode) return;
+      if (modelMode === "multi") {
         await updateSetting("multi_model_post_process_enabled", false);
-      if (newMode === "length")
-        await updateSetting("length_routing_enabled", true);
-      else if (newMode === "multi")
+      }
+      if (newMode === "multi") {
         await updateSetting("multi_model_post_process_enabled", true);
+      }
     },
-    [mode, updateSetting],
+    [modelMode, updateSetting],
   );
 
-  const navigateToModels = useCallback(() => {
+  const navigateToPostProcessing = useCallback(() => {
     setOpen(false);
-    emit("navigate-to-settings", "models");
+    emit("navigate-to-settings", "prompts");
   }, []);
 
   const strategies = ["manual", "race", "lazy"] as const;
@@ -121,14 +118,10 @@ export const PostProcessBar: React.FC = () => {
     }
   };
 
-  const modes: { value: TextModelMode; label: string }[] = [
+  const modelModes: { value: ModelMode; label: string }[] = [
     {
       value: "single",
       label: t("settings.postProcessing.textModelMode.single", "Single"),
-    },
-    {
-      value: "length",
-      label: t("settings.postProcessing.textModelMode.length", "Smart"),
     },
     {
       value: "multi",
@@ -141,20 +134,37 @@ export const PostProcessBar: React.FC = () => {
 
     return (
       <Flex direction="column" gap="2">
-        {/* Mode selector */}
+        {/* Smart Routing toggle */}
+        <Flex justify="between" align="center" gap="4">
+          <Flex align="center" gap="2">
+            <IconRoute size={14} />
+            <Text size="2">
+              {t("settings.postProcessing.smartRouting.title", "Smart Routing")}
+            </Text>
+          </Flex>
+          <Switch
+            size="1"
+            checked={smartRoutingEnabled}
+            onCheckedChange={(checked) =>
+              updateSetting("length_routing_enabled", checked)
+            }
+          />
+        </Flex>
+
+        {/* Model mode selector + settings gear */}
         <Flex align="center" justify="between">
           <Flex
             align="center"
             gap="0"
             className="rounded-full bg-(--gray-a3) p-0.5"
           >
-            {modes.map((m) => {
-              const isActive = mode === m.value;
+            {modelModes.map((m) => {
+              const isActive = modelMode === m.value;
               return (
                 <button
                   key={m.value}
                   type="button"
-                  onClick={() => handleModeChange(m.value)}
+                  onClick={() => handleModelModeChange(m.value)}
                   className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                     isActive
                       ? "bg-(--color-background) shadow-sm text-(--gray-12)"
@@ -168,7 +178,7 @@ export const PostProcessBar: React.FC = () => {
           </Flex>
           <Tooltip content={t("footer.postProcess.openSettings", "Settings")}>
             <button
-              onClick={navigateToModels}
+              onClick={navigateToPostProcessing}
               className="p-1 rounded-full hover:bg-(--gray-a3) transition-colors cursor-pointer"
             >
               <IconSettings size={12} className="text-(--gray-9)" />
@@ -177,7 +187,7 @@ export const PostProcessBar: React.FC = () => {
         </Flex>
 
         {/* Single: model picker */}
-        {mode === "single" && (
+        {modelMode === "single" && (
           <button
             onClick={() => setShowModelList(!showModelList)}
             className="flex items-center justify-between w-full rounded-md px-2 py-1 cursor-pointer transition-colors bg-(--gray-a3) hover:bg-(--gray-a4)"
@@ -193,7 +203,7 @@ export const PostProcessBar: React.FC = () => {
         )}
 
         {/* Multi: strategy pills */}
-        {mode === "multi" && (
+        {modelMode === "multi" && (
           <Flex
             align="center"
             gap="0"
