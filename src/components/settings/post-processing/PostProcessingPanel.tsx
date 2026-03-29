@@ -4,9 +4,9 @@ import {
   Flex,
   Grid,
   Select,
+  Slider as RadixSlider,
   Switch,
   Text,
-  TextField,
   Tooltip,
 } from "@radix-ui/themes";
 import { IconBolt, IconBrain } from "@tabler/icons-react";
@@ -269,64 +269,58 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
       style={{ background: "var(--gray-a2)" }}
     >
       <Flex direction="column" gap="3">
-        <Flex align="center" gap="2">
-          <IconBolt size={15} className="text-(--gray-9)" />
-          <Text size="2" weight="medium">
-            {t("settings.postProcessing.smartRouting.shortText", "Short text")}
-          </Text>
-          <Text size="1" color="gray">
-            ≤ {threshold}
-          </Text>
-        </Flex>
-
-        {/* Threshold */}
-        <Flex align="center" gap="2">
-          <Text size="1" color="gray" style={{ whiteSpace: "nowrap" }}>
-            {t(
-              "settings.postProcessing.lengthRouting.thresholdLabel",
-              "Threshold",
-            )}
-          </Text>
-          <TextField.Root
-            size="1"
-            type="number"
-            value={String(threshold)}
-            onChange={(e) => {
-              const num = parseInt(e.target.value, 10);
-              if (!isNaN(num) && num >= 1) {
-                updateSetting("length_routing_threshold", num);
+        {/* Header: label + tooltip + slider */}
+        <Flex align="center" justify="between" gap="2">
+          <Flex align="center" gap="1.5" style={{ flexShrink: 0 }}>
+            <IconBolt size={15} className="text-(--gray-9)" />
+            <Text size="2" weight="medium">
+              {t(
+                "settings.postProcessing.smartRouting.fastModel",
+                "Fast model",
+              )}
+            </Text>
+            <Tooltip
+              content={t(
+                "settings.postProcessing.smartRouting.fastModelHint",
+                "A lightweight or fast model for short text (≤ threshold chars). Saves tokens and reduces latency for simple content.",
+              )}
+            >
+              <Text size="1" color="gray" style={{ cursor: "help" }}>
+                ?
+              </Text>
+            </Tooltip>
+          </Flex>
+          <Flex align="center" gap="2" style={{ flex: 1, maxWidth: 140 }}>
+            <RadixSlider
+              value={[threshold]}
+              onValueChange={(v) =>
+                updateSetting("length_routing_threshold", v[0])
               }
-            }}
-            style={{ width: 56 }}
-            min={1}
-            max={9999}
-          />
-          <Text size="1" color="gray">
-            {t("settings.postProcessing.lengthRouting.chars", "chars")}
-          </Text>
+              size="1"
+              min={5}
+              max={100}
+              step={5}
+            />
+            <Text
+              size="1"
+              weight="medium"
+              style={{ width: 24, textAlign: "right", flexShrink: 0 }}
+            >
+              {threshold}
+            </Text>
+          </Flex>
         </Flex>
 
-        {/* Short text model */}
-        <Flex direction="column" gap="1">
-          <Text size="1" color="gray">
-            {t(
-              "settings.postProcessing.lengthRouting.shortModelLabel",
-              "Model",
-            )}
-          </Text>
-          {renderModelSelect(
-            shortModelId,
-            (v) =>
-              updateSetting(
-                "length_routing_short_model_id",
-                v === "__none__" ? null : v,
-              ),
-            t(
-              "settings.postProcessing.lengthRouting.useDefault",
-              "Use default",
+        {/* Model select */}
+        {renderModelSelect(
+          shortModelId,
+          (v) =>
+            updateSetting(
+              "length_routing_short_model_id",
+              v === "__none__" ? null : v,
             ),
-          )}
-        </Flex>
+          t("settings.postProcessing.lengthRouting.useDefault", "Use default"),
+        )}
       </Flex>
     </Box>
   );
