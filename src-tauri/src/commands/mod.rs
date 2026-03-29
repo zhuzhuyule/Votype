@@ -534,6 +534,22 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
     Ok(())
 }
 
+/// Handle user response to ASR online timeout prompt
+#[tauri::command]
+pub fn respond_asr_timeout(app: AppHandle, action: String) -> Result<(), String> {
+    let sender = {
+        let state = app.state::<crate::AsrTimeoutResponseSender>();
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        guard.take()
+    };
+    if let Some(tx) = sender {
+        let _ = tx.send(action);
+        Ok(())
+    } else {
+        Err("No pending ASR timeout".to_string())
+    }
+}
+
 /// Marker state to track if shortcuts have been initialized.
 pub struct ShortcutsInitialized;
 

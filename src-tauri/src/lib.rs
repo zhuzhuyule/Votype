@@ -127,6 +127,9 @@ pub struct PendingSkillConfirmation {
 
 pub type ManagedPendingSkillConfirmation = Mutex<PendingSkillConfirmation>;
 
+/// State for pending ASR timeout response (online-only mode)
+pub type AsrTimeoutResponseSender = Mutex<Option<tokio::sync::oneshot::Sender<String>>>;
+
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Initialize the input state (Enigo will be lazily initialized on first use)
     let enigo_state = input::EnigoState::new();
@@ -214,6 +217,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         tray::TrayIconState::Idle,
     )));
     app_handle.manage(Mutex::new(PendingSkillConfirmation::default()));
+    app_handle.manage(AsrTimeoutResponseSender::default());
 
     // Initialize the TranscriptionCoordinator before shortcuts so shortcut
     // handlers can find it in state when processing transcribe actions.
@@ -745,6 +749,7 @@ pub fn run() {
             commands::log_to_console,
             commands::focus_overlay,
             commands::confirm_skill,
+            commands::respond_asr_timeout,
             commands::initialize_shortcuts,
             commands::models::get_available_models,
             commands::models::get_model_info,
