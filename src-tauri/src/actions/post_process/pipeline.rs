@@ -282,34 +282,107 @@ pub async fn maybe_post_process_transcription(
         }
     }
 
-    // Length routing: override selected_prompt_model_id based on text length
-    let settings = if settings.length_routing_enabled && !settings.multi_model_post_process_enabled
+    // Smart routing: length-based split + action routing for short text
+    let (settings, smart_routing_tokens) = if settings.length_routing_enabled
+        && !settings.multi_model_post_process_enabled
     {
         let char_count = transcription.chars().count() as u32;
-        let routed_model_id = if char_count <= settings.length_routing_threshold {
-            settings.length_routing_short_model_id.clone()
+
+        if char_count > settings.length_routing_threshold {
+            // Long text: skip action routing, go directly to long model + full polish
+            let routed_model_id = settings.length_routing_long_model_id.clone();
+            let s = if routed_model_id.is_some() {
+                let mut s = settings.clone();
+                s.selected_prompt_model_id = routed_model_id;
+                info!(
+                    "[PostProcess] SmartRouting: long text ({} chars > {}), direct to full polish",
+                    char_count, settings.length_routing_threshold
+                );
+                Cow::Owned(s)
+            } else {
+                Cow::Borrowed(settings)
+            };
+            (s, None)
         } else {
-            settings.length_routing_long_model_id.clone()
-        };
-        if routed_model_id.is_some() {
-            let mut s = settings.clone();
-            s.selected_prompt_model_id = routed_model_id;
-            info!(
-                "[PostProcess] Length routing: {} chars → model {:?}",
-                char_count, s.selected_prompt_model_id
-            );
-            Cow::Owned(s)
-        } else {
-            Cow::Borrowed(settings)
+            // Short text: run action routing via intent model
+            let fallback_provider = match settings.active_post_process_provider() {
+                Some(p) => p,
+                None => return (None, None, None, false, None, None, None),
+            };
+
+            let action_result = super::routing::execute_smart_action_routing(
+                app_handle,
+                settings,
+                fallback_provider,
+                transcription,
+            )
+            .await;
+
+            match &action_result {
+                Some((super::routing::SmartAction::PassThrough, token_count)) => {
+                    info!(
+                        "[PostProcess] SmartRouting: pass_through ({} chars)",
+                        char_count
+                    );
+                    return (
+                        Some(transcription.to_string()),
+                        Some("__smart_pass_through__".to_string()),
+                        None,
+                        false,
+                        None,
+                        *token_count,
+                        Some(1),
+                    );
+                }
+                Some((super::routing::SmartAction::LitePolish { result }, token_count)) => {
+                    info!(
+                        "[PostProcess] SmartRouting: lite_polish ({} chars)",
+                        char_count
+                    );
+                    return (
+                        Some(result.clone()),
+                        Some("__smart_lite_polish__".to_string()),
+                        None,
+                        false,
+                        None,
+                        *token_count,
+                        Some(1),
+                    );
+                }
+                Some((super::routing::SmartAction::FullPolish, _)) => {
+                    info!(
+                        "[PostProcess] SmartRouting: full_polish ({} chars)",
+                        char_count
+                    );
+                }
+                None => {
+                    info!(
+                        "[PostProcess] SmartRouting: routing failed ({} chars), fallback to full polish",
+                        char_count
+                    );
+                }
+            }
+
+            // full_polish or routing failed: use short model
+            let action_tokens = action_result.as_ref().and_then(|(_, tc)| *tc);
+            let routed_model_id = settings.length_routing_short_model_id.clone();
+            let s = if routed_model_id.is_some() {
+                let mut s = settings.clone();
+                s.selected_prompt_model_id = routed_model_id;
+                Cow::Owned(s)
+            } else {
+                Cow::Borrowed(settings)
+            };
+            (s, action_tokens)
         }
     } else {
-        Cow::Borrowed(settings)
+        (Cow::Borrowed(settings), None)
     };
     let settings = settings.as_ref();
 
-    // Track token usage from auxiliary LLM calls (routing, parallel polish, etc.)
-    let mut routing_token_count: i64 = 0;
-    let mut routing_call_count: i64 = 0;
+    // Track token usage from auxiliary LLM calls
+    let mut routing_token_count: i64 = smart_routing_tokens.unwrap_or(0);
+    let mut routing_call_count: i64 = if smart_routing_tokens.is_some() { 1 } else { 0 };
 
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
