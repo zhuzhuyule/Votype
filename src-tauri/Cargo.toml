@@ -83,6 +83,7 @@ specta-typescript = "0.0.9"
 thiserror = "2"
 clap = { version = "4", features = ["derive"] }
 tiktoken-rs = "0.6"
+sha2 = "0.10"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"

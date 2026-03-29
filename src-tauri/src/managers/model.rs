@@ -4,6 +4,7 @@ use flate2::read::GzDecoder;
 use futures_util::StreamExt;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -79,6 +80,8 @@ pub struct ModelInfo {
     pub tags: Option<Vec<String>>,
     #[serde(default)]
     pub is_default: bool, // True if it is a built-in default model
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,6 +99,8 @@ struct UserModelEntry {
     speed_score: f32,
     #[serde(default)]
     tags: Option<Vec<String>>,
+    #[serde(default)]
+    sha256: Option<String>,
 }
 
 impl UserModelEntry {
@@ -117,6 +122,7 @@ impl UserModelEntry {
             speed_score: self.speed_score,
             tags: self.tags,
             is_default: false,
+            sha256: self.sha256,
         }
     }
 }
@@ -134,6 +140,34 @@ pub struct ModelManager {
     models_dir: PathBuf,
     user_catalog_path: PathBuf,
     available_models: Mutex<HashMap<String, ModelInfo>>,
+}
+
+fn compute_sha256(path: &Path) -> Result<String> {
+    let mut file = File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 65536]; // 64KB chunks
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn verify_sha256(path: &Path, expected: &str) -> Result<()> {
+    let actual = compute_sha256(path)?;
+    if actual != expected {
+        // Delete the corrupt file
+        let _ = fs::remove_file(path);
+        return Err(anyhow::anyhow!(
+            "SHA256 mismatch: expected {}, got {}. Corrupt file deleted.",
+            expected,
+            actual
+        ));
+    }
+    Ok(())
 }
 
 impl ModelManager {
@@ -294,6 +328,7 @@ impl ModelManager {
                 speed_score: 0.85,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -317,6 +352,7 @@ impl ModelManager {
                 speed_score: 0.60,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -339,6 +375,7 @@ impl ModelManager {
                 speed_score: 0.40,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -361,6 +398,7 @@ impl ModelManager {
                 speed_score: 0.30,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -383,6 +421,7 @@ impl ModelManager {
                 speed_score: 0.35,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -406,6 +445,7 @@ impl ModelManager {
                 speed_score: 0.85,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -428,6 +468,7 @@ impl ModelManager {
                 speed_score: 0.85,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -451,6 +492,7 @@ impl ModelManager {
                 speed_score: 0.90,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -475,6 +517,7 @@ impl ModelManager {
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -499,6 +542,7 @@ impl ModelManager {
                 speed_score: 0.90,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -523,6 +567,7 @@ impl ModelManager {
                 speed_score: 0.80,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -551,6 +596,7 @@ impl ModelManager {
                 speed_score: 0.98,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -577,6 +623,7 @@ impl ModelManager {
                 speed_score: 0.97,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -604,6 +651,7 @@ impl ModelManager {
                 speed_score: 0.70,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -630,6 +678,7 @@ impl ModelManager {
                 speed_score: 0.98,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -656,6 +705,7 @@ impl ModelManager {
                 speed_score: 0.98,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -682,6 +732,7 @@ impl ModelManager {
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -708,6 +759,7 @@ impl ModelManager {
                 speed_score: 0.98,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -736,6 +788,7 @@ impl ModelManager {
                 speed_score: 0.99,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -762,6 +815,7 @@ impl ModelManager {
                 speed_score: 0.92,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -787,6 +841,7 @@ impl ModelManager {
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -810,6 +865,7 @@ impl ModelManager {
                 speed_score: 0.70,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -838,6 +894,7 @@ impl ModelManager {
                 speed_score: 0.75,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -865,6 +922,7 @@ impl ModelManager {
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -891,6 +949,7 @@ impl ModelManager {
                 speed_score: 0.97,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -918,6 +977,7 @@ impl ModelManager {
                 speed_score: 0.93,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -945,6 +1005,7 @@ impl ModelManager {
                 speed_score: 0.87,
                 tags: Some(vec!["zh".to_string(), "en".to_string()]),
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -972,6 +1033,7 @@ impl ModelManager {
                 speed_score: 0.98,
                 tags: Some(vec!["zh".to_string()]),
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -1076,6 +1138,7 @@ impl ModelManager {
             accuracy_score: 0.8,
             speed_score: 0.8,
             tags,
+            sha256: None,
         };
 
         let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
@@ -1413,6 +1476,27 @@ impl ModelManager {
                     actual_size
                 ));
             }
+        }
+
+        // Verify SHA256 if hash is available
+        if let Some(ref expected_hash) = model_info.sha256 {
+            info!("Verifying SHA256 for model: {}", model_id);
+            if let Err(e) = verify_sha256(&partial_path, expected_hash) {
+                let mut models = self.available_models.lock().unwrap();
+                if let Some(model) = models.get_mut(model_id) {
+                    model.is_downloading = false;
+                    model.partial_size = 0;
+                }
+                let _ = self.app_handle.emit(
+                    "model-download-error",
+                    &serde_json::json!({
+                        "model_id": model_id,
+                        "error": format!("{}", e)
+                    }),
+                );
+                return Err(e);
+            }
+            info!("SHA256 verified for model: {}", model_id);
         }
 
         // Handle directory-based models (extract tar.gz) vs file-based models
