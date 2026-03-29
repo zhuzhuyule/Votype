@@ -24,7 +24,7 @@ pub async fn maybe_convert_chinese_variant(
     let config = if is_simplified {
         BuiltinConfig::Tw2sp
     } else {
-        BuiltinConfig::S2twp
+        BuiltinConfig::S2tw
     };
 
     match OpenCC::from_config(config) {
