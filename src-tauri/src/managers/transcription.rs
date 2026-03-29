@@ -12,24 +12,17 @@ use std::thread;
 use std::time::{Duration, SystemTime};
 use tauri::{AppHandle, Emitter, Manager};
 use transcribe_rs::{
-    engines::{
-        moonshine::{
-            ModelVariant, MoonshineEngine, MoonshineModelParams, MoonshineStreamingEngine,
-            StreamingModelParams,
-        },
-        paraformer::{ParaformerEngine, ParaformerModelParams},
-        parakeet::{
-            ParakeetEngine, ParakeetInferenceParams, ParakeetModelParams, TimestampGranularity,
-        },
-        sense_voice::{
-            Language as SenseVoiceLanguage, SenseVoiceEngine, SenseVoiceInferenceParams,
-            SenseVoiceModelParams,
-        },
-        whisper::{WhisperEngine, WhisperInferenceParams},
-        zipformer_ctc::{ZipformerCtcEngine, ZipformerCtcModelParams},
-        zipformer_transducer::{ZipformerTransducerEngine, ZipformerTransducerModelParams},
+    onnx::{
+        moonshine::{MoonshineModel, MoonshineVariant, StreamingModel},
+        paraformer::ParaformerModel,
+        parakeet::{ParakeetModel, ParakeetParams, TimestampGranularity},
+        sense_voice::{SenseVoiceModel, SenseVoiceParams},
+        zipformer_ctc::ZipformerCtcModel,
+        zipformer_transducer::ZipformerTransducerModel,
+        Quantization,
     },
-    TranscriptionEngine,
+    whisper_cpp::{WhisperEngine, WhisperInferenceParams},
+    SpeechModel, TranscribeOptions,
 };
 
 #[derive(Clone, Debug, Serialize)]
@@ -42,13 +35,13 @@ pub struct ModelStateEvent {
 
 enum LoadedEngine {
     Whisper(WhisperEngine),
-    Parakeet(ParakeetEngine),
-    Moonshine(MoonshineEngine),
-    MoonshineStreaming(MoonshineStreamingEngine),
-    SenseVoice(SenseVoiceEngine),
-    Paraformer(ParaformerEngine),
-    ZipformerTransducer(ZipformerTransducerEngine),
-    ZipformerCtc(ZipformerCtcEngine),
+    Parakeet(ParakeetModel),
+    Moonshine(MoonshineModel),
+    MoonshineStreaming(StreamingModel),
+    SenseVoice(SenseVoiceModel),
+    Paraformer(ParaformerModel),
+    ZipformerTransducer(ZipformerTransducerModel),
+    ZipformerCtc(ZipformerCtcModel),
 }
 
 fn is_sentence_ending_punctuation(ch: char) -> bool {
@@ -251,18 +244,6 @@ impl TranscriptionManager {
 
         {
             let mut engine = self.lock_engine();
-            if let Some(ref mut loaded_engine) = *engine {
-                match loaded_engine {
-                    LoadedEngine::Whisper(ref mut e) => e.unload_model(),
-                    LoadedEngine::Parakeet(ref mut e) => e.unload_model(),
-                    LoadedEngine::Moonshine(ref mut e) => e.unload_model(),
-                    LoadedEngine::MoonshineStreaming(ref mut e) => e.unload_model(),
-                    LoadedEngine::SenseVoice(ref mut e) => e.unload_model(),
-                    LoadedEngine::Paraformer(ref mut e) => e.unload_model(),
-                    LoadedEngine::ZipformerTransducer(ref mut e) => e.unload_model(),
-                    LoadedEngine::ZipformerCtc(ref mut e) => e.unload_model(),
-                }
-            }
             *engine = None; // Drop the engine to free memory
         }
         {
@@ -341,8 +322,7 @@ impl TranscriptionManager {
         // Create appropriate engine based on model type
         let loaded_engine = match model_info.engine_type {
             EngineType::Whisper => {
-                let mut engine = WhisperEngine::new();
-                engine.load_model(&model_path).map_err(|e| {
+                let engine = WhisperEngine::load(&model_path).map_err(|e| {
                     let error_msg = format!("Failed to load whisper model {}: {}", model_id, e);
                     let _ = self.app_handle.emit(
                         "model-state-changed",
@@ -358,10 +338,8 @@ impl TranscriptionManager {
                 LoadedEngine::Whisper(engine)
             }
             EngineType::Parakeet => {
-                let mut engine = ParakeetEngine::new();
-                engine
-                    .load_model_with_params(&model_path, ParakeetModelParams::int8())
-                    .map_err(|e| {
+                let engine =
+                    ParakeetModel::load(&model_path, &Quantization::Int8).map_err(|e| {
                         let error_msg =
                             format!("Failed to load parakeet model {}: {}", model_id, e);
                         let _ = self.app_handle.emit(
@@ -378,33 +356,27 @@ impl TranscriptionManager {
                 LoadedEngine::Parakeet(engine)
             }
             EngineType::Moonshine => {
-                let mut engine = MoonshineEngine::new();
-                engine
-                    .load_model_with_params(
-                        &model_path,
-                        MoonshineModelParams::variant(ModelVariant::Base),
-                    )
-                    .map_err(|e| {
-                        let error_msg =
-                            format!("Failed to load moonshine model {}: {}", model_id, e);
-                        let _ = self.app_handle.emit(
-                            "model-state-changed",
-                            ModelStateEvent {
-                                event_type: "loading_failed".to_string(),
-                                model_id: Some(model_id.to_string()),
-                                model_name: Some(model_info.name.clone()),
-                                error: Some(error_msg.clone()),
-                            },
-                        );
-                        anyhow::anyhow!(error_msg)
-                    })?;
+                let engine =
+                    MoonshineModel::load(&model_path, MoonshineVariant::Base, &Quantization::FP32)
+                        .map_err(|e| {
+                            let error_msg =
+                                format!("Failed to load moonshine model {}: {}", model_id, e);
+                            let _ = self.app_handle.emit(
+                                "model-state-changed",
+                                ModelStateEvent {
+                                    event_type: "loading_failed".to_string(),
+                                    model_id: Some(model_id.to_string()),
+                                    model_name: Some(model_info.name.clone()),
+                                    error: Some(error_msg.clone()),
+                                },
+                            );
+                            anyhow::anyhow!(error_msg)
+                        })?;
                 LoadedEngine::Moonshine(engine)
             }
             EngineType::MoonshineStreaming => {
-                let mut engine = MoonshineStreamingEngine::new();
-                engine
-                    .load_model_with_params(&model_path, StreamingModelParams::default())
-                    .map_err(|e| {
+                let engine =
+                    StreamingModel::load(&model_path, 4, &Quantization::FP32).map_err(|e| {
                         let error_msg = format!(
                             "Failed to load moonshine streaming model {}: {}",
                             model_id, e
@@ -423,10 +395,8 @@ impl TranscriptionManager {
                 LoadedEngine::MoonshineStreaming(engine)
             }
             EngineType::SenseVoice => {
-                let mut engine = SenseVoiceEngine::new();
-                engine
-                    .load_model_with_params(&model_path, SenseVoiceModelParams::int8())
-                    .map_err(|e| {
+                let engine =
+                    SenseVoiceModel::load(&model_path, &Quantization::Int8).map_err(|e| {
                         let error_msg =
                             format!("Failed to load SenseVoice model {}: {}", model_id, e);
                         let _ = self.app_handle.emit(
@@ -443,10 +413,8 @@ impl TranscriptionManager {
                 LoadedEngine::SenseVoice(engine)
             }
             EngineType::Paraformer => {
-                let mut engine = ParaformerEngine::new();
-                engine
-                    .load_model_with_params(&model_path, ParaformerModelParams::default())
-                    .map_err(|e| {
+                let engine =
+                    ParaformerModel::load(&model_path, &Quantization::FP32).map_err(|e| {
                         let error_msg =
                             format!("Failed to load Paraformer model {}: {}", model_id, e);
                         let _ = self.app_handle.emit(
@@ -463,7 +431,6 @@ impl TranscriptionManager {
                 LoadedEngine::Paraformer(engine)
             }
             EngineType::ZipformerTransducer => {
-                let mut engine = ZipformerTransducerEngine::new();
                 let has_int8 = std::fs::read_dir(&model_path)
                     .map(|entries| {
                         entries.filter_map(|e| e.ok()).any(|e| {
@@ -474,14 +441,13 @@ impl TranscriptionManager {
                         })
                     })
                     .unwrap_or(false);
-                let params = if has_int8 {
-                    ZipformerTransducerModelParams::int8()
+                let quantization = if has_int8 {
+                    Quantization::Int8
                 } else {
-                    ZipformerTransducerModelParams::fp32()
+                    Quantization::FP32
                 };
-                engine
-                    .load_model_with_params(&model_path, params)
-                    .map_err(|e| {
+                let engine =
+                    ZipformerTransducerModel::load(&model_path, &quantization).map_err(|e| {
                         let error_msg = format!(
                             "Failed to load Zipformer Transducer model {}: {}",
                             model_id, e
@@ -500,28 +466,25 @@ impl TranscriptionManager {
                 LoadedEngine::ZipformerTransducer(engine)
             }
             EngineType::ZipformerCtc => {
-                let mut engine = ZipformerCtcEngine::new();
-                let params = if model_path.join("model.int8.onnx").exists() {
-                    ZipformerCtcModelParams::int8()
+                let quantization = if model_path.join("model.int8.onnx").exists() {
+                    Quantization::Int8
                 } else {
-                    ZipformerCtcModelParams::default()
+                    Quantization::FP32
                 };
-                engine
-                    .load_model_with_params(&model_path, params)
-                    .map_err(|e| {
-                        let error_msg =
-                            format!("Failed to load Zipformer CTC model {}: {}", model_id, e);
-                        let _ = self.app_handle.emit(
-                            "model-state-changed",
-                            ModelStateEvent {
-                                event_type: "loading_failed".to_string(),
-                                model_id: Some(model_id.to_string()),
-                                model_name: Some(model_info.name.clone()),
-                                error: Some(error_msg.clone()),
-                            },
-                        );
-                        anyhow::anyhow!(error_msg)
-                    })?;
+                let engine = ZipformerCtcModel::load(&model_path, &quantization).map_err(|e| {
+                    let error_msg =
+                        format!("Failed to load Zipformer CTC model {}: {}", model_id, e);
+                    let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "loading_failed".to_string(),
+                            model_id: Some(model_id.to_string()),
+                            model_name: Some(model_info.name.clone()),
+                            error: Some(error_msg.clone()),
+                        },
+                    );
+                    anyhow::anyhow!(error_msg)
+                })?;
                 LoadedEngine::ZipformerCtc(engine)
             }
         };
@@ -691,57 +654,57 @@ impl TranscriptionManager {
                             };
 
                             whisper_engine
-                                .transcribe_samples(audio, Some(params))
+                                .transcribe_with(&audio, &params)
                                 .map_err(|e| anyhow::anyhow!("Whisper transcription failed: {}", e))
                         }
                         LoadedEngine::Parakeet(parakeet_engine) => {
-                            let params = ParakeetInferenceParams {
-                                timestamp_granularity: TimestampGranularity::Segment,
+                            let params = ParakeetParams {
+                                timestamp_granularity: Some(TimestampGranularity::Segment),
                                 ..Default::default()
                             };
                             parakeet_engine
-                                .transcribe_samples(audio, Some(params))
+                                .transcribe_with(&audio, &params)
                                 .map_err(|e| {
                                     anyhow::anyhow!("Parakeet transcription failed: {}", e)
                                 })
                         }
                         LoadedEngine::Moonshine(moonshine_engine) => moonshine_engine
-                            .transcribe_samples(audio, None)
+                            .transcribe(&audio, &TranscribeOptions::default())
                             .map_err(|e| anyhow::anyhow!("Moonshine transcription failed: {}", e)),
                         LoadedEngine::MoonshineStreaming(streaming_engine) => streaming_engine
-                            .transcribe_samples(audio, None)
+                            .transcribe(&audio, &TranscribeOptions::default())
                             .map_err(|e| {
                                 anyhow::anyhow!("Moonshine streaming transcription failed: {}", e)
                             }),
                         LoadedEngine::SenseVoice(sense_voice_engine) => {
                             let language = match settings.selected_language.as_str() {
-                                "zh" | "zh-Hans" | "zh-Hant" => SenseVoiceLanguage::Chinese,
-                                "en" => SenseVoiceLanguage::English,
-                                "ja" => SenseVoiceLanguage::Japanese,
-                                "ko" => SenseVoiceLanguage::Korean,
-                                "yue" => SenseVoiceLanguage::Cantonese,
-                                _ => SenseVoiceLanguage::Auto,
+                                "zh" | "zh-Hans" | "zh-Hant" => Some("zh".to_string()),
+                                "en" => Some("en".to_string()),
+                                "ja" => Some("ja".to_string()),
+                                "ko" => Some("ko".to_string()),
+                                "yue" => Some("yue".to_string()),
+                                _ => None,
                             };
-                            let params = SenseVoiceInferenceParams {
+                            let params = SenseVoiceParams {
                                 language,
-                                use_itn: true,
+                                use_itn: Some(true),
                             };
                             sense_voice_engine
-                                .transcribe_samples(audio, Some(params))
+                                .transcribe_with(&audio, &params)
                                 .map_err(|e| {
                                     anyhow::anyhow!("SenseVoice transcription failed: {}", e)
                                 })
                         }
                         LoadedEngine::Paraformer(paraformer_engine) => paraformer_engine
-                            .transcribe_samples(audio, None)
+                            .transcribe(&audio, &TranscribeOptions::default())
                             .map_err(|e| anyhow::anyhow!("Paraformer transcription failed: {}", e)),
                         LoadedEngine::ZipformerTransducer(zipformer_engine) => zipformer_engine
-                            .transcribe_samples(audio, None)
+                            .transcribe(&audio, &TranscribeOptions::default())
                             .map_err(|e| {
                                 anyhow::anyhow!("Zipformer Transducer transcription failed: {}", e)
                             }),
                         LoadedEngine::ZipformerCtc(zipformer_engine) => zipformer_engine
-                            .transcribe_samples(audio, None)
+                            .transcribe(&audio, &TranscribeOptions::default())
                             .map_err(|e| {
                                 anyhow::anyhow!("Zipformer CTC transcription failed: {}", e)
                             }),
@@ -986,30 +949,31 @@ impl TranscriptionManager {
 
         let result = catch_unwind(AssertUnwindSafe(
             || -> Result<transcribe_rs::TranscriptionResult> {
+                let opts = TranscribeOptions::default();
                 match &mut engine {
                     LoadedEngine::Whisper(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("Whisper realtime failed: {}", e)),
                     LoadedEngine::Parakeet(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("Parakeet realtime failed: {}", e)),
                     LoadedEngine::Moonshine(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("Moonshine realtime failed: {}", e)),
                     LoadedEngine::MoonshineStreaming(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("MoonshineStreaming realtime failed: {}", e)),
                     LoadedEngine::SenseVoice(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("SenseVoice realtime failed: {}", e)),
                     LoadedEngine::Paraformer(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("Paraformer realtime failed: {}", e)),
                     LoadedEngine::ZipformerTransducer(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("ZipformerTransducer realtime failed: {}", e)),
                     LoadedEngine::ZipformerCtc(e) => e
-                        .transcribe_samples(audio, None)
+                        .transcribe(&audio, &opts)
                         .map_err(|e| anyhow::anyhow!("ZipformerCtc realtime failed: {}", e)),
                 }
             },
@@ -1073,25 +1037,20 @@ impl Drop for TranscriptionManager {
 
 /// Apply the user's accelerator preferences to the transcribe-rs global atomics.
 /// Called on startup and whenever the user changes the setting.
-///
-/// NOTE: The `transcribe_rs::accel` module is not yet available in the current
-/// version of transcribe-rs.  When it lands, remove the stub and uncomment
-/// the real implementation below.
 pub fn apply_accelerator_settings(app: &tauri::AppHandle) {
+    use transcribe_rs::accel;
+
     let settings = get_settings(app);
 
-    // ---- Whisper accelerator ------------------------------------------------
-    // When transcribe_rs::accel is available, uncomment:
-    // use transcribe_rs::accel;
-    // let whisper_pref = match settings.whisper_accelerator {
-    //     crate::settings::WhisperAcceleratorSetting::Auto => accel::WhisperAccelerator::Auto,
-    //     crate::settings::WhisperAcceleratorSetting::Cpu  => accel::WhisperAccelerator::CpuOnly,
-    //     crate::settings::WhisperAcceleratorSetting::Gpu  => accel::WhisperAccelerator::Gpu,
-    // };
-    // accel::set_whisper_accelerator(whisper_pref);
-    // accel::set_whisper_gpu_device(settings.whisper_gpu_device);
+    let whisper_pref = match settings.whisper_accelerator {
+        crate::settings::WhisperAcceleratorSetting::Auto => accel::WhisperAccelerator::Auto,
+        crate::settings::WhisperAcceleratorSetting::Cpu => accel::WhisperAccelerator::CpuOnly,
+        crate::settings::WhisperAcceleratorSetting::Gpu => accel::WhisperAccelerator::Gpu,
+    };
+    accel::set_whisper_accelerator(whisper_pref);
+    accel::set_whisper_gpu_device(settings.whisper_gpu_device);
     info!(
-        "Whisper accelerator preference: {:?}, gpu_device: {} (stub — accel API not yet available)",
+        "Whisper accelerator set to: {:?}, gpu_device: {}",
         settings.whisper_accelerator,
         if settings.whisper_gpu_device == -1 {
             "auto".to_string()
@@ -1100,19 +1059,15 @@ pub fn apply_accelerator_settings(app: &tauri::AppHandle) {
         }
     );
 
-    // ---- ORT accelerator ----------------------------------------------------
-    // let ort_pref = match settings.ort_accelerator {
-    //     crate::settings::OrtAcceleratorSetting::Auto     => accel::OrtAccelerator::Auto,
-    //     crate::settings::OrtAcceleratorSetting::Cpu      => accel::OrtAccelerator::CpuOnly,
-    //     crate::settings::OrtAcceleratorSetting::Cuda     => accel::OrtAccelerator::Cuda,
-    //     crate::settings::OrtAcceleratorSetting::DirectMl => accel::OrtAccelerator::DirectMl,
-    //     crate::settings::OrtAcceleratorSetting::Rocm     => accel::OrtAccelerator::Rocm,
-    // };
-    // accel::set_ort_accelerator(ort_pref);
-    info!(
-        "ORT accelerator preference: {:?} (stub — accel API not yet available)",
-        settings.ort_accelerator
-    );
+    let ort_pref = match settings.ort_accelerator {
+        crate::settings::OrtAcceleratorSetting::Auto => accel::OrtAccelerator::Auto,
+        crate::settings::OrtAcceleratorSetting::Cpu => accel::OrtAccelerator::CpuOnly,
+        crate::settings::OrtAcceleratorSetting::Cuda => accel::OrtAccelerator::Cuda,
+        crate::settings::OrtAcceleratorSetting::DirectMl => accel::OrtAccelerator::DirectMl,
+        crate::settings::OrtAcceleratorSetting::Rocm => accel::OrtAccelerator::Rocm,
+    };
+    accel::set_ort_accelerator(ort_pref);
+    info!("ORT accelerator set to: {:?}", settings.ort_accelerator);
 }
 
 #[derive(Serialize, Clone, Debug, specta::Type)]
@@ -1126,19 +1081,15 @@ static GPU_DEVICES: std::sync::OnceLock<Vec<GpuDeviceOption>> = std::sync::OnceL
 
 fn cached_gpu_devices() -> &'static [GpuDeviceOption] {
     GPU_DEVICES.get_or_init(|| {
-        // When transcribe_rs::whisper_cpp::gpu::list_gpu_devices is available,
-        // uncomment the real implementation:
-        // use transcribe_rs::whisper_cpp::gpu::list_gpu_devices;
-        // list_gpu_devices()
-        //     .into_iter()
-        //     .map(|d| GpuDeviceOption {
-        //         id: d.id,
-        //         name: d.name,
-        //         total_vram_mb: d.total_vram / (1024 * 1024),
-        //     })
-        //     .collect()
-        info!("GPU device enumeration not yet available in transcribe-rs; returning empty list");
-        Vec::new()
+        use transcribe_rs::whisper_cpp::gpu::list_gpu_devices;
+        list_gpu_devices()
+            .into_iter()
+            .map(|d| GpuDeviceOption {
+                id: d.id,
+                name: d.name,
+                total_vram_mb: d.total_vram / (1024 * 1024),
+            })
+            .collect()
     })
 }
 
@@ -1151,16 +1102,13 @@ pub struct AvailableAccelerators {
 
 /// Return which accelerators are compiled into this build.
 pub fn get_available_accelerators() -> AvailableAccelerators {
-    // When transcribe_rs::accel::OrtAccelerator::available() is available,
-    // uncomment:
-    // use transcribe_rs::accel::OrtAccelerator;
-    // let ort_options: Vec<String> = OrtAccelerator::available()
-    //     .into_iter()
-    //     .map(|a| a.to_string())
-    //     .collect();
+    use transcribe_rs::accel::OrtAccelerator;
 
-    // Stub: report only the always-available options
-    let ort_options = vec!["auto".to_string(), "cpu".to_string()];
+    let ort_options: Vec<String> = OrtAccelerator::available()
+        .into_iter()
+        .map(|a| a.to_string())
+        .collect();
+
     let whisper_options = vec!["auto".to_string(), "cpu".to_string(), "gpu".to_string()];
 
     AvailableAccelerators {
