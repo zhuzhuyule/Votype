@@ -340,32 +340,30 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
 
   return (
     <SettingsGroup
-      title={
-        <Flex align="center" justify="between" width="100%">
-          <span>{t("settings.postProcessing.prompts.globalConfigTitle")}</span>
-          <Switch
-            size="1"
-            checked={settings?.post_process_enabled ?? false}
-            onCheckedChange={handleToggle("post_process_enabled")}
-          />
-        </Flex>
+      title={t("settings.postProcessing.prompts.globalConfigTitle")}
+      actions={
+        <Switch
+          size="1"
+          checked={settings?.post_process_enabled ?? false}
+          onCheckedChange={handleToggle("post_process_enabled")}
+        />
       }
     >
       {enabled && (
         <Flex direction="column" gap="3">
-          {/* Top row: intent model + smart routing toggle */}
-          <Flex align="center" justify="between">
-            <Flex align="center" gap="3">
-              <Flex align="center" gap="1.5" style={{ whiteSpace: "nowrap" }}>
-                <IconSparkles size={14} className="text-(--gray-9)" />
-                <Text size="2" weight="medium">
-                  {t(
-                    "settings.postProcessing.intentModel.title",
-                    "Intent model",
-                  )}
-                </Text>
-              </Flex>
-              <Box style={{ maxWidth: 200 }}>
+          {/* Top row: intent model (left) + smart routing toggle (right) */}
+          <Flex
+            align="center"
+            justify="between"
+            className="rounded-lg px-3 py-2"
+            style={{ background: "var(--gray-a2)" }}
+          >
+            <Flex align="center" gap="2.5">
+              <IconSparkles size={14} className="text-(--accent-9)" />
+              <Text size="1" weight="medium" color="gray">
+                {t("settings.postProcessing.intentModel.title", "Intent model")}
+              </Text>
+              <Box style={{ minWidth: 160 }}>
                 {renderModelSelect(
                   intentModelId,
                   (v) =>
@@ -381,8 +379,8 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
               </Box>
             </Flex>
             <Flex align="center" gap="2">
-              <IconRoute size={14} className="text-(--gray-9)" />
-              <Text size="2" weight="medium">
+              <IconRoute size={14} className="text-(--accent-9)" />
+              <Text size="1" weight="medium" color="gray">
                 {t(
                   "settings.postProcessing.smartRouting.title",
                   "Smart Routing",
