@@ -9,7 +9,6 @@ import { SettingsGroup } from "../../ui/SettingsGroup";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ApiSettings } from "./ApiSettings";
 import { AddModelDialog } from "./dialogs/AddModelDialog";
-import { TextModelModeSettings } from "./LengthRoutingSettings";
 import { ModelListPanel } from "./ModelConfigurationPanel";
 
 export const ModelsConfiguration: React.FC = () => {
@@ -29,10 +28,7 @@ export const ModelsConfiguration: React.FC = () => {
         providerState={providerState}
       />
 
-      {/* 2. Default Model / Length Routing (expert mode) */}
-      {settings?.expert_mode && <TextModelModeSettings />}
-
-      {/* 3. Unified Models Panel */}
+      {/* 2. Unified Models Panel */}
       <SettingsGroup
         title={
           <Flex align="center" gap="3">

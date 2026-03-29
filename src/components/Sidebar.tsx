@@ -124,7 +124,7 @@ export const SECTIONS_CONFIG = {
     shortcutKey: "4",
   },
   prompts: {
-    labelKey: "sidebar.prompts",
+    labelKey: "sidebar.postProcessing",
     icon: IconSparkles,
     component: PromptsConfiguration,
     enabled: () => true,
