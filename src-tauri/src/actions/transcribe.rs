@@ -18,7 +18,7 @@ use log::{debug, error, info};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 pub(super) struct TranscribeAction {
     pub skill_mode: bool,
@@ -642,23 +642,68 @@ impl ShortcutAction for TranscribeAction {
                         None
                     };
 
-                    let primary = match primary_handle.await {
-                        Ok(res) => res,
-                        Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
-                    };
-                    let secondary = if let Some(handle) = secondary_handle {
-                        match handle.await {
-                            Ok(res) => res,
-                            Err(e) => {
-                                log::warn!("Secondary transcription task failed: {}", e);
-                                None
+                    // Determine if we have a local fallback running in parallel
+                    let has_local_fallback = secondary_handle.is_some();
+                    const ONLINE_TIMEOUT_WITH_LOCAL: u64 = 10;
+
+                    if has_local_fallback {
+                        // Race: wait up to 10s for online, otherwise use local
+                        let secondary_handle = secondary_handle.unwrap();
+
+                        match timeout(
+                            Duration::from_secs(ONLINE_TIMEOUT_WITH_LOCAL),
+                            primary_handle,
+                        )
+                        .await
+                        {
+                            Ok(join_result) => {
+                                // Online finished within timeout
+                                let primary = match join_result {
+                                    Ok(res) => res,
+                                    Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
+                                };
+                                // Still await secondary (it's likely done or almost done)
+                                let secondary = match secondary_handle.await {
+                                    Ok(res) => res,
+                                    Err(e) => {
+                                        log::warn!("Secondary transcription task failed: {}", e);
+                                        None
+                                    }
+                                };
+                                (primary, secondary)
+                            }
+                            Err(_elapsed) => {
+                                // Online timed out — use local result
+                                log::info!(
+                                    "[ASR] Online timeout ({}s), using local result",
+                                    ONLINE_TIMEOUT_WITH_LOCAL
+                                );
+                                // Await the secondary (local) result
+                                let secondary = match secondary_handle.await {
+                                    Ok(res) => res,
+                                    Err(e) => {
+                                        log::warn!("Secondary transcription task failed: {}", e);
+                                        None
+                                    }
+                                };
+                                // Return online as error so fallback logic picks up secondary
+                                (
+                                    Err(anyhow::anyhow!(
+                                        "Online ASR timed out after {}s, fell back to local",
+                                        ONLINE_TIMEOUT_WITH_LOCAL
+                                    )),
+                                    secondary,
+                                )
                             }
                         }
                     } else {
-                        None
-                    };
-
-                    (primary, secondary)
+                        // No local fallback — await online normally
+                        let primary = match primary_handle.await {
+                            Ok(res) => res,
+                            Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
+                        };
+                        (primary, None)
+                    }
                 } else {
                     (tm.transcribe(samples.clone()), None)
                 };
