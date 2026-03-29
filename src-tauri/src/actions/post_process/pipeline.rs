@@ -255,12 +255,12 @@ pub async fn maybe_post_process_transcription(
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // Level 1: Smart Routing (independent pre-process layer)
+    // Level 1: Smart Routing (activated by 智能模型 mode / length_routing_enabled)
     // Handles history reuse and action routing BEFORE model selection.
     // ═══════════════════════════════════════════════════════════════════════
     let mut smart_routing_tokens: Option<i64> = None;
 
-    if settings.smart_routing_enabled {
+    if settings.length_routing_enabled {
         let char_count = transcription.chars().count() as u32;
 
         // Layer 0: History exact-match reuse

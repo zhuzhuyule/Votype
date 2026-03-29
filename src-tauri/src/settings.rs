@@ -845,8 +845,10 @@ pub struct AppSettings {
     pub length_routing_short_model_id: Option<String>,
     #[serde(default)]
     pub length_routing_long_model_id: Option<String>,
-    /// Smart routing: pre-process layer that handles history reuse and action routing
-    /// before delegating to the model selection layer (single/length/multi).
+    /// Smart routing: pre-process layer that handles history reuse and action routing.
+    /// Activated when length_routing_enabled (smart model mode) is on.
+    /// This field is kept for potential future independent control but currently
+    /// follows length_routing_enabled.
     #[serde(default = "default_true", alias = "smart_routing_history_reuse")]
     pub smart_routing_enabled: bool,
 }
