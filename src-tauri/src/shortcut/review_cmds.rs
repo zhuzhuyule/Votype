@@ -137,6 +137,20 @@ pub fn cancel_transcription_review(
         }
     }
 
+    // Mark the post-process result as rejected for smart routing feedback
+    if let Some(hid) = history_id {
+        let app_for_reject = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Some(hm) = app_for_reject
+                .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
+            {
+                if let Err(e) = hm.reject_post_process_result(hid).await {
+                    log::error!("Failed to mark post-process result as rejected: {}", e);
+                }
+            }
+        });
+    }
+
     Ok(())
 }
 
