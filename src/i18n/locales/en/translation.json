@@ -1029,7 +1029,12 @@
         "multiStrategyLazyShort": "Lazy",
         "multiStrategyLazyHint": "Wait 3s for preferred model, auto-select on timeout",
         "preferredModel": "Preferred model",
-        "setAsPreferred": "Set as preferred model"
+        "setAsPreferred": "Set as preferred model",
+        "selectModelsTitle": "Select Models",
+        "selectModelsDescription": "Choose models for parallel processing. Click the star to set preferred model.",
+        "selectedCount": "{{count}} selected",
+        "noneSelected": "No models selected",
+        "models": "Models"
       },
       "lengthRouting": {
         "enableLabel": "Auto-select model by text length",

@@ -1284,7 +1284,12 @@
         "multiStrategyLazyShort": "懒惰",
         "multiStrategyLazyHint": "优先等偏好模型 3 秒，超时后自动选择",
         "preferredModel": "偏好模型",
-        "setAsPreferred": "设为偏好模型"
+        "setAsPreferred": "设为偏好模型",
+        "selectModelsTitle": "选择模型",
+        "selectModelsDescription": "选择用于并行处理的模型，点击星标设为偏好模型",
+        "selectedCount": "已选 {{count}} 个",
+        "noneSelected": "未选择模型",
+        "models": "模型"
       },
       "lengthRouting": {
         "enableLabel": "按文本长度自动选择模型",
