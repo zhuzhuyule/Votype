@@ -1,52 +1,52 @@
-# 润色质量评估与词级变动分析
+# Polish Quality Assessment and Word-Level Change Analysis
 
-评估语音转录润色结果的质量，并逐词分析所有变动。
+Evaluate the quality of a speech transcription polish result and analyze all changes at the word level.
 
-## 输入
+## Input
 
-原始转录：
+Original transcription:
 {{source_text}}
 
-润色结果：
+Polished result:
 {{target_text}}
 
-## 任务
+## Task
 
-1. 对比原始转录与润色结果，提取所有**真实发生的词级别变动**（A → B）
-2. 对每个变动判断是否为 ASR 误识别，即是否适合加入热词表
-3. 给出整体置信度评分
+1. Compare original transcription with polished result; extract all **actual word-level changes** (A -> B)
+2. For each change, determine whether it is an ASR misrecognition suitable for adding to the hotword list
+3. Provide an overall confidence score
 
-## 变动分类规则
+## Change Classification Rules
 
 ### is_hotword = true
 
-满足以下任一情况：
+When any of the following apply:
 
-1. 同音字、近音字、谐音词或形近词替换。
-2. 人名、地名、品牌、术语等专有名词识别错误。
-3. 英文单词、缩写、大小写或连写形式的 ASR 听写错误。
-4. 修正前后的词语语义几乎无关，但明显属于识别错误而非主动改写。
+1. Homophone, near-homophone, or visually similar character substitution
+2. Misrecognition of proper nouns such as person names, place names, brands, or terms
+3. ASR dictation errors in English words, abbreviations, casing, or concatenated forms
+4. The original and corrected words are semantically unrelated, but the change is clearly a recognition error rather than an intentional edit
 
 ### is_hotword = false
 
-满足以下任一情况：
+When any of the following apply:
 
-1. 语法修正、语序调整、表述优化。
-2. 标点、空格、换行、格式规范化。
-3. 语气词增删、重复清理、口语噪音移除。
-4. 同义替换、语气调整或其他语义层面的润色。
+1. Grammar correction, word-order adjustment, or phrasing improvement
+2. Punctuation, spacing, line-break, or formatting normalization
+3. Filler-word insertion/removal, repetition cleanup, or spoken-noise removal
+4. Synonym substitution, tone adjustment, or other semantic-level polishing
 
-## 判断边界
+## Classification Boundaries
 
-- 如果只是格式更整洁、句子更通顺、表达更书面，不算热词。
-- 只有当修改更像“把识别错的词纠正回来”时，才标记为 `is_hotword = true`。
-- 不确定时，优先返回 `is_hotword = false`，避免误加入热词表。
-- 只返回**实际发生变化**的项；如果 `original` 与 `corrected` 相同，或只是重复抄写未变化内容，禁止输出该项。
-- 不要为了凑数量拆分出未变化词语；`changes` 中每一项都必须是明确的 `A → B` 变更。
+- If a change merely makes text tidier, smoother, or more formal, it is NOT a hotword
+- Mark `is_hotword = true` only when the change looks like "correcting a misrecognized word back to the intended one"
+- When uncertain, prefer `is_hotword = false` to avoid false additions to the hotword list
+- Only include items where an **actual change occurred**; if `original` and `corrected` are identical, or merely repeat unchanged content, do not output that item
+- Do not split unchanged words into entries to inflate the count; every item in `changes` must be a clear A -> B modification
 
-## 输出格式
+## Output Format
 
-严格返回 JSON，不要其他内容：
+Return strictly JSON with no other content:
 
 ```json
 {
@@ -63,26 +63,26 @@
 }
 ```
 
-字段说明：
+Field descriptions:
 
-- `confidence`: 0-100 整体润色质量评分
-- `changes`: 词级变动数组，无变动时为空数组 `[]`
-- `original`: 原始转录中的词/短语
-- `corrected`: 润色后的词/短语
-- `is_hotword`: 是否为 ASR 误识别（适合加入热词表）
-- `category`: 仅当 `is_hotword` 为 true 时填写，可选值: "person"(人名), "term"(术语), "brand"(品牌), "abbreviation"(缩写)
+- `confidence`: 0-100 overall polish quality score
+- `changes`: word-level change array; empty array `[]` when no changes
+- `original`: word/phrase from the original transcription
+- `corrected`: word/phrase after polishing
+- `is_hotword`: whether this is an ASR misrecognition (suitable for hotword list)
+- `category`: required only when `is_hotword` is true; options: "person" (person name), "term" (terminology), "brand" (brand/product), "abbreviation" (abbreviation)
 
-## category 选择规则
+## Category Selection Rules
 
-- 人名、地名、组织名等专有称呼，优先归为 `person` 或 `brand`
-- 技术词、业务词、专业术语，归为 `term`
-- 公司、产品、服务、平台名称，归为 `brand`
-- 首字母缩写、英文缩写、产品简称，归为 `abbreviation`
-- 不确定时默认使用 `term`
+- Person names, place names, organization names -> prefer `person` or `brand`
+- Technical terms, business terms, professional jargon -> `term`
+- Company, product, service, or platform names -> `brand`
+- Acronyms, English abbreviations, product shorthand -> `abbreviation`
+- When uncertain, default to `term`
 
-置信度参考：
+Confidence reference:
 
-- 90-100: 完全保留原意且明显改善
-- 70-89: 基本正确，改善明显
-- 50-69: 可能存在语义偏差
-- 0-49: 有明显问题，需人工审查
+- 90-100: Fully preserves original meaning with clear improvement
+- 70-89: Mostly correct with noticeable improvement
+- 50-69: Possible semantic deviation
+- 0-49: Obvious issues requiring manual review

@@ -1,61 +1,61 @@
-分析以下语音识别修正对，判断每个修改是 ASR 误识别还是语义改写。
+Analyze the following speech recognition correction pairs and determine whether each change is an ASR misrecognition or a semantic edit.
 
-## 修正对
+## Correction Pairs
 
 {{corrections}}
 
-## 判断规则
+## Classification Rules
 
-### asr_error（ASR 误识别）
+### asr_error (ASR misrecognition)
 
-满足以下任一条件：
+When any of the following apply:
 
-1. **发音相似**：同音字、近音字、音近词（如："始呀"→"是啊"、"课吗"→"可吗"）
-2. **形近或误写**：形近字、近形词、常见识别串扰
-3. **专有名词**：人名、地名、品牌、术语被错误识别
-4. **缩写/英文**：缩写、英文单词、大小写或连写形式的听写错误
-5. **明显识别偏差**：修正前后的词语语义几乎无关，但明显属于识别错误，而非主动改写
+1. **Similar pronunciation**: homophones, near-homophones, phonetically similar words
+2. **Visually similar or misspelled**: similar-looking characters, near-form words, common recognition confusion
+3. **Proper nouns**: person names, place names, brands, or terms misrecognized
+4. **Abbreviations/English**: abbreviation, English word, casing, or concatenated-form dictation errors
+5. **Clear recognition drift**: original and corrected words are semantically unrelated, but the change is clearly a recognition error rather than an intentional edit
 
-**关键判断点**：如果这个修改更像“把识别错的词纠正回来”，就应判为 `asr_error`。
+**Key criterion**: if the change looks like "correcting a misrecognized word back to the intended one", classify it as `asr_error`.
 
-### semantic_edit（语义改写）
+### semantic_edit (semantic edit)
 
-满足以下任一条件：
+When any of the following apply:
 
-1. **同义替换**：意思相同但用词不同（如："很好"→"非常好"）
-2. **表述优化**：简化/扩展/调整表述方式
-3. **语气调整**：改变语气、情感表达
-4. **格式调整**：标点、空格、格式修改
-5. **噪音清理**：语气词删除、重复字词清理、断句优化
+1. **Synonym substitution**: same meaning but different wording
+2. **Phrasing improvement**: simplification, expansion, or rewording
+3. **Tone adjustment**: change in tone or emotional expression
+4. **Format adjustment**: punctuation, spacing, or formatting changes
+5. **Noise cleanup**: filler-word removal, duplicate cleanup, sentence-break optimization
 
-## 判断边界
+## Classification Boundaries
 
-- 如果只是格式更整洁、句子更自然、表达更书面，不算 `asr_error`。
-- 只有当修改明显针对“识别错的词”时，才判为 `asr_error`。
-- 不确定时，优先返回 `semantic_edit`。
-- 只分析真正发生变化的修正对；如果 `original` 与 `corrected` 相同，禁止输出该项。
+- If a change merely makes text tidier, more natural, or more formal, it is NOT `asr_error`
+- Mark as `asr_error` only when the change clearly targets a "misrecognized word"
+- When uncertain, prefer `semantic_edit`
+- Only analyze pairs where an actual change occurred; if `original` and `corrected` are identical, do not output that item
 
-## 输出
+## Output
 
-仅输出 JSON 数组，不要其他内容:
+Return only a JSON array with no other content:
 
 ```json
 [{"original":"A","corrected":"B","type":"asr_error","category":"term"}, ...]
 ```
 
-字段说明:
+Field descriptions:
 
-- `original`: 原始识别文本
-- `corrected`: 修正后文本
-- `type`: "asr_error" 或 "semantic_edit"
-- `category`: **仅当 type 为 "asr_error" 时必须提供**，可选值: "person"(人名), "term"(术语), "brand"(品牌), "abbreviation"(缩写)
+- `original`: original recognized text
+- `corrected`: corrected text
+- `type`: "asr_error" or "semantic_edit"
+- `category`: **required only when type is "asr_error"**; options: "person" (person name), "term" (terminology), "brand" (brand/product), "abbreviation" (abbreviation)
 
-category 选择规则:
+Category selection rules:
 
-- 人名、地名、组织名等专有称呼，优先归为 `person` 或 `brand`
-- 技术词、业务词、专业术语，归为 `term`
-- 公司、产品、服务、平台名称，归为 `brand`
-- 首字母缩写、英文缩写、产品简称，归为 `abbreviation`
-- 不确定时默认使用 `term`
+- Person names, place names, organization names -> prefer `person` or `brand`
+- Technical terms, business terms, professional jargon -> `term`
+- Company, product, service, or platform names -> `brand`
+- Acronyms, English abbreviations, product shorthand -> `abbreviation`
+- When uncertain, default to `term`
 
-**注意**：如果 type 为 "semantic_edit"，则**不要**包含 category 字段。
+**Note**: if type is "semantic_edit", do **not** include the category field.
