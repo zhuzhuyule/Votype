@@ -705,6 +705,40 @@ impl std::ops::DerefMut for SecretMap {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum WhisperAcceleratorSetting {
+    Auto,
+    Cpu,
+    Gpu,
+}
+
+impl Default for WhisperAcceleratorSetting {
+    fn default() -> Self {
+        WhisperAcceleratorSetting::Auto
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum OrtAcceleratorSetting {
+    Auto,
+    Cpu,
+    Cuda,
+    DirectMl,
+    Rocm,
+}
+
+impl Default for OrtAcceleratorSetting {
+    fn default() -> Self {
+        OrtAcceleratorSetting::Auto
+    }
+}
+
+fn default_whisper_gpu_device() -> i32 {
+    -1
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
@@ -889,6 +923,15 @@ pub struct AppSettings {
     /// Keep microphone stream open for 30s after recording stops (reduces Bluetooth reconnect latency)
     #[serde(default)]
     pub lazy_stream_close: bool,
+    /// Whisper accelerator preference (auto / cpu / gpu)
+    #[serde(default)]
+    pub whisper_accelerator: WhisperAcceleratorSetting,
+    /// ORT accelerator preference (auto / cpu / cuda / directml / rocm)
+    #[serde(default)]
+    pub ort_accelerator: OrtAcceleratorSetting,
+    /// Whisper GPU device index (-1 = auto)
+    #[serde(default = "default_whisper_gpu_device")]
+    pub whisper_gpu_device: i32,
 }
 
 fn default_model() -> String {
@@ -1596,6 +1639,9 @@ pub fn get_default_settings() -> AppSettings {
         length_routing_long_model_id: None,
         smart_routing_enabled: true,
         lazy_stream_close: false,
+        whisper_accelerator: WhisperAcceleratorSetting::default(),
+        ort_accelerator: OrtAcceleratorSetting::default(),
+        whisper_gpu_device: default_whisper_gpu_device(),
     }
 }
 

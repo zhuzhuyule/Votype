@@ -1067,6 +1067,109 @@ impl Drop for TranscriptionManager {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Accelerator / GPU device settings
+// ---------------------------------------------------------------------------
+
+/// Apply the user's accelerator preferences to the transcribe-rs global atomics.
+/// Called on startup and whenever the user changes the setting.
+///
+/// NOTE: The `transcribe_rs::accel` module is not yet available in the current
+/// version of transcribe-rs.  When it lands, remove the stub and uncomment
+/// the real implementation below.
+pub fn apply_accelerator_settings(app: &tauri::AppHandle) {
+    let settings = get_settings(app);
+
+    // ---- Whisper accelerator ------------------------------------------------
+    // When transcribe_rs::accel is available, uncomment:
+    // use transcribe_rs::accel;
+    // let whisper_pref = match settings.whisper_accelerator {
+    //     crate::settings::WhisperAcceleratorSetting::Auto => accel::WhisperAccelerator::Auto,
+    //     crate::settings::WhisperAcceleratorSetting::Cpu  => accel::WhisperAccelerator::CpuOnly,
+    //     crate::settings::WhisperAcceleratorSetting::Gpu  => accel::WhisperAccelerator::Gpu,
+    // };
+    // accel::set_whisper_accelerator(whisper_pref);
+    // accel::set_whisper_gpu_device(settings.whisper_gpu_device);
+    info!(
+        "Whisper accelerator preference: {:?}, gpu_device: {} (stub — accel API not yet available)",
+        settings.whisper_accelerator,
+        if settings.whisper_gpu_device == -1 {
+            "auto".to_string()
+        } else {
+            settings.whisper_gpu_device.to_string()
+        }
+    );
+
+    // ---- ORT accelerator ----------------------------------------------------
+    // let ort_pref = match settings.ort_accelerator {
+    //     crate::settings::OrtAcceleratorSetting::Auto     => accel::OrtAccelerator::Auto,
+    //     crate::settings::OrtAcceleratorSetting::Cpu      => accel::OrtAccelerator::CpuOnly,
+    //     crate::settings::OrtAcceleratorSetting::Cuda     => accel::OrtAccelerator::Cuda,
+    //     crate::settings::OrtAcceleratorSetting::DirectMl => accel::OrtAccelerator::DirectMl,
+    //     crate::settings::OrtAcceleratorSetting::Rocm     => accel::OrtAccelerator::Rocm,
+    // };
+    // accel::set_ort_accelerator(ort_pref);
+    info!(
+        "ORT accelerator preference: {:?} (stub — accel API not yet available)",
+        settings.ort_accelerator
+    );
+}
+
+#[derive(Serialize, Clone, Debug, specta::Type)]
+pub struct GpuDeviceOption {
+    pub id: i32,
+    pub name: String,
+    pub total_vram_mb: usize,
+}
+
+static GPU_DEVICES: std::sync::OnceLock<Vec<GpuDeviceOption>> = std::sync::OnceLock::new();
+
+fn cached_gpu_devices() -> &'static [GpuDeviceOption] {
+    GPU_DEVICES.get_or_init(|| {
+        // When transcribe_rs::whisper_cpp::gpu::list_gpu_devices is available,
+        // uncomment the real implementation:
+        // use transcribe_rs::whisper_cpp::gpu::list_gpu_devices;
+        // list_gpu_devices()
+        //     .into_iter()
+        //     .map(|d| GpuDeviceOption {
+        //         id: d.id,
+        //         name: d.name,
+        //         total_vram_mb: d.total_vram / (1024 * 1024),
+        //     })
+        //     .collect()
+        info!("GPU device enumeration not yet available in transcribe-rs; returning empty list");
+        Vec::new()
+    })
+}
+
+#[derive(Serialize, Clone, Debug, specta::Type)]
+pub struct AvailableAccelerators {
+    pub whisper: Vec<String>,
+    pub ort: Vec<String>,
+    pub gpu_devices: Vec<GpuDeviceOption>,
+}
+
+/// Return which accelerators are compiled into this build.
+pub fn get_available_accelerators() -> AvailableAccelerators {
+    // When transcribe_rs::accel::OrtAccelerator::available() is available,
+    // uncomment:
+    // use transcribe_rs::accel::OrtAccelerator;
+    // let ort_options: Vec<String> = OrtAccelerator::available()
+    //     .into_iter()
+    //     .map(|a| a.to_string())
+    //     .collect();
+
+    // Stub: report only the always-available options
+    let ort_options = vec!["auto".to_string(), "cpu".to_string()];
+    let whisper_options = vec!["auto".to_string(), "cpu".to_string(), "gpu".to_string()];
+
+    AvailableAccelerators {
+        whisper: whisper_options,
+        ort: ort_options,
+        gpu_devices: cached_gpu_devices().to_vec(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{ends_with_sentence_punctuation, should_skip_auto_punctuation};

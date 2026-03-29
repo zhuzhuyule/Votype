@@ -213,6 +213,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         }
     }
 
+    // Apply accelerator preferences before any model is loaded
+    crate::managers::transcription::apply_accelerator_settings(app_handle);
+
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));
@@ -441,6 +444,10 @@ pub fn run() {
             shortcut::settings_cmds::get_preset_params,
             shortcut::settings_cmds::get_available_presets,
             shortcut::settings_cmds::update_cached_model_family,
+            shortcut::settings_cmds::change_whisper_accelerator_setting,
+            shortcut::settings_cmds::change_ort_accelerator_setting,
+            shortcut::settings_cmds::change_whisper_gpu_device,
+            shortcut::settings_cmds::get_available_accelerators,
             shortcut::multi_model_cmds::toggle_multi_model_selection,
             shortcut::multi_model_cmds::change_multi_model_post_process_enabled_setting,
             shortcut::multi_model_cmds::change_multi_model_strategy_setting,
@@ -685,6 +692,10 @@ pub fn run() {
             shortcut::settings_cmds::change_cached_model_prompt_message_role,
             shortcut::settings_cmds::update_cached_model,
             shortcut::settings_cmds::update_cached_model_family,
+            shortcut::settings_cmds::change_whisper_accelerator_setting,
+            shortcut::settings_cmds::change_ort_accelerator_setting,
+            shortcut::settings_cmds::change_whisper_gpu_device,
+            shortcut::settings_cmds::get_available_accelerators,
             shortcut::settings_cmds::get_model_families,
             shortcut::settings_cmds::detect_model_family_cmd,
             shortcut::settings_cmds::get_preset_params,
