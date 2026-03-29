@@ -278,6 +278,7 @@ pub async fn multi_post_process_transcription(
                     processing_time_ms: elapsed,
                     error: result.1,
                     ready,
+                    token_count: result.2,
                 }
             }
         })
@@ -292,6 +293,15 @@ pub async fn multi_post_process_transcription(
             .multi_model_preferred_id
             .clone()
             .filter(|id| items.iter().any(|item| item.id == *id))
+            .or_else(|| {
+                // Infer preferred model from manual pick history
+                settings
+                    .multi_model_manual_pick_counts
+                    .iter()
+                    .filter(|(id, _)| items.iter().any(|item| &item.id == *id))
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(id, _)| id.clone())
+            })
             .or_else(|| {
                 settings
                     .selected_prompt_model_id
@@ -484,13 +494,13 @@ async fn execute_single_model_post_process(
     hotword_injection: Option<crate::managers::hotword::HotwordInjection>,
     resolved_prompts: &HashMap<String, LLMPrompt>,
     app_name: Option<&str>,
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<String>, Option<i64>) {
     // Get provider
     let provider = match settings.post_process_provider(&item.provider_id) {
         Some(p) => p,
         None => {
             error!("[MultiModel] Provider not found: {}", item.provider_id);
-            return (None, Some("Provider not found".to_string()));
+            return (None, Some("Provider not found".to_string()), None);
         }
     };
 
@@ -505,7 +515,7 @@ async fn execute_single_model_post_process(
                 "[MultiModel] Prompt not found in pre-resolved map: {}",
                 item.prompt_id,
             );
-            return (None, Some("Prompt not found".to_string()));
+            return (None, Some("Prompt not found".to_string()), None);
         }
     };
 
@@ -563,7 +573,7 @@ async fn execute_single_model_post_process(
     }
 
     if messages.is_empty() {
-        return (None, Some("Failed to build messages".to_string()));
+        return (None, Some("Failed to build messages".to_string()), None);
     }
 
     // Resolve CachedModel to get extra_params
@@ -694,7 +704,7 @@ async fn execute_single_model_post_process(
         Ok(c) => c,
         Err(e) => {
             error!("[MultiModel] Failed to create HTTP client: {:?}", e);
-            return (None, Some(format!("Client creation failed: {:?}", e)));
+            return (None, Some(format!("Client creation failed: {:?}", e)), None);
         }
     };
 
@@ -702,7 +712,7 @@ async fn execute_single_model_post_process(
         Ok(r) => r,
         Err(e) => {
             error!("[MultiModel] LLM request failed: {:?}", e);
-            return (None, Some(format!("LLM request failed: {:?}", e)));
+            return (None, Some(format!("LLM request failed: {:?}", e)), None);
         }
     };
 
@@ -713,6 +723,7 @@ async fn execute_single_model_post_process(
         return (
             None,
             Some(format!("API error ({}): {}", status, error_text)),
+            None,
         );
     }
 
@@ -720,7 +731,7 @@ async fn execute_single_model_post_process(
         Ok(j) => j,
         Err(e) => {
             error!("[MultiModel] Failed to parse response: {:?}", e);
-            return (None, Some(format!("Response parse failed: {:?}", e)));
+            return (None, Some(format!("Response parse failed: {:?}", e)), None);
         }
     };
     if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
@@ -766,7 +777,22 @@ async fn execute_single_model_post_process(
     }
     super::core::preview_multiline("MultiModelResponseText", &text);
 
-    (Some(text), None)
+    let token_count = json_resp
+        .get("usage")
+        .and_then(|u| u.get("total_tokens"))
+        .and_then(|t| t.as_i64())
+        .or_else(|| {
+            // Fallback: estimate tokens via tiktoken if API didn't return usage
+            tiktoken_rs::cl100k_base().ok().map(|bpe| {
+                let prompt_tokens = bpe
+                    .encode_with_special_tokens(&serde_json::to_string(&body).unwrap_or_default())
+                    .len() as i64;
+                let response_tokens = bpe.encode_with_special_tokens(&text).len() as i64;
+                prompt_tokens + response_tokens
+            })
+        });
+
+    (Some(text), None, token_count)
 }
 
 #[allow(dead_code)]

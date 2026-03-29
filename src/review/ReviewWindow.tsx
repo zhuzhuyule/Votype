@@ -51,7 +51,7 @@ const MULTI_SORT_MODE_STORAGE_KEY = "votype.multiModelSortMode";
 
 type RankPosition = 1 | 2 | 3;
 type SpeedRankStats = Record<string, Partial<Record<RankPosition, number>>>;
-type MultiSortMode = "default" | "speed";
+type MultiSortMode = "default" | "speed" | "change";
 
 function readSpeedRankStats(): SpeedRankStats {
   if (typeof window === "undefined") return {};
@@ -75,7 +75,8 @@ function writeSpeedRankStats(stats: SpeedRankStats) {
 function readMultiSortMode(): MultiSortMode {
   if (typeof window === "undefined") return "default";
   const raw = window.localStorage.getItem(MULTI_SORT_MODE_STORAGE_KEY);
-  return raw === "speed" ? "speed" : "default";
+  if (raw === "speed" || raw === "change") return raw;
+  return "default";
 }
 
 function writeMultiSortMode(mode: MultiSortMode) {
@@ -427,7 +428,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   // The candidates to render (local state, updated by progress events)
   const displayCandidates = localCandidates || multiCandidates;
   const sortedCandidates = useMemo(() => {
-    if (!displayCandidates || multiSortMode !== "speed") {
+    if (!displayCandidates || multiSortMode === "default") {
       return displayCandidates;
     }
 
@@ -436,29 +437,39 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     );
 
     return [...displayCandidates].sort((a, b) => {
-      const aReady = a.ready && !a.error && a.processing_time_ms > 0;
-      const bReady = b.ready && !b.error && b.processing_time_ms > 0;
+      const aReady = a.ready && !a.error;
+      const bReady = b.ready && !b.error;
 
-      if (aReady && bReady && a.processing_time_ms !== b.processing_time_ms) {
-        return a.processing_time_ms - b.processing_time_ms;
+      if (aReady && bReady) {
+        if (multiSortMode === "speed") {
+          const aHasTime = a.processing_time_ms > 0;
+          const bHasTime = b.processing_time_ms > 0;
+          if (
+            aHasTime &&
+            bHasTime &&
+            a.processing_time_ms !== b.processing_time_ms
+          ) {
+            return a.processing_time_ms - b.processing_time_ms;
+          }
+        } else if (multiSortMode === "change") {
+          const aChange = computeChangePercent(initialData.source_text, a.text);
+          const bChange = computeChangePercent(initialData.source_text, b.text);
+          if (aChange !== bChange) return aChange - bChange;
+        }
       }
 
-      if (aReady !== bReady) {
-        return aReady ? -1 : 1;
-      }
+      if (aReady !== bReady) return aReady ? -1 : 1;
 
       const aError = Boolean(a.error);
       const bError = Boolean(b.error);
-      if (aError !== bError) {
-        return aError ? 1 : -1;
-      }
+      if (aError !== bError) return aError ? 1 : -1;
 
       return (
         (originalOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
         (originalOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
       );
     });
-  }, [displayCandidates, multiSortMode]);
+  }, [displayCandidates, multiSortMode, initialData.source_text]);
 
   useEffect(() => {
     if (!displayCandidates || multiSortMode !== "speed") return;
@@ -1322,10 +1333,19 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         {sortedCandidates && sortedCandidates.length > 0 ? (
           <MultiCandidateView
             sourceText={initialData.source_text}
+            showDiff={showDiff}
             candidates={sortedCandidates}
             showShortcutHints={showCandidateShortcutHints}
             rankStats={speedRankStats}
             selectedCandidateId={selectedCandidateId}
+            selectedCandidateText={
+              selectedCandidateId
+                ? (editedTexts[selectedCandidateId] ??
+                  sortedCandidates.find((c) => c.id === selectedCandidateId)
+                    ?.text ??
+                  null)
+                : null
+            }
             editingCandidateId={editingCandidateId}
             editedTexts={editedTexts}
             onCandidateSelect={setSelectedCandidateId}

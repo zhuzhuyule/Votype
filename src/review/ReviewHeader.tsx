@@ -1,7 +1,9 @@
 // Header with prompt/model selector and close button
 
 import {
+  IconArrowsSort,
   IconBolt,
+  IconDelta,
   IconEye,
   IconEyeOff,
   IconLanguage,
@@ -52,8 +54,8 @@ interface ReviewHeaderProps {
   onRerunEnd: () => void;
   onMeasureAndResize: (reposition: boolean) => void;
   onRerunResult?: (text: string) => void;
-  multiSortMode?: "default" | "speed";
-  onMultiSortModeChange?: (mode: "default" | "speed") => void;
+  multiSortMode?: "default" | "speed" | "change";
+  onMultiSortModeChange?: (mode: "default" | "speed" | "change") => void;
   /** Label of the currently selected candidate in multi mode */
   selectedCandidateLabel?: string | null;
 }
@@ -186,24 +188,38 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           )}
           <button
             type="button"
-            className={`review-multi-sort-btn ${multiSortMode === "speed" ? "active" : ""}`}
+            className={`review-multi-sort-btn ${multiSortMode !== "default" ? "active" : ""}`}
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={() =>
-              onMultiSortModeChange?.(
-                multiSortMode === "speed" ? "default" : "speed",
-              )
-            }
+            onClick={() => {
+              const next =
+                multiSortMode === "default"
+                  ? "speed"
+                  : multiSortMode === "speed"
+                    ? "change"
+                    : "default";
+              onMultiSortModeChange?.(next);
+            }}
             title={
               multiSortMode === "speed"
-                ? t("transcription.review.restoreOrder", "恢复原顺序")
-                : t("transcription.review.sortBySpeed", "按反应速率排序")
+                ? t("transcription.review.sortByChange", "按变化幅度排序")
+                : multiSortMode === "change"
+                  ? t("transcription.review.restoreOrder", "恢复原顺序")
+                  : t("transcription.review.sortBySpeed", "按反应速率排序")
             }
           >
-            <IconBolt size={14} />
+            {multiSortMode === "speed" ? (
+              <IconBolt size={14} />
+            ) : multiSortMode === "change" ? (
+              <IconDelta size={14} />
+            ) : (
+              <IconArrowsSort size={14} />
+            )}
             <span>
               {multiSortMode === "speed"
                 ? t("transcription.review.speedSorted", "速度优先")
-                : t("transcription.review.sortBySpeedShort", "按速度")}
+                : multiSortMode === "change"
+                  ? t("transcription.review.changeSorted", "变化优先")
+                  : t("transcription.review.sortLabel", "排序")}
             </span>
           </button>
           <div

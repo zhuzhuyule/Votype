@@ -2,8 +2,9 @@
 
 import { Tooltip } from "@radix-ui/themes";
 import { IconTextPlus } from "@tabler/icons-react";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { buildDiffViews, computeChangePercent } from "./diff-utils";
 
 export interface MultiModelCandidate {
   id: string;
@@ -17,6 +18,8 @@ export interface MultiModelCandidate {
 
 interface CandidatePanelProps {
   candidate: MultiModelCandidate;
+  sourceText: string;
+  showDiff: boolean;
   index: number;
   shortcutIndex?: number;
   showShortcutHint?: boolean;
@@ -40,6 +43,8 @@ function formatProcessingTime(ms: number): string {
 
 export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   candidate,
+  sourceText,
+  showDiff,
   index,
   shortcutIndex,
   showShortcutHint = false,
@@ -57,6 +62,20 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   const { t } = useTranslation();
   const displayText = editedText ?? candidate.text;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Compute diff HTML for colored display
+  const diffTargetHtml = useMemo(() => {
+    if (!showDiff || !candidate.ready || candidate.error || !displayText) {
+      return null;
+    }
+    return buildDiffViews(sourceText, displayText).targetHtml;
+  }, [showDiff, sourceText, displayText, candidate.ready, candidate.error]);
+
+  // Compute change percent for header stats
+  const changePercent = useMemo(() => {
+    if (!candidate.ready || candidate.error || !displayText) return null;
+    return computeChangePercent(sourceText, displayText);
+  }, [sourceText, displayText, candidate.ready, candidate.error]);
   // Track whether blur was caused by our keydown handler (Esc/Tab)
   const blurFromKeydownRef = useRef(false);
 
@@ -127,6 +146,16 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                       {formatProcessingTime(candidate.processing_time_ms)}
                     </span>
                   )}
+                  {changePercent != null && (
+                    <>
+                      <span className="stat-separator">|</span>
+                      <span
+                        className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
+                      >
+                        Δ{changePercent}%
+                      </span>
+                    </>
+                  )}
                   {candidate.confidence != null &&
                     candidate.processing_time_ms > 0 && (
                       <span className="stat-separator">|</span>
@@ -150,42 +179,48 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
             <span className="candidate-error-text">{candidate.error}</span>
           ) : (
             <>
-              <textarea
-                className="candidate-edit-textarea"
-                value={displayText}
-                onChange={(e) => {
-                  const el = e.target;
-                  onTextChange(el.value);
-                  el.style.height = "auto";
-                  el.style.height = el.scrollHeight + "px";
-                }}
-                ref={(el) => {
-                  (
-                    textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>
-                  ).current = el;
-                  if (el) {
+              <div className="candidate-editable-container">
+                {diffTargetHtml && (
+                  <div
+                    className="candidate-diff-backdrop"
+                    dangerouslySetInnerHTML={{ __html: diffTargetHtml }}
+                    aria-hidden
+                  />
+                )}
+                <textarea
+                  className={`candidate-edit-textarea${diffTargetHtml ? " diff-overlay" : ""}`}
+                  value={displayText}
+                  onChange={(e) => {
+                    const el = e.target;
+                    onTextChange(el.value);
                     el.style.height = "auto";
                     el.style.height = el.scrollHeight + "px";
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                onFocus={onSelect}
-                onBlur={() => {
-                  // If blur was triggered by Esc/Tab keydown, skip —
-                  // the keydown handler already set editingCandidateId = null
-                  if (blurFromKeydownRef.current) {
-                    blurFromKeydownRef.current = false;
-                    return;
-                  }
-                  // External blur (e.g., mouse click outside): exit edit mode
-                  onEditEnd();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape" || e.key === "Tab") {
-                    blurFromKeydownRef.current = true;
-                  }
-                }}
-              />
+                  }}
+                  ref={(el) => {
+                    (
+                      textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>
+                    ).current = el;
+                    if (el) {
+                      el.style.height = "auto";
+                      el.style.height = el.scrollHeight + "px";
+                    }
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onFocus={onSelect}
+                  onBlur={() => {
+                    if (blurFromKeydownRef.current) {
+                      blurFromKeydownRef.current = false;
+                      return;
+                    }
+                    onEditEnd();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" || e.key === "Tab") {
+                      blurFromKeydownRef.current = true;
+                    }
+                  }}
+                />
+              </div>
               <Tooltip content={t("transcription.review.insert", "Insert")}>
                 <button
                   type="button"
