@@ -4,7 +4,7 @@ use crate::settings::{get_settings, AppSettings};
 use crate::utils;
 use log::{debug, error, info};
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::{AtomicBool, AtomicU64, Ordering},
     mpsc, Arc, Mutex,
 };
 use std::time::{Duration, Instant};
@@ -100,6 +100,7 @@ fn set_mute(mute: bool) {
 }
 
 const WHISPER_SAMPLE_RATE: usize = 16000;
+const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /* ──────────────────────────────────────────────────────────────── */
 
@@ -160,10 +161,11 @@ pub struct AudioRecordingManager {
     is_open: Arc<Mutex<bool>>,
     is_recording: Arc<Mutex<bool>>,
     did_mute: Arc<Mutex<bool>>,
-    current_transcription_id: Arc<std::sync::atomic::AtomicU64>,
+    current_transcription_id: Arc<AtomicU64>,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
     online_transcription_rx: Arc<Mutex<Option<mpsc::Receiver<anyhow::Result<String>>>>>,
     auto_enhance_enabled: Arc<AtomicBool>,
+    close_generation: Arc<AtomicU64>,
 }
 
 impl AudioRecordingManager {
@@ -186,10 +188,11 @@ impl AudioRecordingManager {
             is_open: Arc::new(Mutex::new(false)),
             is_recording: Arc::new(Mutex::new(false)),
             did_mute: Arc::new(Mutex::new(false)),
-            current_transcription_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            current_transcription_id: Arc::new(AtomicU64::new(0)),
             speech_frame_tx: Arc::new(Mutex::new(None)),
             online_transcription_rx: Arc::new(Mutex::new(None)),
             auto_enhance_enabled: Arc::new(AtomicBool::new(settings.audio_input_auto_enhance)),
+            close_generation: Arc::new(AtomicU64::new(0)),
         };
 
         // Always-on?  Open immediately.
@@ -338,6 +341,45 @@ impl AudioRecordingManager {
         Ok(())
     }
 
+    fn schedule_lazy_close(&self) {
+        let gen = self.close_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let close_gen = self.close_generation.clone();
+        let is_open = self.is_open.clone();
+        let recorder = self.recorder.clone();
+        let is_recording_flag = self.is_recording.clone();
+        let did_mute = self.did_mute.clone();
+
+        std::thread::spawn(move || {
+            std::thread::sleep(STREAM_IDLE_TIMEOUT);
+            // Only close if generation hasn't changed (no new recording started)
+            if close_gen.load(Ordering::SeqCst) != gen {
+                return;
+            }
+            let mut open_flag = is_open.lock().unwrap();
+            if !*open_flag {
+                return;
+            }
+            if *is_recording_flag.lock().unwrap() {
+                return; // Recording started while we were sleeping
+            }
+
+            // Reset mute flag (mute will be handled on next recording)
+            let mut did_mute_guard = did_mute.lock().unwrap();
+            if *did_mute_guard {
+                *did_mute_guard = false;
+            }
+
+            if let Some(rec) = recorder.lock().unwrap().as_mut() {
+                let _ = rec.close();
+            }
+            *open_flag = false;
+            info!(
+                "Closed idle microphone stream after {:?}",
+                STREAM_IDLE_TIMEOUT
+            );
+        });
+    }
+
     pub fn stop_microphone_stream(&self) {
         let mut open_flag = self.is_open.lock().unwrap();
         if !*open_flag {
@@ -374,6 +416,7 @@ impl AudioRecordingManager {
             (MicrophoneMode::AlwaysOn, MicrophoneMode::OnDemand) => {
                 if matches!(*self.state.lock().unwrap(), RecordingState::Idle) {
                     drop(mode_guard);
+                    self.close_generation.fetch_add(1, Ordering::SeqCst);
                     self.stop_microphone_stream();
                 }
             }
@@ -394,6 +437,9 @@ impl AudioRecordingManager {
         let mut state = self.state.lock().unwrap();
 
         if let RecordingState::Idle = *state {
+            // Cancel any pending lazy close
+            self.close_generation.fetch_add(1, Ordering::SeqCst);
+
             // Ensure microphone is open in on-demand mode
             if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
                 if let Err(e) = self.start_microphone_stream() {
@@ -420,6 +466,8 @@ impl AudioRecordingManager {
     }
 
     pub fn update_selected_device(&self) -> Result<(), anyhow::Error> {
+        // Cancel any pending lazy close before restarting
+        self.close_generation.fetch_add(1, Ordering::SeqCst);
         // If currently open, restart the microphone stream to use the new device
         if *self.is_open.lock().unwrap() {
             self.stop_microphone_stream();
@@ -464,9 +512,13 @@ impl AudioRecordingManager {
                 *self.is_recording.lock().unwrap() = false;
                 self.set_speech_frame_sender(None);
 
-                // In on-demand mode turn the mic off again
+                // In on-demand mode, close the mic (lazily if configured)
                 if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                    self.stop_microphone_stream();
+                    if get_settings(&self.app_handle).lazy_stream_close {
+                        self.schedule_lazy_close();
+                    } else {
+                        self.stop_microphone_stream();
+                    }
                 }
 
                 // Pad if very short
@@ -506,9 +558,13 @@ impl AudioRecordingManager {
             self.set_speech_frame_sender(None);
             self.set_online_transcription_receiver(None);
 
-            // In on-demand mode turn the mic off again
+            // In on-demand mode, close the mic (lazily if configured)
             if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                self.stop_microphone_stream();
+                if get_settings(&self.app_handle).lazy_stream_close {
+                    self.schedule_lazy_close();
+                } else {
+                    self.stop_microphone_stream();
+                }
             }
         }
     }

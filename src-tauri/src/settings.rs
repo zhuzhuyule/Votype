@@ -886,6 +886,9 @@ pub struct AppSettings {
     /// follows length_routing_enabled.
     #[serde(default = "default_true", alias = "smart_routing_history_reuse")]
     pub smart_routing_enabled: bool,
+    /// Keep microphone stream open for 30s after recording stops (reduces Bluetooth reconnect latency)
+    #[serde(default)]
+    pub lazy_stream_close: bool,
 }
 
 fn default_model() -> String {
@@ -1592,6 +1595,7 @@ pub fn get_default_settings() -> AppSettings {
         length_routing_short_model_id: None,
         length_routing_long_model_id: None,
         smart_routing_enabled: true,
+        lazy_stream_close: false,
     }
 }
 

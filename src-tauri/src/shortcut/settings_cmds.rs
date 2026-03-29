@@ -801,6 +801,16 @@ pub fn change_length_routing_long_model_setting(
     Ok(())
 }
 
+// Group: Bluetooth / Stream Settings
+#[tauri::command]
+#[specta::specta]
+pub fn change_lazy_stream_close_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.lazy_stream_close = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 // Group: Activation Mode and Audio Settings
 #[tauri::command]
 #[specta::specta]
