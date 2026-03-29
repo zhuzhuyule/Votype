@@ -202,12 +202,12 @@ export const PostProcessBar: React.FC = () => {
           </button>
         )}
 
-        {/* Multi: strategy pills */}
+        {/* Multi: strategy pills — equal width, centered */}
         {modelMode === "multi" && (
           <Flex
             align="center"
             gap="0"
-            className="rounded-full bg-(--gray-a3) p-0.5"
+            className="rounded-full bg-(--gray-a3) p-0.5 w-fit mx-auto"
           >
             {strategies.map((s) => {
               const isActive = multiModelStrategy === s;
@@ -217,11 +217,12 @@ export const PostProcessBar: React.FC = () => {
                   type="button"
                   onClick={() => updateSetting("multi_model_strategy", s)}
                   disabled={isUpdating("multi_model_strategy")}
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                  className={`flex-1 text-center rounded-full py-0.5 text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
                     isActive
                       ? "bg-(--color-background) shadow-sm text-(--gray-12)"
                       : "text-(--gray-9) hover:text-(--gray-11)"
                   }`}
+                  style={{ minWidth: 56 }}
                 >
                   {strategyLabel(s)}
                 </button>
