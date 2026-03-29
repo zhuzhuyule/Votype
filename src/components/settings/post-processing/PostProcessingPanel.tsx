@@ -355,9 +355,24 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
         <Flex direction="column" gap="3">
           {/* Row 1: Smart Routing toggle */}
           <Flex align="center" justify="between">
-            <Text size="2" weight="medium">
-              {t("settings.postProcessing.smartRouting.title", "Smart Routing")}
-            </Text>
+            <Flex align="center" gap="1">
+              <Text size="2" weight="medium">
+                {t(
+                  "settings.postProcessing.smartRouting.title",
+                  "Smart Routing",
+                )}
+              </Text>
+              <TooltipIcon
+                text={t(
+                  "settings.postProcessing.smartRouting.title",
+                  "Smart Routing",
+                )}
+                description={t(
+                  "settings.postProcessing.smartRouting.hint",
+                  "Automatically reuse previous results for identical text, and use a lightweight model to determine whether short text needs polishing — reducing token cost and latency.",
+                )}
+              />
+            </Flex>
             <Switch
               size="1"
               checked={smartRoutingEnabled}

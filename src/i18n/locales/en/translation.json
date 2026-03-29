@@ -1043,6 +1043,7 @@
       },
       "smartRouting": {
         "title": "Smart Routing",
+        "hint": "Automatically reuse previous results for identical text, and use a lightweight model to determine whether short text needs polishing — reducing token cost and latency.",
         "shortText": "Short text",
         "longText": "Long text",
         "fastModel": "Fast model",

@@ -1298,6 +1298,7 @@
       },
       "smartRouting": {
         "title": "智能路由",
+        "hint": "自动复用历史中完全相同文本的润色结果，并通过轻量模型判断短文本是否需要润色，从而降低 Token 消耗和响应延迟",
         "shortText": "短文本",
         "longText": "长文本",
         "fastModel": "快速模型",
