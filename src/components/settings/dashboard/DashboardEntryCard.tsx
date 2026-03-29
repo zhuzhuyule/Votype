@@ -13,9 +13,11 @@ import {
   IconPencil,
   IconPlayerPlay,
   IconStar,
+  IconThumbDown,
   IconTrash,
   IconWand,
 } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -135,6 +137,20 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
         setReprocessing(false);
       }
     };
+
+    const handleRejectPolish = useCallback(async () => {
+      try {
+        await invoke("reject_post_process_result", { id: entry.id });
+        if (entry.post_processed_text && entry.transcription_text) {
+          await invoke("cascade_reject_post_process", {
+            transcriptionText: entry.transcription_text,
+            postProcessedText: entry.post_processed_text,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to reject polish result:", e);
+      }
+    }, [entry.id, entry.post_processed_text, entry.transcription_text]);
 
     // Open edit dialog for a specific field
     const openEditDialog = useCallback(
@@ -433,6 +449,19 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   />
                 </IconButton>
               </Tooltip>
+
+              {entry.post_processed_text && (
+                <Tooltip content={t("dashboard.actions.rejectPolish")}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={handleRejectPolish}
+                    className="text-text/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  >
+                    <IconThumbDown className="w-4 h-4" />
+                  </IconButton>
+                </Tooltip>
+              )}
 
               <Tooltip content={t("settings.history.delete")}>
                 <IconButton
