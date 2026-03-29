@@ -9,12 +9,7 @@ import {
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
-import {
-  IconBolt,
-  IconBrain,
-  IconRoute,
-  IconSparkles,
-} from "@tabler/icons-react";
+import { IconBolt, IconBrain } from "@tabler/icons-react";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -263,8 +258,6 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
             )}
           </Flex>
         )}
-
-        <AppProfilesContextSettings descriptionMode="inline" grouped={true} />
       </Flex>
     </Box>
   );
@@ -351,50 +344,19 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
     >
       {enabled && (
         <Flex direction="column" gap="3">
-          {/* Top row: intent model (left) + smart routing toggle (right) */}
-          <Flex
-            align="center"
-            justify="between"
-            className="rounded-lg px-3 py-2"
-            style={{ background: "var(--gray-a2)" }}
-          >
-            <Flex align="center" gap="2.5">
-              <IconSparkles size={14} className="text-(--accent-9)" />
-              <Text size="1" weight="medium" color="gray">
-                {t("settings.postProcessing.intentModel.title", "Intent model")}
-              </Text>
-              <Box style={{ minWidth: 160 }}>
-                {renderModelSelect(
-                  intentModelId,
-                  (v) =>
-                    updateSetting(
-                      "post_process_intent_model_id",
-                      v === "__none__" ? null : v,
-                    ),
-                  t(
-                    "settings.postProcessing.intentModel.defaultOption",
-                    "Use default",
-                  ),
-                )}
-              </Box>
-            </Flex>
-            <Flex align="center" gap="2">
-              <IconRoute size={14} className="text-(--accent-9)" />
-              <Text size="1" weight="medium" color="gray">
-                {t(
-                  "settings.postProcessing.smartRouting.title",
-                  "Smart Routing",
-                )}
-              </Text>
-              <Switch
-                size="1"
-                checked={smartRoutingEnabled}
-                onCheckedChange={handleToggle("length_routing_enabled")}
-              />
-            </Flex>
+          {/* Row 1: Smart Routing toggle */}
+          <Flex align="center" justify="between">
+            <Text size="2" weight="medium">
+              {t("settings.postProcessing.smartRouting.title", "Smart Routing")}
+            </Text>
+            <Switch
+              size="1"
+              checked={smartRoutingEnabled}
+              onCheckedChange={handleToggle("length_routing_enabled")}
+            />
           </Flex>
 
-          {/* Cards: either single (model only) or dual (short + long) */}
+          {/* Row 2: Cards — short+long when smart routing, or just model card */}
           {smartRoutingEnabled ? (
             <Grid columns={{ initial: "1", sm: "2" }} gap="3">
               {shortTextCard}
@@ -403,6 +365,30 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
           ) : (
             modelSelectionCard
           )}
+
+          {/* Row 3: Intent model */}
+          <Flex align="center" justify="between">
+            <Text size="2" weight="medium">
+              {t("settings.postProcessing.intentModel.title", "Intent model")}
+            </Text>
+            <Box style={{ minWidth: 180 }}>
+              {renderModelSelect(
+                intentModelId,
+                (v) =>
+                  updateSetting(
+                    "post_process_intent_model_id",
+                    v === "__none__" ? null : v,
+                  ),
+                t(
+                  "settings.postProcessing.intentModel.defaultOption",
+                  "Use default",
+                ),
+              )}
+            </Box>
+          </Flex>
+
+          {/* Row 4: Auto-injection settings */}
+          <AppProfilesContextSettings descriptionMode="inline" grouped={true} />
         </Flex>
       )}
     </SettingsGroup>
