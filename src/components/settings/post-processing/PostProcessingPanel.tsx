@@ -7,9 +7,9 @@ import {
   Slider as RadixSlider,
   Switch,
   Text,
-  Tooltip,
 } from "@radix-ui/themes";
 import { IconBolt, IconBrain } from "@tabler/icons-react";
+import { TooltipIcon } from "../../ui/TooltipIcon";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -269,12 +269,18 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
       style={{ background: "var(--gray-a2)" }}
     >
       <Flex direction="column" gap="3">
-        {/* Header: short text label + slider */}
+        {/* Header: icon + short text label + slider */}
         <Flex align="center" justify="between" gap="2">
-          <Text size="2" weight="medium">
-            {t("settings.postProcessing.smartRouting.shortText", "Short text")}{" "}
-            ≤ {threshold}
-          </Text>
+          <Flex align="center" gap="1.5">
+            <IconBolt size={15} className="text-(--gray-9)" />
+            <Text size="2" weight="medium">
+              {t(
+                "settings.postProcessing.smartRouting.shortText",
+                "Short text",
+              )}{" "}
+              ≤ {threshold}
+            </Text>
+          </Flex>
           <Flex align="center" gap="2" style={{ flex: 1, maxWidth: 160 }}>
             <RadixSlider
               value={[threshold]}
@@ -297,26 +303,25 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
           </Flex>
         </Flex>
 
-        {/* Fast model label + tooltip + select */}
+        {/* Fast model label + standard tooltip + select */}
         <Flex direction="column" gap="1">
-          <Flex align="center" gap="1.5">
-            <IconBolt size={13} className="text-(--gray-9)" />
+          <Flex align="center" gap="1">
             <Text size="1" color="gray">
               {t(
                 "settings.postProcessing.smartRouting.fastModel",
                 "Fast model",
               )}
             </Text>
-            <Tooltip
-              content={t(
+            <TooltipIcon
+              text={t(
+                "settings.postProcessing.smartRouting.fastModel",
+                "Fast model",
+              )}
+              description={t(
                 "settings.postProcessing.smartRouting.fastModelHint",
                 "A lightweight or fast model for short text. Saves tokens and reduces latency for simple content.",
               )}
-            >
-              <Text size="1" color="gray" style={{ cursor: "help" }}>
-                ?
-              </Text>
-            </Tooltip>
+            />
           </Flex>
           {renderModelSelect(
             shortModelId,
