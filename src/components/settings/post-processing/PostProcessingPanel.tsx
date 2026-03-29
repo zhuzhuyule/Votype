@@ -182,23 +182,25 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
         </Flex>
 
         {modelMode === "single" && (
-          <Flex direction="column" gap="1">
-            <Text size="1" color="gray">
+          <Flex align="center" justify="between">
+            <Text size="2" weight="medium">
               {t(
                 "settings.postProcessing.textModelMode.defaultModelDescription",
                 "Default model",
               )}
             </Text>
-            {renderModelSelect(
-              defaultModelId,
-              (v) => {
-                if (v && v !== "__none__") selectPromptModel(v);
-              },
-              t(
-                "settings.postProcessing.textModelMode.noModelSelected",
-                "No model selected",
-              ),
-            )}
+            <Box style={{ minWidth: 160 }}>
+              {renderModelSelect(
+                defaultModelId,
+                (v) => {
+                  if (v && v !== "__none__") selectPromptModel(v);
+                },
+                t(
+                  "settings.postProcessing.textModelMode.noModelSelected",
+                  "No model selected",
+                ),
+              )}
+            </Box>
           </Flex>
         )}
 
