@@ -8,7 +8,7 @@ use std::sync::{
     mpsc, Arc, Mutex,
 };
 use std::time::{Duration, Instant};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 fn set_mute(mute: bool) {
     // Expected behavior:
@@ -329,8 +329,19 @@ impl AudioRecordingManager {
         let selected_device = self.get_effective_microphone_device(&settings);
 
         if let Some(rec) = recorder_opt.as_mut() {
-            rec.open(selected_device)
-                .map_err(|e| anyhow::anyhow!("Failed to open recorder: {}", e))?;
+            if let Err(e) = rec.open(selected_device) {
+                let msg = format!("{e}");
+                if crate::audio_toolkit::is_no_input_device_error(&msg) {
+                    let _ = self.app_handle.emit(
+                        "recording-error",
+                        serde_json::json!({
+                            "error_type": "no_input_device",
+                            "detail": msg,
+                        }),
+                    );
+                }
+                return Err(anyhow::anyhow!("Failed to open recorder: {}", msg));
+            }
         }
 
         *open_flag = true;

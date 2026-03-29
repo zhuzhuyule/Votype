@@ -19,6 +19,13 @@ use crate::audio_toolkit::{
     VoiceActivityDetector,
 };
 
+pub fn is_no_input_device_error(error_message: &str) -> bool {
+    let normalized = error_message.to_lowercase();
+    normalized.contains("no input device")
+        || normalized.contains("no default input device")
+        || normalized.contains("kaudiosessionerrorcode_")
+}
+
 enum Cmd {
     Start { skip_frames: usize },
     Stop(mpsc::Sender<Vec<f32>>),
@@ -640,5 +647,25 @@ fn run_consumer(
                 Cmd::Shutdown => return,
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_no_input_device() {
+        assert!(is_no_input_device_error("No input device found"));
+    }
+
+    #[test]
+    fn detects_no_default_input() {
+        assert!(is_no_input_device_error("no default input device"));
+    }
+
+    #[test]
+    fn does_not_match_other_errors_for_no_device() {
+        assert!(!is_no_input_device_error("device busy"));
     }
 }
