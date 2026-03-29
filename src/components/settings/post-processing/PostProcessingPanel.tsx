@@ -402,9 +402,21 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
 
           {/* Row 3: Intent model */}
           <Flex align="center" justify="between">
-            <Text size="2" weight="medium">
-              {t("settings.postProcessing.intentModel.title", "Intent model")}
-            </Text>
+            <Flex align="center" gap="1">
+              <Text size="2" weight="medium">
+                {t("settings.postProcessing.intentModel.title", "Intent model")}
+              </Text>
+              <TooltipIcon
+                text={t(
+                  "settings.postProcessing.intentModel.title",
+                  "Intent model",
+                )}
+                description={t(
+                  "settings.postProcessing.intentModel.hint",
+                  "Used for Skill routing (detecting which Skill to use) and smart routing action classification (pass_through / lite_polish / full_polish). For lite_polish, it also performs the correction in the same call.",
+                )}
+              />
+            </Flex>
             <Box style={{ minWidth: 180 }}>
               {renderModelSelect(
                 intentModelId,

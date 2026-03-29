@@ -923,6 +923,7 @@
       "intentModel": {
         "defaultOption": "Use default model",
         "description": "Model used for skill intent detection. Leave it as default to follow the main post-processing model.",
+        "hint": "Used for Skill routing (detecting which Skill to use) and smart routing action classification. For lite polish, it also performs the correction in the same call.",
         "placeholder": "Select an intent model",
         "title": "Intent Model"
       },

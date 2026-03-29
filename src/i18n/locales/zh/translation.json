@@ -961,6 +961,7 @@
       "intentModel": {
         "defaultOption": "使用默认模型",
         "description": "用于技能意图检测的模型。保留默认值将跟随主后处理模型。",
+        "hint": "用于 Skill 路由（识别应使用哪个 Skill）和智能路由的 Action 分类。当判定为轻量润色时，意图模型会在同一次调用中直接完成纠错。",
         "placeholder": "选择意图模型",
         "title": "意图模型"
       },
