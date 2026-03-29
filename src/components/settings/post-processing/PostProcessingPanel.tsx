@@ -3,12 +3,12 @@ import {
   Box,
   Flex,
   Grid,
-  Select,
   Slider as RadixSlider,
   Switch,
   Text,
 } from "@radix-ui/themes";
 import { IconBolt, IconBrain } from "@tabler/icons-react";
+import { Dropdown } from "../../ui/Dropdown";
 import { TooltipIcon } from "../../ui/TooltipIcon";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -67,30 +67,36 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
     [providerMap],
   );
 
+  const buildModelOptions = useCallback(
+    (placeholder?: string) => {
+      const options: { value: string; label: string }[] = [];
+      if (placeholder) {
+        options.push({ value: "__none__", label: placeholder });
+      }
+      for (const model of textModels) {
+        options.push({ value: model.id, label: getModelLabel(model) });
+      }
+      return options;
+    },
+    [textModels, getModelLabel],
+  );
+
   const renderModelSelect = useCallback(
     (
       value: string | null,
       onChange: (value: string) => void,
       placeholder?: string,
     ) => (
-      <Select.Root value={value ?? "__none__"} onValueChange={onChange}>
-        <Select.Trigger
-          style={{ width: "100%", maxWidth: 220 }}
-          variant="soft"
-        />
-        <Select.Content>
-          {placeholder && (
-            <Select.Item value="__none__">{placeholder}</Select.Item>
-          )}
-          {textModels.map((model) => (
-            <Select.Item key={model.id} value={model.id}>
-              {getModelLabel(model)}
-            </Select.Item>
-          ))}
-        </Select.Content>
-      </Select.Root>
+      <Dropdown
+        selectedValue={value ?? "__none__"}
+        options={buildModelOptions(placeholder)}
+        onSelect={onChange}
+        placeholder={placeholder}
+        enableFilter={true}
+        style={{ maxWidth: 220 }}
+      />
     ),
-    [textModels, getModelLabel],
+    [buildModelOptions],
   );
 
   const handleToggle = useCallback(
