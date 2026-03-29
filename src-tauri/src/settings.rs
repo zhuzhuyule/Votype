@@ -2,6 +2,7 @@ use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
@@ -674,6 +675,36 @@ impl<'de> serde::Deserialize<'de> for ActivationMode {
     }
 }
 
+/// A `HashMap<String, String>` wrapper that redacts values in `Debug` output
+/// to prevent API keys from leaking into log files.
+#[derive(Clone, Serialize, Deserialize, Type)]
+#[serde(transparent)]
+pub struct SecretMap(pub HashMap<String, String>);
+
+impl fmt::Debug for SecretMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let redacted: HashMap<&String, &str> = self
+            .0
+            .iter()
+            .map(|(k, v)| (k, if v.is_empty() { "" } else { "[REDACTED]" }))
+            .collect();
+        redacted.fmt(f)
+    }
+}
+
+impl std::ops::Deref for SecretMap {
+    type Target = HashMap<String, String>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for SecretMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
@@ -745,7 +776,7 @@ pub struct AppSettings {
     #[serde(default = "default_post_process_providers")]
     pub post_process_providers: Vec<PostProcessProvider>,
     #[serde(default = "default_post_process_api_keys")]
-    pub post_process_api_keys: HashMap<String, String>,
+    pub post_process_api_keys: SecretMap,
     #[serde(default = "default_post_process_models")]
     pub post_process_models: HashMap<String, String>,
     #[serde(default = "default_post_process_prompts")]
@@ -1057,12 +1088,12 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
     providers
 }
 
-fn default_post_process_api_keys() -> HashMap<String, String> {
+fn default_post_process_api_keys() -> SecretMap {
     let mut map = HashMap::new();
     for provider in default_post_process_providers() {
         map.insert(provider.id, String::new());
     }
-    map
+    SecretMap(map)
 }
 
 fn default_model_for_provider(provider_id: &str) -> String {
