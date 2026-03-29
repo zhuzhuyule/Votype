@@ -644,6 +644,8 @@ impl ShortcutAction for TranscribeAction {
 
                     // Determine if we have a local fallback running in parallel
                     let has_local_fallback = secondary_handle.is_some();
+                    // 10s chosen as reasonable upper bound for network ASR latency;
+                    // the internal HTTP client timeout is 120s.
                     const ONLINE_TIMEOUT_WITH_LOCAL: u64 = 10;
 
                     if has_local_fallback {
@@ -673,12 +675,15 @@ impl ShortcutAction for TranscribeAction {
                                 (primary, secondary)
                             }
                             Err(_elapsed) => {
-                                // Online timed out — use local result
+                                // Online timed out — use local result.
+                                // Note: dropping primary_handle does NOT cancel the blocking thread;
+                                // the online request continues until its internal 120s HTTP timeout.
                                 log::info!(
                                     "[ASR] Online timeout ({}s), using local result",
                                     ONLINE_TIMEOUT_WITH_LOCAL
                                 );
-                                // Await the secondary (local) result
+                                // Await the secondary (local) result — local transcription is expected
+                                // to be fast (sub-second) so no additional timeout is applied here.
                                 let secondary = match secondary_handle.await {
                                     Ok(res) => res,
                                     Err(e) => {
