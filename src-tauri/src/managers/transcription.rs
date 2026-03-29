@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, SystemTime};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use transcribe_rs::{
     engines::{
         moonshine::{
@@ -134,19 +134,25 @@ pub struct TranscriptionManager {
     engine_in_use: Arc<AtomicBool>,
 }
 
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
+
 impl TranscriptionManager {
+    pub fn touch_activity(&self) {
+        self.last_activity.store(now_ms(), Ordering::Relaxed);
+    }
+
     pub fn new(app_handle: &AppHandle, model_manager: Arc<ModelManager>) -> Result<Self> {
         let manager = Self {
             engine: Arc::new(Mutex::new(None)),
             model_manager,
             app_handle: app_handle.clone(),
             current_model_id: Arc::new(Mutex::new(None)),
-            last_activity: Arc::new(AtomicU64::new(
-                SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64,
-            )),
+            last_activity: Arc::new(AtomicU64::new(now_ms())),
             shutdown_signal: Arc::new(AtomicBool::new(false)),
             watcher_handle: Arc::new(Mutex::new(None)),
             is_loading: Arc::new(Mutex::new(false)),
@@ -174,23 +180,35 @@ impl TranscriptionManager {
 
                     if let Some(limit_seconds) = timeout_seconds {
                         // Skip polling-based unloading for immediate timeout since it's handled directly in transcribe()
-                        if settings.model_unload_timeout == ModelUnloadTimeout::Immediately {
+                        if matches!(
+                            settings.model_unload_timeout,
+                            ModelUnloadTimeout::Immediately
+                        ) {
+                            continue;
+                        }
+
+                        // Keep model loaded while recording is active
+                        let is_recording = app_handle_cloned
+                            .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
+                            .map_or(false, |a| a.is_recording());
+                        if is_recording {
+                            manager_cloned.touch_activity();
                             continue;
                         }
 
                         let last = manager_cloned.last_activity.load(Ordering::Relaxed);
-                        let now_ms = SystemTime::now()
-                            .duration_since(SystemTime::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis() as u64;
+                        let now_ms = now_ms();
+                        let idle_ms = now_ms.saturating_sub(last);
+                        let limit_ms = limit_seconds * 1000;
 
-                        if now_ms.saturating_sub(last) > limit_seconds * 1000 {
-                            // idle -> unload
-                            if manager_cloned.is_model_loaded() {
-                                let unload_start = std::time::Instant::now();
-                                debug!("Starting to unload model due to inactivity");
-
-                                if let Ok(()) = manager_cloned.unload_model() {
+                        if idle_ms > limit_ms && manager_cloned.is_model_loaded() {
+                            info!(
+                                "Model idle for {}s (limit {}s), unloading",
+                                idle_ms / 1000,
+                                limit_ms / 1000
+                            );
+                            match manager_cloned.unload_model() {
+                                Ok(()) => {
                                     let _ = app_handle_cloned.emit(
                                         "model-state-changed",
                                         ModelStateEvent {
@@ -200,12 +218,8 @@ impl TranscriptionManager {
                                             error: None,
                                         },
                                     );
-                                    let unload_duration = unload_start.elapsed();
-                                    debug!(
-                                        "Model unloaded due to inactivity (took {}ms)",
-                                        unload_duration.as_millis()
-                                    );
                                 }
+                                Err(e) => error!("Failed to unload idle model: {}", e),
                             }
                         }
                     }
@@ -533,6 +547,8 @@ impl TranscriptionManager {
             },
         );
 
+        self.touch_activity();
+
         let load_duration = load_start.elapsed();
         debug!(
             "Successfully loaded transcription model: {} (took {}ms)",
@@ -582,13 +598,7 @@ impl TranscriptionManager {
 
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
         // Update last activity timestamp
-        self.last_activity.store(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_millis() as u64,
-            Ordering::Relaxed,
-        );
+        self.touch_activity();
 
         let st = std::time::Instant::now();
 
@@ -1032,6 +1042,11 @@ impl TranscriptionManager {
 
 impl Drop for TranscriptionManager {
     fn drop(&mut self) {
+        // Only shut down if this is the last clone
+        if Arc::strong_count(&self.shutdown_signal) > 1 {
+            return;
+        }
+
         debug!("Shutting down TranscriptionManager");
 
         // Signal the watcher thread to shutdown
