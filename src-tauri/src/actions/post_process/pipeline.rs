@@ -314,18 +314,26 @@ pub async fn maybe_post_process_transcription(
             match &action_result {
                 Some((super::routing::SmartAction::PassThrough, token_count)) => {
                     info!(
-                        "[SmartRouting] Action: pass_through ({} chars), skipping post-processing",
+                        "[SmartRouting] Action: pass_through ({} chars), returning original text",
                         char_count
                     );
-                    // Return None for processed_text — tells caller no processing was done,
-                    // so it uses the original transcription and skips the review window.
-                    return (None, None, None, false, None, *token_count, Some(1));
+                    // Return original text as processed result (unchanged).
+                    // Review window still shows per user's app_policy setting.
+                    return (
+                        Some(transcription.to_string()),
+                        None,
+                        override_prompt_id.clone(),
+                        false,
+                        None,
+                        *token_count,
+                        Some(1),
+                    );
                 }
                 Some((super::routing::SmartAction::LitePolish { result }, token_count)) => {
                     info!("[SmartRouting] Action: lite_polish ({} chars)", char_count);
                     return (
                         Some(result.clone()),
-                        Some("smart_lite_polish".to_string()),
+                        None,
                         override_prompt_id.clone(),
                         false,
                         None,
