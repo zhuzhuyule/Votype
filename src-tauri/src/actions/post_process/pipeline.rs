@@ -254,6 +254,34 @@ pub async fn maybe_post_process_transcription(
         return (None, None, None, false, None, None, None);
     }
 
+    // --- Layer 0: History exact-match reuse ---
+    if settings.smart_routing_history_reuse {
+        if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+            match hm.find_cached_post_process_result(transcription) {
+                Ok(Some((cached_text, cached_model, cached_prompt_id))) => {
+                    info!(
+                        "[PostProcess] HistoryHit: reusing cached result (len={}, model={:?})",
+                        cached_text.chars().count(),
+                        cached_model
+                    );
+                    return (
+                        Some(cached_text),
+                        cached_model,
+                        cached_prompt_id,
+                        false,
+                        None,
+                        Some(0),
+                        Some(0),
+                    );
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    error!("[PostProcess] History lookup failed: {}", e);
+                }
+            }
+        }
+    }
+
     // Length routing: override selected_prompt_model_id based on text length
     let settings = if settings.length_routing_enabled && !settings.multi_model_post_process_enabled
     {
