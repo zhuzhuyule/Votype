@@ -207,7 +207,7 @@ export const PostProcessBar: React.FC = () => {
           <Flex
             align="center"
             gap="0"
-            className="rounded-full bg-(--gray-a3) p-0.5 w-fit mx-auto"
+            className="rounded-full bg-(--gray-a3) p-0.5 w-fit"
           >
             {strategies.map((s) => {
               const isActive = multiModelStrategy === s;
@@ -222,7 +222,7 @@ export const PostProcessBar: React.FC = () => {
                       ? "bg-(--color-background) shadow-sm text-(--gray-12)"
                       : "text-(--gray-9) hover:text-(--gray-11)"
                   }`}
-                  style={{ minWidth: 56 }}
+                  style={{ minWidth: 56, paddingLeft: 10, paddingRight: 10 }}
                 >
                   {strategyLabel(s)}
                 </button>
