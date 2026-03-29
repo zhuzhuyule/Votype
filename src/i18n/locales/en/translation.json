@@ -1039,7 +1039,15 @@
         "shortModelLabel": "Short text",
         "longModelLabel": "Long text",
         "characters": " chars",
-        "useDefault": "Use global default"
+        "useDefault": "Use default"
+      },
+      "smartRouting": {
+        "title": "Smart Routing",
+        "shortText": "Short text",
+        "longText": "Long text",
+        "fastModel": "Fast model",
+        "fastModelHint": "A lightweight or fast model for short text. Saves tokens and reduces latency for simple content.",
+        "modelSelection": "Model"
       },
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {

@@ -1294,7 +1294,15 @@
         "shortModelLabel": "短文本",
         "longModelLabel": "长文本",
         "characters": "字符",
-        "useDefault": "使用全局默认"
+        "useDefault": "使用默认"
+      },
+      "smartRouting": {
+        "title": "智能路由",
+        "shortText": "短文本",
+        "longText": "长文本",
+        "fastModel": "快速模型",
+        "fastModelHint": "用于短文本的轻量或快速模型，节省 Token 消耗并降低延迟",
+        "modelSelection": "模型"
       },
       "title": "后期处理"
     },

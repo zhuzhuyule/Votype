@@ -269,11 +269,39 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
       style={{ background: "var(--gray-a2)" }}
     >
       <Flex direction="column" gap="3">
-        {/* Header: label + tooltip + slider */}
+        {/* Header: short text label + slider */}
         <Flex align="center" justify="between" gap="2">
-          <Flex align="center" gap="1.5" style={{ flexShrink: 0 }}>
-            <IconBolt size={15} className="text-(--gray-9)" />
-            <Text size="2" weight="medium">
+          <Text size="2" weight="medium">
+            {t("settings.postProcessing.smartRouting.shortText", "Short text")}{" "}
+            ≤ {threshold}
+          </Text>
+          <Flex align="center" gap="2" style={{ flex: 1, maxWidth: 160 }}>
+            <RadixSlider
+              value={[threshold]}
+              onValueChange={(v) =>
+                updateSetting("length_routing_threshold", v[0])
+              }
+              size="1"
+              min={5}
+              max={150}
+              step={1}
+            />
+            <Text
+              size="1"
+              weight="medium"
+              color="gray"
+              style={{ width: 28, textAlign: "right", flexShrink: 0 }}
+            >
+              {threshold}
+            </Text>
+          </Flex>
+        </Flex>
+
+        {/* Fast model label + tooltip + select */}
+        <Flex direction="column" gap="1">
+          <Flex align="center" gap="1.5">
+            <IconBolt size={13} className="text-(--gray-9)" />
+            <Text size="1" color="gray">
               {t(
                 "settings.postProcessing.smartRouting.fastModel",
                 "Fast model",
@@ -282,7 +310,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
             <Tooltip
               content={t(
                 "settings.postProcessing.smartRouting.fastModelHint",
-                "A lightweight or fast model for short text (≤ threshold chars). Saves tokens and reduces latency for simple content.",
+                "A lightweight or fast model for short text. Saves tokens and reduces latency for simple content.",
               )}
             >
               <Text size="1" color="gray" style={{ cursor: "help" }}>
@@ -290,37 +318,19 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
               </Text>
             </Tooltip>
           </Flex>
-          <Flex align="center" gap="2" style={{ flex: 1, maxWidth: 140 }}>
-            <RadixSlider
-              value={[threshold]}
-              onValueChange={(v) =>
-                updateSetting("length_routing_threshold", v[0])
-              }
-              size="1"
-              min={5}
-              max={100}
-              step={5}
-            />
-            <Text
-              size="1"
-              weight="medium"
-              style={{ width: 24, textAlign: "right", flexShrink: 0 }}
-            >
-              {threshold}
-            </Text>
-          </Flex>
-        </Flex>
-
-        {/* Model select */}
-        {renderModelSelect(
-          shortModelId,
-          (v) =>
-            updateSetting(
-              "length_routing_short_model_id",
-              v === "__none__" ? null : v,
+          {renderModelSelect(
+            shortModelId,
+            (v) =>
+              updateSetting(
+                "length_routing_short_model_id",
+                v === "__none__" ? null : v,
+              ),
+            t(
+              "settings.postProcessing.lengthRouting.useDefault",
+              "Use default",
             ),
-          t("settings.postProcessing.lengthRouting.useDefault", "Use default"),
-        )}
+          )}
+        </Flex>
       </Flex>
     </Box>
   );
