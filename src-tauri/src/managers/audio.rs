@@ -276,6 +276,34 @@ impl AudioRecordingManager {
         }
     }
 
+    /// Pre-load the VAD model and create the recorder if not already done.
+    /// This can be called in parallel with ASR model loading to reduce
+    /// first-recording latency.
+    pub fn preload_vad(&self) -> Result<(), anyhow::Error> {
+        let mut recorder_opt = self.recorder.lock().unwrap();
+        if recorder_opt.is_some() {
+            return Ok(()); // Already created
+        }
+
+        let vad_path = self
+            .app_handle
+            .path()
+            .resolve(
+                "resources/models/silero_vad_v4.onnx",
+                tauri::path::BaseDirectory::Resource,
+            )
+            .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {}", e))?;
+
+        *recorder_opt = Some(create_audio_recorder(
+            vad_path.to_str().unwrap(),
+            &self.app_handle,
+            self.speech_frame_tx.clone(),
+            self.auto_enhance_enabled.clone(),
+        )?);
+
+        Ok(())
+    }
+
     pub fn start_microphone_stream(&self) -> Result<(), anyhow::Error> {
         let mut open_flag = self.is_open.lock().unwrap();
         if *open_flag {
@@ -289,24 +317,9 @@ impl AudioRecordingManager {
         let mut did_mute_guard = self.did_mute.lock().unwrap();
         *did_mute_guard = false;
 
-        let vad_path = self
-            .app_handle
-            .path()
-            .resolve(
-                "resources/models/silero_vad_v4.onnx",
-                tauri::path::BaseDirectory::Resource,
-            )
-            .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {}", e))?;
+        // Ensure VAD/recorder is created (may already be done via preload_vad)
+        self.preload_vad()?;
         let mut recorder_opt = self.recorder.lock().unwrap();
-
-        if recorder_opt.is_none() {
-            *recorder_opt = Some(create_audio_recorder(
-                vad_path.to_str().unwrap(),
-                &self.app_handle,
-                self.speech_frame_tx.clone(),
-                self.auto_enhance_enabled.clone(),
-            )?);
-        }
 
         // Get the selected device from settings, considering clamshell mode
         let settings = get_settings(&self.app_handle);

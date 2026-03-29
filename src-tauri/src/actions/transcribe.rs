@@ -210,6 +210,8 @@ impl ShortcutAction for TranscribeAction {
             && (!settings_for_load.online_asr_enabled
                 || settings_for_load.post_process_use_secondary_output);
 
+        let rm = app.state::<Arc<AudioRecordingManager>>();
+
         if !settings_for_load.online_asr_enabled || enable_realtime {
             let tm = app.state::<Arc<TranscriptionManager>>();
             tm.initiate_model_load();
@@ -217,11 +219,19 @@ impl ShortcutAction for TranscribeAction {
             debug!("Online ASR enabled: skip preloading local model");
         }
 
+        // Pre-load VAD in parallel with ASR model
+        {
+            let rm_clone = Arc::clone(&rm);
+            std::thread::spawn(move || {
+                if let Err(e) = rm_clone.preload_vad() {
+                    log::debug!("VAD pre-load failed (will retry on stream open): {}", e);
+                }
+            });
+        }
+
         let binding_id = binding_id.to_string();
         change_tray_icon(app, TrayIconState::Recording);
         show_recording_overlay(app);
-
-        let rm = app.state::<Arc<AudioRecordingManager>>();
 
         // Setup channel for receiving audio frames for realtime simulation if using local model
         let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
