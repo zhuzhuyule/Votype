@@ -426,6 +426,12 @@
       "recording": "录音中…",
       "transcribing": "转录中…",
       "review": "审阅中…"
+    },
+    "timeout": {
+      "title": "在线识别超时",
+      "continue": "继续等待",
+      "retry": "重试",
+      "cancel": "取消"
     }
   },
   "settings": {

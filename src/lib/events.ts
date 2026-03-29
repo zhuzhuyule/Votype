@@ -18,6 +18,9 @@ export const HIDE_OVERLAY = "hide-overlay";
 /** Report an error to the overlay */
 export const OVERLAY_ERROR = "overlay-error";
 
+/** Online ASR timed out — overlay should show action buttons */
+export const ASR_ONLINE_TIMEOUT = "asr-online-timeout";
+
 // =============================================================================
 // Audio Events
 // =============================================================================
@@ -99,6 +102,7 @@ export const TauriEvents = {
   SHOW_OVERLAY,
   HIDE_OVERLAY,
   OVERLAY_ERROR,
+  ASR_ONLINE_TIMEOUT,
 
   // Audio
   MIC_LEVEL,

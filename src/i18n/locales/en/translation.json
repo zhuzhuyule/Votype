@@ -388,6 +388,12 @@
       "recording": "Recording...",
       "transcribing": "Transcribing...",
       "review": "Review..."
+    },
+    "timeout": {
+      "title": "Online transcription timed out",
+      "continue": "Continue",
+      "retry": "Retry",
+      "cancel": "Cancel"
     }
   },
   "settings": {

@@ -105,6 +105,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [focusedButton, setFocusedButton] = useState<"accept" | "reject">(
     "accept",
   );
+  const [showTimeout, setShowTimeout] = useState(false);
+  const [timeoutFocused, setTimeoutFocused] = useState<
+    "continue" | "retry" | "cancel"
+  >("continue");
   const smoothedLevelsRef = useRef<number[]>(EMPTY_LEVELS.slice());
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OverlayState>(initialState);
@@ -311,6 +315,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         // Reset buffer if restarting recording
         if (overlayState === "recording") {
           resetOverlayRecordingState();
+          setShowTimeout(false);
         }
       });
       if (disposed) {
@@ -390,6 +395,25 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       }
       unlisteners.push(unlistenMultiModelComplete);
 
+      // Listen for ASR online timeout
+      const unlistenTimeout = await listen<{ has_local_fallback: boolean }>(
+        "asr-online-timeout",
+        (event) => {
+          if (!event.payload.has_local_fallback) {
+            setShowTimeout(true);
+            setTimeoutFocused("continue");
+            setTimeout(() => {
+              invoke("focus_overlay").catch(() => {});
+            }, 50);
+          }
+        },
+      );
+      if (disposed) {
+        unlistenTimeout();
+        return;
+      }
+      unlisteners.push(unlistenTimeout);
+
       // Listen for theme changes from localStorage (when main app changes theme)
       const handleStorageChange = (e: StorageEvent) => {
         if (e.key === STORAGE_KEY) {
@@ -452,6 +476,45 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [skillConfirmation, focusedButton]);
+
+  // Keyboard navigation for ASR timeout prompt
+  useEffect(() => {
+    if (!showTimeout) return;
+
+    const buttons = ["continue", "retry", "cancel"] as const;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setTimeoutFocused((prev) => {
+          const idx = buttons.indexOf(prev);
+          const next =
+            e.key === "ArrowRight"
+              ? (idx + 1) % buttons.length
+              : (idx - 1 + buttons.length) % buttons.length;
+          return buttons[next];
+        });
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        invoke("respond_asr_timeout", { action: timeoutFocused });
+        setShowTimeout(false);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        invoke("respond_asr_timeout", { action: "cancel" });
+        setShowTimeout(false);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showTimeout, timeoutFocused]);
 
   // Update CSS variable when accent color changes
   useEffect(() => {
@@ -562,6 +625,34 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                   {errorText}
                 </Text>
               )}
+            </Flex>
+          )}
+
+          {/* ASR Timeout UI */}
+          {showTimeout && state === "transcribing" && (
+            <Flex
+              direction="column"
+              align="center"
+              gap="2"
+              className="timeout-prompt"
+            >
+              <Text className="timeout-title">
+                {t("overlay.timeout.title")}
+              </Text>
+              <Flex gap="2" className="timeout-buttons">
+                {(["continue", "retry", "cancel"] as const).map((action) => (
+                  <button
+                    key={action}
+                    className={`timeout-btn ${timeoutFocused === action ? "focused" : ""}`}
+                    onClick={() => {
+                      invoke("respond_asr_timeout", { action });
+                      setShowTimeout(false);
+                    }}
+                  >
+                    {t(`overlay.timeout.${action}`)}
+                  </button>
+                ))}
+              </Flex>
             </Flex>
           )}
 
