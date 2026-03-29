@@ -1,13 +1,17 @@
 import {
   Badge,
   Box,
+  Checkbox,
   Flex,
   Grid,
+  Popover,
+  ScrollArea,
   Slider as RadixSlider,
   Switch,
   Text,
+  Tooltip,
 } from "@radix-ui/themes";
-import { IconBolt, IconBrain } from "@tabler/icons-react";
+import { IconBolt, IconBrain, IconPlus } from "@tabler/icons-react";
 import { Dropdown } from "../../ui/Dropdown";
 import { TooltipIcon } from "../../ui/TooltipIcon";
 import React, { useCallback, useMemo } from "react";
@@ -110,10 +114,41 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   const multiStrategyOptions: {
     value: "manual" | "race" | "lazy";
     label: string;
+    hint: string;
   }[] = [
-    { value: "manual", label: "Manual" },
-    { value: "race", label: "Race" },
-    { value: "lazy", label: "Lazy" },
+    {
+      value: "manual",
+      label: t(
+        "settings.postProcessing.textModelMode.multiStrategyManual",
+        "Manual",
+      ),
+      hint: t(
+        "settings.postProcessing.textModelMode.multiStrategyManualHint",
+        "Show all candidates for manual selection",
+      ),
+    },
+    {
+      value: "race",
+      label: t(
+        "settings.postProcessing.textModelMode.multiStrategyRaceShort",
+        "Race",
+      ),
+      hint: t(
+        "settings.postProcessing.textModelMode.multiStrategyRaceHint",
+        "Use the first available result",
+      ),
+    },
+    {
+      value: "lazy",
+      label: t(
+        "settings.postProcessing.textModelMode.multiStrategyLazyShort",
+        "Lazy",
+      ),
+      hint: t(
+        "settings.postProcessing.textModelMode.multiStrategyLazyHint",
+        "Wait for preferred model, auto-select on timeout",
+      ),
+    },
   ];
 
   // ── Model Selection Card (reused in both layouts) ──
@@ -148,39 +183,62 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
             gap="0"
             className="rounded-md bg-(--gray-a3) p-0.5"
           >
-            {(["single", "multi"] as ModelMode[]).map((m) => {
-              const isActive = modelMode === m;
-              const label =
-                m === "single"
-                  ? t("settings.postProcessing.textModelMode.single", "Single")
-                  : t("settings.postProcessing.textModelMode.multi", "Multi");
+            {(
+              [
+                {
+                  value: "single" as ModelMode,
+                  label: t(
+                    "settings.postProcessing.textModelMode.single",
+                    "Single",
+                  ),
+                  hint: t(
+                    "settings.postProcessing.textModelMode.singleHint",
+                    "Use one model for all text processing",
+                  ),
+                },
+                {
+                  value: "multi" as ModelMode,
+                  label: t(
+                    "settings.postProcessing.textModelMode.multi",
+                    "Multi",
+                  ),
+                  hint: t(
+                    "settings.postProcessing.textModelMode.multiHint",
+                    "Run multiple models in parallel for comparison or speed",
+                  ),
+                },
+              ] as const
+            ).map((m) => {
+              const isActive = modelMode === m.value;
               return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    if (m === modelMode) return;
-                    updateSetting(
-                      "multi_model_post_process_enabled",
-                      m === "multi",
-                    );
-                  }}
-                  className={`
-                    rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap
-                    ${
-                      isActive
-                        ? "bg-white shadow-sm px-3 py-1 text-xs font-semibold text-(--gray-12)"
-                        : "px-2.5 py-1 text-xs font-medium text-(--gray-9) hover:text-(--gray-11)"
-                    }
-                  `}
-                >
-                  {label}
-                </button>
+                <Tooltip key={m.value} content={m.hint}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (m.value === modelMode) return;
+                      updateSetting(
+                        "multi_model_post_process_enabled",
+                        m.value === "multi",
+                      );
+                    }}
+                    className={`
+                      rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap
+                      ${
+                        isActive
+                          ? "bg-white shadow-sm px-3 py-1 text-xs font-semibold text-(--gray-12)"
+                          : "px-2.5 py-1 text-xs font-medium text-(--gray-9) hover:text-(--gray-11)"
+                      }
+                    `}
+                  >
+                    {m.label}
+                  </button>
+                </Tooltip>
               );
             })}
           </Flex>
         </Flex>
 
+        {/* Single model: left-right layout */}
         {modelMode === "single" && (
           <Flex align="center" justify="between">
             <Text size="2" weight="medium">
@@ -204,66 +262,174 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
           </Flex>
         )}
 
+        {/* Multi model: strategy + model selection */}
         {modelMode === "multi" && (
           <Flex direction="column" gap="2">
-            <Flex
-              align="center"
-              gap="1"
-              className="w-fit rounded-full border border-(--gray-6) bg-(--gray-a2) p-0.5"
-            >
-              {multiStrategyOptions.map((item) => {
-                const selected = multiModelStrategy === item.value;
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() =>
-                      updateSetting("multi_model_strategy", item.value)
-                    }
-                    disabled={isUpdating("multi_model_strategy")}
-                    className={`
-                      min-w-[50px] rounded-full px-2.5 py-1 text-xs font-medium transition-colors
-                      ${
-                        selected
-                          ? "bg-(--accent-9) text-white"
-                          : "text-(--gray-11) hover:bg-(--gray-4)"
-                      }
-                    `}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </Flex>
-            {multiModelSelectedIds.length > 0 && (
-              <Flex gap="1" wrap="wrap" align="center">
-                {multiModelSelectedIds.map((id) => {
-                  const model = textModels.find((m) => m.id === id);
-                  if (!model) return null;
-                  const isPreferred =
-                    multiModelPreferredId === id ||
-                    (!multiModelPreferredId && multiModelSelectedIds[0] === id);
+            {/* Strategy row */}
+            <Flex align="center" justify="between">
+              <Text size="2" weight="medium">
+                {t(
+                  "settings.postProcessing.textModelMode.multiStrategy",
+                  "Strategy",
+                )}
+              </Text>
+              <Flex
+                align="center"
+                gap="0"
+                className="rounded-full border border-(--gray-6) bg-(--gray-a2) p-0.5"
+              >
+                {multiStrategyOptions.map((item) => {
+                  const selected = multiModelStrategy === item.value;
                   return (
-                    <Badge
-                      key={id}
-                      color={isPreferred ? "amber" : "blue"}
-                      variant={isPreferred ? "solid" : "soft"}
-                      size="1"
-                      style={{ cursor: "pointer" }}
-                      onClick={() =>
-                        updateSetting(
-                          "multi_model_preferred_id",
-                          isPreferred && multiModelPreferredId ? null : id,
-                        )
-                      }
-                    >
-                      {isPreferred ? "★ " : ""}
-                      {model.custom_label || model.model_id}
-                    </Badge>
+                    <Tooltip key={item.value} content={item.hint}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSetting("multi_model_strategy", item.value)
+                        }
+                        disabled={isUpdating("multi_model_strategy")}
+                        className={`
+                          min-w-[50px] rounded-full px-2.5 py-1 text-xs font-medium transition-colors
+                          ${
+                            selected
+                              ? "bg-(--accent-9) text-white"
+                              : "text-(--gray-11) hover:bg-(--gray-4)"
+                          }
+                        `}
+                      >
+                        {item.label}
+                      </button>
+                    </Tooltip>
                   );
                 })}
               </Flex>
-            )}
+            </Flex>
+
+            {/* Model selection row */}
+            <Flex align="center" justify="between">
+              <Text size="2" weight="medium">
+                {t("settings.postProcessing.textModelMode.models", "Models")}
+              </Text>
+              <Flex align="center" gap="2">
+                {/* Selected model badges */}
+                {multiModelSelectedIds.length > 0 && (
+                  <Flex gap="1" wrap="wrap" align="center">
+                    {multiModelSelectedIds.map((id) => {
+                      const model = textModels.find((m) => m.id === id);
+                      if (!model) return null;
+                      const isPreferred =
+                        multiModelPreferredId === id ||
+                        (!multiModelPreferredId &&
+                          multiModelSelectedIds[0] === id);
+                      return (
+                        <Tooltip
+                          key={id}
+                          content={
+                            isPreferred
+                              ? t(
+                                  "settings.postProcessing.textModelMode.preferredModel",
+                                  "Preferred model",
+                                )
+                              : t(
+                                  "settings.postProcessing.textModelMode.setAsPreferred",
+                                  "Click to set as preferred",
+                                )
+                          }
+                        >
+                          <Badge
+                            color={isPreferred ? "amber" : "blue"}
+                            variant={isPreferred ? "solid" : "soft"}
+                            size="1"
+                            style={{ cursor: "pointer" }}
+                            onClick={() =>
+                              updateSetting(
+                                "multi_model_preferred_id",
+                                isPreferred && multiModelPreferredId
+                                  ? null
+                                  : id,
+                              )
+                            }
+                          >
+                            {isPreferred ? "★ " : ""}
+                            {model.custom_label || model.model_id}
+                          </Badge>
+                        </Tooltip>
+                      );
+                    })}
+                  </Flex>
+                )}
+
+                {/* Add/manage models popover */}
+                <Popover.Root>
+                  <Popover.Trigger>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 rounded-md border border-(--gray-a6) px-2 py-1 text-xs text-(--gray-11) hover:bg-(--gray-a3) transition-colors cursor-pointer"
+                    >
+                      <IconPlus size={12} />
+                      {t(
+                        "settings.postProcessing.textModelMode.selectModels",
+                        "Select",
+                      )}
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Content
+                    side="bottom"
+                    align="end"
+                    style={{ width: 240 }}
+                  >
+                    <Flex direction="column" gap="1">
+                      <Text size="1" weight="medium" color="gray" mb="1">
+                        {t(
+                          "settings.postProcessing.textModelMode.selectModelsTitle",
+                          "Select models for multi-model processing",
+                        )}
+                      </Text>
+                      <ScrollArea
+                        style={{ maxHeight: 200 }}
+                        scrollbars="vertical"
+                      >
+                        <Flex direction="column" gap="1">
+                          {textModels.map((model) => {
+                            const isSelected = multiModelSelectedIds.includes(
+                              model.id,
+                            );
+                            return (
+                              <Flex
+                                key={model.id}
+                                align="center"
+                                gap="2"
+                                className="rounded-md px-2 py-1.5 hover:bg-(--gray-a3) cursor-pointer"
+                                onClick={() => {
+                                  const newIds = isSelected
+                                    ? multiModelSelectedIds.filter(
+                                        (id) => id !== model.id,
+                                      )
+                                    : [...multiModelSelectedIds, model.id];
+                                  updateSetting(
+                                    "multi_model_selected_ids",
+                                    newIds,
+                                  );
+                                }}
+                              >
+                                <Checkbox
+                                  size="1"
+                                  checked={isSelected}
+                                  tabIndex={-1}
+                                />
+                                <Text size="1" style={{ lineHeight: 1.3 }}>
+                                  {getModelLabel(model)}
+                                </Text>
+                              </Flex>
+                            );
+                          })}
+                        </Flex>
+                      </ScrollArea>
+                    </Flex>
+                  </Popover.Content>
+                </Popover.Root>
+              </Flex>
+            </Flex>
           </Flex>
         )}
       </Flex>
