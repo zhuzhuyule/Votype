@@ -129,177 +129,176 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
       }
     >
       {enabled && (
-        <Grid columns={{ initial: "1", sm: "2" }} gap="3">
-          {/* ── Left Column: Smart Routing ── */}
-          <Box
-            className="rounded-lg border border-(--gray-a4) p-3"
-            style={{ background: "var(--gray-a2)" }}
-          >
-            <Flex direction="column" gap="3">
-              {/* Header */}
-              <Flex align="center" justify="between">
-                <Flex align="center" gap="2">
-                  <IconRoute size={15} className="text-(--gray-9)" />
-                  <Text size="2" weight="medium">
-                    {t(
-                      "settings.postProcessing.smartRouting.title",
-                      "Smart Routing",
-                    )}
-                  </Text>
-                </Flex>
-                <Switch
-                  size="1"
-                  checked={smartRoutingEnabled}
-                  onCheckedChange={handleToggle("length_routing_enabled")}
-                />
-              </Flex>
-
-              {smartRoutingEnabled && (
-                <Flex direction="column" gap="2">
-                  {/* Threshold */}
-                  <Flex align="center" gap="2">
-                    <Text
-                      size="1"
-                      color="gray"
-                      style={{ whiteSpace: "nowrap" }}
-                    >
-                      {t(
-                        "settings.postProcessing.lengthRouting.thresholdLabel",
-                        "Threshold",
-                      )}
-                    </Text>
-                    <TextField.Root
-                      size="1"
-                      type="number"
-                      value={String(threshold)}
-                      onChange={(e) => {
-                        const num = parseInt(e.target.value, 10);
-                        if (!isNaN(num) && num >= 1) {
-                          updateSetting("length_routing_threshold", num);
-                        }
-                      }}
-                      style={{ width: 56 }}
-                      min={1}
-                      max={9999}
-                    />
-                    <Text size="1" color="gray">
-                      {t(
-                        "settings.postProcessing.lengthRouting.chars",
-                        "chars",
-                      )}
-                    </Text>
-                  </Flex>
-
-                  {/* Short text model */}
-                  <Flex direction="column" gap="1">
-                    <Text size="1" color="gray">
-                      <IconBolt
-                        size={12}
-                        className="inline-block mr-1 align-text-bottom"
-                      />
-                      {t(
-                        "settings.postProcessing.lengthRouting.shortModelLabel",
-                        "Short text model",
-                      )}{" "}
-                      ≤ {threshold}
-                    </Text>
-                    {renderModelSelect(
-                      shortModelId,
-                      (v) =>
-                        updateSetting(
-                          "length_routing_short_model_id",
-                          v === "__none__" ? null : v,
-                        ),
-                      t(
-                        "settings.postProcessing.lengthRouting.useDefault",
-                        "Use default",
-                      ),
-                    )}
-                  </Flex>
-
-                  {/* Intent model */}
-                  <Flex direction="column" gap="1">
-                    <Text size="1" color="gray">
-                      <IconSparkles
-                        size={12}
-                        className="inline-block mr-1 align-text-bottom"
-                      />
-                      {t(
-                        "settings.postProcessing.intentModel.title",
-                        "Intent model",
-                      )}
-                    </Text>
-                    {renderModelSelect(
-                      intentModelId,
-                      (v) =>
-                        updateSetting(
-                          "post_process_intent_model_id",
-                          v === "__none__" ? null : v,
-                        ),
-                      t(
-                        "settings.postProcessing.intentModel.defaultOption",
-                        "Use default",
-                      ),
-                    )}
-                  </Flex>
-                </Flex>
-              )}
+        <Flex direction="column" gap="3">
+          {/* Intent model — global, above the cards */}
+          <Flex align="center" gap="3">
+            <Flex align="center" gap="1.5" style={{ whiteSpace: "nowrap" }}>
+              <IconSparkles size={14} className="text-(--gray-9)" />
+              <Text size="2" weight="medium">
+                {t("settings.postProcessing.intentModel.title", "Intent model")}
+              </Text>
             </Flex>
-          </Box>
+            <Box style={{ maxWidth: 220 }}>
+              {renderModelSelect(
+                intentModelId,
+                (v) =>
+                  updateSetting(
+                    "post_process_intent_model_id",
+                    v === "__none__" ? null : v,
+                  ),
+                t(
+                  "settings.postProcessing.intentModel.defaultOption",
+                  "Use default",
+                ),
+              )}
+            </Box>
+          </Flex>
 
-          {/* ── Right Column: Model Selection ── */}
-          <Box
-            className="rounded-lg border border-(--gray-a4) p-3"
-            style={{ background: "var(--gray-a2)" }}
-          >
-            <Flex direction="column" gap="3">
-              {/* Header with mode pills */}
-              <Flex align="center" justify="between">
-                <Flex align="center" gap="2">
-                  <IconBrain size={15} className="text-(--gray-9)" />
-                  <Text size="2" weight="medium">
-                    {t(
-                      "settings.postProcessing.textModelMode.modelSelection",
-                      "Model",
-                    )}
-                  </Text>
+          <Grid columns={{ initial: "1", sm: "2" }} gap="3">
+            {/* ── Left Column: Smart Routing ── */}
+            <Box
+              className="rounded-lg border border-(--gray-a4) p-3"
+              style={{ background: "var(--gray-a2)" }}
+            >
+              <Flex direction="column" gap="3">
+                {/* Header */}
+                <Flex align="center" justify="between">
+                  <Flex align="center" gap="2">
+                    <IconRoute size={15} className="text-(--gray-9)" />
+                    <Text size="2" weight="medium">
+                      {t(
+                        "settings.postProcessing.smartRouting.title",
+                        "Smart Routing",
+                      )}
+                    </Text>
+                  </Flex>
+                  <Switch
+                    size="1"
+                    checked={smartRoutingEnabled}
+                    onCheckedChange={handleToggle("length_routing_enabled")}
+                  />
                 </Flex>
-                <Flex
-                  align="center"
-                  gap="0"
-                  className="rounded-md bg-(--gray-a3) p-0.5"
-                >
-                  {(["single", "multi"] as ModelMode[]).map((m) => {
-                    const isActive = modelMode === m;
-                    const label =
-                      m === "single"
-                        ? t(
-                            "settings.postProcessing.textModelMode.single",
-                            "Single",
-                          )
-                        : t(
-                            "settings.postProcessing.textModelMode.multi",
-                            "Multi",
-                          );
-                    return (
-                      <button
-                        key={m}
-                        type="button"
-                        onClick={() => {
-                          if (m === modelMode) return;
-                          if (m === "multi") {
-                            updateSetting(
-                              "multi_model_post_process_enabled",
-                              true,
-                            );
-                          } else {
-                            updateSetting(
-                              "multi_model_post_process_enabled",
-                              false,
-                            );
+
+                {smartRoutingEnabled && (
+                  <Flex direction="column" gap="2">
+                    {/* Threshold */}
+                    <Flex align="center" gap="2">
+                      <Text
+                        size="1"
+                        color="gray"
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        {t(
+                          "settings.postProcessing.lengthRouting.thresholdLabel",
+                          "Threshold",
+                        )}
+                      </Text>
+                      <TextField.Root
+                        size="1"
+                        type="number"
+                        value={String(threshold)}
+                        onChange={(e) => {
+                          const num = parseInt(e.target.value, 10);
+                          if (!isNaN(num) && num >= 1) {
+                            updateSetting("length_routing_threshold", num);
                           }
                         }}
-                        className={`
+                        style={{ width: 56 }}
+                        min={1}
+                        max={9999}
+                      />
+                      <Text size="1" color="gray">
+                        {t(
+                          "settings.postProcessing.lengthRouting.chars",
+                          "chars",
+                        )}
+                      </Text>
+                    </Flex>
+
+                    {/* Short text model */}
+                    <Flex direction="column" gap="1">
+                      <Text size="1" color="gray">
+                        <IconBolt
+                          size={12}
+                          className="inline-block mr-1 align-text-bottom"
+                        />
+                        {t(
+                          "settings.postProcessing.lengthRouting.shortModelLabel",
+                          "Short text model",
+                        )}{" "}
+                        ≤ {threshold}
+                      </Text>
+                      {renderModelSelect(
+                        shortModelId,
+                        (v) =>
+                          updateSetting(
+                            "length_routing_short_model_id",
+                            v === "__none__" ? null : v,
+                          ),
+                        t(
+                          "settings.postProcessing.lengthRouting.useDefault",
+                          "Use default",
+                        ),
+                      )}
+                    </Flex>
+                  </Flex>
+                )}
+              </Flex>
+            </Box>
+
+            {/* ── Right Column: Model Selection ── */}
+            <Box
+              className="rounded-lg border border-(--gray-a4) p-3"
+              style={{ background: "var(--gray-a2)" }}
+            >
+              <Flex direction="column" gap="3">
+                {/* Header with mode pills */}
+                <Flex align="center" justify="between">
+                  <Flex align="center" gap="2">
+                    <IconBrain size={15} className="text-(--gray-9)" />
+                    <Text size="2" weight="medium">
+                      {t(
+                        "settings.postProcessing.textModelMode.modelSelection",
+                        "Model",
+                      )}
+                    </Text>
+                  </Flex>
+                  <Flex
+                    align="center"
+                    gap="0"
+                    className="rounded-md bg-(--gray-a3) p-0.5"
+                  >
+                    {(["single", "multi"] as ModelMode[]).map((m) => {
+                      const isActive = modelMode === m;
+                      const label =
+                        m === "single"
+                          ? t(
+                              "settings.postProcessing.textModelMode.single",
+                              "Single",
+                            )
+                          : t(
+                              "settings.postProcessing.textModelMode.multi",
+                              "Multi",
+                            );
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => {
+                            if (m === modelMode) return;
+                            if (m === "multi") {
+                              updateSetting(
+                                "multi_model_post_process_enabled",
+                                true,
+                              );
+                            } else {
+                              updateSetting(
+                                "multi_model_post_process_enabled",
+                                false,
+                              );
+                            }
+                          }}
+                          className={`
                           rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap
                           ${
                             isActive
@@ -307,55 +306,55 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                               : "px-2.5 py-1 text-xs font-medium text-(--gray-9) hover:text-(--gray-11)"
                           }
                         `}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </Flex>
                 </Flex>
-              </Flex>
 
-              {/* Single model */}
-              {modelMode === "single" && (
-                <Flex direction="column" gap="1">
-                  <Text size="1" color="gray">
-                    {t(
-                      "settings.postProcessing.textModelMode.defaultModelDescription",
-                      "Default model",
+                {/* Single model */}
+                {modelMode === "single" && (
+                  <Flex direction="column" gap="1">
+                    <Text size="1" color="gray">
+                      {t(
+                        "settings.postProcessing.textModelMode.defaultModelDescription",
+                        "Default model",
+                      )}
+                    </Text>
+                    {renderModelSelect(
+                      defaultModelId,
+                      (v) => {
+                        if (v && v !== "__none__") selectPromptModel(v);
+                      },
+                      t(
+                        "settings.postProcessing.textModelMode.noModelSelected",
+                        "No model selected",
+                      ),
                     )}
-                  </Text>
-                  {renderModelSelect(
-                    defaultModelId,
-                    (v) => {
-                      if (v && v !== "__none__") selectPromptModel(v);
-                    },
-                    t(
-                      "settings.postProcessing.textModelMode.noModelSelected",
-                      "No model selected",
-                    ),
-                  )}
-                </Flex>
-              )}
+                  </Flex>
+                )}
 
-              {/* Multi model */}
-              {modelMode === "multi" && (
-                <Flex direction="column" gap="2">
-                  <Flex
-                    align="center"
-                    gap="1"
-                    className="w-fit rounded-full border border-(--gray-6) bg-(--gray-a2) p-0.5"
-                  >
-                    {multiStrategyOptions.map((item) => {
-                      const selected = multiModelStrategy === item.value;
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() =>
-                            updateSetting("multi_model_strategy", item.value)
-                          }
-                          disabled={isUpdating("multi_model_strategy")}
-                          className={`
+                {/* Multi model */}
+                {modelMode === "multi" && (
+                  <Flex direction="column" gap="2">
+                    <Flex
+                      align="center"
+                      gap="1"
+                      className="w-fit rounded-full border border-(--gray-6) bg-(--gray-a2) p-0.5"
+                    >
+                      {multiStrategyOptions.map((item) => {
+                        const selected = multiModelStrategy === item.value;
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            onClick={() =>
+                              updateSetting("multi_model_strategy", item.value)
+                            }
+                            disabled={isUpdating("multi_model_strategy")}
+                            className={`
                             min-w-[50px] rounded-full px-2.5 py-1 text-xs font-medium transition-colors
                             ${
                               selected
@@ -363,55 +362,56 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                                 : "text-(--gray-11) hover:bg-(--gray-4)"
                             }
                           `}
-                        >
-                          {item.label}
-                        </button>
-                      );
-                    })}
-                  </Flex>
-                  {multiModelSelectedIds.length > 0 && (
-                    <Flex gap="1" wrap="wrap" align="center">
-                      {multiModelSelectedIds.map((id) => {
-                        const model = textModels.find((m) => m.id === id);
-                        if (!model) return null;
-                        const isPreferred =
-                          multiModelPreferredId === id ||
-                          (!multiModelPreferredId &&
-                            multiModelSelectedIds[0] === id);
-                        return (
-                          <Badge
-                            key={id}
-                            color={isPreferred ? "amber" : "blue"}
-                            variant={isPreferred ? "solid" : "soft"}
-                            size="1"
-                            style={{ cursor: "pointer" }}
-                            onClick={() =>
-                              updateSetting(
-                                "multi_model_preferred_id",
-                                isPreferred && multiModelPreferredId
-                                  ? null
-                                  : id,
-                              )
-                            }
                           >
-                            {isPreferred ? "★ " : ""}
-                            {model.custom_label || model.model_id}
-                          </Badge>
+                            {item.label}
+                          </button>
                         );
                       })}
                     </Flex>
-                  )}
-                </Flex>
-              )}
+                    {multiModelSelectedIds.length > 0 && (
+                      <Flex gap="1" wrap="wrap" align="center">
+                        {multiModelSelectedIds.map((id) => {
+                          const model = textModels.find((m) => m.id === id);
+                          if (!model) return null;
+                          const isPreferred =
+                            multiModelPreferredId === id ||
+                            (!multiModelPreferredId &&
+                              multiModelSelectedIds[0] === id);
+                          return (
+                            <Badge
+                              key={id}
+                              color={isPreferred ? "amber" : "blue"}
+                              variant={isPreferred ? "solid" : "soft"}
+                              size="1"
+                              style={{ cursor: "pointer" }}
+                              onClick={() =>
+                                updateSetting(
+                                  "multi_model_preferred_id",
+                                  isPreferred && multiModelPreferredId
+                                    ? null
+                                    : id,
+                                )
+                              }
+                            >
+                              {isPreferred ? "★ " : ""}
+                              {model.custom_label || model.model_id}
+                            </Badge>
+                          );
+                        })}
+                      </Flex>
+                    )}
+                  </Flex>
+                )}
 
-              {/* Context settings inline */}
-              <AppProfilesContextSettings
-                descriptionMode="inline"
-                grouped={true}
-              />
-            </Flex>
-          </Box>
-        </Grid>
+                {/* Context settings inline */}
+                <AppProfilesContextSettings
+                  descriptionMode="inline"
+                  grouped={true}
+                />
+              </Flex>
+            </Box>
+          </Grid>
+        </Flex>
       )}
     </SettingsGroup>
   );
