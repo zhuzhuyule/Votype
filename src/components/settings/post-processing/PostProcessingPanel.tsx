@@ -309,10 +309,10 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
           </Flex>
         </Flex>
 
-        {/* Fast model label + standard tooltip + select */}
-        <Flex direction="column" gap="1">
+        {/* Fast model — left label, right dropdown */}
+        <Flex align="center" justify="between">
           <Flex align="center" gap="1">
-            <Text size="1" color="gray">
+            <Text size="2" weight="medium">
               {t(
                 "settings.postProcessing.smartRouting.fastModel",
                 "Fast model",
@@ -329,18 +329,20 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
               )}
             />
           </Flex>
-          {renderModelSelect(
-            shortModelId,
-            (v) =>
-              updateSetting(
-                "length_routing_short_model_id",
-                v === "__none__" ? null : v,
+          <Box style={{ minWidth: 160 }}>
+            {renderModelSelect(
+              shortModelId,
+              (v) =>
+                updateSetting(
+                  "length_routing_short_model_id",
+                  v === "__none__" ? null : v,
+                ),
+              t(
+                "settings.postProcessing.lengthRouting.useDefault",
+                "Use default",
               ),
-            t(
-              "settings.postProcessing.lengthRouting.useDefault",
-              "Use default",
-            ),
-          )}
+            )}
+          </Box>
         </Flex>
       </Flex>
     </Box>
