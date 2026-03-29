@@ -335,6 +335,8 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN token_count INTEGER NOT NULL DEFAULT 0;"),
     // Migration 31: Add llm_call_count for tracking actual API call count
     M::up("ALTER TABLE transcription_history ADD COLUMN llm_call_count INTEGER NOT NULL DEFAULT 0;"),
+    // Migration 32: Add post_process_rejected flag for feedback loop
+    M::up("ALTER TABLE transcription_history ADD COLUMN post_process_rejected INTEGER NOT NULL DEFAULT 0;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -370,6 +372,7 @@ pub struct HistoryEntry {
     pub post_process_history: Option<String>, // JSON array of PostProcessStep
     pub token_count: Option<i64>,
     pub llm_call_count: Option<i64>,
+    pub post_process_rejected: Option<i64>,
     pub deleted: bool,
 }
 
@@ -1487,7 +1490,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, deleted FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, post_process_rejected, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -1515,6 +1518,7 @@ impl HistoryManager {
                 post_process_history: row.get("post_process_history")?,
                 token_count: row.get("token_count")?,
                 llm_call_count: row.get("llm_call_count")?,
+                post_process_rejected: row.get("post_process_rejected")?,
                 deleted: row.get("deleted")?,
             })
         })?;
@@ -1565,7 +1569,7 @@ impl HistoryManager {
 
         // Build paginated query
         let query_sql = format!(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, post_process_rejected, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             where_clause, limit, offset
         );
 
@@ -1597,6 +1601,7 @@ impl HistoryManager {
                 post_process_history: row.get("post_process_history")?,
                 token_count: row.get("token_count")?,
                 llm_call_count: row.get("llm_call_count")?,
+                post_process_rejected: row.get("post_process_rejected")?,
                 deleted: row.get("deleted")?,
             })
         };
@@ -1648,7 +1653,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, deleted
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, post_process_rejected, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -1678,6 +1683,7 @@ impl HistoryManager {
                     post_process_history: row.get("post_process_history")?,
                     token_count: row.get("token_count")?,
                     llm_call_count: row.get("llm_call_count")?,
+                    post_process_rejected: row.get("post_process_rejected")?,
                     deleted: row.get("deleted")?,
                 })
             })
@@ -1800,5 +1806,67 @@ impl HistoryManager {
         } else {
             format!("Recording {}", timestamp)
         }
+    }
+
+    /// Look up an exact-match cached post-processing result for the given transcription.
+    pub fn find_cached_post_process_result(
+        &self,
+        transcription_text: &str,
+    ) -> Result<Option<(String, Option<String>, Option<String>)>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT post_processed_text, post_process_model, post_process_prompt_id
+             FROM transcription_history
+             WHERE transcription_text = ?1
+               AND post_processed_text IS NOT NULL
+               AND post_processed_text != ''
+               AND post_process_rejected = 0
+               AND deleted = 0
+             ORDER BY timestamp DESC
+             LIMIT 1",
+        )?;
+        let result = stmt
+            .query_row(params![transcription_text], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .optional()?;
+        Ok(result)
+    }
+
+    pub async fn reject_post_process_result(&self, id: i64) -> Result<()> {
+        let conn = self.get_connection()?;
+        conn.execute(
+            "UPDATE transcription_history SET post_process_rejected = 1 WHERE id = ?1",
+            params![id],
+        )?;
+        info!("Marked post-process result as rejected for entry {}", id);
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+        Ok(())
+    }
+
+    pub async fn cascade_reject_post_process(
+        &self,
+        transcription_text: &str,
+        post_processed_text: &str,
+    ) -> Result<usize> {
+        let conn = self.get_connection()?;
+        let count = conn.execute(
+            "UPDATE transcription_history SET post_process_rejected = 1
+             WHERE transcription_text = ?1
+               AND post_processed_text = ?2
+               AND post_process_rejected = 0",
+            params![transcription_text, post_processed_text],
+        )?;
+        info!("Cascade-rejected {} entries", count);
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+        Ok(count)
     }
 }

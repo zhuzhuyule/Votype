@@ -35,6 +35,7 @@ import {
   IconChevronDown,
   IconDeviceFloppy,
   IconFolder,
+  IconLanguage,
   IconLock,
   IconLockOpen,
   IconMicrophone,
@@ -47,7 +48,7 @@ import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { IconPicker } from "../../shared/IconPicker";
+import { DynamicIcon, IconPicker } from "../../shared/IconPicker";
 import { Card } from "../../ui/Card";
 import { Dropdown } from "../../ui/Dropdown";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -62,7 +63,6 @@ import {
   ReferencesPanel,
   ResizableEditor,
 } from "./prompts/components";
-import type { SkillTemplate } from "./prompts/hooks/useExternalSkills";
 import { useExternalSkills } from "./prompts/hooks/useExternalSkills";
 import { usePrompts } from "./prompts/hooks/usePrompts";
 import type { LLMPrompt } from "../../../lib/types";
@@ -71,12 +71,15 @@ const PromptsConfiguration: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [templates, setTemplates] = useState<SkillTemplate[]>([]);
-  const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [isDescriptionGenerating, setIsDescriptionGenerating] = useState(false);
   const [isInstructionGenerating, setIsInstructionGenerating] = useState(false);
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
   const [showAutoGenerate, setShowAutoGenerate] = useState(false);
+  const [builtinSkills, setBuiltinSkills] = useState<LLMPrompt[]>([]);
+  const [viewMode, setViewMode] = useState<
+    "original" | "english" | "bilingual"
+  >("original");
+  const [isTranslating, setIsTranslating] = useState(false);
   const isGenerating = isDescriptionGenerating || isInstructionGenerating;
 
   // All skills from ~/.votype/skills/ (unified source)
@@ -85,8 +88,6 @@ const PromptsConfiguration: React.FC = () => {
     isLoading: isLoadingSkills,
     refreshExternalSkills: refreshSkills,
     openSkillsFolder,
-    createSkillFromTemplate,
-    getSkillTemplates,
     skillOrder,
     reorderSkills,
   } = useExternalSkills();
@@ -134,6 +135,8 @@ const PromptsConfiguration: React.FC = () => {
     setDraftOutputMode,
     draftLocked,
     setDraftLocked,
+    draftContentEn,
+    setDraftContentEn,
   } = usePrompts(fileSkills, async (skillId: string) => {
     // After saving an external skill, refresh the list
     await refreshSkills();
@@ -157,10 +160,12 @@ const PromptsConfiguration: React.FC = () => {
     });
   }, [fileSkills, skillOrder]);
 
-  // Load templates on mount
+  // Load builtin skills on mount (used as templates in the add menu)
   React.useEffect(() => {
-    getSkillTemplates().then(setTemplates);
-  }, [getSkillTemplates]);
+    invoke<LLMPrompt[]>("get_builtin_skills").then((skills) => {
+      if (Array.isArray(skills)) setBuiltinSkills(skills);
+    });
+  }, []);
 
   // Guard: prevent switching while AI is generating or there are unsaved changes
   const handleTabSwitch = useCallback(
@@ -179,40 +184,54 @@ const PromptsConfiguration: React.FC = () => {
     [currentTab, isGenerating, isDirty, setCurrentTab, t],
   );
 
-  // Handle creating skill from template — use localized name
-  const handleCreateFromTemplate = async (templateId: string) => {
-    setShowTemplateMenu(false);
-    const template = templates.find((tmpl) => tmpl.id === templateId);
-    if (!template) return;
+  // Directory-based builtin skills that need install_builtin_skill instead of create_skill
+  const DIRECTORY_BUILTINS = new Set(["smart_polish"]);
 
-    const localizedName = t(
-      `settings.postProcessing.prompts.templates.${templateId}`,
-      template.name,
-    );
-
+  // Handle adding a skill from builtin template or blank
+  const handleAddSkill = async (builtin?: LLMPrompt) => {
     try {
-      const createdSkill = await invoke<LLMPrompt>("create_skill", {
-        skill: {
-          id: "",
-          name: localizedName,
-          instructions: template.instructions,
-          prompt: template.instructions,
-          description: template.description,
-          icon: template.icon,
-          skill_type: "text",
-          source: "user",
-          output_mode: template.output_mode,
-          confidence_check_enabled: false,
-          confidence_threshold: 70,
-          enabled: true,
-          customized: false,
-          locked: false,
-        },
-      });
+      let createdSkill: LLMPrompt;
+
+      if (builtin && DIRECTORY_BUILTINS.has(builtin.id)) {
+        // Directory-based skill: create new copy with references
+        createdSkill = await invoke<LLMPrompt>("install_builtin_skill", {
+          builtinId: builtin.id,
+        });
+      } else {
+        // Regular skill: create as user file
+        const name =
+          builtin?.name ||
+          t("settings.postProcessing.prompts.newPromptName", "新建 Skill");
+        const instructions = builtin?.instructions || "";
+        const description = builtin?.description || "";
+        const icon = builtin?.icon || "IconSparkles";
+        const outputMode = builtin?.output_mode || "polish";
+
+        createdSkill = await invoke<LLMPrompt>("create_skill", {
+          skill: {
+            id: "",
+            name,
+            instructions,
+            prompt: instructions,
+            description,
+            icon,
+            skill_type: "text",
+            source: "user",
+            output_mode: outputMode,
+            confidence_check_enabled:
+              builtin?.confidence_check_enabled ?? false,
+            confidence_threshold: builtin?.confidence_threshold ?? 70,
+            enabled: true,
+            customized: false,
+            locked: false,
+          },
+        });
+      }
+
       await refreshSkills();
       setCurrentTab(createdSkill.id);
     } catch (e) {
-      console.error("Failed to create skill from template:", e);
+      console.error("[PromptsConfig] create skill failed:", e);
       toast.error(t("settings.postProcessing.prompts.createFailed"));
     }
   };
@@ -312,18 +331,15 @@ const PromptsConfiguration: React.FC = () => {
                       </IconButton>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content variant="soft" size="2">
-                      {templates.map((template) => (
-                        <DropdownMenu.Item
-                          key={template.id}
-                          onClick={() => handleCreateFromTemplate(template.id)}
-                        >
+                      <DropdownMenu.Item onClick={() => handleAddSkill()}>
+                        <Flex gap="2" align="center">
+                          <DynamicIcon name="IconFilePlus" size={14} />
                           {t(
-                            `settings.postProcessing.prompts.templates.${template.id}`,
-                            template.name,
+                            "settings.postProcessing.prompts.blankSkill",
+                            "空白 Skill",
                           )}
-                        </DropdownMenu.Item>
-                      ))}
-                      <DropdownMenu.Separator />
+                        </Flex>
+                      </DropdownMenu.Item>
                       <DropdownMenu.Item
                         onClick={() => setShowAutoGenerate(true)}
                       >
@@ -334,6 +350,64 @@ const PromptsConfiguration: React.FC = () => {
                           )}
                         </Flex>
                       </DropdownMenu.Item>
+                      {builtinSkills.some(
+                        (s) => s.output_mode === "polish",
+                      ) && (
+                        <>
+                          <DropdownMenu.Separator />
+                          <DropdownMenu.Label>
+                            {t(
+                              "settings.postProcessing.prompts.polishCategory",
+                              "润色",
+                            )}
+                          </DropdownMenu.Label>
+                          {builtinSkills
+                            .filter((s) => s.output_mode === "polish")
+                            .map((builtin) => (
+                              <DropdownMenu.Item
+                                key={builtin.id}
+                                onClick={() => handleAddSkill(builtin)}
+                              >
+                                <Flex gap="2" align="center">
+                                  <DynamicIcon
+                                    name={builtin.icon || "IconWand"}
+                                    size={14}
+                                  />
+                                  {builtin.name}
+                                </Flex>
+                              </DropdownMenu.Item>
+                            ))}
+                        </>
+                      )}
+                      {builtinSkills.some(
+                        (s) => s.output_mode !== "polish",
+                      ) && (
+                        <>
+                          <DropdownMenu.Separator />
+                          <DropdownMenu.Label>
+                            {t(
+                              "settings.postProcessing.prompts.skillCategory",
+                              "Skill",
+                            )}
+                          </DropdownMenu.Label>
+                          {builtinSkills
+                            .filter((s) => s.output_mode !== "polish")
+                            .map((builtin) => (
+                              <DropdownMenu.Item
+                                key={builtin.id}
+                                onClick={() => handleAddSkill(builtin)}
+                              >
+                                <Flex gap="2" align="center">
+                                  <DynamicIcon
+                                    name={builtin.icon || "IconSparkles"}
+                                    size={14}
+                                  />
+                                  {builtin.name}
+                                </Flex>
+                              </DropdownMenu.Item>
+                            ))}
+                        </>
+                      )}
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
                 </Flex>
@@ -741,13 +815,108 @@ const PromptsConfiguration: React.FC = () => {
 
                     {/* Instructions Section */}
                     <Box>
-                      <PromptEditor
-                        t={t}
-                        draftContent={draftContent}
-                        setDraftContent={setDraftContent}
-                        onAiLoadingChange={setIsInstructionGenerating}
-                        skillId={viewingPrompt?.id}
-                      />
+                      {/* Bilingual toolbar */}
+                      <Flex gap="2" align="center" mb="2">
+                        <SegmentedControl.Root
+                          value={viewMode}
+                          onValueChange={(v: string) =>
+                            setViewMode(
+                              v as "original" | "english" | "bilingual",
+                            )
+                          }
+                          size="1"
+                        >
+                          <SegmentedControl.Item value="original">
+                            中文
+                          </SegmentedControl.Item>
+                          <SegmentedControl.Item value="english">
+                            English
+                          </SegmentedControl.Item>
+                          <SegmentedControl.Item value="bilingual">
+                            双语
+                          </SegmentedControl.Item>
+                        </SegmentedControl.Root>
+
+                        <Button
+                          size="1"
+                          variant="soft"
+                          onClick={async () => {
+                            setIsTranslating(true);
+                            try {
+                              const result = await invoke<string>(
+                                "translate_skill_instructions",
+                                { instructions: draftContent },
+                              );
+                              setDraftContentEn(result);
+                              setViewMode("english");
+                            } catch (e) {
+                              console.error("Translation failed:", e);
+                              toast.error(String(e) || "Translation failed");
+                            } finally {
+                              setIsTranslating(false);
+                            }
+                          }}
+                          disabled={isTranslating || !draftContent?.trim()}
+                          className="cursor-pointer"
+                        >
+                          <IconLanguage size={14} />
+                          {isTranslating ? "翻译中..." : "翻译为英文"}
+                        </Button>
+                      </Flex>
+
+                      {/* Conditional editor rendering based on viewMode */}
+                      {viewMode === "bilingual" ? (
+                        <Flex gap="3">
+                          <Box style={{ flex: 1 }}>
+                            <Text
+                              size="1"
+                              weight="medium"
+                              mb="1"
+                              style={{ display: "block" }}
+                            >
+                              中文
+                            </Text>
+                            <PromptEditor
+                              t={t}
+                              draftContent={draftContent}
+                              setDraftContent={setDraftContent}
+                              onAiLoadingChange={setIsInstructionGenerating}
+                              skillId={viewingPrompt?.id}
+                            />
+                          </Box>
+                          <Box style={{ flex: 1 }}>
+                            <Text
+                              size="1"
+                              weight="medium"
+                              mb="1"
+                              style={{ display: "block" }}
+                            >
+                              English
+                            </Text>
+                            <PromptEditor
+                              t={t}
+                              draftContent={draftContentEn}
+                              setDraftContent={setDraftContentEn}
+                              skillId={viewingPrompt?.id}
+                            />
+                          </Box>
+                        </Flex>
+                      ) : viewMode === "english" ? (
+                        <PromptEditor
+                          t={t}
+                          draftContent={draftContentEn}
+                          setDraftContent={setDraftContentEn}
+                          skillId={viewingPrompt?.id}
+                        />
+                      ) : (
+                        <PromptEditor
+                          t={t}
+                          draftContent={draftContent}
+                          setDraftContent={setDraftContent}
+                          onAiLoadingChange={setIsInstructionGenerating}
+                          skillId={viewingPrompt?.id}
+                        />
+                      )}
                     </Box>
 
                     {/* Scene References Section */}

@@ -3,7 +3,7 @@ id: "system_default_ai_chat"
 name: "AI 问答"
 description: '解释选中内容或回答问题。当用户说"这是什么"、"帮我解释"、"帮我查询"时触发。'
 output_mode: chat
-icon: "IconMessageSparkle"
+icon: "IconMessageChatbot"
 locked: false
 confidence_check_enabled: false
 confidence_threshold: 70
