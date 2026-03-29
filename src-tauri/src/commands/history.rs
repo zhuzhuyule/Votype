@@ -417,3 +417,30 @@ pub async fn reprocess_history_entry(
 
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn reject_post_process_result(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+) -> Result<(), String> {
+    history_manager
+        .reject_post_process_result(id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn cascade_reject_post_process(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    transcription_text: String,
+    post_processed_text: String,
+) -> Result<usize, String> {
+    history_manager
+        .cascade_reject_post_process(&transcription_text, &post_processed_text)
+        .await
+        .map_err(|e| e.to_string())
+}

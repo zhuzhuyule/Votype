@@ -787,6 +787,8 @@ pub fn run() {
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
             commands::history::update_history_entry_text,
+            commands::history::reject_post_process_result,
+            commands::history::cascade_reject_post_process,
             commands::hotword::get_hotwords,
             commands::hotword::add_hotword,
             commands::hotword::update_hotword,
