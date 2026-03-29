@@ -845,9 +845,10 @@ pub struct AppSettings {
     pub length_routing_short_model_id: Option<String>,
     #[serde(default)]
     pub length_routing_long_model_id: Option<String>,
-    /// Enable history-based reuse of previous post-processing results (exact match).
-    #[serde(default = "default_true")]
-    pub smart_routing_history_reuse: bool,
+    /// Smart routing: pre-process layer that handles history reuse and action routing
+    /// before delegating to the model selection layer (single/length/multi).
+    #[serde(default = "default_true", alias = "smart_routing_history_reuse")]
+    pub smart_routing_enabled: bool,
 }
 
 fn default_model() -> String {
@@ -1551,7 +1552,7 @@ pub fn get_default_settings() -> AppSettings {
         length_routing_threshold: default_length_routing_threshold(),
         length_routing_short_model_id: None,
         length_routing_long_model_id: None,
-        smart_routing_history_reuse: true,
+        smart_routing_enabled: true,
     }
 }
 
