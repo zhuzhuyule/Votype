@@ -1,6 +1,8 @@
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use strsim::levenshtein;
 
 /// Builds an n-gram string by cleaning and concatenating words
@@ -267,6 +269,24 @@ fn collapse_stutters(text: &str) -> String {
     result.join(" ")
 }
 
+/// Cached per-language filler word regex patterns (avoids recompilation on every call).
+static LANG_FILLER_CACHE: Lazy<Mutex<HashMap<String, Vec<Regex>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn get_cached_filler_patterns(lang: &str) -> Vec<Regex> {
+    let base_lang = lang.split(&['-', '_'][..]).next().unwrap_or(lang);
+    let mut cache = LANG_FILLER_CACHE.lock().unwrap();
+    cache
+        .entry(base_lang.to_string())
+        .or_insert_with(|| {
+            get_filler_words_for_language(lang)
+                .iter()
+                .map(|word| Regex::new(&format!(r"(?i)\b{}\b[,.]?", regex::escape(word))).unwrap())
+                .collect()
+        })
+        .clone()
+}
+
 /// Filters transcription output by removing filler words and stutter artifacts.
 ///
 /// This function cleans up raw transcription text by:
@@ -288,16 +308,13 @@ pub fn filter_transcription_output(
 ) -> String {
     let mut filtered = text.to_string();
 
-    // Build filler-word patterns from custom list or language defaults
+    // Build filler-word patterns from custom list or cached language defaults
     let patterns: Vec<Regex> = match custom_filler_words {
         Some(words) => words
             .iter()
             .filter_map(|word| Regex::new(&format!(r"(?i)\b{}\b[,.]?", regex::escape(word))).ok())
             .collect(),
-        None => get_filler_words_for_language(lang)
-            .iter()
-            .map(|word| Regex::new(&format!(r"(?i)\b{}\b[,.]?", regex::escape(word))).unwrap())
-            .collect(),
+        None => get_cached_filler_patterns(lang),
     };
 
     // Remove filler words

@@ -374,9 +374,10 @@ impl AudioRecordingManager {
                 return; // Recording started while we were sleeping
             }
 
-            // Reset mute flag (mute will be handled on next recording)
+            // Unmute system audio if it was muted during recording
             let mut did_mute_guard = did_mute.lock().unwrap();
             if *did_mute_guard {
+                set_mute(false);
                 *did_mute_guard = false;
             }
 
