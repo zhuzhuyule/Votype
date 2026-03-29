@@ -8,6 +8,7 @@ import {
   MicrophoneIcon,
   TranscriptionIcon,
 } from "../components/icons";
+import { ASR_ONLINE_TIMEOUT } from "../lib/events";
 import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
@@ -397,7 +398,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
 
       // Listen for ASR online timeout
       const unlistenTimeout = await listen<{ has_local_fallback: boolean }>(
-        "asr-online-timeout",
+        ASR_ONLINE_TIMEOUT,
         (event) => {
           if (!event.payload.has_local_fallback) {
             setShowTimeout(true);
