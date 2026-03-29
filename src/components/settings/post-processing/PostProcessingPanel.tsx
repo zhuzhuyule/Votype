@@ -278,21 +278,34 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                       <IconPlus size={12} />
                     </button>
                   </Dialog.Trigger>
-                  <Dialog.Content style={{ maxWidth: 600, width: "90vw" }}>
-                    <Dialog.Title>
-                      {t(
-                        "settings.postProcessing.textModelMode.selectModelsTitle",
-                        "Select models",
-                      )}
-                    </Dialog.Title>
-                    <Dialog.Description size="2" color="gray" mb="4">
-                      {t(
-                        "settings.postProcessing.textModelMode.selectModelsDescription",
-                        "Choose models for parallel processing. Click the star to set preferred model.",
-                      )}
-                    </Dialog.Description>
+                  <Dialog.Content
+                    style={{
+                      maxWidth: 600,
+                      width: "90vw",
+                      padding: 0,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <Box px="5" pt="5" pb="3">
+                      <Dialog.Title>
+                        {t(
+                          "settings.postProcessing.textModelMode.selectModelsTitle",
+                          "Select models",
+                        )}
+                      </Dialog.Title>
+                      <Dialog.Description size="2" color="gray">
+                        {t(
+                          "settings.postProcessing.textModelMode.selectModelsDescription",
+                          "Choose models for parallel processing. Click the star to set preferred model.",
+                        )}
+                      </Dialog.Description>
+                    </Box>
                     <ScrollArea
-                      style={{ maxHeight: 480 }}
+                      style={{
+                        maxHeight: "60vh",
+                        paddingLeft: 20,
+                        paddingRight: 20,
+                      }}
                       scrollbars="vertical"
                     >
                       <Flex direction="column" gap="4">
@@ -412,7 +425,13 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                         ))}
                       </Flex>
                     </ScrollArea>
-                    <Flex justify="between" align="center" mt="4">
+                    <Flex
+                      justify="between"
+                      align="center"
+                      px="5"
+                      py="3"
+                      style={{ borderTop: "1px solid var(--gray-a4)" }}
+                    >
                       <Text size="1" color="gray">
                         {multiModelSelectedIds.length > 0
                           ? t(
