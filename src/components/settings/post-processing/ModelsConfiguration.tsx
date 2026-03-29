@@ -60,7 +60,7 @@ export const ModelsConfiguration: React.FC = () => {
       >
         <ModelListPanel
           targetType={["text", "asr", "other"]}
-          allowSelection={!settings?.expert_mode}
+          allowSelection={false}
           activeFilter={activeFilter}
         />
       </SettingsGroup>

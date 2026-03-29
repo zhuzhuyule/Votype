@@ -2,16 +2,22 @@ import {
   Badge,
   Box,
   Checkbox,
+  Dialog,
   Flex,
   Grid,
-  Popover,
   ScrollArea,
   Slider as RadixSlider,
   Switch,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import { IconBolt, IconBrain, IconPlus } from "@tabler/icons-react";
+import {
+  IconBolt,
+  IconBrain,
+  IconPlus,
+  IconStar,
+  IconStarFilled,
+} from "@tabler/icons-react";
 import { Dropdown } from "../../ui/Dropdown";
 import { TooltipIcon } from "../../ui/TooltipIcon";
 import React, { useCallback, useMemo } from "react";
@@ -151,13 +157,14 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
     },
   ];
 
-  // ── Model Selection Card (reused in both layouts) ──
+  // ── Model Selection Card ──
   const modelSelectionCard = (
     <Box
       className="rounded-lg border border-(--gray-a4) p-3"
       style={{ background: "var(--gray-a2)" }}
     >
       <Flex direction="column" gap="3">
+        {/* Header: icon + label + [Single|Multi] pills */}
         <Flex align="center" justify="between">
           <Flex align="center" gap="2">
             <IconBrain size={15} className="text-(--gray-9)" />
@@ -183,62 +190,50 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
             gap="0"
             className="rounded-md bg-(--gray-a3) p-0.5"
           >
-            {(
-              [
-                {
-                  value: "single" as ModelMode,
-                  label: t(
-                    "settings.postProcessing.textModelMode.single",
-                    "Single",
-                  ),
-                  hint: t(
-                    "settings.postProcessing.textModelMode.singleHint",
-                    "Use one model for all text processing",
-                  ),
-                },
-                {
-                  value: "multi" as ModelMode,
-                  label: t(
-                    "settings.postProcessing.textModelMode.multi",
-                    "Multi",
-                  ),
-                  hint: t(
-                    "settings.postProcessing.textModelMode.multiHint",
-                    "Run multiple models in parallel for comparison or speed",
-                  ),
-                },
-              ] as const
-            ).map((m) => {
-              const isActive = modelMode === m.value;
-              return (
-                <Tooltip key={m.value} content={m.hint}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (m.value === modelMode) return;
+            {[
+              {
+                value: "single" as ModelMode,
+                label: t(
+                  "settings.postProcessing.textModelMode.single",
+                  "Single",
+                ),
+                hint: t(
+                  "settings.postProcessing.textModelMode.singleHint",
+                  "Use one model for all text processing",
+                ),
+              },
+              {
+                value: "multi" as ModelMode,
+                label: t(
+                  "settings.postProcessing.textModelMode.multi",
+                  "Multi",
+                ),
+                hint: t(
+                  "settings.postProcessing.textModelMode.multiHint",
+                  "Run multiple models in parallel for comparison or speed",
+                ),
+              },
+            ].map((m) => (
+              <Tooltip key={m.value} content={m.hint}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (m.value !== modelMode)
                       updateSetting(
                         "multi_model_post_process_enabled",
                         m.value === "multi",
                       );
-                    }}
-                    className={`
-                      rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap
-                      ${
-                        isActive
-                          ? "bg-white shadow-sm px-3 py-1 text-xs font-semibold text-(--gray-12)"
-                          : "px-2.5 py-1 text-xs font-medium text-(--gray-9) hover:text-(--gray-11)"
-                      }
-                    `}
-                  >
-                    {m.label}
-                  </button>
-                </Tooltip>
-              );
-            })}
+                  }}
+                  className={`rounded-md transition-all duration-200 cursor-pointer whitespace-nowrap ${modelMode === m.value ? "bg-white shadow-sm px-3 py-1 text-xs font-semibold text-(--gray-12)" : "px-2.5 py-1 text-xs font-medium text-(--gray-9) hover:text-(--gray-11)"}`}
+                >
+                  {m.label}
+                </button>
+              </Tooltip>
+            ))}
           </Flex>
         </Flex>
 
-        {/* Single model: left-right layout */}
+        {/* Single model */}
         {modelMode === "single" && (
           <Flex align="center" justify="between">
             <Text size="2" weight="medium">
@@ -265,165 +260,165 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
         {/* Multi model */}
         {modelMode === "multi" && (
           <Flex direction="column" gap="2">
-            {/* Strategy + [+] row */}
+            {/* Strategy [+]  |  tabs */}
             <Flex align="center" justify="between">
-              <Text size="2" weight="medium">
-                {t(
-                  "settings.postProcessing.textModelMode.multiStrategy",
-                  "Strategy",
-                )}
-              </Text>
               <Flex align="center" gap="2">
-                <Flex
-                  align="center"
-                  gap="0"
-                  className="rounded-full border border-(--gray-6) bg-(--gray-a2) p-0.5"
-                >
-                  {multiStrategyOptions.map((item) => {
-                    const selected = multiModelStrategy === item.value;
-                    return (
-                      <Tooltip key={item.value} content={item.hint}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateSetting("multi_model_strategy", item.value)
-                          }
-                          disabled={isUpdating("multi_model_strategy")}
-                          className={`
-                            min-w-[50px] rounded-full px-2.5 py-1 text-xs font-medium transition-colors
-                            ${
-                              selected
-                                ? "bg-(--accent-9) text-white"
-                                : "text-(--gray-11) hover:bg-(--gray-4)"
-                            }
-                          `}
-                        >
-                          {item.label}
-                        </button>
-                      </Tooltip>
-                    );
-                  })}
-                </Flex>
-                <Popover.Root>
-                  <Popover.Trigger>
+                <Text size="2" weight="medium">
+                  {t(
+                    "settings.postProcessing.textModelMode.multiStrategy",
+                    "Strategy",
+                  )}
+                </Text>
+                <Dialog.Root>
+                  <Dialog.Trigger>
                     <button
                       type="button"
                       className="flex items-center justify-center w-5 h-5 rounded border border-(--gray-a6) text-(--gray-11) hover:bg-(--gray-a3) transition-colors cursor-pointer"
                     >
                       <IconPlus size={12} />
                     </button>
-                  </Popover.Trigger>
-                  <Popover.Content
-                    side="bottom"
-                    align="start"
-                    style={{ width: 260 }}
-                  >
-                    <Flex direction="column" gap="1">
-                      <Text size="1" weight="medium" color="gray" mb="1">
-                        {t(
-                          "settings.postProcessing.textModelMode.selectModelsTitle",
-                          "Select models",
-                        )}
-                      </Text>
-                      <ScrollArea
-                        style={{ maxHeight: 240 }}
-                        scrollbars="vertical"
-                      >
-                        <Flex direction="column" gap="0">
-                          {textModels.map((model) => {
-                            const isSelected = multiModelSelectedIds.includes(
-                              model.id,
-                            );
-                            const isPreferred =
-                              multiModelPreferredId === model.id ||
-                              (!multiModelPreferredId &&
-                                multiModelSelectedIds[0] === model.id);
-                            return (
-                              <Flex
-                                key={model.id}
-                                align="center"
-                                gap="2"
-                                className="rounded-md px-2 py-1.5 hover:bg-(--gray-a3) group"
-                              >
-                                <Checkbox
-                                  size="1"
-                                  checked={isSelected}
-                                  onCheckedChange={(checked) => {
-                                    const newIds = checked
-                                      ? [...multiModelSelectedIds, model.id]
-                                      : multiModelSelectedIds.filter(
-                                          (id) => id !== model.id,
-                                        );
-                                    updateSetting(
-                                      "multi_model_selected_ids",
-                                      newIds,
-                                    );
-                                  }}
-                                />
-                                <Text
-                                  size="1"
-                                  style={{
-                                    flex: 1,
-                                    lineHeight: 1.3,
-                                    cursor: "pointer",
-                                  }}
-                                  onClick={() => {
-                                    const newIds = isSelected
-                                      ? multiModelSelectedIds.filter(
-                                          (id) => id !== model.id,
-                                        )
-                                      : [...multiModelSelectedIds, model.id];
-                                    updateSetting(
-                                      "multi_model_selected_ids",
-                                      newIds,
-                                    );
-                                  }}
-                                >
-                                  {getModelLabel(model)}
+                  </Dialog.Trigger>
+                  <Dialog.Content style={{ maxWidth: 480 }}>
+                    <Dialog.Title>
+                      {t(
+                        "settings.postProcessing.textModelMode.selectModelsTitle",
+                        "Select models",
+                      )}
+                    </Dialog.Title>
+                    <Dialog.Description size="2" color="gray" mb="4">
+                      {t(
+                        "settings.postProcessing.textModelMode.selectModelsDescription",
+                        "Choose models for parallel processing. Click the star to set preferred model.",
+                      )}
+                    </Dialog.Description>
+                    <ScrollArea
+                      style={{ maxHeight: 400 }}
+                      scrollbars="vertical"
+                    >
+                      <Flex direction="column" gap="1">
+                        {textModels.map((model) => {
+                          const isSelected = multiModelSelectedIds.includes(
+                            model.id,
+                          );
+                          const isPreferred =
+                            multiModelPreferredId === model.id ||
+                            (!multiModelPreferredId &&
+                              multiModelSelectedIds[0] === model.id);
+                          const providerLabel =
+                            providerMap[model.provider_id] ?? model.provider_id;
+                          return (
+                            <Flex
+                              key={model.id}
+                              align="center"
+                              gap="3"
+                              className={`rounded-lg px-3 py-2.5 cursor-pointer transition-colors ${isSelected ? "bg-(--accent-a2) border border-(--accent-6)" : "hover:bg-(--gray-a3) border border-transparent"}`}
+                              onClick={() => {
+                                const newIds = isSelected
+                                  ? multiModelSelectedIds.filter(
+                                      (id) => id !== model.id,
+                                    )
+                                  : [...multiModelSelectedIds, model.id];
+                                updateSetting(
+                                  "multi_model_selected_ids",
+                                  newIds,
+                                );
+                              }}
+                            >
+                              <Checkbox
+                                size="2"
+                                checked={isSelected}
+                                tabIndex={-1}
+                              />
+                              <Flex direction="column" style={{ flex: 1 }}>
+                                <Text size="2" weight="medium">
+                                  {model.custom_label || model.model_id}
                                 </Text>
-                                {isSelected && (
-                                  <Tooltip
-                                    content={
-                                      isPreferred
-                                        ? t(
-                                            "settings.postProcessing.textModelMode.preferredModel",
-                                            "Preferred",
-                                          )
-                                        : t(
-                                            "settings.postProcessing.textModelMode.setAsPreferred",
-                                            "Set as preferred",
-                                          )
-                                    }
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        updateSetting(
-                                          "multi_model_preferred_id",
-                                          isPreferred && multiModelPreferredId
-                                            ? null
-                                            : model.id,
-                                        );
-                                      }}
-                                      className={`text-xs cursor-pointer px-0.5 ${
-                                        isPreferred
-                                          ? "text-amber-500"
-                                          : "text-(--gray-7) opacity-0 group-hover:opacity-100"
-                                      }`}
-                                    >
-                                      {isPreferred ? "★" : "☆"}
-                                    </button>
-                                  </Tooltip>
-                                )}
+                                <Text size="1" color="gray">
+                                  {providerLabel}
+                                  {model.is_thinking_model ? " · Thinking" : ""}
+                                </Text>
                               </Flex>
-                            );
-                          })}
-                        </Flex>
-                      </ScrollArea>
+                              {isSelected && (
+                                <Tooltip
+                                  content={
+                                    isPreferred
+                                      ? t(
+                                          "settings.postProcessing.textModelMode.preferredModel",
+                                          "Preferred",
+                                        )
+                                      : t(
+                                          "settings.postProcessing.textModelMode.setAsPreferred",
+                                          "Set as preferred",
+                                        )
+                                  }
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateSetting(
+                                        "multi_model_preferred_id",
+                                        isPreferred && multiModelPreferredId
+                                          ? null
+                                          : model.id,
+                                      );
+                                    }}
+                                    className="cursor-pointer p-1 rounded hover:bg-(--gray-a3) transition-colors"
+                                  >
+                                    {isPreferred ? (
+                                      <IconStarFilled
+                                        size={16}
+                                        className="text-amber-500"
+                                      />
+                                    ) : (
+                                      <IconStar
+                                        size={16}
+                                        className="text-(--gray-7)"
+                                      />
+                                    )}
+                                  </button>
+                                </Tooltip>
+                              )}
+                            </Flex>
+                          );
+                        })}
+                      </Flex>
+                    </ScrollArea>
+                    <Flex justify="end" mt="4">
+                      <Dialog.Close>
+                        <button
+                          type="button"
+                          className="rounded-md bg-(--accent-9) text-white px-4 py-1.5 text-sm font-medium hover:bg-(--accent-10) transition-colors cursor-pointer"
+                        >
+                          {t("common.done", "Done")}
+                        </button>
+                      </Dialog.Close>
                     </Flex>
-                  </Popover.Content>
-                </Popover.Root>
+                  </Dialog.Content>
+                </Dialog.Root>
+              </Flex>
+              <Flex
+                align="center"
+                gap="0"
+                className="rounded-full border border-(--gray-6) bg-(--gray-a2) p-0.5"
+              >
+                {multiStrategyOptions.map((item) => {
+                  const selected = multiModelStrategy === item.value;
+                  return (
+                    <Tooltip key={item.value} content={item.hint}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSetting("multi_model_strategy", item.value)
+                        }
+                        disabled={isUpdating("multi_model_strategy")}
+                        className={`min-w-[50px] rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${selected ? "bg-(--accent-9) text-white" : "text-(--gray-11) hover:bg-(--gray-4)"}`}
+                      >
+                        {item.label}
+                      </button>
+                    </Tooltip>
+                  );
+                })}
               </Flex>
             </Flex>
 
