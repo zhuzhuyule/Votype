@@ -1028,8 +1028,8 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             // 2. Apply LLM post-processing if enabled
-                            let mut token_count: Option<i64> = None;
-                            let mut llm_call_count: Option<i64> = None;
+                            let token_count: Option<i64>;
+                            let llm_call_count: Option<i64>;
                             {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
@@ -1639,8 +1639,8 @@ impl ShortcutAction for TranscribeAction {
                                 )
                                 .await;
 
-                                token_count = inner_token_count;
-                                llm_call_count = inner_llm_call_count;
+                                (token_count, llm_call_count) =
+                                    (inner_token_count, inner_llm_call_count);
                                 let post_process_failed = err && processed_text.is_none();
                                 let post_process_error_message = error_message;
 
