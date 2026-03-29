@@ -6,6 +6,98 @@ use log::info;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
 
+/// Action determined by the smart routing pre-processor.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SmartAction {
+    /// Text needs no correction — output as-is.
+    PassThrough,
+    /// Minor corrections done by the routing model itself.
+    LitePolish { result: String },
+    /// Complex content — needs full polish pipeline.
+    FullPolish,
+}
+
+/// Execute smart action routing using the intent model.
+/// Returns the determined action + token count, or None on failure (caller should fallback to full polish).
+pub(super) async fn execute_smart_action_routing(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    fallback_provider: &PostProcessProvider,
+    transcription: &str,
+) -> Option<(SmartAction, Option<i64>)> {
+    // Resolve intent model
+    let default_prompt = settings.post_process_prompts.first()?;
+    let (provider, model, _api_key) =
+        resolve_intent_routing_model(settings, fallback_provider, default_prompt)?;
+
+    // Load the smart routing prompt
+    let prompt_manager = app_handle.state::<Arc<PromptManager>>();
+    let system_prompt = prompt_manager
+        .get_prompt(app_handle, "system_smart_routing")
+        .unwrap_or_else(|_| {
+            "You are a text router. Output JSON: {\"action\": \"pass_through|lite_polish|full_polish\", \"result\": null or corrected text}".to_string()
+        });
+
+    let (result, _err, _error_msg, token_count) = super::core::execute_llm_request(
+        app_handle,
+        settings,
+        provider,
+        &model,
+        None,
+        &system_prompt,
+        Some(transcription),
+        None,
+        None,
+        None,
+        None,
+    )
+    .await;
+
+    let response_text = result?;
+
+    // Parse JSON response — try direct parse, then extract JSON from possible markdown wrapper
+    let parsed: serde_json::Value = serde_json::from_str(&response_text)
+        .or_else(|_| {
+            let trimmed = response_text.trim();
+            let json_str = trimmed
+                .find('{')
+                .and_then(|start| trimmed.rfind('}').map(|end| &trimmed[start..=end]))
+                .unwrap_or(trimmed);
+            serde_json::from_str(json_str)
+        })
+        .ok()?;
+
+    let action_str = parsed
+        .get("action")
+        .and_then(|v| v.as_str())
+        .unwrap_or("full_polish");
+    let result_text = parsed
+        .get("result")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let action = match action_str {
+        "pass_through" => SmartAction::PassThrough,
+        "lite_polish" => {
+            if let Some(text) = result_text.filter(|t| !t.trim().is_empty()) {
+                SmartAction::LitePolish { result: text }
+            } else {
+                SmartAction::FullPolish
+            }
+        }
+        _ => SmartAction::FullPolish,
+    };
+
+    info!(
+        "[SmartRouting] Action={} tokens={:?} input_len={}",
+        action_str,
+        token_count,
+        transcription.chars().count()
+    );
+
+    Some((action, token_count))
+}
+
 /// Build the system prompt for skill routing
 pub(super) fn build_skill_routing_prompt(
     template: &str,
