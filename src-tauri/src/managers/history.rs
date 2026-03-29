@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::audio_toolkit::save_wav_file;
+use crate::audio_toolkit::{save_wav_file, verify_wav_file};
 
 /// Database migrations for transcription history.
 /// Each migration is applied in order. The library tracks which migrations
@@ -808,9 +808,10 @@ impl HistoryManager {
             .as_ref()
             .map(|s| s.chars().count() as i64);
 
-        // Save WAV file
+        // Save WAV file and verify integrity
         let file_path = self.recordings_dir.join(&file_name);
-        save_wav_file(file_path, &audio_samples).await?;
+        save_wav_file(&file_path, &audio_samples).await?;
+        verify_wav_file(&file_path, audio_samples.len())?;
 
         // Save to database
         let id = self.save_to_database(
@@ -1345,7 +1346,14 @@ impl HistoryManager {
 
         debug!("Updated transcription {} with re-transcription results", id);
 
-        // Emit history updated event
+        // Emit history updated event with entry id for targeted refresh
+        if let Err(e) = self
+            .app_handle
+            .emit("history-entry-updated", serde_json::json!({ "id": id }))
+        {
+            error!("Failed to emit history-entry-updated event: {}", e);
+        }
+        // Also emit generic event for backward compatibility
         if let Err(e) = self.app_handle.emit("history-updated", ()) {
             error!("Failed to emit history-updated event: {}", e);
         }
