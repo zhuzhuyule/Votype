@@ -10,6 +10,7 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
+import ProviderIcon from "@lobehub/icons/es/features/ProviderIcon";
 import {
   IconBolt,
   IconBrain,
@@ -82,6 +83,68 @@ const getProviderMeta = (providerId: string) => {
   }
 };
 
+const LOBE_PROVIDER_MAP: Record<string, string> = {
+  anthropic: "anthropic",
+  apple_intelligence: "apple",
+  baichuan: "baichuan",
+  bailian: "bailian",
+  deepseek: "deepseek",
+  doubao: "doubao",
+  fireworks: "fireworks",
+  gemini: "gemini",
+  gitee: "giteeai",
+  gitee_free: "giteeai",
+  groq: "groq",
+  iflow: "inference",
+  lmstudio: "lmstudio",
+  longcat: "longcat",
+  minimax: "minimax",
+  moonshot: "moonshot",
+  ollama: "ollama",
+  openai: "openai",
+  openrouter: "openrouter",
+  perplexity: "perplexity",
+  ppio: "ppio",
+  qwen: "qwen",
+  siliconflow: "siliconcloud",
+  stepfun: "stepfun",
+  together: "togetherai",
+  vllm: "vllm",
+  xai: "xai",
+  xingchen: "spark",
+  xinference: "xinference",
+  zai: "zai",
+  zhipu: "zhipu",
+};
+
+const getLobeProviderKey = (providerId: string, baseUrl: string) => {
+  if (LOBE_PROVIDER_MAP[providerId]) {
+    return LOBE_PROVIDER_MAP[providerId];
+  }
+
+  const normalized = `${providerId} ${baseUrl}`.toLowerCase();
+
+  if (normalized.includes("siliconflow")) return "siliconcloud";
+  if (normalized.includes("together")) return "togetherai";
+  if (normalized.includes("gitee")) return "giteeai";
+  if (normalized.includes("moonshot") || normalized.includes("kimi")) {
+    return "moonshot";
+  }
+  if (normalized.includes("dashscope") || normalized.includes("qwen")) {
+    return "qwen";
+  }
+  if (normalized.includes("doubao") || normalized.includes("volces")) {
+    return "doubao";
+  }
+  if (normalized.includes("stepfun")) return "stepfun";
+  if (normalized.includes("perplexity")) return "perplexity";
+  if (normalized.includes("gemini") || normalized.includes("googleapis")) {
+    return "gemini";
+  }
+
+  return null;
+};
+
 const ProviderAvatar: React.FC<{
   providerId: string;
   baseUrl: string;
@@ -90,13 +153,12 @@ const ProviderAvatar: React.FC<{
   const staticAssetUrl = PROVIDER_BRAND_ASSETS[providerId] ?? null;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(staticAssetUrl);
   const Glyph = getProviderGlyph(providerId, baseUrl);
+  const lobeProviderKey = getLobeProviderKey(providerId, baseUrl);
   const meta = getProviderMeta(providerId);
-  const sizeClass = large
-    ? "h-10 w-10 rounded-xl text-sm"
-    : "h-6 w-6 rounded-md text-[10px]";
+  const frameClass = large ? "h-10 w-10 rounded-xl" : "h-6 w-6 rounded-md";
 
   useEffect(() => {
-    if (staticAssetUrl) {
+    if (lobeProviderKey || staticAssetUrl) {
       setAvatarUrl(staticAssetUrl);
       return;
     }
@@ -125,32 +187,54 @@ const ProviderAvatar: React.FC<{
     return () => {
       cancelled = true;
     };
-  }, [providerId, baseUrl, staticAssetUrl]);
+  }, [providerId, baseUrl, lobeProviderKey, staticAssetUrl]);
+
+  if (lobeProviderKey) {
+    return (
+      <Box
+        className={`inline-flex shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
+      >
+        <ProviderIcon
+          provider={lobeProviderKey}
+          type="color"
+          size={large ? 22 : 14}
+        />
+      </Box>
+    );
+  }
 
   if (avatarUrl) {
     return (
-      <img
-        src={avatarUrl}
-        alt=""
-        className={`${sizeClass} shrink-0 object-cover bg-white/80 p-1`}
-        onError={() => setAvatarUrl(null)}
-      />
+      <Box
+        className={`inline-flex shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
+      >
+        <img
+          src={avatarUrl}
+          alt=""
+          className={`block shrink-0 object-contain ${large ? "h-6 w-6" : "h-4 w-4"}`}
+          onError={() => setAvatarUrl(null)}
+        />
+      </Box>
     );
   }
 
   if (Glyph) {
     return (
       <Box
-        className={`inline-flex! shrink-0 items-center justify-center ${sizeClass} ${meta.tone}`}
+        className={`inline-flex shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
       >
-        <Glyph size={large ? 18 : 14} className="block opacity-90" />
+        <Glyph
+          size={large ? 18 : 14}
+          className="block opacity-90"
+          strokeWidth={1.5}
+        />
       </Box>
     );
   }
 
   return (
     <Box
-      className={`inline-flex! shrink-0 items-center justify-center text-center leading-none font-semibold ${sizeClass} ${meta.tone} ${large ? "text-base" : "text-xs"}`}
+      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold ${frameClass} ${meta.tone} ${large ? "text-base" : "text-[10px]"}`}
     >
       {meta.label}
     </Box>

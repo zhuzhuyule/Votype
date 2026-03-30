@@ -482,8 +482,9 @@ pub async fn get_llm_usage_stats(
     _app: AppHandle,
     llm_metrics: State<'_, Arc<crate::managers::llm_metrics::LlmMetricsManager>>,
     since_timestamp: Option<i64>,
+    until_timestamp: Option<i64>,
 ) -> Result<crate::managers::llm_metrics::LlmUsageStats, String> {
     llm_metrics
-        .get_usage_stats(since_timestamp)
+        .get_usage_stats(since_timestamp, until_timestamp)
         .map_err(|e| e.to_string())
 }

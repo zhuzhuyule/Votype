@@ -301,10 +301,6 @@ export const Dashboard: React.FC = () => {
   }, [allEntries, selection]);
 
   // LLM usage stats from llm_call_log (replaces per-entry token_count/llm_call_count)
-  const [llmUsageAll, setLlmUsageAll] = useState({
-    total_calls: 0,
-    total_tokens: 0,
-  });
   const [llmUsagePeriod, setLlmUsagePeriod] = useState({
     total_calls: 0,
     total_tokens: 0,
@@ -314,68 +310,48 @@ export const Dashboard: React.FC = () => {
     total_tokens: 0,
   });
 
+  type LlmUsage = { total_calls: number; total_tokens: number };
+  const fetchLlmUsage = (since: number | null, until: number | null) =>
+    invoke<LlmUsage>("get_llm_usage_stats", {
+      sinceTimestamp: since,
+      untilTimestamp: until,
+    });
+
   // Fetch LLM usage stats when selection changes
   useEffect(() => {
-    // All-time stats
-    invoke<{ total_calls: number; total_tokens: number }>(
-      "get_llm_usage_stats",
-      { sinceTimestamp: null },
-    )
-      .then(setLlmUsageAll)
-      .catch(() => {});
-
-    // Period-specific stats
     if (selection.type === "preset" && selection.preset === "all") {
-      // "all" uses the all-time stats
-      invoke<{ total_calls: number; total_tokens: number }>(
-        "get_llm_usage_stats",
-        { sinceTimestamp: null },
-      )
+      fetchLlmUsage(null, null)
         .then(setLlmUsagePeriod)
         .catch(() => {});
       setLlmUsagePrev({ total_calls: 0, total_tokens: 0 });
     } else {
       const now = Math.floor(Date.now() / 1000);
-      let periodStart: number;
-      let prevStart: number;
 
       if (selection.type === "day") {
         const dayDate = new Date(selection.day + "T00:00:00");
-        periodStart = Math.floor(dayDate.getTime() / 1000);
-        const prevDate = new Date(dayDate);
-        prevDate.setDate(prevDate.getDate() - 1);
-        prevStart = Math.floor(prevDate.getTime() / 1000);
+        const periodStart = Math.floor(dayDate.getTime() / 1000);
+        const periodEnd = periodStart + 86400;
+        const prevStart = periodStart - 86400;
+
+        fetchLlmUsage(periodStart, periodEnd)
+          .then(setLlmUsagePeriod)
+          .catch(() => {});
+        fetchLlmUsage(prevStart, periodStart)
+          .then(setLlmUsagePrev)
+          .catch(() => {});
       } else {
         const days =
           selection.preset === "7d" ? 7 : selection.preset === "30d" ? 30 : 40;
-        periodStart = now - days * 86400;
-        prevStart = periodStart - days * 86400;
-      }
+        const periodStart = now - days * 86400;
+        const prevStart = periodStart - days * 86400;
 
-      invoke<{ total_calls: number; total_tokens: number }>(
-        "get_llm_usage_stats",
-        { sinceTimestamp: periodStart },
-      )
-        .then(setLlmUsagePeriod)
-        .catch(() => {});
-      invoke<{ total_calls: number; total_tokens: number }>(
-        "get_llm_usage_stats",
-        { sinceTimestamp: prevStart },
-      )
-        .then((all) => {
-          // Previous period = all since prevStart - current period
-          setLlmUsagePrev({
-            total_calls: Math.max(
-              0,
-              all.total_calls - (llmUsagePeriod.total_calls || 0),
-            ),
-            total_tokens: Math.max(
-              0,
-              all.total_tokens - (llmUsagePeriod.total_tokens || 0),
-            ),
-          });
-        })
-        .catch(() => {});
+        fetchLlmUsage(periodStart, null)
+          .then(setLlmUsagePeriod)
+          .catch(() => {});
+        fetchLlmUsage(prevStart, periodStart)
+          .then(setLlmUsagePrev)
+          .catch(() => {});
+      }
     }
   }, [selection]);
 

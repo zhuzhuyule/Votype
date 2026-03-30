@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@iconify/react": "^6.0.2",
+    "@lobehub/icons": "^5.2.0",
     "@radix-ui/themes": "^3.2.1",
     "@tabler/icons-react": "^3.35.0",
     "@tailwindcss/typography": "^0.5.19",
