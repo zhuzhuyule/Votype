@@ -1296,8 +1296,12 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     [],
   );
 
+  const isRealMultiModel =
+    multiCandidates != null && multiCandidates.length > 1;
+
   const getHeaderMode = (): "multi" | "polish" | "chat" => {
-    if (multiCandidates && multiCandidates.length > 0) return "multi";
+    // Only use "multi" header for actual multi-model results (2+ candidates)
+    if (isRealMultiModel) return "multi";
     if (initialData.output_mode === "chat") return "chat";
     return "polish";
   };
@@ -1336,8 +1340,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               // Clear translation panel when changing prompt
               setTranslatedText(null);
 
-              if (multiCandidates && multiCandidates.length > 0) {
-                // Multi mode: clear old results immediately
+              if (isRealMultiModel) {
+                // Multi mode (2+ candidates): clear old results immediately
                 handlePromptRerunReset(
                   promptId,
                   multiCandidates.map((c) => ({
