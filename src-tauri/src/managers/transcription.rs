@@ -860,16 +860,29 @@ impl TranscriptionManager {
         } else {
             ""
         };
-        info!(
-            "Transcription completed in {}ms{}",
-            (et - st).as_millis(),
-            translation_note
-        );
+        if crate::DEBUG_LOG_TRANSCRIPTION.load(std::sync::atomic::Ordering::Relaxed) {
+            info!(
+                "Transcription completed in {}ms{}",
+                (et - st).as_millis(),
+                translation_note
+            );
 
-        if final_result.is_empty() {
-            info!("Transcription result is empty");
-        } else {
-            info!("Transcription result: {}", final_result);
+            if final_result.is_empty() {
+                info!("Transcription result is empty");
+            } else {
+                let preview: String = final_result.chars().take(100).collect();
+                let suffix = if final_result.chars().count() > 100 {
+                    "…"
+                } else {
+                    ""
+                };
+                info!(
+                    "Transcription result (len={}): {}{}",
+                    final_result.chars().count(),
+                    preview,
+                    suffix
+                );
+            }
         }
 
         self.maybe_unload_immediately("transcription");

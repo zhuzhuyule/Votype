@@ -123,6 +123,10 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   selected_language: "auto",
   overlay_position: "follow",
   debug_mode: false,
+  debug_log_post_process: false,
+  debug_log_skill_routing: false,
+  debug_log_routing: false,
+  debug_log_transcription: false,
   log_level: 2,
   custom_words: [],
   history_limit: 5,
@@ -209,6 +213,23 @@ const settingUpdaters: {
     invoke("change_overlay_position_setting", { position: value }),
   debug_mode: (value) =>
     invoke("change_debug_mode_setting", { enabled: value }),
+  debug_log_post_process: (value) =>
+    invoke("change_debug_log_channel", {
+      channel: "post_process",
+      enabled: value,
+    }),
+  debug_log_skill_routing: (value) =>
+    invoke("change_debug_log_channel", {
+      channel: "skill_routing",
+      enabled: value,
+    }),
+  debug_log_routing: (value) =>
+    invoke("change_debug_log_channel", { channel: "routing", enabled: value }),
+  debug_log_transcription: (value) =>
+    invoke("change_debug_log_channel", {
+      channel: "transcription",
+      enabled: value,
+    }),
   custom_words: (value) => invoke("update_custom_words", { words: value }),
   word_correction_threshold: (value) =>
     invoke("change_word_correction_threshold_setting", { threshold: value }),

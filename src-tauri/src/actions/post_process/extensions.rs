@@ -176,7 +176,7 @@ pub async fn multi_post_process_transcription(
                         "[MultiModel] Hotwords injected: scenario={:?}, terms={}",
                         effective_scenario, total_terms
                     );
-                    info!(
+                    log::debug!(
                         "[MultiModel] Hotword summary:\n{}",
                         crate::managers::hotword::HotwordManager::summarize_injection(&injection)
                     );
@@ -559,6 +559,20 @@ async fn execute_single_model_post_process(
     // 1. Structured system messages
     let prompt_role =
         super::core::resolve_prompt_message_role(settings, &provider.id, None, &model);
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+        for (index, system_prompt) in built.system_messages.iter().enumerate() {
+            super::core::preview_multiline(
+                &format!("MultiModel[{}].SystemPrompt[{}]", item.id, index),
+                system_prompt,
+            );
+        }
+        if let Some(user_content) = built.user_message.as_deref() {
+            super::core::preview_multiline(
+                &format!("MultiModel[{}].UserMessage", item.id),
+                user_content,
+            );
+        }
+    }
     for system_prompt in built.system_messages {
         if let Some(msg) = super::core::build_instruction_message(prompt_role, system_prompt) {
             messages.push(msg);
@@ -641,15 +655,22 @@ async fn execute_single_model_post_process(
                 .collect()
         })
         .unwrap_or_default();
-    info!(
-        "[MultiModel] Request: item_id={} provider={} model={} extra_params={:?}",
-        item.id, provider.id, model, extra_keys
-    );
-    if let Ok(pretty_body) = serde_json::to_string_pretty(&body) {
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
         info!(
-            "[MultiModel] RequestBody item_id={} provider={} model={}:\n{}",
-            item.id, provider.id, model, pretty_body
+            "[MultiModel] Request: item_id={} provider={} model={} extra_params={:?}",
+            item.id, provider.id, model, extra_keys
         );
+        if log::log_enabled!(log::Level::Debug) {
+            if let Ok(pretty_body) = serde_json::to_string_pretty(&body) {
+                log::debug!(
+                    "[MultiModel] RequestBody item_id={} provider={} model={}:\n{}",
+                    item.id,
+                    provider.id,
+                    model,
+                    pretty_body
+                );
+            }
+        }
     }
 
     // Manual HTTP request (supports extra_params and longer timeout for thinking models)
@@ -734,11 +755,18 @@ async fn execute_single_model_post_process(
             return (None, Some(format!("Response parse failed: {:?}", e)), None);
         }
     };
-    if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
-        info!(
-            "[MultiModel] ResponseBody item_id={} provider={} model={}:\n{}",
-            item.id, provider.id, model, pretty_resp
-        );
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed)
+        && log::log_enabled!(log::Level::Debug)
+    {
+        if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
+            log::debug!(
+                "[MultiModel] ResponseBody item_id={} provider={} model={}:\n{}",
+                item.id,
+                provider.id,
+                model,
+                pretty_resp
+            );
+        }
     }
 
     let message_obj = &json_resp["choices"][0]["message"];
@@ -760,22 +788,26 @@ async fn execute_single_model_post_process(
 
     let text = super::core::extract_llm_text(&raw_content);
 
-    info!(
-        "[MultiModel] Model {} completed: len={} thinking={} reasoning_len={}",
-        item.id,
-        text.len(),
-        is_thinking,
-        reasoning.map(|r| r.len()).unwrap_or(0),
-    );
-    info!(
-        "[MultiModel] FinalResult item_id={} provider={} model={}",
-        item.id, provider.id, model
-    );
-    super::core::preview_multiline("MultiModelResponseContentRaw", &raw_content);
-    if let Some(reasoning_text) = reasoning {
-        super::core::preview_multiline("MultiModelResponseReasoning", reasoning_text);
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+        info!(
+            "[MultiModel] Model {} completed: len={} thinking={} reasoning_len={}",
+            item.id,
+            text.len(),
+            is_thinking,
+            reasoning.map(|r| r.len()).unwrap_or(0),
+        );
+        info!(
+            "[MultiModel] FinalResult item_id={} provider={} model={}",
+            item.id, provider.id, model
+        );
+        super::core::preview_multiline("MultiModelResponseContentRaw", &raw_content);
+        if let Some(reasoning_text) = reasoning {
+            super::core::preview_multiline("MultiModelResponseReasoning", reasoning_text);
+        }
+        if text != raw_content {
+            super::core::preview_multiline("MultiModelResponseText", &text);
+        }
     }
-    super::core::preview_multiline("MultiModelResponseText", &text);
 
     let token_count = json_resp
         .get("usage")

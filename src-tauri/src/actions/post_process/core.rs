@@ -367,19 +367,21 @@ pub async fn execute_llm_request_with_messages(
         return (None, false, None, None);
     }
 
-    log::info!(
-        "[LLM] PromptContext: provider={} model={} cached_model_id={:?} system_prompts={} user_message={}",
-        provider.id,
-        model,
-        cached_model_id,
-        system_prompts.len(),
-        user_message.is_some()
-    );
-    for (index, prompt) in system_prompts.iter().enumerate() {
-        preview_multiline(&format!("SystemPrompt[{}]", index), prompt);
-    }
-    if let Some(user_content) = user_message {
-        preview_multiline("UserMessage", user_content);
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+        log::info!(
+            "[LLM] PromptContext: provider={} model={} cached_model_id={:?} system_prompts={} user_message={}",
+            provider.id,
+            model,
+            cached_model_id,
+            system_prompts.len(),
+            user_message.is_some()
+        );
+        for (index, prompt) in system_prompts.iter().enumerate() {
+            preview_multiline(&format!("SystemPrompt[{}]", index), prompt);
+        }
+        if let Some(user_content) = user_message {
+            preview_multiline("UserMessage", user_content);
+        }
     }
 
     // Resolve CachedModel to get extra_params and is_thinking_model
@@ -456,15 +458,21 @@ pub async fn execute_llm_request_with_messages(
                 .collect()
         })
         .unwrap_or_default();
-    info!(
-        "[LLM] Request: provider={} model={} cached_model_id={:?} body_params={:?}",
-        provider.id, model, cached_model_id, param_snapshot
-    );
-    if let Ok(pretty_body) = serde_json::to_string_pretty(&body) {
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
         info!(
-            "[LLM] RequestBody provider={} model={}:\n{}",
-            provider.id, model, pretty_body
+            "[LLM] Request: provider={} model={} cached_model_id={:?} body_params={:?}",
+            provider.id, model, cached_model_id, param_snapshot
         );
+        if log::log_enabled!(log::Level::Debug) {
+            if let Ok(pretty_body) = serde_json::to_string_pretty(&body) {
+                log::debug!(
+                    "[LLM] RequestBody provider={} model={}:\n{}",
+                    provider.id,
+                    model,
+                    pretty_body
+                );
+            }
+        }
     }
 
     // Manual HTTP request to allow arbitrary parameters and handle response flexibly
@@ -522,12 +530,14 @@ pub async fn execute_llm_request_with_messages(
             (header_name, header_value)
         })
         .collect();
-    info!(
-        "[LLM] RequestMeta provider={} model={} url={}",
-        provider.id, model, url
-    );
-    for (name, value) in sanitized_headers {
-        info!("[LLM] Header {}: {}", name, value);
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+        info!(
+            "[LLM] RequestMeta provider={} model={} url={}",
+            provider.id, model, url
+        );
+        for (name, value) in &sanitized_headers {
+            log::debug!("[LLM] Header {}: {}", name, value);
+        }
     }
     let http_client = reqwest::Client::builder()
         .default_headers(headers)
@@ -541,8 +551,19 @@ pub async fn execute_llm_request_with_messages(
                     if resp.status().is_success() {
                         match resp.json::<serde_json::Value>().await {
                             Ok(json_resp) => {
-                                if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
-                                    preview_multiline("ResponseBody", &pretty_resp);
+                                if crate::DEBUG_LOG_POST_PROCESS
+                                    .load(std::sync::atomic::Ordering::Relaxed)
+                                    && log::log_enabled!(log::Level::Debug)
+                                {
+                                    if let Ok(pretty_resp) =
+                                        serde_json::to_string_pretty(&json_resp)
+                                    {
+                                        log::debug!(
+                                            "[LLM] ResponseBody (len={}):\n{}",
+                                            pretty_resp.len(),
+                                            pretty_resp
+                                        );
+                                    }
                                 }
                                 // Extract content from OpenAI-compatible response
                                 let raw_content = &json_resp["choices"][0]["message"]["content"];
@@ -564,16 +585,20 @@ pub async fn execute_llm_request_with_messages(
                                     content.contains("<think>") || content.contains("</think>");
                                 let is_thinking = reasoning.is_some() || has_think_tags;
 
-                                info!(
-                                    "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
-                                    model,
-                                    content.len(),
-                                    is_thinking,
-                                    reasoning.map(|r| r.len()).unwrap_or(0)
-                                );
-                                preview_multiline("ResponseContentRaw", &content);
-                                if let Some(reasoning_text) = reasoning {
-                                    preview_multiline("ResponseReasoning", reasoning_text);
+                                if crate::DEBUG_LOG_POST_PROCESS
+                                    .load(std::sync::atomic::Ordering::Relaxed)
+                                {
+                                    info!(
+                                        "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
+                                        model,
+                                        content.len(),
+                                        is_thinking,
+                                        reasoning.map(|r| r.len()).unwrap_or(0)
+                                    );
+                                    preview_multiline("ResponseContentRaw", &content);
+                                    if let Some(reasoning_text) = reasoning {
+                                        preview_multiline("ResponseReasoning", reasoning_text);
+                                    }
                                 }
 
                                 // When structured output is enabled, try to parse JSON
@@ -609,7 +634,12 @@ pub async fn execute_llm_request_with_messages(
                                 } else {
                                     extract_llm_text(&content)
                                 };
-                                preview_multiline("ResponseText", &text);
+                                if text != content
+                                    && crate::DEBUG_LOG_POST_PROCESS
+                                        .load(std::sync::atomic::Ordering::Relaxed)
+                                {
+                                    preview_multiline("ResponseText", &text);
+                                }
                                 let token_count = json_resp
                                     .get("usage")
                                     .and_then(|u| u.get("total_tokens"))

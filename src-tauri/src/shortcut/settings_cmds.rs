@@ -903,6 +903,42 @@ pub fn change_debug_mode_setting(app: AppHandle, enabled: bool) -> Result<(), St
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_debug_log_channel(
+    app: AppHandle,
+    channel: String,
+    enabled: bool,
+) -> Result<(), String> {
+    use crate::{
+        DEBUG_LOG_POST_PROCESS, DEBUG_LOG_ROUTING, DEBUG_LOG_SKILL_ROUTING, DEBUG_LOG_TRANSCRIPTION,
+    };
+    use std::sync::atomic::Ordering;
+
+    let mut settings = settings::get_settings(&app);
+    match channel.as_str() {
+        "post_process" => {
+            settings.debug_log_post_process = enabled;
+            DEBUG_LOG_POST_PROCESS.store(enabled, Ordering::Relaxed);
+        }
+        "skill_routing" => {
+            settings.debug_log_skill_routing = enabled;
+            DEBUG_LOG_SKILL_ROUTING.store(enabled, Ordering::Relaxed);
+        }
+        "routing" => {
+            settings.debug_log_routing = enabled;
+            DEBUG_LOG_ROUTING.store(enabled, Ordering::Relaxed);
+        }
+        "transcription" => {
+            settings.debug_log_transcription = enabled;
+            DEBUG_LOG_TRANSCRIPTION.store(enabled, Ordering::Relaxed);
+        }
+        _ => return Err(format!("Unknown debug log channel: {}", channel)),
+    }
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_start_hidden_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.start_hidden = enabled;

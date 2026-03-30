@@ -218,12 +218,17 @@ pub(super) async fn perform_skill_routing(
         None,
         model,
     );
-    if let Some(msg) = super::core::build_instruction_message(prompt_role, routing_prompt) {
+    if let Some(msg) = super::core::build_instruction_message(prompt_role, routing_prompt.clone()) {
         messages.push(msg);
     }
 
     if let Some(msg) = super::core::build_user_message(transcription.to_string()) {
         messages.push(msg);
+    }
+
+    if crate::DEBUG_LOG_SKILL_ROUTING.load(std::sync::atomic::Ordering::Relaxed) {
+        super::core::preview_multiline("SkillRouter.SystemPrompt", &routing_prompt);
+        super::core::preview_multiline("SkillRouter.UserMessage", transcription);
     }
 
     let req = match CreateChatCompletionRequestArgs::default()
@@ -261,7 +266,9 @@ pub(super) async fn perform_skill_routing(
         }
     };
 
-    info!("[SkillRouter] Raw LLM response: {}", content);
+    if crate::DEBUG_LOG_SKILL_ROUTING.load(std::sync::atomic::Ordering::Relaxed) {
+        info!("[SkillRouter] Raw LLM response: {}", content);
+    }
 
     let route = match parse_skill_route_response(&content) {
         Some(r) => r,
@@ -358,7 +365,7 @@ pub(super) async fn execute_default_polish<'a>(
                         "[ParallelPolish] Hotwords injected: scenario={:?}, terms={}",
                         effective_scenario, total_terms
                     );
-                    info!(
+                    log::debug!(
                         "[ParallelPolish] Hotword summary:\n{}",
                         crate::managers::hotword::HotwordManager::summarize_injection(&injection)
                     );

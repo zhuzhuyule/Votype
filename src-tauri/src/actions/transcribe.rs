@@ -698,7 +698,7 @@ impl ShortcutAction for TranscribeAction {
                                 // Online timed out — use local result.
                                 // Note: dropping primary_handle does NOT cancel the blocking thread;
                                 // the online request continues until its internal 120s HTTP timeout.
-                                log::info!(
+                                log::warn!(
                                     "[ASR] Online timeout ({}s), using local result",
                                     ONLINE_TIMEOUT_WITH_LOCAL
                                 );
@@ -2118,9 +2118,7 @@ fn realtime_worker_loop(
     let mut finalized_text = String::new();
     let mut finalized_samples: usize = 0;
 
-    // Punctuation anchoring: run punct model every few seconds, use anchors in between
-    let punct_interval = Duration::from_secs(3);
-    let mut last_punct_run = Instant::now();
+    // Punctuation anchoring: run punct model every cycle, anchors as fallback when busy
     let mut punct_anchors: Vec<PunctAnchor> = Vec::new();
     // Track the last raw text so we can apply final punctuation on exit
     let mut last_raw_text = String::new();
@@ -2195,32 +2193,31 @@ fn realtime_worker_loop(
             };
             last_raw_text.clone_from(&raw_text);
 
-            // Punctuation: run model every ~3s to extract anchors,
-            // apply saved anchors on intermediate cycles for consistent display.
-            let display_text = if last_punct_run.elapsed() >= punct_interval {
-                if let Some(punctuated) = tm.try_add_punctuation(&raw_text) {
-                    punct_anchors = extract_punct_anchors(&raw_text, &punctuated);
-                    last_punct_run = Instant::now();
-                    debug!(
-                        "Punct anchors updated: {} anchors from {} chars",
-                        punct_anchors.len(),
-                        raw_text.chars().count()
-                    );
-                    punctuated
-                } else {
-                    // Punct model busy — fall back to anchors
-                    apply_punct_anchors(&raw_text, &punct_anchors)
-                }
+            // Punctuation: run every cycle so display always has punctuation.
+            // Anchors are fallback only when punct model is busy.
+            let display_text = if let Some(punctuated) = tm.try_add_punctuation(&raw_text) {
+                punct_anchors = extract_punct_anchors(&raw_text, &punctuated);
+                punctuated
             } else {
                 apply_punct_anchors(&raw_text, &punct_anchors)
             };
 
-            info!(
-                "Realtime partial ({}ms, {}s audio): {}",
-                elapsed_ms,
-                current_audio.len() / sample_rate,
-                display_text,
-            );
+            if crate::DEBUG_LOG_TRANSCRIPTION.load(std::sync::atomic::Ordering::Relaxed) {
+                let preview: String = display_text.chars().take(80).collect();
+                let suffix = if display_text.chars().count() > 80 {
+                    "…"
+                } else {
+                    ""
+                };
+                info!(
+                    "Realtime partial ({}ms, {}s audio, len={}): {}{}",
+                    elapsed_ms,
+                    current_audio.len() / sample_rate,
+                    display_text.chars().count(),
+                    preview,
+                    suffix,
+                );
+            }
             let _ = app.emit(
                 "realtime-partial",
                 serde_json::json!({ "text": display_text }),

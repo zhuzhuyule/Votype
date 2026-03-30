@@ -11,6 +11,7 @@ import { LogDirectory } from "../debug/LogDirectory";
 import { LogLevelSelector } from "../debug/LogLevelSelector";
 import { OfflineVadRealtimeInterval } from "../debug/OfflineVadRealtimeInterval";
 import { OfflineVadRealtimeWindow } from "../debug/OfflineVadRealtimeWindow";
+import { DebugLogChannels } from "../debug/DebugLogChannels";
 import { WordCorrectionThreshold } from "../debug/WordCorrectionThreshold";
 
 export const AdvancedSettings: React.FC = () => {
@@ -48,6 +49,7 @@ export const AdvancedSettings: React.FC = () => {
           <WordCorrectionThreshold descriptionMode="inline" grouped={true} />
           <OfflineVadRealtimeInterval descriptionMode="inline" grouped={true} />
           <OfflineVadRealtimeWindow descriptionMode="inline" grouped={true} />
+          <DebugLogChannels />
         </SettingsGroup>
       )}
     </Flex>

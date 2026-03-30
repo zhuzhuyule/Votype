@@ -244,6 +244,8 @@ pub async fn maybe_post_process_transcription(
     Option<i64>,    // token count (total across all LLM calls)
     Option<i64>,    // llm call count
 ) {
+    let log_routing = crate::DEBUG_LOG_ROUTING.load(std::sync::atomic::Ordering::Relaxed);
+
     if !settings.post_process_enabled {
         return (None, None, None, false, None, None, None);
     }
@@ -267,11 +269,13 @@ pub async fn maybe_post_process_transcription(
         if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
             match hm.find_cached_post_process_result(transcription) {
                 Ok(Some((cached_text, cached_model, cached_prompt_id))) => {
-                    info!(
-                        "[SmartRouting] HistoryHit: reusing cached result (len={}, model={:?})",
-                        cached_text.chars().count(),
-                        cached_model
-                    );
+                    if log_routing {
+                        info!(
+                            "[SmartRouting] HistoryHit: reusing cached result (len={}, model={:?})",
+                            cached_text.chars().count(),
+                            cached_model
+                        );
+                    }
                     return (
                         Some(cached_text),
                         cached_model,
@@ -283,10 +287,12 @@ pub async fn maybe_post_process_transcription(
                     );
                 }
                 Ok(None) => {
-                    info!(
-                        "[SmartRouting] HistoryMiss: no cached result for input (len={})",
-                        char_count
-                    );
+                    if log_routing {
+                        info!(
+                            "[SmartRouting] HistoryMiss: no cached result for input (len={})",
+                            char_count
+                        );
+                    }
                 }
                 Err(e) => {
                     error!("[SmartRouting] History lookup failed: {}", e);
@@ -313,10 +319,12 @@ pub async fn maybe_post_process_transcription(
 
             match &action_result {
                 Some((super::routing::SmartAction::PassThrough, token_count)) => {
-                    info!(
-                        "[SmartRouting] Action: pass_through ({} chars), returning original text",
-                        char_count
-                    );
+                    if log_routing {
+                        info!(
+                            "[SmartRouting] Action: pass_through ({} chars), returning original text",
+                            char_count
+                        );
+                    }
                     // Return original text as processed result (unchanged).
                     // Review window still shows per user's app_policy setting.
                     return (
@@ -330,7 +338,9 @@ pub async fn maybe_post_process_transcription(
                     );
                 }
                 Some((super::routing::SmartAction::LitePolish { result }, token_count)) => {
-                    info!("[SmartRouting] Action: lite_polish ({} chars)", char_count);
+                    if log_routing {
+                        info!("[SmartRouting] Action: lite_polish ({} chars)", char_count);
+                    }
                     return (
                         Some(result.clone()),
                         None,
@@ -342,20 +352,24 @@ pub async fn maybe_post_process_transcription(
                     );
                 }
                 Some((super::routing::SmartAction::FullPolish, _)) => {
-                    info!(
-                        "[SmartRouting] Action: full_polish ({} chars), delegating to model selection",
-                        char_count
-                    );
+                    if log_routing {
+                        info!(
+                            "[SmartRouting] Action: full_polish ({} chars), delegating to model selection",
+                            char_count
+                        );
+                    }
                     smart_routing_tokens = action_result.as_ref().and_then(|(_, tc)| *tc);
                 }
                 None => {
-                    info!(
-                        "[SmartRouting] Action routing unavailable ({} chars), delegating to model selection",
-                        char_count
-                    );
+                    if log_routing {
+                        info!(
+                            "[SmartRouting] Action routing unavailable ({} chars), delegating to model selection",
+                            char_count
+                        );
+                    }
                 }
             }
-        } else if char_count > settings.length_routing_threshold {
+        } else if char_count > settings.length_routing_threshold && log_routing {
             info!(
                 "[SmartRouting] Long text ({} chars > {}), skipping action routing",
                 char_count, settings.length_routing_threshold
@@ -380,10 +394,12 @@ pub async fn maybe_post_process_transcription(
         if routed_model_id.is_some() {
             let mut s = settings.clone();
             s.selected_prompt_model_id = routed_model_id;
-            info!(
-                "[PostProcess] Length routing: {} chars → model {:?}",
-                char_count, s.selected_prompt_model_id
-            );
+            if log_routing {
+                info!(
+                    "[PostProcess] Length routing: {} chars → model {:?}",
+                    char_count, s.selected_prompt_model_id
+                );
+            }
             Cow::Owned(s)
         } else {
             Cow::Borrowed(settings)
@@ -489,27 +505,26 @@ pub async fn maybe_post_process_transcription(
         | crate::window_context::VotypeInputMode::ExternalDefault => selected_text.clone(),
     };
 
-    info!(
-        "[ModeRouting] app={:?}, title={:?}, review_editor_active={}, original_skill_mode={}, resolved_mode={:?}",
-        app_name,
-        window_title,
-        review_editor_active,
-        skill_mode,
-        votype_mode
-    );
-    if let Some(text) = selected_text.as_deref() {
+    if log_routing {
         info!(
-            "[ModeRouting] RawSelectedText (len={}):\n{}",
-            text.chars().count(),
-            text
+            "[ModeRouting] app={:?}, title={:?}, review_editor_active={}, original_skill_mode={}, resolved_mode={:?}",
+            app_name,
+            window_title,
+            review_editor_active,
+            skill_mode,
+            votype_mode
         );
-    }
-    if let Some(text) = review_document_text.as_deref() {
-        info!(
-            "[ModeRouting] ReviewDocumentText (len={}):\n{}",
-            text.chars().count(),
-            text
-        );
+        if let Some(text) = selected_text.as_deref() {
+            info!("[ModeRouting] RawSelectedText len={}", text.chars().count());
+            log::debug!("[ModeRouting] RawSelectedText:\n{}", text);
+        }
+        if let Some(text) = review_document_text.as_deref() {
+            info!(
+                "[ModeRouting] ReviewDocumentText len={}",
+                text.chars().count()
+            );
+            log::debug!("[ModeRouting] ReviewDocumentText:\n{}", text);
+        }
     }
 
     if matches!(
@@ -626,11 +641,12 @@ pub async fn maybe_post_process_transcription(
     // User's speech is only used as intent/instruction hint
     // Note: Some LLM providers may not support concurrent requests, so we handle failures gracefully
 
-    // DEBUG: Log condition checks
-    info!(
-        "[PostProcess] Intent detection conditions: skill_mode={}, is_explicit={}, override_prompt_id={:?}, transcription_empty={}, has_selected_text={}",
-        effective_skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty(), has_selected_text
-    );
+    if log_routing {
+        info!(
+            "[PostProcess] Intent detection conditions: skill_mode={}, is_explicit={}, override_prompt_id={:?}, transcription_empty={}, has_selected_text={}",
+            effective_skill_mode, is_explicit, override_prompt_id, transcription.trim().is_empty(), has_selected_text
+        );
+    }
 
     if !effective_skill_mode
         && !is_explicit
@@ -954,11 +970,13 @@ pub async fn maybe_post_process_transcription(
             &prompt,
         ) {
             Some((p, m)) => {
-                log::info!(
-                    "[PostProcess] Resolved effective provider: {}, model: {}",
-                    p.id,
-                    m
-                );
+                if log_routing {
+                    log::info!(
+                        "[PostProcess] Resolved effective provider: {}, model: {}",
+                        p.id,
+                        m
+                    );
+                }
                 (p, m)
             }
             None => {
@@ -991,14 +1009,16 @@ pub async fn maybe_post_process_transcription(
                             + injection.product_names.len()
                             + injection.domain_terms.len()
                             + injection.hotwords.len();
-                        info!(
-                            "[PostProcess] Hotwords injected into prompt: scenario={:?}, terms={}",
-                            effective_scenario, total_terms
-                        );
-                        info!(
-                            "[PostProcess] Hotword summary:\n{}",
-                            HotwordManager::summarize_injection(&injection)
-                        );
+                        if log_routing {
+                            info!(
+                                "[PostProcess] Hotwords injected into prompt: scenario={:?}, terms={}",
+                                effective_scenario, total_terms
+                            );
+                            log::debug!(
+                                "[PostProcess] Hotword summary:\n{}",
+                                HotwordManager::summarize_injection(&injection)
+                            );
+                        }
                         Some(injection)
                     }
                     Ok(_) => {
@@ -1187,12 +1207,14 @@ pub async fn maybe_post_process_transcription(
         last_token_count = Some(computed_token_count + routing_token_count);
 
         if let Some(final_text) = final_result.as_deref() {
-            info!(
-                "[PostProcess] FinalResult prompt_id={} model={}",
-                prompt.id,
-                last_model.as_deref().unwrap_or_default()
-            );
-            super::core::preview_multiline("PostProcessFinalText", final_text);
+            if log_routing {
+                info!(
+                    "[PostProcess] FinalResult prompt_id={} model={} len={}",
+                    prompt.id,
+                    last_model.as_deref().unwrap_or_default(),
+                    final_text.chars().count()
+                );
+            }
         } else {
             info!(
                 "[PostProcess] FinalResult prompt_id={} model={} is empty",

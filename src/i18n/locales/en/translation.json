@@ -692,6 +692,17 @@
         "description": "Set the verbosity of logging",
         "title": "Log Level"
       },
+      "logChannels": {
+        "title": "Log Channels",
+        "postProcess": "Post-Process Requests",
+        "postProcessDesc": "Log all LLM prompts and responses for text polishing (single and multi-model)",
+        "skillRouting": "Skill/Intent Routing",
+        "skillRoutingDesc": "Log skill routing prompts and responses",
+        "routing": "Routing Decisions",
+        "routingDesc": "Log SmartRouting, ModeRouting, and pipeline decisions",
+        "transcription": "Transcription Output",
+        "transcriptionDesc": "Log ASR results and realtime partials"
+      },
       "muteWhileRecording": {
         "description": "Mute system audio during recording",
         "label": "Mute While Recording"

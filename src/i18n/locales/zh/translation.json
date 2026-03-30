@@ -730,6 +730,17 @@
         "description": "设置日志的详细程度",
         "title": "日志级别"
       },
+      "logChannels": {
+        "title": "日志通道",
+        "postProcess": "后处理请求",
+        "postProcessDesc": "记录文本润色相关的所有 LLM 提示词和响应（含多模型）",
+        "skillRouting": "意图/技能路由",
+        "skillRoutingDesc": "记录技能路由的提示词和响应",
+        "routing": "路由决策",
+        "routingDesc": "记录 SmartRouting、ModeRouting 等管线决策",
+        "transcription": "转录输出",
+        "transcriptionDesc": "记录 ASR 转录结果和实时片段"
+      },
       "muteWhileRecording": {
         "description": "录制期间静音系统音频",
         "label": "录制时静音"

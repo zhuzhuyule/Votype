@@ -778,6 +778,14 @@ pub struct AppSettings {
     pub overlay_position: OverlayPosition,
     #[serde(default = "default_debug_mode")]
     pub debug_mode: bool,
+    #[serde(default)]
+    pub debug_log_post_process: bool,
+    #[serde(default)]
+    pub debug_log_skill_routing: bool,
+    #[serde(default)]
+    pub debug_log_routing: bool,
+    #[serde(default)]
+    pub debug_log_transcription: bool,
     #[serde(default = "default_log_level")]
     #[specta(type = String)]
     pub log_level: LogLevel,
@@ -1574,6 +1582,10 @@ pub fn get_default_settings() -> AppSettings {
         selected_language: "auto".to_string(),
         overlay_position: default_overlay_position(),
         debug_mode: false,
+        debug_log_post_process: false,
+        debug_log_skill_routing: false,
+        debug_log_routing: false,
+        debug_log_transcription: false,
         log_level: default_log_level(),
         model_unload_timeout: ModelUnloadTimeout::Never,
         word_correction_threshold: default_word_correction_threshold(),

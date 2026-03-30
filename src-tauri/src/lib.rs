@@ -39,7 +39,7 @@ use signal_hook::consts::SIGUSR2;
 #[cfg(unix)]
 use signal_hook::iterator::Signals;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::image::Image;
 
@@ -47,12 +47,19 @@ use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use tauri_plugin_log::fern::colors::{Color, ColoredLevelConfig};
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
 
 // Global atomic to store the file log level filter
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
 pub static CONSOLE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Info as u8);
+
+// Debug log channel toggles
+pub static DEBUG_LOG_POST_PROCESS: AtomicBool = AtomicBool::new(false);
+pub static DEBUG_LOG_SKILL_ROUTING: AtomicBool = AtomicBool::new(false);
+pub static DEBUG_LOG_ROUTING: AtomicBool = AtomicBool::new(false);
+pub static DEBUG_LOG_TRANSCRIPTION: AtomicBool = AtomicBool::new(false);
 
 fn level_filter_from_u8(value: u8) -> log::LevelFilter {
     match value {
@@ -416,6 +423,7 @@ pub fn run() {
             shortcut::settings_cmds::change_selected_language_setting,
             shortcut::settings_cmds::change_overlay_position_setting,
             shortcut::settings_cmds::change_debug_mode_setting,
+            shortcut::settings_cmds::change_debug_log_channel,
             shortcut::settings_cmds::change_start_hidden_setting,
             shortcut::settings_cmds::change_show_overlay_setting,
             shortcut::settings_cmds::add_cached_model,
@@ -510,6 +518,14 @@ pub fn run() {
     // when the variable is unset
     let console_filter = build_console_filter();
 
+    // Colored log levels for terminal output
+    let colors = ColoredLevelConfig::new()
+        .error(Color::Red)
+        .warn(Color::Yellow)
+        .info(Color::Green)
+        .debug(Color::Blue)
+        .trace(Color::Magenta);
+
     let mut builder = tauri::Builder::default()
         .device_event_filter(tauri::DeviceEventFilter::Always)
         .plugin(
@@ -517,28 +533,50 @@ pub fn run() {
                 .level(log::LevelFilter::Trace) // Set to most verbose level globally
                 .max_file_size(500_000)
                 .rotation_strategy(RotationStrategy::KeepOne)
+                .clear_format() // Remove default global format to avoid duplicate metadata
                 .clear_targets()
                 .targets([
-                    // Console output respects RUST_LOG environment variable OR dynamic console level
-                    Target::new(TargetKind::Stdout).filter({
-                        let console_filter = console_filter.clone();
-                        move |metadata| {
-                            // Check RUST_LOG filter first
-                            if console_filter.enabled(metadata) {
-                                return true;
+                    // Console output with colored log levels
+                    Target::new(TargetKind::Stdout)
+                        .filter({
+                            let console_filter = console_filter.clone();
+                            move |metadata| {
+                                // Check RUST_LOG filter first
+                                if console_filter.enabled(metadata) {
+                                    return true;
+                                }
+                                // Fallback to dynamic console level
+                                let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
+                                metadata.level() <= level_filter_from_u8(console_level)
                             }
-                            // Fallback to dynamic console level
-                            let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
-                            metadata.level() <= level_filter_from_u8(console_level)
-                        }
-                    }),
-                    // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
+                        })
+                        .format(move |out, message, record| {
+                            let now = chrono::Local::now();
+                            out.finish(format_args!(
+                                "[{}][{}][{}] {}",
+                                now.format("%H:%M:%S"),
+                                colors.color(record.level()),
+                                record.target(),
+                                message
+                            ))
+                        }),
+                    // File logs with timestamp (no color)
                     Target::new(TargetKind::LogDir {
                         file_name: Some("votype".into()),
                     })
                     .filter(|metadata| {
                         let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
                         metadata.level() <= level_filter_from_u8(file_level)
+                    })
+                    .format(|out, message, record| {
+                        let now = chrono::Local::now();
+                        out.finish(format_args!(
+                            "[{}][{}][{}] {}",
+                            now.format("%Y-%m-%d %H:%M:%S"),
+                            record.level(),
+                            record.target(),
+                            message
+                        ))
                     }),
                 ])
                 .build(),
@@ -587,6 +625,12 @@ pub fn run() {
                 log::LevelFilter::Info
             };
             CONSOLE_LOG_LEVEL.store(console_level as u8, Ordering::Relaxed);
+
+            // Sync debug log channel toggles from settings
+            DEBUG_LOG_POST_PROCESS.store(settings.debug_log_post_process, Ordering::Relaxed);
+            DEBUG_LOG_SKILL_ROUTING.store(settings.debug_log_skill_routing, Ordering::Relaxed);
+            DEBUG_LOG_ROUTING.store(settings.debug_log_routing, Ordering::Relaxed);
+            DEBUG_LOG_TRANSCRIPTION.store(settings.debug_log_transcription, Ordering::Relaxed);
 
             let app_handle = app.handle().clone();
 
@@ -639,6 +683,7 @@ pub fn run() {
             shortcut::settings_cmds::change_app_language_setting,
             shortcut::settings_cmds::change_overlay_position_setting,
             shortcut::settings_cmds::change_debug_mode_setting,
+            shortcut::settings_cmds::change_debug_log_channel,
             shortcut::settings_cmds::change_word_correction_threshold_setting,
             shortcut::settings_cmds::change_paste_method_setting,
             shortcut::settings_cmds::change_paste_delay_ms_setting,
