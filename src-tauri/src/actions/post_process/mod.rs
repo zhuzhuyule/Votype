@@ -134,14 +134,23 @@ pub enum PipelineResult {
         error_message: Option<String>,
     },
 
-    /// Multi-model results ready (Step 4, multi path)
-    MultiModel {
+    /// Multi-model auto-pick: all results ready, caller picks best (race/lazy strategy)
+    MultiModelAutoPick {
         candidates: Vec<MultiModelPostProcessResult>,
-        /// The multi-model item configs used (needed by transcribe.rs for label lookup)
+        /// The multi-model item configs used (needed for label lookup)
         multi_items: Vec<crate::settings::MultiModelPostProcessItem>,
-        strategy: String,
         total_token_count: Option<i64>,
         llm_call_count: Option<i64>,
+        /// Prompt ID used for all candidates
+        prompt_id: Option<String>,
+    },
+
+    /// Multi-model manual: caller should show review window immediately, then start streaming.
+    /// Pipeline returns before results are ready so the window can open instantly.
+    MultiModelManual {
+        /// The multi-model item configs (needed to build loading candidates and call multi_post_process)
+        multi_items: Vec<crate::settings::MultiModelPostProcessItem>,
+        intent_token_count: Option<i64>,
         /// Prompt ID used for all candidates
         prompt_id: Option<String>,
     },

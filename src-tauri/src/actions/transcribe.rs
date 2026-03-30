@@ -1182,21 +1182,13 @@ impl ShortcutAction for TranscribeAction {
                                         return;
                                     }
 
-                                    crate::actions::post_process::PipelineResult::MultiModel {
-                                        candidates,
+                                    crate::actions::post_process::PipelineResult::MultiModelManual {
                                         multi_items,
-                                        strategy,
-                                        total_token_count,
-                                        llm_call_count: multi_call_count,
+                                        intent_token_count,
                                         prompt_id: effective_prompt_id,
                                     } => {
-                                        token_count = total_token_count;
-                                        llm_call_count = multi_call_count;
-
-                                        let auto_pick =
-                                            strategy == "race" || strategy == "lazy";
-
-                                        // Get output_mode from the prompt
+                                        // Manual mode: show review window immediately with loading candidates,
+                                        // then start multi-model processing (results stream via events).
                                         let output_mode = if let Some(ref pid) = effective_prompt_id {
                                             settings_clone
                                                 .post_process_prompts
@@ -1215,62 +1207,113 @@ impl ShortcutAction for TranscribeAction {
                                             crate::settings::PromptOutputMode::default()
                                         };
 
-                                        if !auto_pick {
-                                            // Manual strategy: show review window with candidates
-                                            let initial_candidates: Vec<crate::review_window::MultiModelCandidate> =
-                                                candidates
-                                                    .iter()
-                                                    .map(|r| crate::review_window::MultiModelCandidate {
-                                                        id: r.id.clone(),
-                                                        label: r.label.clone(),
-                                                        text: r.text.clone(),
-                                                        confidence: r.confidence,
-                                                        processing_time_ms: r.processing_time_ms,
-                                                        error: r.error.clone(),
-                                                        ready: r.ready,
-                                                    })
-                                                    .collect();
-
-                                            crate::review_window::set_last_active_window(
-                                                active_window_snapshot_for_review.clone(),
-                                            );
-                                            crate::review_window::show_review_window_with_candidates(
-                                                &ah_clone,
-                                                transcription_clone.clone(),
-                                                initial_candidates,
-                                                history_id,
-                                                output_mode,
-                                                None,
-                                                effective_prompt_id,
-                                            );
-                                            utils::hide_recording_overlay(&ah_clone);
-                                            change_tray_icon(&ah_clone, TrayIconState::Idle);
-
-                                            // Save best result to history
-                                            if let Some(best) = candidates.iter().find(|r| r.ready && r.error.is_none()) {
-                                                let model_name = multi_items
-                                                    .iter()
-                                                    .find(|item| item.id == best.id)
-                                                    .map(|item| item.model_id.clone())
-                                                    .unwrap_or_else(|| best.label.clone());
-                                                if let Some(hid) = history_id {
-                                                    if let Err(e) = hm_clone
-                                                        .save_post_processed_text(
-                                                            hid,
-                                                            best.text.clone(),
-                                                            Some(model_name),
-                                                            settings_clone.post_process_selected_prompt_id.clone(),
-                                                            total_token_count,
-                                                            multi_call_count,
-                                                        )
-                                                        .await
-                                                    {
-                                                        error!("Failed to save multi-model result to history: {}", e);
+                                        // Build loading candidates (not ready yet)
+                                        let loading_candidates: Vec<crate::review_window::MultiModelCandidate> =
+                                            multi_items
+                                                .iter()
+                                                .map(|item| {
+                                                    let label = item
+                                                        .custom_label
+                                                        .clone()
+                                                        .unwrap_or_else(|| {
+                                                            let provider_label = settings_clone
+                                                                .post_process_provider(&item.provider_id)
+                                                                .map(|p| p.label.clone())
+                                                                .unwrap_or_else(|| item.provider_id.clone());
+                                                            format!("{} {}", provider_label, item.model_id)
+                                                        });
+                                                    crate::review_window::MultiModelCandidate {
+                                                        id: item.id.clone(),
+                                                        label,
+                                                        text: String::new(),
+                                                        confidence: None,
+                                                        processing_time_ms: 0,
+                                                        error: None,
+                                                        ready: false,
                                                     }
+                                                })
+                                                .collect();
+
+                                        // Show review window immediately
+                                        crate::review_window::set_last_active_window(
+                                            active_window_snapshot_for_review.clone(),
+                                        );
+                                        crate::review_window::show_review_window_with_candidates(
+                                            &ah_clone,
+                                            transcription_clone.clone(),
+                                            loading_candidates,
+                                            history_id,
+                                            output_mode,
+                                            None,
+                                            effective_prompt_id.clone(),
+                                        );
+                                        utils::hide_recording_overlay(&ah_clone);
+                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+
+                                        // Now start multi-model processing (emits progress events for live UI updates)
+                                        info!("[MultiModel] Starting streaming multi-model post-processing ({} models)", multi_items.len());
+                                        let results =
+                                            crate::actions::post_process::multi_post_process_transcription(
+                                                &ah_clone,
+                                                &settings_clone,
+                                                &chinese_converted_text,
+                                                secondary.as_deref(),
+                                                history_id,
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.app_name.clone()),
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.title.clone()),
+                                                override_prompt_id.clone(),
+                                            )
+                                            .await;
+
+                                        // Save best result to history
+                                        let multi_total_tokens: Option<i64> = {
+                                            let mut sum: i64 = intent_token_count.unwrap_or(0);
+                                            sum += results.iter().filter_map(|r| r.token_count).sum::<i64>();
+                                            if sum > 0 { Some(sum) } else { None }
+                                        };
+                                        let multi_call_count: Option<i64> = {
+                                            let mut count = results.len() as i64;
+                                            if intent_token_count.is_some() { count += 1; }
+                                            if count > 0 { Some(count) } else { None }
+                                        };
+                                        if let Some(best) = results.iter().find(|r| r.ready && r.error.is_none()) {
+                                            let model_name = multi_items
+                                                .iter()
+                                                .find(|item| item.id == best.id)
+                                                .map(|item| item.model_id.clone())
+                                                .unwrap_or_else(|| best.label.clone());
+                                            if let Some(hid) = history_id {
+                                                if let Err(e) = hm_clone
+                                                    .save_post_processed_text(
+                                                        hid,
+                                                        best.text.clone(),
+                                                        Some(model_name),
+                                                        settings_clone.post_process_selected_prompt_id.clone(),
+                                                        multi_total_tokens,
+                                                        multi_call_count,
+                                                    )
+                                                    .await
+                                                {
+                                                    error!("Failed to save multi-model result to history: {}", e);
                                                 }
                                             }
-                                            return;
                                         }
+                                        return;
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::MultiModelAutoPick {
+                                        candidates,
+                                        multi_items,
+                                        total_token_count,
+                                        llm_call_count: multi_call_count,
+                                        prompt_id: effective_prompt_id,
+                                    } => {
+                                        token_count = total_token_count;
+                                        llm_call_count = multi_call_count;
 
                                         // Auto-pick: select best result
                                         let best_result = candidates.iter().find(|r| r.ready && r.error.is_none());

@@ -275,14 +275,32 @@ pub async fn unified_post_process(
     if use_multi_model {
         let multi_items = settings.build_multi_model_items_from_selection();
         if !multi_items.is_empty() {
+            let strategy = &settings.multi_model_strategy;
+            let auto_pick = strategy == "race" || strategy == "lazy";
+            let effective_prompt_id = override_prompt_id
+                .clone()
+                .or(settings.post_process_selected_prompt_id.clone());
+
             if log_routing {
                 info!(
-                    "[UnifiedPipeline] Step 3: FullPolish → multi-model ({} models, strategy={})",
+                    "[UnifiedPipeline] Step 3: FullPolish → multi-model ({} models, strategy={}, auto_pick={})",
                     multi_items.len(),
-                    settings.multi_model_strategy
+                    strategy,
+                    auto_pick
                 );
             }
 
+            if !auto_pick {
+                // Manual mode: return immediately so caller can show review window
+                // before any results arrive. Caller will invoke multi_post_process_transcription.
+                return super::PipelineResult::MultiModelManual {
+                    multi_items,
+                    intent_token_count: intent_tokens,
+                    prompt_id: effective_prompt_id,
+                };
+            }
+
+            // Auto-pick mode: await all results, pick best
             if show_overlay {
                 show_llm_processing_overlay(app_handle);
                 app_handle
@@ -323,13 +341,9 @@ pub async fn unified_post_process(
                 }
             };
 
-            let effective_prompt_id =
-                override_prompt_id.or(settings.post_process_selected_prompt_id.clone());
-
-            return super::PipelineResult::MultiModel {
+            return super::PipelineResult::MultiModelAutoPick {
                 candidates,
                 multi_items,
-                strategy: settings.multi_model_strategy.clone(),
                 total_token_count: total_tokens,
                 llm_call_count: call_count,
                 prompt_id: effective_prompt_id,
