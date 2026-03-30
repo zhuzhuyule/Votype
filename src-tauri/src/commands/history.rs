@@ -302,6 +302,7 @@ pub async fn retranscribe_history_entry(
                 false, // review_editor_active
                 None,  // selected_text
                 None,  // review_document_text
+                false, // skip_smart_routing
             )
             .await;
 

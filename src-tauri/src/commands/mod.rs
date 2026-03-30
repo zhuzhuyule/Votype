@@ -370,6 +370,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 false,
                 pending.selected_text.clone(),
                 None,
+                false, // skip_smart_routing
             )
             .await;
 
@@ -517,6 +518,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     false,
                     None, // Ignore selected text for polish
                     None,
+                    false, // skip_smart_routing
                 )
                 .await;
 

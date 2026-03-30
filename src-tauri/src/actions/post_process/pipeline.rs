@@ -371,6 +371,7 @@ pub async fn unified_post_process(
             review_editor_active,
             selected_text,
             review_document_text,
+            true, // skip_smart_routing: already done by unified_post_process
         )
         .await;
 
@@ -678,6 +679,7 @@ pub async fn maybe_post_process_transcription(
     review_editor_active: bool,
     selected_text: Option<String>,
     review_document_text: Option<String>,
+    skip_smart_routing: bool,
 ) -> (
     Option<String>, // processed text
     Option<String>, // model name
@@ -705,7 +707,7 @@ pub async fn maybe_post_process_transcription(
     // ═══════════════════════════════════════════════════════════════════════
     let mut smart_routing_tokens: Option<i64> = None;
 
-    if settings.length_routing_enabled {
+    if settings.length_routing_enabled && !skip_smart_routing {
         let char_count = transcription.chars().count() as u32;
 
         // Layer 0: History exact-match reuse
