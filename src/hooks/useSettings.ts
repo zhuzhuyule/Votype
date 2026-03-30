@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { AudioDevice, CachedModel, ModelType, Settings } from "../lib/types";
+import {
+  AudioDevice,
+  CachedModel,
+  ModelType,
+  PostProcessProvider,
+  Settings,
+} from "../lib/types";
 import { useSettingsStore } from "../stores/settingsStore";
 
 interface UseSettingsReturn {
@@ -46,7 +52,7 @@ interface UseSettingsReturn {
     label: string;
     baseUrl: string;
     modelsEndpoint?: string;
-  }) => Promise<void>;
+  }) => Promise<PostProcessProvider>;
   updateCustomProvider: (payload: {
     providerId: string;
     label?: string;
@@ -54,6 +60,10 @@ interface UseSettingsReturn {
     modelsEndpoint?: string;
   }) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
+  toggleMultiModelSelection: (
+    cachedModelId: string,
+    selected: boolean,
+  ) => Promise<void>;
   addCachedModel: (model: CachedModel) => Promise<void>;
   updateCachedModelType: (
     modelId: string,
@@ -62,6 +72,10 @@ interface UseSettingsReturn {
   updateCachedModelPromptMessageRole: (
     modelId: string,
     role: "system" | "developer",
+  ) => Promise<void>;
+  toggleCachedModelThinking: (
+    modelId: string,
+    enabled: boolean,
   ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
@@ -117,6 +131,7 @@ export const useSettings = (): UseSettingsReturn => {
     addCustomProvider: store.addCustomProvider,
     updateCustomProvider: store.updateCustomProvider,
     removeCustomProvider: store.removeCustomProvider,
+    toggleMultiModelSelection: store.toggleMultiModelSelection,
     testPostProcessInference: store.testPostProcessInference,
   };
 };

@@ -7,6 +7,7 @@ import {
   CachedModel,
   ModelType,
   MultiModelPostProcessItem,
+  PostProcessProvider,
   Settings,
 } from "../lib/types";
 
@@ -77,7 +78,7 @@ interface SettingsStore {
     label: string;
     baseUrl: string;
     modelsEndpoint?: string;
-  }) => Promise<void>;
+  }) => Promise<PostProcessProvider>;
   updateCustomProvider: (payload: {
     providerId: string;
     label?: string;
@@ -775,14 +776,16 @@ export const useSettingsStore = create<SettingsStore>()(
       setUpdating(updateKey, true);
 
       try {
-        await invoke("add_custom_provider", {
+        const provider = (await invoke("add_custom_provider", {
           label: label.trim(),
           baseUrl: baseUrl.trim(),
           modelsEndpoint: modelsEndpoint?.trim() || null,
-        });
+        })) as PostProcessProvider;
         await refreshSettings();
+        return provider;
       } catch (error) {
         console.error("Failed to add custom provider:", error);
+        throw error;
       } finally {
         setUpdating(updateKey, false);
       }

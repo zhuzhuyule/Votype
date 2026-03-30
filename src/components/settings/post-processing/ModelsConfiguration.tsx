@@ -1,5 +1,4 @@
-import { Button, Flex, SegmentedControl } from "@radix-ui/themes";
-import { IconPlus } from "@tabler/icons-react";
+import { Flex, SegmentedControl } from "@radix-ui/themes";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -26,6 +25,7 @@ export const ModelsConfiguration: React.FC = () => {
       <ApiSettings
         isFetchingModels={providerState.isFetchingModels}
         providerState={providerState}
+        onOpenAddModel={() => setIsModelPickerOpen(true)}
       />
 
       {/* 2. Unified Models Panel */}
@@ -47,21 +47,12 @@ export const ModelsConfiguration: React.FC = () => {
             </SegmentedControl.Root>
           </Flex>
         }
-        actions={
-          <Button
-            variant="outline"
-            size="1"
-            onClick={() => setIsModelPickerOpen(true)}
-          >
-            <IconPlus size={14} />
-            {t("settings.postProcessing.models.selectModel.addButton")}
-          </Button>
-        }
       >
         <ModelListPanel
           targetType={["text", "asr", "other"]}
           allowSelection={false}
           activeFilter={activeFilter}
+          preferredProviderId={providerState.selectedProviderId}
         />
       </SettingsGroup>
 

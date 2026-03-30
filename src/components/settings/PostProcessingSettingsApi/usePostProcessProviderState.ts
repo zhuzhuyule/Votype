@@ -26,7 +26,7 @@ export type PostProcessProviderState = {
   modelOptions: ModelOption[];
   isModelUpdating: boolean;
   isFetchingModels: boolean;
-  handleProviderSelect: (providerId: string) => void;
+  handleProviderSelect: (providerId: string) => Promise<void>;
   handleModelSelect: (value: string) => void;
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
@@ -116,8 +116,6 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     async (providerId: string) => {
       setViewingProviderId(providerId);
 
-      await setPostProcessProvider(providerId);
-
       // Auto-fetch available models for the new provider so the model dropdown
       // reflects what's actually valid.
       if (providerId !== APPLE_PROVIDER_ID) {
@@ -132,13 +130,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         }
       }
     },
-    [
-      viewingProviderId,
-      setPostProcessProvider,
-      fetchPostProcessModels,
-      providers,
-      settings?.post_process_api_keys,
-    ],
+    [fetchPostProcessModels, providers, settings?.post_process_api_keys],
   );
 
   const handleBaseUrlChange = useCallback(

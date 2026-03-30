@@ -1,11 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Box, Flex, Text } from "@radix-ui/themes";
-import {
-  IconCircleCheck,
-  IconGripVertical,
-  IconLock,
-} from "@tabler/icons-react";
+import { IconCircleCheck, IconGripVertical } from "@tabler/icons-react";
 import React from "react";
 import { DynamicIcon } from "../../shared/IconPicker";
 
@@ -19,6 +15,7 @@ export interface SidebarItemProps {
   onActivate: () => void;
   t: any;
   icon?: string;
+  iconNode?: React.ReactNode;
   outputMode?: "polish" | "chat" | "silent";
   /** Enable drag-and-drop when true */
   sortable?: boolean;
@@ -35,6 +32,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
   onActivate,
   t,
   icon,
+  iconNode,
   outputMode,
   sortable = false,
   id,
@@ -89,11 +87,13 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
             <IconGripVertical size={14} />
           </Box>
         )}
-        {icon && (
+        {iconNode ? (
+          <Box className="shrink-0 mt-0.5">{iconNode}</Box>
+        ) : icon ? (
           <Box className="shrink-0 text-gray-400 group-hover:text-(--accent-11) mt-0.5">
             <DynamicIcon name={icon} size={16} />
           </Box>
-        )}
+        ) : null}
         <Flex direction="column" gap="0" className="flex-1 min-w-0">
           {/* 标题行 */}
           <Flex align="center" gap="2" className="min-w-0">
@@ -115,14 +115,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
           </Flex>
         </Flex>
       </Flex>
-
-      <Flex align="center" gap="2" className="shrink-0">
-        {isLocked && (
-          <Box title={t("settings.postProcessing.prompts.skillLocked")}>
-            <IconLock size={14} style={{ opacity: 0.5 }} />
-          </Box>
-        )}
-      </Flex>
+      <Flex align="center" gap="2" className="shrink-0" />
     </div>
   );
 };

@@ -758,6 +758,14 @@ async fetchPostProcessModels(providerId: string) : Promise<Result<string[], stri
     else return { status: "error", error: e  as any };
 }
 },
+async getProviderAvatarPath(providerId: string) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_provider_avatar_path", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async addCustomProvider(label: string, baseUrl: string, modelsEndpoint: string | null) : Promise<Result<PostProcessProvider, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_custom_provider", { label, baseUrl, modelsEndpoint }) };

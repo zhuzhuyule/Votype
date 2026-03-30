@@ -37,8 +37,13 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   enabled,
 }) => {
   const { t } = useTranslation();
-  const { settings, updateSetting, selectPromptModel, isUpdating } =
-    useSettings();
+  const {
+    settings,
+    updateSetting,
+    selectPromptModel,
+    isUpdating,
+    toggleMultiModelSelection,
+  } = useSettings();
 
   const smartRoutingEnabled = settings?.length_routing_enabled ?? false;
   const multiModelEnabled = settings?.multi_model_post_process_enabled ?? false;
@@ -351,14 +356,9 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                                         : "bg-(--gray-a2) border-2 border-transparent hover:border-(--gray-a6)"
                                     }`}
                                     onClick={() => {
-                                      const newIds = isSelected
-                                        ? multiModelSelectedIds.filter(
-                                            (id) => id !== model.id,
-                                          )
-                                        : [...multiModelSelectedIds, model.id];
-                                      updateSetting(
-                                        "multi_model_selected_ids",
-                                        newIds,
+                                      void toggleMultiModelSelection(
+                                        model.id,
+                                        !isSelected,
                                       );
                                     }}
                                   >

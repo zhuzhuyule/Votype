@@ -101,7 +101,14 @@ function SpeedWithTooltip({
 
   return (
     <Tooltip
-      content={`历史平均: ${formatSpeed(historicalStats.avg_speed)} (${historicalStats.total_calls} 次)\n本次: ${formatSpeed(currentSpeed)} (${diffLabel})`}
+      content={
+        <span>
+          历史平均: {formatSpeed(historicalStats.avg_speed)} (
+          {historicalStats.total_calls} 次)
+          <br />
+          本次: {formatSpeed(currentSpeed)} ({diffLabel})
+        </span>
+      }
     >
       <span className="candidate-speed">{formatSpeed(currentSpeed)}</span>
     </Tooltip>
