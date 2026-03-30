@@ -160,58 +160,6 @@
       "description": "句読点と文の区切りを追加 (中英混合テキスト用). Int8; 高速で小型. 更新 2024-04-12.",
       "name": "句読点 (中国語 + 英語)"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "オフライン3か国語ASR (中国語/広東語/英語); 大型; 精度良好.",
-      "name": "Sherpa Paraformer 中+粤+英"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "ストリーミング中英モデル. リアルタイム字幕に最適; 高速、精度はそこそこ.",
-      "name": "Sherpa 中国語 + 英語 (Paraformer)"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "オフライン中国語ASR; INT8; 高速; 精度良好; 更新 2025-10-07.",
-      "name": "Sherpa Paraformer 中国語 (INT8)"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "オフライン中国語ASR; 小型で高速; 精度はそこそこ; 更新 2024-03-09.",
-      "name": "Sherpa Paraformer 中国語 (小)"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "オフラインモデル： 中国語/英語/日本語/韓国語/広東語. Int8 量子化; 速度とメモリは中程度. 更新 2025-09-09.",
-      "name": "SenseVoice 多言語"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "ストリーミングドイツ語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06.",
-      "name": "Sherpa ドイツ語"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "ストリーミング英語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06.",
-      "name": "Sherpa 英語"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "ストリーミングスペイン語ASR; 中型で非常に高速; 精度良好; 更新 2025-08-06.",
-      "name": "Sherpa スペイン語"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "ストリーミングフランス語ASR; 小型で非常に高速; 精度良好; 更新 2025-08-06.",
-      "name": "Sherpa フランス語"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "ストリーミングロシア語ASR; 超小型で非常に高速 (INT8); 精度良好; 更新 2025-08-16.",
-      "name": "Sherpa ロシア語"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "ストリーミング中国語ASR (Zipformer2 CTC); 小型で非常に高速 (INT8); 更新 2025-04-01.",
-      "name": "Sherpa 中国語 (CTC 小)"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "ストリーミング中国語ASR; 小型で非常に高速 (INT8); 高精度; 更新 2025-06-30.",
-      "name": "Sherpa 中国語"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "ストリーミング中国語ASR; 大型モデル、高速 (INT8); 非常に高精度; 更新 2025-06-30.",
-      "name": "Sherpa 中国語 XL"
-    },
     "small": {
       "description": "高速でかなり正確。",
       "name": "Whisper Small"
@@ -499,10 +447,6 @@
         "other": "その他",
         "parakeet": "Parakeet",
         "punctuation": "句読点",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
       },
       "types": {
@@ -708,7 +652,7 @@
       "disabledNotice": "後処理は現在無効です。設定するにはデバッグ設定で有効にしてください。",
       "fusion": {
         "enabled": {
-          "description": "後処理プロンプトに2つの文字起こしを提供します: ${output} (最終) および ${streaming_output} (セカンダリ)。",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "リアルタイム文字起こしを使用 (フュージョン)"
         },
         "secondaryModel": {
@@ -767,21 +711,39 @@
         "createNew": "新しいプロンプトを作成",
         "createPrompt": "プロンプトを作成",
         "deletePrompt": "プロンプトを削除",
-        "enableReview": "レビューを有効にする",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "プロンプトがありません",
         "promptInstructions": "プロンプトの指示",
-        "promptInstructionsPlaceholder": "文字起こし後に実行する指示を記述します。例：${context} に基づいて、テキスト内の専門用語を修正する：${output}",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "プロンプト名",
         "promptLabelPlaceholder": "プロンプト名を入力",
-        "promptTip": "ヒント：以下の変数を使用できます（クリックしてコピー）：<br/><code>${output}</code>：最終的な文字起こし結果。<br/><code>${streaming_output}</code>：リアルタイム文字起こし中の途中経過テキスト。<br/><code>${hot_words}</code>：詳細設定で定義したカスタム語彙/ホットワード。<br/><code>${prompt}</code>：現在使用しているプロンプト案の表示名。<br/><code>${context}</code>：操作対象のウィンドウからの歴史的なチャット情報。<br/><b>注意: プロンプトで `text` と `confidence` を含む JSON 構造を出力するように指示すると、自動的にレビューウィンドウが起動します。</b>",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "文字起こしを改善するテンプレートを選択するか、新しく作成します。<code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code> などの占位符を使用できます。",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "選択したプロンプト"
         },
         "selectPrompt": "プロンプトを選択",
         "selectToEdit": "上からプロンプトを選択して、詳細を表示・編集します。",
         "title": "プロンプト",
-        "updatePrompt": "プロンプトを更新"
+        "updatePrompt": "プロンプトを更新",
+        "varAppNameDesc": "アクティブなアプリケーション名。",
+        "varContextDesc": "操作対象のウィンドウからの歴史的なチャット情報。",
+        "varOutputDesc": "最終的な文字起こし結果。",
+        "varPromptDesc": "現在使用しているプロンプト案の表示名。",
+        "varRawInputDesc": "完全な元の文字起こし。",
+        "varSelectDesc": "録音終了時に選択されていたテキスト。",
+        "varStreamingDesc": "リアルタイム文字起こし中の途中経過テキスト。",
+        "varTimeDesc": "現在のタイムスタンプ。",
+        "varWindowTitleDesc": "現在のウィンドウタイトル。",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       },
       "title": "後処理"
     },

@@ -35,7 +35,7 @@ tauri = { version = "2.9.1", features = [
   "tray-icon",
   'image-png',
 ] }
-tauri-plugin-log = "2.0.0-rc.2"
+tauri-plugin-log = { version = "2.0.0-rc.2", features = ["colored"] }
 tauri-plugin-opener = "2.5.2"
 tauri-plugin-store = "2.4.1"
 tauri-plugin-os = "2.3.2"
@@ -68,17 +68,22 @@ chrono = "0.4"
 rusqlite = { version = "0.37", features = ["bundled"] }
 tar = "0.4.44"
 flate2 = "1.0"
-transcribe-rs = "0.1.4"
+transcribe-rs = { git = "https://github.com/zhuzhuyule/transcribe-rs", branch = "main", features = ["all"] }
 active-win-pos-rs = "0.9.1"
 ferrous-opencc = "0.2.3"
 handy-keys = "0.2.1"
-sherpa-rs-sys = "0.6.8"
 bzip2 = "0.6.1"
 serde_yaml = "0.9"
 similar = "2.6"
 pinyin = "0.10"
 tauri-plugin-dialog = "2.6.0"
 specta = { version = "=2.0.0-rc.22", features = ["serde", "serde_json", "derive", "function"] }
+tauri-specta = { version = "=2.0.0-rc.21", features = ["derive", "typescript"] }
+specta-typescript = "0.0.9"
+thiserror = "2"
+clap = { version = "4", features = ["derive"] }
+tiktoken-rs = "0.6"
+sha2 = "0.10"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
@@ -106,6 +111,9 @@ tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.
 objc2 = "0.5"
 core-foundation = "0.10"
 core-graphics = "0.24"
+
+[dev-dependencies]
+tempfile = "3.27.0"
 
 [profile.release]
 lto = true

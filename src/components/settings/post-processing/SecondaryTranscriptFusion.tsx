@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useModels } from "../../../hooks/useModels";
 import { useSettings } from "../../../hooks/useSettings";
+import { useModels } from "../../../hooks/useModels";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { SecondaryModelDropdown } from "./SecondaryModelDropdown";

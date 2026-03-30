@@ -6,6 +6,7 @@ import type { ModelOption } from "./types";
 
 export type PostProcessProviderState = {
   enabled: boolean;
+  providers: PostProcessProvider[];
   providerOptions: DropdownOption[];
   selectedProviderId: string;
   selectedProvider: PostProcessProvider | undefined;
@@ -29,21 +30,24 @@ export type PostProcessProviderState = {
   handleModelSelect: (value: string) => void;
   handleModelCreate: (value: string) => void;
   handleRefreshModels: () => void;
-  testConnection: () => Promise<boolean>;
+  testConnection: () => Promise<string | null>;
+  testInference: (
+    modelId: string,
+  ) => Promise<{ result?: string; error?: string; hasThinking?: boolean }>;
   verifiedProviderIds: Set<string>;
   activeProviderId: string;
   activateProvider: (providerId: string) => Promise<void>;
+  lastInferenceResult: {
+    result?: string;
+    hasThinking?: boolean;
+    error?: string;
+  } | null;
+  setLastInferenceResult: (
+    result: { result?: string; hasThinking?: boolean; error?: string } | null,
+  ) => void;
 };
 
 const APPLE_PROVIDER_ID = "apple_intelligence";
-
-const BUILTIN_PROVIDER_IDS = [
-  "openai",
-  "anthropic",
-  "apple_intelligence",
-  "iflow",
-  "gitee",
-];
 
 export const usePostProcessProviderState = (): PostProcessProviderState => {
   const {
@@ -57,6 +61,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     postProcessModelOptions,
     updateCustomProvider,
     removeCustomProvider,
+    testPostProcessInference,
   } = useSettings();
 
   const enabled = settings?.post_process_enabled || false;
@@ -64,9 +69,14 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   // Settings are guaranteed to have providers after migration
   const providers = settings?.post_process_providers || [];
 
-  // Determine the active provider from settings
+  // Determine the active provider from settings, ensuring it exists
   const activeProviderId = useMemo(() => {
-    return settings?.post_process_provider_id || providers[0]?.id || "openai";
+    const savedId = settings?.post_process_provider_id;
+    // Verify the saved provider still exists in the list
+    if (savedId && providers.some((p) => p.id === savedId)) {
+      return savedId;
+    }
+    return providers[0]?.id || "openai";
   }, [providers, settings?.post_process_provider_id]);
 
   // Local state for which provider is currently being viewed/edited
@@ -103,15 +113,32 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   }, [providers]);
 
   const handleProviderSelect = useCallback(
-    (providerId: string) => {
-      console.log("[DEBUG] handleProviderSelect called", {
-        providerId,
-        previousId: viewingProviderId,
-      });
-
+    async (providerId: string) => {
       setViewingProviderId(providerId);
+
+      await setPostProcessProvider(providerId);
+
+      // Auto-fetch available models for the new provider so the model dropdown
+      // reflects what's actually valid.
+      if (providerId !== APPLE_PROVIDER_ID) {
+        const provider = providers.find((p) => p.id === providerId);
+        const providerApiKey =
+          settings?.post_process_api_keys?.[providerId] ?? "";
+        const hasBaseUrl = (provider?.base_url ?? "").trim() !== "";
+        const hasApiKey = providerApiKey.trim() !== "";
+
+        if (provider?.id === "custom" ? hasBaseUrl : hasApiKey) {
+          void fetchPostProcessModels(providerId);
+        }
+      }
     },
-    [viewingProviderId, settings?.post_process_api_keys, removeCustomProvider],
+    [
+      viewingProviderId,
+      setPostProcessProvider,
+      fetchPostProcessModels,
+      providers,
+      settings?.post_process_api_keys,
+    ],
   );
 
   const handleBaseUrlChange = useCallback(
@@ -176,32 +203,18 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   );
 
   const handleRefreshModels = useCallback(() => {
-    console.log("[DEBUG] handleRefreshModels called", {
-      viewingProviderId,
-      isAppleProvider,
-    });
     if (isAppleProvider) return;
-    fetchPostProcessModels(viewingProviderId)
-      .then((models) => {
-        console.log("[DEBUG] fetchPostProcessModels success", {
-          viewingProviderId,
-          models,
-        });
-      })
-      .catch((error) => {
-        console.error("[DEBUG] fetchPostProcessModels failed", {
-          viewingProviderId,
-          error,
-        });
-      });
+    fetchPostProcessModels(viewingProviderId).catch((error) => {
+      console.error("Failed to fetch models:", error);
+    });
   }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
 
   const [verifiedProviderIds, setVerifiedProviderIds] = useState<Set<string>>(
     new Set(),
   );
 
-  const testConnection = useCallback(async () => {
-    if (isAppleProvider) return true;
+  const testConnection = useCallback(async (): Promise<string | null> => {
+    if (isAppleProvider) return null;
     try {
       await fetchPostProcessModels(viewingProviderId);
       setVerifiedProviderIds((prev) => {
@@ -209,24 +222,54 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
         next.add(viewingProviderId);
         return next;
       });
-      return true;
+      return null;
     } catch (error) {
       setVerifiedProviderIds((prev) => {
         const next = new Set(prev);
         next.delete(viewingProviderId);
         return next;
       });
-      return false;
+      return typeof error === "string" ? error : JSON.stringify(error);
     }
   }, [fetchPostProcessModels, isAppleProvider, viewingProviderId]);
 
-  const availableModelsRaw = postProcessModelOptions[viewingProviderId] || [];
-  console.log("[DEBUG] modelOptions computed", {
-    viewingProviderId,
-    availableModelsRaw,
-    allOptions: postProcessModelOptions,
-  });
+  const testInference = useCallback(
+    async (
+      modelId: string,
+    ): Promise<{ result?: string; error?: string; hasThinking?: boolean }> => {
+      try {
+        const { content, reasoning_content } = await testPostProcessInference(
+          viewingProviderId,
+          modelId,
+        );
 
+        const hasThinking =
+          !!reasoning_content ||
+          (!!content &&
+            (content.includes("<think>") || content.includes("</think>")));
+
+        const finalResult = content || "No response content";
+
+        return {
+          result: finalResult,
+          hasThinking,
+        };
+      } catch (error) {
+        return {
+          error: typeof error === "string" ? error : JSON.stringify(error),
+        };
+      }
+    },
+    [testPostProcessInference, viewingProviderId],
+  );
+
+  const [lastInferenceResult, setLastInferenceResult] = useState<{
+    result?: string;
+    hasThinking?: boolean;
+    error?: string;
+  } | null>(null);
+
+  const availableModelsRaw = postProcessModelOptions[viewingProviderId] || [];
   const modelOptions = useMemo<ModelOption[]>(() => {
     const seen = new Set<string>();
     const options: ModelOption[] = [];
@@ -269,6 +312,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   return {
     enabled,
+    providers,
     providerOptions,
     selectedProviderId: viewingProviderId, // Keep for compatibility or rename
     activeProviderId,
@@ -294,7 +338,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     modelsEndpoint,
     handleModelsEndpointChange,
     testConnection,
+    testInference,
     verifiedProviderIds,
     activateProvider: setPostProcessProvider,
+    lastInferenceResult,
+    setLastInferenceResult,
   };
 };

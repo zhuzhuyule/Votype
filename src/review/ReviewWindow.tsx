@@ -1,15 +1,13 @@
 // ReviewWindow - Independent window for reviewing low-confidence transcriptions
 // This provides a floating window UI for editing and inserting transcribed text
 
-import { Box, Button, Text, Tooltip } from "@radix-ui/themes";
-import {
-  IconCheck,
-  IconClipboard,
-  IconCopy,
-  IconTextPlus,
-} from "@tabler/icons-react";
+import { Button, Tooltip } from "@radix-ui/themes";
+import { IconCheck, IconClipboard, IconTextPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
-import { Extension, Mark } from "@tiptap/core";
+import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { Extension } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
@@ -19,12 +17,73 @@ import {
   useEditor,
 } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import hljs from "highlight.js";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { CancelIcon } from "../components/icons";
-import { log } from "../lib/utils/logging";
+import { escapeHtml } from "../lib/utils/html";
+import { MultiModelCandidate } from "./CandidatePanel";
+import { DiffViewPanel } from "./DiffViewPanel";
+import { MultiCandidateView } from "./MultiCandidateView";
+import { ReviewFooter } from "./ReviewFooter";
+import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
 import "./ReviewWindow.css";
+import {
+  REVIEW_WINDOW_INLINE_APPLY,
+  REVIEW_WINDOW_REWRITE_APPLY,
+  VOTYPE_REFOCUS_ACTIVE_INPUT,
+} from "../lib/events";
+import {
+  buildDiffViews,
+  buildPlainViews,
+  computeChangePercent,
+} from "./diff-utils";
+import { DiffMark } from "./diff-mark";
+import { hljs } from "./highlight";
+import { simpleMarkdownToHtml } from "./markdown-utils";
+
+const DIFF_THRESHOLD = 50;
+const SPEED_RANK_STATS_STORAGE_KEY = "votype.multiModelSpeedRankStats";
+const MULTI_SORT_MODE_STORAGE_KEY = "votype.multiModelSortMode";
+
+type RankPosition = 1 | 2 | 3;
+type SpeedRankStats = Record<string, Partial<Record<RankPosition, number>>>;
+type MultiSortMode = "default" | "speed" | "change";
+
+function readSpeedRankStats(): SpeedRankStats {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(SPEED_RANK_STATS_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as SpeedRankStats;
+  } catch {
+    return {};
+  }
+}
+
+function writeSpeedRankStats(stats: SpeedRankStats) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    SPEED_RANK_STATS_STORAGE_KEY,
+    JSON.stringify(stats),
+  );
+}
+
+function readMultiSortMode(): MultiSortMode {
+  if (typeof window === "undefined") return "default";
+  const raw = window.localStorage.getItem(MULTI_SORT_MODE_STORAGE_KEY);
+  if (raw === "speed" || raw === "change") return raw;
+  return "default";
+}
+
+function writeMultiSortMode(mode: MultiSortMode) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(MULTI_SORT_MODE_STORAGE_KEY, mode);
+}
 
 interface ReviewData {
   source_text: string;
@@ -34,626 +93,28 @@ interface ReviewData {
   reason?: string | null;
   output_mode?: "polish" | "chat";
   skill_name?: string | null;
+  prompt_id?: string | null;
+  model_id?: string | null;
 }
 
 interface ReviewWindowProps {
   initialData: ReviewData;
+  multiCandidates?: MultiModelCandidate[];
   onClose: () => void;
 }
 
-const DiffMark = Mark.create({
-  name: "diffMark",
-  addAttributes() {
-    return {
-      level: {
-        default: "minor",
-      },
-    };
-  },
-  parseHTML() {
-    return [
-      {
-        tag: "span[data-diff-level]",
-        getAttrs: (element) => {
-          if (!(element instanceof HTMLElement)) return false;
-          return { level: element.getAttribute("data-diff-level") };
-        },
-      },
-    ];
-  },
-  renderHTML({ HTMLAttributes }) {
-    const level = HTMLAttributes.level ?? "minor";
-    return [
-      "span",
-      {
-        ...HTMLAttributes,
-        "data-diff-level": level,
-        class: `diff-mark diff-${level}`,
-      },
-      0,
-    ];
-  },
-});
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Node)) return false;
 
-const escapeHtml = (value: string): string =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  const element = target instanceof HTMLElement ? target : target.parentElement;
+  if (!element) return false;
 
-const escapeHtmlWithBreaks = (value: string): string =>
-  escapeHtml(value).replace(/\n/g, "<br />");
-
-type Token = {
-  value: string;
-  start: number;
-  end: number;
-};
-
-const isHanChar = (value: string) => /[\u4e00-\u9fff]/.test(value);
-const isAsciiWordChar = (value: string) => /[A-Za-z0-9]/.test(value);
-
-const tokenizeWithIndices = (text: string): Token[] => {
-  const tokens: Token[] = [];
-  let current = "";
-  let currentStart = 0;
-
-  const flushCurrent = (endIndex: number) => {
-    if (!current) return;
-    tokens.push({ value: current, start: currentStart, end: endIndex });
-    current = "";
-  };
-
-  for (let i = 0; i < text.length; ) {
-    const codePoint = text.codePointAt(i);
-    if (codePoint === undefined) break;
-    const char = String.fromCodePoint(codePoint);
-    const size = char.length;
-
-    if (/\s/.test(char)) {
-      flushCurrent(i);
-      i += size;
-      continue;
-    }
-
-    if (isHanChar(char)) {
-      flushCurrent(i);
-      tokens.push({ value: char, start: i, end: i + size });
-      i += size;
-      continue;
-    }
-
-    if (isAsciiWordChar(char)) {
-      if (!current) {
-        currentStart = i;
-      }
-      current += char;
-      i += size;
-      continue;
-    }
-
-    flushCurrent(i);
-    tokens.push({ value: char, start: i, end: i + size });
-    i += size;
-  }
-
-  flushCurrent(text.length);
-  return tokens;
-};
-
-const editDistance = (a: string, b: string): number => {
-  const aChars = Array.from(a);
-  const bChars = Array.from(b);
-  const aLen = aChars.length;
-  const bLen = bChars.length;
-  if (aLen === 0) return bLen;
-  if (bLen === 0) return aLen;
-  const prev = Array.from({ length: bLen + 1 }, (_, i) => i);
-  const curr = new Array<number>(bLen + 1).fill(0);
-  for (let i = 0; i < aLen; i += 1) {
-    curr[0] = i + 1;
-    for (let j = 0; j < bLen; j += 1) {
-      const cost = aChars[i] === bChars[j] ? 0 : 1;
-      curr[j + 1] = Math.min(prev[j + 1] + 1, curr[j] + 1, prev[j] + cost);
-    }
-    for (let j = 0; j <= bLen; j += 1) {
-      prev[j] = curr[j];
-    }
-  }
-  return prev[bLen];
-};
-
-type ScriptType = "latin" | "han" | "other";
-
-const normalizeToken = (value: string) => value.toLowerCase();
-
-const getScriptType = (value: string): ScriptType => {
-  if (/[\u4e00-\u9fff]/.test(value)) return "han";
-  if (/[A-Za-z]/.test(value)) return "latin";
-  return "other";
-};
-
-const classifyChangeLevel = (current: string, previous: string | null) => {
-  if (!previous) return "major";
-  const normalizedCurrent = normalizeToken(current);
-  const normalizedPrevious = normalizeToken(previous);
-  if (normalizedCurrent === normalizedPrevious) return null;
-  const currentScript = getScriptType(current);
-  const previousScript = getScriptType(previous);
-  if (
-    currentScript !== "other" &&
-    previousScript !== "other" &&
-    currentScript !== previousScript
-  ) {
-    return "major";
-  }
-  const distance = editDistance(normalizedCurrent, normalizedPrevious);
-  return distance <= 2 ? "minor" : "major";
-};
-
-type DiffAnnotations = {
-  sourceStatuses: Array<"equal" | "delete">;
-  targetLevels: Array<"minor" | "major" | null>;
-};
-
-const computeDiffAnnotations = (
-  source: string,
-  target: string,
-): DiffAnnotations => {
-  const start = performance.now();
-  const sourceTokens = tokenizeWithIndices(source).map((token) => ({
-    value: token.value,
-    normalized: normalizeToken(token.value),
-  }));
-  const targetTokens = tokenizeWithIndices(target).map((token) => ({
-    value: token.value,
-    normalized: normalizeToken(token.value),
-  }));
-  const sourceLen = sourceTokens.length;
-  const targetLen = targetTokens.length;
-  const dp = Array.from({ length: sourceLen + 1 }, () =>
-    new Array<number>(targetLen + 1).fill(0),
+  return Boolean(
+    element.closest(
+      'input, textarea, [contenteditable=""], [contenteditable="true"], [contenteditable="plaintext-only"], .ProseMirror',
+    ),
   );
-
-  for (let i = 1; i <= sourceLen; i += 1) {
-    for (let j = 1; j <= targetLen; j += 1) {
-      if (sourceTokens[i - 1].normalized === targetTokens[j - 1].normalized) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
-      } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
-      }
-    }
-  }
-
-  type Op =
-    | { type: "equal"; sourceIndex: number; targetIndex: number }
-    | { type: "insert"; targetIndex: number }
-    | { type: "delete"; sourceIndex: number; sourceToken: string };
-
-  const ops: Op[] = [];
-  let i = sourceLen;
-  let j = targetLen;
-  while (i > 0 || j > 0) {
-    if (
-      i > 0 &&
-      j > 0 &&
-      sourceTokens[i - 1].normalized === targetTokens[j - 1].normalized
-    ) {
-      ops.push({ type: "equal", sourceIndex: i - 1, targetIndex: j - 1 });
-      i -= 1;
-      j -= 1;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      ops.push({ type: "insert", targetIndex: j - 1 });
-      j -= 1;
-    } else if (i > 0) {
-      ops.push({
-        type: "delete",
-        sourceIndex: i - 1,
-        sourceToken: sourceTokens[i - 1].value,
-      });
-      i -= 1;
-    }
-  }
-
-  ops.reverse();
-  const sourceStatuses: Array<"equal" | "delete"> = new Array(sourceLen).fill(
-    "equal",
-  );
-  const targetLevels: Array<"minor" | "major" | null> = new Array(
-    targetLen,
-  ).fill(null);
-  const pendingDeletes: Array<{ index: number; token: string }> = [];
-  for (const op of ops) {
-    if (op.type === "delete") {
-      pendingDeletes.push({ index: op.sourceIndex, token: op.sourceToken });
-    } else if (op.type === "insert") {
-      const pending = pendingDeletes.pop();
-      targetLevels[op.targetIndex] = classifyChangeLevel(
-        targetTokens[op.targetIndex].value,
-        pending?.token ?? null,
-      );
-    } else {
-      for (const pending of pendingDeletes) {
-        sourceStatuses[pending.index] = "delete";
-      }
-      pendingDeletes.length = 0;
-    }
-  }
-
-  for (const pending of pendingDeletes) {
-    sourceStatuses[pending.index] = "delete";
-  }
-
-  const durationMs = Math.round(performance.now() - start);
-  void log("[ReviewWindow] computeDiffAnnotations", {
-    sourceChars: source.length,
-    targetChars: target.length,
-    sourceTokens: sourceLen,
-    targetTokens: targetLen,
-    dpCells: (sourceLen + 1) * (targetLen + 1),
-    durationMs,
-  });
-
-  return { sourceStatuses, targetLevels };
-};
-
-const buildSourceHtml = (
-  source: string,
-  statuses: Array<"equal" | "delete">,
-) => {
-  const tokens = tokenizeWithIndices(source);
-  let html = "";
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    html += escapeHtmlWithBreaks(source.slice(cursor, token.start));
-    const tokenText = escapeHtmlWithBreaks(token.value);
-    if (statuses[index] === "delete") {
-      html += `<span class="diff-delete">${tokenText}</span>`;
-    } else {
-      html += tokenText;
-    }
-    cursor = token.end;
-  });
-  html += escapeHtmlWithBreaks(source.slice(cursor));
-  return html;
-};
-
-const buildTargetHtml = (
-  target: string,
-  levels: Array<"minor" | "major" | null>,
-) => {
-  const tokens = tokenizeWithIndices(target);
-  let html = "";
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    html += escapeHtmlWithBreaks(target.slice(cursor, token.start));
-    const level = levels[index];
-    const tokenText = escapeHtmlWithBreaks(token.value);
-    if (level) {
-      html += `<span data-diff-level="${level}">${tokenText}</span>`;
-    } else {
-      html += tokenText;
-    }
-    cursor = token.end;
-  });
-  html += escapeHtmlWithBreaks(target.slice(cursor));
-  return html;
-};
-
-const buildDiffViews = (source: string, target: string) => {
-  const start = performance.now();
-  const { sourceStatuses, targetLevels } = computeDiffAnnotations(
-    source,
-    target,
-  );
-  const result = {
-    sourceHtml: buildSourceHtml(source, sourceStatuses),
-    targetHtml: buildTargetHtml(target, targetLevels),
-  };
-  const durationMs = Math.round(performance.now() - start);
-  void log("[ReviewWindow] buildDiffViews", {
-    sourceChars: source.length,
-    targetChars: target.length,
-    sourceHtmlChars: result.sourceHtml.length,
-    targetHtmlChars: result.targetHtml.length,
-    durationMs,
-  });
-  return result;
-};
-
-const simpleMarkdownToHtml = (text: string): string => {
-  const start = performance.now();
-  // Use unique placeholders that won't conflict with markdown syntax
-  const PLACEHOLDER_PREFIX = "\x00CB"; // Code Block
-  const PLACEHOLDER_SUFFIX = "\x00";
-  const INLINE_PREFIX = "\x00IC"; // Inline Code
-
-  // Protect code blocks first
-  const codeBlocks: string[] = [];
-  let html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    const trimmedCode = code.trim();
-    let highlightedCode = "";
-    try {
-      if (lang && hljs.getLanguage(lang)) {
-        highlightedCode = hljs.highlight(trimmedCode, { language: lang }).value;
-      } else {
-        highlightedCode = hljs.highlightAuto(trimmedCode).value;
-      }
-    } catch {
-      highlightedCode = escapeHtml(trimmedCode);
-    }
-    codeBlocks.push(
-      `<pre><code class="hljs language-${lang}">${highlightedCode}</code></pre>`,
-    );
-    return `${PLACEHOLDER_PREFIX}${codeBlocks.length - 1}${PLACEHOLDER_SUFFIX}`;
-  });
-
-  // Protect inline code
-  const inlineCodes: string[] = [];
-  html = html.replace(/`([^`\n]+)`/g, (_, code) => {
-    inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
-    return `${INLINE_PREFIX}${inlineCodes.length - 1}${PLACEHOLDER_SUFFIX}`;
-  });
-
-  // Split into lines for processing
-  const lines = html.split("\n");
-  const processedLines: string[] = [];
-  let inList = false;
-  let listType = "";
-  let inBlockquote = false;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Skip placeholder lines (code blocks) - pass them through unchanged
-    if (line.includes(PLACEHOLDER_PREFIX) || line.includes(INLINE_PREFIX)) {
-      if (inList) {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-      processedLines.push(line);
-      continue;
-    }
-
-    // Check for headings (# ## ### etc.)
-    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
-    if (headingMatch) {
-      if (inList) {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-      const level = headingMatch[1].length;
-      const content = processInlineMarkdown(headingMatch[2]);
-      processedLines.push(`<h${level}>${content}</h${level}>`);
-      continue;
-    }
-
-    // Check for blockquote
-    const blockquoteMatch = line.match(/^>\s?(.*)$/);
-    if (blockquoteMatch) {
-      if (inList) {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (!inBlockquote) {
-        processedLines.push("<blockquote>");
-        inBlockquote = true;
-      }
-      const content = processInlineMarkdown(blockquoteMatch[1]);
-      processedLines.push(`<p>${content}</p>`);
-      continue;
-    } else if (inBlockquote) {
-      processedLines.push("</blockquote>");
-      inBlockquote = false;
-    }
-
-    // Check for unordered list
-    const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
-    if (ulMatch) {
-      if (inList && listType !== "ul") {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (!inList) {
-        processedLines.push('<ul class="contains-task-list">');
-        inList = true;
-        listType = "ul";
-      }
-      const content = processInlineMarkdown(ulMatch[1]);
-      processedLines.push(`<li>${content}</li>`);
-      continue;
-    }
-
-    // Check for task list item
-    const taskMatch = line.match(/^[\s]*[-*+]\s+\[([ xX])\]\s+(.+)$/);
-    if (taskMatch) {
-      if (inList && listType !== "ul") {
-        processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-        inList = false;
-      }
-      if (!inList) {
-        processedLines.push('<ul class="contains-task-list">');
-        inList = true;
-        listType = "ul";
-      }
-      const isChecked = taskMatch[1].toLowerCase() === "x";
-      const taskContent = processInlineMarkdown(taskMatch[2]);
-      processedLines.push(
-        `<li><input type="checkbox" disabled${isChecked ? " checked" : ""} /><span>${taskContent}</span></li>`,
-      );
-      continue;
-    }
-
-    // Check for ordered list
-    const olMatch = line.match(/^[\s]*\d+\.\s+(.+)$/);
-    if (olMatch) {
-      if (inList && listType !== "ol") {
-        processedLines.push("</ul>");
-        inList = false;
-      }
-      if (!inList) {
-        processedLines.push("<ol>");
-        inList = true;
-        listType = "ol";
-      }
-      const content = processInlineMarkdown(olMatch[1]);
-      processedLines.push(`<li>${content}</li>`);
-      continue;
-    }
-
-    // Close list if we're no longer in one
-    if (inList && line.trim() !== "") {
-      processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-      inList = false;
-    }
-
-    // Check for table
-    const tableMatch = line.match(/^\|[\s\S]+\|$/);
-    if (tableMatch) {
-      if (inBlockquote) {
-        processedLines.push("</blockquote>");
-        inBlockquote = false;
-      }
-
-      // Check if this is a header separator row
-      const isHeaderSeparator = /^[\s\|:\-]+$/.test(line);
-      if (isHeaderSeparator) {
-        continue;
-      }
-
-      // Parse table cells
-      const cells = line
-        .split("|")
-        .slice(1, -1)
-        .map((cell) => cell.trim());
-      const isFirstRow =
-        processedLines.length === 0 ||
-        !processedLines[processedLines.length - 1].startsWith("<table");
-
-      if (isFirstRow) {
-        processedLines.push("<table><thead><tr>");
-        cells.forEach((cell) => {
-          processedLines.push(`<th>${processInlineMarkdown(cell)}</th>`);
-        });
-        processedLines.push("</tr></thead><tbody>");
-      } else {
-        processedLines.push("<tr>");
-        cells.forEach((cell) => {
-          processedLines.push(`<td>${processInlineMarkdown(cell)}</td>`);
-        });
-        processedLines.push("</tr>");
-      }
-      continue;
-    }
-
-    // Check for horizontal rule
-    if (/^[-*_]{3,}$/.test(line.trim())) {
-      processedLines.push("<hr>");
-      continue;
-    }
-
-    // Regular paragraph
-    if (line.trim() === "") {
-      processedLines.push("");
-    } else {
-      const content = processInlineMarkdown(line);
-      processedLines.push(`<p>${content}</p>`);
-    }
-  }
-
-  // Close any open lists, blockquotes, or tables
-  if (inList) {
-    processedLines.push(listType === "ul" ? "</ul>" : "</ol>");
-  }
-  if (inBlockquote) {
-    processedLines.push("</blockquote>");
-  }
-
-  // Close table if open
-  if (processedLines.length > 0) {
-    const lastLine = processedLines[processedLines.length - 1];
-    if (
-      lastLine &&
-      (lastLine.startsWith("<tr>") || lastLine.startsWith("<thead>"))
-    ) {
-      processedLines.push("</tbody></table>");
-    }
-  }
-
-  html = processedLines.join("\n");
-
-  // Restore inline code
-  const inlineCodeRegex = new RegExp(
-    `${INLINE_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
-    "g",
-  );
-  html = html.replace(inlineCodeRegex, (_, index) => {
-    return inlineCodes[parseInt(index)];
-  });
-
-  // Restore code blocks
-  const codeBlockRegex = new RegExp(
-    `${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`,
-    "g",
-  );
-  html = html.replace(codeBlockRegex, (_, index) => {
-    return codeBlocks[parseInt(index)];
-  });
-
-  // Clean up empty paragraphs
-  html = html.replace(/<p><\/p>/g, "");
-
-  const durationMs = Math.round(performance.now() - start);
-  void log("[ReviewWindow] simpleMarkdownToHtml", {
-    textChars: text.length,
-    codeBlocks: codeBlocks.length,
-    inlineCodes: inlineCodes.length,
-    htmlChars: html.length,
-    durationMs,
-  });
-
-  return html;
-};
-
-// Helper function to process inline markdown elements
-const processInlineMarkdown = (text: string): string => {
-  let result = escapeHtml(text);
-
-  // Bold: **text** or __text__
-  result = result.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  result = result.replace(/__([^_]+)__/g, "<strong>$1</strong>");
-
-  // Italic: *text* or _text_
-  result = result.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  result = result.replace(/_([^_]+)_/g, "<em>$1</em>");
-
-  // Strikethrough: ~~text~~
-  result = result.replace(/~~([^~]+)~~/g, "<del>$1</del>");
-
-  // Links: [text](url)
-  result = result.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener">$1</a>',
-  );
-
-  // Images: ![alt](url)
-  result = result.replace(
-    /!\[([^\]]*)\]\(([^)]+)\)/g,
-    '<img src="$2" alt="$1" loading="lazy" />',
-  );
-
-  return result;
-};
+}
 
 const CodeBlockComponent = ({
   node: { textContent },
@@ -748,15 +209,312 @@ const CodeBlockComponent = ({
 
 const ReviewWindow: React.FC<ReviewWindowProps> = ({
   initialData,
+  multiCandidates,
   onClose,
 }) => {
   const { t } = useTranslation();
-  const renderStartRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
+    multiCandidates && multiCandidates.length > 0
+      ? multiCandidates[0].id
+      : null,
+  );
+  const selectedCandidateIdRef = useRef(selectedCandidateId);
+  useEffect(() => {
+    selectedCandidateIdRef.current = selectedCandidateId;
+  }, [selectedCandidateId]);
+  const [editingCandidateId, setEditingCandidateId] = useState<string | null>(
+    null,
+  );
+
+  // Prompt selector state for multi-candidate mode
+  const [prompts, setPrompts] = useState<PromptInfo[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>("");
+  const [localCandidates, setLocalCandidates] = useState<
+    MultiModelCandidate[] | undefined
+  >(multiCandidates);
+  const [isRerunning, setIsRerunning] = useState(false);
+  const [editedTexts, setEditedTexts] = useState<Record<string, string>>({});
+  const localCandidatesRef = useRef(localCandidates);
+  useEffect(() => {
+    localCandidatesRef.current = localCandidates;
+  }, [localCandidates]);
+  const editedTextsRef = useRef(editedTexts);
+  useEffect(() => {
+    editedTextsRef.current = editedTexts;
+  }, [editedTexts]);
+  const [showCandidateShortcutHints, setShowCandidateShortcutHints] =
+    useState(false);
+  const [multiSortMode, setMultiSortMode] = useState<MultiSortMode>(() =>
+    readMultiSortMode(),
+  );
+  const [speedRankStats, setSpeedRankStats] = useState<SpeedRankStats>(() =>
+    readSpeedRankStats(),
+  );
+  const lastRecordedRaceKeyRef = useRef<string | null>(null);
+  const pendingInlineRangeRef = useRef<{ from: number; to: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    writeMultiSortMode(multiSortMode);
+  }, [multiSortMode]);
+
+  // Model selector state (single-model polish mode only)
+  const [modelOptions, setModelOptions] = useState<ReviewModelOption[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [defaultModelLabel, setDefaultModelLabel] = useState<string>("");
+  const [currentModelName, setCurrentModelName] = useState<string>("");
+
+  // Translation state
+  const [translatedText, setTranslatedText] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [isTranslationHovered, setIsTranslationHovered] = useState(false);
+  const [revisionHistory, setRevisionHistory] = useState<string[]>([
+    initialData.final_text,
+  ]);
+  const [revisionIndex, setRevisionIndex] = useState(0);
+  const revisionIndexRef = useRef(0);
+
+  // Fetch prompts and model options on mount
+  // NOTE: dependency is [] because ReviewWindow is re-mounted via key when new data arrives.
+  // Using [initialData] would cause re-runs on every progress event (object reference changes).
+  useEffect(() => {
+    invoke<{ prompts: PromptInfo[]; selected_id: string | null }>(
+      "get_post_process_prompts",
+    ).then((resp) => {
+      setPrompts(resp.prompts);
+      // Prioritize the prompt_id from initialData (may be overridden by app rules)
+      if (initialData.prompt_id) {
+        setSelectedPromptId(initialData.prompt_id);
+      } else if (resp.selected_id) {
+        setSelectedPromptId(resp.selected_id);
+      } else if (resp.prompts.length > 0) {
+        setSelectedPromptId(resp.prompts[0].id);
+      }
+    });
+    // Fetch text-type models for single-model mode selector
+    if (!multiCandidates || multiCandidates.length === 0) {
+      invoke<{
+        models: ReviewModelOption[];
+        default_model_id: string | null;
+      }>("get_review_model_options").then((resp) => {
+        setModelOptions(resp.models);
+        // Prioritize the model_id from initialData
+        // Backend may pass a CachedModel UUID or a model_id string (e.g. "gpt-4o")
+        if (initialData.model_id) {
+          const selectedModel =
+            resp.models.find((m) => m.id === initialData.model_id) ||
+            resp.models.find((m) => m.model_id === initialData.model_id);
+          if (selectedModel) {
+            setSelectedModelId(selectedModel.id);
+            setCurrentModelName(selectedModel.label);
+          } else {
+            // No matching cached model — use the raw value as display name
+            setCurrentModelName(initialData.model_id);
+          }
+        } else if (resp.default_model_id) {
+          const dm = resp.models.find((m) => m.id === resp.default_model_id);
+          if (dm) setDefaultModelLabel(dm.label);
+        }
+      });
+    }
+  }, []);
+
+  // Sync external multiCandidates prop into local state
+  // Skip during rerun — ReviewWindow owns local state while rerunning
+  useEffect(() => {
+    if (multiCandidates && !isRerunning) {
+      setLocalCandidates(multiCandidates);
+    }
+  }, [multiCandidates]);
+
+  // Listen for rerun reset and progress events
+  useEffect(() => {
+    if (!multiCandidates) return;
+    let unlistenReset: (() => void) | null = null;
+    let unlistenProgress: (() => void) | null = null;
+
+    listen<{ candidates: MultiModelCandidate[] }>(
+      "multi-model-rerun-reset",
+      (event) => {
+        setLocalCandidates(event.payload.candidates);
+        setSelectedCandidateId(null);
+        setEditingCandidateId(null);
+        setEditedTexts({});
+        setIsRerunning(true);
+      },
+    ).then((fn) => {
+      unlistenReset = fn;
+    });
+
+    // Listen for progress events to update local candidates during rerun
+    listen<{
+      results: MultiModelCandidate[];
+    }>("multi-post-process-progress", (event) => {
+      const progress = event.payload;
+      setLocalCandidates((prev) => {
+        if (!prev) return prev;
+        return prev.map((candidate) => {
+          const completed = progress.results.find((r) => r.id === candidate.id);
+          if (completed) {
+            return {
+              ...candidate,
+              text: completed.text,
+              confidence: completed.confidence,
+              processing_time_ms: completed.processing_time_ms,
+              error: completed.error,
+              ready: completed.ready ?? true,
+              output_speed: completed.output_speed,
+            };
+          }
+          return candidate;
+        });
+      });
+    }).then((fn) => {
+      unlistenProgress = fn;
+    });
+
+    return () => {
+      unlistenReset?.();
+      unlistenProgress?.();
+    };
+  }, [!!multiCandidates]);
+
+  // Mark rerun done when all local candidates are ready
+  useEffect(() => {
+    if (
+      isRerunning &&
+      localCandidates &&
+      localCandidates.length > 0 &&
+      localCandidates.every((c) => c.ready)
+    ) {
+      setIsRerunning(false);
+      // Auto-select first successful candidate
+      const first = localCandidates.find((c) => !c.error);
+      if (first) setSelectedCandidateId(first.id);
+    }
+  }, [isRerunning, localCandidates]);
+
+  // Derive the label of the currently selected candidate for the header
+  const selectedCandidateLabel = useMemo(() => {
+    if (!selectedCandidateId) return null;
+    const all = localCandidates || multiCandidates;
+    const found = all?.find((c) => c.id === selectedCandidateId);
+    return found?.label ?? null;
+  }, [selectedCandidateId, localCandidates, multiCandidates]);
+
+  // The candidates to render (local state, updated by progress events)
+  const displayCandidates = localCandidates || multiCandidates;
+  const sortedCandidates = useMemo(() => {
+    if (!displayCandidates || multiSortMode === "default") {
+      return displayCandidates;
+    }
+
+    const originalOrder = new Map(
+      displayCandidates.map((candidate, index) => [candidate.id, index]),
+    );
+
+    return [...displayCandidates].sort((a, b) => {
+      const aReady = a.ready && !a.error;
+      const bReady = b.ready && !b.error;
+
+      if (aReady && bReady) {
+        if (multiSortMode === "speed") {
+          const aHasTime = a.processing_time_ms > 0;
+          const bHasTime = b.processing_time_ms > 0;
+          if (
+            aHasTime &&
+            bHasTime &&
+            a.processing_time_ms !== b.processing_time_ms
+          ) {
+            return a.processing_time_ms - b.processing_time_ms;
+          }
+        } else if (multiSortMode === "change") {
+          const aChange = computeChangePercent(initialData.source_text, a.text);
+          const bChange = computeChangePercent(initialData.source_text, b.text);
+          if (aChange !== bChange) return aChange - bChange;
+        }
+      }
+
+      if (aReady !== bReady) return aReady ? -1 : 1;
+
+      const aError = Boolean(a.error);
+      const bError = Boolean(b.error);
+      if (aError !== bError) return aError ? 1 : -1;
+
+      return (
+        (originalOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (originalOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER)
+      );
+    });
+  }, [displayCandidates, multiSortMode, initialData.source_text]);
+
+  useEffect(() => {
+    if (!displayCandidates || multiSortMode !== "speed") return;
+    if (
+      displayCandidates.length === 0 ||
+      !displayCandidates.every((c) => c.ready)
+    ) {
+      return;
+    }
+
+    const podium = [...displayCandidates]
+      .filter((c) => !c.error && c.processing_time_ms > 0)
+      .sort((a, b) => a.processing_time_ms - b.processing_time_ms)
+      .slice(0, 3);
+
+    if (podium.length === 0) return;
+
+    const raceKey = JSON.stringify(
+      podium.map((candidate, index) => ({
+        id: candidate.id,
+        rank: index + 1,
+        processing_time_ms: candidate.processing_time_ms,
+      })),
+    );
+    if (lastRecordedRaceKeyRef.current === raceKey) {
+      return;
+    }
+    lastRecordedRaceKeyRef.current = raceKey;
+
+    setSpeedRankStats((prev) => {
+      const next: SpeedRankStats = { ...prev };
+      podium.forEach((candidate, index) => {
+        const rank = (index + 1) as RankPosition;
+        next[candidate.id] = {
+          ...next[candidate.id],
+          [rank]: (next[candidate.id]?.[rank] ?? 0) + 1,
+        };
+      });
+      writeSpeedRankStats(next);
+      return next;
+    });
+  }, [displayCandidates, multiSortMode]);
+
+  // Use selected candidate text if in multi-candidate mode
+  const currentText =
+    selectedCandidateId && sortedCandidates
+      ? sortedCandidates.find((c) => c.id === selectedCandidateId)?.text ||
+        initialData.final_text
+      : initialData.final_text;
+
+  // Diff toggle: auto-off when change_percent >= threshold
+  const [showDiff, setShowDiff] = useState(() => {
+    if (initialData.output_mode === "chat") return false;
+    return (initialData.change_percent ?? 0) < DIFF_THRESHOLD;
+  });
+
+  // Track current final text (updated by rerun results)
+  const [currentFinalText, setCurrentFinalText] = useState(
+    initialData.final_text,
+  );
+
   const [sourceHtml, setSourceHtml] = useState(() => {
     if (initialData.output_mode === "chat") return "";
-    return buildDiffViews(initialData.source_text, initialData.final_text)
-      .sourceHtml;
+    const build = showDiff ? buildDiffViews : buildPlainViews;
+    return build(initialData.source_text, currentText).sourceHtml;
   });
   const isMac =
     typeof navigator !== "undefined" &&
@@ -765,7 +523,47 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   // Use refs to access latest callbacks inside Tiptap extension
   const insertRef = useRef<() => void>(() => {});
+  const insertOriginalRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
+
+  const measureAndResize = useCallback(async (reposition: boolean) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const header = container.querySelector(".review-header");
+    const footer = container.querySelector(".review-footer");
+    const headerH = header?.getBoundingClientRect().height ?? 44;
+    const footerH = footer?.getBoundingClientRect().height ?? 52;
+
+    const sourcePanel = container.querySelector(".review-panel-source");
+    const outputPanel = container.querySelector(".review-panel-output");
+    const chatSection = container.querySelector(".review-section-no-title");
+
+    let contentH: number;
+    if (sourcePanel && outputPanel) {
+      // Panel mode: padding(24) + source + gap(10) + output
+      const sourceH = sourcePanel.scrollHeight;
+      const outputH = outputPanel.scrollHeight;
+      contentH = 24 + sourceH + 10 + outputH;
+    } else if (chatSection) {
+      contentH = chatSection.scrollHeight + 24;
+    } else {
+      contentH = 200;
+    }
+
+    const totalH = headerH + contentH + footerH;
+    const currentW = window.innerWidth;
+
+    try {
+      await invoke("resize_review_window", {
+        width: currentW,
+        height: totalH,
+        reposition,
+      });
+    } catch (e) {
+      console.error("[ReviewWindow] resize_review_window failed:", e);
+    }
+  }, []);
 
   const editor = useEditor(
     {
@@ -794,7 +592,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 return true;
               },
               Tab: () => {
-                insertRef.current();
+                insertOriginalRef.current();
                 return true;
               },
               Escape: () => {
@@ -808,8 +606,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       content:
         initialData.output_mode === "chat"
           ? simpleMarkdownToHtml(initialData.final_text)
-          : buildDiffViews(initialData.source_text, initialData.final_text)
-              .targetHtml,
+          : (showDiff ? buildDiffViews : buildPlainViews)(
+              initialData.source_text,
+              initialData.final_text,
+            ).targetHtml,
       editorProps: {
         attributes: {
           class: "review-editor",
@@ -819,88 +619,75 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     [t],
   );
 
-  useEffect(() => {
-    renderStartRef.current = performance.now();
-    void log("[ReviewWindow] render_start", {
-      sourceChars: initialData.source_text.length,
-      targetChars: initialData.final_text.length,
-      outputMode: initialData.output_mode ?? "polish",
-      changePercent: initialData.change_percent,
-      historyId: initialData.history_id,
-    });
-  }, [
-    initialData.source_text,
-    initialData.final_text,
-    initialData.output_mode,
-    initialData.change_percent,
-    initialData.history_id,
-  ]);
+  // Track whether this instance was mounted in multi-candidate mode.
+  // Stable across re-renders so it doesn't trigger effects on progress events.
+  const isMultiCandidateMode = useRef(
+    !!(multiCandidates && multiCandidates.length > 0),
+  );
 
   useEffect(() => {
     if (!editor) return;
+    // In multi-candidate mode the Tiptap editor is hidden behind
+    // MultiCandidateView. Skip content rebuilds to avoid wasted work
+    // on every progress event.
+    if (isMultiCandidateMode.current) return;
 
     let content = "";
     let nextSourceHtml = "";
-    const buildStart = performance.now();
 
     if (initialData.output_mode === "chat") {
-      content = simpleMarkdownToHtml(initialData.final_text.trim());
+      content = simpleMarkdownToHtml(currentFinalText.trim());
     } else {
-      const views = buildDiffViews(
-        initialData.source_text,
-        initialData.final_text,
-      );
+      const build = showDiff ? buildDiffViews : buildPlainViews;
+      const views = build(initialData.source_text, currentFinalText);
       content = views.targetHtml;
       nextSourceHtml = views.sourceHtml;
     }
 
-    const buildDurationMs = Math.round(performance.now() - buildStart);
-    void log("[ReviewWindow] content_build_done", {
-      outputMode: initialData.output_mode ?? "polish",
-      buildDurationMs,
-      targetHtmlChars: content.length,
-      sourceHtmlChars: nextSourceHtml.length,
-    });
-
-    const setStart = performance.now();
     editor.commands.setContent(content, { emitUpdate: false });
-    const setDurationMs = Math.round(performance.now() - setStart);
-    void log("[ReviewWindow] editor_set_content_done", {
-      setDurationMs,
-      targetHtmlChars: content.length,
+    void invoke("set_review_editor_content_state", {
+      text: editor.getText({ blockSeparator: "\n" }),
+    }).catch((e) => {
+      console.error("Failed to sync review editor content state:", e);
     });
     setSourceHtml(nextSourceHtml);
+    setTimeout(() => measureAndResize(false), 16);
   }, [
     editor,
     initialData.source_text,
-    initialData.final_text,
+    currentFinalText,
     initialData.output_mode,
+    showDiff,
   ]);
 
   useEffect(() => {
     if (!editor) return;
     let disposed = false;
-    const focusTimer = window.setTimeout(() => {
-      if (disposed || editor.isDestroyed) return;
-      editor.commands.focus("end");
-    }, 50);
+    // In multi-candidate mode the Tiptap editor is hidden; skip focus
+    const focusTimer = isMultiCandidateMode.current
+      ? undefined
+      : window.setTimeout(() => {
+          if (disposed || editor.isDestroyed) return;
+          editor.commands.focus("end");
+        }, 50);
 
-    // Notify Rust that content is rendered and window can be shown
-    // This ensures no flicker - window only becomes visible after content is ready
-    const readyTimer = window.setTimeout(() => {
+    // Multi-model mode: backend already sized and showed the window directly,
+    // skip frontend measure/resize to avoid overriding the correct size.
+    // Single-model/chat mode: measure DOM, resize, then notify backend to show.
+    const isMultiModel = isMultiCandidateMode.current;
+    const readyTimer = window.setTimeout(async () => {
       if (disposed) return;
-      const renderStart = renderStartRef.current;
-      const renderDurationMs = renderStart
-        ? Math.round(performance.now() - renderStart)
-        : null;
-      void log("[ReviewWindow] content_ready", {
-        renderDurationMs,
-        outputMode: initialData.output_mode ?? "polish",
-      });
-      invoke("review_window_content_ready").catch((e) => {
-        console.error("Failed to notify content ready:", e);
-      });
-    }, 0);
+      if (!isMultiModel) {
+        try {
+          await measureAndResize(true);
+        } catch (e) {
+          console.error("Failed to measure/resize:", e);
+        }
+        invoke("review_window_content_ready").catch((e) => {
+          console.error("Failed to notify content ready:", e);
+        });
+      }
+    }, 16);
 
     return () => {
       disposed = true;
@@ -910,9 +697,117 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, [editor]);
 
   const getEditorText = useCallback(() => {
+    // In multi-candidate mode, return edited or original candidate text
+    if (sortedCandidates && selectedCandidateId) {
+      const edited = editedTexts[selectedCandidateId];
+      if (edited !== undefined) return edited;
+      const candidate = sortedCandidates.find(
+        (c) => c.id === selectedCandidateId,
+      );
+      return candidate?.text || "";
+    }
     if (!editor) return "";
     return editor.getText({ blockSeparator: "\n" });
-  }, [editor]);
+  }, [editor, sortedCandidates, selectedCandidateId, editedTexts]);
+
+  const applyInlineTextToEditor = useCallback(
+    (text: string) => {
+      if (!editor || isMultiCandidateMode.current) return;
+
+      const currentSelection = editor.state.selection;
+      const pendingRange = pendingInlineRangeRef.current ?? {
+        from: currentSelection.from,
+        to: currentSelection.to,
+      };
+
+      editor
+        .chain()
+        .focus()
+        .command(({ tr, dispatch }) => {
+          tr.insertText(text, pendingRange.from, pendingRange.to);
+          const cursor = pendingRange.from + text.length;
+          tr.setSelection(TextSelection.create(tr.doc, cursor));
+          dispatch?.(tr);
+          return true;
+        })
+        .run();
+
+      pendingInlineRangeRef.current = null;
+      window.setTimeout(() => measureAndResize(false), 16);
+    },
+    [editor, measureAndResize],
+  );
+
+  const replaceEditorDocument = useCallback(
+    (text: string) => {
+      if (isMultiCandidateMode.current) return;
+      setCurrentFinalText(text);
+      setRevisionHistory((prev) => {
+        const base = prev.slice(0, revisionIndexRef.current + 1);
+        if (base[base.length - 1] === text) {
+          return base;
+        }
+        const next = [...base, text];
+        setRevisionIndex(next.length - 1);
+        return next;
+      });
+      pendingInlineRangeRef.current = null;
+      window.setTimeout(() => measureAndResize(false), 16);
+    },
+    [measureAndResize],
+  );
+
+  useEffect(() => {
+    revisionIndexRef.current = revisionIndex;
+  }, [revisionIndex]);
+
+  useEffect(() => {
+    if (isMultiCandidateMode.current) return;
+    const nextText = revisionHistory[revisionIndex];
+    if (typeof nextText === "string" && nextText !== currentFinalText) {
+      setCurrentFinalText(nextText);
+    }
+  }, [currentFinalText, revisionHistory, revisionIndex]);
+
+  const handleUndoRevision = useCallback(() => {
+    setRevisionIndex((prev) => Math.max(0, prev - 1));
+  }, []);
+
+  const handleRedoRevision = useCallback(() => {
+    setRevisionIndex((prev) => Math.min(revisionHistory.length - 1, prev + 1));
+  }, [revisionHistory.length]);
+
+  const getOriginalReviewText = useCallback(() => {
+    if (sortedCandidates && selectedCandidateId) {
+      return (
+        sortedCandidates
+          .find((c) => c.id === selectedCandidateId)
+          ?.text.trim() || ""
+      );
+    }
+    return currentFinalText.trim();
+  }, [currentFinalText, selectedCandidateId, sortedCandidates]);
+
+  const didUserEditReviewedText = useCallback(() => {
+    const currentText = getEditorText().trim();
+    const originalReviewText = getOriginalReviewText();
+
+    if (sortedCandidates && selectedCandidateId) {
+      return (
+        editedTexts[selectedCandidateId] !== undefined &&
+        currentText.length > 0 &&
+        currentText !== originalReviewText
+      );
+    }
+
+    return currentText.length > 0 && currentText !== originalReviewText;
+  }, [
+    editedTexts,
+    getEditorText,
+    getOriginalReviewText,
+    selectedCandidateId,
+    sortedCandidates,
+  ]);
 
   const handleInsert = useCallback(async () => {
     const currentText = getEditorText();
@@ -923,7 +818,12 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     try {
       await invoke("confirm_reviewed_transcription", {
         text: currentText.trim(),
-        history_id: initialData.history_id,
+        historyId: initialData.history_id,
+        cachedModelId: selectedCandidateId || undefined,
+        learnFromEdit: didUserEditReviewedText(),
+        originalTextForLearning: didUserEditReviewedText()
+          ? getOriginalReviewText()
+          : undefined,
       });
       onClose();
     } catch (e) {
@@ -931,16 +831,121 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     } finally {
       setIsSubmitting(false);
     }
-  }, [getEditorText, initialData.history_id, onClose, isSubmitting]);
+  }, [
+    getEditorText,
+    initialData.history_id,
+    onClose,
+    isSubmitting,
+    selectedCandidateId,
+    didUserEditReviewedText,
+    getOriginalReviewText,
+  ]);
+
+  // Insert original ASR text directly
+  const handleInsertOriginal = useCallback(async () => {
+    if (isSubmitting || !initialData.source_text.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await invoke("confirm_reviewed_transcription", {
+        text: initialData.source_text.trim(),
+        historyId: initialData.history_id,
+        cachedModelId: undefined,
+        learnFromEdit: false,
+      });
+      onClose();
+    } catch (e) {
+      console.error("Failed to insert original text:", e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [initialData.source_text, initialData.history_id, onClose, isSubmitting]);
+
+  // Direct insert for a specific candidate text (one-click from hover button)
+  const handleDirectInsert = useCallback(
+    async (text: string, candidateId?: string) => {
+      if (isSubmitting || !text.trim()) return;
+      setIsSubmitting(true);
+      try {
+        await invoke("confirm_reviewed_transcription", {
+          text: text.trim(),
+          historyId: initialData.history_id,
+          cachedModelId: candidateId || undefined,
+          learnFromEdit: false,
+        });
+        onClose();
+      } catch (e) {
+        console.error("Failed to insert text:", e);
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [initialData.history_id, onClose, isSubmitting],
+  );
+
+  const handleInsertCandidateByIndex = useCallback(
+    (shortcutIndex: number) => {
+      if (!sortedCandidates || shortcutIndex < 1 || shortcutIndex > 5) return;
+      const candidate = sortedCandidates[shortcutIndex - 1];
+      if (!candidate || !candidate.ready || candidate.error) return;
+      const text = (editedTexts[candidate.id] ?? candidate.text).trim();
+      if (!text) return;
+      void handleDirectInsert(text, candidate.id);
+    },
+    [editedTexts, handleDirectInsert, sortedCandidates],
+  );
+
+  // Translate current text with auto language detection and analysis
+  const handleTranslate = useCallback(async () => {
+    const currentText = getEditorText();
+    if (isTranslating || !currentText.trim()) return;
+
+    setIsTranslating(true);
+
+    try {
+      const result = await invoke<{
+        translated_text: string;
+      }>("translate_review_text", {
+        text: currentText.trim(),
+        originalText: initialData.source_text,
+        userLocale: t("common.locale", "zh"), // Get user's locale from i18n
+      });
+      setTranslatedText(result.translated_text);
+    } catch (e) {
+      console.error("Failed to translate text:", e);
+      setTranslatedText(null);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [getEditorText, isTranslating, initialData.source_text, t]);
 
   // Keep refs updated
   useEffect(() => {
     insertRef.current = handleInsert;
-  }, [handleInsert]);
+    insertOriginalRef.current = handleInsertOriginal;
+  }, [handleInsert, handleInsertOriginal]);
 
-  const handleCancel = useCallback(() => {
+  // Track whether user has made any edits (manual or voice rewrite)
+  const hasEdits = useMemo(() => {
+    if (Object.keys(editedTexts).length > 0) return true;
+    // Check if new candidates were added (voice rewrite)
+    const originalCount = multiCandidates?.length ?? 0;
+    const currentCount = localCandidates?.length ?? 0;
+    return currentCount > originalCount;
+  }, [editedTexts, multiCandidates, localCandidates]);
+
+  const [pendingClose, setPendingClose] = useState(false);
+
+  // Auto-reset pendingClose after timeout
+  useEffect(() => {
+    if (!pendingClose) return;
+    const timer = setTimeout(() => setPendingClose(false), 2000);
+    return () => clearTimeout(timer);
+  }, [pendingClose]);
+
+  const doClose = useCallback(() => {
     if (isSubmitting) return;
-
     const trimmed = getEditorText().trim();
     const historyId = initialData.history_id;
     onClose();
@@ -949,7 +954,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       try {
         await invoke("cancel_transcription_review", {
           text: trimmed.length > 0 ? trimmed : null,
-          history_id: historyId,
+          historyId,
         });
       } catch (e) {
         console.error("Failed to cancel review:", e);
@@ -957,20 +962,325 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     })();
   }, [onClose, isSubmitting, initialData.history_id, getEditorText]);
 
+  const handleCancel = useCallback(() => {
+    if (isSubmitting) return;
+    if (hasEdits && !pendingClose) {
+      setPendingClose(true);
+      return;
+    }
+    doClose();
+  }, [isSubmitting, hasEdits, pendingClose, doClose]);
+
   // Keep refs updated
   useEffect(() => {
     cancelRef.current = handleCancel;
   }, [handleCancel]);
 
-  const getChangeColor = (changePercent: number): string => {
-    if (changePercent >= 85) return "var(--ruby-9)";
-    if (changePercent >= 50) return "var(--amber-9)";
-    return "var(--grass-9)";
-  };
+  // Navigate between ready candidates in multi-model mode
+  const getNextReadyCandidate = useCallback(
+    (direction: 1 | -1): string | null => {
+      if (!sortedCandidates) return null;
+      const ready = sortedCandidates.filter((c) => c.ready && !c.error);
+      if (ready.length === 0) return null;
+      const currentIdx = ready.findIndex((c) => c.id === selectedCandidateId);
+      const nextIdx = (currentIdx + direction + ready.length) % ready.length;
+      return ready[nextIdx].id;
+    },
+    [sortedCandidates, selectedCandidateId],
+  );
+
+  // In multi-model mode, Tiptap editor is not rendered so its keyboard
+  // shortcuts don't fire. Register a global keydown listener with
+  // two-level focus model (List Mode / Edit Mode).
+  useEffect(() => {
+    if (!sortedCandidates || sortedCandidates.length === 0) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey) {
+        setShowCandidateShortcutHints(true);
+      }
+
+      if (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey) {
+        const digit = Number.parseInt(e.key, 10);
+        if (Number.isInteger(digit) && digit >= 1 && digit <= 5) {
+          e.preventDefault();
+          handleInsertCandidateByIndex(digit);
+          return;
+        }
+      }
+
+      // Tab: insert original text
+      if (e.key === "Tab" && !e.shiftKey) {
+        e.preventDefault();
+        insertOriginalRef.current();
+        return;
+      }
+
+      // Cmd/Ctrl+Enter: insert edited/polished text
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        insertRef.current();
+        return;
+      }
+
+      if (editingCandidateId === null) {
+        // === List Mode ===
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const next = getNextReadyCandidate(1);
+          if (next) setSelectedCandidateId(next);
+        } else if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) {
+          e.preventDefault();
+          const prev = getNextReadyCandidate(-1);
+          if (prev) setSelectedCandidateId(prev);
+        } else if (e.key === "Enter") {
+          e.preventDefault();
+          if (selectedCandidateId) {
+            setEditingCandidateId(selectedCandidateId);
+          }
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          cancelRef.current();
+        }
+      } else {
+        // === Edit Mode ===
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setEditingCandidateId(null);
+        }
+        // All other keys pass through to the focused textarea
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === "Meta") {
+        setShowCandidateShortcutHints(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [
+    handleInsertCandidateByIndex,
+    sortedCandidates,
+    editingCandidateId,
+    selectedCandidateId,
+    getNextReadyCandidate,
+  ]);
+
+  useEffect(() => {
+    const handleWindowBlur = () => setShowCandidateShortcutHints(false);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => window.removeEventListener("blur", handleWindowBlur);
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen<string>(
+        REVIEW_WINDOW_INLINE_APPLY,
+        (event) => {
+          applyInlineTextToEditor(event.payload);
+        },
+      );
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [applyInlineTextToEditor]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen<{ text: string; model?: string }>(
+        REVIEW_WINDOW_REWRITE_APPLY,
+        (event) => {
+          const { text, model } = event.payload;
+          setShowDiff(true);
+          if (isMultiCandidateMode.current) {
+            // In multi-candidate mode: replace the selected candidate's text with the rewrite result
+            const targetId = selectedCandidateIdRef.current;
+            if (targetId) {
+              setLocalCandidates((prev) => {
+                if (!prev) return prev;
+                return prev.map((c) =>
+                  c.id === targetId
+                    ? {
+                        ...c,
+                        text,
+                        label: model || c.label,
+                        ready: true,
+                      }
+                    : c,
+                );
+              });
+              // Clear any manual edits for this candidate
+              setEditedTexts((prev) => {
+                const next = { ...prev };
+                delete next[targetId];
+                return next;
+              });
+              // Sync updated text to backend for next rewrite
+              void invoke("set_review_editor_content_state", { text }).catch(
+                (e) => {
+                  console.error("Failed to sync rewrite result to backend:", e);
+                },
+              );
+            }
+          } else {
+            replaceEditorDocument(text);
+            // Sync the new content to backend immediately so next rewrite uses it as target
+            void invoke("set_review_editor_content_state", { text }).catch(
+              (e) => {
+                console.error("Failed to sync rewrite result to backend:", e);
+              },
+            );
+          }
+        },
+      );
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [replaceEditorDocument]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen(VOTYPE_REFOCUS_ACTIVE_INPUT, () => {
+        if (!editor || isMultiCandidateMode.current) return;
+        editor.commands.focus();
+      });
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    const syncEditorActive = (active: boolean) => {
+      void invoke("set_review_editor_active_state", { active }).catch((e) => {
+        console.error("Failed to sync review editor active state:", e);
+      });
+    };
+
+    const syncEditorContent = () => {
+      let text: string | undefined;
+      if (isMultiCandidateMode.current) {
+        // In multi-candidate mode: sync the selected candidate's text
+        const id = selectedCandidateIdRef.current;
+        if (id) {
+          const candidates = localCandidatesRef.current;
+          const candidate = candidates?.find((c) => c.id === id);
+          if (candidate) {
+            text = editedTextsRef.current[id] ?? candidate.text;
+          }
+        }
+      } else if (editor) {
+        text = editor.getText({ blockSeparator: "\n" });
+      }
+      if (text !== undefined) {
+        void invoke("set_review_editor_content_state", { text }).catch((e) => {
+          console.error("Failed to sync review editor content state:", e);
+        });
+      }
+    };
+
+    const updateEditorStateFromTarget = (target: EventTarget | null) => {
+      const editorActive = isEditableTarget(target);
+
+      if (editorActive && editor) {
+        pendingInlineRangeRef.current = {
+          from: editor.state.selection.from,
+          to: editor.state.selection.to,
+        };
+      }
+
+      syncEditorActive(editorActive);
+    };
+
+    const handleFocusIn = (event: FocusEvent) => {
+      updateEditorStateFromTarget(event.target);
+    };
+
+    const handleSelectionChange = () => {
+      updateEditorStateFromTarget(document.activeElement);
+    };
+
+    const handleWindowBlur = () => {
+      syncEditorActive(false);
+    };
+
+    updateEditorStateFromTarget(document.activeElement);
+    syncEditorContent();
+
+    document.addEventListener("focusin", handleFocusIn, true);
+    document.addEventListener("selectionchange", handleSelectionChange);
+    window.addEventListener("blur", handleWindowBlur);
+
+    let offUpdate: (() => void) | undefined;
+    if (editor) {
+      const handler = () => {
+        syncEditorContent();
+      };
+      editor.on("update", handler);
+      offUpdate = () => editor.off("update", handler);
+    }
+
+    return () => {
+      syncEditorActive(false);
+      offUpdate?.();
+      document.removeEventListener("focusin", handleFocusIn, true);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [editor]);
 
   const handleDrag = useCallback(async () => {
     try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
       const appWindow = getCurrentWindow();
       await appWindow.startDragging();
     } catch (e) {
@@ -978,9 +1288,39 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
   }, []);
 
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(getEditorText());
+    } catch (err) {
+      console.error("Failed to copy text: ", err);
+    }
+  }, [getEditorText]);
+
+  const handlePromptRerunReset = useCallback(
+    (promptId: string, candidates: MultiModelCandidate[]) => {
+      setSelectedPromptId(promptId);
+      setLocalCandidates(candidates);
+      setSelectedCandidateId(null);
+      setEditingCandidateId(null);
+      setEditedTexts({});
+      setIsRerunning(true);
+    },
+    [],
+  );
+
+  const isRealMultiModel =
+    multiCandidates != null && multiCandidates.length > 1;
+
+  const getHeaderMode = (): "multi" | "polish" | "chat" => {
+    // Only use "multi" header for actual multi-model results (2+ candidates)
+    if (isRealMultiModel) return "multi";
+    if (initialData.output_mode === "chat") return "chat";
+    return "polish";
+  };
+
   return (
     <div className="w-screen h-screen flex items-center justify-center p-0 box-border overflow-hidden bg-transparent">
-      <div className="review-window-container">
+      <div className="review-window-container" ref={containerRef}>
         <div
           className="cursor-grab select-none"
           onPointerDown={(e) => {
@@ -992,122 +1332,185 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }
           }}
         >
-          {initialData.output_mode !== "chat" && (
-            <div className="review-header">
-              <div className="review-change-badge">
-                <Box
-                  className="review-status-dot"
-                  style={{
-                    backgroundColor: getChangeColor(initialData.change_percent),
-                    color: getChangeColor(initialData.change_percent),
-                  }}
-                />
-                <span className="change-label">
-                  {t("transcription.review.change", "Change")}
-                </span>
-                <span
-                  className={`change-value ${
-                    initialData.change_percent < 50
-                      ? "change-low"
-                      : initialData.change_percent < 85
-                        ? "change-medium"
-                        : "change-high"
-                  }`}
-                >
-                  {initialData.change_percent}%
-                </span>
-              </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          )}
+          <ReviewHeader
+            mode={getHeaderMode()}
+            skillName={initialData.skill_name}
+            prompts={prompts}
+            selectedPromptId={selectedPromptId}
+            modelOptions={modelOptions}
+            selectedModelId={selectedModelId}
+            defaultModelLabel={defaultModelLabel}
+            sourceText={initialData.source_text}
+            historyId={initialData.history_id}
+            editor={editor}
+            showDiff={showDiff}
+            onShowDiffChange={setShowDiff}
+            onPromptChange={(promptId) => {
+              // Update local state to sync dropdown display
+              setSelectedPromptId(promptId);
 
-          {initialData.output_mode === "chat" && (
-            <div className="review-header">
-              <div className="review-skill-name">
-                {initialData.skill_name ||
-                  t("transcription.review.generationTitle", "AI Assistant")}
-              </div>
-              <div
-                className="review-close-button review-close-btn"
-                onClick={handleCancel}
-              >
-                <CancelIcon />
-              </div>
-            </div>
-          )}
+              // Clear translation panel when changing prompt
+              setTranslatedText(null);
+
+              if (isRealMultiModel) {
+                // Multi mode (2+ candidates): clear old results immediately
+                handlePromptRerunReset(
+                  promptId,
+                  multiCandidates.map((c) => ({
+                    ...c,
+                    text: "",
+                    confidence: undefined,
+                    processing_time_ms: 0,
+                    error: undefined,
+                    ready: false,
+                  })),
+                );
+              }
+            }}
+            onModelChange={setSelectedModelId}
+            onCancel={handleCancel}
+            onInsertOriginal={handleInsertOriginal}
+            onTranslate={handleTranslate}
+            isTranslating={isTranslating}
+            onSourceHtmlChange={setSourceHtml}
+            onModelNameChange={setCurrentModelName}
+            onRerunStart={() => {
+              setIsRerunning(true);
+              // Clear translation panel when rerunning
+              setTranslatedText(null);
+            }}
+            onRerunEnd={() => setIsRerunning(false)}
+            onMeasureAndResize={measureAndResize}
+            onRerunResult={(text: string) => {
+              const cp = computeChangePercent(initialData.source_text, text);
+              setShowDiff(cp < DIFF_THRESHOLD);
+              replaceEditorDocument(text);
+            }}
+            multiSortMode={multiSortMode}
+            onMultiSortModeChange={setMultiSortMode}
+            selectedCandidateLabel={selectedCandidateLabel}
+          />
         </div>
 
-        {/* Editable content area */}
-        <div className="review-content-area">
-          {/* Source section - only show for polish mode */}
-          {initialData.output_mode !== "chat" && (
-            <div className="review-section">
-              <Text size="1" className="review-section-title">
-                {t("transcription.review.source", "Live transcript")}
-              </Text>
-              <div
-                className="review-source-content"
-                dangerouslySetInnerHTML={{
-                  __html: sourceHtml || "—",
-                }}
-              />
-            </div>
-          )}
-          {/* Final output / AI response section */}
-          <div
-            className={`review-section review-section-final ${initialData.output_mode === "chat" ? "review-section-no-title" : ""}`}
-          >
-            {initialData.output_mode !== "chat" && (
-              <Text size="1" className="review-section-title">
-                {t("transcription.review.final", "Final output")}
-              </Text>
-            )}
-            <EditorContent editor={editor} className="flex-1 min-h-0" />
-          </div>
-        </div>
+        {sortedCandidates && sortedCandidates.length > 0 ? (
+          <MultiCandidateView
+            sourceText={initialData.source_text}
+            showDiff={showDiff}
+            candidates={sortedCandidates}
+            showShortcutHints={showCandidateShortcutHints}
+            rankStats={speedRankStats}
+            selectedCandidateId={selectedCandidateId}
+            selectedCandidateText={
+              selectedCandidateId
+                ? (editedTexts[selectedCandidateId] ??
+                  sortedCandidates.find((c) => c.id === selectedCandidateId)
+                    ?.text ??
+                  null)
+                : null
+            }
+            editingCandidateId={editingCandidateId}
+            editedTexts={editedTexts}
+            onCandidateSelect={setSelectedCandidateId}
+            onEditEnd={() => setEditingCandidateId(null)}
+            onTextChange={(candidateId, text) => {
+              setEditedTexts((prev) => ({ ...prev, [candidateId]: text }));
+            }}
+            onInsert={handleDirectInsert}
+            onInsertOriginal={handleInsertOriginal}
+          />
+        ) : initialData.output_mode !== "chat" ? (
+          <DiffViewPanel
+            sourceHtml={sourceHtml}
+            editor={editor}
+            isRerunning={isRerunning}
+            currentModelName={currentModelName}
+            onInsertOriginal={handleInsertOriginal}
+          />
+        ) : (
+          <div className="review-content-area">
+            <div
+              className="review-section review-section-final review-section-no-title"
+              onMouseDown={(event) => {
+                if (!(event.target instanceof HTMLElement)) {
+                  return;
+                }
 
-        {/* Footer with hint and insert button */}
-        <div className="review-footer">
-          <div className="review-footer-left">
-            {initialData.reason?.trim() ? (
-              <span className="reason-text">{initialData.reason}</span>
-            ) : null}
-          </div>
-          <div className="review-footer-actions">
-            {initialData.output_mode === "chat" && (
-              <button
-                className="review-btn-secondary"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(getEditorText());
-                  } catch (err) {
-                    console.error("Failed to copy text: ", err);
-                  }
-                }}
-                disabled={isSubmitting || !getEditorText().trim()}
-              >
-                <IconCopy size={14} />
-                {t("common.copy", "Copy")}
-              </button>
-            )}
-            <button
-              className="review-btn-primary"
-              onClick={handleInsert}
-              disabled={isSubmitting || !getEditorText().trim()}
-              data-tauri-drag-region="false"
+                if (event.target.closest("button")) {
+                  return;
+                }
+
+                if (event.target.closest(".ProseMirror")) {
+                  return;
+                }
+                event.preventDefault();
+                editor?.commands.focus();
+              }}
             >
-              {t("transcription.review.insert", "Insert")}{" "}
-              <span className="opacity-60 ml-1 font-normal">
-                {insertShortcut}
-              </span>
-            </button>
+              <EditorContent editor={editor} className="flex-1 min-h-0" />
+            </div>
           </div>
-        </div>
+        )}
+
+        {translatedText && (
+          <div className="review-translation-panel">
+            <div className="review-translation-header">
+              <span className="review-translation-title">
+                {t("transcription.review.translationResult", "翻译结果")}
+              </span>
+              <button
+                className="review-translation-close"
+                onClick={() => {
+                  setTranslatedText(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div
+              className="review-translation-content"
+              onMouseEnter={() => setIsTranslationHovered(true)}
+              onMouseLeave={() => setIsTranslationHovered(false)}
+            >
+              {translatedText}
+              {isTranslationHovered && !isSubmitting && (
+                <button
+                  className="review-translation-insert-btn"
+                  onClick={() => handleDirectInsert(translatedText)}
+                  title={t(
+                    "transcription.review.insertTranslation",
+                    "插入翻译结果",
+                  )}
+                >
+                  <IconTextPlus size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {pendingClose && (
+          <div className="review-pending-close-toast">
+            {t(
+              "transcription.review.pressEscAgain",
+              "内容已修改，再次按 ESC 关闭",
+            )}
+          </div>
+        )}
+
+        <ReviewFooter
+          reason={initialData.reason}
+          outputMode={initialData.output_mode}
+          isSubmitting={isSubmitting}
+          hasText={!!getEditorText().trim()}
+          canUndo={revisionIndex > 0}
+          canRedo={revisionIndex < revisionHistory.length - 1}
+          insertShortcut={insertShortcut}
+          isMultiModel={!!sortedCandidates && sortedCandidates.length > 0}
+          onCopy={handleCopy}
+          onInsert={handleInsert}
+          onUndo={handleUndoRevision}
+          onRedo={handleRedoRevision}
+        />
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::transcription::TranscriptionManager;
 use crate::shortcut;
 use crate::transcription_coordinator::TranscriptionCoordinator;
 use log::info;
@@ -12,6 +11,51 @@ use tauri::{AppHandle, Emitter, Manager};
 pub use crate::clipboard::*;
 pub use crate::overlay::*;
 pub use crate::tray::*;
+
+fn cancel_current_operation_inner(
+    app: &AppHandle,
+    notify_coordinator: bool,
+    hide_review_window: bool,
+) {
+    // Clear any pending skill confirmation state
+    if let Some(pending_state) = app.try_state::<crate::ManagedPendingSkillConfirmation>() {
+        if let Ok(mut guard) = pending_state.lock() {
+            *guard = crate::PendingSkillConfirmation::default();
+        }
+    }
+
+    // Unregister the cancel shortcut asynchronously
+    shortcut::unregister_cancel_shortcut(app);
+
+    // Cancel any ongoing recording
+    let audio_manager = app.state::<Arc<AudioRecordingManager>>();
+    let recording_was_active = audio_manager.is_recording();
+    audio_manager.cancel_recording();
+
+    // Update tray icon and hide overlay
+    change_tray_icon(app, crate::tray::TrayIconState::Idle);
+    hide_recording_overlay(app);
+    if hide_review_window {
+        crate::review_window::hide_review_window(app, None);
+    }
+
+    // Abort the async transcription/post-processing pipeline
+    let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
+    ppm.cancel_pipeline();
+
+    // Note: we intentionally do NOT unload the model here.
+    // The pipeline abort + cancel_recording already stop the active operation,
+    // and the engine's `engine_in_use` flag ensures the next transcription
+    // waits for any in-flight work to finish. Unloading would force an
+    // expensive (~1s) model reload on every preemption.
+
+    // Notify coordinator so it can keep lifecycle state coherent.
+    if notify_coordinator {
+        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
+            coordinator.notify_cancel(recording_was_active);
+        }
+    }
+}
 
 pub fn show_or_create_main_window(
     app: &AppHandle,
@@ -110,36 +154,14 @@ pub fn cancel_current_operation(app: &AppHandle) {
     }
 
     info!("Initiating operation cancellation...");
-
-    // Clear any pending skill confirmation state
-    if let Some(pending_state) = app.try_state::<ManagedPendingSkillConfirmation>() {
-        if let Ok(mut guard) = pending_state.lock() {
-            *guard = crate::PendingSkillConfirmation::default();
-        }
-    }
-
-    // Unregister the cancel shortcut asynchronously
-    shortcut::unregister_cancel_shortcut(app);
-
-    // Cancel any ongoing recording
-    let audio_manager = app.state::<Arc<AudioRecordingManager>>();
-    let recording_was_active = audio_manager.is_recording();
-    audio_manager.cancel_recording();
-
-    // Update tray icon and hide overlay
-    change_tray_icon(app, crate::tray::TrayIconState::Idle);
-    hide_recording_overlay(app);
-
-    // Cancel any ongoing transcription actively
-    let tm = app.state::<Arc<TranscriptionManager>>();
-    let _ = tm.unload_model();
-
-    // Notify coordinator so it can keep lifecycle state coherent.
-    if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-        coordinator.notify_cancel(recording_was_active);
-    }
+    cancel_current_operation_inner(app, true, true);
 
     info!("Operation cancellation completed - returned to idle state");
+}
+
+pub fn interrupt_current_operation(app: &AppHandle) {
+    info!("Interrupting current operation for a new transcription request...");
+    cancel_current_operation_inner(app, false, false);
 }
 
 /// Check if using the Wayland display server protocol
@@ -149,4 +171,41 @@ pub fn is_wayland() -> bool {
         || std::env::var("XDG_SESSION_TYPE")
             .map(|v| v.to_lowercase() == "wayland")
             .unwrap_or(false)
+}
+
+/// Normalize a base URL for online ASR/LLM providers.
+/// - Trims whitespace and trailing slashes.
+/// - If the URL ends with '#', it's treated as a "raw" URL and the '#' is removed.
+/// - If the URL doesn't have a version path (e.g., /v1), then '/v1' is automatically appended.
+/// - Special protocols like `apple-intelligence://` and `ollama://` are preserved as-is.
+pub fn normalize_base_url(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    // Handle explicit raw mode (ends with #)
+    if trimmed.ends_with('#') {
+        let raw = &trimmed[..trimmed.len() - 1];
+        return raw.trim_end_matches('/').to_string();
+    }
+
+    // Skip normalization for special protocols
+    if trimmed.starts_with("apple-intelligence://") || trimmed.starts_with("ollama://") {
+        return trimmed.trim_end_matches('/').to_string();
+    }
+
+    // Check if it already contains a version like /v1, /v2, etc.
+    let has_version = trimmed.split('/').any(|segment| {
+        segment.starts_with('v')
+            && segment.len() > 1
+            && segment[1..].chars().all(|c| c.is_ascii_digit())
+    });
+
+    if has_version {
+        trimmed.trim_end_matches('/').to_string()
+    } else {
+        // Append /v1 by default
+        format!("{}/v1", trimmed.trim_end_matches('/'))
+    }
 }

@@ -84,7 +84,7 @@ export const ModelCard: React.FC<ModelCardProps> = ({
     return translation.replace(/^Sherpa\s+/i, "");
   };
 
-  const canFavorite = model.engine_type !== "SherpaOnnxPunctuation";
+  const canFavorite = true;
 
   return (
     <Card key={model.id} className="p-3">

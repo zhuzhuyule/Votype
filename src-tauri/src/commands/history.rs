@@ -65,6 +65,24 @@ pub async fn get_audio_file_path(
 }
 
 #[tauri::command]
+#[specta::specta]
+pub async fn get_audio_path_by_history_id(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    history_id: i64,
+) -> Result<String, String> {
+    let entry = history_manager
+        .get_entry_by_id(history_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("History entry not found: {}", history_id))?;
+    let path = history_manager.get_audio_file_path(&entry.file_name);
+    path.to_str()
+        .ok_or_else(|| "Invalid file path".to_string())
+        .map(|s| s.to_string())
+}
+
+#[tauri::command]
 pub async fn delete_history_entry(
     _app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,
@@ -193,17 +211,53 @@ pub async fn retranscribe_history_entry(
         settings.selected_model.clone()
     };
 
-    // If using local model, ensure it's loaded
-    if !settings.online_asr_enabled {
+    let start_time = std::time::Instant::now();
+    let transcription_text = if settings.online_asr_enabled {
+        // Use OnlineAsrClient for online ASR (must run in spawn_blocking
+        // because reqwest::blocking creates its own runtime internally)
+        use crate::online_asr::OnlineAsrClient;
+
+        let cached_model = settings
+            .cached_models
+            .iter()
+            .find(|m| m.id == model_id)
+            .ok_or_else(|| format!("Online ASR model not found in cached models: {}", model_id))?;
+
+        let provider = cached_model.provider_id.clone();
+        let remote_model_id = cached_model.model_id.clone();
+
+        let provider_info = settings
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == provider)
+            .ok_or_else(|| format!("Provider not found: {}", provider))?
+            .clone();
+
+        let api_key = settings.post_process_api_keys.get(&provider).cloned();
+
+        let language = settings.selected_language.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let client = OnlineAsrClient::new(16000, std::time::Duration::from_secs(120));
+            let lang = if language == "auto" {
+                None
+            } else {
+                Some(language.as_str())
+            };
+            client.transcribe(&provider_info, api_key, &remote_model_id, lang, &samples)
+        })
+        .await
+        .map_err(|e| format!("Online ASR task failed: {}", e))?
+        .map_err(|e| e.to_string())?
+    } else {
+        // Use local transcription manager
         transcription_manager
             .load_model(&model_id)
             .map_err(|e| e.to_string())?;
-    }
-
-    let start_time = std::time::Instant::now();
-    let transcription_text = transcription_manager
-        .transcribe(samples)
-        .map_err(|e| e.to_string())?;
+        transcription_manager
+            .transcribe(samples)
+            .map_err(|e| e.to_string())?
+    };
     let elapsed = start_time.elapsed().as_millis() as i64;
 
     let char_count = transcription_text.chars().count() as i64;
@@ -242,13 +296,15 @@ pub async fn retranscribe_history_entry(
                     "OpenCC".to_string(),
                     None,
                     Some("OpenCC".to_string()),
+                    None,
+                    None,
                 )
                 .await
                 .map_err(|e| e.to_string())?;
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            let (llm_result, used_model, prompt_id, _, _, _) = maybe_post_process_transcription(
+            let (llm_result, used_model, prompt_id, _, _, _, _) = maybe_post_process_transcription(
                 &app,
                 &settings,
                 &transcription_text,
@@ -261,7 +317,10 @@ pub async fn retranscribe_history_entry(
                 None,
                 Some(id),
                 false, // skill_mode
+                false, // review_editor_active
                 None,  // selected_text
+                None,  // review_document_text
+                false, // skip_smart_routing
             )
             .await;
 
@@ -287,6 +346,8 @@ pub async fn retranscribe_history_entry(
                         post_process_prompt_name,
                         prompt_id,
                         used_model,
+                        None,
+                        Some(1),
                     )
                     .await
                     .map_err(|e| e.to_string())?;
@@ -333,13 +394,16 @@ pub async fn reprocess_history_entry(
         .filter(|t| !t.trim().is_empty())
         .unwrap_or_else(|| entry.transcription_text.clone());
 
-    let (llm_result, used_model, used_prompt_id, _, _, _) = post_process_text_with_prompt(
+    let (llm_result, used_model, used_prompt_id, _, _) = post_process_text_with_prompt(
         &app,
         &settings,
         &text_to_process,
         entry.streaming_text.as_deref(),
         prompt,
         false,
+        None,
+        None,
+        Some(id),
     )
     .await;
 
@@ -352,6 +416,8 @@ pub async fn reprocess_history_entry(
                 prompt.name.clone(),
                 used_prompt_id,
                 used_model,
+                None,
+                Some(1),
             )
             .await
             .map_err(|e| e.to_string())?;
@@ -369,4 +435,31 @@ pub async fn reprocess_history_entry(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn reject_post_process_result(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+) -> Result<(), String> {
+    history_manager
+        .reject_post_process_result(id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn cascade_reject_post_process(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    transcription_text: String,
+    post_processed_text: String,
+) -> Result<usize, String> {
+    history_manager
+        .cascade_reject_post_process(&transcription_text, &post_processed_text)
+        .await
+        .map_err(|e| e.to_string())
 }

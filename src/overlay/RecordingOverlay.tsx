@@ -1,6 +1,6 @@
 import { Box, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,15 +8,12 @@ import {
   MicrophoneIcon,
   TranscriptionIcon,
 } from "../components/icons";
+import { ASR_ONLINE_TIMEOUT } from "../lib/events";
 import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
 export type OverlayState = "recording" | "transcribing" | "llm";
-type SherpaPartialEvent = {
-  text: string;
-  punctuated_text?: string;
-  is_final: boolean;
-};
+
 type OverlayErrorEvent = { code?: string; message?: string };
 
 // Skill confirmation event payload
@@ -62,13 +59,31 @@ interface RecordingOverlayProps {
   initialState: OverlayState;
 }
 
+const EMPTY_LEVELS = Array(16).fill(0);
+const WAVEFORM_POINTS = 17;
+const WAVEFORM_CENTER_INDEX = Math.floor(WAVEFORM_POINTS / 2);
+const EMPTY_WAVEFORM = Array(WAVEFORM_POINTS).fill(0);
+const WAVEFORM_HISTORY_LENGTH = WAVEFORM_CENTER_INDEX + 4;
+const EMPTY_WAVEFORM_HISTORY = Array(WAVEFORM_HISTORY_LENGTH).fill(0);
+const WAVEFORM_HEADROOM = 0.68;
+const WAVEFORM_DISTANCE_DECAY = 0.98;
+const WAVEFORM_CENTER_ATTACK = 0.7;
+const WAVEFORM_CENTER_RELEASE = 0.45;
+// Adaptive gain: baseline tracks the recent average loudness so the
+// waveform shows *relative* volume changes rather than absolute level.
+const AGC_BASELINE_RISE = 0.012; // baseline rises slowly to match sustained loud speech
+const AGC_BASELINE_FALL = 0.06; // baseline drops faster when speech gets quieter
+const AGC_MIN_BASELINE = 0.06; // floor so silence still reads as silence
+const AGC_HEADROOM_RATIO = 1.6; // how much above baseline counts as "full scale"
+
 const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   initialState,
 }) => {
   const { t } = useTranslation();
   // isVisible is implicitly true if we are mounted
   const [state, setState] = useState<OverlayState>(initialState);
-  const [levels, setLevels] = useState<number[]>(Array(16).fill(0));
+  const [levels, setLevels] = useState<number[]>(EMPTY_LEVELS.slice(0, 9));
+  const [waveform, setWaveform] = useState<number[]>(EMPTY_WAVEFORM);
   const [accentColor, setAccentColor] = useState<string>(getAccentColor);
   const [realtimeText, setRealtimeText] = useState<string>("");
   const [realtimeIsFinal, setRealtimeIsFinal] = useState<boolean>(false);
@@ -76,15 +91,34 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [chainedPromptName, setChainedPromptName] = useState<string>("");
   const [skillConfirmation, setSkillConfirmation] =
     useState<SkillConfirmationEvent | null>(null);
+  // Multi-model post-process progress tracking
+  const [multiModelProgress, setMultiModelProgress] = useState<
+    Record<
+      string,
+      {
+        label: string;
+        status: "pending" | "processing" | "done" | "error";
+        text?: string;
+      }
+    >
+  >({});
   // Track which button is focused for keyboard navigation: 'accept' or 'reject'
   const [focusedButton, setFocusedButton] = useState<"accept" | "reject">(
     "accept",
   );
-  const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
+  const [showTimeout, setShowTimeout] = useState(false);
+  const [timeoutFocused, setTimeoutFocused] = useState<
+    "continue" | "retry" | "cancel"
+  >("continue");
+  const smoothedLevelsRef = useRef<number[]>(EMPTY_LEVELS.slice());
   const realtimeScrollRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<OverlayState>(initialState);
   const allowNonFinalRef = useRef<boolean>(true);
   const finalLockedRef = useRef<boolean>(false);
+  const waveformRef = useRef<number[]>(EMPTY_WAVEFORM);
+  const waveformHistoryRef = useRef<number[]>(EMPTY_WAVEFORM_HISTORY);
+  const amplitudeEnvelopeRef = useRef(0);
+  const agcBaselineRef = useRef(AGC_MIN_BASELINE);
   const animatedEllipsis = useAnimatedEllipsis(
     state === "recording" && realtimeText.trim().length > 0 && !realtimeIsFinal,
   );
@@ -93,27 +127,46 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     stateRef.current = state;
   }, [state]);
 
+  const resetOverlayRecordingState = () => {
+    finalLockedRef.current = false;
+    allowNonFinalRef.current = true;
+    smoothedLevelsRef.current = EMPTY_LEVELS.slice();
+    waveformRef.current = EMPTY_WAVEFORM;
+    waveformHistoryRef.current = EMPTY_WAVEFORM_HISTORY;
+    amplitudeEnvelopeRef.current = 0;
+    agcBaselineRef.current = AGC_MIN_BASELINE;
+    setLevels(EMPTY_LEVELS.slice(0, 9));
+    setWaveform(EMPTY_WAVEFORM);
+    setRealtimeText("");
+    setRealtimeIsFinal(false);
+    setErrorText("");
+    setChainedPromptName("");
+    setSkillConfirmation(null);
+  };
+
   // If initial state changes (unlikely if unmounted, but good practice)
   useEffect(() => {
     setState(initialState);
     stateRef.current = initialState;
     if (initialState === "recording") {
-      finalLockedRef.current = false;
-      allowNonFinalRef.current = true;
-      setRealtimeText("");
-      setRealtimeIsFinal(false);
-      setErrorText("");
-      setChainedPromptName("");
-      setSkillConfirmation(null);
+      resetOverlayRecordingState();
     }
   }, [initialState]);
 
   useEffect(() => {
+    let disposed = false;
+    const unlisteners: UnlistenFn[] = [];
+
     const setupEventListeners = async () => {
       const unlistenError = await listen<OverlayErrorEvent>(
         "overlay-error",
         (event) => {
           const payload = (event.payload ?? {}) as OverlayErrorEvent;
+
+          if (payload.message) {
+            setErrorText(payload.message);
+            return;
+          }
 
           if (payload.code) {
             // Map backend error codes to translation keys
@@ -134,67 +187,116 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               return;
             }
           }
-
-          // Fallback to raw message if provided (legacy or custom)
-          if (payload.message) {
-            setErrorText(payload.message);
-            return;
-          }
         },
       );
+      if (disposed) {
+        unlistenError();
+        return;
+      }
+      unlisteners.push(unlistenError);
 
-      // Listen for mic-level updates
+      // Listen for mic-level updates — log every frame to terminal
+      let micLevelCount = 0;
       const unlistenLevel = await listen<number[]>("mic-level", (event) => {
         const newLevels = event.payload as number[];
+        micLevelCount++;
 
-        // Apply smoothing to reduce jitter
         const smoothed = smoothedLevelsRef.current.map((prev, i) => {
           const target = newLevels[i] || 0;
-          return prev * 0.7 + target * 0.3; // Smooth transition
+          return prev * 0.7 + target * 0.3;
         });
+        const visibleLevels = smoothed.slice(0, 9);
+        const maxLevel = visibleLevels.reduce(
+          (max, value) => Math.max(max, value),
+          0,
+        );
+        const avgLevel =
+          visibleLevels.reduce((sum, value) => sum + value, 0) /
+          Math.max(visibleLevels.length, 1);
+        // Raw amplitude from mic levels
+        const rawAmplitude = Math.max(0, maxLevel * 0.65 + avgLevel * 0.35);
+
+        // Adaptive gain control: track a slow-moving baseline of the
+        // recent loudness so the display shows relative fluctuations.
+        const prevBaseline = agcBaselineRef.current;
+        const baselineRate =
+          rawAmplitude > prevBaseline ? AGC_BASELINE_RISE : AGC_BASELINE_FALL;
+        const nextBaseline = Math.max(
+          AGC_MIN_BASELINE,
+          prevBaseline + (rawAmplitude - prevBaseline) * baselineRate,
+        );
+        agcBaselineRef.current = nextBaseline;
+
+        // Normalize: how far above the baseline is the current amplitude?
+        const ceiling = nextBaseline * AGC_HEADROOM_RATIO;
+        const normalized = Math.min(
+          1,
+          Math.max(0, (rawAmplitude - nextBaseline * 0.3) / ceiling),
+        );
+        const currentAmplitude = normalized * WAVEFORM_HEADROOM;
+        const previousEnvelope = amplitudeEnvelopeRef.current;
+        const nextEnvelope =
+          currentAmplitude >= previousEnvelope
+            ? previousEnvelope * (1 - WAVEFORM_CENTER_ATTACK) +
+              currentAmplitude * WAVEFORM_CENTER_ATTACK
+            : previousEnvelope * (1 - WAVEFORM_CENTER_RELEASE) +
+              currentAmplitude * WAVEFORM_CENTER_RELEASE;
+
+        const nextHistory = [nextEnvelope, ...waveformHistoryRef.current].slice(
+          0,
+          WAVEFORM_HISTORY_LENGTH,
+        );
+        const nextWaveform = EMPTY_WAVEFORM.slice();
+
+        for (let i = 0; i < WAVEFORM_POINTS; i += 1) {
+          const distance = Math.abs(i - WAVEFORM_CENTER_INDEX);
+          const near =
+            nextHistory[Math.min(distance, nextHistory.length - 1)] ?? 0;
+          const far =
+            nextHistory[Math.min(distance + 1, nextHistory.length - 1)] ?? 0;
+          const centerWeight = Math.max(0, 1 - distance * 0.08);
+          const propagated =
+            (near * 0.82 + far * 0.18) *
+            Math.pow(WAVEFORM_DISTANCE_DECAY, distance);
+          nextWaveform[i] = Math.min(
+            0.76,
+            propagated * (1 + centerWeight * 0.18),
+          );
+        }
 
         smoothedLevelsRef.current = smoothed;
-        setLevels(smoothed.slice(0, 9));
+        waveformRef.current = nextWaveform;
+        waveformHistoryRef.current = nextHistory;
+        amplitudeEnvelopeRef.current = nextEnvelope;
+        setLevels(visibleLevels);
+        setWaveform(nextWaveform);
       });
+      if (disposed) {
+        unlistenLevel();
+        return;
+      }
+      unlisteners.push(unlistenLevel);
 
-      const handlePartial = (event: { payload: SherpaPartialEvent }) => {
-        const payload = event.payload as SherpaPartialEvent;
-        const isFinal = Boolean(payload?.is_final);
-        // Once we enter "transcribing"/"llm", the overlay should not display long text anymore.
-        // Showing any late partial/final payloads here causes confusing "flash back" to old text.
-        if (stateRef.current !== "recording") {
-          return;
-        }
-        if (finalLockedRef.current) {
-          return;
-        }
-        if (!isFinal && !allowNonFinalRef.current) {
-          return;
-        }
+      const unlistenRealtimePartial = await listen<{ text: string }>(
+        "realtime-partial",
+        (event) => {
+          if (stateRef.current !== "recording") {
+            return;
+          }
+          if (finalLockedRef.current || !allowNonFinalRef.current) {
+            return;
+          }
 
-        // Use raw text or punctuated text directly, no normalization
-        const text = (payload?.punctuated_text ?? payload?.text ?? "").trim();
-
-        setRealtimeText(text);
-        setRealtimeIsFinal(isFinal);
-
-        // After we have displayed a final result, ignore any subsequent non-final partials from
-        // background workers until a new recording starts.
-        if (isFinal) {
-          allowNonFinalRef.current = false;
-          finalLockedRef.current = true;
-        }
-      };
-
-      const unlistenSherpaOnlinePartial = await listen<SherpaPartialEvent>(
-        "sherpa-online-partial",
-        handlePartial as any,
+          const text = (event.payload.text || "").trim();
+          setRealtimeText(text);
+          setRealtimeIsFinal(false);
+        },
       );
-
-      const unlistenSherpaOfflinePartial = await listen<SherpaPartialEvent>(
-        "sherpa-offline-partial",
-        handlePartial as any,
-      );
+      if (disposed) {
+        unlistenRealtimePartial();
+        return;
+      }
+      unlisteners.push(unlistenRealtimePartial);
 
       const unlistenPostProcessStatus = await listen<string>(
         "post-process-status",
@@ -202,21 +304,26 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           setChainedPromptName(event.payload);
         },
       );
+      if (disposed) {
+        unlistenPostProcessStatus();
+        return;
+      }
+      unlisteners.push(unlistenPostProcessStatus);
 
       const unlistenStateUpdate = await listen("show-overlay", (event) => {
         const overlayState = event.payload as OverlayState;
         setState(overlayState);
         // Reset buffer if restarting recording
         if (overlayState === "recording") {
-          setRealtimeText("");
-          setRealtimeIsFinal(false);
-          setErrorText("");
-          setChainedPromptName("");
-          setSkillConfirmation(null);
-          allowNonFinalRef.current = true;
-          finalLockedRef.current = false;
+          resetOverlayRecordingState();
+          setShowTimeout(false);
         }
       });
+      if (disposed) {
+        unlistenStateUpdate();
+        return;
+      }
+      unlisteners.push(unlistenStateUpdate);
 
       // Listen for skill confirmation requests (selected text scenario)
       const unlistenSkillConfirmation = await listen<SkillConfirmationEvent>(
@@ -233,6 +340,80 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           }, 50);
         },
       );
+      if (disposed) {
+        unlistenSkillConfirmation();
+        return;
+      }
+      unlisteners.push(unlistenSkillConfirmation);
+
+      // Listen for multi-model post-process start
+      const unlistenMultiModelStart = await listen<{
+        items: { id: string; label: string }[];
+      }>("multi-post-process-start", (event) => {
+        const progress: typeof multiModelProgress = {};
+        event.payload.items.forEach((item) => {
+          progress[item.id] = { label: item.label, status: "pending" };
+        });
+        setMultiModelProgress(progress);
+      });
+      if (disposed) {
+        unlistenMultiModelStart();
+        return;
+      }
+      unlisteners.push(unlistenMultiModelStart);
+
+      // Listen for multi-model post-process progress
+      const unlistenMultiModelProgress = await listen<{
+        id: string;
+        status: "processing" | "done" | "error";
+        text?: string;
+      }>("multi-post-process-progress", (event) => {
+        setMultiModelProgress((prev) => ({
+          ...prev,
+          [event.payload.id]: {
+            ...prev[event.payload.id],
+            status: event.payload.status,
+            text: event.payload.text,
+          },
+        }));
+      });
+      if (disposed) {
+        unlistenMultiModelProgress();
+        return;
+      }
+      unlisteners.push(unlistenMultiModelProgress);
+
+      // Listen for multi-model post-process complete
+      const unlistenMultiModelComplete = await listen(
+        "multi-post-process-complete",
+        () => {
+          // Keep results visible until user selects
+        },
+      );
+      if (disposed) {
+        unlistenMultiModelComplete();
+        return;
+      }
+      unlisteners.push(unlistenMultiModelComplete);
+
+      // Listen for ASR online timeout
+      const unlistenTimeout = await listen<{ has_local_fallback: boolean }>(
+        ASR_ONLINE_TIMEOUT,
+        (event) => {
+          if (!event.payload.has_local_fallback) {
+            setShowTimeout(true);
+            setTimeoutFocused("continue");
+            setTimeout(() => {
+              invoke("focus_overlay").catch(() => {});
+            }, 50);
+          }
+        },
+      );
+      if (disposed) {
+        unlistenTimeout();
+        return;
+      }
+      unlisteners.push(unlistenTimeout);
 
       // Listen for theme changes from localStorage (when main app changes theme)
       const handleStorageChange = (e: StorageEvent) => {
@@ -242,21 +423,19 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       };
 
       window.addEventListener("storage", handleStorageChange);
-
-      // Cleanup function
-      return () => {
-        unlistenError();
-        unlistenLevel();
-        unlistenSherpaOnlinePartial();
-        unlistenSherpaOfflinePartial();
-        unlistenPostProcessStatus();
-        unlistenStateUpdate();
-        unlistenSkillConfirmation();
-        window.removeEventListener("storage", handleStorageChange);
-      };
+      unlisteners.push(() =>
+        window.removeEventListener("storage", handleStorageChange),
+      );
     };
 
-    setupEventListeners();
+    void setupEventListeners();
+
+    return () => {
+      disposed = true;
+      for (const unlisten of unlisteners.splice(0)) {
+        unlisten();
+      }
+    };
   }, []); // Run once on mount
 
   // Keyboard navigation for skill confirmation
@@ -299,6 +478,45 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [skillConfirmation, focusedButton]);
 
+  // Keyboard navigation for ASR timeout prompt
+  useEffect(() => {
+    if (!showTimeout) return;
+
+    const buttons = ["continue", "retry", "cancel"] as const;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setTimeoutFocused((prev) => {
+          const idx = buttons.indexOf(prev);
+          const next =
+            e.key === "ArrowRight"
+              ? (idx + 1) % buttons.length
+              : (idx - 1 + buttons.length) % buttons.length;
+          return buttons[next];
+        });
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        invoke("respond_asr_timeout", { action: timeoutFocused });
+        setShowTimeout(false);
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        invoke("respond_asr_timeout", { action: "cancel" });
+        setShowTimeout(false);
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showTimeout, timeoutFocused]);
+
   // Update CSS variable when accent color changes
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -336,7 +554,9 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       : realtimeText;
 
   const showRealtimeText =
-    realtimeDisplayText.length > 0 && state === "recording";
+    realtimeDisplayText.length > 0 &&
+    state === "recording" &&
+    !skillConfirmation;
   const showErrorText = Boolean(errorText) && state !== "recording";
 
   return (
@@ -360,19 +580,39 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
 
           {!showRealtimeText && state === "recording" && (
             <>
-              <Flex className="bars-container">
-                {levels.map((v, i) => (
-                  <Box
-                    key={i}
-                    className="bar"
-                    style={{
-                      height: `${Math.min(20, 4 + Math.pow(v, 0.7) * 16)}px`,
-                      transition:
-                        "height 60ms ease-out, opacity 120ms ease-out",
-                      opacity: Math.max(0.2, v * 1.7),
-                    }}
-                  />
-                ))}
+              <Flex className="waveform-container">
+                <Box className="waveform-axis" />
+                {waveform.map((value, i) => {
+                  const distance = Math.abs(i - WAVEFORM_CENTER_INDEX);
+                  const centerBoost = Math.max(0, 1 - distance * 0.075);
+                  const displayValue = Math.min(
+                    0.82,
+                    value * (1 + centerBoost * 0.18),
+                  );
+                  const height =
+                    displayValue < 0.035
+                      ? 0
+                      : 1 + Math.pow(displayValue, 0.96) * 22;
+                  const opacity = Math.max(
+                    0,
+                    Math.min(1, 0.22 + displayValue * 0.5 - distance * 0.025),
+                  );
+                  const isCenter = i === WAVEFORM_CENTER_INDEX;
+                  const className = isCenter
+                    ? "waveform-segment waveform-segment-center"
+                    : "waveform-segment";
+
+                  return (
+                    <Box
+                      key={i}
+                      className={className}
+                      style={{
+                        height: `${height}px`,
+                        opacity,
+                      }}
+                    />
+                  );
+                })}
               </Flex>
             </>
           )}
@@ -386,6 +626,34 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                   {errorText}
                 </Text>
               )}
+            </Flex>
+          )}
+
+          {/* ASR Timeout UI */}
+          {showTimeout && state === "transcribing" && (
+            <Flex
+              direction="column"
+              align="center"
+              gap="2"
+              className="timeout-prompt"
+            >
+              <Text className="timeout-title">
+                {t("overlay.timeout.title")}
+              </Text>
+              <Flex gap="2" className="timeout-buttons">
+                {(["continue", "retry", "cancel"] as const).map((action) => (
+                  <button
+                    key={action}
+                    className={`timeout-btn ${timeoutFocused === action ? "focused" : ""}`}
+                    onClick={() => {
+                      invoke("respond_asr_timeout", { action });
+                      setShowTimeout(false);
+                    }}
+                  >
+                    {t(`overlay.timeout.${action}`)}
+                  </button>
+                ))}
+              </Flex>
             </Flex>
           )}
 
@@ -434,18 +702,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           )}
         </Flex>
 
-        <Flex className="overlay-right">
-          {state === "recording" && (
-            <Box
-              className="cancel-button"
-              onClick={() => {
-                invoke("cancel_operation");
-              }}
-            >
-              <CancelIcon />
-            </Box>
-          )}
-        </Flex>
+        <Flex className="overlay-right" />
       </Box>
     </Box>
   );

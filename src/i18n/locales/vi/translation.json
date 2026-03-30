@@ -162,58 +162,6 @@
       "description": "Thêm dấu câu và ngắt câu cho văn bản hỗn hợp zh+en. Int8; nhanh và nhỏ. Cập nhật 12/04/2024.",
       "name": "Dấu câu (Trung + Anh)"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "ASR ba ngôn ngữ ngoại tuyến (Trung/Quảng Đông/Anh); lớn; độ chính xác tốt.",
-      "name": "Sherpa Paraformer Zh+Yue+En"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "Mô hình zh+en trực tuyến. Tốt cho phụ đề thời gian thực; nhanh; độ chính xác khá.",
-      "name": "Sherpa Trung Quốc + Tiếng Anh (Paraformer)"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "ASR tiếng Trung ngoại tuyến; INT8; nhanh; độ chính xác tốt; cập nhật 07/10/2025.",
-      "name": "Sherpa Paraformer Trung Quốc (INT8)"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "ASR tiếng Trung ngoại tuyến; nhỏ và nhanh; độ chính xác khá; cập nhật 09/03/2024.",
-      "name": "Sherpa Paraformer Trung Quốc (Nhỏ)"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "Mô hình ngoại tuyến cho Tiếng Trung/Anh/Nhật/Hàn/Quảng Đông. Lượng tử hóa Int8; tốc độ và bộ nhớ trung bình. Cập nhật 09/09/2025.",
-      "name": "SenseVoice Đa ngôn ngữ"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "ASR tiếng Đức trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Đức"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "ASR tiếng Anh trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Anh"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "ASR tiếng Tây Ban Nha trực tuyến; kích thước vừa và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Tây Ban Nha"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "ASR tiếng Pháp trực tuyến; nhỏ và rất nhanh; độ chính xác tốt; cập nhật 06/08/2025.",
-      "name": "Sherpa Tiếng Pháp"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "ASR tiếng Nga trực tuyến; siêu nhỏ và cực nhanh (INT8); độ chính xác tốt; cập nhật 16/08/2025.",
-      "name": "Sherpa Tiếng Nga"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "ASR tiếng Trung trực tuyến (Zipformer2 CTC); nhỏ và cực nhanh (INT8); cập nhật 01/04/2025.",
-      "name": "Sherpa Trung Quốc (CTC Nhỏ)"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "ASR tiếng Trung trực tuyến; nhỏ và cực nhanh (INT8); độ chính xác cao; cập nhật 30/06/2025.",
-      "name": "Sherpa Trung Quốc"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "ASR tiếng Trung trực tuyến; mô hình lớn hơn, nhanh (INT8); độ chính xác rất cao; cập nhật 30/06/2025.",
-      "name": "Sherpa Trung Quốc XL"
-    },
     "small": {
       "description": "Nhanh và khá chính xác.",
       "name": "Whisper Small"
@@ -501,10 +449,6 @@
         "other": "Khác",
         "parakeet": "Parakeet",
         "punctuation": "Dấu câu",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
       },
       "types": {
@@ -710,7 +654,7 @@
       "disabledNotice": "Xử lý sau hiện đang bị tắt. Bật nó trong cài đặt Gỡ lỗi để cấu hình.",
       "fusion": {
         "enabled": {
-          "description": "Cung cấp hai bản ghi cho prompt xử lý sau: ${output} (cuối cùng) và ${streaming_output} (phụ).",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "Sử dụng bản ghi thời gian thực (hợp nhất)"
         },
         "secondaryModel": {
@@ -769,21 +713,39 @@
         "createNew": "Tạo Prompt mới",
         "createPrompt": "Tạo Prompt",
         "deletePrompt": "Xóa Prompt",
-        "enableReview": "Bật kích hoạt đánh giá",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "Không có prompt nào",
         "promptInstructions": "Hướng dẫn Prompt",
-        "promptInstructionsPlaceholder": "Viết hướng dẫn để chạy sau khi chuyển đổi. Ví dụ: Dựa trên ${context}, hãy sửa các thuật ngữ kỹ thuật trong văn bản sau: ${output}",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Nhãn Prompt",
         "promptLabelPlaceholder": "Nhập tên prompt",
-        "promptTip": "Mẹo: Có sẵn các biến sau (nhấp để sao chép):<br/><code>${output}</code>: Kết quả văn bản chuyển đổi cuối cùng.<br/><code>${streaming_output}</code>: Văn bản trung gian trong quá trình chuyển đổi thời gian thực.<br/><code>${hot_words}</code>: Các từ khóa tùy chỉnh được định nghĩa trong cài đặt.<br/><code>${prompt}</code>: Tên hiển thị của cấu hình prompt đang hoạt động.<br/><code>${context}</code>: Thông tin lịch sử trò chuyện từ cửa sổ đang hoạt động.<br/><b>Lưu ý: Nếu prompt của bạn hướng dẫn AI xuất ra cấu trúc JSON với các trường `text` và `confidence`, cửa sổ xem xét sẽ tự động được kích hoạt.</b>",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "Chọn một mẫu để tinh chỉnh bản ghi hoặc tạo mới. Bạn có thể sử dụng các biến như <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, v.v.",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "Prompt đã chọn"
         },
         "selectPrompt": "Chọn một prompt",
         "selectToEdit": "Chọn một prompt ở trên để xem và chỉnh sửa chi tiết.",
         "title": "Prompt",
-        "updatePrompt": "Cập nhật Prompt"
+        "updatePrompt": "Cập nhật Prompt",
+        "varAppNameDesc": "Tên ứng dụng đang hoạt động.",
+        "varContextDesc": "Thông tin lịch sử trò chuyện từ cửa sổ đang hoạt động.",
+        "varOutputDesc": "Kết quả văn bản chuyển đổi cuối cùng.",
+        "varPromptDesc": "Tên hiển thị của cấu hình prompt đang hoạt động.",
+        "varRawInputDesc": "Bản chuyển đổi gốc hoàn chỉnh.",
+        "varSelectDesc": "Văn bản được chọn khi kết thúc ghi âm.",
+        "varStreamingDesc": "Văn bản trung gian trong quá trình chuyển đổi thời gian thực.",
+        "varTimeDesc": "Dấu thời gian hiện tại.",
+        "varWindowTitleDesc": "Tiêu đề cửa sổ hiện tại.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       },
       "title": "Xử lý sau"
     },

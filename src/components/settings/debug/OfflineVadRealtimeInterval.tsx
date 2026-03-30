@@ -15,7 +15,7 @@ export const OfflineVadRealtimeInterval: React.FC<OfflineVadRealtimeIntervalProp
     const { t } = useTranslation();
     const { getSetting, updateSetting, isUpdating } = useSettings();
 
-    const saved = getSetting("offline_vad_force_interval_ms") ?? 2000;
+    const saved = getSetting("offline_vad_force_interval_ms") ?? 1000;
     const [tempValue, setTempValue] = useState(String(saved));
 
     useEffect(() => {
@@ -34,8 +34,8 @@ export const OfflineVadRealtimeInterval: React.FC<OfflineVadRealtimeIntervalProp
     };
 
     const handleReset = () => {
-      setTempValue("2000");
-      updateSetting("offline_vad_force_interval_ms", 2000);
+      setTempValue("1000");
+      updateSetting("offline_vad_force_interval_ms", 1000);
     };
 
     return (

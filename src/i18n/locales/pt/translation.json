@@ -133,10 +133,6 @@
           "cancel": {
             "name": "Atalho de Cancelar",
             "description": "O atalho de teclado para cancelar a gravação atual."
-          },
-          "transcribe_with_post_process": {
-            "name": "Tecla de Pós-Processamento",
-            "description": "Opcional: Uma tecla de atalho dedicada que sempre aplica pós-processamento com IA à sua transcrição."
           }
         },
         "errors": {
@@ -332,7 +328,7 @@
         "title": "Prompt",
         "selectedPrompt": {
           "title": "Prompt Selecionado",
-          "description": "Selecione um modelo para refinar transcrições ou crie um novo. Use ${output} dentro do texto do prompt para referenciar a transcrição capturada."
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements."
         },
         "noPrompts": "Nenhum prompt disponível",
         "selectPrompt": "Selecionar um prompt",
@@ -340,14 +336,26 @@
         "promptLabel": "Rótulo do Prompt",
         "promptLabelPlaceholder": "Digite o nome do prompt",
         "promptInstructions": "Instruções do Prompt",
-        "promptInstructionsPlaceholder": "Escreva as instruções para executar após a transcrição. Exemplo: Melhore a gramática e clareza do seguinte texto: ${output}",
-        "promptTip": "Dica: Use <code>${output}</code> para inserir o texto transcrito no seu prompt.",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "updatePrompt": "Atualizar Prompt",
         "deletePrompt": "Excluir Prompt",
         "createPrompt": "Criar Prompt",
         "cancel": "Cancelar",
         "selectToEdit": "Selecione um prompt acima para visualizar e editar seus detalhes.",
-        "createFirst": "Clique em 'Criar Novo Prompt' acima para criar seu primeiro prompt de pós-processamento."
+        "createFirst": "Clique em 'Criar Novo Prompt' acima para criar seu primeiro prompt de pós-processamento.",
+        "varAppNameDesc": "Nome do aplicativo ativo.",
+        "varTimeDesc": "Carimbo de data/hora atual.",
+        "varWindowTitleDesc": "Título da janela atual.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       }
     },
     "history": {

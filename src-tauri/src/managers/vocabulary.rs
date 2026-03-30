@@ -1,12 +1,10 @@
-//! Vocabulary Correction Manager
+//! Vocabulary Analysis Manager
 //!
-//! Tracks vocabulary corrections made by users when editing history entries.
-//! These corrections are used to improve future transcriptions by injecting
-//! correction hints into LLM prompts.
-//!
-//! 重要：只有发音相似的修正才会被记录，语义修改会被过滤掉。
+//! Analyzes edit diffs between original and edited text to detect word-level corrections.
+//! Records correction candidates for debugging and analytics.
+//! Auto-learning of corrections is handled by HotwordManager.
 
-use crate::phonetic_similarity::{calculate_phonetic_similarity, PhoneticSimilarity};
+use crate::phonetic_similarity::PhoneticSimilarity;
 use anyhow::Result;
 use chrono::Utc;
 use log::info;
@@ -18,19 +16,6 @@ use std::path::PathBuf;
 /// Maximum number of tokens in a single change block to be considered a vocabulary correction
 /// Changes larger than this are treated as semantic modifications and ignored
 const MAX_CORRECTION_TOKENS: usize = 5;
-
-/// Represents a single vocabulary correction record
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct VocabularyCorrection {
-    pub id: i64,
-    pub original_text: String,
-    pub corrected_text: String,
-    pub correction_count: i64,
-    pub first_seen_at: i64,
-    pub last_seen_at: i64,
-    pub is_global: bool,
-    pub target_apps: Option<String>,
-}
 
 /// Represents a detected word difference between original and edited text
 #[derive(Clone, Debug, PartialEq)]
@@ -50,7 +35,9 @@ impl VocabularyManager {
     }
 
     fn get_connection(&self) -> Result<Connection> {
-        Ok(Connection::open(&self.db_path)?)
+        let conn = Connection::open(&self.db_path)?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
+        Ok(conn)
     }
 
     /// Analyze edit differences between original and edited text
@@ -237,240 +224,9 @@ impl VocabularyManager {
         }
     }
 
-    /// Record a vocabulary correction to the database
-    /// If the same correction already exists, increment its count
-    /// scope_hint params are only used if creating a NEW record and no precedent exists.
-    ///
-    /// 重要：会先进行发音相似度检查，只有发音相似的修正才会被记录。
-    /// 这样可以过滤掉用户的语义修改，只保留 ASR 误识别的修正。
-    pub fn record_correction(
-        &self,
-        diff: &WordDiff,
-        is_global_hint: bool,
-        target_apps_hint: Option<String>,
-    ) -> Result<()> {
-        if diff.original.is_empty() && diff.corrected.is_empty() {
-            return Ok(());
-        }
-
-        // 发音相似度检查：只记录发音相似的修正
-        let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
-
-        if !similarity.is_phonetically_similar {
-            info!(
-                "[Vocabulary] Semantic change detected, skipping: \"{}\" → \"{}\" (score: {:.2}, type: {:?})",
-                diff.original, diff.corrected, similarity.score, similarity.text_type
-            );
-            // 记录到候选池但不晋升（用于统计和调试）
-            self.record_candidate(&diff, &similarity)?;
-            return Ok(());
-        }
-
-        info!(
-            "[Vocabulary] Phonetically similar correction: \"{}\" → \"{}\" (score: {:.2})",
-            diff.original, diff.corrected, similarity.score
-        );
-
-        // 记录到候选池（已通过）
-        self.record_candidate(&diff, &similarity)?;
-
-        let conn = self.get_connection()?;
-        let now = Utc::now().timestamp();
-
-        // 1. Try to inherit scope from existing corrections for the same target word
-        // This ensures that "Skill -> SKIIL" and "Skil -> SKIIL" share the same scope settings
-        let (existing_is_global, existing_target_apps): (Option<bool>, Option<Option<String>>) =
-            conn.query_row(
-                "SELECT is_global, target_apps FROM vocabulary_corrections 
-                 WHERE corrected_text = ?1 
-                 ORDER BY last_seen_at DESC LIMIT 1",
-                params![diff.corrected],
-                |row| Ok((Some(row.get(0)?), Some(row.get(1)?))),
-            )
-            .unwrap_or((None, None));
-
-        // Determine scope to use:
-        // - If exists in DB, MUST use existing scope (ignore hints)
-        // - If new, use hints
-        let (final_is_global, final_target_apps) =
-            if let (Some(g), Some(t)) = (existing_is_global, existing_target_apps) {
-                (g, t)
-            } else {
-                (is_global_hint, target_apps_hint)
-            };
-
-        // 2. Try to update existing record first
-        let updated = conn.execute(
-            "UPDATE vocabulary_corrections 
-             SET correction_count = correction_count + 1, last_seen_at = ?1
-             WHERE original_text = ?2 AND corrected_text = ?3",
-            params![now, diff.original, diff.corrected],
-        )?;
-
-        if updated == 0 {
-            // 3. Insert new record with determined scope
-            conn.execute(
-                "INSERT INTO vocabulary_corrections 
-                 (original_text, corrected_text, correction_count, first_seen_at, last_seen_at, is_global, target_apps)
-                 VALUES (?1, ?2, 1, ?3, ?3, ?4, ?5)",
-                params![diff.original, diff.corrected, now, final_is_global, final_target_apps],
-            )?;
-            info!(
-                "[Vocabulary] New correction recorded: \"{}\" → \"{}\" (global={}, apps={:?})",
-                diff.original, diff.corrected, final_is_global, final_target_apps
-            );
-        } else {
-            info!(
-                "[Vocabulary] Correction count incremented: \"{}\" → \"{}\"",
-                diff.original, diff.corrected
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Get active corrections (ordered by frequency)
-    /// Returns corrections that should be applied to transcription
-    /// Filtered by active scopes if provided (if None, checking global only is not typically useful, usually we pass scopes)
-    pub fn get_active_corrections(
-        &self,
-        active_scopes: Option<&[String]>,
-    ) -> Result<Vec<VocabularyCorrection>> {
-        let conn = self.get_connection()?;
-
-        let mut stmt = conn.prepare(
-            "SELECT id, original_text, corrected_text, correction_count, 
-                    first_seen_at, last_seen_at, is_global, target_apps
-             FROM vocabulary_corrections
-             ORDER BY correction_count DESC, last_seen_at DESC",
-        )?;
-
-        // Reuse the logic to map rows
-        let rows = stmt.query_map([], |row| {
-            Ok(VocabularyCorrection {
-                id: row.get("id")?,
-                original_text: row.get("original_text")?,
-                corrected_text: row.get("corrected_text")?,
-                correction_count: row.get("correction_count")?,
-                first_seen_at: row.get("first_seen_at")?,
-                last_seen_at: row.get("last_seen_at")?,
-                is_global: row.get("is_global")?,
-                target_apps: row.get("target_apps")?,
-            })
-        })?;
-
-        let mut corrections = Vec::new();
-        for row in rows {
-            let correction = row?;
-
-            // Filter logic:
-            // 1. If global, include it
-            // 2. If active_scopes is provided and matches target_apps json array
-            let should_include = correction.is_global || {
-                if let Some(scopes) = active_scopes {
-                    correction.target_apps.as_ref().map_or(false, |apps_json| {
-                        if let Ok(targets) = serde_json::from_str::<Vec<String>>(apps_json) {
-                            targets.iter().any(|t| scopes.contains(t))
-                        } else {
-                            false
-                        }
-                    })
-                } else {
-                    false
-                }
-            };
-
-            if should_include {
-                corrections.push(correction);
-            }
-        }
-
-        Ok(corrections)
-    }
-
-    /// Get all corrections (for management UI)
-    pub fn get_all_corrections(&self) -> Result<Vec<VocabularyCorrection>> {
-        self.get_active_corrections(None).map(|_list| {
-            // Re-fetch everything because get_active_corrections filters.
-            // Actually simpler to just run query again or make get_active_corrections return all if scopes is None?
-            // Implementation logic in get_active_corrections returns NONE if scopes is None and not global.
-            // Let's copy the query logic for get_all_corrections to be safe and clear.
-
-            let conn_res = self.get_connection();
-            if conn_res.is_err() {
-                return Vec::new();
-            }
-            let conn = conn_res.unwrap();
-
-            let mut stmt = conn
-                .prepare(
-                    "SELECT id, original_text, corrected_text, correction_count, 
-                first_seen_at, last_seen_at, is_global, target_apps
-                FROM vocabulary_corrections
-                ORDER BY last_seen_at DESC",
-                )
-                .unwrap();
-
-            let rows = stmt
-                .query_map([], |row| {
-                    Ok(VocabularyCorrection {
-                        id: row.get("id")?,
-                        original_text: row.get("original_text")?,
-                        corrected_text: row.get("corrected_text")?,
-                        correction_count: row.get("correction_count")?,
-                        first_seen_at: row.get("first_seen_at")?,
-                        last_seen_at: row.get("last_seen_at")?,
-                        is_global: row.get("is_global")?,
-                        target_apps: row.get("target_apps")?,
-                    })
-                })
-                .unwrap();
-
-            let mut all = Vec::new();
-            for r in rows {
-                all.push(r.unwrap());
-            }
-            all
-        })
-    }
-
-    /// Update scope for ALL corrections that share the same target word
-    pub fn update_scope_by_target(
-        &self,
-        corrected_text: &str,
-        is_global: bool,
-        target_apps: Option<String>,
-    ) -> Result<()> {
-        let conn = self.get_connection()?;
-        // Update all records with the same corrected_text (case-insensitive)
-        let updated = conn.execute(
-            "UPDATE vocabulary_corrections 
-             SET is_global = ?1, target_apps = ?2 
-             WHERE LOWER(corrected_text) = LOWER(?3)",
-            params![is_global, target_apps, corrected_text],
-        )?;
-
-        info!(
-            "[Vocabulary] Updated scope for {} corrections targeting \"{}\": global={}, apps={:?}",
-            updated, corrected_text, is_global, target_apps
-        );
-        Ok(())
-    }
-
-    /// Delete a correction by ID
-    pub fn delete_correction(&self, id: i64) -> Result<()> {
-        let conn = self.get_connection()?;
-        conn.execute(
-            "DELETE FROM vocabulary_corrections WHERE id = ?1",
-            params![id],
-        )?;
-        info!("[Vocabulary] Deleted correction id={}", id);
-        Ok(())
-    }
-
     /// Record a correction candidate to the candidates pool
     /// This is called for ALL edit diffs, regardless of whether they pass phonetic filtering
-    fn record_candidate(&self, diff: &WordDiff, similarity: &PhoneticSimilarity) -> Result<()> {
+    pub fn record_candidate(&self, diff: &WordDiff, similarity: &PhoneticSimilarity) -> Result<()> {
         let conn = self.get_connection()?;
         let now = Utc::now().timestamp();
 

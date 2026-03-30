@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 
 import ModelSelector from "../model-selector";
 import UpdateChecker from "../update-checker";
+import { PostProcessBar } from "./PostProcessBar";
 import { ThemeSelector } from "./ThemeSelector";
 
 interface FooterProps {
@@ -65,6 +66,7 @@ const Footer: React.FC<FooterProps> = ({
             </button>
           </Tooltip>
           <ModelSelector />
+          <PostProcessBar />
         </Flex>
 
         {/* Update Status */}

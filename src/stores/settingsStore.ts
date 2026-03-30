@@ -2,7 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { BindingResponse } from "../lib/types";
-import { AudioDevice, CachedModel, ModelType, Settings } from "../lib/types";
+import {
+  AudioDevice,
+  CachedModel,
+  ModelType,
+  MultiModelPostProcessItem,
+  Settings,
+} from "../lib/types";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -45,11 +51,23 @@ interface SettingsStore {
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
   fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  testPostProcessInference: (
+    providerId: string,
+    modelId: string,
+  ) => Promise<{ content?: string; reasoning_content?: string }>;
   setPostProcessModelOptions: (providerId: string, models: string[]) => void;
   addCachedModel: (model: CachedModel) => Promise<void>;
   updateCachedModelType: (
     modelId: string,
     modelType: ModelType,
+  ) => Promise<void>;
+  updateCachedModelPromptMessageRole: (
+    modelId: string,
+    role: "system" | "developer",
+  ) => Promise<void>;
+  toggleCachedModelThinking: (
+    modelId: string,
+    enabled: boolean,
   ) => Promise<void>;
   removeCachedModel: (modelId: string) => Promise<void>;
   toggleOnlineAsr: (enabled: boolean) => Promise<void>;
@@ -67,6 +85,17 @@ interface SettingsStore {
     modelsEndpoint?: string;
   }) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
+  toggleMultiModelSelection: (
+    cachedModelId: string,
+    selected: boolean,
+  ) => Promise<void>;
+  addMultiModelPostProcessItem: (
+    item: MultiModelPostProcessItem,
+  ) => Promise<void>;
+  updateMultiModelPostProcessItem: (
+    item: MultiModelPostProcessItem,
+  ) => Promise<void>;
+  removeMultiModelPostProcessItem: (itemId: string) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -86,7 +115,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   sound_theme: "marimba",
   start_hidden: false,
   autostart_enabled: false,
-  push_to_talk: false,
+  activation_mode: "toggle",
   selected_microphone: "Default",
   clamshell_microphone: "Default",
   selected_output_device: "Default",
@@ -94,11 +123,17 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   selected_language: "auto",
   overlay_position: "follow",
   debug_mode: false,
+  debug_log_post_process: false,
+  debug_log_skill_routing: false,
+  debug_log_routing: false,
+  debug_log_transcription: false,
   log_level: 2,
   custom_words: [],
   history_limit: 5,
   recording_retention_period: "preserve_limit",
   mute_while_recording: false,
+  audio_input_auto_enhance: true,
+  mic_enhance_preferences: {},
   append_trailing_space: false,
   cached_models: [],
   online_asr_enabled: false,
@@ -107,7 +142,8 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   punctuation_enabled: false,
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
   favorite_transcription_models: [],
-  offline_vad_force_interval_ms: 2000,
+  realtime_transcription_enabled: false,
+  offline_vad_force_interval_ms: 1000,
   offline_vad_force_window_seconds: 30,
   post_process_use_secondary_output: false,
   post_process_use_local_candidate_when_online_asr: false,
@@ -143,11 +179,22 @@ const settingUpdaters: {
     invoke("change_start_hidden_setting", { enabled: value }),
   autostart_enabled: (value) =>
     invoke("change_autostart_setting", { enabled: value }),
-  push_to_talk: (value) => invoke("change_ptt_setting", { enabled: value }),
-  selected_microphone: (value) =>
-    invoke("set_selected_microphone", {
+  activation_mode: (value) =>
+    invoke("change_activation_mode_setting", { mode: value }),
+  selected_microphone: async (value) => {
+    const result = (await invoke("set_selected_microphone", {
       deviceName: value === "Default" ? "default" : value,
-    }),
+    })) as { audio_input_auto_enhance: boolean };
+    // Apply the per-mic enhance preference returned by the backend.
+    useSettingsStore.setState((state) => ({
+      settings: state.settings
+        ? {
+            ...state.settings,
+            audio_input_auto_enhance: result.audio_input_auto_enhance,
+          }
+        : null,
+    }));
+  },
   clamshell_microphone: (value) =>
     invoke("set_clamshell_microphone", {
       deviceName: value === "Default" ? "default" : value,
@@ -166,6 +213,23 @@ const settingUpdaters: {
     invoke("change_overlay_position_setting", { position: value }),
   debug_mode: (value) =>
     invoke("change_debug_mode_setting", { enabled: value }),
+  debug_log_post_process: (value) =>
+    invoke("change_debug_log_channel", {
+      channel: "post_process",
+      enabled: value,
+    }),
+  debug_log_skill_routing: (value) =>
+    invoke("change_debug_log_channel", {
+      channel: "skill_routing",
+      enabled: value,
+    }),
+  debug_log_routing: (value) =>
+    invoke("change_debug_log_channel", { channel: "routing", enabled: value }),
+  debug_log_transcription: (value) =>
+    invoke("change_debug_log_channel", {
+      channel: "transcription",
+      enabled: value,
+    }),
   custom_words: (value) => invoke("update_custom_words", { words: value }),
   word_correction_threshold: (value) =>
     invoke("change_word_correction_threshold_setting", { threshold: value }),
@@ -183,7 +247,15 @@ const settingUpdaters: {
   post_process_context_enabled: (value) =>
     invoke("change_post_process_context_enabled_setting", { enabled: value }),
   post_process_context_limit: (value) =>
-    invoke("change_post_process_context_limit_setting", { value }),
+    invoke("change_post_process_context_limit_setting", { limit: value }),
+  post_process_streaming_output_enabled: (value) =>
+    invoke("change_post_process_streaming_output_enabled_setting", {
+      enabled: value,
+    }),
+  post_process_hotword_injection_enabled: (value) =>
+    invoke("change_post_process_hotword_injection_enabled_setting", {
+      enabled: value,
+    }),
   post_process_use_secondary_output: (value) =>
     invoke("change_post_process_use_secondary_output_setting", {
       enabled: value,
@@ -200,31 +272,57 @@ const settingUpdaters: {
     invoke("change_post_process_intent_model_id_setting", {
       modelId: value,
     }),
+  multi_model_post_process_enabled: (value) =>
+    invoke("change_multi_model_post_process_enabled_setting", {
+      enabled: value,
+    }),
+  multi_model_strategy: (value) =>
+    invoke("change_multi_model_strategy_setting", {
+      strategy: value,
+    }),
+  multi_model_preferred_id: (value) =>
+    invoke("set_multi_model_preferred_id", { id: value }),
+  multi_model_post_process_items: () => Promise.resolve(), // Handled separately
   post_process_selected_prompt_id: (value) =>
     invoke("set_post_process_selected_prompt", { id: value }),
   mute_while_recording: (value) =>
     invoke("change_mute_while_recording_setting", { enabled: value }),
+  audio_input_auto_enhance: (value) =>
+    invoke("change_audio_input_auto_enhance_setting", { enabled: value }),
   append_trailing_space: (value) =>
     invoke("change_append_trailing_space_setting", { enabled: value }),
   punctuation_enabled: (value) =>
     invoke("change_punctuation_enabled_setting", { enabled: value }),
   punctuation_model: (value) =>
-    invoke("change_punctuation_model_setting", { modelId: value }),
+    invoke("change_punctuation_model_setting", { model: value }),
   favorite_transcription_models: (value) =>
-    invoke("change_favorite_transcription_models_setting", { modelIds: value }),
+    invoke("change_favorite_transcription_models_setting", { models: value }),
+  realtime_transcription_enabled: (value) =>
+    invoke("change_realtime_transcription_enabled_setting", { enabled: value }),
   offline_vad_force_interval_ms: (value) =>
-    invoke("change_offline_vad_force_interval_ms_setting", { value }),
+    invoke("change_offline_vad_force_interval_ms_setting", { interval: value }),
   offline_vad_force_window_seconds: (value) =>
-    invoke("change_offline_vad_force_window_seconds_setting", { value }),
+    invoke("change_offline_vad_force_window_seconds_setting", {
+      window: value,
+    }),
   log_level: (value) => invoke("set_log_level", { level: value }),
   onboarding_completed: (value) =>
     invoke("change_onboarding_completed_setting", { completed: value }),
   app_review_policies: (value) =>
     invoke("set_app_review_policies", { policies: value }),
   app_profiles: (value) => invoke("set_app_profiles", { profiles: value }),
-  app_to_profile: (value) => invoke("set_app_to_profile", { mapping: value }),
+  app_to_profile: (value) =>
+    invoke("set_app_to_profile", { appToProfile: value }),
   expert_mode: (value) =>
     invoke("change_expert_mode_setting", { enabled: value }),
+  length_routing_enabled: (value) =>
+    invoke("change_length_routing_enabled_setting", { enabled: value }),
+  length_routing_threshold: (value) =>
+    invoke("change_length_routing_threshold_setting", { threshold: value }),
+  length_routing_short_model_id: (value) =>
+    invoke("change_length_routing_short_model_setting", { modelId: value }),
+  length_routing_long_model_id: (value) =>
+    invoke("change_length_routing_long_model_setting", { modelId: value }),
 };
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -489,7 +587,12 @@ export const useSettingsStore = create<SettingsStore>()(
     },
 
     setPostProcessProvider: async (providerId) => {
-      const { settings, setUpdating, refreshSettings } = get();
+      const {
+        settings,
+        setUpdating,
+        refreshSettings,
+        setPostProcessModelOptions,
+      } = get();
       const updateKey = "post_process_provider_id";
       const previousId = settings?.post_process_provider_id ?? null;
 
@@ -502,6 +605,10 @@ export const useSettingsStore = create<SettingsStore>()(
             : null,
         }));
       }
+
+      // Clear cached model options for the new provider so the dropdown
+      // doesn't show stale models from a previous fetch or base_url.
+      setPostProcessModelOptions(providerId, []);
 
       try {
         await invoke("set_post_process_provider", { providerId });
@@ -562,7 +669,40 @@ export const useSettingsStore = create<SettingsStore>()(
     },
 
     updatePostProcessBaseUrl: async (providerId, baseUrl) => {
-      return get().updatePostProcessSetting("base_url", providerId, baseUrl);
+      const { setUpdating, refreshSettings } = get();
+      const updateKey = `post_process_base_url:${providerId}`;
+
+      setUpdating(updateKey, true);
+
+      try {
+        // Persist the new base URL first.
+        await invoke("change_post_process_base_url_setting", {
+          providerId,
+          baseUrl,
+        });
+
+        // Reset the stored model since the previous value is almost certainly
+        // invalid for the new endpoint.
+        await invoke("change_post_process_model_setting", {
+          providerId,
+          model: "",
+        });
+
+        // Clear cached model options after both backend writes succeed.
+        set((state) => ({
+          postProcessModelOptions: {
+            ...state.postProcessModelOptions,
+            [providerId]: [],
+          },
+        }));
+
+        // Single refresh after both backend writes.
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update post-process base URL:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
     },
 
     updatePostProcessApiKey: async (providerId, apiKey) => {
@@ -597,6 +737,24 @@ export const useSettingsStore = create<SettingsStore>()(
       } catch (error) {
         console.error("Failed to fetch models:", error);
         // Don't cache empty array on error - let user retry
+        throw error;
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    testPostProcessInference: async (providerId: string, modelId: string) => {
+      const updateKey = `test_post_process_inference:${providerId}`;
+      const { setUpdating } = get();
+      setUpdating(updateKey, true);
+      try {
+        const result = (await invoke("test_post_process_model_inference", {
+          providerId,
+          modelId,
+        })) as { content?: string; reasoning_content?: string };
+        return result;
+      } catch (error) {
+        console.error("Failed to test post-process inference:", error);
         throw error;
       } finally {
         setUpdating(updateKey, false);
@@ -670,6 +828,76 @@ export const useSettingsStore = create<SettingsStore>()(
       }
     },
 
+    // Multi-model checkbox selection
+    toggleMultiModelSelection: async (
+      cachedModelId: string,
+      selected: boolean,
+    ) => {
+      const updateKey = "toggle_multi_model_selection";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("toggle_multi_model_selection", {
+          cachedModelId,
+          selected,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to toggle multi-model selection:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    // Multi-model post-process CRUD operations
+    addMultiModelPostProcessItem: async (item: MultiModelPostProcessItem) => {
+      const updateKey = "add_multi_model_item";
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("add_multi_model_post_process_item", { item });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to add multi-model item:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateMultiModelPostProcessItem: async (
+      item: MultiModelPostProcessItem,
+    ) => {
+      const updateKey = `update_multi_model_item:${item.id}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("update_multi_model_post_process_item", { item });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to update multi-model item:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    removeMultiModelPostProcessItem: async (itemId: string) => {
+      const updateKey = `remove_multi_model_item:${itemId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+
+      try {
+        await invoke("remove_multi_model_post_process_item", { itemId });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to remove multi-model item:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
     addCachedModel: async (model) => {
       const updateKey = "cached_model_add";
       const { setUpdating, refreshSettings } = get();
@@ -696,6 +924,43 @@ export const useSettingsStore = create<SettingsStore>()(
         await refreshSettings();
       } catch (error) {
         console.error("Failed to update cached model type:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    updateCachedModelPromptMessageRole: async (modelId, role) => {
+      const updateKey = `cached_model_prompt_role:${modelId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("change_cached_model_prompt_message_role", {
+          id: modelId,
+          role,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error(
+          "Failed to update cached model prompt message role:",
+          error,
+        );
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    toggleCachedModelThinking: async (modelId, enabled) => {
+      const updateKey = `cached_model_thinking:${modelId}`;
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(updateKey, true);
+      try {
+        await invoke("toggle_cached_model_thinking", {
+          id: modelId,
+          enabled,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to toggle thinking mode:", error);
       } finally {
         setUpdating(updateKey, false);
       }

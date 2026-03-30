@@ -9,7 +9,7 @@ export const ShortcutsSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting, settings } = useSettings();
 
-  const pushToTalk = getSetting("push_to_talk") || false;
+  const activationMode = getSetting("activation_mode") || "toggle";
   const debugMode = settings?.debug_mode ?? false;
 
   return (
@@ -17,11 +17,6 @@ export const ShortcutsSettings: React.FC = () => {
       <SettingsGroup title={t("settings.shortcuts.title")}>
         <VotypeShortcut
           shortcutId="transcribe"
-          descriptionMode="inline"
-          grouped={true}
-        />
-        <VotypeShortcut
-          shortcutId="transcribe_with_post_process"
           descriptionMode="inline"
           grouped={true}
         />
@@ -45,7 +40,7 @@ export const ShortcutsSettings: React.FC = () => {
             shortcutId="cancel"
             descriptionMode="inline"
             grouped={true}
-            disabled={pushToTalk}
+            disabled={activationMode === "hold"}
           />
         ) : null}
       </SettingsGroup>

@@ -1,11 +1,14 @@
 mod actions;
 mod active_window;
+mod app_category;
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
+mod cli;
 mod clipboard;
 mod commands;
+pub mod error;
 mod helpers;
 mod input;
 mod llm_client;
@@ -15,7 +18,6 @@ mod overlay;
 pub mod phonetic_similarity;
 mod review_window;
 mod settings;
-mod sherpa;
 mod shortcut;
 mod signal_handle;
 #[cfg(test)]
@@ -24,6 +26,7 @@ pub mod transcription_coordinator;
 pub use transcription_coordinator::TranscriptionCoordinator;
 mod tray;
 mod utils;
+mod window_context;
 
 use env_filter::Builder as EnvFilterBuilder;
 use managers::audio::AudioRecordingManager;
@@ -36,7 +39,7 @@ use signal_hook::consts::SIGUSR2;
 #[cfg(unix)]
 use signal_hook::iterator::Signals;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use tauri::image::Image;
 
@@ -44,12 +47,19 @@ use tauri::tray::TrayIconBuilder;
 use tauri::Emitter;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
+use tauri_plugin_log::fern::colors::{Color, ColoredLevelConfig};
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
 
 // Global atomic to store the file log level filter
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
 pub static CONSOLE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Info as u8);
+
+// Debug log channel toggles
+pub static DEBUG_LOG_POST_PROCESS: AtomicBool = AtomicBool::new(false);
+pub static DEBUG_LOG_SKILL_ROUTING: AtomicBool = AtomicBool::new(false);
+pub static DEBUG_LOG_ROUTING: AtomicBool = AtomicBool::new(false);
+pub static DEBUG_LOG_TRANSCRIPTION: AtomicBool = AtomicBool::new(false);
 
 fn level_filter_from_u8(value: u8) -> log::LevelFilter {
     match value {
@@ -124,6 +134,9 @@ pub struct PendingSkillConfirmation {
 
 pub type ManagedPendingSkillConfirmation = Mutex<PendingSkillConfirmation>;
 
+/// State for pending ASR timeout response (online-only mode)
+pub type AsrTimeoutResponseSender = Mutex<Option<tokio::sync::oneshot::Sender<String>>>;
+
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Initialize the input state (Enigo will be lazily initialized on first use)
     let enigo_state = input::EnigoState::new();
@@ -160,22 +173,75 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(summary_manager.clone());
     let hotword_manager = Arc::new(managers::HotwordManager::new(db_path.clone()));
     app_handle.manage(hotword_manager.clone());
-    let daily_vocabulary_manager = Arc::new(managers::DailyVocabularyManager::new(db_path.clone()));
-    app_handle.manage(daily_vocabulary_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
     app_handle.manage(prompt_manager.clone());
+    let presets_config = crate::managers::model_preset::load_model_presets(app_handle)
+        .unwrap_or_else(|e| {
+            log::warn!("Failed to load model presets: {}. Using empty config.", e);
+            crate::managers::model_preset::ModelPresetsConfig {
+                version: 0,
+                presets: vec![],
+                families: vec![],
+            }
+        });
+    log::info!(
+        "[ModelPreset] Loaded {} families, {} presets",
+        presets_config.families.len(),
+        presets_config.presets.len(),
+    );
+    app_handle.manage(Arc::new(presets_config));
+
+    // Migration: detect model_family for existing cached models that don't have one set
+    {
+        let presets_cfg =
+            app_handle.state::<Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+        let mut settings = settings::get_settings(app_handle);
+        let mut changed = false;
+        for model in settings.cached_models.iter_mut() {
+            if model.model_family.is_none() {
+                let detected = crate::managers::model_preset::detect_model_family_with_label(
+                    &model.model_id,
+                    model.custom_label.as_deref(),
+                    &presets_cfg,
+                );
+                if detected.is_some() {
+                    log::info!(
+                        "Migration: detected model family '{:?}' for existing model '{}'",
+                        detected,
+                        model.model_id
+                    );
+                    model.model_family = detected;
+                    changed = true;
+                }
+            }
+        }
+        if changed {
+            settings::write_settings(app_handle, settings);
+        }
+    }
+
+    // Apply accelerator preferences before any model is loaded
+    crate::managers::transcription::apply_accelerator_settings(app_handle);
+
     app_handle.manage(tray::ManagedTrayIconState(std::sync::Mutex::new(
         tray::TrayIconState::Idle,
     )));
     app_handle.manage(Mutex::new(PendingSkillConfirmation::default()));
+    app_handle.manage(AsrTimeoutResponseSender::default());
 
     // Initialize the TranscriptionCoordinator before shortcuts so shortcut
     // handlers can find it in state when processing transcribe actions.
     let coordinator = transcription_coordinator::TranscriptionCoordinator::new(app_handle.clone());
     app_handle.manage(coordinator);
 
-    // Initialize the shortcuts
+    // Initialize global shortcuts eagerly so they work even when the main
+    // window has not been shown yet (e.g. start_hidden mode).  Global
+    // shortcuts do NOT require macOS Accessibility permissions — only Enigo
+    // (key simulation for paste) does, and that is initialized separately.
+    // The frontend `initialize_shortcuts` call is idempotent and acts as a
+    // no-op if shortcuts are already registered.
     shortcut::init_shortcuts(app_handle);
+    app_handle.manage(commands::ShortcutsInitialized);
 
     #[cfg(unix)]
     let signals = Signals::new([SIGUSR2]).unwrap();
@@ -197,6 +263,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Choose the appropriate initial icon based on theme
     let initial_icon_path = tray::get_icon_path(initial_theme, tray::TrayIconState::Idle);
 
+    let tooltip = tray::version_label();
+
     let tray = TrayIconBuilder::new()
         .icon(
             Image::from_path(
@@ -207,6 +275,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             )
             .unwrap(),
         )
+        .tooltip(tooltip)
         .show_menu_on_left_click(true)
         .icon_as_template(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -257,6 +326,34 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     review_window::create_review_window(app_handle);
 }
 
+fn ensure_runtime_dirs(app_handle: &AppHandle) {
+    match app_handle.path().app_data_dir() {
+        Ok(app_data_dir) => {
+            if let Err(err) = std::fs::create_dir_all(&app_data_dir) {
+                eprintln!(
+                    "Failed to create app data dir {}: {}",
+                    app_data_dir.display(),
+                    err
+                );
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to resolve app data dir: {}", err);
+        }
+    }
+
+    match app_handle.path().app_log_dir() {
+        Ok(log_dir) => {
+            if let Err(err) = std::fs::create_dir_all(&log_dir) {
+                eprintln!("Failed to create log dir {}: {}", log_dir.display(), err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to resolve log dir: {}", err);
+        }
+    }
+}
+
 #[tauri::command]
 fn trigger_update_check(app: AppHandle) -> Result<(), String> {
     let settings = settings::get_settings(&app);
@@ -270,9 +367,164 @@ fn trigger_update_check(app: AppHandle) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Generate TypeScript bindings in debug mode (before app starts)
+    #[cfg(debug_assertions)]
+    {
+        use tauri_specta::{collect_commands, Builder};
+
+        let specta_builder = Builder::<tauri::Wry>::new().commands(collect_commands![
+            shortcut::change_binding,
+            shortcut::reset_binding,
+            shortcut::suspend_binding,
+            shortcut::resume_binding,
+            shortcut::change_keyboard_implementation_setting,
+            shortcut::get_keyboard_implementation,
+            shortcut::settings_cmds::change_post_process_enabled_setting,
+            shortcut::settings_cmds::change_post_process_context_enabled_setting,
+            shortcut::settings_cmds::change_post_process_context_limit_setting,
+            shortcut::settings_cmds::change_post_process_streaming_output_enabled_setting,
+            shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
+            shortcut::settings_cmds::change_post_process_base_url_setting,
+            shortcut::settings_cmds::change_post_process_api_key_setting,
+            shortcut::settings_cmds::change_post_process_model_setting,
+            shortcut::settings_cmds::set_post_process_provider,
+            shortcut::settings_cmds::toggle_online_asr,
+            shortcut::settings_cmds::select_asr_model,
+            shortcut::settings_cmds::select_post_process_model,
+            shortcut::settings_cmds::set_post_process_selected_prompt,
+            shortcut::settings_cmds::upsert_app_profile,
+            shortcut::settings_cmds::remove_app_profile,
+            shortcut::settings_cmds::assign_app_to_profile,
+            shortcut::settings_cmds::set_app_profiles,
+            shortcut::settings_cmds::set_app_to_profile,
+            shortcut::settings_cmds::change_lazy_stream_close_setting,
+            shortcut::settings_cmds::change_mute_while_recording_setting,
+            shortcut::settings_cmds::change_audio_input_auto_enhance_setting,
+            shortcut::settings_cmds::change_append_trailing_space_setting,
+            shortcut::settings_cmds::change_app_language_setting,
+            shortcut::settings_cmds::change_show_tray_icon_setting,
+            shortcut::settings_cmds::change_experimental_enabled_setting,
+            shortcut::settings_cmds::change_autostart_setting,
+            shortcut::settings_cmds::change_update_checks_setting,
+            shortcut::settings_cmds::change_expert_mode_setting,
+            shortcut::settings_cmds::change_onboarding_completed_setting,
+            shortcut::settings_cmds::change_word_correction_threshold_setting,
+            shortcut::settings_cmds::change_paste_method_setting,
+            shortcut::settings_cmds::change_paste_delay_ms_setting,
+            shortcut::settings_cmds::change_extra_recording_buffer_setting,
+            shortcut::settings_cmds::change_clipboard_handling_setting,
+            shortcut::settings_cmds::change_auto_submit_setting,
+            shortcut::settings_cmds::change_auto_submit_key_setting,
+            shortcut::settings_cmds::change_activation_mode_setting,
+            shortcut::settings_cmds::change_audio_feedback_setting,
+            shortcut::settings_cmds::change_audio_feedback_volume_setting,
+            shortcut::settings_cmds::change_sound_theme_setting,
+            shortcut::settings_cmds::change_translate_to_english_setting,
+            shortcut::settings_cmds::change_selected_language_setting,
+            shortcut::settings_cmds::change_overlay_position_setting,
+            shortcut::settings_cmds::change_debug_mode_setting,
+            shortcut::settings_cmds::change_debug_log_channel,
+            shortcut::settings_cmds::change_start_hidden_setting,
+            shortcut::settings_cmds::change_show_overlay_setting,
+            shortcut::settings_cmds::add_cached_model,
+            shortcut::settings_cmds::update_cached_model_capability,
+            shortcut::settings_cmds::change_cached_model_prompt_message_role,
+            shortcut::settings_cmds::update_cached_model,
+            shortcut::settings_cmds::get_thinking_config,
+            shortcut::settings_cmds::toggle_cached_model_thinking,
+            shortcut::settings_cmds::remove_cached_model,
+            shortcut::settings_cmds::change_favorite_transcription_models_setting,
+            shortcut::settings_cmds::change_punctuation_enabled_setting,
+            shortcut::settings_cmds::change_punctuation_model_setting,
+            shortcut::settings_cmds::change_realtime_transcription_enabled_setting,
+            shortcut::settings_cmds::change_offline_vad_force_interval_ms_setting,
+            shortcut::settings_cmds::change_offline_vad_force_window_seconds_setting,
+            shortcut::settings_cmds::change_post_process_use_local_candidate_when_online_asr_setting,
+            shortcut::settings_cmds::change_post_process_secondary_model_id_setting,
+            shortcut::settings_cmds::change_post_process_intent_model_id_setting,
+            shortcut::settings_cmds::change_length_routing_enabled_setting,
+            shortcut::settings_cmds::change_length_routing_threshold_setting,
+            shortcut::settings_cmds::change_length_routing_short_model_setting,
+            shortcut::settings_cmds::change_length_routing_long_model_setting,
+            shortcut::settings_cmds::change_post_process_use_secondary_output_setting,
+            shortcut::settings_cmds::get_model_families,
+            shortcut::settings_cmds::detect_model_family_cmd,
+            shortcut::settings_cmds::get_preset_params,
+            shortcut::settings_cmds::get_available_presets,
+            shortcut::settings_cmds::update_cached_model_family,
+            shortcut::settings_cmds::change_whisper_accelerator_setting,
+            shortcut::settings_cmds::change_ort_accelerator_setting,
+            shortcut::settings_cmds::change_whisper_gpu_device,
+            shortcut::settings_cmds::get_available_accelerators,
+            shortcut::multi_model_cmds::toggle_multi_model_selection,
+            shortcut::multi_model_cmds::change_multi_model_post_process_enabled_setting,
+            shortcut::multi_model_cmds::change_multi_model_strategy_setting,
+            shortcut::multi_model_cmds::add_multi_model_post_process_item,
+            shortcut::multi_model_cmds::update_multi_model_post_process_item,
+            shortcut::multi_model_cmds::remove_multi_model_post_process_item,
+            shortcut::multi_model_cmds::set_multi_model_preferred_id,
+            shortcut::review_cmds::confirm_reviewed_transcription,
+            shortcut::review_cmds::cancel_transcription_review,
+            shortcut::review_cmds::set_review_editor_active_state,
+            shortcut::review_cmds::set_review_editor_content_state,
+            shortcut::review_cmds::rerun_single_with_prompt,
+            shortcut::review_cmds::get_post_process_prompts,
+            shortcut::review_cmds::get_review_model_options,
+            shortcut::review_cmds::rerun_multi_model_with_prompt,
+            shortcut::provider_cmds::fetch_post_process_models,
+            shortcut::provider_cmds::add_custom_provider,
+            shortcut::provider_cmds::update_custom_provider,
+            shortcut::provider_cmds::remove_custom_provider,
+            shortcut::test_cmds::test_post_process_model_inference,
+            shortcut::test_cmds::test_asr_model_inference,
+            shortcut::handy_keys::start_handy_keys_recording,
+            shortcut::handy_keys::stop_handy_keys_recording,
+            shortcut::skills_cmds::get_all_skills,
+            shortcut::skills_cmds::create_skill,
+            shortcut::skills_cmds::delete_skill,
+            shortcut::skills_cmds::get_skill_templates,
+            shortcut::skills_cmds::save_external_skill,
+            shortcut::skills_cmds::create_skill_from_template,
+            shortcut::skills_cmds::reorder_skills,
+            shortcut::skills_cmds::get_skills_order,
+            shortcut::skills_cmds::get_builtin_skills,
+            shortcut::skills_cmds::get_default_skill_content,
+            shortcut::skills_cmds::get_external_skills,
+            shortcut::skills_cmds::open_skills_folder,
+            shortcut::skills_cmds::refresh_external_skills,
+            shortcut::skills_cmds::reset_skill_to_file_version,
+            shortcut::skills_cmds::open_skill_source_file,
+            shortcut::skills_cmds::ai_generate_skill,
+            shortcut::skills_cmds::check_skill_id_conflict,
+            shortcut::skills_cmds::is_directory_skill,
+            shortcut::skills_cmds::get_skill_references,
+            shortcut::skills_cmds::save_skill_reference,
+            shortcut::skills_cmds::delete_skill_reference,
+        ]);
+
+        let bindings_path =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/bindings.ts");
+        if let Err(e) = specta_builder.export(
+            specta_typescript::Typescript::default()
+                .bigint(specta_typescript::BigIntExportBehavior::Number)
+                .header("// Auto-generated by tauri-specta. Do not edit.\n"),
+            &bindings_path,
+        ) {
+            eprintln!("Warning: Failed to export specta bindings: {}", e);
+        }
+    }
+
     // Parse console logging directives from RUST_LOG, falling back to info-level logging
     // when the variable is unset
     let console_filter = build_console_filter();
+
+    // Colored log levels for terminal output
+    let colors = ColoredLevelConfig::new()
+        .error(Color::Red)
+        .warn(Color::Yellow)
+        .info(Color::Green)
+        .debug(Color::Blue)
+        .trace(Color::Magenta);
 
     let mut builder = tauri::Builder::default()
         .device_event_filter(tauri::DeviceEventFilter::Always)
@@ -281,28 +533,50 @@ pub fn run() {
                 .level(log::LevelFilter::Trace) // Set to most verbose level globally
                 .max_file_size(500_000)
                 .rotation_strategy(RotationStrategy::KeepOne)
+                .clear_format() // Remove default global format to avoid duplicate metadata
                 .clear_targets()
                 .targets([
-                    // Console output respects RUST_LOG environment variable OR dynamic console level
-                    Target::new(TargetKind::Stdout).filter({
-                        let console_filter = console_filter.clone();
-                        move |metadata| {
-                            // Check RUST_LOG filter first
-                            if console_filter.enabled(metadata) {
-                                return true;
+                    // Console output with colored log levels
+                    Target::new(TargetKind::Stdout)
+                        .filter({
+                            let console_filter = console_filter.clone();
+                            move |metadata| {
+                                // Check RUST_LOG filter first
+                                if console_filter.enabled(metadata) {
+                                    return true;
+                                }
+                                // Fallback to dynamic console level
+                                let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
+                                metadata.level() <= level_filter_from_u8(console_level)
                             }
-                            // Fallback to dynamic console level
-                            let console_level = CONSOLE_LOG_LEVEL.load(Ordering::Relaxed);
-                            metadata.level() <= level_filter_from_u8(console_level)
-                        }
-                    }),
-                    // File logs respect the user's settings (stored in FILE_LOG_LEVEL atomic)
+                        })
+                        .format(move |out, message, record| {
+                            let now = chrono::Local::now();
+                            out.finish(format_args!(
+                                "[{}][{}][{}] {}",
+                                now.format("%H:%M:%S"),
+                                colors.color(record.level()),
+                                record.target(),
+                                message
+                            ))
+                        }),
+                    // File logs with timestamp (no color)
                     Target::new(TargetKind::LogDir {
                         file_name: Some("votype".into()),
                     })
                     .filter(|metadata| {
                         let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
                         metadata.level() <= level_filter_from_u8(file_level)
+                    })
+                    .format(|out, message, record| {
+                        let now = chrono::Local::now();
+                        out.finish(format_args!(
+                            "[{}][{}][{}] {}",
+                            now.format("%Y-%m-%d %H:%M:%S"),
+                            record.level(),
+                            record.target(),
+                            message
+                        ))
                     }),
                 ])
                 .build(),
@@ -315,8 +589,8 @@ pub fn run() {
     }
 
     builder
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            let _ = utils::show_or_create_main_window(app, Some("dashboard"));
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            cli::handle_cli_args(app, &args);
         }))
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
@@ -333,25 +607,38 @@ pub fn run() {
         ))
         .manage(Mutex::new(ShortcutToggleStates::default()))
         .setup(move |app| {
+            ensure_runtime_dirs(app.handle());
+
+            // Parse CLI args for first-launch flags
+            let cli_args = cli::CliArgs::try_parse_from_args(&std::env::args().collect::<Vec<_>>());
+
             let settings = settings::get_settings(app.handle());
             let file_log_level: log::Level = settings.log_level.clone().into();
             // Store the file log level in the atomic for the filter to use
             FILE_LOG_LEVEL.store(file_log_level.to_level_filter() as u8, Ordering::Relaxed);
 
-            // Initialize console log level based on debug_mode
-            let console_level = if settings.debug_mode {
+            // Apply debug mode from CLI or settings
+            let debug_mode = cli_args.as_ref().map_or(settings.debug_mode, |a| a.debug || settings.debug_mode);
+            let console_level = if debug_mode {
                 log::LevelFilter::Debug
             } else {
                 log::LevelFilter::Info
             };
             CONSOLE_LOG_LEVEL.store(console_level as u8, Ordering::Relaxed);
 
+            // Sync debug log channel toggles from settings
+            DEBUG_LOG_POST_PROCESS.store(settings.debug_log_post_process, Ordering::Relaxed);
+            DEBUG_LOG_SKILL_ROUTING.store(settings.debug_log_skill_routing, Ordering::Relaxed);
+            DEBUG_LOG_ROUTING.store(settings.debug_log_routing, Ordering::Relaxed);
+            DEBUG_LOG_TRANSCRIPTION.store(settings.debug_log_transcription, Ordering::Relaxed);
+
             let app_handle = app.handle().clone();
 
             initialize_core_logic(&app_handle);
 
-            // Show main window only if not starting hidden
-            if !settings.start_hidden {
+            // Show main window unless hidden by CLI flag or settings
+            let start_hidden = cli_args.as_ref().map_or(settings.start_hidden, |a| a.start_hidden || settings.start_hidden);
+            if !start_hidden {
                 let _ = utils::show_or_create_main_window(&app_handle, Some("dashboard"));
             }
 
@@ -382,90 +669,132 @@ pub fn run() {
             shortcut::reset_binding,
             shortcut::suspend_binding,
             shortcut::resume_binding,
-            shortcut::change_ptt_setting,
-            shortcut::change_audio_feedback_setting,
-            shortcut::change_audio_feedback_volume_setting,
-            shortcut::change_sound_theme_setting,
-            shortcut::change_start_hidden_setting,
-            shortcut::change_autostart_setting,
-            shortcut::change_update_checks_setting,
-            shortcut::change_expert_mode_setting,
-            shortcut::change_onboarding_completed_setting,
-            shortcut::change_translate_to_english_setting,
-            shortcut::change_selected_language_setting,
-            shortcut::change_app_language_setting,
-            shortcut::change_overlay_position_setting,
-            shortcut::change_debug_mode_setting,
-            shortcut::change_word_correction_threshold_setting,
-            shortcut::change_paste_method_setting,
-            shortcut::change_clipboard_handling_setting,
-            shortcut::change_auto_submit_setting,
-            shortcut::change_auto_submit_key_setting,
-            shortcut::change_mute_while_recording_setting,
-            shortcut::change_append_trailing_space_setting,
-            shortcut::change_show_tray_icon_setting,
-            shortcut::change_show_overlay_setting,
-            shortcut::change_experimental_enabled_setting,
+            shortcut::settings_cmds::change_activation_mode_setting,
+            shortcut::settings_cmds::change_audio_feedback_setting,
+            shortcut::settings_cmds::change_audio_feedback_volume_setting,
+            shortcut::settings_cmds::change_sound_theme_setting,
+            shortcut::settings_cmds::change_start_hidden_setting,
+            shortcut::settings_cmds::change_autostart_setting,
+            shortcut::settings_cmds::change_update_checks_setting,
+            shortcut::settings_cmds::change_expert_mode_setting,
+            shortcut::settings_cmds::change_onboarding_completed_setting,
+            shortcut::settings_cmds::change_translate_to_english_setting,
+            shortcut::settings_cmds::change_selected_language_setting,
+            shortcut::settings_cmds::change_app_language_setting,
+            shortcut::settings_cmds::change_overlay_position_setting,
+            shortcut::settings_cmds::change_debug_mode_setting,
+            shortcut::settings_cmds::change_debug_log_channel,
+            shortcut::settings_cmds::change_word_correction_threshold_setting,
+            shortcut::settings_cmds::change_paste_method_setting,
+            shortcut::settings_cmds::change_paste_delay_ms_setting,
+            shortcut::settings_cmds::change_extra_recording_buffer_setting,
+            shortcut::settings_cmds::change_clipboard_handling_setting,
+            shortcut::settings_cmds::change_auto_submit_setting,
+            shortcut::settings_cmds::change_auto_submit_key_setting,
+            shortcut::settings_cmds::change_lazy_stream_close_setting,
+            shortcut::settings_cmds::change_mute_while_recording_setting,
+            shortcut::settings_cmds::change_audio_input_auto_enhance_setting,
+            shortcut::settings_cmds::change_append_trailing_space_setting,
+            shortcut::settings_cmds::change_show_tray_icon_setting,
+            shortcut::settings_cmds::change_show_overlay_setting,
+            shortcut::settings_cmds::change_experimental_enabled_setting,
             shortcut::change_keyboard_implementation_setting,
             shortcut::get_keyboard_implementation,
-            shortcut::change_post_process_enabled_setting,
-            shortcut::change_post_process_use_secondary_output_setting,
-            shortcut::change_post_process_use_local_candidate_when_online_asr_setting,
-            shortcut::change_post_process_secondary_model_id_setting,
-            shortcut::change_post_process_intent_model_id_setting,
-            shortcut::change_post_process_base_url_setting,
-            shortcut::change_post_process_api_key_setting,
-            shortcut::change_post_process_model_setting,
-            shortcut::change_post_process_context_enabled_setting,
-            shortcut::change_post_process_context_limit_setting,
-            shortcut::set_post_process_provider,
-            shortcut::fetch_post_process_models,
-            shortcut::add_custom_provider,
-            shortcut::update_custom_provider,
-            shortcut::remove_custom_provider,
-            shortcut::add_cached_model,
-            shortcut::update_cached_model_capability,
-            shortcut::remove_cached_model,
-            shortcut::toggle_online_asr,
-            shortcut::select_asr_model,
-            shortcut::select_post_process_model,
-            shortcut::set_post_process_selected_prompt,
-            shortcut::get_all_skills,
-            shortcut::get_builtin_skills,
-            shortcut::get_external_skills,
-            shortcut::get_skill_templates,
-            shortcut::get_default_skill_content,
-            shortcut::create_skill,
-            shortcut::create_skill_from_template,
-            shortcut::delete_skill,
-            shortcut::save_external_skill,
-            shortcut::reorder_skills,
-            shortcut::refresh_external_skills,
-            shortcut::open_skills_folder,
-            shortcut::reset_skill_to_file_version,
-            shortcut::open_skill_source_file,
-            shortcut::ai_generate_skill,
-            shortcut::check_skill_id_conflict,
-            shortcut::change_favorite_transcription_models_setting,
-            shortcut::change_confidence_check_setting,
-            shortcut::change_confidence_threshold_setting,
-            shortcut::change_punctuation_enabled_setting,
-            shortcut::change_punctuation_model_setting,
-            shortcut::change_offline_vad_force_interval_ms_setting,
-            shortcut::change_offline_vad_force_window_seconds_setting,
-            shortcut::upsert_app_profile,
-            shortcut::remove_app_profile,
-            shortcut::assign_app_to_profile,
-            shortcut::set_app_profiles,
-            shortcut::set_app_to_profile,
-            shortcut::confirm_reviewed_transcription,
-            shortcut::cancel_transcription_review,
-            shortcut::test_post_process_model_inference,
-            shortcut::test_asr_model_inference,
+            shortcut::settings_cmds::change_post_process_enabled_setting,
+            shortcut::settings_cmds::change_post_process_use_secondary_output_setting,
+            shortcut::settings_cmds::change_post_process_use_local_candidate_when_online_asr_setting,
+            shortcut::settings_cmds::change_post_process_secondary_model_id_setting,
+            shortcut::multi_model_cmds::toggle_multi_model_selection,
+            shortcut::review_cmds::get_post_process_prompts,
+            shortcut::review_cmds::get_review_model_options,
+            shortcut::review_cmds::rerun_single_with_prompt,
+            shortcut::review_cmds::rerun_multi_model_with_prompt,
+            shortcut::multi_model_cmds::change_multi_model_post_process_enabled_setting,
+            shortcut::multi_model_cmds::change_multi_model_strategy_setting,
+            shortcut::multi_model_cmds::add_multi_model_post_process_item,
+            shortcut::multi_model_cmds::update_multi_model_post_process_item,
+            shortcut::multi_model_cmds::remove_multi_model_post_process_item,
+            shortcut::multi_model_cmds::set_multi_model_preferred_id,
+            shortcut::settings_cmds::change_post_process_intent_model_id_setting,
+            shortcut::settings_cmds::change_length_routing_enabled_setting,
+            shortcut::settings_cmds::change_length_routing_threshold_setting,
+            shortcut::settings_cmds::change_length_routing_short_model_setting,
+            shortcut::settings_cmds::change_length_routing_long_model_setting,
+            shortcut::settings_cmds::change_post_process_base_url_setting,
+            shortcut::settings_cmds::change_post_process_api_key_setting,
+            shortcut::settings_cmds::change_post_process_model_setting,
+            shortcut::settings_cmds::change_post_process_context_enabled_setting,
+            shortcut::settings_cmds::change_post_process_context_limit_setting,
+            shortcut::settings_cmds::change_post_process_streaming_output_enabled_setting,
+            shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
+            shortcut::settings_cmds::set_post_process_provider,
+            shortcut::provider_cmds::fetch_post_process_models,
+            shortcut::provider_cmds::add_custom_provider,
+            shortcut::provider_cmds::update_custom_provider,
+            shortcut::provider_cmds::remove_custom_provider,
+            shortcut::settings_cmds::add_cached_model,
+            shortcut::settings_cmds::update_cached_model_capability,
+            shortcut::settings_cmds::change_cached_model_prompt_message_role,
+            shortcut::settings_cmds::update_cached_model,
+            shortcut::settings_cmds::update_cached_model_family,
+            shortcut::settings_cmds::change_whisper_accelerator_setting,
+            shortcut::settings_cmds::change_ort_accelerator_setting,
+            shortcut::settings_cmds::change_whisper_gpu_device,
+            shortcut::settings_cmds::get_available_accelerators,
+            shortcut::settings_cmds::get_model_families,
+            shortcut::settings_cmds::detect_model_family_cmd,
+            shortcut::settings_cmds::get_preset_params,
+            shortcut::settings_cmds::get_available_presets,
+            shortcut::settings_cmds::get_thinking_config,
+            shortcut::settings_cmds::toggle_cached_model_thinking,
+            shortcut::settings_cmds::remove_cached_model,
+            shortcut::settings_cmds::toggle_online_asr,
+            shortcut::settings_cmds::select_asr_model,
+            shortcut::settings_cmds::select_post_process_model,
+            shortcut::settings_cmds::set_post_process_selected_prompt,
+            shortcut::skills_cmds::get_all_skills,
+            shortcut::skills_cmds::get_builtin_skills,
+            shortcut::skills_cmds::get_external_skills,
+            shortcut::skills_cmds::get_skill_templates,
+            shortcut::skills_cmds::get_default_skill_content,
+            shortcut::skills_cmds::create_skill,
+            shortcut::skills_cmds::create_skill_from_template,
+            shortcut::skills_cmds::delete_skill,
+            shortcut::skills_cmds::save_external_skill,
+            shortcut::skills_cmds::reorder_skills,
+            shortcut::skills_cmds::get_skills_order,
+            shortcut::skills_cmds::refresh_external_skills,
+            shortcut::skills_cmds::open_skills_folder,
+            shortcut::skills_cmds::reset_skill_to_file_version,
+            shortcut::skills_cmds::open_skill_source_file,
+            shortcut::skills_cmds::ai_generate_skill,
+            shortcut::skills_cmds::check_skill_id_conflict,
+            shortcut::skills_cmds::is_directory_skill,
+            shortcut::skills_cmds::get_skill_references,
+            shortcut::skills_cmds::save_skill_reference,
+            shortcut::skills_cmds::delete_skill_reference,
+            shortcut::settings_cmds::change_favorite_transcription_models_setting,
+            shortcut::settings_cmds::change_punctuation_enabled_setting,
+            shortcut::settings_cmds::change_punctuation_model_setting,
+            shortcut::settings_cmds::change_realtime_transcription_enabled_setting,
+            shortcut::settings_cmds::change_offline_vad_force_interval_ms_setting,
+            shortcut::settings_cmds::change_offline_vad_force_window_seconds_setting,
+            shortcut::settings_cmds::upsert_app_profile,
+            shortcut::settings_cmds::remove_app_profile,
+            shortcut::settings_cmds::assign_app_to_profile,
+            shortcut::settings_cmds::set_app_profiles,
+            shortcut::settings_cmds::set_app_to_profile,
+            shortcut::review_cmds::confirm_reviewed_transcription,
+            shortcut::review_cmds::cancel_transcription_review,
+            shortcut::review_cmds::set_review_editor_active_state,
+            shortcut::review_cmds::set_review_editor_content_state,
+            shortcut::test_cmds::test_post_process_model_inference,
+            shortcut::test_cmds::test_asr_model_inference,
             shortcut::handy_keys::start_handy_keys_recording,
             shortcut::handy_keys::stop_handy_keys_recording,
             review_window::review_window_ready,
             review_window::review_window_content_ready,
+            review_window::resize_review_window,
             trigger_update_check,
             commands::get_app_settings,
             commands::cancel_operation,
@@ -485,6 +814,8 @@ pub fn run() {
             commands::log_to_console,
             commands::focus_overlay,
             commands::confirm_skill,
+            commands::respond_asr_timeout,
+            commands::initialize_shortcuts,
             commands::models::get_available_models,
             commands::models::get_model_info,
             commands::models::download_model,
@@ -520,38 +851,30 @@ pub fn run() {
             commands::history::get_history_dashboard_stats,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,
+            commands::history::get_audio_path_by_history_id,
             commands::history::delete_history_entry,
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,
             commands::history::retranscribe_history_entry,
             commands::history::reprocess_history_entry,
             commands::history::update_history_entry_text,
-            commands::vocabulary::get_vocabulary_corrections,
-            commands::vocabulary::delete_vocabulary_correction,
-            commands::vocabulary::update_vocabulary_correction_scope,
-            commands::vocabulary::record_vocabulary_correction,
-            commands::daily_vocabulary::get_daily_vocabulary,
-            commands::daily_vocabulary::get_all_daily_vocabulary,
-            commands::daily_vocabulary::get_daily_vocabulary_range,
-            commands::daily_vocabulary::add_word_to_daily_vocabulary,
-            commands::daily_vocabulary::remove_word_from_daily_vocabulary,
-            commands::daily_vocabulary::remove_word_from_daily_vocabulary_global,
-            commands::daily_vocabulary::update_word_context_type,
-            commands::daily_vocabulary::update_word_context_type_global,
-            commands::daily_vocabulary::batch_update_context_types,
-            commands::daily_vocabulary::promote_word_to_hotword,
-            commands::daily_vocabulary::batch_promote_to_hotword,
-            commands::daily_vocabulary::get_vocabulary_hotwords,
-            commands::daily_vocabulary::remove_from_hotword,
-            commands::daily_vocabulary::update_hotword_metadata,
-            commands::daily_vocabulary::get_vocabulary_stats,
-            commands::daily_vocabulary::get_daily_vocabulary_stats,
+            commands::history::reject_post_process_result,
+            commands::history::cascade_reject_post_process,
             commands::hotword::get_hotwords,
             commands::hotword::add_hotword,
             commands::hotword::update_hotword,
             commands::hotword::delete_hotword,
             commands::hotword::infer_hotword_category,
             commands::hotword::increment_hotword_false_positive,
+            commands::hotword::get_hotword_suggestions,
+            commands::hotword::accept_hotword_suggestion,
+            commands::hotword::dismiss_hotword_suggestion,
+            commands::hotword::accept_all_hotword_suggestions,
+            commands::hotword::dismiss_all_hotword_suggestions,
+            commands::hotword::get_hotword_categories,
+            commands::hotword::add_hotword_category,
+            commands::hotword::update_hotword_category,
+            commands::hotword::delete_hotword_category,
             commands::summary::get_summary_stats,
             commands::summary::get_or_create_summary,
             commands::summary::get_summary_list,
@@ -563,6 +886,8 @@ pub fn run() {
             commands::summary::export_summary,
             commands::text::optimize_text_with_llm,
             commands::text::generate_skill_description,
+            commands::text::generate_skill_metadata,
+            commands::text::translate_review_text,
             helpers::clamshell::is_clamshell,
             helpers::clamshell::is_laptop,
         ])

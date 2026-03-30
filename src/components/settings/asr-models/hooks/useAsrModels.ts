@@ -87,7 +87,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [modeFilter, setModeFilter] = useState<Set<ModeKey>>(
-    () => new Set(["streaming", "offline", "punctuation"]),
+    () => new Set(["asr", "punctuation"]),
   );
   const [languageFilter, setLanguageFilter] = useState<Set<LanguageKey>>(
     () => new Set(),
@@ -112,12 +112,10 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     [settings?.favorite_transcription_models],
   );
 
-  const punctuationModels = useMemo(() => {
-    return models
-      .filter((m) => m.engine_type === "SherpaOnnxPunctuation")
-      .slice()
-      .sort((a, b) => (a.size_mb ?? 0) - (b.size_mb ?? 0));
-  }, [models]);
+  const punctuationModels = useMemo(
+    () => models.filter((m) => m.id.startsWith("punct-")),
+    [models],
+  );
 
   const selectedPunctuationModelId =
     settings?.punctuation_model ?? "punct-zh-en-ct-transformer-2024-04-12-int8";
@@ -140,7 +138,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     setUrl("");
     setQuery("");
     setStatusFilter("all");
-    setModeFilter(new Set(["streaming", "offline", "punctuation"]));
+    setModeFilter(new Set(["asr", "punctuation"]));
     setLanguageFilter(new Set());
     setTypeFilter(new Set());
     setError(null);
@@ -199,10 +197,7 @@ export const useAsrModels = (): UseAsrModelsReturn => {
     if (statusFilter === "downloaded") {
       list = list.filter((m) => m.is_downloaded);
     } else if (statusFilter === "favorites") {
-      list = list.filter(
-        (m) =>
-          m.engine_type !== "SherpaOnnxPunctuation" && favoriteSet.has(m.id),
-      );
+      list = list.filter((m) => favoriteSet.has(m.id));
     } else if (statusFilter === "recommended") {
       list = list.filter((m) => RECOMMENDED_MODEL_IDS.has(m.id));
     }

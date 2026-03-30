@@ -162,58 +162,6 @@
       "description": "Ajoute la ponctuation et les sauts de phrase pour texte mixte zh+en. Int8; rapide et petit. Mis à jour le 12/04/2024.",
       "name": "Ponctuation (Chinois + Anglais)"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "ASR trilingue hors ligne (Chinois/Cantonais/Anglais); grand; bonne précision.",
-      "name": "Sherpa Paraformer Zh+Yue+En"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "Modèle zh+en en streaming. Bon pour les sous-titres en temps réel; rapide ; précision correcte.",
-      "name": "Sherpa Chinois + Anglais (Paraformer)"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "ASR chinois hors ligne; INT8; rapide; bonne précision; mis à jour le 07/10/2025.",
-      "name": "Sherpa Paraformer Chinois (INT8)"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "ASR chinois hors ligne; petit et rapide; précision correcte; mis à jour le 09/03/2024.",
-      "name": "Sherpa Paraformer Chinois (Petit)"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "Modèle hors ligne pour Chinois/Anglais/Japonais/Coréen/Cantonais. Quantifié Int8; vitesse et mémoire moyennes. Mis à jour le 09/09/2025.",
-      "name": "SenseVoice Multilingue"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "ASR allemand en streaming; petit et très rapide; bonne précision; mis à jour le 06/08/2025.",
-      "name": "Sherpa Allemand"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "ASR anglais en streaming; petit et très rapide; bonne précision; mis à jour le 06/08/2025.",
-      "name": "Sherpa Anglais"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "ASR espagnol en streaming; taille moyenne et très rapide; bonne précision; mis à jour le 06/08/2025.",
-      "name": "Sherpa Espagnol"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "ASR français en streaming; petit et très rapide; bonne précision; mis à jour le 06/08/2025.",
-      "name": "Sherpa Français"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "ASR russe en streaming; minuscule et extrêmement rapide (INT8); bonne précision; mis à jour le 16/08/2025.",
-      "name": "Sherpa Russe"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "ASR chinois en streaming (Zipformer2 CTC); petit et extrêmement rapide (INT8); mis à jour le 01/04/2025.",
-      "name": "Sherpa Chinois (CTC Petit)"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "ASR chinois en streaming; petit et extrêmement rapide (INT8); haute précision; mis à jour le 30/06/2025.",
-      "name": "Sherpa Chinois"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "ASR chinois en streaming; modèle plus grand, rapide (INT8); très haute précision; mis à jour le 30/06/2025.",
-      "name": "Sherpa Chinois XL"
-    },
     "small": {
       "description": "Rapide et assez précis.",
       "name": "Whisper Small"
@@ -501,10 +449,6 @@
         "other": "Autre",
         "parakeet": "Parakeet",
         "punctuation": "Ponctuation",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
         "whisper": "Whisper"
       },
       "types": {
@@ -710,7 +654,7 @@
       "disabledNotice": "Le post-traitement est actuellement désactivé. Activez-le dans les paramètres de débogage pour le configurer.",
       "fusion": {
         "enabled": {
-          "description": "Fournir deux transcriptions au prompt de post-traitement : ${output} (final) et ${streaming_output} (secondaire).",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "Utiliser la transcription en temps réel (fusion)"
         },
         "secondaryModel": {
@@ -769,21 +713,39 @@
         "createNew": "Créer un nouveau prompt",
         "createPrompt": "Créer le prompt",
         "deletePrompt": "Supprimer le prompt",
-        "enableReview": "Activer la révision",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "noPrompts": "Aucun prompt disponible",
         "promptInstructions": "Instructions du prompt",
-        "promptInstructionsPlaceholder": "Écrivez les instructions à exécuter après la transcription. Exemple : En fonction de ${context}, corrigez les termes techniques dans le texte suivant : ${output}",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Libellé du prompt",
         "promptLabelPlaceholder": "Entrez le nom du prompt",
-        "promptTip": "Astuce : Les variables suivantes sont disponibles (cliquez pour copier) :<br/><code>${output}</code> : Le résultat final du texte transcrit.<br/><code>${streaming_output}</code> : Texte intermédiaire pendant la transcription en temps réel.<br/><code>${hot_words}</code> : Mots-clés personnalisés définis dans les paramètres.<br/><code>${prompt}</code> : Nom du schéma de prompt actuellement actif.<br/><code>${context}</code> : Informations d'historique de chat de la fenêtre active.<br/><b>Remarque : Si votre prompt demande à l'IA de sortir une structure JSON avec les champs `text` et `confidence`, la fenêtre de révision s'activera automatiquement.</b>",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields, so focus on the task, constraints, and output requirements.",
         "selectedPrompt": {
-          "description": "Sélectionnez un modèle pour affiner les transcriptions ou créez-en un nouveau. Vous pouvez utiliser des variables comme <code>${output}</code>, <code>${streaming_output}</code>, <code>${hot_words}</code>, etc.",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "Prompt sélectionné"
         },
         "selectPrompt": "Sélectionner un prompt",
         "selectToEdit": "Sélectionnez un prompt ci-dessus pour voir et modifier ses détails.",
         "title": "Prompt",
-        "updatePrompt": "Mettre à jour le prompt"
+        "updatePrompt": "Mettre à jour le prompt",
+        "varAppNameDesc": "Nom de l'application active.",
+        "varContextDesc": "Informations d'historique de chat de la fenêtre active.",
+        "varOutputDesc": "Le résultat final du texte transcrit.",
+        "varPromptDesc": "Nom du schéma de prompt actuellement actif.",
+        "varRawInputDesc": "Transcription originale complète.",
+        "varSelectDesc": "Texte sélectionné à la fin de l'enregistrement.",
+        "varStreamingDesc": "Texte intermédiaire pendant la transcription en temps réel.",
+        "varTimeDesc": "Horodatage actuel.",
+        "varWindowTitleDesc": "Titre de la fenêtre actuelle.",
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        }
       },
       "title": "Post-traitement"
     },

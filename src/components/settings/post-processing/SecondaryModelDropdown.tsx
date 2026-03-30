@@ -10,18 +10,10 @@ import { IconChevronDown, IconSearch } from "@tabler/icons-react";
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelInfo } from "../../../lib/types";
-import { formatModelSize } from "../../../lib/utils/format";
-import {
-  getTranslatedModelDescription,
-  getTranslatedModelName,
-} from "../../../lib/utils/modelTranslation";
+import { getTranslatedModelName } from "../../../lib/utils/modelTranslation";
 
-const RECOMMENDED_MODEL_IDS = new Set([
-  "sherpa-paraformer-zh-en-streaming",
-  "sherpa-zipformer-small-ctc-zh-int8-2025-04-01",
-  "sherpa-paraformer-trilingual-zh-cantonese-en",
-  "sherpa-paraformer-zh-small-2024-03-09",
-]);
+// No recommended models for secondary without Sherpa
+export const RECOMMENDED_MODEL_IDS = new Set<string>([]);
 
 type LanguageKey =
   | "zh"
@@ -43,11 +35,6 @@ const parseLanguageKeys = (modelId: string): LanguageKey[] => {
     const tok = match[2];
     if (tok === "ct" || tok === "cantonese") tokenSet.add("yue");
     else tokenSet.add(tok as LanguageKey);
-  }
-
-  if (id === "sherpa-paraformer-zh-small-2024-03-09") {
-    tokenSet.add("zh");
-    tokenSet.add("en");
   }
 
   return Array.from(tokenSet);
@@ -88,9 +75,7 @@ export const SecondaryModelDropdown: React.FC<{
     };
 
     const buildShortTitleFromId = (id: string): string => {
-      const cleaned = id
-        .replace(/^sherpa-/, "")
-        .replace(/-\d{4}-\d{2}-\d{2}(?=-|$)/g, "");
+      const cleaned = id.replace(/-\d{4}-\d{2}-\d{2}(?=-|$)/g, "");
 
       const tokens = cleaned.split("-").filter(Boolean);
       const familyToken = tokens[0] ?? "Model";
@@ -99,7 +84,11 @@ export const SecondaryModelDropdown: React.FC<{
           ? "Paraformer"
           : familyToken === "sensevoice"
             ? "SenseVoice"
-            : familyToken.charAt(0).toUpperCase() + familyToken.slice(1);
+            : familyToken === "zipformer-ctc"
+              ? "Zipformer CTC"
+              : familyToken === "zipformer"
+                ? "Zipformer Transducer"
+                : familyToken.charAt(0).toUpperCase() + familyToken.slice(1);
 
       const sizeToken = tokens.find((tok) =>
         ["tiny", "small", "medium", "large"].includes(tok),
@@ -131,7 +120,6 @@ export const SecondaryModelDropdown: React.FC<{
       const looksLikeId =
         translated === m.id ||
         translated === m.name ||
-        translated.includes("sherpa-") ||
         /-\d{4}-\d{2}-\d{2}/.test(translated) ||
         translated.length > 36;
       if (!looksLikeId) return translated;
@@ -148,45 +136,19 @@ export const SecondaryModelDropdown: React.FC<{
       },
     ];
 
-    const candidates = models
-      .filter(
-        (m) => m.is_downloaded && m.engine_type === "SherpaOnnx" && m.sherpa,
-      )
+    const candidates: typeof out = models
+      .filter((m) => m.is_downloaded)
       .map((m) => {
-        const modeTagLabel =
-          m.sherpa?.mode === "Streaming"
-            ? t("settings.asrModels.groups.streaming")
-            : t("settings.asrModels.groups.offline");
-
-        const title = getOptionTitle(m);
-        const translatedDescription = getTranslatedModelDescription(m, t);
-        const languages = parseLanguageKeys(m.id);
-        const languageLabel =
-          languages.length === 0
-            ? t("settings.asrModels.languages.other")
-            : languages
-                .map((k) => t(`settings.asrModels.languages.${k}`))
-                .join(" · ");
-
-        const featureLabel = [modeTagLabel, ...getFeatureTags(m)]
-          .filter(Boolean)
-          .join(" · ");
-        const meta = [languageLabel, featureLabel, formatModelSize(m.size_mb)]
-          .filter(Boolean)
-          .join(" · ");
-        const id = m.id;
-        const fallbackDescription = meta;
-
+        const featureTags = getFeatureTags(m);
         return {
-          value: id,
-          title,
-          description: translatedDescription || fallbackDescription,
-          isRecommended: RECOMMENDED_MODEL_IDS.has(id),
-          tag: modeTagLabel,
-          meta: translatedDescription ? meta : undefined,
-        } satisfies Option;
-      })
-      .sort((a, b) => a.title.localeCompare(b.title));
+          value: m.id,
+          title: getOptionTitle(m),
+          description: m.description || m.id,
+          isRecommended: RECOMMENDED_MODEL_IDS.has(m.id),
+          tag: featureTags.join(" · ") || undefined,
+          meta: m.size_mb ? `${m.size_mb}MB` : undefined,
+        };
+      });
 
     out.push(...candidates);
     return out;

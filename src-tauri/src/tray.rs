@@ -8,6 +8,15 @@ use tauri::{AppHandle, Manager, Theme};
 
 pub struct ManagedTrayIconState(pub Mutex<TrayIconState>);
 
+pub fn version_label() -> String {
+    let version = env!("CARGO_PKG_VERSION");
+    if cfg!(debug_assertions) {
+        format!("Votype v{} (Dev)", version)
+    } else {
+        format!("Votype v{}", version)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum TrayIconState {
     Idle,

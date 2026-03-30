@@ -2,6 +2,7 @@ import { Box, Flex, Grid, Heading, Text } from "@radix-ui/themes";
 import React from "react";
 import { useTranslation } from "react-i18next";
 import { Card } from "../../ui/Card";
+import { formatCompactNumber } from "./dashboardUtils";
 
 interface DashboardSummary {
   entryCount: number;
@@ -15,6 +16,7 @@ interface DashboardSummary {
   llmHitRate: number;
   charsPerMinute: number;
   topApps: [string, number][];
+  totalTokens: number;
 }
 
 interface DashboardTrends {
@@ -27,7 +29,6 @@ interface DashboardTrends {
 interface DashboardSummaryCardsProps {
   summary: DashboardSummary;
   trends: DashboardTrends | null;
-  numberFormat: Intl.NumberFormat;
   formatDurationMs: (durationMs: number) => string;
 }
 
@@ -386,7 +387,6 @@ const PremiumCard: React.FC<{
 export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
   summary,
   trends,
-  numberFormat,
   formatDurationMs,
 }) => {
   const { t } = useTranslation();
@@ -436,7 +436,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
           {trends && <TrendIndicator value={trends.charCount} />}
         </Flex>
         <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
-          {numberFormat.format(summary.charCount)}
+          {formatCompactNumber(summary.charCount)}
         </Heading>
         <Text size="2" className="opacity-60">
           {t("dashboard.summary.transcription.speed", {
@@ -462,11 +462,14 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
           {trends && <TrendIndicator value={trends.llmCalls} />}
         </Flex>
         <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
-          {numberFormat.format(summary.llmCalls)}
+          {formatCompactNumber(summary.totalTokens)}{" "}
+          <Text size="4" weight="medium" className="opacity-60">
+            tokens
+          </Text>
         </Heading>
         <Text size="2" className="opacity-60">
-          {t("dashboard.summary.llm.details", {
-            hitRate: `${(summary.llmHitRate * 100).toFixed(1)}%`,
+          {t("dashboard.summary.llm.calls", {
+            count: formatCompactNumber(summary.llmCalls),
           })}
         </Text>
       </PremiumCard>
@@ -507,7 +510,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
                   {app}
                 </Text>
                 <Text size="1" className="opacity-40 ml-auto tabular-nums">
-                  {numberFormat.format(count)}
+                  {formatCompactNumber(count)}
                 </Text>
               </Flex>
             ))

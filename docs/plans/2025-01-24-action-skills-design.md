@@ -19,14 +19,14 @@
 
 ## 设计决策
 
-| 决策点     | 选择              | 说明                                  |
-| ---------- | ----------------- | ------------------------------------- |
-| 触发方式   | 混合模式          | 语音意图识别 + 显式技能选择           |
-| 反馈机制   | Skill 自定义      | 每个 skill 决定自己的反馈方式         |
-| 执行能力   | 内置 + 脚本       | 提供常用内置动作，支持脚本扩展        |
-| Agent 集成 | 渐进式            | 简单动作内置执行，复杂任务可转发 MCP  |
-| Skill 结构 | 声明式 + 自由式   | 简单动作声明式，复杂场景 LLM 自由输出 |
-| 安全机制   | 首次确认 + 白名单 | 两层保护                              |
+| 决策点     | 选择              | 说明                                   |
+| ---------- | ----------------- | -------------------------------------- |
+| 触发方式   | 混合模式          | 语音意图识别 + 显式技能选择            |
+| 反馈机制   | Skill 自定义      | 每个 skill 决定自己的反馈方式          |
+| 执行能力   | 内置 + 脚本       | 提供常用内置动作，支持脚本扩展         |
+| Agent 集成 | 暂不支持          | 仅支持内置动作与脚本执行，避免外部依赖 |
+| Skill 结构 | 声明式 + 自由式   | 简单动作声明式，复杂场景 LLM 自由输出  |
+| 安全机制   | 首次确认 + 白名单 | 两层保护                               |
 
 ## 类型定义扩展
 
@@ -55,7 +55,7 @@ pub enum SkillOutputMode {
 
 ```rust
 pub struct ActionConfig {
-    pub action_type: ActionType,  // builtin | script | mcp
+    pub action_type: ActionType,  // builtin | script
     pub name: Option<String>,     // 内置动作名称（builtin 类型必填）
     pub params: serde_json::Value, // 默认参数
 }
@@ -63,7 +63,6 @@ pub struct ActionConfig {
 pub enum ActionType {
     Builtin,  // 内置动作
     Script,   // Shell 脚本
-    Mcp,      // MCP 转发（未来）
 }
 ```
 
@@ -77,7 +76,7 @@ skill_type: action
 output_mode: toast
 
 action:
-  type: builtin # builtin | script | mcp
+  type: builtin # builtin | script
   name: screenshot # 内置动作名称
   params: # 默认参数（可被 LLM 输出覆盖）
     region: fullscreen # fullscreen | window | selection
@@ -408,7 +407,6 @@ action:
 
 ## 未来扩展
 
-- **MCP 集成**：复杂任务转发给外部 Agent
 - **读取文件**：作为 skill 输入源
 - **HTTP 请求**：调用外部 API
 - **语音播报**：TTS 反馈结果

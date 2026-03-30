@@ -24,7 +24,7 @@ pub fn setup_signal_handler(app_handle: AppHandle, mut signals: Signals) {
                     if let Some(coordinator) = app_handle_for_signal
                         .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
                     {
-                        coordinator.send_input(binding_id, "SIGUSR2", true, false);
+                        coordinator.send_input(binding_id, "SIGUSR2", true, crate::settings::ActivationMode::Toggle);
                     } else {
                         warn!("TranscriptionCoordinator missing from state");
                     }

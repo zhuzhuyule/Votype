@@ -3,9 +3,12 @@ use crate::helpers::clamshell;
 use crate::settings::{get_settings, AppSettings};
 use crate::utils;
 use log::{debug, error, info};
-use std::sync::{mpsc, Arc, Mutex};
-use std::time::Instant;
-use tauri::Manager;
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    mpsc, Arc, Mutex,
+};
+use std::time::{Duration, Instant};
+use tauri::{Emitter, Manager};
 
 fn set_mute(mute: bool) {
     // Expected behavior:
@@ -97,6 +100,7 @@ fn set_mute(mute: bool) {
 }
 
 const WHISPER_SAMPLE_RATE: usize = 16000;
+const STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /* ──────────────────────────────────────────────────────────────── */
 
@@ -118,6 +122,7 @@ fn create_audio_recorder(
     vad_path: &str,
     app_handle: &tauri::AppHandle,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
+    auto_enhance_enabled: Arc<AtomicBool>,
 ) -> Result<AudioRecorder, anyhow::Error> {
     let silero = SileroVad::new(vad_path, 0.3)
         .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
@@ -138,7 +143,8 @@ fn create_audio_recorder(
             if let Some(tx) = speech_frame_tx.lock().unwrap().as_ref() {
                 let _ = tx.send(speech_frame);
             }
-        });
+        })
+        .with_auto_enhance_flag(auto_enhance_enabled);
 
     Ok(recorder)
 }
@@ -155,9 +161,11 @@ pub struct AudioRecordingManager {
     is_open: Arc<Mutex<bool>>,
     is_recording: Arc<Mutex<bool>>,
     did_mute: Arc<Mutex<bool>>,
-    current_transcription_id: Arc<std::sync::atomic::AtomicU64>,
+    current_transcription_id: Arc<AtomicU64>,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
     online_transcription_rx: Arc<Mutex<Option<mpsc::Receiver<anyhow::Result<String>>>>>,
+    auto_enhance_enabled: Arc<AtomicBool>,
+    close_generation: Arc<AtomicU64>,
 }
 
 impl AudioRecordingManager {
@@ -180,9 +188,11 @@ impl AudioRecordingManager {
             is_open: Arc::new(Mutex::new(false)),
             is_recording: Arc::new(Mutex::new(false)),
             did_mute: Arc::new(Mutex::new(false)),
-            current_transcription_id: Arc::new(std::sync::atomic::AtomicU64::new(0)),
+            current_transcription_id: Arc::new(AtomicU64::new(0)),
             speech_frame_tx: Arc::new(Mutex::new(None)),
             online_transcription_rx: Arc::new(Mutex::new(None)),
+            auto_enhance_enabled: Arc::new(AtomicBool::new(settings.audio_input_auto_enhance)),
+            close_generation: Arc::new(AtomicU64::new(0)),
         };
 
         // Always-on?  Open immediately.
@@ -204,10 +214,16 @@ impl AudioRecordingManager {
         *self.online_transcription_rx.lock().unwrap() = rx;
     }
 
+    #[allow(dead_code)]
     pub fn take_online_transcription_receiver(
         &self,
     ) -> Option<mpsc::Receiver<anyhow::Result<String>>> {
         self.online_transcription_rx.lock().unwrap().take()
+    }
+
+    pub fn set_auto_enhance_enabled(&self, enabled: bool) {
+        self.auto_enhance_enabled.store(enabled, Ordering::Relaxed);
+        log::info!("Audio auto-enhance set to: {}", enabled);
     }
 
     /* ---------- helper methods --------------------------------------------- */
@@ -263,6 +279,34 @@ impl AudioRecordingManager {
         }
     }
 
+    /// Pre-load the VAD model and create the recorder if not already done.
+    /// This can be called in parallel with ASR model loading to reduce
+    /// first-recording latency.
+    pub fn preload_vad(&self) -> Result<(), anyhow::Error> {
+        let mut recorder_opt = self.recorder.lock().unwrap();
+        if recorder_opt.is_some() {
+            return Ok(()); // Already created
+        }
+
+        let vad_path = self
+            .app_handle
+            .path()
+            .resolve(
+                "resources/models/silero_vad_v4.onnx",
+                tauri::path::BaseDirectory::Resource,
+            )
+            .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {}", e))?;
+
+        *recorder_opt = Some(create_audio_recorder(
+            vad_path.to_str().unwrap(),
+            &self.app_handle,
+            self.speech_frame_tx.clone(),
+            self.auto_enhance_enabled.clone(),
+        )?);
+
+        Ok(())
+    }
+
     pub fn start_microphone_stream(&self) -> Result<(), anyhow::Error> {
         let mut open_flag = self.is_open.lock().unwrap();
         if *open_flag {
@@ -276,31 +320,28 @@ impl AudioRecordingManager {
         let mut did_mute_guard = self.did_mute.lock().unwrap();
         *did_mute_guard = false;
 
-        let vad_path = self
-            .app_handle
-            .path()
-            .resolve(
-                "resources/models/silero_vad_v4.onnx",
-                tauri::path::BaseDirectory::Resource,
-            )
-            .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {}", e))?;
+        // Ensure VAD/recorder is created (may already be done via preload_vad)
+        self.preload_vad()?;
         let mut recorder_opt = self.recorder.lock().unwrap();
-
-        if recorder_opt.is_none() {
-            *recorder_opt = Some(create_audio_recorder(
-                vad_path.to_str().unwrap(),
-                &self.app_handle,
-                self.speech_frame_tx.clone(),
-            )?);
-        }
 
         // Get the selected device from settings, considering clamshell mode
         let settings = get_settings(&self.app_handle);
         let selected_device = self.get_effective_microphone_device(&settings);
 
         if let Some(rec) = recorder_opt.as_mut() {
-            rec.open(selected_device)
-                .map_err(|e| anyhow::anyhow!("Failed to open recorder: {}", e))?;
+            if let Err(e) = rec.open(selected_device) {
+                let msg = format!("{e}");
+                if crate::audio_toolkit::is_no_input_device_error(&msg) {
+                    let _ = self.app_handle.emit(
+                        "recording-error",
+                        serde_json::json!({
+                            "error_type": "no_input_device",
+                            "detail": msg,
+                        }),
+                    );
+                }
+                return Err(anyhow::anyhow!("Failed to open recorder: {}", msg));
+            }
         }
 
         *open_flag = true;
@@ -309,6 +350,46 @@ impl AudioRecordingManager {
             start_time.elapsed()
         );
         Ok(())
+    }
+
+    fn schedule_lazy_close(&self) {
+        let gen = self.close_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let close_gen = self.close_generation.clone();
+        let is_open = self.is_open.clone();
+        let recorder = self.recorder.clone();
+        let is_recording_flag = self.is_recording.clone();
+        let did_mute = self.did_mute.clone();
+
+        std::thread::spawn(move || {
+            std::thread::sleep(STREAM_IDLE_TIMEOUT);
+            // Only close if generation hasn't changed (no new recording started)
+            if close_gen.load(Ordering::SeqCst) != gen {
+                return;
+            }
+            let mut open_flag = is_open.lock().unwrap();
+            if !*open_flag {
+                return;
+            }
+            if *is_recording_flag.lock().unwrap() {
+                return; // Recording started while we were sleeping
+            }
+
+            // Unmute system audio if it was muted during recording
+            let mut did_mute_guard = did_mute.lock().unwrap();
+            if *did_mute_guard {
+                set_mute(false);
+                *did_mute_guard = false;
+            }
+
+            if let Some(rec) = recorder.lock().unwrap().as_mut() {
+                let _ = rec.close();
+            }
+            *open_flag = false;
+            info!(
+                "Closed idle microphone stream after {:?}",
+                STREAM_IDLE_TIMEOUT
+            );
+        });
     }
 
     pub fn stop_microphone_stream(&self) {
@@ -347,6 +428,7 @@ impl AudioRecordingManager {
             (MicrophoneMode::AlwaysOn, MicrophoneMode::OnDemand) => {
                 if matches!(*self.state.lock().unwrap(), RecordingState::Idle) {
                     drop(mode_guard);
+                    self.close_generation.fetch_add(1, Ordering::SeqCst);
                     self.stop_microphone_stream();
                 }
             }
@@ -363,10 +445,13 @@ impl AudioRecordingManager {
 
     /* ---------- recording --------------------------------------------------- */
 
-    pub fn try_start_recording(&self, binding_id: &str) -> bool {
+    pub fn try_start_recording(&self, binding_id: &str, skip_frames: usize) -> bool {
         let mut state = self.state.lock().unwrap();
 
         if let RecordingState::Idle = *state {
+            // Cancel any pending lazy close
+            self.close_generation.fetch_add(1, Ordering::SeqCst);
+
             // Ensure microphone is open in on-demand mode
             if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
                 if let Err(e) = self.start_microphone_stream() {
@@ -376,7 +461,7 @@ impl AudioRecordingManager {
             }
 
             if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
-                if rec.start().is_ok() {
+                if rec.start(skip_frames).is_ok() {
                     *self.is_recording.lock().unwrap() = true;
                     *state = RecordingState::Recording {
                         binding_id: binding_id.to_string(),
@@ -393,6 +478,8 @@ impl AudioRecordingManager {
     }
 
     pub fn update_selected_device(&self) -> Result<(), anyhow::Error> {
+        // Cancel any pending lazy close before restarting
+        self.close_generation.fetch_add(1, Ordering::SeqCst);
         // If currently open, restart the microphone stream to use the new device
         if *self.is_open.lock().unwrap() {
             self.stop_microphone_stream();
@@ -411,6 +498,16 @@ impl AudioRecordingManager {
                 *state = RecordingState::Idle;
                 drop(state);
 
+                // Extra recording buffer: sleep before stopping to capture trailing audio
+                let settings = get_settings(&self.app_handle);
+                if settings.extra_recording_buffer_ms > 0 {
+                    debug!(
+                        "Extra recording buffer: sleeping {}ms before stopping",
+                        settings.extra_recording_buffer_ms
+                    );
+                    std::thread::sleep(Duration::from_millis(settings.extra_recording_buffer_ms));
+                }
+
                 let samples = if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
                     match rec.stop() {
                         Ok(buf) => buf,
@@ -427,9 +524,13 @@ impl AudioRecordingManager {
                 *self.is_recording.lock().unwrap() = false;
                 self.set_speech_frame_sender(None);
 
-                // In on-demand mode turn the mic off again
+                // In on-demand mode, close the mic (lazily if configured)
                 if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                    self.stop_microphone_stream();
+                    if get_settings(&self.app_handle).lazy_stream_close {
+                        self.schedule_lazy_close();
+                    } else {
+                        self.stop_microphone_stream();
+                    }
                 }
 
                 // Pad if very short
@@ -469,9 +570,13 @@ impl AudioRecordingManager {
             self.set_speech_frame_sender(None);
             self.set_online_transcription_receiver(None);
 
-            // In on-demand mode turn the mic off again
+            // In on-demand mode, close the mic (lazily if configured)
             if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                self.stop_microphone_stream();
+                if get_settings(&self.app_handle).lazy_stream_close {
+                    self.schedule_lazy_close();
+                } else {
+                    self.stop_microphone_stream();
+                }
             }
         }
     }

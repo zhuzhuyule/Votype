@@ -10,7 +10,7 @@ export const log = async (...args: any[]) => {
       typeof lastArg === "string" &&
       ["info", "error", "warn", "debug", "trace"].includes(lastArg)
     ) {
-      level = args.shift() as LogLevel;
+      level = args.pop() as LogLevel;
     }
     const message = args
       .map((item) => (typeof item === "object" ? JSON.stringify(item) : item))

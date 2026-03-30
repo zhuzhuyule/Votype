@@ -1,4 +1,5 @@
 pub mod audio;
+#[allow(dead_code)]
 pub mod daily_vocabulary;
 pub mod history;
 pub mod hotword;
@@ -94,6 +95,9 @@ pub fn open_log_dir(app: AppHandle) -> Result<(), String> {
         .path()
         .app_log_dir()
         .map_err(|e| format!("Failed to get log directory: {}", e))?;
+
+    std::fs::create_dir_all(&log_dir)
+        .map_err(|e| format!("Failed to create log directory: {}", e))?;
 
     let path = log_dir.to_string_lossy().as_ref().to_string();
     app.opener()
@@ -196,6 +200,27 @@ pub fn focus_overlay(app: AppHandle) {
     use crate::ManagedPendingSkillConfirmation;
     use tauri::Manager;
 
+    let active_window = crate::active_window::fetch_active_window().ok();
+    let votype_mode = crate::window_context::resolve_votype_input_mode(
+        active_window.as_ref().map(|info| info.app_name.as_str()),
+        active_window.as_ref().map(|info| info.title.as_str()),
+        crate::review_window::is_review_editor_active(),
+        false,
+    );
+
+    if matches!(
+        votype_mode,
+        crate::window_context::VotypeInputMode::MainPolishInput
+            | crate::window_context::VotypeInputMode::MainSelectedEdit
+            | crate::window_context::VotypeInputMode::ReviewRewrite
+    ) {
+        log::info!(
+            "[Overlay] Skip focus_overlay while Votype window is active (mode={:?})",
+            votype_mode
+        );
+        return;
+    }
+
     // Set UI visible flag so global ESC can skip its own handler
     if let Some(pending_state) = app.try_state::<ManagedPendingSkillConfirmation>() {
         if let Ok(mut guard) = pending_state.lock() {
@@ -279,9 +304,9 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 prompt.name.clone(),
                                 Some(prompt.id.clone()),
                                 settings
-                                    .post_process_models
-                                    .get(&settings.post_process_provider_id)
-                                    .cloned(),
+                                    .resolve_model_for_provider(&settings.post_process_provider_id),
+                                None,
+                                Some(1),
                             )
                             .await;
                         log::info!(
@@ -328,7 +353,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 .ok();
         }
 
-        let (result, model, prompt_id, _err, _confidence, _reason) =
+        let (result, model, prompt_id, _err, _error_message, _token_count, _call_count) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
@@ -342,7 +367,10 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 None,
                 pending.history_id,
                 true, // skill_mode
+                false,
                 pending.selected_text.clone(),
+                None,
+                false, // skip_smart_routing
             )
             .await;
 
@@ -367,6 +395,8 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 prompt.name.clone(),
                                 prompt_id.clone(),
                                 model.clone(),
+                                None,
+                                Some(1),
                             )
                             .await;
                         log::info!(
@@ -398,6 +428,8 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                         None,
                         output_mode,
                         skill_name,
+                        prompt_id.clone(),
+                        model.clone(),
                     );
                 }
                 crate::settings::SkillOutputMode::Polish => {
@@ -452,9 +484,9 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                                 prompt.name.clone(),
                                 Some(prompt.id.clone()),
                                 settings
-                                    .post_process_models
-                                    .get(&settings.post_process_provider_id)
-                                    .cloned(),
+                                    .resolve_model_for_provider(&settings.post_process_provider_id),
+                                None,
+                                Some(1),
                             )
                             .await;
                         log::info!(
@@ -469,7 +501,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         } else {
             // Fallback: execute default polish (should not happen with parallel requests)
             log::warn!("[SkillConfirmation] No cached polish result, executing default polish");
-            let (result, _model, _prompt_id, _err, _confidence, _reason) =
+            let (result, _model, _prompt_id, _err, _error_message, _token_count, _call_count) =
                 crate::actions::post_process::maybe_post_process_transcription(
                     &app,
                     &settings,
@@ -483,7 +515,10 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     None,
                     pending.history_id,
                     false, // Not skill_mode
-                    None,  // Ignore selected text for polish
+                    false,
+                    None, // Ignore selected text for polish
+                    None,
+                    false, // skip_smart_routing
                 )
                 .await;
 
@@ -498,5 +533,45 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
     crate::overlay::hide_recording_overlay(&app_for_cleanup);
     crate::tray::change_tray_icon(&app_for_cleanup, crate::tray::TrayIconState::Idle);
 
+    Ok(())
+}
+
+/// Handle user response to ASR online timeout prompt
+#[tauri::command]
+pub fn respond_asr_timeout(app: AppHandle, action: String) -> Result<(), String> {
+    let sender = {
+        let state = app.state::<crate::AsrTimeoutResponseSender>();
+        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        guard.take()
+    };
+    if let Some(tx) = sender {
+        let _ = tx.send(action);
+        Ok(())
+    } else {
+        Err("No pending ASR timeout".to_string())
+    }
+}
+
+/// Marker state to track if shortcuts have been initialized.
+pub struct ShortcutsInitialized;
+
+/// Initialize keyboard shortcuts.
+/// On macOS, this should be called after accessibility permissions are granted.
+/// This is idempotent - calling it multiple times is safe.
+#[tauri::command]
+pub fn initialize_shortcuts(app: AppHandle) -> Result<(), String> {
+    // Check if already initialized
+    if app.try_state::<ShortcutsInitialized>().is_some() {
+        log::debug!("Shortcuts already initialized");
+        return Ok(());
+    }
+
+    // Initialize shortcuts
+    crate::shortcut::init_shortcuts(&app);
+
+    // Mark as initialized
+    app.manage(ShortcutsInitialized);
+
+    log::info!("Shortcuts initialized successfully");
     Ok(())
 }

@@ -4,6 +4,7 @@ use flate2::read::GzDecoder;
 use futures_util::StreamExt;
 use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -18,8 +19,12 @@ use tauri::{AppHandle, Emitter, Manager};
 pub enum EngineType {
     Whisper,
     Parakeet,
-    SherpaOnnx,
-    SherpaOnnxPunctuation,
+    Moonshine,
+    MoonshineStreaming,
+    SenseVoice,
+    Paraformer,
+    ZipformerTransducer,
+    ZipformerCtc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,6 +45,10 @@ pub enum SherpaOnnxAsrFamily {
     SenseVoice,
     /// Offline FireRedASR via encoder/decoder.
     FireRedAsr,
+    /// Zipformer Transducer.
+    ZipformerTransducer,
+    /// Zipformer CTC.
+    ZipformerCtc,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,6 +80,8 @@ pub struct ModelInfo {
     pub tags: Option<Vec<String>>,
     #[serde(default)]
     pub is_default: bool, // True if it is a built-in default model
+    #[serde(default)]
+    pub sha256: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,6 +99,8 @@ struct UserModelEntry {
     speed_score: f32,
     #[serde(default)]
     tags: Option<Vec<String>>,
+    #[serde(default)]
+    sha256: Option<String>,
 }
 
 impl UserModelEntry {
@@ -109,6 +122,7 @@ impl UserModelEntry {
             speed_score: self.speed_score,
             tags: self.tags,
             is_default: false,
+            sha256: self.sha256,
         }
     }
 }
@@ -128,6 +142,34 @@ pub struct ModelManager {
     available_models: Mutex<HashMap<String, ModelInfo>>,
 }
 
+fn compute_sha256(path: &Path) -> Result<String> {
+    let mut file = File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 65536]; // 64KB chunks
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
+fn verify_sha256(path: &Path, expected: &str) -> Result<()> {
+    let actual = compute_sha256(path)?;
+    if actual != expected {
+        // Delete the corrupt file
+        let _ = fs::remove_file(path);
+        return Err(anyhow::anyhow!(
+            "SHA256 mismatch: expected {}, got {}. Corrupt file deleted.",
+            expected,
+            actual
+        ));
+    }
+    Ok(())
+}
+
 impl ModelManager {
     fn read_user_catalog(path: &Path) -> Result<Vec<UserModelEntry>> {
         if !path.exists() {
@@ -143,6 +185,29 @@ impl ModelManager {
     fn write_user_catalog(path: &Path, entries: &[UserModelEntry]) -> Result<()> {
         let json = serde_json::to_string_pretty(entries)?;
         fs::write(path, json)?;
+        Ok(())
+    }
+
+    fn calculate_dir_size(path: &Path) -> u64 {
+        if path.is_file() {
+            return path.metadata().map(|m| m.len()).unwrap_or(0);
+        }
+        fs::read_dir(path)
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .map(|e| Self::calculate_dir_size(&e.path()))
+                    .sum()
+            })
+            .unwrap_or(0)
+    }
+
+    fn update_user_catalog_size(&self, model_id: &str, size_mb: u64) -> Result<()> {
+        let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
+        if let Some(entry) = entries.iter_mut().find(|e| e.id == model_id) {
+            entry.size_mb = size_mb;
+            Self::write_user_catalog(&self.user_catalog_path, &entries)?;
+        }
         Ok(())
     }
 
@@ -189,6 +254,10 @@ impl ModelManager {
             SherpaOnnxAsrFamily::Zipformer2Ctc
         } else if lower.contains("paraformer") {
             SherpaOnnxAsrFamily::Paraformer
+        } else if lower.contains("zipformer-ctc") {
+            SherpaOnnxAsrFamily::ZipformerCtc
+        } else if lower.contains("zipformer") {
+            SherpaOnnxAsrFamily::ZipformerTransducer
         } else {
             SherpaOnnxAsrFamily::Transducer
         };
@@ -201,10 +270,25 @@ impl ModelManager {
 
     fn infer_engine_type_from_name(name: &str) -> EngineType {
         let lower = name.to_lowercase();
-        if lower.contains("punct") || lower.contains("punctuation") {
-            EngineType::SherpaOnnxPunctuation
+        if lower.contains("whisper") || lower.contains("ggml") {
+            EngineType::Whisper
+        } else if lower.contains("parakeet") {
+            EngineType::Parakeet
+        } else if lower.contains("moonshine") && lower.contains("streaming") {
+            EngineType::MoonshineStreaming
+        } else if lower.contains("moonshine") {
+            EngineType::Moonshine
+        } else if lower.contains("sense-voice") || lower.contains("sensevoice") {
+            EngineType::SenseVoice
+        } else if lower.contains("zipformer-ctc")
+            || (lower.contains("zipformer") && lower.contains("ctc"))
+        {
+            EngineType::ZipformerCtc
+        } else if lower.contains("zipformer") {
+            EngineType::ZipformerTransducer
         } else {
-            EngineType::SherpaOnnx
+            // Default to Paraformer for other sherpa models
+            EngineType::Paraformer
         }
     }
 
@@ -244,6 +328,7 @@ impl ModelManager {
                 speed_score: 0.85,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -267,6 +352,7 @@ impl ModelManager {
                 speed_score: 0.60,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -289,6 +375,7 @@ impl ModelManager {
                 speed_score: 0.40,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -311,6 +398,30 @@ impl ModelManager {
                 speed_score: 0.30,
                 tags: None,
                 is_default: true,
+                sha256: None,
+            },
+        );
+
+        available_models.insert(
+            "breeze-asr".to_string(),
+            ModelInfo {
+                id: "breeze-asr".to_string(),
+                name: "Breeze ASR".to_string(),
+                description: "models.breeze-asr.description".to_string(),
+                filename: "breeze-asr-q5_k.bin".to_string(),
+                url: Some("https://blob.handy.computer/breeze-asr-q5_k.bin".to_string()),
+                size_mb: 1080,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: false,
+                engine_type: EngineType::Whisper,
+                sherpa: None,
+                accuracy_score: 0.85,
+                speed_score: 0.35,
+                tags: None,
+                is_default: true,
+                sha256: None,
             },
         );
 
@@ -334,6 +445,7 @@ impl ModelManager {
                 speed_score: 0.85,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -356,245 +468,106 @@ impl ModelManager {
                 speed_score: 0.85,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
+        // Moonshine models
         available_models.insert(
-            "sherpa-zipformer-small-ctc-zh-int8-2025-04-01".to_string(),
+            "moonshine-base".to_string(),
             ModelInfo {
-                id: "sherpa-zipformer-small-ctc-zh-int8-2025-04-01".to_string(),
-                name: "Sherpa Chinese (CTC Small)".to_string(),
-                description:
-                    "models.sherpa-zipformer-small-ctc-zh-int8-2025-04-01.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01"
-                    .to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-ctc-zh-int8-2025-04-01.tar.bz2".to_string()),
-                size_mb: 21,
+                id: "moonshine-base".to_string(),
+                name: "Moonshine Base".to_string(),
+                description: "models.moonshine-base.description".to_string(),
+                filename: "moonshine-base".to_string(),
+                url: Some("https://blob.handy.computer/moonshine-base.tar.gz".to_string()),
+                size_mb: 58,
                 is_downloaded: false,
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Zipformer2Ctc,
-                    prefer_int8: true,
-                }),
-                accuracy_score: 0.80,
-                speed_score: 0.98,
+                engine_type: EngineType::Moonshine,
+                sherpa: None,
+                accuracy_score: 0.70,
+                speed_score: 0.90,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
         available_models.insert(
-            "sherpa-zipformer-zh-int8-2025-06-30".to_string(),
+            "moonshine-tiny-streaming-en".to_string(),
             ModelInfo {
-                id: "sherpa-zipformer-zh-int8-2025-06-30".to_string(),
-                name: "Sherpa Chinese".to_string(),
-                description: "models.sherpa-zipformer-zh-int8-2025-06-30.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-int8-2025-06-30.tar.bz2".to_string()),
-                size_mb: 127,
+                id: "moonshine-tiny-streaming-en".to_string(),
+                name: "Moonshine V2 Tiny".to_string(),
+                description: "models.moonshine-tiny-streaming-en.description".to_string(),
+                filename: "moonshine-tiny-streaming-en".to_string(),
+                url: Some(
+                    "https://blob.handy.computer/moonshine-tiny-streaming-en.tar.gz".to_string(),
+                ),
+                size_mb: 31,
                 is_downloaded: false,
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: true,
-                }),
-                accuracy_score: 0.82,
-                speed_score: 0.97,
-                tags: None,
-                is_default: true,
-            },
-        );
-
-        available_models.insert(
-            "sherpa-zipformer-zh-xlarge-int8-2025-06-30".to_string(),
-            ModelInfo {
-                id: "sherpa-zipformer-zh-xlarge-int8-2025-06-30".to_string(),
-                name: "Sherpa Chinese XL".to_string(),
-                description: "models.sherpa-zipformer-zh-xlarge-int8-2025-06-30.description"
-                    .to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-zh-xlarge-int8-2025-06-30.tar.bz2".to_string()),
-                size_mb: 570,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: true,
-                }),
-                accuracy_score: 0.90,
-                speed_score: 0.70,
-                tags: None,
-                is_default: true,
-            },
-        );
-
-        available_models.insert(
-            "sherpa-zipformer-en-kroko-2025-08-06".to_string(),
-            ModelInfo {
-                id: "sherpa-zipformer-en-kroko-2025-08-06".to_string(),
-                name: "Sherpa English".to_string(),
-                description: "models.sherpa-zipformer-en-kroko-2025-08-06.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-en-kroko-2025-08-06.tar.bz2".to_string()),
-                size_mb: 55,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: false,
-                }),
-                accuracy_score: 0.78,
-                speed_score: 0.98,
-                tags: None,
-                is_default: true,
-            },
-        );
-
-        available_models.insert(
-            "sherpa-zipformer-de-kroko-2025-08-06".to_string(),
-            ModelInfo {
-                id: "sherpa-zipformer-de-kroko-2025-08-06".to_string(),
-                name: "Sherpa German".to_string(),
-                description: "models.sherpa-zipformer-de-kroko-2025-08-06.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-de-kroko-2025-08-06".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-de-kroko-2025-08-06.tar.bz2".to_string()),
-                size_mb: 55,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: false,
-                }),
-                accuracy_score: 0.78,
-                speed_score: 0.98,
-                tags: None,
-                is_default: true,
-            },
-        );
-
-        available_models.insert(
-            "sherpa-zipformer-es-kroko-2025-08-06".to_string(),
-            ModelInfo {
-                id: "sherpa-zipformer-es-kroko-2025-08-06".to_string(),
-                name: "Sherpa Spanish".to_string(),
-                description: "models.sherpa-zipformer-es-kroko-2025-08-06.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-es-kroko-2025-08-06".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-es-kroko-2025-08-06.tar.bz2".to_string()),
-                size_mb: 119,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: false,
-                }),
-                accuracy_score: 0.80,
+                engine_type: EngineType::MoonshineStreaming,
+                sherpa: None,
+                accuracy_score: 0.55,
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
         available_models.insert(
-            "sherpa-zipformer-fr-kroko-2025-08-06".to_string(),
+            "moonshine-small-streaming-en".to_string(),
             ModelInfo {
-                id: "sherpa-zipformer-fr-kroko-2025-08-06".to_string(),
-                name: "Sherpa French".to_string(),
-                description: "models.sherpa-zipformer-fr-kroko-2025-08-06.description".to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-fr-kroko-2025-08-06".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-fr-kroko-2025-08-06.tar.bz2".to_string()),
-                size_mb: 55,
+                id: "moonshine-small-streaming-en".to_string(),
+                name: "Moonshine V2 Small".to_string(),
+                description: "models.moonshine-small-streaming-en.description".to_string(),
+                filename: "moonshine-small-streaming-en".to_string(),
+                url: Some(
+                    "https://blob.handy.computer/moonshine-small-streaming-en.tar.gz".to_string(),
+                ),
+                size_mb: 100,
                 is_downloaded: false,
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: false,
-                }),
-                accuracy_score: 0.78,
-                speed_score: 0.98,
+                engine_type: EngineType::MoonshineStreaming,
+                sherpa: None,
+                accuracy_score: 0.65,
+                speed_score: 0.90,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
         available_models.insert(
-            "sherpa-zipformer-ru-vosk-int8-2025-08-16".to_string(),
+            "moonshine-medium-streaming-en".to_string(),
             ModelInfo {
-                id: "sherpa-zipformer-ru-vosk-int8-2025-08-16".to_string(),
-                name: "Sherpa Russian".to_string(),
-                description: "models.sherpa-zipformer-ru-vosk-int8-2025-08-16.description"
-                    .to_string(),
-                filename: "sherpa-onnx-streaming-zipformer-small-ru-vosk-int8-2025-08-16"
-                    .to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-zipformer-small-ru-vosk-int8-2025-08-16.tar.bz2".to_string()),
-                size_mb: 23,
+                id: "moonshine-medium-streaming-en".to_string(),
+                name: "Moonshine V2 Medium".to_string(),
+                description: "models.moonshine-medium-streaming-en.description".to_string(),
+                filename: "moonshine-medium-streaming-en".to_string(),
+                url: Some(
+                    "https://blob.handy.computer/moonshine-medium-streaming-en.tar.gz".to_string(),
+                ),
+                size_mb: 192,
                 is_downloaded: false,
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Transducer,
-                    prefer_int8: true,
-                }),
-                accuracy_score: 0.70,
-                speed_score: 0.99,
+                engine_type: EngineType::MoonshineStreaming,
+                sherpa: None,
+                accuracy_score: 0.75,
+                speed_score: 0.80,
                 tags: None,
                 is_default: true,
-            },
-        );
-
-        available_models.insert(
-            "sherpa-paraformer-zh-en-streaming".to_string(),
-            ModelInfo {
-                id: "sherpa-paraformer-zh-en-streaming".to_string(),
-                name: "Sherpa Chinese + English Paraformer".to_string(),
-                description: "models.sherpa-paraformer-zh-en-streaming.description".to_string(),
-                filename: "sherpa-onnx-streaming-paraformer-bilingual-zh-en".to_string(),
-                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-streaming-paraformer-bilingual-zh-en.tar.bz2".to_string()),
-                size_mb: 1000,
-                is_downloaded: false,
-                is_downloading: false,
-                partial_size: 0,
-                is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
-                sherpa: Some(SherpaOnnxModelSpec {
-                    mode: SherpaOnnxAsrMode::Streaming,
-                    family: SherpaOnnxAsrFamily::Paraformer,
-                    prefer_int8: false,
-                }),
-                accuracy_score: 0.84,
-                speed_score: 0.92,
-                tags: None,
-                is_default: true,
+                sha256: None,
             },
         );
 
@@ -614,12 +587,13 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnxPunctuation,
+                engine_type: EngineType::Paraformer,
                 sherpa: None,
                 accuracy_score: 0.80,
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -637,12 +611,13 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnxPunctuation,
+                engine_type: EngineType::Paraformer,
                 sherpa: None,
                 accuracy_score: 0.88,
                 speed_score: 0.70,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -661,7 +636,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::SenseVoice,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::SenseVoice,
@@ -671,6 +646,7 @@ impl ModelManager {
                 speed_score: 0.75,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -688,7 +664,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -698,6 +674,7 @@ impl ModelManager {
                 speed_score: 0.95,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -714,7 +691,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -724,6 +701,7 @@ impl ModelManager {
                 speed_score: 0.97,
                 tags: None,
                 is_default: true,
+                sha256: None,
             },
         );
 
@@ -741,7 +719,7 @@ impl ModelManager {
                 is_downloading: false,
                 partial_size: 0,
                 is_directory: true,
-                engine_type: EngineType::SherpaOnnx,
+                engine_type: EngineType::Paraformer,
                 sherpa: Some(SherpaOnnxModelSpec {
                     mode: SherpaOnnxAsrMode::Offline,
                     family: SherpaOnnxAsrFamily::Paraformer,
@@ -751,6 +729,63 @@ impl ModelManager {
                 speed_score: 0.93,
                 tags: None,
                 is_default: true,
+                sha256: None,
+            },
+        );
+
+        // Zipformer Transducer: Chinese + English
+        available_models.insert(
+            "sherpa-zipformer-zh-en-small-2023-11-22".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-zh-en-small-2023-11-22".to_string(),
+                name: "Sherpa Zipformer Transducer (Small)".to_string(),
+                description: "models.sherpa-zipformer-zh-en-small-2023-11-22.description".to_string(),
+                filename: "sherpa-onnx-zipformer-zh-en-2023-11-22".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-zh-en-2023-11-22.tar.bz2".to_string()),
+                size_mb: 290,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::ZipformerTransducer,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::ZipformerTransducer,
+                    prefer_int8: true, // Use int8 parameters if possible
+                }),
+                accuracy_score: 0.88,
+                speed_score: 0.87,
+                tags: Some(vec!["zh".to_string(), "en".to_string()]),
+                is_default: true,
+                sha256: None,
+            },
+        );
+
+        // Zipformer CTC: Chinese (Fast)
+        available_models.insert(
+            "sherpa-zipformer-ctc-small-zh-int8-2025-07-16".to_string(),
+            ModelInfo {
+                id: "sherpa-zipformer-ctc-small-zh-int8-2025-07-16".to_string(),
+                name: "Sherpa Zipformer CTC Chinese (Small & Fast)".to_string(),
+                description: "models.sherpa-zipformer-ctc-small-zh-int8-2025-07-16.description".to_string(),
+                filename: "sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16".to_string(),
+                url: Some("https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-zipformer-ctc-small-zh-int8-2025-07-16.tar.bz2".to_string()),
+                size_mb: 48,
+                is_downloaded: false,
+                is_downloading: false,
+                partial_size: 0,
+                is_directory: true,
+                engine_type: EngineType::ZipformerCtc,
+                sherpa: Some(SherpaOnnxModelSpec {
+                    mode: SherpaOnnxAsrMode::Offline,
+                    family: SherpaOnnxAsrFamily::ZipformerCtc,
+                    prefer_int8: true,
+                }),
+                accuracy_score: 0.83,
+                speed_score: 0.98,
+                tags: Some(vec!["zh".to_string()]),
+                is_default: true,
+                sha256: None,
             },
         );
 
@@ -855,6 +890,7 @@ impl ModelManager {
             accuracy_score: 0.8,
             speed_score: 0.8,
             tags,
+            sha256: None,
         };
 
         let mut entries = Self::read_user_catalog(&self.user_catalog_path)?;
@@ -908,45 +944,78 @@ impl ModelManager {
     }
 
     fn update_download_status(&self) -> Result<()> {
-        let mut models = self.available_models.lock().unwrap();
+        let mut size_updates: Vec<(String, u64)> = Vec::new();
 
-        for model in models.values_mut() {
-            if model.is_directory {
-                // For directory-based models, check if the directory exists
-                let model_path = self.models_dir.join(&model.filename);
-                let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
-                let extracting_path = self
-                    .models_dir
-                    .join(format!("{}.extracting", &model.filename));
+        {
+            let mut models = self.available_models.lock().unwrap();
 
-                // Clean up any leftover .extracting directories from interrupted extractions
-                if extracting_path.exists() {
-                    warn!("Cleaning up interrupted extraction for model: {}", model.id);
-                    let _ = fs::remove_dir_all(&extracting_path);
-                }
+            for model in models.values_mut() {
+                if model.is_directory {
+                    // For directory-based models, check if the directory exists
+                    let model_path = self.models_dir.join(&model.filename);
+                    let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+                    let extracting_path = self
+                        .models_dir
+                        .join(format!("{}.extracting", &model.filename));
 
-                model.is_downloaded = model_path.exists() && model_path.is_dir();
-                model.is_downloading = false;
+                    // Clean up any leftover .extracting directories from interrupted extractions
+                    if extracting_path.exists() {
+                        warn!("Cleaning up interrupted extraction for model: {}", model.id);
+                        let _ = fs::remove_dir_all(&extracting_path);
+                    }
 
-                // Get partial file size if it exists (for the .tar.gz being downloaded)
-                if partial_path.exists() {
-                    model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    model.is_downloaded = model_path.exists() && model_path.is_dir();
+                    model.is_downloading = false;
+
+                    // Get partial file size if it exists (for the .tar.gz being downloaded)
+                    if partial_path.exists() {
+                        model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    } else {
+                        model.partial_size = 0;
+                    }
+
+                    // Fix size_mb for downloaded models that have size_mb=0 (legacy data)
+                    if model.is_downloaded && model.size_mb == 0 {
+                        model.size_mb = Self::calculate_dir_size(&model_path) / (1024 * 1024);
+                        size_updates.push((model.id.clone(), model.size_mb));
+                    }
                 } else {
-                    model.partial_size = 0;
+                    // For file-based models (existing logic)
+                    let model_path = self.models_dir.join(&model.filename);
+                    let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+
+                    model.is_downloaded = model_path.exists();
+                    model.is_downloading = false;
+
+                    // Get partial file size if it exists
+                    if partial_path.exists() {
+                        model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    } else {
+                        model.partial_size = 0;
+                    }
+
+                    // Fix size_mb for downloaded models that have size_mb=0 (legacy data)
+                    if model.is_downloaded && model.size_mb == 0 {
+                        model.size_mb =
+                            model_path.metadata().map(|m| m.len()).unwrap_or(0) / (1024 * 1024);
+                        size_updates.push((model.id.clone(), model.size_mb));
+                    }
                 }
-            } else {
-                // For file-based models (existing logic)
-                let model_path = self.models_dir.join(&model.filename);
-                let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
+            }
+        }
 
-                model.is_downloaded = model_path.exists();
-                model.is_downloading = false;
-
-                // Get partial file size if it exists
-                if partial_path.exists() {
-                    model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
-                } else {
-                    model.partial_size = 0;
+        // Persist size_mb fixes to user catalog for any updated models
+        if !size_updates.is_empty() {
+            if let Ok(mut entries) = Self::read_user_catalog(&self.user_catalog_path) {
+                let mut changed = false;
+                for (id, size_mb) in &size_updates {
+                    if let Some(entry) = entries.iter_mut().find(|e| e.id == *id) {
+                        entry.size_mb = *size_mb;
+                        changed = true;
+                    }
+                }
+                if changed {
+                    let _ = Self::write_user_catalog(&self.user_catalog_path, &entries);
                 }
             }
         }
@@ -1161,6 +1230,27 @@ impl ModelManager {
             }
         }
 
+        // Verify SHA256 if hash is available
+        if let Some(ref expected_hash) = model_info.sha256 {
+            info!("Verifying SHA256 for model: {}", model_id);
+            if let Err(e) = verify_sha256(&partial_path, expected_hash) {
+                let mut models = self.available_models.lock().unwrap();
+                if let Some(model) = models.get_mut(model_id) {
+                    model.is_downloading = false;
+                    model.partial_size = 0;
+                }
+                let _ = self.app_handle.emit(
+                    "model-download-error",
+                    &serde_json::json!({
+                        "model_id": model_id,
+                        "error": format!("{}", e)
+                    }),
+                );
+                return Err(e);
+            }
+            info!("SHA256 verified for model: {}", model_id);
+        }
+
         // Handle directory-based models (extract tar.gz) vs file-based models
         if model_info.is_directory {
             // Emit extraction started event
@@ -1241,15 +1331,26 @@ impl ModelManager {
             fs::rename(&partial_path, &model_path)?;
         }
 
-        // Update download status
+        // Calculate actual file size after download
+        let actual_size_mb = if model_info.is_directory {
+            Self::calculate_dir_size(&model_path) / (1024 * 1024)
+        } else {
+            model_path.metadata().map(|m| m.len()).unwrap_or(0) / (1024 * 1024)
+        };
+
+        // Update download status and size in memory
         {
             let mut models = self.available_models.lock().unwrap();
             if let Some(model) = models.get_mut(model_id) {
                 model.is_downloading = false;
                 model.is_downloaded = true;
                 model.partial_size = 0;
+                model.size_mb = actual_size_mb;
             }
         }
+
+        // Persist size_mb to user catalog
+        let _ = self.update_user_catalog_size(model_id, actual_size_mb);
 
         // Emit completion event
         let _ = self.app_handle.emit("model-download-complete", model_id);

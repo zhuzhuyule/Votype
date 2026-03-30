@@ -3,15 +3,19 @@
 //! This module contains the common logic for handling shortcut events,
 //! used by both the Tauri and handy-keys implementations.
 
-use log::warn;
-use std::sync::Arc;
+use log::{debug, warn};
 use tauri::{AppHandle, Manager};
 
 use crate::actions::ACTION_MAP;
-use crate::managers::audio::AudioRecordingManager;
 use crate::settings::get_settings;
 use crate::transcription_coordinator::is_transcribe_binding;
 use crate::TranscriptionCoordinator;
+
+fn is_review_window_focused(app: &AppHandle) -> bool {
+    app.get_webview_window("review_window")
+        .and_then(|window| window.is_focused().ok())
+        .unwrap_or(false)
+}
 
 /// Handle a shortcut event from either implementation.
 ///
@@ -36,8 +40,28 @@ pub fn handle_shortcut_event(
 
     // Transcribe bindings are handled by the coordinator.
     if is_transcribe_binding(binding_id) {
+        let effective_hotkey =
+            if hotkey_string != "review-window-local" && is_review_window_focused(app) {
+                debug!(
+                    "Routing global transcribe shortcut '{}' through review-window-local",
+                    binding_id
+                );
+                "review-window-local"
+            } else {
+                hotkey_string
+            };
+
+        if effective_hotkey == "review-window-local" && is_pressed {
+            crate::review_window::freeze_review_editor_content_snapshot();
+        }
+
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-            coordinator.send_input(binding_id, hotkey_string, is_pressed, settings.push_to_talk);
+            coordinator.send_input(
+                binding_id,
+                effective_hotkey,
+                is_pressed,
+                settings.activation_mode.clone(),
+            );
         } else {
             warn!("TranscriptionCoordinator is not initialized");
         }
@@ -52,10 +76,9 @@ pub fn handle_shortcut_event(
         return;
     };
 
-    // Cancel binding: only fires when recording and key is pressed
+    // Cancel binding: fires on key press (during recording or processing)
     if binding_id == "cancel" {
-        let audio_manager = app.state::<Arc<AudioRecordingManager>>();
-        if audio_manager.is_recording() && is_pressed {
+        if is_pressed {
             action.start(app, binding_id, hotkey_string);
         }
         return;

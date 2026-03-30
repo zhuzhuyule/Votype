@@ -5,7 +5,6 @@ import {
   IconApps,
   IconBrain,
   IconChartBar,
-  IconDatabase,
   IconInfoCircle,
   IconKeyboard,
   IconLayoutDashboard,
@@ -62,11 +61,6 @@ const AppProfilesSettings = lazy(() =>
 const VocabularySettings = lazy(() =>
   import("./settings/VocabularySettings").then((m) => ({
     default: m.VocabularySettings,
-  })),
-);
-const DailyVocabularyPage = lazy(() =>
-  import("./settings/vocabulary/DailyVocabularyPage").then((m) => ({
-    default: m.DailyVocabularyPage,
   })),
 );
 const SummaryPage = lazy(() =>
@@ -130,7 +124,7 @@ export const SECTIONS_CONFIG = {
     shortcutKey: "4",
   },
   prompts: {
-    labelKey: "sidebar.prompts",
+    labelKey: "sidebar.postProcessing",
     icon: IconSparkles,
     component: PromptsConfiguration,
     enabled: () => true,
@@ -157,13 +151,6 @@ export const SECTIONS_CONFIG = {
     enabled: () => true,
     shortcutKey: "8",
   },
-  dailyVocabulary: {
-    labelKey: "sidebar.dailyVocabulary",
-    icon: IconSchool,
-    component: DailyVocabularyPage,
-    enabled: () => true,
-    shortcutKey: "d",
-  },
   about: {
     labelKey: "sidebar.about",
     icon: IconInfoCircle,
@@ -184,7 +171,6 @@ export const SECTION_ORDER: SidebarSection[] = [
   "shortcuts",
   "appProfiles",
   "vocabulary",
-  "dailyVocabulary",
   "about",
 ];
 
@@ -238,9 +224,7 @@ const SidebarItem: React.FC<{
         justify={collapsed ? "center" : "start"}
         className={collapsed ? "w-full justify-center" : "w-full"}
       >
-        <Box
-          className={`transition-transform duration-200 flex items-center justify-center ${isActive ? "scale-110" : "group-hover:scale-105"}`}
-        >
+        <Box className="flex items-center justify-center">
           <Icon
             size={20}
             stroke={isActive ? 2 : 1.5}

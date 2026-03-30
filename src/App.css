@@ -116,3 +116,25 @@
 .animate-fade-in-right {
   animation: fadeInRight 0.5s ease-out forwards;
 }
+
+@keyframes highlightFade {
+  0%,
+  20%,
+  40% {
+    box-shadow: 0 0 0 3px currentColor;
+    filter: brightness(1.2);
+  }
+  10%,
+  30% {
+    box-shadow: 0 0 0 0 transparent;
+    filter: brightness(1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    filter: brightness(1);
+  }
+}
+
+.animate-highlight-fade {
+  animation: highlightFade 1.2s ease-out forwards;
+}

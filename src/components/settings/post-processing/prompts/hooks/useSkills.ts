@@ -29,12 +29,32 @@ export function useSkills(): UseSkillsReturn {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await invoke("get_all_skills");
-      const parsed = SkillsArraySchema.safeParse(result);
-      if (parsed.success) {
-        setSkills(parsed.data);
+      const [userSkills, skillOrder] = await Promise.all([
+        invoke("get_all_skills"),
+        invoke<string[]>("get_skills_order"),
+      ]);
+
+      const parsedUser = SkillsArraySchema.safeParse(userSkills);
+
+      if (parsedUser.success) {
+        const combined = [...parsedUser.data];
+
+        // Apply saved ordering
+        if (Array.isArray(skillOrder) && skillOrder.length > 0) {
+          const orderMap = new Map(skillOrder.map((id, idx) => [id, idx]));
+          combined.sort((a, b) => {
+            const posA = orderMap.get(a.id);
+            const posB = orderMap.get(b.id);
+            if (posA !== undefined && posB !== undefined) return posA - posB;
+            if (posA !== undefined) return -1;
+            if (posB !== undefined) return 1;
+            return 0;
+          });
+        }
+
+        setSkills(combined);
       } else {
-        console.error("Failed to parse skills:", parsed.error);
+        console.error("Failed to parse skills:", parsedUser.error);
         setError("Failed to parse skills");
       }
     } catch (e) {
@@ -74,11 +94,12 @@ export function useSkills(): UseSkillsReturn {
           icon: skillData.icon || null,
           skill_type: skillData.skill_type || "text",
           source: "user",
-          compliance_check_enabled: skillData.compliance_check_enabled || false,
-          compliance_threshold: skillData.compliance_threshold || 20,
+          confidence_check_enabled: skillData.confidence_check_enabled ?? false,
+          confidence_threshold: skillData.confidence_threshold ?? 70,
           output_mode: skillData.output_mode || "polish",
           enabled: skillData.enabled ?? true,
           customized: false,
+          locked: false,
         };
 
         const newSkill = await invoke<LLMPrompt>("create_skill", {

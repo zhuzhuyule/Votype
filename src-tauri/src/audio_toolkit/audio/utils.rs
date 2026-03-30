@@ -25,6 +25,20 @@ pub async fn save_wav_file<P: AsRef<Path>>(file_path: P, samples: &[f32]) -> Res
     Ok(())
 }
 
+/// Verify a saved WAV file is readable and contains the expected number of samples.
+pub fn verify_wav_file<P: AsRef<Path>>(file_path: P, expected_samples: usize) -> Result<()> {
+    let reader = hound::WavReader::open(file_path.as_ref())?;
+    let actual = reader.len() as usize;
+    if actual != expected_samples {
+        return Err(anyhow::anyhow!(
+            "WAV verification failed: expected {} samples, got {}",
+            expected_samples,
+            actual
+        ));
+    }
+    Ok(())
+}
+
 /// Read audio samples from a WAV file
 pub fn read_wav_file<P: AsRef<Path>>(file_path: P) -> Result<Vec<f32>> {
     let mut reader = hound::WavReader::open(file_path.as_ref())?;

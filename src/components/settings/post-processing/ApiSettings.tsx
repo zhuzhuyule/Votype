@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Dialog,
@@ -27,13 +28,11 @@ import { AdvancedSettings } from "./AdvancedSettings";
 import { SidebarItem } from "./SidebarItem";
 
 interface ApiSettingsProps {
-  onAddModel: () => void;
   isFetchingModels: boolean;
   providerState: PostProcessProviderState;
 }
 
 export const ApiSettings: React.FC<ApiSettingsProps> = ({
-  onAddModel,
   isFetchingModels,
   providerState: state,
 }) => {
@@ -47,17 +46,9 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const builtinProviders = [
-    "openai",
-    "anthropic",
-    "apple_intelligence",
-    "iflow",
-    "gitee",
-  ];
-  const isSelectedBuiltin = builtinProviders.includes(state.selectedProviderId);
-  const selectedProviderLabel =
-    (state.providerOptions.find((p) => p.value === state.selectedProviderId)
-      ?.label as string) || "";
+  const selectedProviderLabel = state.selectedProvider?.label ?? "";
+  const isSelectedBuiltin = state.selectedProvider?.builtin ?? false;
+  const isSelectedDeletable = state.selectedProvider?.deletable ?? true;
 
   // Update local state when provider changes
   useEffect(() => {
@@ -94,24 +85,17 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   // Find if there's already an empty custom provider (no API key configured)
   const emptyCustomProvider = useMemo(() => {
-    const builtins = [
-      "openai",
-      "anthropic",
-      "apple_intelligence",
-      "iflow",
-      "gitee",
-    ];
-    return state.providerOptions.find((p) => {
-      if (builtins.includes(p.value)) return false;
-      const apiKey = state.apiKeys?.[p.value] ?? "";
+    return state.providers.find((provider) => {
+      if (provider.builtin) return false;
+      const apiKey = state.apiKeys?.[provider.id] ?? "";
       return !apiKey.trim();
     });
-  }, [state.providerOptions, state.apiKeys]);
+  }, [state.providers, state.apiKeys]);
 
   const handleAddProvider = async () => {
     // If there's already an empty custom provider, select it instead of creating a new one
     if (emptyCustomProvider) {
-      state.handleProviderSelect(emptyCustomProvider.value);
+      void state.handleProviderSelect(emptyCustomProvider.id);
       return;
     }
     await addCustomProvider({
@@ -122,14 +106,18 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   // Sort providers: Built-in first
   const sortedOptions = useMemo(() => {
+    const providerMap = new Map(
+      state.providers.map((provider) => [provider.id, provider]),
+    );
+
     return [...state.providerOptions].sort((a, b) => {
-      const aBuiltin = builtinProviders.includes(a.value);
-      const bBuiltin = builtinProviders.includes(b.value);
+      const aBuiltin = providerMap.get(a.value)?.builtin ?? false;
+      const bBuiltin = providerMap.get(b.value)?.builtin ?? false;
       if (aBuiltin && !bBuiltin) return -1;
       if (!aBuiltin && bBuiltin) return 1;
       return 0;
     });
-  }, [state.providerOptions]);
+  }, [state.providerOptions, state.providers]);
 
   return (
     <Card className="p-0! overflow-hidden">
@@ -163,7 +151,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 key={option.value}
                 option={option}
                 isSelected={state.selectedProviderId === option.value}
-                isBuiltin={builtinProviders.includes(option.value)}
+                isLocked={
+                  state.providers.find(
+                    (provider) => provider.id === option.value,
+                  )?.builtin ?? false
+                }
                 isVerified={state.verifiedProviderIds.has(option.value)}
                 onClick={() => state.handleProviderSelect(option.value)}
                 onActivate={() => state.activateProvider(option.value)}
@@ -179,17 +171,83 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           <Box className="pt-6 px-8 pb-2 shrink-0">
             <Flex justify="between" align="center" width="100%">
               {isSelectedBuiltin ? (
-                <Flex align="center" gap="2">
-                  <Text size="4" weight="bold">
-                    {selectedProviderLabel}
-                  </Text>
-                  <Box
-                    title={t(
-                      "settings.postProcessing.api.provider.builtinTooltip",
-                    )}
-                  >
-                    <IconLock size={16} className="text-gray-400" />
-                  </Box>
+                <Flex align="center" justify="between" width="100%">
+                  <Flex align="center" gap="2">
+                    <Text size="4" weight="bold">
+                      {selectedProviderLabel}
+                    </Text>
+                    <Box
+                      title={t(
+                        "settings.postProcessing.api.provider.builtinTooltip",
+                      )}
+                    >
+                      <IconLock size={16} className="text-gray-400" />
+                    </Box>
+                  </Flex>
+                  {isSelectedDeletable && (
+                    <Dialog.Root
+                      open={showDeleteConfirm}
+                      onOpenChange={setShowDeleteConfirm}
+                    >
+                      <Dialog.Trigger>
+                        <IconButton
+                          variant="ghost"
+                          color="red"
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="cursor-pointer ml-2"
+                          title={t(
+                            "settings.postProcessing.api.provider.deleteAction",
+                          )}
+                        >
+                          <IconTrash size={18} />
+                        </IconButton>
+                      </Dialog.Trigger>
+                      <Dialog.Content maxWidth="450px">
+                        <Dialog.Title>
+                          {t(
+                            "settings.postProcessing.api.provider.deleteTitle",
+                          )}
+                        </Dialog.Title>
+                        <Dialog.Description size="2" mb="4">
+                          {t(
+                            "settings.postProcessing.api.provider.deleteConfirmation",
+                            { name: selectedProviderLabel },
+                          )}
+                        </Dialog.Description>
+                        <Flex gap="3" mt="4" justify="end">
+                          <Dialog.Close>
+                            <Button
+                              variant="soft"
+                              color="gray"
+                              className="cursor-pointer"
+                            >
+                              {t("common.cancel")}
+                            </Button>
+                          </Dialog.Close>
+                          <Dialog.Close>
+                            <Button
+                              color="red"
+                              className="cursor-pointer"
+                              onClick={async () => {
+                                const deletedId = state.selectedProviderId;
+                                const fallback = state.providerOptions.find(
+                                  (p) => p.value !== deletedId,
+                                );
+                                if (fallback) {
+                                  void state.handleProviderSelect(
+                                    fallback.value,
+                                  );
+                                }
+                                await removeCustomProvider(deletedId);
+                              }}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </Dialog.Close>
+                        </Flex>
+                      </Dialog.Content>
+                    </Dialog.Root>
+                  )}
                 </Flex>
               ) : (
                 <>
@@ -248,8 +306,16 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                           <Button
                             color="red"
                             className="cursor-pointer"
-                            onClick={() => {
-                              removeCustomProvider(state.selectedProviderId);
+                            onClick={async () => {
+                              const deletedId = state.selectedProviderId;
+                              // Switch to first available provider before deleting
+                              const fallback = state.providerOptions.find(
+                                (p) => p.value !== deletedId,
+                              );
+                              if (fallback) {
+                                state.handleProviderSelect(fallback.value);
+                              }
+                              await removeCustomProvider(deletedId);
                             }}
                           >
                             {t("common.delete")}
@@ -277,6 +343,44 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 placeholder="https://api.openai.com/v1"
                 className="w-full"
               />
+              {localBaseUrl.trim() && (
+                <Flex
+                  direction="column"
+                  gap="1"
+                  className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700/50"
+                >
+                  <Text size="1" color="gray" weight="medium">
+                    {t(
+                      "settings.postProcessing.api.providers.fields.actualUrlPreview",
+                    )}
+                  </Text>
+                  <Text
+                    size="1"
+                    className="break-all font-mono opacity-80 text-(--accent-11)"
+                  >
+                    {(() => {
+                      let url = localBaseUrl.trim();
+                      let normalized = "";
+                      if (url.endsWith("#")) {
+                        normalized = url.slice(0, -1).replace(/\/+$/, "");
+                      } else {
+                        const isSpecial =
+                          url.startsWith("apple-intelligence://") ||
+                          url.startsWith("ollama://");
+                        const base = url.replace(/\/+$/, "");
+                        const hasVersion = /\/v\d+$/.test(base);
+
+                        if (isSpecial || hasVersion) {
+                          normalized = base;
+                        } else {
+                          normalized = base + "/v1";
+                        }
+                      }
+                      return `${normalized}/chat/completions`;
+                    })()}
+                  </Text>
+                </Flex>
+              )}
               <Text size="1" color="gray" className="opacity-70">
                 {t("settings.postProcessing.api.providers.fields.baseUrlHint")}
               </Text>
@@ -322,9 +426,17 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     // }
 
                     // 规范化 URL（仅去除尾部斜杠）
-                    const normalizedUrl = localBaseUrl
-                      .trim()
-                      .replace(/\/+$/, "");
+                    let normalizedUrl = localBaseUrl.trim();
+
+                    // 如果以 # 结尾，视为强制原始模式，移除 # 并跳过 v1 警告
+                    const isRawMode = normalizedUrl.endsWith("#");
+                    if (isRawMode) {
+                      normalizedUrl = normalizedUrl
+                        .slice(0, -1)
+                        .replace(/\/+$/, "");
+                    } else {
+                      normalizedUrl = normalizedUrl.replace(/\/+$/, "");
+                    }
 
                     // 智能检测是否缺少版本路径
                     const isSpecialProtocol =
@@ -332,10 +444,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       normalizedUrl.startsWith("ollama://");
                     const hasVersionPath = /\/v\d+$/.test(normalizedUrl);
 
-                    // 如果不是特殊协议且缺少版本路径，显示警告提示
+                    // 如果不是特殊协议、不是原始模式且缺少版本路径，显示警告提示
                     if (
                       normalizedUrl &&
                       !isSpecialProtocol &&
+                      !isRawMode &&
                       !hasVersionPath
                     ) {
                       toast.warning(
@@ -348,17 +461,50 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
                     await state.handleBaseUrlChange(normalizedUrl);
                     await state.handleApiKeyChange(localApiKey);
-                    const success = await state.testConnection();
-                    if (success) {
-                      toast.success(
-                        t("settings.postProcessing.api.providers.testSuccess"),
-                      );
+
+                    if (state.model) {
+                      const res = await state.testInference(state.model);
+                      state.setLastInferenceResult(res);
+                      const { result, error, hasThinking } = res;
+                      if (!error) {
+                        const displayResult = hasThinking
+                          ? `[Thinking] ${result}`
+                          : result;
+                        toast.success(
+                          t(
+                            "settings.postProcessing.api.providers.api.testSuccess",
+                            { result: displayResult },
+                          ),
+                        );
+                      } else {
+                        toast.error(
+                          t(
+                            "settings.postProcessing.api.providers.api.testFailed",
+                            {
+                              error,
+                            },
+                          ),
+                        );
+                      }
                     } else {
-                      toast.error(
-                        t("settings.postProcessing.api.providers.testFailed", {
-                          error: "",
-                        }),
-                      );
+                      const error = await state.testConnection();
+                      if (!error) {
+                        toast.success(
+                          t(
+                            "settings.postProcessing.api.providers.api.testSuccess",
+                            { result: "OK" },
+                          ),
+                        );
+                      } else {
+                        toast.error(
+                          t(
+                            "settings.postProcessing.api.providers.api.testFailed",
+                            {
+                              error,
+                            },
+                          ),
+                        );
+                      }
                     }
                   }}
                   disabled={isFetchingModels}
@@ -369,12 +515,47 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     <>
                       <IconPlugConnected size={14} />
                       {t(
-                        "settings.postProcessing.api.providers.testConnection",
+                        "settings.postProcessing.api.providers.api.testConnection",
                       )}
                     </>
                   )}
                 </Button>
               </Flex>
+
+              {state.lastInferenceResult && (
+                <Card className="p-4 bg-[var(--gray-2)] border-[1px] border-[var(--gray-5)] mt-2">
+                  <Flex direction="column" gap="2">
+                    <Flex align="center" gap="2">
+                      <Badge
+                        color={
+                          state.lastInferenceResult.error ? "red" : "green"
+                        }
+                        variant="soft"
+                        size="1"
+                      >
+                        {state.lastInferenceResult.error
+                          ? "Failure"
+                          : "Success"}
+                      </Badge>
+                      {state.lastInferenceResult.hasThinking && (
+                        <Badge color="amber" variant="surface" size="1">
+                          🧠 Thinking Model
+                        </Badge>
+                      )}
+                    </Flex>
+                    <Text
+                      size="1"
+                      color={
+                        state.lastInferenceResult.error ? "red" : undefined
+                      }
+                      className="whitespace-pre-wrap font-mono break-all opacity-80"
+                    >
+                      {state.lastInferenceResult.error ||
+                        state.lastInferenceResult.result}
+                    </Text>
+                  </Flex>
+                </Card>
+              )}
             </Flex>
 
             {/* Advanced Settings */}
@@ -382,19 +563,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               modelsEndpoint={state.modelsEndpoint}
               onModelsEndpointChange={state.handleModelsEndpointChange}
             />
-
-            {/* Add Model Button */}
-            <Box className="pt-4 border-t border-gray-100 dark:border-gray-800">
-              <Button
-                variant="surface"
-                className="w-full cursor-pointer"
-                onClick={onAddModel}
-                disabled={isFetchingModels}
-              >
-                <IconPlus size={16} />
-                {t("settings.postProcessing.models.addModel")}
-              </Button>
-            </Box>
           </Box>
         </Flex>
       </Grid>

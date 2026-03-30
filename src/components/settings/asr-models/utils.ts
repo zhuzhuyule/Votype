@@ -19,11 +19,6 @@ export const parseLanguageKeys = (model: ModelInfo): LanguageKey[] => {
   const id = (model.id ?? "").toLowerCase();
   const tokenSet = new Set<LanguageKey>();
 
-  // Special case for specific model
-  if (id === "sherpa-paraformer-zh-small-2024-03-09") {
-    return ["multilingual", "zh", "en"];
-  }
-
   // Parse language tokens from ID
   const re = /(^|[-_])(zh|yue|ct|cantonese|en|ja|ko|de|es|fr|ru)(?=([-_]|$))/g;
   for (const match of id.matchAll(re)) {
@@ -42,79 +37,54 @@ export const parseLanguageKeys = (model: ModelInfo): LanguageKey[] => {
 };
 
 /**
- * Get the mode key for a model (streaming, offline, or punctuation)
+ * Get the mode key for a model (asr or punctuation)
  */
-export const getModeKey = (m: ModelInfo): ModeKey => {
-  if (m.engine_type === "SherpaOnnxPunctuation") return "punctuation";
-  if (m.engine_type === "SherpaOnnx" && m.sherpa?.mode === "Streaming") {
-    return "streaming";
-  }
-  return "offline";
-};
+export const getModeKey = (m: ModelInfo): ModeKey =>
+  m.id.startsWith("punct-") ? "punctuation" : "asr";
 
 /**
  * Get the type key for a model
  */
 export const getTypeKey = (m: ModelInfo): TypeKey => {
-  if (m.engine_type === "Whisper") return "whisper";
-  if (m.engine_type === "Parakeet") return "parakeet";
-  if (m.engine_type === "SherpaOnnxPunctuation") return "punctuation";
-
-  if (m.engine_type === "SherpaOnnx") {
-    switch (m.sherpa?.family) {
-      case "Transducer":
-      case "Zipformer2Ctc":
-        return "sherpa_transducer";
-      case "Paraformer":
-        return "sherpa_paraformer";
-      case "SenseVoice":
-        return "sherpa_sense_voice";
-      case "FireRedAsr":
-        return "sherpa_fire_red_asr";
-      default:
-        return "other";
-    }
+  switch (m.engine_type) {
+    case "Whisper":
+      return "whisper";
+    case "Parakeet":
+      return "parakeet";
+    case "Moonshine":
+    case "MoonshineStreaming":
+      return "moonshine";
+    case "SenseVoice":
+      return "sensevoice";
+    case "ZipformerTransducer":
+    case "ZipformerCtc":
+      return "zipformer";
+    case "Paraformer":
+      return m.id.startsWith("punct-") ? "other" : "paraformer";
+    default:
+      return "other";
   }
-
-  return "other";
 };
 
 /**
  * Ordering function for mode keys
  */
-export const orderMode = (k: ModeKey): number => {
-  switch (k) {
-    case "streaming":
-      return 0;
-    case "offline":
-      return 1;
-    case "punctuation":
-      return 2;
-  }
-};
+export const orderMode = (k: ModeKey): number => (k === "asr" ? 0 : 1);
 
 /**
  * Ordering function for type keys
  */
 export const orderType = (k: TypeKey): number => {
-  switch (k) {
-    case "whisper":
-      return 0;
-    case "parakeet":
-      return 1;
-    case "sherpa_transducer":
-      return 2;
-    case "sherpa_paraformer":
-      return 3;
-    case "sherpa_sense_voice":
-      return 4;
-    case "sherpa_fire_red_asr":
-      return 5;
-    case "punctuation":
-      return 6;
-    case "other":
-      return 99;
-  }
+  const order: Record<TypeKey, number> = {
+    whisper: 0,
+    parakeet: 1,
+    moonshine: 2,
+    sensevoice: 3,
+    zipformer: 4,
+    paraformer: 5,
+    other: 99,
+  };
+  return order[k] ?? 99;
 };
 
 /**

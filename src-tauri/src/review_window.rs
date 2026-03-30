@@ -14,10 +14,10 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
 const REVIEW_WINDOW_WIDTH: f64 = 540.0;
-const REVIEW_WINDOW_MIN_WIDTH: f64 = 480.0;
+const REVIEW_WINDOW_MIN_WIDTH: f64 = 600.0;
 const REVIEW_WINDOW_MAX_WIDTH: f64 = 1080.0;
 const REVIEW_WINDOW_HEIGHT: f64 = 480.0;
-const REVIEW_WINDOW_MIN_HEIGHT: f64 = 420.0;
+const REVIEW_WINDOW_MIN_HEIGHT: f64 = 450.0;
 const REVIEW_WINDOW_MAX_HEIGHT: f64 = 920.0;
 
 #[derive(Clone, serde::Serialize)]
@@ -29,6 +29,36 @@ struct ReviewWindowPayload {
     reason: Option<String>,
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
+    /// The prompt_id that was actually used for this transcription (may be overridden by app rules)
+    prompt_id: Option<String>,
+    /// The model_id that was actually used for this transcription
+    model_id: Option<String>,
+}
+
+/// Multi-model post-processing candidate result
+#[derive(Clone, serde::Serialize)]
+pub struct MultiModelCandidate {
+    pub id: String,
+    pub label: String,
+    pub provider_label: String,
+    pub text: String,
+    pub confidence: Option<u8>,
+    pub processing_time_ms: u64,
+    pub error: Option<String>,
+    pub ready: bool,
+}
+
+/// Review window payload for multi-candidate mode
+#[allow(dead_code)]
+#[derive(Clone, serde::Serialize)]
+pub struct ReviewWindowMultiCandidatePayload {
+    pub source_text: String,
+    pub candidates: Vec<MultiModelCandidate>,
+    pub history_id: Option<i64>,
+    pub output_mode: PromptOutputMode,
+    pub skill_name: Option<String>,
+    /// The prompt_id that was actually used for this transcription (may be overridden by app rules)
+    pub prompt_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -49,6 +79,9 @@ static LAST_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
 static LAST_ACTIVE_WINDOW: Lazy<Mutex<Option<ActiveWindowInfo>>> = Lazy::new(|| Mutex::new(None));
+static REVIEW_EDITOR_ACTIVE: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+static REVIEW_EDITOR_CONTENT: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
+static FROZEN_REVIEW_EDITOR_CONTENT: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
 fn emit_review_payload(app_handle: &AppHandle, payload: ReviewWindowPayload) -> bool {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
@@ -89,22 +122,24 @@ fn estimate_window_width(source_text: &str, final_text: &str) -> f64 {
     if max_line_len == 0 {
         return REVIEW_WINDOW_WIDTH;
     }
-    let estimated = (max_line_len as f64 * 9.2).min(REVIEW_WINDOW_MAX_WIDTH);
+    let estimated = (max_line_len as f64 * 9.2 + 70.0).min(REVIEW_WINDOW_MAX_WIDTH);
     estimated.clamp(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MAX_WIDTH)
 }
 
 fn estimate_window_height(source_text: &str, final_text: &str, width: f64) -> f64 {
-    let line_chars = (width / 10.5).floor().max(18.0) as usize;
+    let text_width = (width - 70.0).max(200.0); // subtract panel margins
+    let line_chars = (text_width / 9.2).floor().max(18.0) as usize;
     let source_lines = estimate_line_count(source_text, line_chars);
     let final_lines = estimate_line_count(final_text, line_chars);
-    let content_lines = source_lines + final_lines;
-    // Increased line height estimation due to 16px font
-    let content_height = content_lines as f64 * 28.0;
-    let chrome_height = 140.0; // Compacted Header + Footer
-    let height = (chrome_height + content_height)
-        .max(REVIEW_WINDOW_MIN_HEIGHT)
-        .min(REVIEW_WINDOW_MAX_HEIGHT);
-    height
+
+    // Source inline frame: padding(14) + body(lines*20, max 120) + border(2)
+    let source_body = (source_lines as f64 * 20.0).min(120.0);
+    let source_frame = 14.0 + source_body + 2.0;
+    // Output panel: header(30) + body(lines*24) + border(2)
+    let output_panel = 30.0 + final_lines as f64 * 24.0 + 2.0;
+    // Total: header(40) + content-padding(8) + source + gap(8) + output + footer(32)
+    let total = 40.0 + 8.0 + source_frame + 8.0 + output_panel + 32.0;
+    total.clamp(REVIEW_WINDOW_MIN_HEIGHT, REVIEW_WINDOW_MAX_HEIGHT)
 }
 
 fn was_app_active_before_review() -> bool {
@@ -208,6 +243,17 @@ fn maybe_restore_activation_policy(app_handle: &AppHandle) {
     }
 }
 
+/// Get the logical size of the monitor containing the cursor (or primary).
+fn get_screen_logical_size(window: &tauri::WebviewWindow) -> (f64, f64) {
+    let monitor = window.primary_monitor().ok().flatten();
+    if let Some(m) = monitor {
+        let scale = m.scale_factor();
+        let size = m.size();
+        return (size.width as f64 / scale, size.height as f64 / scale);
+    }
+    (1440.0, 900.0) // sensible fallback
+}
+
 fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height: f64) {
     use crate::active_window::fetch_cursor_position;
 
@@ -270,7 +316,7 @@ pub fn create_review_window(app_handle: &AppHandle) {
     .resizable(true)
     .inner_size(REVIEW_WINDOW_WIDTH, REVIEW_WINDOW_HEIGHT)
     .shadow(true)
-    .min_inner_size(REVIEW_WINDOW_WIDTH, REVIEW_WINDOW_HEIGHT)
+    .min_inner_size(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MIN_HEIGHT)
     .maximizable(false)
     .minimizable(false)
     .closable(false)
@@ -315,6 +361,8 @@ pub fn show_review_window(
     reason: Option<String>,
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
+    prompt_id: Option<String>,
+    model_id: Option<String>,
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     let had_visible_windows = record_hidden_windows(app_handle);
@@ -345,6 +393,8 @@ pub fn show_review_window(
         reason,
         output_mode,
         skill_name,
+        prompt_id,
+        model_id,
     };
 
     {
@@ -444,6 +494,30 @@ pub fn review_window_content_ready(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Called by frontend to resize the review window after measuring actual DOM content.
+/// When `reposition` is true, the window is re-centered on the cursor's monitor (initial show).
+/// When false, only size changes (e.g. after prompt switch).
+#[tauri::command]
+pub fn resize_review_window(
+    app: AppHandle,
+    width: f64,
+    height: f64,
+    reposition: bool,
+) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("review_window") {
+        let w = width.clamp(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MAX_WIDTH);
+        let h = height.clamp(REVIEW_WINDOW_MIN_HEIGHT, REVIEW_WINDOW_MAX_HEIGHT);
+        let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+            width: w,
+            height: h,
+        }));
+        if reposition {
+            position_window_near_cursor(&window, w, h);
+        }
+    }
+    Ok(())
+}
+
 #[allow(dead_code)]
 pub fn get_last_review_history_id() -> Option<i64> {
     let last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
@@ -458,4 +532,117 @@ pub fn set_last_active_window(info: Option<ActiveWindowInfo>) {
 pub fn get_last_active_window() -> Option<ActiveWindowInfo> {
     let last_window = LAST_ACTIVE_WINDOW.lock().unwrap();
     last_window.clone()
+}
+
+pub fn set_review_editor_active(active: bool) {
+    if let Ok(mut guard) = REVIEW_EDITOR_ACTIVE.lock() {
+        *guard = active;
+    }
+}
+
+pub fn is_review_editor_active() -> bool {
+    REVIEW_EDITOR_ACTIVE
+        .lock()
+        .map(|guard| *guard)
+        .unwrap_or(false)
+}
+
+pub fn set_review_editor_content(text: String) {
+    if let Ok(mut guard) = REVIEW_EDITOR_CONTENT.lock() {
+        *guard = text;
+    }
+}
+
+pub fn current_review_editor_content() -> Option<String> {
+    REVIEW_EDITOR_CONTENT
+        .lock()
+        .ok()
+        .map(|guard| guard.trim().to_string())
+        .filter(|text| !text.is_empty())
+}
+
+pub fn freeze_review_editor_content_snapshot() {
+    let snapshot = current_review_editor_content();
+    if let Ok(mut guard) = FROZEN_REVIEW_EDITOR_CONTENT.lock() {
+        *guard = snapshot;
+    }
+}
+
+pub fn take_frozen_review_editor_content() -> Option<String> {
+    FROZEN_REVIEW_EDITOR_CONTENT
+        .lock()
+        .ok()
+        .and_then(|mut guard| guard.take())
+}
+
+/// Shows the review window with multiple model candidates for selection
+pub fn show_review_window_with_candidates(
+    app_handle: &AppHandle,
+    source_text: String,
+    candidates: Vec<MultiModelCandidate>,
+    history_id: Option<i64>,
+    output_mode: PromptOutputMode,
+    skill_name: Option<String>,
+    prompt_id: Option<String>,
+) {
+    REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
+    let had_visible_windows = record_hidden_windows(app_handle);
+    #[cfg(target_os = "macos")]
+    ensure_app_active_for_review(app_handle, had_visible_windows);
+
+    debug!(
+        "show_review_window_with_candidates called with {} candidates",
+        candidates.len()
+    );
+
+    {
+        let mut last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
+        *last_id = history_id;
+    }
+
+    let candidate_count = candidates.len() as f64;
+    let char_count = source_text.chars().count();
+
+    let payload = ReviewWindowMultiCandidatePayload {
+        source_text,
+        candidates,
+        history_id,
+        output_mode,
+        skill_name,
+        prompt_id,
+    };
+
+    if let Some(review_window) = app_handle.get_webview_window("review_window") {
+        debug!("Found review_window, emitting multi-candidate event...");
+        let (screen_w, screen_h) = get_screen_logical_size(&review_window);
+
+        // Width: use 65% of screen width for multi-candidate, generous space for text
+        let width = (screen_w * 0.65).clamp(680.0, REVIEW_WINDOW_MAX_WIDTH);
+
+        // Height: (n+1) * per_item
+        // Base 110px per slot; add 20px per 100 chars of source text for longer content
+        let extra = (char_count / 100) as f64 * 20.0;
+        let per_item = 110.0 + extra;
+        let desired_height = (candidate_count + 1.0) * per_item;
+        let height = desired_height.clamp(REVIEW_WINDOW_MIN_HEIGHT, screen_h * 0.85);
+
+        let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
+        position_window_near_cursor(&review_window, width, height);
+
+        // Emit the multi-candidate event
+        let emit_result = review_window.emit("review-window-multi-candidate", payload);
+        debug!("review_window.emit() result: {:?}", emit_result);
+
+        if emit_result.is_ok() {
+            REVIEW_WINDOW_ACTIVE.store(true, Ordering::SeqCst);
+        }
+
+        let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
+        let show_result = review_window.show();
+        debug!("review_window.show() result: {:?}", show_result);
+        let focus_result = review_window.set_focus();
+        debug!("review_window.set_focus() result: {:?}", focus_result);
+        schedule_focus_review_window(app_handle.clone(), focus_token);
+        schedule_hide_windows(app_handle.clone());
+    }
 }

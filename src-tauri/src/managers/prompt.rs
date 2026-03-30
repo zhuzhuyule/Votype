@@ -23,71 +23,117 @@ impl PromptManager {
         Self { data_dir }
     }
 
-    /// Load a prompt by ID. Checks user data directory first, falls back to resources.
-    /// If loading from resources for the first time, it copies the file to the user directory
-    /// to allow for user customization.
-    pub fn get_prompt(&self, app_handle: &tauri::AppHandle, id: &str) -> Result<String, String> {
-        let filename = format!("{}.md", id);
-        let user_path = self.data_dir.join(&filename);
+    /// Compute a stable hash of content for change detection.
+    fn content_hash(content: &str) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        content.hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
+    }
 
-        // 1. Try user data directory first (for customized system prompts)
-        if user_path.exists() {
-            if let Ok(content) = fs::read_to_string(&user_path) {
-                return Ok(content);
-            }
-        }
-
-        // 2. Fallback to built-in resources
+    /// Resolve the built-in resource file path for a prompt.
+    fn resolve_resource_path(
+        app_handle: &tauri::AppHandle,
+        filename: &str,
+    ) -> Result<PathBuf, String> {
         let resource_rel_path = format!("resources/prompts/{}", filename);
         let resolved_path = app_handle
             .path()
             .resolve(&resource_rel_path, tauri::path::BaseDirectory::Resource);
 
-        // Try to find the resource file, with fallback for development mode
-        let resource_path = match &resolved_path {
-            Ok(path) if path.exists() => Some(path.clone()),
-            _ => {
-                // In development mode, try the source directory directly
-                // The resource path in dev mode points to target/debug/resources
-                // but files are actually in src-tauri/resources
-                std::env::current_exe()
-                    .ok()
-                    .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
-                    .map(|dir| {
-                        // Navigate from target/debug to src-tauri/resources
-                        dir.join("../../resources/prompts").join(&filename)
-                    })
-                    .and_then(|p| p.canonicalize().ok())
-            }
-        };
+        match &resolved_path {
+            Ok(path) if path.exists() => return Ok(path.clone()),
+            _ => {}
+        }
 
-        match resource_path {
-            Some(path) => match fs::read_to_string(&path) {
-                Ok(content) => {
-                    // Copy to user directory so they can see/edit it
-                    // Create parent if missing
-                    if let Some(parent) = user_path.parent() {
-                        let _ = fs::create_dir_all(parent);
+        // Fallback for development mode: navigate from target/debug to src-tauri/resources
+        if let Some(path) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+            .map(|dir| dir.join("../../resources/prompts").join(filename))
+            .and_then(|p| p.canonicalize().ok())
+        {
+            return Ok(path);
+        }
+
+        let attempted = match &resolved_path {
+            Ok(p) => format!("{:?}", p),
+            Err(e) => e.to_string(),
+        };
+        Err(format!(
+            "Prompt resource not found. Attempted: {}",
+            attempted
+        ))
+    }
+
+    /// Load a prompt by ID.
+    ///
+    /// Version-aware loading strategy:
+    /// 1. If user file exists, compare with built-in resource via hash tracking
+    ///    - Resource unchanged → use user file
+    ///    - Resource updated + user hasn't customized → auto-update user file
+    ///    - Resource updated + user has customized → keep user version
+    /// 2. If no user file, copy from built-in resource
+    pub fn get_prompt(&self, app_handle: &tauri::AppHandle, id: &str) -> Result<String, String> {
+        let filename = format!("{}.md", id);
+        let user_path = self.data_dir.join(&filename);
+        let hash_path = self.data_dir.join(format!(".{}.resource_hash", filename));
+
+        // Try to load built-in resource content
+        let resource_content =
+            Self::resolve_resource_path(app_handle, &filename).and_then(|path| {
+                fs::read_to_string(&path)
+                    .map_err(|e| format!("Failed to read resource prompt {}: {}", id, e))
+            });
+
+        // Case 1: User file exists — check if it needs updating
+        if user_path.exists() {
+            if let Ok(user_content) = fs::read_to_string(&user_path) {
+                if let Ok(ref resource) = resource_content {
+                    let resource_hash = Self::content_hash(resource);
+                    let stored_hash = fs::read_to_string(&hash_path).unwrap_or_default();
+
+                    if resource_hash != stored_hash {
+                        // Built-in resource has changed since last sync
+                        let user_hash = Self::content_hash(&user_content);
+                        // User is "unmodified" if: no hash file yet (legacy) OR user content matches last-synced resource
+                        let user_unmodified = stored_hash.is_empty() || user_hash == stored_hash;
+
+                        if user_unmodified {
+                            info!("[Prompt] Updating '{}': built-in version changed", id);
+                            let _ = fs::write(&user_path, resource);
+                            let _ = fs::write(&hash_path, &resource_hash);
+                            return Ok(resource.clone());
+                        } else {
+                            info!(
+                                "[Prompt] Keeping customized '{}' (built-in changed but user has modifications)",
+                                id
+                            );
+                            let _ = fs::write(&hash_path, &resource_hash);
+                        }
                     }
-                    if let Err(e) = fs::write(&user_path, &content) {
-                        log::error!("Failed to initialize user-side system prompt {}: {}", id, e);
-                    } else {
-                        info!("Initialized system prompt: {} in user directory", id);
-                    }
-                    Ok(content)
                 }
-                Err(e) => Err(format!("Failed to read resource prompt {}: {}", id, e)),
-            },
-            None => {
-                let attempted_path = match &resolved_path {
-                    Ok(p) => format!("{:?}", p),
-                    Err(e) => e.to_string(),
-                };
-                Err(format!(
-                    "Prompt resource not found. Attempted: {}",
-                    attempted_path
-                ))
+                return Ok(user_content);
             }
+        }
+
+        // Case 2: No user file — copy from built-in resource
+        match resource_content {
+            Ok(content) => {
+                if let Some(parent) = user_path.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                let hash = Self::content_hash(&content);
+                if let Err(e) = fs::write(&user_path, &content) {
+                    log::error!("Failed to initialize user-side system prompt {}: {}", id, e);
+                } else {
+                    let _ = fs::write(&hash_path, &hash);
+                    info!("Initialized system prompt: {} in user directory", id);
+                }
+                Ok(content)
+            }
+            Err(e) => Err(e),
         }
     }
 
@@ -104,8 +150,12 @@ impl PromptManager {
     pub fn reset_prompt(&self, app_handle: &tauri::AppHandle, id: &str) -> Result<String, String> {
         let filename = format!("{}.md", id);
         let user_path = self.data_dir.join(&filename);
+        let hash_path = self.data_dir.join(format!(".{}.resource_hash", filename));
         if user_path.exists() {
             let _ = fs::remove_file(&user_path);
+        }
+        if hash_path.exists() {
+            let _ = fs::remove_file(&hash_path);
         }
         self.get_prompt(app_handle, id)
     }

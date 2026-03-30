@@ -2,9 +2,15 @@ use log::{debug, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use std::collections::HashMap;
+use std::fmt;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
 use tauri_plugin_store::StoreExt;
+
+static SETTINGS_VERSION: AtomicU64 = AtomicU64::new(0);
+static CACHED_SETTINGS: Mutex<Option<(u64, AppSettings)>> = Mutex::new(None);
 
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
@@ -67,11 +73,13 @@ impl Default for Skill {
             icon: None,
             skill_type: SkillType::default(),
             source: SkillSource::default(),
-            compliance_check_enabled: false,
-            compliance_threshold: None,
+            confidence_check_enabled: false,
+            confidence_threshold: None,
             output_mode: SkillOutputMode::default(),
             enabled: true,
             customized: false,
+            locked: false,
+            param_preset: None,
             file_path: None,
         }
     }
@@ -92,23 +100,19 @@ pub enum SkillSource {
     External { path: String },
 }
 
-/// Hotword category for semantic classification
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
-#[serde(rename_all = "lowercase")]
-pub enum HotwordCategory {
-    /// Person names (colleagues, friends, public figures)
-    #[default]
-    Person,
-    /// Technical terms, industry vocabulary
-    Term,
-    /// Product/brand names, company names
-    Brand,
-    /// Abbreviations like API, SDK, CEO
-    Abbreviation,
+/// Metadata for a hotword category (stored in DB)
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct HotwordCategoryMeta {
+    pub id: String,
+    pub label: String,
+    pub color: String,
+    pub icon: String,
+    pub sort_order: i64,
+    pub is_builtin: bool,
 }
 
 /// Usage scenario for hotwords
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum HotwordScenario {
     /// Work context (meetings, documents, code)
@@ -125,19 +129,37 @@ pub struct Hotword {
     pub originals: Vec<String>,
     /// Target correct form
     pub target: String,
-    /// Semantic category
-    pub category: HotwordCategory,
+    /// Semantic category (e.g. "person", "term", "brand", "abbreviation", or custom)
+    pub category: String,
     /// Usage scenarios (can be multiple)
     pub scenarios: Vec<HotwordScenario>,
-    /// Auto-inference confidence (0.0-1.0)
-    pub confidence: f64,
     /// Whether user manually overrode the category
     pub user_override: bool,
     /// Usage statistics
     pub use_count: i64,
+    #[serde(default)]
+    pub recent_use_count: i64,
+    #[serde(default)]
+    pub app_usage_stats: HashMap<String, i64>,
+    #[serde(default)]
+    pub scenario_usage_stats: HashMap<HotwordScenario, i64>,
     pub last_used_at: Option<i64>,
     pub false_positive_count: i64,
     pub created_at: i64,
+    /// "active" (confirmed) or "suggested" (AI-suggested, pending user confirmation)
+    #[serde(default = "default_hotword_status")]
+    pub status: String,
+    /// Source of the hotword: "manual", "auto_learned", "ai_extracted"
+    #[serde(default = "default_hotword_source")]
+    pub source: String,
+}
+
+fn default_hotword_status() -> String {
+    "active".to_string()
+}
+
+fn default_hotword_source() -> String {
+    "manual".to_string()
 }
 
 /// Backward compatibility: LLMPrompt is now an alias for Skill
@@ -158,10 +180,10 @@ pub struct Skill {
     pub skill_type: SkillType,
     #[serde(default)]
     pub source: SkillSource,
-    #[serde(default)]
-    pub compliance_check_enabled: bool,
-    #[serde(default)]
-    pub compliance_threshold: Option<u8>,
+    #[serde(default, alias = "compliance_check_enabled")]
+    pub confidence_check_enabled: bool,
+    #[serde(default, alias = "compliance_threshold")]
+    pub confidence_threshold: Option<u8>,
     #[serde(default)]
     pub output_mode: SkillOutputMode,
     /// Whether this skill is enabled (default: true)
@@ -171,6 +193,13 @@ pub struct Skill {
     /// If true, user's version takes priority over file-based version
     #[serde(default)]
     pub customized: bool,
+    /// Whether this skill is locked (prevents editing/deletion)
+    #[serde(default)]
+    pub locked: bool,
+    /// 参数预设标识，用于匹配模型族的预设参数
+    /// 例如: "accurate", "balanced", "creative"
+    #[serde(default)]
+    pub param_preset: Option<String>,
     /// File path for external skills (user/imported source only)
     /// Skipped from serialization (runtime only)
     #[serde(skip)]
@@ -183,9 +212,19 @@ pub struct PostProcessProvider {
     pub label: String,
     pub base_url: String,
     #[serde(default)]
+    pub builtin: bool,
+    #[serde(default = "default_true")]
+    pub deletable: bool,
+    #[serde(default)]
     pub allow_base_url_edit: bool,
     #[serde(default)]
     pub models_endpoint: Option<String>,
+    #[serde(default)]
+    pub supports_structured_output: bool,
+    /// Custom HTTP headers to include in every request to this provider
+    /// e.g. {"X-Custom-Auth": "token123"}
+    #[serde(default)]
+    pub custom_headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -194,6 +233,40 @@ pub enum ModelType {
     Text,
     Asr,
     Other,
+}
+
+/// Multi-model post-process configuration item
+/// Uses cached_model_id and prompt_id to reference existing models and prompts
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct MultiModelPostProcessItem {
+    /// Unique identifier for this item
+    pub id: String,
+    /// Reference to LLM provider id
+    pub provider_id: String,
+    /// Reference to LLM model id
+    pub model_id: String,
+    /// Reference to skill/prompt id
+    pub prompt_id: String,
+    /// Display name (optional, defaults to model name + prompt name)
+    #[serde(default)]
+    pub custom_label: Option<String>,
+    /// Whether this item is enabled
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+impl Default for MultiModelPostProcessItem {
+    fn default() -> Self {
+        let timestamp = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
+        Self {
+            id: format!("mmpp_{}", timestamp),
+            provider_id: String::new(),
+            model_id: String::new(),
+            prompt_id: String::new(),
+            custom_label: None,
+            enabled: true,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
@@ -209,10 +282,141 @@ pub struct CachedModel {
     /// 是否为 Thinking 模式（深度推理）模型
     #[serde(default)]
     pub is_thinking_model: bool,
+    /// 模型族标识，用于自动匹配参数预设
+    /// 例如: "qwen3", "gpt-4o", "claude", "deepseek"
+    #[serde(default)]
+    pub model_family: Option<String>,
+    /// LLM 指令消息角色（system / developer）
+    #[serde(default)]
+    pub prompt_message_role: PromptMessageRole,
     /// 额外的请求参数（JSON 格式，会合并到 LLM 请求体中）
     /// 例如: {"extended_thinking": true, "thinking_budget_tokens": 10000}
     #[serde(default)]
     pub extra_params: Option<HashMap<String, serde_json::Value>>,
+    /// 额外的请求头（会合并到 HTTP 请求头中）
+    /// 例如: {"X-Custom-Token": "abc123"}
+    #[serde(default)]
+    pub extra_headers: Option<HashMap<String, String>>,
+}
+
+pub fn thinking_extra_params_with_aliases(
+    model_id: &str,
+    provider_id: &str,
+    enable: bool,
+    aliases: &[&str],
+) -> Option<HashMap<String, serde_json::Value>> {
+    // Check model_id and all aliases
+    let candidates: Vec<String> = std::iter::once(model_id)
+        .chain(aliases.iter().copied())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_lowercase())
+        .collect();
+
+    let matches = |pattern: &str| candidates.iter().any(|c| c.contains(pattern));
+
+    // DeepSeek: R1, reasoner
+    if matches("deepseek") && (matches("r1") || matches("reasoner")) {
+        let mut m = HashMap::new();
+        m.insert(
+            "thinking".to_string(),
+            serde_json::json!({"type": if enable { "enabled" } else { "disabled" }}),
+        );
+        return Some(m);
+    }
+
+    // Qwen3 hybrid models
+    if matches("qwen3") && !matches("instruct-2507") {
+        let mut m = HashMap::new();
+        if provider_id == "iflow" {
+            m.insert("enable_thinking".to_string(), serde_json::json!(enable));
+        } else {
+            m.insert(
+                "chat_template_kwargs".to_string(),
+                serde_json::json!({"enable_thinking": enable}),
+            );
+        }
+        return Some(m);
+    }
+
+    // QwQ (Qwen reasoning model)
+    if matches("qwq") {
+        let mut m = HashMap::new();
+        m.insert(
+            "chat_template_kwargs".to_string(),
+            serde_json::json!({"enable_thinking": enable}),
+        );
+        return Some(m);
+    }
+
+    // OpenAI o-series reasoning models
+    if candidates
+        .iter()
+        .any(|c| c.starts_with("o1") || c.starts_with("o3") || c.starts_with("o4"))
+    {
+        let mut m = HashMap::new();
+        m.insert(
+            "reasoning_effort".to_string(),
+            serde_json::json!(if enable { "high" } else { "low" }),
+        );
+        return Some(m);
+    }
+
+    // Anthropic Claude
+    if matches("claude") {
+        let mut m = HashMap::new();
+        if enable {
+            m.insert(
+                "thinking".to_string(),
+                serde_json::json!({"type": "enabled", "budget_tokens": 10000}),
+            );
+        } else {
+            m.insert(
+                "thinking".to_string(),
+                serde_json::json!({"type": "disabled"}),
+            );
+        }
+        return Some(m);
+    }
+
+    // Google Gemini 2.5 / 3 thinking models
+    if matches("gemini") && (matches("2.5") || matches("2-5") || matches("3")) {
+        let mut m = HashMap::new();
+        m.insert(
+            "reasoning_effort".to_string(),
+            serde_json::json!(if enable { "high" } else { "low" }),
+        );
+        return Some(m);
+    }
+
+    // GLM 4.6 / 4.7 / Z1
+    if matches("glm") && (matches("4.6") || matches("4.7") || matches("z1")) {
+        let mut m = HashMap::new();
+        m.insert(
+            "thinking".to_string(),
+            serde_json::json!({"type": if enable { "enabled" } else { "disabled" }}),
+        );
+        return Some(m);
+    }
+
+    // Generic fallback: any candidate contains "thinking" or "reasoner"
+    if matches("thinking") || matches("reasoner") {
+        let mut m = HashMap::new();
+        m.insert(
+            "thinking".to_string(),
+            serde_json::json!({"type": if enable { "enabled" } else { "disabled" }}),
+        );
+        return Some(m);
+    }
+
+    None
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum PromptMessageRole {
+    #[default]
+    System,
+    Developer,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -426,13 +630,123 @@ fn default_show_tray_icon() -> bool {
     true
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivationMode {
+    Toggle,
+    Hold,
+    HoldOrToggle,
+}
+
+impl Default for ActivationMode {
+    fn default() -> Self {
+        Self::Toggle
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ActivationMode {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ActivationModeVisitor;
+        impl<'de> serde::de::Visitor<'de> for ActivationModeVisitor {
+            type Value = ActivationMode;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a string (\"toggle\", \"hold\", \"hold_or_toggle\") or boolean")
+            }
+            fn visit_bool<E: serde::de::Error>(self, v: bool) -> Result<Self::Value, E> {
+                Ok(if v {
+                    ActivationMode::Hold
+                } else {
+                    ActivationMode::Toggle
+                })
+            }
+            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                match v {
+                    "toggle" => Ok(ActivationMode::Toggle),
+                    "hold" => Ok(ActivationMode::Hold),
+                    "hold_or_toggle" => Ok(ActivationMode::HoldOrToggle),
+                    _ => Err(E::unknown_variant(v, &["toggle", "hold", "hold_or_toggle"])),
+                }
+            }
+        }
+        deserializer.deserialize_any(ActivationModeVisitor)
+    }
+}
+
+/// A `HashMap<String, String>` wrapper that redacts values in `Debug` output
+/// to prevent API keys from leaking into log files.
+#[derive(Clone, Serialize, Deserialize, Type)]
+#[serde(transparent)]
+pub struct SecretMap(pub HashMap<String, String>);
+
+impl fmt::Debug for SecretMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let redacted: HashMap<&String, &str> = self
+            .0
+            .iter()
+            .map(|(k, v)| (k, if v.is_empty() { "" } else { "[REDACTED]" }))
+            .collect();
+        redacted.fmt(f)
+    }
+}
+
+impl std::ops::Deref for SecretMap {
+    type Target = HashMap<String, String>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for SecretMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum WhisperAcceleratorSetting {
+    Auto,
+    Cpu,
+    Gpu,
+}
+
+impl Default for WhisperAcceleratorSetting {
+    fn default() -> Self {
+        WhisperAcceleratorSetting::Auto
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum OrtAcceleratorSetting {
+    Auto,
+    Cpu,
+    Cuda,
+    DirectMl,
+    Rocm,
+}
+
+impl Default for OrtAcceleratorSetting {
+    fn default() -> Self {
+        OrtAcceleratorSetting::Auto
+    }
+}
+
+fn default_whisper_gpu_device() -> i32 {
+    -1
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
     pub bindings: HashMap<String, ShortcutBinding>,
     #[serde(default = "default_app_language")]
     pub app_language: String,
-    pub push_to_talk: bool,
+    #[serde(default, alias = "push_to_talk")]
+    pub activation_mode: ActivationMode,
     pub audio_feedback: bool,
     #[serde(default = "default_audio_feedback_volume")]
     pub audio_feedback_volume: f32,
@@ -464,6 +778,14 @@ pub struct AppSettings {
     pub overlay_position: OverlayPosition,
     #[serde(default = "default_debug_mode")]
     pub debug_mode: bool,
+    #[serde(default)]
+    pub debug_log_post_process: bool,
+    #[serde(default)]
+    pub debug_log_skill_routing: bool,
+    #[serde(default)]
+    pub debug_log_routing: bool,
+    #[serde(default)]
+    pub debug_log_transcription: bool,
     #[serde(default = "default_log_level")]
     #[specta(type = String)]
     pub log_level: LogLevel,
@@ -496,17 +818,39 @@ pub struct AppSettings {
     #[serde(default = "default_post_process_providers")]
     pub post_process_providers: Vec<PostProcessProvider>,
     #[serde(default = "default_post_process_api_keys")]
-    pub post_process_api_keys: HashMap<String, String>,
+    pub post_process_api_keys: SecretMap,
     #[serde(default = "default_post_process_models")]
     pub post_process_models: HashMap<String, String>,
     #[serde(default = "default_post_process_prompts")]
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
+    pub builtin_prompt_resource_hashes: HashMap<String, String>,
+    #[serde(default)]
     pub custom_words: Vec<String>,
+    #[serde(default)]
+    pub custom_filler_words: Option<Vec<String>>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default)]
     pub post_process_intent_model_id: Option<String>,
+    /// Enable multi-model parallel post-processing
+    #[serde(default)]
+    pub multi_model_post_process_enabled: bool,
+    /// List of models to use for multi-model post-processing
+    #[serde(default)]
+    pub multi_model_post_process_items: Vec<MultiModelPostProcessItem>,
+    /// Selected cached_model IDs for multi-model parallel post-processing (checkbox-based)
+    #[serde(default)]
+    pub multi_model_selected_ids: Vec<String>,
+    /// Multi-model strategy: manual | race | lazy
+    #[serde(default = "default_multi_model_strategy")]
+    pub multi_model_strategy: String,
+    /// Preferred model id for multi-model mode (used by lazy strategy)
+    #[serde(default)]
+    pub multi_model_preferred_id: Option<String>,
+    /// Counts of manual candidate picks by cached_model_id
+    #[serde(default)]
+    pub multi_model_manual_pick_counts: HashMap<String, u32>,
     #[serde(default)]
     pub cached_models: Vec<CachedModel>,
     #[serde(default)]
@@ -517,6 +861,12 @@ pub struct AppSettings {
     pub selected_prompt_model_id: Option<String>,
     #[serde(default)]
     pub mute_while_recording: bool,
+    #[serde(default = "default_audio_input_auto_enhance")]
+    pub audio_input_auto_enhance: bool,
+    /// Per-microphone enhance preference.  Key is the device name (or
+    /// "default" for the system default device).
+    #[serde(default)]
+    pub mic_enhance_preferences: HashMap<String, bool>,
     #[serde(default)]
     pub append_trailing_space: bool,
     #[serde(default = "default_punctuation_enabled")]
@@ -525,16 +875,12 @@ pub struct AppSettings {
     pub punctuation_model: String,
     #[serde(default = "default_favorite_transcription_models")]
     pub favorite_transcription_models: Vec<String>,
+    #[serde(default)]
+    pub realtime_transcription_enabled: bool,
     #[serde(default = "default_offline_vad_force_interval_ms")]
     pub offline_vad_force_interval_ms: u64,
     #[serde(default = "default_offline_vad_force_window_seconds")]
     pub offline_vad_force_window_seconds: u64,
-    /// Enable LLM-based confidence checking for transcriptions
-    #[serde(default = "default_confidence_check_enabled")]
-    pub confidence_check_enabled: bool,
-    /// Confidence threshold (0-100). Below this threshold, user review is required.
-    #[serde(default = "default_confidence_threshold")]
-    pub confidence_threshold: u8,
     /// Application-specific review policies (App Bundle ID or Process Name -> Policy)
     #[serde(default)]
     pub app_review_policies: HashMap<String, AppReviewPolicy>,
@@ -546,6 +892,10 @@ pub struct AppSettings {
     pub post_process_context_enabled: bool,
     #[serde(default = "default_post_process_context_limit")]
     pub post_process_context_limit: u8,
+    #[serde(default = "default_post_process_streaming_output_enabled")]
+    pub post_process_streaming_output_enabled: bool,
+    #[serde(default = "default_post_process_hotword_injection_enabled")]
+    pub post_process_hotword_injection_enabled: bool,
     /// Expert mode enables advanced settings visibility
     #[serde(default)]
     pub expert_mode: bool,
@@ -558,9 +908,38 @@ pub struct AppSettings {
     #[serde(default = "default_paste_delay_ms")]
     pub paste_delay_ms: u64,
     #[serde(default)]
+    pub extra_recording_buffer_ms: u64,
+    #[serde(default)]
     pub typing_tool: TypingTool,
     #[serde(default)]
     pub external_script_path: Option<String>,
+    /// Length routing: auto-select model based on text length
+    #[serde(default)]
+    pub length_routing_enabled: bool,
+    #[serde(default = "default_length_routing_threshold")]
+    pub length_routing_threshold: u32,
+    #[serde(default)]
+    pub length_routing_short_model_id: Option<String>,
+    #[serde(default)]
+    pub length_routing_long_model_id: Option<String>,
+    /// Smart routing: pre-process layer that handles history reuse and action routing.
+    /// Activated when length_routing_enabled (smart model mode) is on.
+    /// This field is kept for potential future independent control but currently
+    /// follows length_routing_enabled.
+    #[serde(default = "default_true", alias = "smart_routing_history_reuse")]
+    pub smart_routing_enabled: bool,
+    /// Keep microphone stream open for 30s after recording stops (reduces Bluetooth reconnect latency)
+    #[serde(default)]
+    pub lazy_stream_close: bool,
+    /// Whisper accelerator preference (auto / cpu / gpu)
+    #[serde(default)]
+    pub whisper_accelerator: WhisperAcceleratorSetting,
+    /// ORT accelerator preference (auto / cpu / cuda / directml / rocm)
+    #[serde(default)]
+    pub ort_accelerator: OrtAcceleratorSetting,
+    /// Whisper GPU device index (-1 = auto)
+    #[serde(default = "default_whisper_gpu_device")]
+    pub whisper_gpu_device: i32,
 }
 
 fn default_model() -> String {
@@ -638,6 +1017,10 @@ fn default_audio_feedback_volume() -> f32 {
     1.0
 }
 
+fn default_audio_input_auto_enhance() -> bool {
+    true
+}
+
 fn default_sound_theme() -> SoundTheme {
     SoundTheme::Marimba
 }
@@ -658,74 +1041,117 @@ fn default_post_process_provider_id() -> String {
     "openai".to_string()
 }
 
+fn builtin_post_process_provider(
+    id: &str,
+    label: &str,
+    base_url: &str,
+    models_endpoint: Option<&str>,
+    supports_structured_output: bool,
+    deletable: bool,
+) -> PostProcessProvider {
+    PostProcessProvider {
+        id: id.to_string(),
+        label: label.to_string(),
+        base_url: base_url.to_string(),
+        builtin: true,
+        deletable,
+        allow_base_url_edit: false,
+        models_endpoint: models_endpoint.map(str::to_string),
+        supports_structured_output,
+        custom_headers: None,
+    }
+}
+
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
     let mut providers = vec![
-        PostProcessProvider {
-            id: "openai".to_string(),
-            label: "OpenAI".to_string(),
-            base_url: "https://api.openai.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-        },
-        PostProcessProvider {
-            id: "openrouter".to_string(),
-            label: "OpenRouter".to_string(),
-            base_url: "https://openrouter.ai/api/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-        },
-        PostProcessProvider {
-            id: "anthropic".to_string(),
-            label: "Anthropic".to_string(),
-            base_url: "https://api.anthropic.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-        },
+        builtin_post_process_provider(
+            "openai",
+            "OpenAI",
+            "https://api.openai.com/v1",
+            Some("/models"),
+            true,
+            false,
+        ),
+        builtin_post_process_provider(
+            "openrouter",
+            "OpenRouter",
+            "https://openrouter.ai/api/v1",
+            Some("/models"),
+            true,
+            true,
+        ),
+        builtin_post_process_provider(
+            "anthropic",
+            "Anthropic",
+            "https://api.anthropic.com/v1",
+            Some("/models"),
+            false,
+            false,
+        ),
         PostProcessProvider {
             id: "custom".to_string(),
             label: "Custom".to_string(),
             base_url: "http://localhost:11434/v1".to_string(),
+            builtin: true,
+            deletable: false,
             allow_base_url_edit: true,
             models_endpoint: Some("/models".to_string()),
+            supports_structured_output: false,
+            custom_headers: None,
         },
-        PostProcessProvider {
-            id: "iflow".to_string(),
-            label: "iflow".to_string(),
-            base_url: "https://apis.iflow.cn/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-        },
-        PostProcessProvider {
-            id: "gitee".to_string(),
-            label: "Gitee".to_string(),
-            base_url: "https://ai.gitee.com/v1".to_string(),
-            allow_base_url_edit: false,
-            models_endpoint: Some("/models".to_string()),
-        },
+        builtin_post_process_provider(
+            "iflow",
+            "iflow",
+            "https://apis.iflow.cn/v1",
+            Some("/models"),
+            false,
+            false,
+        ),
+        builtin_post_process_provider(
+            "gitee",
+            "Gitee",
+            "https://ai.gitee.com/v1",
+            Some("/models"),
+            false,
+            false,
+        ),
+        builtin_post_process_provider(
+            "zai",
+            "Z.AI",
+            "https://api.z.ai/api/paas/v4",
+            Some("/models"),
+            true,
+            true,
+        ),
     ];
 
+    // On macOS ARM64, always include Apple Intelligence provider.
+    // Availability is checked at runtime in core.rs when actually invoking it.
+    // Calling check_apple_intelligence_availability() at startup can crash on macOS 26.x.
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     {
-        if crate::apple_intelligence::check_apple_intelligence_availability() {
-            providers.push(PostProcessProvider {
-                id: APPLE_INTELLIGENCE_PROVIDER_ID.to_string(),
-                label: "Apple Intelligence".to_string(),
-                base_url: "apple-intelligence://local".to_string(),
-                allow_base_url_edit: false,
-                models_endpoint: None,
-            });
-        }
+        providers.push(PostProcessProvider {
+            id: APPLE_INTELLIGENCE_PROVIDER_ID.to_string(),
+            label: "Apple Intelligence".to_string(),
+            base_url: "apple-intelligence://local".to_string(),
+            builtin: true,
+            deletable: false,
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: false,
+            custom_headers: None,
+        });
     }
 
     providers
 }
 
-fn default_post_process_api_keys() -> HashMap<String, String> {
+fn default_post_process_api_keys() -> SecretMap {
     let mut map = HashMap::new();
     for provider in default_post_process_providers() {
         map.insert(provider.id, String::new());
     }
-    map
+    SecretMap(map)
 }
 
 fn default_model_for_provider(provider_id: &str) -> String {
@@ -750,8 +1176,12 @@ fn default_punctuation_enabled() -> bool {
     false
 }
 
+fn default_multi_model_strategy() -> String {
+    "manual".to_string()
+}
+
 fn default_punctuation_model() -> String {
-    "punct-zh-en-ct-transformer-2024-04-12-int8".to_string()
+    "".to_string()
 }
 
 fn default_favorite_transcription_models() -> Vec<String> {
@@ -759,19 +1189,11 @@ fn default_favorite_transcription_models() -> Vec<String> {
 }
 
 fn default_offline_vad_force_interval_ms() -> u64 {
-    2000
+    1000
 }
 
 fn default_offline_vad_force_window_seconds() -> u64 {
     30
-}
-
-fn default_confidence_check_enabled() -> bool {
-    false
-}
-
-fn default_confidence_threshold() -> u8 {
-    20
 }
 
 fn default_post_process_context_enabled() -> bool {
@@ -782,100 +1204,63 @@ fn default_post_process_context_limit() -> u8 {
     3
 }
 
+fn default_post_process_streaming_output_enabled() -> bool {
+    true
+}
+
+fn default_post_process_hotword_injection_enabled() -> bool {
+    true
+}
+
+fn default_length_routing_threshold() -> u32 {
+    100
+}
+
 fn default_post_process_prompts() -> Vec<LLMPrompt> {
-    vec![
-        LLMPrompt {
-            id: "system_default_correction".to_string(),
-            name: "默认润色".to_string(),
-            description: "润色和优化文本表达。这是默认 Skill。".to_string(),
-            instructions: include_str!("../resources/skills/system_default_correction.md")
-                .to_string(),
-            prompt: include_str!("../resources/skills/system_default_correction.md").to_string(),
-            model_id: None,
-            icon: Some("IconShieldCheck".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            compliance_check_enabled: true,
-            compliance_threshold: Some(20),
-            output_mode: SkillOutputMode::Polish,
-            enabled: true,
-            customized: false,
-            file_path: None,
-        },
-        LLMPrompt {
-            id: "system_default_ai_chat".to_string(),
-            name: "AI 问答".to_string(),
-            description:
-                "解释选中内容或回答问题。当用户说\"这是什么\"、\"帮我解释\"、\"帮我查询\"时触发。"
-                    .to_string(),
-            instructions: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
-            prompt: include_str!("../resources/skills/system_default_ai_chat.md").to_string(),
-            model_id: None,
-            icon: Some("IconMessageSparkle".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
-            output_mode: SkillOutputMode::Chat,
-            enabled: true,
-            customized: false,
-            file_path: None,
-        },
-        // Preset: Translation
-        LLMPrompt {
-            id: "system_preset_translate".to_string(),
-            name: "翻译".to_string(),
-            description: "将文本翻译成目标语言。当用户说\"翻译\"、\"译成\"、\"translate\"时使用。"
-                .to_string(),
-            prompt: include_str!("../resources/skills/system_preset_translate.md").to_string(),
-            instructions: include_str!("../resources/skills/system_preset_translate.md")
-                .to_string(),
-            model_id: None,
-            icon: Some("IconLanguage".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
-            output_mode: SkillOutputMode::Chat,
-            enabled: true,
-            customized: false,
-            file_path: None,
-        },
-        // Preset: Summary
-        LLMPrompt {
-            id: "system_preset_summary".to_string(),
-            name: "总结".to_string(),
-            description: "总结和提炼文本要点。当用户说\"总结\"、\"概括\"、\"摘要\"时使用。"
-                .to_string(),
-            instructions: include_str!("../resources/skills/system_preset_summary.md").to_string(),
-            prompt: include_str!("../resources/skills/system_preset_summary.md").to_string(),
-            model_id: None,
-            icon: Some("IconListDetails".to_string()),
-            skill_type: SkillType::Text,
-            source: SkillSource::Builtin,
-            compliance_check_enabled: false,
-            compliance_threshold: Some(20),
-            output_mode: SkillOutputMode::Chat,
-            enabled: true,
-            customized: false,
-            file_path: None,
-        },
-    ]
+    Vec::new()
 }
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
     for provider in default_post_process_providers() {
+        let should_restore_if_missing = provider.builtin && !provider.deletable;
+
         if settings
             .post_process_providers
             .iter()
             .all(|existing| existing.id != provider.id)
+            && should_restore_if_missing
         {
             settings.post_process_providers.push(provider.clone());
             changed = true;
         }
 
-        if !settings.post_process_api_keys.contains_key(&provider.id) {
+        // Sync metadata for existing builtin providers.
+        if let Some(existing) = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == provider.id)
+        {
+            if existing.builtin != provider.builtin {
+                existing.builtin = provider.builtin;
+                changed = true;
+            }
+            if existing.deletable != provider.deletable {
+                existing.deletable = provider.deletable;
+                changed = true;
+            }
+            if existing.supports_structured_output != provider.supports_structured_output {
+                existing.supports_structured_output = provider.supports_structured_output;
+                changed = true;
+            }
+        }
+
+        let provider_exists = settings
+            .post_process_providers
+            .iter()
+            .any(|existing| existing.id == provider.id);
+
+        if provider_exists && !settings.post_process_api_keys.contains_key(&provider.id) {
             settings
                 .post_process_api_keys
                 .insert(provider.id.clone(), String::new());
@@ -883,23 +1268,217 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         }
 
         let default_model = default_model_for_provider(&provider.id);
-        match settings.post_process_models.get_mut(&provider.id) {
-            Some(existing) => {
-                if existing.is_empty() && !default_model.is_empty() {
-                    *existing = default_model.clone();
+        if provider_exists {
+            match settings.post_process_models.get_mut(&provider.id) {
+                Some(existing) => {
+                    if existing.is_empty() && !default_model.is_empty() {
+                        *existing = default_model.clone();
+                        changed = true;
+                    }
+                }
+                None => {
+                    settings
+                        .post_process_models
+                        .insert(provider.id.clone(), default_model);
                     changed = true;
                 }
             }
-            None => {
-                settings
-                    .post_process_models
-                    .insert(provider.id.clone(), default_model);
+        }
+    }
+
+    // Sync builtin skills: only insert missing ones or update changed ones.
+    // Skip user-customized builtin skills entirely.
+    let builtin_contents: &[&str] = &[
+        include_str!("../resources/skills/builtin/default_correction.skill.md"),
+        include_str!("../resources/skills/builtin/ai_chat.skill.md"),
+        include_str!("../resources/skills/builtin/translation.skill.md"),
+        include_str!("../resources/skills/builtin/summarize.skill.md"),
+        include_str!("../resources/skills/builtin/memo.skill.md"),
+        include_str!("../resources/skills/builtin/code_generate.skill.md"),
+        include_str!("../resources/skills/builtin/code_explain.skill.md"),
+        include_str!("../resources/skills/builtin/style_reply.skill.md"),
+        include_str!("../resources/skills/builtin/reply_suggestion.skill.md"),
+        include_str!("../resources/skills/builtin/votype_command.skill.md"),
+        include_str!("../resources/skills/builtin/grammar_fix.skill.md"),
+        include_str!("../resources/skills/builtin/smart_compose.skill.md"),
+    ];
+    let mut inserted_count = 0;
+    let mut updated_count = 0;
+    for content in builtin_contents {
+        if let Some(skill) = crate::managers::skill::parse_builtin_skill_content(content) {
+            if let Some(existing) = settings
+                .post_process_prompts
+                .iter()
+                .find(|p| p.id == skill.id && p.source == SkillSource::Builtin)
+            {
+                if existing.customized {
+                    log::debug!(
+                        "[BuiltinSync] Skipping customized builtin skill: {} ({})",
+                        skill.name,
+                        skill.id
+                    );
+                    continue;
+                }
+                // Check if content has changed
+                if existing.name == skill.name
+                    && existing.instructions == skill.instructions
+                    && existing.prompt == skill.prompt
+                    && existing.description == skill.description
+                    && existing.skill_type == skill.skill_type
+                    && existing.output_mode == skill.output_mode
+                    && existing.confidence_check_enabled == skill.confidence_check_enabled
+                    && existing.confidence_threshold == skill.confidence_threshold
+                {
+                    continue; // No changes needed
+                }
+                // Update in place
+                let pos = settings
+                    .post_process_prompts
+                    .iter()
+                    .position(|p| p.id == skill.id && p.source == SkillSource::Builtin)
+                    .unwrap();
+                log::info!(
+                    "[BuiltinSync] Updating builtin skill: {} ({})",
+                    skill.name,
+                    skill.id
+                );
+                settings.post_process_prompts[pos] = skill;
+                updated_count += 1;
                 changed = true;
+            } else {
+                // Not present — insert at front
+                log::info!(
+                    "[BuiltinSync] Inserting builtin skill: {} ({})",
+                    skill.name,
+                    skill.id
+                );
+                settings.post_process_prompts.insert(0, skill);
+                inserted_count += 1;
+                changed = true;
+            }
+        } else {
+            log::warn!("[BuiltinSync] Failed to parse a builtin skill content");
+        }
+    }
+
+    // Remove stale builtin skills that no longer exist in builtin_contents
+    let valid_builtin_ids: std::collections::HashSet<String> = builtin_contents
+        .iter()
+        .filter_map(|content| {
+            crate::managers::skill::parse_builtin_skill_content(content).map(|s| s.id)
+        })
+        .collect();
+    let before_len = settings.post_process_prompts.len();
+    settings
+        .post_process_prompts
+        .retain(|p| p.source != SkillSource::Builtin || valid_builtin_ids.contains(&p.id));
+    if settings.post_process_prompts.len() != before_len {
+        changed = true;
+    }
+
+    if inserted_count > 0 || updated_count > 0 {
+        log::info!(
+            "[BuiltinSync] Inserted {}, updated {} builtin skills, total prompts: {}",
+            inserted_count,
+            updated_count,
+            settings.post_process_prompts.len()
+        );
+    }
+
+    if !settings.builtin_prompt_resource_hashes.is_empty() {
+        settings.builtin_prompt_resource_hashes.clear();
+        changed = true;
+    }
+
+    if settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .is_some_and(|selected_id| {
+            !settings
+                .post_process_prompts
+                .iter()
+                .any(|prompt| &prompt.id == selected_id)
+        })
+    {
+        settings.post_process_selected_prompt_id = None;
+        changed = true;
+    }
+
+    changed
+}
+
+fn materialize_stored_user_prompts(app: &AppHandle, settings: &mut AppSettings) -> bool {
+    let skill_manager = crate::managers::skill::SkillManager::new(app);
+    let mut changed = false;
+
+    for prompt in settings
+        .post_process_prompts
+        .iter()
+        .filter(|prompt| prompt.source != SkillSource::Builtin)
+        .cloned()
+    {
+        if skill_manager.find_skill_file_path(&prompt.id).is_some() {
+            continue;
+        }
+
+        match skill_manager.create_skill_file(&prompt) {
+            Ok(created) => {
+                log::info!(
+                    "Materialized stored prompt '{}' ({}) to file-backed user skill at {:?}",
+                    created.name,
+                    created.id,
+                    created.file_path
+                );
+                changed = true;
+            }
+            Err(err) => {
+                log::error!(
+                    "Failed to materialize stored prompt '{}' ({}): {}",
+                    prompt.name,
+                    prompt.id,
+                    err
+                );
             }
         }
     }
 
     changed
+}
+
+fn normalize_app_review_policies(settings: &mut AppSettings) -> bool {
+    let mut changed = false;
+
+    for profile in &mut settings.app_profiles {
+        if matches!(profile.policy, AppReviewPolicy::Auto) {
+            profile.policy = AppReviewPolicy::Always;
+            changed = true;
+        }
+
+        for rule in &mut profile.rules {
+            if matches!(rule.policy, AppReviewPolicy::Auto) {
+                rule.policy = AppReviewPolicy::Always;
+                changed = true;
+            }
+        }
+    }
+
+    for policy in settings.app_review_policies.values_mut() {
+        if matches!(*policy, AppReviewPolicy::Auto) {
+            *policy = AppReviewPolicy::Always;
+            changed = true;
+        }
+    }
+
+    changed
+}
+
+fn normalize_offline_vad_force_interval(settings: &mut AppSettings) -> bool {
+    if settings.offline_vad_force_interval_ms == 2000 {
+        settings.offline_vad_force_interval_ms = default_offline_vad_force_interval_ms();
+        return true;
+    }
+
+    false
 }
 
 pub const SETTINGS_STORE_PATH: &str = "settings_store.json";
@@ -914,15 +1493,6 @@ pub fn get_default_settings() -> AppSettings {
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
     let default_shortcut = "alt+space";
 
-    #[cfg(target_os = "windows")]
-    let default_post_process_shortcut = "ctrl+shift+space";
-    #[cfg(target_os = "macos")]
-    let default_post_process_shortcut = "option+shift+space";
-    #[cfg(target_os = "linux")]
-    let default_post_process_shortcut = "ctrl+shift+space";
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-    let default_post_process_shortcut = "alt+shift+space";
-
     let mut bindings = HashMap::new();
     bindings.insert(
         "transcribe".to_string(),
@@ -932,17 +1502,6 @@ pub fn get_default_settings() -> AppSettings {
             description: "Converts your speech into text.".to_string(),
             default_binding: default_shortcut.to_string(),
             current_binding: default_shortcut.to_string(),
-        },
-    );
-    bindings.insert(
-        "transcribe_with_post_process".to_string(),
-        ShortcutBinding {
-            id: "transcribe_with_post_process".to_string(),
-            name: "Transcribe with Post-Processing".to_string(),
-            description: "Converts your speech into text and applies AI post-processing."
-                .to_string(),
-            default_binding: default_post_process_shortcut.to_string(),
-            current_binding: default_post_process_shortcut.to_string(),
         },
     );
     bindings.insert(
@@ -1006,7 +1565,7 @@ pub fn get_default_settings() -> AppSettings {
     AppSettings {
         bindings,
         app_language: default_app_language(),
-        push_to_talk: false,
+        activation_mode: ActivationMode::default(),
         audio_feedback: true,
         audio_feedback_volume: default_audio_feedback_volume(),
         sound_theme: default_sound_theme(),
@@ -1023,6 +1582,10 @@ pub fn get_default_settings() -> AppSettings {
         selected_language: "auto".to_string(),
         overlay_position: default_overlay_position(),
         debug_mode: false,
+        debug_log_post_process: false,
+        debug_log_skill_routing: false,
+        debug_log_routing: false,
+        debug_log_transcription: false,
         log_level: default_log_level(),
         model_unload_timeout: ModelUnloadTimeout::Never,
         word_correction_threshold: default_word_correction_threshold(),
@@ -1042,34 +1605,55 @@ pub fn get_default_settings() -> AppSettings {
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
         post_process_prompts: default_post_process_prompts(),
+        builtin_prompt_resource_hashes: HashMap::new(),
         post_process_selected_prompt_id: None,
         post_process_intent_model_id: None,
+        multi_model_post_process_enabled: false,
+        multi_model_post_process_items: Vec::new(),
+        multi_model_selected_ids: Vec::new(),
+        multi_model_strategy: default_multi_model_strategy(),
+        multi_model_preferred_id: None,
+        multi_model_manual_pick_counts: HashMap::new(),
         cached_models: Vec::new(),
         online_asr_enabled: false,
         selected_asr_model_id: None,
         selected_prompt_model_id: None,
         mute_while_recording: false,
+        audio_input_auto_enhance: default_audio_input_auto_enhance(),
+        mic_enhance_preferences: HashMap::new(),
         append_trailing_space: false,
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
         favorite_transcription_models: default_favorite_transcription_models(),
+        realtime_transcription_enabled: false,
         offline_vad_force_interval_ms: default_offline_vad_force_interval_ms(),
         offline_vad_force_window_seconds: default_offline_vad_force_window_seconds(),
-        confidence_check_enabled: default_confidence_check_enabled(),
-        confidence_threshold: default_confidence_threshold(),
         app_review_policies: HashMap::new(),
         app_profiles: Vec::new(),
         app_to_profile: HashMap::new(),
         post_process_context_enabled: default_post_process_context_enabled(),
         post_process_context_limit: default_post_process_context_limit(),
+        post_process_streaming_output_enabled: default_post_process_streaming_output_enabled(),
+        post_process_hotword_injection_enabled: default_post_process_hotword_injection_enabled(),
         custom_words: Vec::new(),
+        custom_filler_words: None,
         expert_mode: false,
         experimental_enabled: false,
         keyboard_implementation: KeyboardImplementation::default(),
         show_tray_icon: default_show_tray_icon(),
         paste_delay_ms: default_paste_delay_ms(),
+        extra_recording_buffer_ms: 0,
         typing_tool: TypingTool::default(),
         external_script_path: None,
+        length_routing_enabled: false,
+        length_routing_threshold: default_length_routing_threshold(),
+        length_routing_short_model_id: None,
+        length_routing_long_model_id: None,
+        smart_routing_enabled: true,
+        lazy_stream_close: false,
+        whisper_accelerator: WhisperAcceleratorSetting::default(),
+        ort_accelerator: OrtAcceleratorSetting::default(),
+        whisper_gpu_device: default_whisper_gpu_device(),
     }
 }
 
@@ -1094,9 +1678,104 @@ impl AppSettings {
             .iter_mut()
             .find(|provider| provider.id == provider_id)
     }
+
+    #[allow(dead_code)]
+    /// Get enabled multi-model post-process items
+    pub fn enabled_multi_model_items(&self) -> Vec<&MultiModelPostProcessItem> {
+        self.multi_model_post_process_items
+            .iter()
+            .filter(|item| item.enabled)
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    /// Get cached model by ID
+    pub fn get_cached_model(&self, model_id: &str) -> Option<&CachedModel> {
+        self.cached_models.iter().find(|m| m.id == model_id)
+    }
+
+    /// Resolve the effective model ID string for a given provider.
+    ///
+    /// Resolution order:
+    /// 1. `selected_prompt_model_id` → look up in `cached_models` (must match provider)
+    /// 2. `post_process_models` legacy map
+    ///
+    /// Returns `None` if no non-empty model can be found.
+    pub fn resolve_model_for_provider(&self, provider_id: &str) -> Option<String> {
+        // Try selected_prompt_model_id via cached_models first
+        if let Some(ref cm_id) = self.selected_prompt_model_id {
+            if let Some(cm) = self.cached_models.iter().find(|m| m.id == *cm_id) {
+                if cm.provider_id == provider_id {
+                    let model_id = cm.model_id.trim().to_string();
+                    if !model_id.is_empty() {
+                        return Some(model_id);
+                    }
+                }
+            }
+        }
+
+        // Fallback to legacy post_process_models map
+        self.post_process_models
+            .get(provider_id)
+            .filter(|m| !m.trim().is_empty())
+            .cloned()
+    }
+
+    /// Build MultiModelPostProcessItem list from multi_model_selected_ids.
+    /// Uses cached_model info + current selected prompt to dynamically construct items.
+    pub fn build_multi_model_items_from_selection(&self) -> Vec<MultiModelPostProcessItem> {
+        let prompt_id = self.post_process_selected_prompt_id.clone().or_else(|| {
+            self.post_process_prompts
+                .first()
+                .map(|prompt| prompt.id.clone())
+        });
+
+        let Some(prompt_id) = prompt_id else {
+            return Vec::new();
+        };
+
+        self.multi_model_selected_ids
+            .iter()
+            .filter_map(|id| {
+                let cm = self.get_cached_model(id)?;
+                if cm.model_type != ModelType::Text {
+                    return None;
+                }
+                Some(MultiModelPostProcessItem {
+                    id: cm.id.clone(),
+                    provider_id: cm.provider_id.clone(),
+                    model_id: cm.model_id.clone(),
+                    prompt_id: prompt_id.clone(),
+                    custom_label: cm.custom_label.clone(),
+                    enabled: true,
+                })
+            })
+            .collect()
+    }
+
+    #[allow(dead_code)]
+    /// Get prompt/skill by ID
+    pub fn get_prompt(&self, prompt_id: &str) -> Option<&LLMPrompt> {
+        self.post_process_prompts.iter().find(|p| p.id == prompt_id)
+    }
+}
+
+fn store_set_settings(store: &tauri_plugin_store::Store<tauri::Wry>, settings: &AppSettings) {
+    if let Ok(val) = serde_json::to_value(settings) {
+        store.set("settings", val);
+    } else {
+        log::error!("Failed to serialize settings to JSON");
+    }
 }
 
 pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
+    // Seed default directory-based skills (e.g. smart_polish with references).
+    // Run before store init so seeded skills are visible in the first merge.
+    {
+        let skill_manager = crate::managers::skill::SkillManager::new(app);
+        skill_manager.seed_default_skills();
+    }
+
     // Initialize store
     let store = app
         .store(SETTINGS_STORE_PATH)
@@ -1121,7 +1800,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
                 if updated {
                     debug!("Settings updated with new bindings");
-                    store.set("settings", serde_json::to_value(&settings).unwrap());
+                    store_set_settings(&store, &settings);
                 }
 
                 settings
@@ -1148,18 +1827,31 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
                 // Fall back to default settings if parsing fails
                 let default_settings = get_default_settings();
-                store.set("settings", serde_json::to_value(&default_settings).unwrap());
+                store_set_settings(&store, &default_settings);
                 default_settings
             }
         }
     } else {
         let default_settings = get_default_settings();
-        store.set("settings", serde_json::to_value(&default_settings).unwrap());
+        store_set_settings(&store, &default_settings);
         default_settings
     };
 
     if ensure_post_process_defaults(&mut settings) {
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+        store_set_settings(&store, &settings);
+    }
+
+    if materialize_stored_user_prompts(app, &mut settings) {
+        merge_external_skills(app, &mut settings);
+        store_set_settings(&store, &settings);
+    }
+
+    if normalize_app_review_policies(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
+    if normalize_offline_vad_force_interval(&mut settings) {
+        store_set_settings(&store, &settings);
     }
 
     // Migration: Convert app_review_policies to app_profiles
@@ -1182,7 +1874,7 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
             }
         }
         settings.app_review_policies.clear();
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+        store_set_settings(&store, &settings);
         let _ = store.save();
     }
 
@@ -1190,6 +1882,17 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 }
 
 pub fn get_settings(app: &AppHandle) -> AppSettings {
+    let current_version = SETTINGS_VERSION.load(Ordering::Acquire);
+
+    // Check cache
+    if let Ok(cache) = CACHED_SETTINGS.lock() {
+        if let Some((cached_version, ref cached_settings)) = *cache {
+            if cached_version == current_version {
+                return cached_settings.clone();
+            }
+        }
+    }
+
     let store = app
         .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
@@ -1197,17 +1900,46 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     let mut settings = if let Some(settings_value) = store.get("settings") {
         serde_json::from_value::<AppSettings>(settings_value).unwrap_or_else(|_| {
             let default_settings = get_default_settings();
-            store.set("settings", serde_json::to_value(&default_settings).unwrap());
+            store_set_settings(&store, &default_settings);
             default_settings
         })
     } else {
         let default_settings = get_default_settings();
-        store.set("settings", serde_json::to_value(&default_settings).unwrap());
+        store_set_settings(&store, &default_settings);
         default_settings
     };
 
     if ensure_post_process_defaults(&mut settings) {
-        store.set("settings", serde_json::to_value(&settings).unwrap());
+        store_set_settings(&store, &settings);
+    }
+
+    if materialize_stored_user_prompts(app, &mut settings) {
+        merge_external_skills(app, &mut settings);
+        store_set_settings(&store, &settings);
+    }
+
+    if normalize_app_review_policies(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
+    if normalize_offline_vad_force_interval(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
+    // Clean up orphaned cached models whose provider no longer exists
+    {
+        let valid_provider_ids: std::collections::HashSet<&str> = settings
+            .post_process_providers
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+        let before = settings.cached_models.len();
+        settings
+            .cached_models
+            .retain(|m| valid_provider_ids.contains(m.provider_id.as_str()));
+        if settings.cached_models.len() != before {
+            store_set_settings(&store, &settings);
+        }
     }
 
     // Merge external skills from ~/.votype/skills/
@@ -1216,8 +1948,13 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     if settings.post_process_selected_prompt_id.is_none() {
         if let Some(first) = settings.post_process_prompts.first() {
             settings.post_process_selected_prompt_id = Some(first.id.clone());
-            store.set("settings", serde_json::to_value(&settings).unwrap());
+            store_set_settings(&store, &settings);
         }
+    }
+
+    // Update cache
+    if let Ok(mut cache) = CACHED_SETTINGS.lock() {
+        *cache = Some((current_version, settings.clone()));
     }
 
     settings
@@ -1247,14 +1984,21 @@ fn merge_external_skills(app: &AppHandle, settings: &mut AppSettings) {
 }
 
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {
+    let mut settings = settings;
+    normalize_app_review_policies(&mut settings);
+    normalize_offline_vad_force_interval(&mut settings);
+
     let store = app
         .store(SETTINGS_STORE_PATH)
         .expect("Failed to initialize store");
 
-    store.set("settings", serde_json::to_value(&settings).unwrap());
+    store_set_settings(&store, &settings);
     if let Err(e) = store.save() {
         log::error!("Failed to save settings to disk: {}", e);
     }
+
+    // Invalidate cache
+    SETTINGS_VERSION.fetch_add(1, Ordering::Release);
 }
 
 pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {
@@ -1263,12 +2007,9 @@ pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {
     settings.bindings
 }
 
-pub fn get_stored_binding(app: &AppHandle, id: &str) -> ShortcutBinding {
+pub fn get_stored_binding(app: &AppHandle, id: &str) -> Option<ShortcutBinding> {
     let bindings = get_bindings(app);
-
-    let binding = bindings.get(id).unwrap().clone();
-
-    binding
+    bindings.get(id).cloned()
 }
 
 pub fn get_history_limit(app: &AppHandle) -> usize {
@@ -1290,5 +2031,44 @@ mod tests {
         let settings = get_default_settings();
         assert!(!settings.auto_submit);
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_restores_required_builtin_provider() {
+        let mut settings = get_default_settings();
+        settings
+            .post_process_providers
+            .retain(|provider| provider.id != "openai");
+
+        let changed = ensure_post_process_defaults(&mut settings);
+
+        assert!(changed);
+        assert!(settings
+            .post_process_providers
+            .iter()
+            .any(|provider| provider.id == "openai"));
+    }
+
+    #[test]
+    fn ensure_post_process_defaults_does_not_restore_deletable_builtin_provider() {
+        let mut settings = get_default_settings();
+        settings
+            .post_process_providers
+            .retain(|provider| provider.id != "openrouter" && provider.id != "zai");
+        settings.post_process_api_keys.remove("openrouter");
+        settings.post_process_api_keys.remove("zai");
+        settings.post_process_models.remove("openrouter");
+        settings.post_process_models.remove("zai");
+
+        ensure_post_process_defaults(&mut settings);
+
+        assert!(settings
+            .post_process_providers
+            .iter()
+            .all(|provider| provider.id != "openrouter" && provider.id != "zai"));
+        assert!(!settings.post_process_api_keys.contains_key("openrouter"));
+        assert!(!settings.post_process_api_keys.contains_key("zai"));
+        assert!(!settings.post_process_models.contains_key("openrouter"));
+        assert!(!settings.post_process_models.contains_key("zai"));
     }
 }

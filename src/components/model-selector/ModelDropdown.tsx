@@ -3,7 +3,6 @@ import {
   IconCheck,
   IconChevronRight,
   IconCloud,
-  IconCloudUpload,
   IconCube,
   IconDeviceDesktop,
   IconDownload,
@@ -13,6 +12,7 @@ import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
 import { RECOMMENDED_MODEL_IDS } from "../settings/asr-models/constants";
+import { getModeKey } from "../settings/asr-models/utils";
 import { ProgressBar } from "../shared";
 import { ModelTags } from "../ui/ModelTags";
 import { ModelGroupHeader } from "./ModelGroupHeader";
@@ -98,23 +98,15 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
   const getCategory = React.useCallback(
     (model: ModelInfo) => {
-      if (model.engine_type === "SherpaOnnxPunctuation")
-        return t("settings.asrModels.groups.punctuation");
-
-      const isStreaming =
-        model.engine_type === "SherpaOnnx" &&
-        model.sherpa?.mode === "Streaming";
-
-      return isStreaming
-        ? t("settings.asrModels.groups.streaming")
-        : t("settings.asrModels.groups.offline");
+      const mode = getModeKey(model);
+      return t(`settings.asrModels.groups.${mode}`);
     },
     [t],
   );
 
   const orderCategory = (category: string) => {
-    if (category === t("settings.asrModels.groups.streaming")) return 0;
-    if (category === t("settings.asrModels.groups.offline")) return 1;
+    if (category === t("settings.asrModels.groups.asr")) return 0;
+    if (category === t("settings.asrModels.groups.punctuation")) return 1;
     return 2;
   };
 
@@ -163,6 +155,7 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   const renderGroupedModels = (
     list: ModelInfo[],
     renderItem: (m: ModelInfo) => React.ReactNode,
+    suffix?: string,
   ) => {
     const groups = new Map<string, ModelInfo[]>();
     for (const model of list) {
@@ -184,42 +177,26 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
     return (
       <Flex direction="column" gap="0">
         {ordered.map(([category, items]) => {
-          const isStreaming =
-            category === t("settings.asrModels.groups.streaming");
-          const isMultilingual =
-            category === t("settings.asrModels.groups.multilingual");
+          const isAsr = category === t("settings.asrModels.groups.asr");
           const isPunctuation =
             category === t("settings.asrModels.groups.punctuation");
 
           let headerClass = "text-text/70 bg-mid-gray/5 dark:bg-gray-900/40";
-          if (isStreaming) {
+          if (isAsr) {
             headerClass =
-              "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/20!";
-          } else if (isMultilingual) {
-            headerClass =
-              "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30";
+              "text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/50";
           } else if (isPunctuation) {
             headerClass =
               "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30";
-          } else {
-            // Default offline
-            headerClass =
-              "text-stone-600 dark:text-stone-300 bg-stone-50 dark:bg-stone-800/50";
           }
 
           return (
             <Box key={category}>
               <ModelGroupHeader
-                label={category}
+                label={suffix ? `${category}（${suffix}）` : category}
                 count={items.length}
                 className={headerClass}
-                icon={
-                  isStreaming ? (
-                    <IconCloudUpload className="w-3 h-3" />
-                  ) : (
-                    <IconDeviceDesktop className="w-3 h-3" />
-                  )
-                }
+                icon={<IconDeviceDesktop className="w-3 h-3" />}
               />
               <Box className="divide-y divide-black/5">
                 {items.map(renderItem)}
@@ -411,77 +388,81 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
 
             {/* Downloadable Models */}
             {downloadableModels.length > 0 &&
-              renderGroupedModels(downloadableModels, (model) => {
-                const isDownloading = downloadProgress.has(model.id);
-                const progress = downloadProgress.get(model.id);
+              renderGroupedModels(
+                downloadableModels,
+                (model: ModelInfo) => {
+                  const isDownloading = downloadProgress.has(model.id);
+                  const progress = downloadProgress.get(model.id);
 
-                return (
-                  <ModelListItem
-                    key={model.id}
-                    name={getTranslatedModelName(model, t)}
-                    meta={
-                      <Flex gap="1" wrap="wrap" align="center">
-                        <ModelTags
-                          model={model}
-                          t={t}
-                          showSize
-                          showMode={false}
-                          showLanguages
-                          showType={false}
-                        />
-                      </Flex>
-                    }
-                    isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
-                    className={
-                      isDownloading ? "cursor-default" : "cursor-default"
-                    }
-                    rightElement={
-                      isDownloading && progress ? (
-                        <Box className="w-20">
-                          <Text
-                            className="text-xs text-logo-primary font-medium text-right block mb-1"
-                            size="1"
-                          >
-                            {Math.max(
-                              0,
-                              Math.min(100, Math.round(progress.percentage)),
-                            )}
-                            %
-                          </Text>
-                          <ProgressBar
-                            progress={[
-                              {
-                                id: model.id,
-                                percentage: Math.max(
-                                  0,
-                                  Math.min(
-                                    100,
-                                    Math.round(progress.percentage),
-                                  ),
-                                ),
-                              },
-                            ]}
-                            size="small"
+                  return (
+                    <ModelListItem
+                      key={model.id}
+                      name={getTranslatedModelName(model, t)}
+                      meta={
+                        <Flex gap="1" wrap="wrap" align="center">
+                          <ModelTags
+                            model={model}
+                            t={t}
+                            showSize
+                            showMode={false}
+                            showLanguages
+                            showType={false}
                           />
-                        </Box>
-                      ) : (
-                        <IconButton
-                          variant="ghost"
-                          size="1"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDownloadClick(model.id);
-                          }}
-                          className="hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          title={t("modelSelector.download")}
-                        >
-                          <IconDownload className="w-4 h-4" />
-                        </IconButton>
-                      )
-                    }
-                  />
-                );
-              })}
+                        </Flex>
+                      }
+                      isRecommended={RECOMMENDED_MODEL_IDS.has(model.id)}
+                      className={
+                        isDownloading ? "cursor-default" : "cursor-default"
+                      }
+                      rightElement={
+                        isDownloading && progress ? (
+                          <Box className="w-20">
+                            <Text
+                              className="text-xs text-logo-primary font-medium text-right block mb-1"
+                              size="1"
+                            >
+                              {Math.max(
+                                0,
+                                Math.min(100, Math.round(progress.percentage)),
+                              )}
+                              %
+                            </Text>
+                            <ProgressBar
+                              progress={[
+                                {
+                                  id: model.id,
+                                  percentage: Math.max(
+                                    0,
+                                    Math.min(
+                                      100,
+                                      Math.round(progress.percentage),
+                                    ),
+                                  ),
+                                },
+                              ]}
+                              size="small"
+                            />
+                          </Box>
+                        ) : (
+                          <IconButton
+                            variant="ghost"
+                            size="1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownloadClick(model.id);
+                            }}
+                            className="hover:bg-logo-primary/10 text-logo-primary transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title={t("modelSelector.download")}
+                          >
+                            <IconDownload className="w-4 h-4" />
+                          </IconButton>
+                        )
+                      }
+                    />
+                  );
+                },
+                t("settings.asrModels.status.notDownloaded"),
+              )}
 
             {/* No Models Available */}
             {availableModels.length === 0 &&

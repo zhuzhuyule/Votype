@@ -117,11 +117,12 @@ export const LLMPromptSchema = z.object({
   icon: z.string().optional().nullable(),
   skill_type: SkillTypeSchema.default("text"),
   source: SkillSourceSchema.default("builtin"),
-  compliance_check_enabled: z.boolean().default(false),
-  compliance_threshold: z.number().optional().default(20),
+  confidence_check_enabled: z.boolean().default(false),
+  confidence_threshold: z.number().optional().default(70),
   output_mode: PromptOutputModeSchema.default("chat"),
   enabled: z.boolean().default(true),
   customized: z.boolean().optional().default(false),
+  locked: z.boolean().default(false),
   // Keep legacy field for a bit of safety during transition if any code still uses it
   prompt: z.string().optional(),
 });
@@ -141,18 +142,41 @@ export const CachedModelSchema = z.object({
   custom_label: z.string().optional(),
   // Thinking Mode 标记
   is_thinking_model: z.boolean().optional().default(false),
+  model_family: z.string().optional(),
+  prompt_message_role: z
+    .enum(["system", "developer"])
+    .optional()
+    .default("system"),
   // 额外的请求参数（JSON 格式，会合并到 LLM 请求体中）
   extra_params: z.record(z.string(), z.unknown()).optional(),
+  // 额外的请求头（会合并到 HTTP 请求头中）
+  extra_headers: z.record(z.string(), z.string()).optional(),
 });
 
 export type CachedModel = z.infer<typeof CachedModelSchema>;
+
+export const MultiModelPostProcessItemSchema = z.object({
+  id: z.string(),
+  provider_id: z.string(),
+  model_id: z.string(),
+  prompt_id: z.string(),
+  custom_label: z.string().optional(),
+  enabled: z.boolean().default(true),
+});
+
+export type MultiModelPostProcessItem = z.infer<
+  typeof MultiModelPostProcessItemSchema
+>;
 
 export const PostProcessProviderSchema = z.object({
   id: z.string(),
   label: z.string(),
   base_url: z.string(),
+  builtin: z.boolean().optional().default(false),
+  deletable: z.boolean().optional().default(true),
   allow_base_url_edit: z.boolean().optional().default(false),
   models_endpoint: z.string().nullable().optional(),
+  supports_structured_output: z.boolean().optional().default(false),
   kind: z
     .enum(["openai_compatible", "anthropic"])
     .optional()
@@ -163,7 +187,9 @@ export type PostProcessProvider = z.infer<typeof PostProcessProviderSchema>;
 
 export const SettingsSchema = z.object({
   bindings: ShortcutBindingsMapSchema,
-  push_to_talk: z.boolean(),
+  activation_mode: z
+    .enum(["toggle", "hold", "hold_or_toggle"])
+    .default("toggle"),
   audio_feedback: z.boolean(),
   audio_feedback_volume: z.number().optional().default(1.0),
   sound_theme: z
@@ -183,6 +209,10 @@ export const SettingsSchema = z.object({
   selected_language: z.string(),
   overlay_position: OverlayPositionSchema,
   debug_mode: z.boolean(),
+  debug_log_post_process: z.boolean().optional().default(false),
+  debug_log_skill_routing: z.boolean().optional().default(false),
+  debug_log_routing: z.boolean().optional().default(false),
+  debug_log_transcription: z.boolean().optional().default(false),
   log_level: LogLevelSchema.optional().default(2),
   custom_words: z.array(z.string()).optional().default([]),
   model_unload_timeout: ModelUnloadTimeoutSchema.optional().default("never"),
@@ -215,11 +245,25 @@ export const SettingsSchema = z.object({
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
   post_process_intent_model_id: z.string().nullable().optional().default(null),
+  multi_model_post_process_enabled: z.boolean().optional().default(false),
+  multi_model_post_process_items: z
+    .array(MultiModelPostProcessItemSchema)
+    .optional()
+    .default([]),
+  multi_model_selected_ids: z.array(z.string()).optional().default([]),
+  multi_model_strategy: z
+    .enum(["manual", "race", "lazy"])
+    .optional()
+    .default("manual"),
+  multi_model_preferred_id: z.string().nullable().optional().default(null),
+  multi_model_manual_pick_counts: z.record(z.number()).optional().default({}),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),
   selected_asr_model_id: z.string().nullable().optional(),
   selected_prompt_model_id: z.string().nullable().optional(),
   mute_while_recording: z.boolean().optional().default(false),
+  audio_input_auto_enhance: z.boolean().optional().default(true),
+  mic_enhance_preferences: z.record(z.boolean()).optional().default({}),
   append_trailing_space: z.boolean().optional().default(false),
   punctuation_enabled: z.boolean().optional().default(false),
   punctuation_model: z
@@ -227,10 +271,9 @@ export const SettingsSchema = z.object({
     .optional()
     .default("punct-zh-en-ct-transformer-2024-04-12-int8"),
   favorite_transcription_models: z.array(z.string()).optional().default([]),
-  offline_vad_force_interval_ms: z.number().optional().default(2000),
+  realtime_transcription_enabled: z.boolean().optional().default(false),
+  offline_vad_force_interval_ms: z.number().optional().default(1000),
   offline_vad_force_window_seconds: z.number().optional().default(30),
-  confidence_check_enabled: z.boolean().optional().default(false),
-  confidence_threshold: z.number().min(0).max(100).optional().default(20),
   app_review_policies: z
     .record(z.string(), AppReviewPolicySchema)
     .optional()
@@ -238,13 +281,19 @@ export const SettingsSchema = z.object({
   app_profiles: z.array(AppProfileSchema).optional().default([]),
   app_to_profile: z.record(z.string(), z.string()).optional().default({}),
   post_process_context_enabled: z.boolean().optional().default(false),
-  post_process_context_limit: z.number().min(1).max(10).optional().default(3),
+  post_process_context_limit: z.number().min(1).max(30).optional().default(3),
+  post_process_streaming_output_enabled: z.boolean().optional().default(true),
+  post_process_hotword_injection_enabled: z.boolean().optional().default(true),
   expert_mode: z.boolean().optional().default(false),
   keyboard_implementation: z
     .enum(["tauri", "handy_keys"])
     .optional()
     .default("tauri"),
   show_tray_icon: z.boolean().optional().default(true),
+  length_routing_enabled: z.boolean().optional().default(false),
+  length_routing_threshold: z.number().min(10).max(500).optional().default(100),
+  length_routing_short_model_id: z.string().nullable().optional().default(null),
+  length_routing_long_model_id: z.string().nullable().optional().default(null),
 });
 
 export const BindingResponseSchema = z.object({
@@ -259,38 +308,36 @@ export type ShortcutBinding = z.infer<typeof ShortcutBindingSchema>;
 export type ShortcutBindingsMap = z.infer<typeof ShortcutBindingsMapSchema>;
 export type Settings = z.infer<typeof SettingsSchema>;
 
+export const EngineTypeSchema = z.enum([
+  "Whisper",
+  "Parakeet",
+  "Moonshine",
+  "MoonshineStreaming",
+  "SenseVoice",
+  "Paraformer",
+  "ZipformerTransducer",
+  "ZipformerCtc",
+]);
+export type EngineType = z.infer<typeof EngineTypeSchema>;
+
 export const ModelInfoSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
   filename: z.string(),
-  url: z.string().optional(),
+  url: z.string().optional().nullable(),
   size_mb: z.number(),
   is_downloaded: z.boolean(),
   is_downloading: z.boolean(),
   partial_size: z.number(),
   is_directory: z.boolean(),
-  engine_type: z.enum([
-    "Whisper",
-    "Parakeet",
-    "SherpaOnnx",
-    "SherpaOnnxPunctuation",
-  ]),
-  sherpa: z
-    .object({
-      mode: z.enum(["Streaming", "Offline"]),
-      family: z.enum([
-        "Transducer",
-        "Zipformer2Ctc",
-        "Paraformer",
-        "SenseVoice",
-        "FireRedAsr",
-      ]),
-      prefer_int8: z.boolean(),
-    })
-    .optional(),
+  engine_type: EngineTypeSchema,
   accuracy_score: z.number(),
   speed_score: z.number(),
+  supports_translation: z.boolean().default(false),
+  is_recommended: z.boolean().default(false),
+  supported_languages: z.array(z.string()).default([]),
+  is_custom: z.boolean().default(false),
   tags: z.array(z.string()).optional(),
   is_default: z.boolean().default(false),
 });

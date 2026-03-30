@@ -14,6 +14,7 @@ import {
   IconChevronRight,
   IconGripVertical,
   IconPlus,
+  IconPlayerSkipForward,
   IconTarget,
   IconTrash,
 } from "@tabler/icons-react";
@@ -27,7 +28,7 @@ import {
   TitleMatchType,
   TitleRule,
 } from "../../../lib/types";
-import { IconPicker } from "../../shared/IconPicker";
+import { DynamicIcon, IconPicker } from "../../shared/IconPicker";
 import { Card } from "../../ui/Card";
 import { useSkills } from "./prompts/hooks/useSkills";
 
@@ -202,9 +203,6 @@ const TitleRuleRow: React.FC<TitleRuleRowProps> = ({
           >
             <Select.Trigger variant="surface" style={{ width: 100 }} />
             <Select.Content position="popper">
-              <Select.Item value="auto">
-                {t("settings.postProcessing.appRules.policy.auto")}
-              </Select.Item>
               <Select.Item value="always">
                 {t("settings.postProcessing.appRules.policy.always")}
               </Select.Item>
@@ -221,13 +219,25 @@ const TitleRuleRow: React.FC<TitleRuleRowProps> = ({
             }
           >
             <Select.Trigger variant="surface" style={{ width: 120 }} />
-            <Select.Content position="popper">
+            <Select.Content position="popper" style={{ maxHeight: 360 }}>
               <Select.Item value="default">{t("common.default")}</Select.Item>
               {prompts.map((p) => (
                 <Select.Item key={p.id} value={p.id}>
-                  {p.name}
+                  <Flex gap="2" align="center">
+                    <DynamicIcon name={p.icon || "IconWand"} size={14} />
+                    <span>{p.name}</span>
+                  </Flex>
                 </Select.Item>
               ))}
+              <Select.Separator />
+              <Select.Item value="__SKIP_POST_PROCESS__">
+                <Flex gap="2" align="center">
+                  <IconPlayerSkipForward size={14} />
+                  <span>
+                    {t("settings.postProcessing.appRules.skipPostProcess")}
+                  </span>
+                </Flex>
+              </Select.Item>
             </Select.Content>
           </Select.Root>
           <IconButton variant="ghost" color="red" size="1" onClick={onRemove}>
@@ -282,7 +292,7 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
       id: `rule_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       pattern: "",
       match_type: "text",
-      policy: "auto",
+      policy: "always",
       prompt_id: null,
     };
     onUpdateProfile(profile.id, { rules: [...rules, newRule] });
@@ -358,9 +368,6 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
               >
                 <Select.Trigger variant="surface" style={{ width: 100 }} />
                 <Select.Content position="popper">
-                  <Select.Item value="auto">
-                    {t("settings.postProcessing.appRules.policy.auto")}
-                  </Select.Item>
                   <Select.Item value="always">
                     {t("settings.postProcessing.appRules.policy.always")}
                   </Select.Item>
@@ -380,15 +387,27 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
                 }
               >
                 <Select.Trigger variant="surface" style={{ width: 120 }} />
-                <Select.Content position="popper">
+                <Select.Content position="popper" style={{ maxHeight: 360 }}>
                   <Select.Item value="default">
                     {t("common.default")}
                   </Select.Item>
                   {prompts.map((p) => (
                     <Select.Item key={p.id} value={p.id}>
-                      {p.name}
+                      <Flex gap="2" align="center">
+                        <DynamicIcon name={p.icon || "IconWand"} size={14} />
+                        <span>{p.name}</span>
+                      </Flex>
                     </Select.Item>
                   ))}
+                  <Select.Separator />
+                  <Select.Item value="__SKIP_POST_PROCESS__">
+                    <Flex gap="2" align="center">
+                      <IconPlayerSkipForward size={14} />
+                      <span>
+                        {t("settings.postProcessing.appRules.skipPostProcess")}
+                      </span>
+                    </Flex>
+                  </Select.Item>
                 </Select.Content>
               </Select.Root>
 
@@ -488,7 +507,7 @@ export const AppProfilesManager: React.FC = () => {
       const newProfile: AppProfile = {
         id: profileId,
         name: appName,
-        policy: "auto",
+        policy: "always",
         prompt_id: null,
         icon: null,
         rules: [],

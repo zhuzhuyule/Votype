@@ -18,6 +18,9 @@ export const HIDE_OVERLAY = "hide-overlay";
 /** Report an error to the overlay */
 export const OVERLAY_ERROR = "overlay-error";
 
+/** Online ASR timed out — overlay should show action buttons */
+export const ASR_ONLINE_TIMEOUT = "asr-online-timeout";
+
 // =============================================================================
 // Audio Events
 // =============================================================================
@@ -29,10 +32,10 @@ export const MIC_LEVEL = "mic-level";
 // Transcription Events
 // =============================================================================
 
-/** Partial transcription result from online Sherpa recognizer */
+/** Partial transcription result from online (streaming) recognizer */
 export const SHERPA_ONLINE_PARTIAL = "sherpa-online-partial";
 
-/** Partial transcription result from offline Sherpa recognizer */
+/** Partial transcription result from offline recognizer */
 export const SHERPA_OFFLINE_PARTIAL = "sherpa-offline-partial";
 
 // =============================================================================
@@ -78,6 +81,18 @@ export const HISTORY_UPDATED = "history-updated";
 /** Trigger update check */
 export const CHECK_FOR_UPDATES = "check-for-updates";
 
+/** Insert processed text back into the focused element inside the main Votype window */
+export const VOTYPE_LOCAL_INSERT = "votype-local-insert";
+
+/** Apply processed text directly to the Review window editor */
+export const REVIEW_WINDOW_INLINE_APPLY = "review-window-inline-apply";
+
+/** Replace the entire Review window document with rewritten text */
+export const REVIEW_WINDOW_REWRITE_APPLY = "review-window-rewrite-apply";
+
+/** Refocus the currently active editable control inside a Votype-owned window */
+export const VOTYPE_REFOCUS_ACTIVE_INPUT = "votype-refocus-active-input";
+
 // =============================================================================
 // Event Type Map (for generic use)
 // =============================================================================
@@ -87,6 +102,7 @@ export const TauriEvents = {
   SHOW_OVERLAY,
   HIDE_OVERLAY,
   OVERLAY_ERROR,
+  ASR_ONLINE_TIMEOUT,
 
   // Audio
   MIC_LEVEL,
@@ -111,6 +127,10 @@ export const TauriEvents = {
 
   // Application
   CHECK_FOR_UPDATES,
+  VOTYPE_LOCAL_INSERT,
+  REVIEW_WINDOW_INLINE_APPLY,
+  REVIEW_WINDOW_REWRITE_APPLY,
+  VOTYPE_REFOCUS_ACTIVE_INPUT,
 } as const;
 
 export type TauriEventName = (typeof TauriEvents)[keyof typeof TauriEvents];

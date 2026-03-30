@@ -12,8 +12,6 @@ export interface TranscriptionReviewData {
   history_id: number | null;
 }
 
-import { extractCorrections } from "../lib/correctionUtils";
-
 interface ConfirmTranscriptionDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -39,36 +37,11 @@ export const ConfirmTranscriptionDialog: React.FC<
 
     setIsSubmitting(true);
 
-    // Auto-learn corrections
-    try {
-      const corrections = extractCorrections(reviewData.text, editedText);
-      // Fire and forget recording corrections
-      // We invoke sequentially to avoid race conditions or db locks, though parallel is fine too
-      if (corrections.length > 0) {
-        console.log("Auto-learning corrections:", corrections);
-        for (const c of corrections) {
-          // Ignore errors for individual corrections to ensure confirmation proceeds
-          // For manual corrections in review, we default to global (null appName)
-          // unless we want to support triggering app context later.
-          // Current requirement: "Effective for full sentence or triggering app"
-          // Since we don't have triggering app info in this dialog props easily yet, null (Global) is the safest default
-          invoke("record_vocabulary_correction", {
-            original_text: c.original,
-            corrected_text: c.corrected,
-            app_name: null,
-          }).catch((err) =>
-            console.warn("Failed to learn correction:", c, err),
-          );
-        }
-      }
-    } catch (e) {
-      console.warn("Error in correction learning:", e);
-    }
-
+    // Correction learning is now handled server-side in update_reviewed_text
     try {
       await invoke("confirm_reviewed_transcription", {
         text: editedText.trim(),
-        history_id: reviewData.history_id,
+        historyId: reviewData.history_id,
       });
       onClose();
     } catch (e) {
@@ -86,7 +59,7 @@ export const ConfirmTranscriptionDialog: React.FC<
       const trimmed = editedText.trim();
       await invoke("cancel_transcription_review", {
         text: trimmed.length > 0 ? trimmed : null,
-        history_id: reviewData?.history_id ?? null,
+        historyId: reviewData?.history_id ?? null,
       });
       onClose();
     } catch (e) {

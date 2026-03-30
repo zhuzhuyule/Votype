@@ -1,5 +1,7 @@
 use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
+use crate::settings::ActivationMode;
+use crate::utils;
 use log::{debug, error, warn};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
@@ -8,6 +10,7 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 const DEBOUNCE: Duration = Duration::from_millis(30);
+const HOLD_THRESHOLD: Duration = Duration::from_millis(300);
 
 /// Commands processed sequentially by the coordinator thread.
 enum Command {
@@ -15,7 +18,7 @@ enum Command {
         binding_id: String,
         hotkey_string: String,
         is_pressed: bool,
-        push_to_talk: bool,
+        activation_mode: ActivationMode,
     },
     Cancel {
         recording_was_active: bool,
@@ -38,7 +41,7 @@ pub struct TranscriptionCoordinator {
 }
 
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    id == "transcribe" || id == "invoke_skill"
 }
 
 impl TranscriptionCoordinator {
@@ -49,6 +52,7 @@ impl TranscriptionCoordinator {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut stage = Stage::Idle;
                 let mut last_press: Option<Instant> = None;
+                let mut recording_press_time: Option<Instant> = None;
 
                 while let Ok(cmd) = rx.recv() {
                     match cmd {
@@ -56,10 +60,10 @@ impl TranscriptionCoordinator {
                             binding_id,
                             hotkey_string,
                             is_pressed,
-                            push_to_talk,
+                            activation_mode,
                         } => {
                             // Debounce rapid-fire press events (key repeat / double-tap).
-                            // Releases always pass through for push-to-talk.
+                            // Releases always pass through for hold / hold-or-toggle modes.
                             if is_pressed {
                                 let now = Instant::now();
                                 if last_press.map_or(false, |t| now.duration_since(t) < DEBOUNCE) {
@@ -69,24 +73,67 @@ impl TranscriptionCoordinator {
                                 last_press = Some(now);
                             }
 
-                            if push_to_talk {
-                                if is_pressed && matches!(stage, Stage::Idle) {
-                                    start(&app, &mut stage, &binding_id, &hotkey_string);
-                                } else if !is_pressed
-                                    && matches!(&stage, Stage::Recording(id) if id == &binding_id)
-                                {
-                                    stop(&app, &mut stage, &binding_id, &hotkey_string);
-                                }
-                            } else if is_pressed {
-                                match &stage {
-                                    Stage::Idle => {
-                                        start(&app, &mut stage, &binding_id, &hotkey_string);
-                                    }
-                                    Stage::Recording(id) if id == &binding_id => {
+                            match activation_mode {
+                                ActivationMode::Hold => {
+                                    if is_pressed {
+                                        if !matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                        {
+                                            utils::interrupt_current_operation(&app);
+                                            stage = Stage::Idle;
+                                            start(&app, &mut stage, &binding_id, &hotkey_string);
+                                            recording_press_time = Some(Instant::now());
+                                        }
+                                    } else if matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                    {
                                         stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                        recording_press_time = None;
                                     }
-                                    _ => {
-                                        debug!("Ignoring press for '{binding_id}': pipeline busy")
+                                }
+                                ActivationMode::Toggle => {
+                                    if is_pressed {
+                                        if matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                        {
+                                            stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                        } else {
+                                            if !matches!(stage, Stage::Idle) {
+                                                utils::interrupt_current_operation(&app);
+                                                stage = Stage::Idle;
+                                            }
+                                            start(&app, &mut stage, &binding_id, &hotkey_string);
+                                        }
+                                        recording_press_time = None;
+                                    }
+                                }
+                                ActivationMode::HoldOrToggle => {
+                                    if is_pressed {
+                                        if matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                        {
+                                            // Already recording in toggle mode — stop
+                                            stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                            recording_press_time = None;
+                                        } else {
+                                            // Start recording, record press time
+                                            if !matches!(stage, Stage::Idle) {
+                                                utils::interrupt_current_operation(&app);
+                                                stage = Stage::Idle;
+                                            }
+                                            start(&app, &mut stage, &binding_id, &hotkey_string);
+                                            recording_press_time = Some(Instant::now());
+                                        }
+                                    } else if matches!(&stage, Stage::Recording(id) if id == &binding_id)
+                                    {
+                                        // Key released while recording
+                                        let held_long = recording_press_time
+                                            .map_or(false, |t| t.elapsed() >= HOLD_THRESHOLD);
+                                        if held_long {
+                                            // Held long enough — treat as hold mode, stop on release
+                                            stop(&app, &mut stage, &binding_id, &hotkey_string);
+                                            recording_press_time = None;
+                                        } else {
+                                            // Quick tap — enter toggle mode, keep recording
+                                            debug!("HoldOrToggle: quick tap detected, entering toggle mode for '{binding_id}'");
+                                            recording_press_time = None;
+                                        }
                                     }
                                 }
                             }
@@ -94,9 +141,8 @@ impl TranscriptionCoordinator {
                         Command::Cancel {
                             recording_was_active,
                         } => {
-                            // Don't reset during processing — wait for the pipeline to finish.
-                            if !matches!(stage, Stage::Processing)
-                                && (recording_was_active || matches!(stage, Stage::Recording(_)))
+                            if matches!(stage, Stage::Recording(_) | Stage::Processing)
+                                || recording_was_active
                             {
                                 stage = Stage::Idle;
                             }
@@ -117,13 +163,13 @@ impl TranscriptionCoordinator {
     }
 
     /// Send a keyboard/signal input event for a transcribe binding.
-    /// For signal-based toggles, use `is_pressed: true` and `push_to_talk: false`.
+    /// For signal-based toggles, use `is_pressed: true` and `ActivationMode::Toggle`.
     pub fn send_input(
         &self,
         binding_id: &str,
         hotkey_string: &str,
         is_pressed: bool,
-        push_to_talk: bool,
+        activation_mode: ActivationMode,
     ) {
         if self
             .tx
@@ -131,7 +177,7 @@ impl TranscriptionCoordinator {
                 binding_id: binding_id.to_string(),
                 hotkey_string: hotkey_string.to_string(),
                 is_pressed,
-                push_to_talk,
+                activation_mode,
             })
             .is_err()
         {

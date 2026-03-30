@@ -11,11 +11,19 @@
     "title": "应用语言"
   },
   "common": {
+    "locale": "zh",
+    "active": "活跃",
     "add": "添加",
     "addNewOption": "添加新选项",
+    "aiOptimizationFailed": "AI 优化失败，请检查配置",
+    "aiOptimizationSuccess": "AI 优化成功",
+    "aiOptimize": "AI 润色",
     "authorize": "授权",
+    "bold": "加粗",
     "cancel": "取消",
     "close": "关闭",
+    "code": "行内代码",
+    "confirm": "确认",
     "copied": "已复制",
     "copy": "复制",
     "create": "创建",
@@ -25,10 +33,17 @@
     "done": "完成",
     "edit": "编辑",
     "enabled": "已启用",
+    "exitFullscreen": "还原",
     "filterOptions": "筛选选项...",
+    "fullscreen": "全屏",
     "granted": "已授权",
+    "h1": "H1",
     "history": "历史记录",
+    "id": "ID",
+    "italic": "斜体",
     "latest": "最新",
+    "link": "链接",
+    "list": "列表",
     "loading": "加载中...",
     "models": "模型",
     "next": "下一步",
@@ -40,6 +55,8 @@
     "on": "开",
     "open": "打开",
     "optional": "可选",
+    "quote": "引用",
+    "refresh": "刷新",
     "remove": "移除",
     "requesting": "请求中...",
     "required": "必需",
@@ -51,13 +68,26 @@
     "skip": "跳过",
     "update": "更新",
     "useInput": "使用 \"{{input}}\"",
-    "yes": "是"
+    "useThisProvider": "使用此提供商",
+    "variables": "可用变量",
+    "yes": "是",
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{{count}} 分钟前",
+      "hoursAgo": "{{count}} 小时前",
+      "daysAgo": "{{count}} 天前"
+    }
   },
   "dashboard": {
     "actions": {
+      "edit": "编辑",
+      "editDescription": "修改此历史条目的转录文本",
+      "editPlaceholder": "输入修改后的文本...",
+      "editTitle": "编辑识别结果",
       "openRecordings": "录音目录",
       "reprocessFailed": "AI 重新处理失败",
       "retranscribe": "使用原音频重新转录",
+      "rejectPolish": "拒绝润色结果",
       "retranscribeFailed": "重新转录失败",
       "retranscribing": "重新转录中..."
     },
@@ -77,8 +107,10 @@
     },
     "details": {
       "audioRemoved": "录音已移除",
+      "cancelled": "已取消",
       "count": "共 {{count}} 条",
       "empty": "暂无数据",
+      "emptyHint": "使用快捷键开始你的第一次转录",
       "loadMore": "加载更多",
       "meta": {
         "chars": "{{value}} 字"
@@ -111,7 +143,7 @@
         "top3": "Top 3"
       },
       "llm": {
-        "details": "命中率：{{hitRate}}",
+        "calls": "{{count}} 次模型调用",
         "title": "大模型消耗情况",
         "unknownApp": "未知应用"
       },
@@ -134,7 +166,34 @@
       "placeholder": "在此编辑转录内容...",
       "hint": "⌘/Ctrl + Enter 确认, Escape 取消",
       "confirm": "确认并插入",
-      "insert": "插入"
+      "insert": "插入",
+      "insertOriginal": "插入原文 (Tab)",
+      "source": "ASR 结果",
+      "final": "润色结果",
+      "generationTitle": "AI 助手回复",
+      "aiResponse": "AI 回复",
+      "change": "修改",
+      "highlightHint": "高亮词表示 AI 编辑。",
+      "insertCode": "插入代码",
+      "insertStabilityHint": "快捷键：{{shortcut}}\n若插入不稳定，可临时关闭此功能。",
+      "instruction": "指令",
+      "multiModel": "多模型结果",
+      "processing": "处理中...",
+      "hideDiff": "隐藏差异标注",
+      "showDiff": "显示差异标注",
+      "translateText": "翻译查看",
+      "translationResult": "翻译结果",
+      "analysisTitle": "分析建议：",
+      "deviationNone": "完全匹配",
+      "deviationMinor": "轻微偏差",
+      "deviationMajor": "偏差较大",
+      "insertTranslation": "插入翻译结果",
+      "skipPostProcess": "不使用润色",
+      "restoreOrder": "恢复原顺序",
+      "sortBySpeed": "按反应速率排序",
+      "speedSorted": "速度优先",
+      "sortBySpeedShort": "按速度",
+      "rankCount": "第{{rank}}名 {{count}}次"
     }
   },
   "errors": {
@@ -152,7 +211,15 @@
     "updateAvailable": "有可用更新: {{version}}",
     "updateAvailableShort": "有可用更新",
     "updateCheckingDisabled": "更新检查已禁用",
-    "upToDate": "已是最新版本"
+    "upToDate": "已是最新版本",
+    "postProcess": {
+      "title": "后处理",
+      "punctuation": "自动标点",
+      "translate": "翻译为英文",
+      "realtime": "实时预览",
+      "llm": "大模型后处理",
+      "selectModel": "选择模型..."
+    }
   },
   "models": {
     "large": {
@@ -179,58 +246,6 @@
       "description": "给中英混合文本补标点和断句；Int8，体积小速度快；更新于 2024-04-12。",
       "name": "中英标点（小）"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "离线中/粤/英三语识别；体积较大；准确率良好。",
-      "name": "Sherpa 中/粤/英 Paraformer"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "流式中英识别，适合实时字幕，速度快，准确率尚可。",
-      "name": "Sherpa 中英 Paraformer"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "离线中文识别；INT8；速度快，准确率良好；更新于 2025-10-07。",
-      "name": "Sherpa 中文 Paraformer（INT8）"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "离线中文识别；体积小速度快；准确率尚可；更新于 2024-03-09。",
-      "name": "Sherpa 中文 Paraformer（小）"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "离线多语识别：中/英/日/韩/粤；Int8 量化；速度和占用中等；更新于 2025-09-09。",
-      "name": "SenseVoice 多语"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 德语"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 英语"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 西班牙语"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。",
-      "name": "Sherpa 法语"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。",
-      "name": "Sherpa 俄语"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "流式中文识别（Zipformer2 CTC）；体积小、速度极快（INT8）；更新于 2025-04-01。",
-      "name": "Sherpa 中文（CTC 小）"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。",
-      "name": "Sherpa 中文"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。",
-      "name": "Sherpa 中文 XL"
-    },
     "small": {
       "description": "快速且相当准确。",
       "name": "Whisper Small"
@@ -239,6 +254,22 @@
       "description": "准确度和速度均衡。",
       "name": "Whisper Turbo"
     }
+  },
+  "inline": {
+    "listening": "收听中...",
+    "transcribing": "转写中...",
+    "polishing": "润色中...",
+    "executing": "执行中...",
+    "complete": "完成",
+    "modeToggle": "编辑模式",
+    "closeConfirmTitle": "未保存的更改",
+    "closeConfirmMessage": "内容已修改，确认关闭？",
+    "closeConfirmOk": "关闭",
+    "closeConfirmCancel": "取消",
+    "sectionTitle": "转写结果",
+    "undo": "撤销",
+    "redo": "重做",
+    "placeholder": "按下快捷键开始语音输入..."
   },
   "modelSelector": {
     "active": "活跃",
@@ -352,27 +383,6 @@
         "description": "快速且准确",
         "name": "Parakeet V3"
       },
-      "sherpa-zipformer-de-kroko-2025-08-06": {
-        "description": "流式德语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-en-kroko-2025-08-06": {
-        "description": "流式英语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-es-kroko-2025-08-06": {
-        "description": "流式西班牙语识别，体积中等，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-fr-kroko-2025-08-06": {
-        "description": "流式法语识别，体积小，速度极快，准确率良好，更新于 2025-08-06。"
-      },
-      "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-        "description": "流式俄语识别，体积很小，速度极快（INT8），准确率良好，更新于 2025-08-16。"
-      },
-      "sherpa-zipformer-zh-int8-2025-06-30": {
-        "description": "流式中文识别，体积小，速度极快（INT8），准确率高，更新于 2025-06-30。"
-      },
-      "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-        "description": "流式中文识别，体积较大，速度快（INT8），准确率很高，更新于 2025-06-30。"
-      },
       "showMore": "更多模型",
       "small": {
         "description": "快速且相当准确。",
@@ -399,6 +409,11 @@
     }
   },
   "overlay": {
+    "skillConfirmation": {
+      "confirmUse": "用于所选内容？",
+      "detectedSelection": "使用 ",
+      "prompt": "使用此技能？"
+    },
     "error": {
       "appleIntelligenceFailed": "Apple Intelligence 调用失败",
       "appleIntelligenceUnavailable": "Apple Intelligence 不可用",
@@ -411,6 +426,12 @@
       "recording": "录音中…",
       "transcribing": "转录中…",
       "review": "审阅中…"
+    },
+    "timeout": {
+      "title": "在线识别超时",
+      "continue": "继续等待",
+      "retry": "重试",
+      "cancel": "取消"
     }
   },
   "settings": {
@@ -466,6 +487,26 @@
         "placeholder": "添加词汇",
         "remove": "删除 {{word}}",
         "title": "自定义词汇"
+      },
+      "vocabularyCorrections": {
+        "allApps": "所有应用",
+        "delete": "删除此修正",
+        "description": "从编辑历史中学习的词汇修正",
+        "empty": "暂无学习的修正",
+        "global": "全局",
+        "removeGlobal": "取消全局",
+        "scope": "范围",
+        "setGlobal": "设为全局",
+        "title": "词汇字典"
+      },
+      "scope": {
+        "custom": "指定应用",
+        "editDescription": "编辑「{{original}}」→「{{corrected}}」的适用范围",
+        "editTitle": "修正范围",
+        "global": "全局",
+        "multiple": "{{count}} 个应用",
+        "none": "无应用",
+        "source": "来源应用 ({{app}})"
       },
       "groups": {
         "startup": "启动与行为",
@@ -536,6 +577,9 @@
       "title": "高级",
       "translateToEnglish": {
         "description": "在转录过程中自动将其他语言的语音翻译为英语。",
+        "descriptionNoModel": "请选择一个本地模型以启用翻译。",
+        "descriptionNonWhisper": "翻译仅支持 Whisper 模型。当前模型：{{model}}",
+        "descriptionUnknownModel": "当前模型能力未知。请选择一个已下载的模型以启用翻译。",
         "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
         "label": "翻译为英语"
       }
@@ -566,10 +610,9 @@
         "type": "类型"
       },
       "groups": {
+        "asr": "语音识别模型",
         "multilingual": "多语言",
-        "offline": "完整转录",
-        "punctuation": "标点",
-        "streaming": "实时转录"
+        "punctuation": "标点符号模型"
       },
       "idLabel": "id: {{id}}",
       "install": {
@@ -608,9 +651,8 @@
         "title": "模型库"
       },
       "modeChips": {
-        "offline": "完整转录",
-        "punctuation": "标点",
-        "streaming": "实时转录"
+        "asr": "语音识别",
+        "punctuation": "标点"
       },
       "pipeline": {
         "description": "可在转录后自动应用的全局后处理能力。",
@@ -633,19 +675,22 @@
       },
       "title": "本地模型",
       "typeChips": {
+        "moonshine": "Moonshine",
         "other": "其他",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
-        "punctuation": "标点",
-        "sherpa_fire_red_asr": "Sherpa FireRed ASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       },
       "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
         "punctuation": "标点",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       }
     },
     "debug": {
@@ -684,6 +729,17 @@
       "logLevel": {
         "description": "设置日志的详细程度",
         "title": "日志级别"
+      },
+      "logChannels": {
+        "title": "日志通道",
+        "postProcess": "后处理请求",
+        "postProcessDesc": "记录文本润色相关的所有 LLM 提示词和响应（含多模型）",
+        "skillRouting": "意图/技能路由",
+        "skillRoutingDesc": "记录技能路由的提示词和响应",
+        "routing": "路由决策",
+        "routingDesc": "记录 SmartRouting、ModeRouting 等管线决策",
+        "transcription": "转录输出",
+        "transcriptionDesc": "记录 ASR 转录结果和实时片段"
       },
       "muteWhileRecording": {
         "description": "录制期间静音系统音频",
@@ -731,6 +787,10 @@
       }
     },
     "general": {
+      "audioInputAutoEnhance": {
+        "description": "录音时自动提升较小的人声并限制失真，改善识别输入；可能会改变录音回放听感。",
+        "label": "麦克风自动增强"
+      },
       "groups": {
         "recording": "录音设置",
         "transcription": "转录语言"
@@ -738,20 +798,40 @@
       "language": {
         "auto": "自动",
         "description": "选择语音识别的语言。自动将自动确定语言，选择特定语言可以提高该语言的准确度。",
+        "descriptionNoModel": "请选择一个本地模型以配置语言。",
+        "descriptionSenseVoice": "SenseVoice 在模型加载时应用语言设置。更改语言后请重新选择模型。",
+        "descriptionUnknownModel": "当前模型未知，语言选择已禁用。",
         "descriptionUnsupported": "Parakeet 模型会自动检测语言，无需手动选择。",
+        "descriptionUnsupportedEngine": "语言选择仅适用于 Whisper 或 SenseVoice 模型。",
         "noResults": "未找到语言",
         "searchPlaceholder": "搜索语言...",
         "title": "语言"
       },
-      "pushToTalk": {
-        "description": "按住录制，松开停止",
-        "label": "按住说话"
+      "activationMode": {
+        "label": "激活方式",
+        "tooltip": {
+          "summary": "选择录音快捷键的触发方式"
+        },
+        "descriptions": {
+          "toggle": "按下开始录音，再次按下停止",
+          "hold": "按住录音，松开自动停止",
+          "hold_or_toggle": "快按进入切换模式，长按 300ms 后松开自动停止"
+        },
+        "options": {
+          "toggle": "切换",
+          "hold": "按住",
+          "holdOrToggle": "自动"
+        }
       },
       "shortcut": {
         "bindings": {
           "cancel": {
             "description": "取消当前录制。",
             "name": "取消"
+          },
+          "invoke_skill": {
+            "description": "以技能模式开始录制，支持智能意图路由。",
+            "name": "调用技能"
           },
           "open_settings": {
             "description": "打开设置窗口。",
@@ -782,6 +862,7 @@
     },
     "history": {
       "content": {
+        "chained": "链式处理",
         "improved": "优化后",
         "original": "语音识别结果",
         "streaming": "实时识别结果"
@@ -838,7 +919,15 @@
           }
         },
         "provider": {
+          "builtin": "内置",
+          "builtinTooltip": "内置提供商，无法删除",
+          "deleteAction": "删除提供商",
+          "deleteConfirmation": "确定要删除提供商「{{name}}」吗？此操作无法撤销。",
+          "deleteTitle": "删除提供商",
           "description": "选择一个兼容 OpenAI 的提供商。",
+          "editName": "编辑提供商名称",
+          "namePlaceholder": "提供商名称",
+          "newProvider": "新建提供商",
           "title": "提供商"
         },
         "providers": {
@@ -850,8 +939,8 @@
             },
             "testConnection": "测试模型推理",
             "testFailed": "测试失败: {{error}}",
-            "testing": "正在测试连接...",
-            "testSuccess": "测试成功"
+            "testing": "正在测试连接及推理...",
+            "testSuccess": "测试成功：{{result}}"
           },
           "builtInBadge": "内置",
           "deleteConfirm": {
@@ -867,24 +956,111 @@
             "title": "暂无提供商"
           },
           "fields": {
+            "apiKey": "API 密钥",
             "baseUrl": "基础 URL",
+            "baseUrlHint": "兼容 OpenAI 的基础 URL。使用 '#' 后缀可禁用自动补全 /v1。",
+            "actualUrlPreview": "实际调用 URL 预览",
             "modelsEndpoint": "模型接口路径",
             "modelsEndpointPlaceholder": "/models",
             "name": "提供商名称",
-            "namePlaceholder": "我的提供商"
+            "namePlaceholder": "我的提供商",
+            "v1AutoAppended": "已自动追加 /v1",
+            "v1MissingWarning": "URL 可能缺少版本路径（如 /v1）"
           },
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",
           "testFailed": "连接失败: {{error}}",
-          "testSuccess": "连接成功",
+          "testSuccess": "连接成功：{{result}}",
           "title": "提供商"
         },
         "title": "API（兼容 OpenAI）"
       },
+      "intentModel": {
+        "defaultOption": "使用默认模型",
+        "description": "用于技能意图检测的模型。保留默认值将跟随主后处理模型。",
+        "hint": "用于 Skill 路由（识别应使用哪个 Skill）和智能路由的 Action 分类。当判定为轻量润色时，意图模型会在同一次调用中直接完成纠错。",
+        "placeholder": "选择意图模型",
+        "title": "意图模型"
+      },
+      "inputInjection": {
+        "groupTitle": "自动注入内容",
+        "title": "自动注入内容",
+        "description": "控制后处理或翻译请求中会自动附带哪些辅助信息。",
+        "summaryEnabled": "已启用历史上下文注入，当前最多附带 {{count}} 条记录。",
+        "summaryDisabled": "当前不会自动附带历史上下文。",
+        "moreOptions": "更多选项",
+        "basicOnly": "仅显示基础项",
+        "history": {
+          "enabled": "注入历史转录上下文",
+          "description": "将当前应用最近的识别结果作为上下文提供给后处理模型。",
+          "limit": "历史上下文条数",
+          "limitDesc": "后处理最多附带最近 {{count}} 条历史记录。"
+        },
+        "streaming": {
+          "enabled": "注入实时转录中间结果",
+          "description": "将 streaming_output 一并提供给模型，用于辅助歧义消解。"
+        },
+        "hotwords": {
+          "enabled": "注入热词与专有名词表",
+          "description": "将热词、专有名词和常见误识别映射附带给后处理模型。"
+        }
+      },
+      "appRules": {
+        "activeProfiles": "{{count}} 条活跃规则",
+        "addApp": "添加应用",
+        "addRuleHead": "手动添加规则",
+        "addTitlePattern": "添加标题过滤器",
+        "assignedApps": "应用",
+        "assignedAppsDescription": "以下应用将使用此配置文件的设置。",
+        "capture": "捕获",
+        "captureTitle": "捕获标题",
+        "context": {
+          "description": "允许大模型参考当前应用的近期历史，以提高转录和修正的准确性。",
+          "enabled": "启用上下文参考",
+          "limit": "上下文历史深度",
+          "limitDesc": "模型将参考此应用最近 {{count}} 条记录作为上下文。",
+          "title": "上下文感知处理"
+        },
+        "createPromptHint": "添加应用规则以开始使用",
+        "default": "默认",
+        "newProfileName": "新配置文件名称...",
+        "noAppsAssigned": "尚未映射任何应用到此配置文件。",
+        "noProfiles": "暂无规则",
+        "noProfilesShort": "点击配置",
+        "policy": {
+          "always": "总是审阅",
+          "auto": "自动",
+          "label": "审阅策略",
+          "never": "直接插入"
+        },
+        "policyDesc": {
+          "always": "此配置文件中的应用始终显示审阅窗口。",
+          "auto": "当文本变化较大时触发审阅（基于阈值）。",
+          "never": "此配置文件中的应用从不显示审阅窗口。"
+        },
+        "policyHeader": "审阅触发策略",
+        "profilesDescription": "创建配置文件以对不同的应用组应用特定的处理逻辑或提示词。",
+        "profilesTitle": "应用配置文件",
+        "promptDescription": "选择此配置文件中转录使用的自定义提示词。",
+        "promptHeader": "覆盖 LLM 提示词",
+        "selectPrompt": "从侧边栏选择一个配置文件进行编辑",
+        "skipPostProcess": "跳过后处理",
+        "shortcuts": {
+          "description": "你可以使用快捷键触发特定配置文件或管理规则。",
+          "dialog": "确认或关闭对话框",
+          "dialogKeys": "Enter / Esc",
+          "nav": "在设置标签之间导航",
+          "navKeys": "Command + 1-8",
+          "title": "快捷键与使用方法"
+        },
+        "testMatch": "测试匹配",
+        "title": "应用规则",
+        "titlePattern": "标题（正则表达式）"
+      },
       "disabledNotice": "后期处理当前已禁用。启用后即可进行配置。",
       "fusion": {
         "enabled": {
-          "description": "后期处理时同时提供两份转录：${output}（最终）和 ${streaming_output}（第二份）。",
+          "description": "后期处理时同时提供主转录和第二份实时转录，用于对比与消歧。",
           "label": "使用实时转录（融合）"
         },
         "secondaryModel": {
@@ -906,6 +1082,9 @@
           "description": "添加一个模型以开始使用。",
           "title": "尚未配置模型"
         },
+        "promptMessageRole": {
+          "label": "Developer 模式"
+        },
         "modelTypes": {
           "asr": {
             "hint": "语音识别",
@@ -921,6 +1100,7 @@
           }
         },
         "selectModel": {
+          "addButton": "添加模型",
           "advancedOptions": "高级配置",
           "customLabel": "模型别名 / 标签 (可选)",
           "customLabelPlaceholder": "输入标签...",
@@ -939,6 +1119,9 @@
           "title": "选择模型",
           "usageTypeTitle": "用途类型"
         },
+        "filter": {
+          "all": "全部"
+        },
         "stats": {
           "asr": "ASR: {{count}}",
           "other": "其他: {{count}}",
@@ -948,10 +1131,13 @@
           "local": "本地模型",
           "remote": "在线模型"
         },
-        "title": "模型"
+        "title": "模型",
+        "setAsDefault": "设为默认",
+        "invalidJson": "无效的 JSON 格式"
       },
       "prompts": {
         "activeSet": "已设为默认提示词",
+        "advancedSettings": "高级设置",
         "aliasDuplicate": "别名 '{{alias}}' 与提示词 '{{promptName}}' 冲突",
         "aliasLabel": "别名 / 触发词",
         "aliasPlaceholder": "例如：翻译，翻译英语",
@@ -967,37 +1153,180 @@
           "description": "此操作无法撤销。该提示词将被永久删除。",
           "title": "删除提示词？"
         },
+        "createFailed": "创建技能失败",
+        "nameAndContentRequired": "名称和内容不能为空",
+        "fillNameAndInstructionsFirst": "建议先填写名称和指令，以便 AI 更好地总结。",
+        "userOwnedPrompts": "我的提示词",
         "deleteFailed": "删除失败",
         "deletePrompt": "删除提示词",
         "deleteSuccess": "提示词删除成功",
+        "resetToDefault": "恢复默认",
+        "resetConfirm": {
+          "description": "这将把技能恢复为内置的原始内容。所有自定义修改将丢失。",
+          "title": "恢复默认"
+        },
+        "lockSkill": "锁定技能",
+        "unlockSkill": "解锁技能",
+        "skillLocked": "此技能已锁定，解锁后可编辑",
+        "resetSuccess": "技能已恢复默认",
+        "resetFailed": "恢复默认失败",
+        "aiGeneratingWait": "AI 正在生成中，请等待完成",
+        "unsavedChanges": {
+          "title": "未保存的更改",
+          "description": "当前提示词有未保存的更改，切换将丢失这些修改。",
+          "discard": "放弃更改"
+        },
+        "description": "描述（用于智能路由）",
+        "descriptionPlaceholder": "简要描述此技能的功能和触发时机",
         "editPrompt": "编辑提示词",
+        "enabledToggle": "启用/禁用此技能",
+        "enableConfidenceCheck": "启用置信度审查",
+        "generationDescription": "基于识别文本作为提示词生成新内容（如翻译、摘要）。",
+        "globalConfigTitle": "全局配置",
+        "managementTitle": "提示词",
         "newPromptName": "新提示词",
         "noAliases": "暂无别名",
         "noPrefixes": "暂无指令前缀",
         "noPrompts": "没有可用的提示词",
+        "outputMode": {
+          "chat": "AI 对话",
+          "label": "输出模式",
+          "polish": "文本润色"
+        },
         "prefixesSaved": "指令前缀已保存",
         "promptInstructions": "提示词指令",
-        "promptInstructionsPlaceholder": "编写转录后要执行的指令。示例：改进以下文本的语法和清晰度: ${output}",
+        "promptBody": "任务正文",
+        "promptInstructionsPlaceholder": "描述你希望模型如何处理输入文本、允许修改什么、禁止修改什么，以及最终输出要求。",
+        "promptBodyPlaceholder": "描述你希望模型如何处理输入文本、允许修改什么、禁止修改什么，以及最终输出要求。",
         "promptLabel": "提示词名称",
         "promptLabelPlaceholder": "输入提示词名称",
-        "promptTip": "提示：<br/>使用 <code>${output}</code> 引用转录文本。<br/>使用 <code>${streaming_output}</code> 引用实时转录文本（仅作参考，可能为空）。",
+        "promptTip": "提示：你现在编辑的是任务正文。系统会自动注入主输入和辅助参考字段；如果你希望精确控制，也可以在正文中显式引用主要字段。",
         "selectedPrompt": {
-          "description": "选择用于优化转录的模板或创建新模板。在提示词文本中使用 ${output} 来引用捕获的转录。",
+          "description": "选择用于优化转录的模板或创建新模板。系统会自动注入主输入和辅助参考字段，因此正文只需描述任务目标、约束和输出要求。",
           "title": "已选提示词"
         },
         "selectPrompt": "选择提示词",
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
         "setAsActive": "设为默认",
         "title": "提示词",
+        "refinementDescription": "自动修正和格式化识别文本。",
+        "reviewThreshold": "审阅阈值",
         "updateFailed": "更新失败",
         "updatePrompt": "更新提示词",
-        "updateSuccess": "提示词更新成功"
+        "updateSuccess": "提示词更新成功",
+        "inlineVarsLabel": "可引用字段",
+        "autoInjectedNote": "系统会自动注入主输入和辅助参考字段；如果你需要更精确的控制，也可以在正文中显式引用它们。",
+        "primaryFieldsLabel": "关键信息",
+        "referenceFieldsLabel": "参考信息",
+        "explicitReferenceNote": "如果你在正文中显式引用了上面的字段，系统就不会在后续重复追加同一字段。",
+        "inlineVarsSecondaryLabel": "元数据变量",
+        "fieldAutocompleteTitle": "字段补全",
+        "fieldAutocompleteEmpty": "没有匹配的字段",
+        "fieldInputTextDesc": "当前唯一需要处理的主文本",
+        "fieldAsrReferenceDesc": "辅助 ASR 参考，仅用于纠错和消歧",
+        "fieldSelectedTextDesc": "选中文本，仅用于弱参考",
+        "fieldPersonNamesDesc": "已知人名参考",
+        "fieldProductNamesDesc": "已知产品名、品牌名或组织名",
+        "fieldDomainTermsDesc": "领域术语、缩写或专有技术词",
+        "fieldHotwordsDesc": "其他高优先级热词",
+        "fieldHistoryHintsDesc": "历史摘要提示，仅用于术语一致性和弱消歧",
+        "varAppNameDesc": "当前活跃应用名称。",
+        "varAppCategoryDesc": "应用类别（CodeEditor、Email 等）。",
+        "varContextDesc": "来自活动窗口的历史上下文。",
+        "varOutputDesc": "最终转录文本。",
+        "varPromptDesc": "当前提示词方案的显示名称。",
+        "varRawInputDesc": "完整的原始转录。",
+        "varSelectDesc": "录制结束时选中的文本。",
+        "varStreamingDesc": "实时转录中的中间文本。",
+        "varTimeDesc": "当前时间戳。",
+        "varWindowTitleDesc": "当前窗口标题。",
+        "autoGenerate": {
+          "title": "语音创建技能",
+          "description": "用自然语言描述你的需求，AI 会为你生成完整的技能。",
+          "shortcutHint": "提示：按",
+          "placeholder": "例如：帮我润色文本，修正语法并使其更加专业...",
+          "step1": "优化提示词指令",
+          "step2": "生成名称和图标",
+          "step3": "生成描述",
+          "emptyInput": "请描述这个技能需要做什么",
+          "start": "生成",
+          "menuItem": "语音输入",
+          "success": "技能创建成功"
+        },
+        "templates": {
+          "template_polish": "默认润色",
+          "template_translate": "翻译",
+          "template_summary": "总结",
+          "template_chat": "AI 问答",
+          "template_blank": "空白技能"
+        }
+      },
+      "skills": {
+        "advancedSkills": "高级技能",
+        "createHint": "在 ~/.votype/skills/ 中创建 .md 文件以添加自定义技能",
+        "enabledInFile": "技能始终启用（在文件中配置）",
+        "helpText": "在 skills 文件夹中创建带 YAML frontmatter 的 .md 文件。它们将被自动加载并可使用。",
+        "noExternalSkills": "未找到外部技能",
+        "openFolder": "打开文件夹",
+        "quickCommands": "快捷指令",
+        "refresh": "刷新",
+        "sourceBuiltin": "内置",
+        "sourceFile": "文件",
+        "sourceUser": "用户"
       },
       "confidenceCheck": {
         "title": "置信度检测",
         "description": "当 LLM 报告低置信度时，提示用户审阅转录结果",
         "threshold": "置信度阈值",
         "thresholdHint": "低于此分数的转录将提示用户审阅"
+      },
+      "textModelMode": {
+        "title": "后处理模式",
+        "single": "单个模型",
+        "singleHint": "所有文本使用同一模型",
+        "length": "智能模型",
+        "lengthHint": "按文本长度自动选择模型",
+        "multi": "多模型",
+        "multiHint": "多模型并行对比",
+        "defaultModelDescription": "默认模型",
+        "noModelSelected": "未选择模型",
+        "multiDescription": "在下方模型列表中勾选参与并行对比的模型",
+        "multiStrategy": "多模型策略",
+        "multiStrategyManual": "手动",
+        "multiStrategyManualHint": "展示所有候选，手动选择",
+        "multiStrategyRace": "极速",
+        "multiStrategyRaceShort": "极速",
+        "multiStrategyRaceHint": "谁先返回可用结果就直接采用",
+        "multiStrategyLazy": "懒惰",
+        "multiStrategyLazyShort": "懒惰",
+        "multiStrategyLazyHint": "优先等偏好模型 3 秒，超时后自动选择",
+        "preferredModel": "偏好模型",
+        "setAsPreferred": "设为偏好模型",
+        "selectModelsTitle": "选择模型",
+        "selectModelsDescription": "选择用于并行处理的模型，点击星标设为偏好模型",
+        "selectedCount": "已选 {{count}} 个",
+        "noneSelected": "未选择模型",
+        "models": "模型"
+      },
+      "lengthRouting": {
+        "enableLabel": "按文本长度自动选择模型",
+        "enableDescription": "短文本使用快速模型，长文本使用高级模型",
+        "thresholdLabel": "字符数阈值",
+        "thresholdDescription": "按 Unicode 字符计算（1 个中文字 = 1，1 个英文字母 = 1）",
+        "thresholdValue": "{{count}} 个字符",
+        "shortModelLabel": "短文本",
+        "longModelLabel": "长文本",
+        "characters": "字符",
+        "useDefault": "使用默认"
+      },
+      "smartRouting": {
+        "title": "智能路由",
+        "hint": "自动复用历史中完全相同文本的润色结果，并通过轻量模型判断短文本是否需要润色，从而降低 Token 消耗和响应延迟",
+        "shortText": "短文本",
+        "longText": "长文本",
+        "fastModel": "快速模型",
+        "fastModelHint": "用于短文本的轻量或快速模型，节省 Token 消耗并降低延迟",
+        "modelSelection": "模型"
       },
       "title": "后期处理"
     },
@@ -1028,20 +1357,6 @@
       }
     },
     "vocabulary": {
-      "actions": "操作",
-      "corrections": {
-        "allApps": "所有应用",
-        "correction": "修正",
-        "count": "次数",
-        "description": "从您的编辑历史中自动学习",
-        "empty": "暂无学习的修正",
-        "global": "全局",
-        "source": "来源",
-        "sourceUnavailable": "来源不可用",
-        "scope": "范围",
-        "title": "修正"
-      },
-      "export": "导出",
       "hotWords": {
         "description": "添加经常被误听的词汇，系统将自动修正。",
         "empty": "暂无热词",
@@ -1050,21 +1365,8 @@
         "word": "词汇"
       },
       "import": "导入",
-      "scope": {
-        "custom": "指定应用",
-        "deselectAll": "取消全选",
-        "editDescription": "编辑「{{original}}」→「{{corrected}}」的适用范围",
-        "editTitle": "修正范围",
-        "global": "全局",
-        "multiple": "{{count}} 个应用",
-        "none": "无应用",
-        "other": "其他应用",
-        "selectAll": "全选",
-        "source": "来源应用 ({{app}})"
-      },
       "deleteConfirm": {
         "title": "确认删除",
-        "correctionMessage": "确定要删除此修正规则吗？此操作无法撤销。",
         "hotwordMessage": "确定要移除此热词吗？"
       }
     }

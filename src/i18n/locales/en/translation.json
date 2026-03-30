@@ -11,6 +11,7 @@
     "title": "Application Language"
   },
   "common": {
+    "locale": "en",
     "active": "Active",
     "add": "Add",
     "addNewOption": "Add new option",
@@ -73,7 +74,9 @@
       "minutesAgo": "{{count}} min ago",
       "hoursAgo": "{{count}} hr ago",
       "daysAgo": "{{count}} days ago"
-    }
+    },
+    "history": "History",
+    "latest": "Latest"
   },
   "dashboard": {
     "actions": {
@@ -84,6 +87,7 @@
       "openRecordings": "Recordings",
       "reprocessFailed": "AI reprocessing failed",
       "retranscribe": "Re-transcribe using audio",
+      "rejectPolish": "Reject polish result",
       "retranscribeFailed": "Re-transcription failed",
       "retranscribing": "Retranscribing..."
     },
@@ -103,6 +107,7 @@
     },
     "details": {
       "audioRemoved": "Recording removed",
+      "cancelled": "Cancelled",
       "count": "{{count}} entries",
       "empty": "No data",
       "emptyHint": "Use the shortcut key to start your first transcription",
@@ -138,7 +143,7 @@
         "top3": "Top 3"
       },
       "llm": {
-        "details": "Hit rate: {{hitRate}}",
+        "calls": "{{count}} model calls",
         "title": "LLM usage",
         "unknownApp": "Unknown"
       },
@@ -168,7 +173,15 @@
     "updateAvailable": "Update available: {{version}}",
     "updateAvailableShort": "Update available",
     "updateCheckingDisabled": "Update Checking Disabled",
-    "upToDate": "Up to date"
+    "upToDate": "Up to date",
+    "postProcess": {
+      "title": "Post-processing",
+      "punctuation": "Auto-punctuation",
+      "translate": "Translate to English",
+      "realtime": "Realtime Preview",
+      "llm": "LLM Post-process",
+      "selectModel": "Select model..."
+    }
   },
   "models": {
     "large": {
@@ -195,58 +208,6 @@
       "description": "Adds punctuation and sentence breaks for zh+en mixed text. Int8; fast and small. Updated 2024-04-12.",
       "name": "Punctuation (Chinese + English)"
     },
-    "sherpa-paraformer-trilingual-zh-cantonese-en": {
-      "description": "Offline trilingual ASR (Chinese/Cantonese/English); large; good accuracy.",
-      "name": "Sherpa Paraformer Zh+Yue+En"
-    },
-    "sherpa-paraformer-zh-en-streaming": {
-      "description": "Streaming zh+en model. Good for real-time captions; fast; decent accuracy.",
-      "name": "Sherpa Chinese + English (Paraformer)"
-    },
-    "sherpa-paraformer-zh-int8-2025-10-07": {
-      "description": "Offline Chinese ASR; INT8; fast; good accuracy; updated 2025-10-07.",
-      "name": "Sherpa Paraformer Chinese (INT8)"
-    },
-    "sherpa-paraformer-zh-small-2024-03-09": {
-      "description": "Offline Chinese ASR; small and fast; decent accuracy; updated 2024-03-09.",
-      "name": "Sherpa Paraformer Chinese (Small)"
-    },
-    "sherpa-sensevoice-zh-en-ja-ko-yue-int8-2025-09-09": {
-      "description": "Offline model for Chinese/English/Japanese/Korean/Cantonese. Int8 quantized; medium speed and memory. Updated 2025-09-09.",
-      "name": "SenseVoice Multilingual"
-    },
-    "sherpa-zipformer-de-kroko-2025-08-06": {
-      "description": "Streaming German ASR; small and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa German"
-    },
-    "sherpa-zipformer-en-kroko-2025-08-06": {
-      "description": "Streaming English ASR; small and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa English"
-    },
-    "sherpa-zipformer-es-kroko-2025-08-06": {
-      "description": "Streaming Spanish ASR; medium size and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa Spanish"
-    },
-    "sherpa-zipformer-fr-kroko-2025-08-06": {
-      "description": "Streaming French ASR; small and very fast; good accuracy; updated 2025-08-06.",
-      "name": "Sherpa French"
-    },
-    "sherpa-zipformer-ru-vosk-int8-2025-08-16": {
-      "description": "Streaming Russian ASR; tiny and extremely fast (INT8); good accuracy; updated 2025-08-16.",
-      "name": "Sherpa Russian"
-    },
-    "sherpa-zipformer-small-ctc-zh-int8-2025-04-01": {
-      "description": "Streaming Chinese ASR (Zipformer2 CTC); small and extremely fast (INT8); updated 2025-04-01.",
-      "name": "Sherpa Chinese (CTC Small)"
-    },
-    "sherpa-zipformer-zh-int8-2025-06-30": {
-      "description": "Streaming Chinese ASR; small and extremely fast (INT8); high accuracy; updated 2025-06-30.",
-      "name": "Sherpa Chinese"
-    },
-    "sherpa-zipformer-zh-xlarge-int8-2025-06-30": {
-      "description": "Streaming Chinese ASR; larger model, fast (INT8); very high accuracy; updated 2025-06-30.",
-      "name": "Sherpa Chinese XL"
-    },
     "small": {
       "description": "Fast and fairly accurate.",
       "name": "Whisper Small"
@@ -255,6 +216,22 @@
       "description": "Balanced accuracy and speed.",
       "name": "Whisper Turbo"
     }
+  },
+  "inline": {
+    "listening": "Listening...",
+    "transcribing": "Transcribing...",
+    "polishing": "Polishing...",
+    "executing": "Executing...",
+    "complete": "Complete",
+    "modeToggle": "Edit Mode",
+    "closeConfirmTitle": "Unsaved Changes",
+    "closeConfirmMessage": "Content has been modified. Confirm close?",
+    "closeConfirmOk": "Close",
+    "closeConfirmCancel": "Cancel",
+    "sectionTitle": "Transcription Result",
+    "undo": "Undo",
+    "redo": "Redo",
+    "placeholder": "Press shortcut to start dictating..."
   },
   "modelSelector": {
     "active": "Active",
@@ -409,7 +386,14 @@
     "status": {
       "llm": "Post Processing...",
       "recording": "Recording...",
-      "transcribing": "Transcribing..."
+      "transcribing": "Transcribing...",
+      "review": "Review..."
+    },
+    "timeout": {
+      "title": "Online transcription timed out",
+      "continue": "Continue",
+      "retry": "Retry",
+      "cancel": "Cancel"
     }
   },
   "settings": {
@@ -588,10 +572,9 @@
         "type": "Type"
       },
       "groups": {
+        "asr": "ASR Models",
         "multilingual": "Multilingual",
-        "offline": "Full",
-        "punctuation": "Punctuation",
-        "streaming": "Realtime"
+        "punctuation": "Punctuation Models"
       },
       "idLabel": "id: {{id}}",
       "install": {
@@ -630,9 +613,8 @@
         "title": "Library"
       },
       "modeChips": {
-        "offline": "Full",
-        "punctuation": "Punctuation",
-        "streaming": "Realtime"
+        "asr": "ASR",
+        "punctuation": "Punctuation"
       },
       "pipeline": {
         "description": "Global post-processing that can be applied automatically after transcription.",
@@ -655,19 +637,22 @@
       },
       "title": "Local Models",
       "typeChips": {
+        "moonshine": "Moonshine",
         "other": "Other",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
-        "punctuation": "Punctuation",
-        "sherpa_fire_red_asr": "Sherpa FireRedASR",
-        "sherpa_paraformer": "Sherpa Paraformer",
-        "sherpa_sense_voice": "Sherpa SenseVoice",
-        "sherpa_transducer": "Sherpa Transducer",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       },
       "types": {
+        "moonshine": "Moonshine",
+        "paraformer": "Paraformer",
         "parakeet": "Parakeet",
         "punctuation": "Punctuation",
-        "whisper": "Whisper"
+        "sensevoice": "SenseVoice",
+        "whisper": "Whisper",
+        "zipformer": "Zipformer"
       }
     },
     "debug": {
@@ -706,6 +691,17 @@
       "logLevel": {
         "description": "Set the verbosity of logging",
         "title": "Log Level"
+      },
+      "logChannels": {
+        "title": "Log Channels",
+        "postProcess": "Post-Process Requests",
+        "postProcessDesc": "Log all LLM prompts and responses for text polishing (single and multi-model)",
+        "skillRouting": "Skill/Intent Routing",
+        "skillRoutingDesc": "Log skill routing prompts and responses",
+        "routing": "Routing Decisions",
+        "routingDesc": "Log SmartRouting, ModeRouting, and pipeline decisions",
+        "transcription": "Transcription Output",
+        "transcriptionDesc": "Log ASR results and realtime partials"
       },
       "muteWhileRecording": {
         "description": "Mute system audio during recording",
@@ -753,6 +749,10 @@
       }
     },
     "general": {
+      "audioInputAutoEnhance": {
+        "description": "Automatically lift quiet voice input and limit distortion during recording. This may change playback sound.",
+        "label": "Microphone Auto Enhance"
+      },
       "groups": {
         "recording": "Recording",
         "transcription": "Transcription Language"
@@ -769,9 +769,21 @@
         "searchPlaceholder": "Search languages...",
         "title": "Language"
       },
-      "pushToTalk": {
-        "description": "Hold to record, release to stop",
-        "label": "Push To Talk"
+      "activationMode": {
+        "label": "Activation Mode",
+        "tooltip": {
+          "summary": "Choose how the recording shortcut is triggered"
+        },
+        "descriptions": {
+          "toggle": "Press to start, press again to stop",
+          "hold": "Hold to record, release to stop",
+          "hold_or_toggle": "Quick press toggles, hold 300ms+ stops on release"
+        },
+        "options": {
+          "toggle": "Toggle",
+          "hold": "Hold",
+          "holdOrToggle": "Auto"
+        }
       },
       "shortcut": {
         "bindings": {
@@ -890,7 +902,7 @@
             "testConnection": "Test Model Inference",
             "testFailed": "Test failed: {{error}}",
             "testing": "Testing connection...",
-            "testSuccess": "Test successful"
+            "testSuccess": "Test successful: {{result}}"
           },
           "builtInBadge": "Built-in",
           "deleteConfirm": {
@@ -908,7 +920,8 @@
           "fields": {
             "apiKey": "API Key",
             "baseUrl": "Base URL",
-            "baseUrlHint": "OpenAI compatible mode, usually ends with /v1",
+            "baseUrlHint": "OpenAI compatible mode, usually ends with /v1. Use '#' suffix to bypass /v1 auto-append.",
+            "actualUrlPreview": "Actual API URL Preview",
             "modelsEndpoint": "Models Endpoint",
             "modelsEndpointPlaceholder": "/models",
             "name": "Provider Name",
@@ -927,8 +940,32 @@
       "intentModel": {
         "defaultOption": "Use default model",
         "description": "Model used for skill intent detection. Leave it as default to follow the main post-processing model.",
+        "hint": "Used for Skill routing (detecting which Skill to use) and smart routing action classification. For lite polish, it also performs the correction in the same call.",
         "placeholder": "Select an intent model",
         "title": "Intent Model"
+      },
+      "inputInjection": {
+        "groupTitle": "Automatic Inputs",
+        "title": "Automatic Inputs",
+        "description": "Control which helper inputs are automatically attached to post-processing or translation requests.",
+        "summaryEnabled": "History context injection is enabled, with up to {{count}} entries attached.",
+        "summaryDisabled": "No history context will be attached automatically.",
+        "moreOptions": "More options",
+        "basicOnly": "Basic item only",
+        "history": {
+          "enabled": "Inject history context",
+          "description": "Provide recent transcriptions from the current app as context for post-processing.",
+          "limit": "History context depth",
+          "limitDesc": "Attach up to the last {{count}} history entries to post-processing."
+        },
+        "streaming": {
+          "enabled": "Inject streaming transcript",
+          "description": "Send streaming_output alongside the final text to help disambiguate ASR results."
+        },
+        "hotwords": {
+          "enabled": "Inject hotwords and vocabulary",
+          "description": "Attach hotwords, terminology, and common misrecognition mappings to post-processing."
+        }
       },
       "appRules": {
         "activeProfiles": "{{count}} active rules",
@@ -969,6 +1006,7 @@
         "promptDescription": "Select a custom prompt to use for transcriptions in this profile.",
         "promptHeader": "Override LLM Prompt",
         "selectPrompt": "Select a profile from the sidebar to edit",
+        "skipPostProcess": "Skip Post-Processing",
         "shortcuts": {
           "description": "You can use keyboard shortcuts to trigger specific profiles or manage rules.",
           "dialog": "Confirm or close dialogs",
@@ -987,10 +1025,58 @@
         "thresholdHint": "Scores above this value will trigger the review window.",
         "title": "Auto-Review Sensitivity"
       },
+      "textModelMode": {
+        "title": "Post-processing Mode",
+        "single": "Single Model",
+        "singleHint": "One model for all text",
+        "length": "Smart",
+        "lengthHint": "Auto-select model by text length",
+        "multi": "Multi Model",
+        "multiHint": "Parallel comparison",
+        "defaultModelDescription": "Default model",
+        "noModelSelected": "No model selected",
+        "multiDescription": "Select models in the list below for parallel comparison",
+        "multiStrategy": "Multi-model Strategy",
+        "multiStrategyManual": "Manual",
+        "multiStrategyManualHint": "Show all candidates for manual selection",
+        "multiStrategyRace": "Ultra-fast",
+        "multiStrategyRaceShort": "Ultra-fast",
+        "multiStrategyRaceHint": "Use the first available result",
+        "multiStrategyLazy": "Lazy",
+        "multiStrategyLazyShort": "Lazy",
+        "multiStrategyLazyHint": "Wait 3s for preferred model, auto-select on timeout",
+        "preferredModel": "Preferred model",
+        "setAsPreferred": "Set as preferred model",
+        "selectModelsTitle": "Select Models",
+        "selectModelsDescription": "Choose models for parallel processing. Click the star to set preferred model.",
+        "selectedCount": "{{count}} selected",
+        "noneSelected": "No models selected",
+        "models": "Models"
+      },
+      "lengthRouting": {
+        "enableLabel": "Auto-select model by text length",
+        "enableDescription": "Use a fast model for short text, an advanced model for long text",
+        "thresholdLabel": "Character threshold",
+        "thresholdDescription": "By Unicode characters (1 Chinese character = 1, 1 English letter = 1)",
+        "thresholdValue": "{{count}} characters",
+        "shortModelLabel": "Short text",
+        "longModelLabel": "Long text",
+        "characters": " chars",
+        "useDefault": "Use default"
+      },
+      "smartRouting": {
+        "title": "Smart Routing",
+        "hint": "Automatically reuse previous results for identical text, and use a lightweight model to determine whether short text needs polishing — reducing token cost and latency.",
+        "shortText": "Short text",
+        "longText": "Long text",
+        "fastModel": "Fast model",
+        "fastModelHint": "A lightweight or fast model for short text. Saves tokens and reduces latency for simple content.",
+        "modelSelection": "Model"
+      },
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {
         "enabled": {
-          "description": "Provide two transcripts to the post-processing prompt: ${output} (final) and ${streaming_output} (secondary).",
+          "description": "Provide a main transcript and a secondary realtime transcript to post-processing for comparison and disambiguation.",
           "label": "Use realtime transcript (fusion)"
         },
         "secondaryModel": {
@@ -1012,6 +1098,9 @@
           "description": "Add a model to get started.",
           "title": "No models configured"
         },
+        "promptMessageRole": {
+          "label": "Developer Mode"
+        },
         "modelTypes": {
           "asr": {
             "hint": "Speech recognition",
@@ -1027,6 +1116,7 @@
           }
         },
         "selectModel": {
+          "addButton": "Add Model",
           "customLabelPlaceholder": "Enter label...",
           "customLabelTitle": "Custom Label",
           "customModelPlaceholder": "Enter model id...",
@@ -1038,7 +1128,15 @@
             "selectModel": "Select"
           },
           "title": "Select Model",
-          "usageTypeTitle": "Usage Type"
+          "usageTypeTitle": "Usage Type",
+          "advancedOptions": "Advanced Options",
+          "customLabel": "Custom Label",
+          "extraParams": "Extra Parameters",
+          "manualLabel": "Manual Label",
+          "selectLabel": "Select Label"
+        },
+        "filter": {
+          "all": "All"
         },
         "stats": {
           "asr": "ASR: {{count}}",
@@ -1049,7 +1147,9 @@
           "local": "Local Models",
           "remote": "Online Models"
         },
-        "title": "Models"
+        "title": "Models",
+        "setAsDefault": "Set as Default",
+        "invalidJson": "Invalid JSON format"
       },
       "prompts": {
         "activeSet": "Set as default prompt",
@@ -1062,6 +1162,10 @@
           "description": "Are you sure you want to delete this prompt? This action cannot be undone.",
           "title": "Delete Prompt"
         },
+        "createFailed": "Failed to create skill",
+        "nameAndContentRequired": "Name and content cannot be empty",
+        "fillNameAndInstructionsFirst": "Please fill in the name and instructions first so AI can generate a better summary.",
+        "userOwnedPrompts": "My Prompts",
         "deleteFailed": "Delete failed",
         "deletePrompt": "Delete Prompt",
         "deleteSuccess": "Prompt deleted successfully",
@@ -1070,16 +1174,24 @@
           "description": "This will restore the skill to its original built-in content. Any customizations will be lost.",
           "title": "Reset to Default"
         },
+        "lockSkill": "Lock Skill",
+        "unlockSkill": "Unlock Skill",
+        "skillLocked": "This skill is locked. Unlock to edit.",
         "resetSuccess": "Skill reset to default",
         "resetFailed": "Failed to reset skill",
+        "aiGeneratingWait": "AI is generating, please wait",
+        "unsavedChanges": {
+          "title": "Unsaved Changes",
+          "description": "Current prompt has unsaved changes. Switching will discard these modifications.",
+          "discard": "Discard Changes"
+        },
         "description": "Description (for smart routing)",
         "descriptionPlaceholder": "Briefly describe what this Skill does and when it should be triggered",
         "editPrompt": "Edit Prompt",
         "enabledToggle": "Enable/Disable this Skill",
-        "enableReview": "Enable Review Trigger",
+        "enableConfidenceCheck": "Enable Confidence Check",
         "generationDescription": "Generates new content based on the recognized text as a prompt (e.g., translation, summarization).",
         "globalConfigTitle": "Global Configuration",
-        "jsonHint": "Note: If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
         "managementTitle": "Prompts",
         "newPromptName": "New Prompt",
         "noPrompts": "No prompts available",
@@ -1089,14 +1201,16 @@
           "polish": "Text Polish"
         },
         "promptInstructions": "Prompt Instructions",
-        "promptInstructionsPlaceholder": "Write the instructions to run after transcription. Example: Based on ${context}, fix technical terms in the following text: ${output}",
+        "promptBody": "Task Body",
+        "promptInstructionsPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
+        "promptBodyPlaceholder": "Describe how the model should process the input text, what it may change, what it must not change, and what the final output should look like.",
         "promptLabel": "Prompt Label",
         "promptLabelPlaceholder": "Enter prompt name",
-        "promptTip": "Tip: The system automatically sends input data as a separate message to the AI. You only need to reference variable names in your prompt:<br/><b>Input Variables (auto-appended):</b><br/><code>${output}</code>: Final transcribed text.<br/><code>${raw_input}</code>: Complete original transcription.<br/><code>${select}</code>: Text selected when recording ended.<br/><code>${streaming_output}</code>: Real-time transcription (works with output for better accuracy).<br/><code>${hot_words}</code>: Your custom vocabulary/hot words.<br/><code>${context}</code>: Historical context from the active window.<br/><b>Metadata Variables (directly replaced):</b><br/><code>${prompt}</code>: Current prompt scheme name.<br/><br/><b>Fallback:</b> If your prompt doesn't reference output/raw_input/select, the system will automatically append the transcription at the end, so you can write pure task descriptions.<br/><br/><b>Note:</b> If your prompt instructs the AI to output JSON with text and confidence fields, the review window will trigger automatically.",
+        "promptTip": "Tip: You are editing the task body only. The system automatically injects the main input and supporting reference fields. When you need precise control, you can explicitly reference the primary fields in the body.",
         "refinementDescription": "Automatically corrects and formats the recognized text.",
         "reviewThreshold": "Review Threshold",
         "selectedPrompt": {
-          "description": "The system automatically sends referenced variables (like <code>${output}</code>, <code>${select}</code>) as a separate message to the AI. If no input variables are referenced, the system will auto-append the transcription.",
+          "description": "Choose the template used for post-processing, or create a new one. The system automatically injects the main input and supporting reference fields, so the prompt body only needs to describe the task, constraints, and output requirements.",
           "title": "Selected Prompt"
         },
         "selectPrompt": "Select a prompt",
@@ -1106,13 +1220,62 @@
         "updateFailed": "Update failed",
         "updatePrompt": "Update Prompt",
         "updateSuccess": "Prompt updated successfully",
+        "inlineVarsLabel": "Reference Fields",
+        "autoInjectedNote": "The system automatically injects the main input and supporting reference fields. If you need more precise control, you can explicitly reference them in the task body.",
+        "primaryFieldsLabel": "Key fields",
+        "referenceFieldsLabel": "Reference fields",
+        "explicitReferenceNote": "If you explicitly reference a field above, the system will not append the same field again later in the prompt.",
+        "inlineVarsSecondaryLabel": "Metadata variables",
+        "fieldAutocompleteTitle": "Field autocomplete",
+        "fieldAutocompleteEmpty": "No matching fields",
+        "fieldInputTextDesc": "The only primary text that should be processed",
+        "fieldAsrReferenceDesc": "Auxiliary ASR reference used for correction and disambiguation",
+        "fieldSelectedTextDesc": "Selected text used as weak context",
+        "fieldPersonNamesDesc": "Known person names",
+        "fieldProductNamesDesc": "Known product, brand, or organization names",
+        "fieldDomainTermsDesc": "Domain terms, abbreviations, or technical terms",
+        "fieldHotwordsDesc": "Other prioritized hotwords",
+        "fieldHistoryHintsDesc": "History hints used only for term consistency and weak disambiguation",
+        "varAppNameDesc": "Active application name.",
+        "varAppCategoryDesc": "App category (CodeEditor, Email, etc.).",
         "varContextDesc": "Historical context from the active window.",
-        "varHotWordsDesc": "Custom vocabulary/hot words from Advanced Settings.",
         "varOutputDesc": "Final transcribed text.",
         "varPromptDesc": "Current prompt scheme's display name.",
         "varRawInputDesc": "Complete original transcription.",
         "varSelectDesc": "Text selected when recording ended.",
-        "varStreamingDesc": "Intermediate text during real-time transcription."
+        "varStreamingDesc": "Intermediate text during real-time transcription.",
+        "varTimeDesc": "Current timestamp.",
+        "varWindowTitleDesc": "Current window title.",
+        "autoGenerate": {
+          "title": "Voice-to-Skill",
+          "description": "Describe what you want in natural language. AI will generate a complete Skill for you.",
+          "shortcutHint": "Tip: Press",
+          "placeholder": "e.g. Help me polish text, fix grammar and make it more professional...",
+          "step1": "Optimizing prompt instructions",
+          "step2": "Generating name and icon",
+          "step3": "Generating description",
+          "emptyInput": "Please describe what this Skill should do",
+          "start": "Generate",
+          "menuItem": "Voice Input",
+          "success": "Skill created successfully"
+        },
+        "templates": {
+          "template_polish": "Default Polish",
+          "template_translate": "Translation",
+          "template_summary": "Summary",
+          "template_chat": "AI Chat",
+          "template_blank": "Blank Skill"
+        },
+        "aliasDuplicate": "Alias already exists",
+        "aliasLabel": "Alias",
+        "aliasPlaceholder": "e.g., /translate",
+        "cancel": "Cancel",
+        "commandPrefixDescription": "Command prefix to trigger this prompt",
+        "commandPrefixPlaceholder": "e.g., /",
+        "commandPrefixTitle": "Command Prefix",
+        "noAliases": "No aliases configured",
+        "noPrefixes": "No prefixes configured",
+        "prefixesSaved": "Prefixes saved"
       },
       "skills": {
         "advancedSkills": "Advanced Skills",
@@ -1156,20 +1319,6 @@
       }
     },
     "vocabulary": {
-      "actions": "Actions",
-      "corrections": {
-        "allApps": "All apps",
-        "correction": "Correction",
-        "count": "Count",
-        "description": "Automatically learned from your edit history",
-        "empty": "No learned corrections yet",
-        "global": "Global",
-        "source": "Source",
-        "sourceUnavailable": "Source unavailable",
-        "scope": "Scope",
-        "title": "Corrections"
-      },
-      "export": "Export",
       "hotWords": {
         "description": "Add words that are often misheard. The system will auto-correct.",
         "empty": "No hot words yet",
@@ -1178,21 +1327,8 @@
         "word": "Word"
       },
       "import": "Import",
-      "scope": {
-        "custom": "Specific Apps",
-        "deselectAll": "Deselect All",
-        "editDescription": "Edit scope for \"{{original}}\" → \"{{corrected}}\"",
-        "editTitle": "Correction Scope",
-        "global": "Global",
-        "multiple": "{{count}} apps",
-        "none": "No apps",
-        "other": "Other Apps",
-        "selectAll": "Select All",
-        "source": "Source App ({{app}})"
-      },
       "deleteConfirm": {
         "title": "Confirm Deletion",
-        "correctionMessage": "Are you sure you want to delete this correction rule? This action cannot be undone.",
         "hotwordMessage": "Are you sure you want to remove this hot word?"
       }
     }
@@ -1207,9 +1343,15 @@
     "general": "General",
     "models": "AI Models",
     "prompts": "Prompts",
+    "postProcessing": "Post-processing",
     "shortcuts": "Shortcuts",
     "summary": "Summary",
-    "vocabulary": "Vocabulary"
+    "vocabulary": "Vocabulary",
+    "asrModels": "ASR Models",
+    "debug": "Debug",
+    "history": "History",
+    "postProcessing": "Post Processing",
+    "dailyVocabulary": "Daily Vocabulary"
   },
   "soundPicker": {
     "custom": "Custom",
@@ -1353,11 +1495,29 @@
       "hint": "⌘/Ctrl + Enter to confirm, Escape to cancel",
       "insert": "Insert",
       "insertCode": "Insert Code",
+      "insertOriginal": "Insert Original (Tab)",
       "insertStabilityHint": "Shortcut: {{shortcut}}\nIf insertion is unstable, you can temporarily disable this feature.",
       "instruction": "Instruction",
       "placeholder": "Edit transcription...",
       "source": "Live transcript",
-      "title": "Review Transcription"
+      "title": "Review Transcription",
+      "skipPostProcess": "Skip Post-process",
+      "hideDiff": "Hide Diff",
+      "showDiff": "Show Diff",
+      "translateText": "Translate",
+      "translationResult": "Translation Result",
+      "analysisTitle": "Analysis:",
+      "deviationNone": "Perfect Match",
+      "deviationMinor": "Minor Changes",
+      "deviationMajor": "Significant Changes",
+      "insertTranslation": "Insert translation",
+      "multiModel": "Multi-model Results",
+      "processing": "Processing...",
+      "restoreOrder": "Restore Original Order",
+      "sortBySpeed": "Sort by Response Speed",
+      "speedSorted": "Speed First",
+      "sortBySpeedShort": "By Speed",
+      "rankCount": "#{{rank}} ({{count}} times)"
     }
   }
 }

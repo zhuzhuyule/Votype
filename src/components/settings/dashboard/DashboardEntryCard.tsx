@@ -13,9 +13,11 @@ import {
   IconPencil,
   IconPlayerPlay,
   IconStar,
+  IconThumbDown,
   IconTrash,
   IconWand,
 } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
@@ -136,6 +138,20 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
       }
     };
 
+    const handleRejectPolish = useCallback(async () => {
+      try {
+        await invoke("reject_post_process_result", { id: entry.id });
+        if (entry.post_processed_text && entry.transcription_text) {
+          await invoke("cascade_reject_post_process", {
+            transcriptionText: entry.transcription_text,
+            postProcessedText: entry.post_processed_text,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to reject polish result:", e);
+      }
+    }, [entry.id, entry.post_processed_text, entry.transcription_text]);
+
     // Open edit dialog for a specific field
     const openEditDialog = useCallback(
       (
@@ -230,6 +246,8 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
     const durationText = entry.duration_ms
       ? formatDuration(entry.duration_ms)
       : null;
+
+    const isCancelled = !entry.transcription_text?.trim();
 
     const availablePrompts = settings?.post_process_prompts || [];
 
@@ -432,6 +450,19 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                 </IconButton>
               </Tooltip>
 
+              {entry.post_processed_text && (
+                <Tooltip content={t("dashboard.actions.rejectPolish")}>
+                  <IconButton
+                    variant="ghost"
+                    size="2"
+                    onClick={handleRejectPolish}
+                    className="text-text/60 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                  >
+                    <IconThumbDown className="w-4 h-4" />
+                  </IconButton>
+                </Tooltip>
+              )}
+
               <Tooltip content={t("settings.history.delete")}>
                 <IconButton
                   variant="ghost"
@@ -532,9 +563,15 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                   </Text>
                 </Tabs.Content>
                 <Tabs.Content value="original">
-                  <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
-                    {entry.transcription_text}
-                  </Text>
+                  {isCancelled ? (
+                    <Text className="text-text/40 text-sm italic">
+                      {t("dashboard.details.cancelled")}
+                    </Text>
+                  ) : (
+                    <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
+                      {entry.transcription_text}
+                    </Text>
+                  )}
                 </Tabs.Content>
                 <Tabs.Content value="streaming">
                   <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono italic">
@@ -558,26 +595,34 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
             </Tabs.Root>
           ) : (
             <Box className="relative group mb-3 bg-mid-gray/5 rounded-lg p-3 border border-mid-gray/10">
-              <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
-                {entry.transcription_text}
-              </Text>
-              <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all z-20">
-                <Tooltip content={t("dashboard.actions.edit")}>
-                  <IconButton
-                    variant="ghost"
-                    size="1"
-                    onClick={() =>
-                      openEditDialog(
-                        "transcription_text",
-                        entry.transcription_text,
-                      )
-                    }
-                    className="text-logo-primary hover:bg-logo-primary/10 cursor-pointer"
-                  >
-                    <IconPencil size={14} />
-                  </IconButton>
-                </Tooltip>
-              </Box>
+              {isCancelled ? (
+                <Text className="text-text/40 text-sm italic">
+                  {t("dashboard.details.cancelled")}
+                </Text>
+              ) : (
+                <Text className="text-text/80 text-sm leading-relaxed whitespace-pre-wrap wrap-break-word font-mono">
+                  {entry.transcription_text}
+                </Text>
+              )}
+              {!isCancelled && (
+                <Box className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                  <Tooltip content={t("dashboard.actions.edit")}>
+                    <IconButton
+                      variant="ghost"
+                      size="1"
+                      onClick={() =>
+                        openEditDialog(
+                          "transcription_text",
+                          entry.transcription_text,
+                        )
+                      }
+                      className="text-logo-primary hover:bg-logo-primary/10 cursor-pointer"
+                    >
+                      <IconPencil size={14} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
             </Box>
           )}
 

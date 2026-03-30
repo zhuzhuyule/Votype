@@ -446,9 +446,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   );
 
   const modelsForQuickSelector = useMemo(() => {
-    const selectable = models.filter(
-      (m) => m.engine_type !== "SherpaOnnxPunctuation",
-    );
+    const selectable = models.filter((m) => !m.id.startsWith("punct-"));
 
     const base =
       favoriteModels.size === 0
@@ -473,35 +471,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     });
   }, [models, favoriteModels, currentModelId]);
 
-  const realtimeModelsForQuickSelector = useMemo(() => {
-    const sherpaDownloaded = models.filter(
-      (m) =>
-        m.is_downloaded && m.engine_type === "SherpaOnnx" && Boolean(m.sherpa),
-    );
-
-    const selectedRealtimeId =
-      settings?.post_process_secondary_model_id ?? null;
-    const ensureSelected =
-      selectedRealtimeId &&
-      !sherpaDownloaded.some((m) => m.id === selectedRealtimeId)
-        ? sherpaDownloaded.filter((m) => m.id === selectedRealtimeId)
-        : [];
-
-    const list = [...sherpaDownloaded, ...ensureSelected];
-    return list
-      .filter((m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx)
-      .sort((a, b) => {
-        const fa = favoriteModels.has(a.id);
-        const fb = favoriteModels.has(b.id);
-        if (fa !== fb) return fa ? -1 : 1;
-        return a.name.localeCompare(b.name);
-      });
-  }, [
-    models,
-    favoriteModels,
-    currentModelId,
-    settings?.post_process_secondary_model_id,
-  ]);
+  const realtimeModelsForQuickSelector = useMemo(
+    () => models.filter((m) => m.is_downloaded && !m.id.startsWith("punct-")),
+    [models],
+  );
 
   return (
     <>

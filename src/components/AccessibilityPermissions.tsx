@@ -1,4 +1,5 @@
 import { Box, Button, Flex, Text, type ButtonProps } from "@radix-ui/themes";
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -27,6 +28,15 @@ const AccessibilityPermissions: React.FC = () => {
     const hasPermissions: boolean = await checkAccessibilityPermission();
     setHasAccessibility(hasPermissions);
     setPermissionState(hasPermissions ? "granted" : "verify");
+    if (hasPermissions) {
+      // Initialize shortcuts now that accessibility is granted
+      invoke("initialize_shortcuts").catch((e: unknown) => {
+        console.warn(
+          "Failed to initialize shortcuts after permission grant:",
+          e,
+        );
+      });
+    }
     return hasPermissions;
   };
 

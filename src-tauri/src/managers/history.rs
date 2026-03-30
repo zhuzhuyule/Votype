@@ -8,7 +8,7 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::audio_toolkit::save_wav_file;
+use crate::audio_toolkit::{save_wav_file, verify_wav_file};
 
 /// Database migrations for transcription history.
 /// Each migration is applied in order. The library tracks which migrations
@@ -291,6 +291,52 @@ static MIGRATIONS: &[M] = &[
         CREATE INDEX IF NOT EXISTS idx_cc_score ON correction_candidates(phonetic_score);
         CREATE INDEX IF NOT EXISTS idx_cc_last_seen ON correction_candidates(last_seen_at DESC);",
     ),
+    // Migration 26: Add status column to hotwords table for suggested/active workflow
+    // 'active' = confirmed hotwords (participate in LLM injection)
+    // 'suggested' = AI-suggested hotwords (pending user confirmation)
+    // Also migrate high-frequency daily_vocabulary entries as suggested hotwords
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN status TEXT NOT NULL DEFAULT 'active';
+        CREATE INDEX IF NOT EXISTS idx_hotwords_status ON hotwords(status);
+        INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, false_positive_count, created_at, status)
+        SELECT DISTINCT word, '[]', 'term', '[\"work\",\"casual\"]', 0.5, 0, 0, 0, MIN(created_at), 'suggested'
+        FROM daily_vocabulary
+        WHERE frequency >= 3
+        GROUP BY word;",
+    ),
+    // Migration 27: Add source column to hotwords
+    // source tracks where a hotword came from: 'manual', 'auto_learned', 'ai_extracted'
+    // Data migration from vocabulary_corrections is done in init_database() post-migration hook
+    M::up("ALTER TABLE hotwords ADD COLUMN source TEXT NOT NULL DEFAULT 'manual';"),
+    // Migration 28: Add hotword_categories table for user-customizable categories
+    M::up(
+        "CREATE TABLE IF NOT EXISTS hotword_categories (
+            id TEXT PRIMARY KEY,
+            label TEXT NOT NULL,
+            color TEXT NOT NULL DEFAULT 'gray',
+            icon TEXT NOT NULL DEFAULT 'IconTag',
+            sort_order INTEGER NOT NULL DEFAULT 100,
+            is_builtin BOOLEAN NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL
+        );
+        INSERT OR IGNORE INTO hotword_categories VALUES ('person', '人名', 'green', 'IconUser', 0, 1, strftime('%s','now'));
+        INSERT OR IGNORE INTO hotword_categories VALUES ('term', '术语', 'orange', 'IconVocabulary', 1, 1, strftime('%s','now'));
+        INSERT OR IGNORE INTO hotword_categories VALUES ('brand', '品牌', 'blue', 'IconBuildingStore', 2, 1, strftime('%s','now'));
+        INSERT OR IGNORE INTO hotword_categories VALUES ('abbreviation', '缩写', 'purple', 'IconAbc', 3, 1, strftime('%s','now'));",
+    ),
+    // Migration 29: Add hotword telemetry for final-output usage tracking
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN recent_use_count INTEGER NOT NULL DEFAULT 0;
+         ALTER TABLE hotwords ADD COLUMN app_usage_stats TEXT NOT NULL DEFAULT '{}';
+         ALTER TABLE hotwords ADD COLUMN scenario_usage_stats TEXT NOT NULL DEFAULT '{}';
+         CREATE INDEX IF NOT EXISTS idx_hotwords_recent_use_count ON hotwords(recent_use_count DESC);",
+    ),
+    // Migration 30: Add token_count for LLM usage tracking
+    M::up("ALTER TABLE transcription_history ADD COLUMN token_count INTEGER NOT NULL DEFAULT 0;"),
+    // Migration 31: Add llm_call_count for tracking actual API call count
+    M::up("ALTER TABLE transcription_history ADD COLUMN llm_call_count INTEGER NOT NULL DEFAULT 0;"),
+    // Migration 32: Add post_process_rejected flag for feedback loop
+    M::up("ALTER TABLE transcription_history ADD COLUMN post_process_rejected INTEGER NOT NULL DEFAULT 0;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -324,6 +370,9 @@ pub struct HistoryEntry {
     pub app_name: Option<String>,
     pub window_title: Option<String>,
     pub post_process_history: Option<String>, // JSON array of PostProcessStep
+    pub token_count: Option<i64>,
+    pub llm_call_count: Option<i64>,
+    pub post_process_rejected: Option<i64>,
     pub deleted: bool,
 }
 
@@ -404,6 +453,7 @@ impl HistoryManager {
         info!("Initializing database at {:?}", self.db_path);
 
         let mut conn = Connection::open(&self.db_path)?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
 
         // Handle migration from tauri-plugin-sql to rusqlite_migration
         // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
@@ -432,6 +482,13 @@ impl HistoryManager {
                 "Database migrated from version {} to {}",
                 version_before, version_after
             );
+
+            // Post-migration: migrate vocabulary_corrections into hotwords (migration 27)
+            if version_before < 27 && version_after >= 27 {
+                if let Err(e) = Self::migrate_corrections_to_hotwords(&conn) {
+                    error!("Failed to migrate corrections to hotwords: {}", e);
+                }
+            }
         } else {
             debug!("Database already at latest version {}", version_after);
         }
@@ -497,7 +554,9 @@ impl HistoryManager {
     }
 
     fn get_connection(&self) -> Result<Connection> {
-        Ok(Connection::open(&self.db_path)?)
+        let conn = Connection::open(&self.db_path)?;
+        conn.busy_timeout(std::time::Duration::from_millis(5000))?;
+        Ok(conn)
     }
 
     fn query_totals_since(&self, conn: &Connection, start_timestamp: i64) -> Result<HistoryTotals> {
@@ -525,6 +584,104 @@ impl HistoryManager {
         })?;
 
         Ok(totals)
+    }
+
+    /// Migrate vocabulary_corrections data into the hotwords table.
+    /// Called once after migration 27 adds the source column.
+    fn migrate_corrections_to_hotwords(conn: &Connection) -> Result<()> {
+        info!("[Migration] Migrating vocabulary_corrections into hotwords...");
+
+        let mut stmt = conn.prepare(
+            "SELECT corrected_text, original_text, correction_count
+             FROM vocabulary_corrections
+             ORDER BY corrected_text, correction_count DESC",
+        )?;
+
+        let mut corrections_map: std::collections::HashMap<String, (Vec<String>, i64)> =
+            std::collections::HashMap::new();
+
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
+
+        for row in rows {
+            let (corrected, original, count) = row?;
+            let entry = corrections_map
+                .entry(corrected)
+                .or_insert_with(|| (Vec::new(), 0));
+            if !entry.0.contains(&original) {
+                entry.0.push(original);
+            }
+            entry.1 += count;
+        }
+
+        let now = chrono::Utc::now().timestamp();
+        let mut migrated = 0;
+        let mut merged = 0;
+
+        for (target, (originals, use_count)) in &corrections_map {
+            let originals_json =
+                serde_json::to_string(originals).unwrap_or_else(|_| "[]".to_string());
+
+            // Check if hotword with same target already exists
+            let existing: Option<(i64, String)> = conn
+                .query_row(
+                    "SELECT id, originals FROM hotwords WHERE LOWER(target) = LOWER(?1)",
+                    params![target],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .ok();
+
+            if let Some((id, existing_originals_json)) = existing {
+                // Merge originals into existing hotword
+                let mut existing_originals: Vec<String> =
+                    serde_json::from_str(&existing_originals_json).unwrap_or_default();
+                for o in originals {
+                    if !existing_originals.contains(o) {
+                        existing_originals.push(o.clone());
+                    }
+                }
+                let merged_json =
+                    serde_json::to_string(&existing_originals).unwrap_or_else(|_| "[]".to_string());
+
+                conn.execute(
+                    "UPDATE hotwords SET originals = ?1, use_count = use_count + ?2 WHERE id = ?3",
+                    params![merged_json, use_count, id],
+                )?;
+                merged += 1;
+            } else {
+                // Infer category from target
+                let trimmed = target.trim();
+                let category = if trimmed.len() >= 2
+                    && trimmed.len() <= 5
+                    && trimmed.chars().all(|c| c.is_ascii_uppercase())
+                {
+                    "abbreviation"
+                } else {
+                    "term"
+                };
+
+                conn.execute(
+                    "INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, false_positive_count, created_at, status, source)
+                     VALUES (?1, ?2, ?3, '[\"work\",\"casual\"]', 0.5, 0, ?4, 0, ?5, 'active', 'auto_learned')",
+                    params![target, originals_json, category, use_count, now],
+                )?;
+                migrated += 1;
+            }
+        }
+
+        info!(
+            "[Migration] Migrated {} new hotwords, merged {} into existing (from {} correction groups)",
+            migrated,
+            merged,
+            corrections_map.len()
+        );
+
+        Ok(())
     }
 
     /// Query all-time totals from the transcription_history table.
@@ -651,9 +808,10 @@ impl HistoryManager {
             .as_ref()
             .map(|s| s.chars().count() as i64);
 
-        // Save WAV file
+        // Save WAV file and verify integrity
         let file_path = self.recordings_dir.join(&file_name);
-        save_wav_file(file_path, &audio_samples).await?;
+        save_wav_file(&file_path, &audio_samples).await?;
+        verify_wav_file(&file_path, audio_samples.len())?;
 
         // Save to database
         let id = self.save_to_database(
@@ -723,10 +881,46 @@ impl HistoryManager {
         Ok(id)
     }
 
+    fn record_final_hotword_usage(&self, text: &str, app_name: Option<&str>) {
+        if text.trim().is_empty() {
+            return;
+        }
+
+        let hotword_manager = crate::managers::hotword::HotwordManager::new(self.db_path.clone());
+        if let Err(e) = hotword_manager.record_final_output_usage(text, app_name) {
+            error!("[History] Failed to record final hotword usage: {}", e);
+        }
+    }
+
+    fn should_record_final_hotword_usage(original_text: Option<&str>, new_text: &str) -> bool {
+        let new_text = new_text.trim();
+        if new_text.is_empty() {
+            return false;
+        }
+
+        match original_text.map(str::trim) {
+            Some(original) => original != new_text,
+            None => true,
+        }
+    }
+
     #[allow(dead_code)]
-    pub async fn update_reviewed_text(&self, id: i64, post_processed_text: String) -> Result<()> {
+    pub async fn update_reviewed_text(
+        &self,
+        id: i64,
+        post_processed_text: String,
+        learn_from_edit: bool,
+        original_text_for_learning: Option<String>,
+    ) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;
+        let app_name: Option<String> = conn
+            .query_row(
+                "SELECT app_name FROM transcription_history WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .ok();
 
         // Get the old corrected_char_count to calculate delta for global stats
         let old_corrected_char_count: i64 = conn
@@ -737,47 +931,65 @@ impl HistoryManager {
             )
             .unwrap_or(0);
 
-        // Fetch original text for diff analysis
-        // We prioritize post_processed_text if it exists, otherwise transcription_text
-        let original_text_opt: Option<String> = conn.query_row(
-            "SELECT COALESCE(post_processed_text, transcription_text) FROM transcription_history WHERE id = ?1",
-            params![id],
-            |row| row.get(0),
-        ).ok();
-
-        // Also fetch app_name for scoping corrections
-        let app_name: Option<String> = conn
-            .query_row(
-                "SELECT app_name FROM transcription_history WHERE id = ?1",
+        // Prefer the exact text the user saw before editing in the review UI.
+        // Falling back to stored history text can mix in differences caused by
+        // model switching / candidate selection and produce incorrect A→B pairs.
+        let original_text_opt: Option<String> = original_text_for_learning.or_else(|| {
+            conn.query_row(
+                "SELECT COALESCE(post_processed_text, transcription_text) FROM transcription_history WHERE id = ?1",
                 params![id],
                 |row| row.get(0),
             )
-            .ok();
+            .ok()
+        });
 
-        // Perform correction learning if we have original text
-        if let Some(original) = original_text_opt {
-            use crate::managers::vocabulary::VocabularyManager;
-            let diffs = VocabularyManager::analyze_edit_diff(&original, &post_processed_text);
-            if !diffs.is_empty() {
-                let vocab_manager = VocabularyManager::new(self.db_path.clone());
+        // Only learn from explicit user edits in the review window.
+        // Selecting a model output / inserting original / inserting translation
+        // should update history but must not be treated as a correction-learning event.
+        if learn_from_edit {
+            if let Some(ref original) = original_text_opt {
+                use crate::managers::hotword::HotwordManager;
+                use crate::managers::vocabulary::VocabularyManager;
+                use crate::phonetic_similarity::calculate_phonetic_similarity;
 
-                let is_global = app_name.is_none();
-                let target_apps = app_name
-                    .as_ref()
-                    .map(|app| serde_json::to_string(&vec![app]).unwrap());
+                let diffs = VocabularyManager::analyze_edit_diff(original, &post_processed_text);
+                if !diffs.is_empty() {
+                    let vocab_manager = VocabularyManager::new(self.db_path.clone());
 
-                for diff in &diffs {
-                    if let Err(e) =
-                        vocab_manager.record_correction(diff, is_global, target_apps.clone())
-                    {
-                        error!("Failed to record vocabulary correction: {}", e);
+                    // Once the diff is extracted from the exact text the user saw,
+                    // let the downstream similarity/LLM pipeline decide whether each
+                    // A→B correction is worth learning instead of short-circuiting here.
+                    let mut corrections: Vec<(String, String)> = Vec::new();
+
+                    for diff in &diffs {
+                        let similarity =
+                            calculate_phonetic_similarity(&diff.original, &diff.corrected);
+                        if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
+                            error!("Failed to record correction candidate: {}", e);
+                        }
+                        corrections.push((diff.original.clone(), diff.corrected.clone()));
                     }
+
+                    // Fire-and-forget LLM analysis (safe: we're already in async context)
+                    if !corrections.is_empty() {
+                        let app_handle = self.app_handle.clone();
+                        let db_path = self.db_path.clone();
+                        tokio::spawn(async move {
+                            HotwordManager::analyze_corrections_via_llm(
+                                app_handle,
+                                db_path,
+                                corrections,
+                            )
+                            .await;
+                        });
+                    }
+
+                    info!(
+                        "[History] Processed {} edit diffs from review window for entry {}",
+                        diffs.len(),
+                        id
+                    );
                 }
-                info!(
-                    "[History] Recorded {} vocabulary corrections from review window for entry {}",
-                    diffs.len(),
-                    id
-                );
             }
         }
 
@@ -798,6 +1010,50 @@ impl HistoryManager {
             error!("Failed to emit history-updated event: {}", e);
         }
 
+        if Self::should_record_final_hotword_usage(
+            original_text_opt.as_deref(),
+            &post_processed_text,
+        ) {
+            self.record_final_hotword_usage(&post_processed_text, app_name.as_deref());
+        }
+
+        Ok(())
+    }
+
+    /// Update only the post_process_model field for a history entry.
+    pub fn update_post_process_model(&self, id: i64, model: &str) -> Result<()> {
+        let conn = self.get_connection()?;
+        conn.execute(
+            "UPDATE transcription_history SET post_process_model = ?1 WHERE id = ?2",
+            params![model, id],
+        )?;
+        Ok(())
+    }
+
+    /// Save post-processed text with model/prompt metadata, without creating a PostProcessStep.
+    /// Used by multi-model pipeline for the initial auto-save before user review.
+    pub async fn save_post_processed_text(
+        &self,
+        id: i64,
+        text: String,
+        model: Option<String>,
+        prompt_id: Option<String>,
+        token_count: Option<i64>,
+        llm_call_count: Option<i64>,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+        let corrected_char_count = text.chars().count() as i64;
+        conn.execute(
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_model = ?2, post_process_prompt_id = ?3, corrected_char_count = ?4, token_count = COALESCE(token_count, 0) + COALESCE(?6, 0), llm_call_count = COALESCE(llm_call_count, 0) + COALESCE(?7, 0) WHERE id = ?5",
+            params![text, model, prompt_id, corrected_char_count, id, token_count, llm_call_count],
+        )?;
+        debug!(
+            "Saved post-processed text for transcription {} (no step created)",
+            id
+        );
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
         Ok(())
     }
 
@@ -806,7 +1062,6 @@ impl HistoryManager {
     /// Used for user-initiated corrections to improve future transcription reference data.
     ///
     /// When field is "post_process_history_step", the step_index must be provided to identify which step to update.
-    /// The app_name is used to scope vocabulary corrections to specific applications.
     pub async fn update_history_entry_text(
         &self,
         id: i64,
@@ -860,26 +1115,43 @@ impl HistoryManager {
             conn.query_row(&query, params![id], |row| row.get(0)).ok()
         };
 
-        // Analyze diff and record vocabulary corrections
+        // Analyze diff and send corrections to LLM for classification
         if let Some(original) = &original_text {
+            use crate::managers::hotword::HotwordManager;
+            use crate::phonetic_similarity::calculate_phonetic_similarity;
+
             let diffs = VocabularyManager::analyze_edit_diff(original, &new_text);
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
 
-                let is_global = app_name.is_none();
-                let target_apps = app_name
-                    .as_ref()
-                    .map(|app| serde_json::to_string(&vec![app]).unwrap());
+                // Collect corrections for LLM analysis
+                let mut corrections: Vec<(String, String)> = Vec::new();
 
                 for diff in &diffs {
-                    if let Err(e) =
-                        vocab_manager.record_correction(diff, is_global, target_apps.clone())
-                    {
-                        error!("Failed to record vocabulary correction: {}", e);
+                    let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
+                    // Record candidate for debugging/analytics
+                    if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
+                        error!("Failed to record correction candidate: {}", e);
                     }
+                    corrections.push((diff.original.clone(), diff.corrected.clone()));
                 }
+
+                // Fire-and-forget LLM analysis (safe: we're already in async context)
+                if !corrections.is_empty() {
+                    let app_handle = self.app_handle.clone();
+                    let db_path = self.db_path.clone();
+                    tokio::spawn(async move {
+                        HotwordManager::analyze_corrections_via_llm(
+                            app_handle,
+                            db_path,
+                            corrections,
+                        )
+                        .await;
+                    });
+                }
+
                 info!(
-                    "[History] Recorded {} vocabulary corrections for entry {} field {}",
+                    "[History] Processed {} edit diffs for entry {} field {}",
                     diffs.len(),
                     id,
                     field
@@ -902,6 +1174,9 @@ impl HistoryManager {
                 "UPDATE transcription_history SET post_processed_text = ?1, corrected_char_count = ?2 WHERE id = ?3",
                 params![new_text, corrected_char_count, id],
             )?;
+            if Self::should_record_final_hotword_usage(original_text.as_deref(), &new_text) {
+                self.record_final_hotword_usage(&new_text, app_name.as_deref());
+            }
         } else if field == "streaming_text" {
             // For streaming_text, just update the field
             conn.execute(
@@ -949,6 +1224,9 @@ impl HistoryManager {
                     "UPDATE transcription_history SET post_process_history = ?1, post_processed_text = ?2, corrected_char_count = ?3 WHERE id = ?4",
                     params![history_json, new_text, corrected_char_count, id],
                 )?;
+                if Self::should_record_final_hotword_usage(original_text.as_deref(), &new_text) {
+                    self.record_final_hotword_usage(&new_text, app_name.as_deref());
+                }
             } else {
                 conn.execute(
                     "UPDATE transcription_history SET post_process_history = ?1 WHERE id = ?2",
@@ -975,6 +1253,8 @@ impl HistoryManager {
         prompt_name: String,
         post_process_prompt_id: Option<String>,
         post_process_model: Option<String>,
+        token_count: Option<i64>,
+        llm_call_count: Option<i64>,
     ) -> Result<()> {
         let conn = self.get_connection()?;
         let corrected_char_count = post_processed_text.chars().count() as i64;
@@ -1012,8 +1292,8 @@ impl HistoryManager {
         let history_json = serde_json::to_string(&history)?;
 
         conn.execute(
-            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5, post_process_history = ?6 WHERE id = ?7",
-            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, history_json, id],
+            "UPDATE transcription_history SET post_processed_text = ?1, post_process_prompt = ?2, post_process_prompt_id = ?3, post_process_model = ?4, corrected_char_count = ?5, post_process_history = ?6, token_count = COALESCE(token_count, 0) + COALESCE(?8, 0), llm_call_count = COALESCE(llm_call_count, 0) + COALESCE(?9, 0) WHERE id = ?7",
+            params![post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, corrected_char_count, history_json, id, token_count, llm_call_count],
         )?;
 
         let _ = if had_post_processing { 0 } else { 1 };
@@ -1066,7 +1346,14 @@ impl HistoryManager {
 
         debug!("Updated transcription {} with re-transcription results", id);
 
-        // Emit history updated event
+        // Emit history updated event with entry id for targeted refresh
+        if let Err(e) = self
+            .app_handle
+            .emit("history-entry-updated", serde_json::json!({ "id": id }))
+        {
+            error!("Failed to emit history-entry-updated event: {}", e);
+        }
+        // Also emit generic event for backward compatibility
         if let Err(e) = self.app_handle.emit("history-updated", ()) {
             error!("Failed to emit history-updated event: {}", e);
         }
@@ -1211,7 +1498,7 @@ impl HistoryManager {
     pub async fn get_history_entries(&self) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted FROM transcription_history ORDER BY timestamp DESC"
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, post_process_rejected, deleted FROM transcription_history ORDER BY timestamp DESC"
         )?;
 
         let rows = stmt.query_map([], |row| {
@@ -1237,6 +1524,9 @@ impl HistoryManager {
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
                 post_process_history: row.get("post_process_history")?,
+                token_count: row.get("token_count")?,
+                llm_call_count: row.get("llm_call_count")?,
+                post_process_rejected: row.get("post_process_rejected")?,
                 deleted: row.get("deleted")?,
             })
         })?;
@@ -1287,7 +1577,7 @@ impl HistoryManager {
 
         // Build paginated query
         let query_sql = format!(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, post_process_rejected, deleted FROM transcription_history {} ORDER BY timestamp DESC LIMIT {} OFFSET {}",
             where_clause, limit, offset
         );
 
@@ -1317,6 +1607,9 @@ impl HistoryManager {
                 app_name: row.get("app_name")?,
                 window_title: row.get("window_title")?,
                 post_process_history: row.get("post_process_history")?,
+                token_count: row.get("token_count")?,
+                llm_call_count: row.get("llm_call_count")?,
+                post_process_rejected: row.get("post_process_rejected")?,
                 deleted: row.get("deleted")?,
             })
         };
@@ -1368,7 +1661,7 @@ impl HistoryManager {
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, deleted
+            "SELECT id, file_name, timestamp, saved, title, transcription_text, streaming_text, streaming_asr_model, post_processed_text, post_process_prompt, post_process_prompt_id, post_process_model, duration_ms, char_count, corrected_char_count, transcription_ms, language, asr_model, app_name, window_title, post_process_history, token_count, llm_call_count, post_process_rejected, deleted
              FROM transcription_history WHERE id = ?1",
         )?;
 
@@ -1396,6 +1689,9 @@ impl HistoryManager {
                     app_name: row.get("app_name")?,
                     window_title: row.get("window_title")?,
                     post_process_history: row.get("post_process_history")?,
+                    token_count: row.get("token_count")?,
+                    llm_call_count: row.get("llm_call_count")?,
+                    post_process_rejected: row.get("post_process_rejected")?,
                     deleted: row.get("deleted")?,
                 })
             })
@@ -1518,5 +1814,67 @@ impl HistoryManager {
         } else {
             format!("Recording {}", timestamp)
         }
+    }
+
+    /// Look up an exact-match cached post-processing result for the given transcription.
+    pub fn find_cached_post_process_result(
+        &self,
+        transcription_text: &str,
+    ) -> Result<Option<(String, Option<String>, Option<String>)>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT post_processed_text, post_process_model, post_process_prompt_id
+             FROM transcription_history
+             WHERE transcription_text = ?1
+               AND post_processed_text IS NOT NULL
+               AND post_processed_text != ''
+               AND post_process_rejected = 0
+               AND deleted = 0
+             ORDER BY timestamp DESC
+             LIMIT 1",
+        )?;
+        let result = stmt
+            .query_row(params![transcription_text], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .optional()?;
+        Ok(result)
+    }
+
+    pub async fn reject_post_process_result(&self, id: i64) -> Result<()> {
+        let conn = self.get_connection()?;
+        conn.execute(
+            "UPDATE transcription_history SET post_process_rejected = 1 WHERE id = ?1",
+            params![id],
+        )?;
+        info!("Marked post-process result as rejected for entry {}", id);
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+        Ok(())
+    }
+
+    pub async fn cascade_reject_post_process(
+        &self,
+        transcription_text: &str,
+        post_processed_text: &str,
+    ) -> Result<usize> {
+        let conn = self.get_connection()?;
+        let count = conn.execute(
+            "UPDATE transcription_history SET post_process_rejected = 1
+             WHERE transcription_text = ?1
+               AND post_processed_text = ?2
+               AND post_process_rejected = 0",
+            params![transcription_text, post_processed_text],
+        )?;
+        info!("Cascade-rejected {} entries", count);
+        if let Err(e) = self.app_handle.emit("history-updated", ()) {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+        Ok(count)
     }
 }

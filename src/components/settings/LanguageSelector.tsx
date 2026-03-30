@@ -33,18 +33,15 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     if (!currentModelInfo) return "unknownModel";
     if (unsupportedModels.includes(currentModel)) return "unsupportedModel";
     if (currentModelInfo.engine_type === "Whisper") return "whisper";
-    if (
-      currentModelInfo.engine_type === "SherpaOnnx" &&
-      currentModelInfo.sherpa?.family === "SenseVoice"
-    ) {
-      return "sensevoice";
-    }
+    if (currentModelInfo.engine_type === "Parakeet") return "parakeet";
+    if (currentModelInfo.engine_type === "SenseVoice") return "sensevoice";
     return "unsupportedEngine";
   })() as
     | "noModel"
     | "unknownModel"
     | "unsupportedModel"
     | "whisper"
+    | "parakeet"
     | "sensevoice"
     | "unsupportedEngine";
 
@@ -86,6 +83,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       "settings.general.language.descriptionUnsupportedEngine",
     ),
     whisper: t("settings.general.language.description"),
+    parakeet: t("settings.general.language.description"),
     sensevoice: t("settings.general.language.descriptionSenseVoice"),
   };
 

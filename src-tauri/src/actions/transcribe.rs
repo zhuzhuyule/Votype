@@ -1,21 +1,22 @@
-use super::post_process::{maybe_convert_chinese_variant, maybe_post_process_transcription};
+use super::post_process::maybe_convert_chinese_variant;
 use super::ShortcutAction;
 use crate::active_window;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
-use crate::managers::model::{EngineType, ModelManager};
-use crate::managers::transcription::{SherpaPartialEvent, TranscriptionManager};
+use crate::managers::model::ModelManager;
+use crate::managers::transcription::TranscriptionManager;
 use crate::overlay::{show_recording_overlay, show_transcribing_overlay};
 use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils;
+use crate::window_context::VotypeInputMode;
 use log::{debug, error, info};
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 
 pub(super) struct TranscribeAction {
     pub skill_mode: bool,
@@ -198,21 +199,48 @@ impl ShortcutAction for TranscribeAction {
         ppm.cancel_current_task();
 
         let settings_for_load = get_settings(app);
-        if !settings_for_load.online_asr_enabled {
+
+        // Realtime preview should be available whenever the current recording flow
+        // has a local model path that can produce partial text.
+        // - Local ASR: always enable realtime preview
+        // - Online ASR: enable only when a secondary local candidate is configured
+        let enable_realtime = settings_for_load.realtime_transcription_enabled
+            && (!settings_for_load.online_asr_enabled
+                || settings_for_load.post_process_use_secondary_output);
+
+        let rm = app.state::<Arc<AudioRecordingManager>>();
+
+        if !settings_for_load.online_asr_enabled || enable_realtime {
             let tm = app.state::<Arc<TranscriptionManager>>();
             tm.initiate_model_load();
         } else {
             debug!("Online ASR enabled: skip preloading local model");
         }
 
+        // Pre-load VAD in parallel with ASR model
+        {
+            let rm_clone = Arc::clone(&rm);
+            std::thread::spawn(move || {
+                if let Err(e) = rm_clone.preload_vad() {
+                    log::debug!("VAD pre-load failed (will retry on stream open): {}", e);
+                }
+            });
+        }
+
         let binding_id = binding_id.to_string();
         change_tray_icon(app, TrayIconState::Recording);
         show_recording_overlay(app);
 
-        let rm = app.state::<Arc<AudioRecordingManager>>();
-        rm.set_speech_frame_sender(None);
+        // Setup channel for receiving audio frames for realtime simulation if using local model
+        let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
+        if enable_realtime {
+            rm.set_speech_frame_sender(Some(realtime_tx));
+        } else {
+            rm.set_speech_frame_sender(None);
+        }
+
         rm.set_online_transcription_receiver(None);
-        let mm = app.state::<Arc<ModelManager>>();
+        let _mm = app.state::<Arc<ModelManager>>();
 
         let new_id = rm.increment_transcription_id();
         debug!("Starting new transcription session with ID: {}", new_id);
@@ -225,213 +253,15 @@ impl ShortcutAction for TranscribeAction {
         // post-processing fusion input.
         let use_secondary_local_realtime =
             settings.online_asr_enabled && settings.post_process_use_secondary_output;
-        let secondary_local_model_id = if use_secondary_local_realtime {
+        let _secondary_local_model_id = if use_secondary_local_realtime {
             settings
                 .post_process_secondary_model_id
                 .clone()
                 .filter(|id| !id.trim().is_empty())
-                .unwrap_or_else(|| settings.selected_model.clone())
+                .unwrap_or_default()
         } else {
             String::new()
         };
-
-        let secondary_use_sherpa_online = use_secondary_local_realtime
-            && mm
-                .get_model_info(&secondary_local_model_id)
-                .map(|m| {
-                    matches!(m.engine_type, EngineType::SherpaOnnx)
-                        && m.filename.to_lowercase().contains("streaming")
-                })
-                .unwrap_or(false);
-
-        let secondary_use_sherpa_offline = use_secondary_local_realtime
-            && !secondary_use_sherpa_online
-            && mm
-                .get_model_info(&secondary_local_model_id)
-                .map(|m| matches!(m.engine_type, EngineType::SherpaOnnx))
-                .unwrap_or(false);
-
-        let use_sherpa_online = !settings.online_asr_enabled
-            && mm
-                .get_model_info(&settings.selected_model)
-                .map(|m| {
-                    matches!(m.engine_type, EngineType::SherpaOnnx)
-                        && m.filename.to_lowercase().contains("streaming")
-                })
-                .unwrap_or(false);
-
-        // Check if we should use offline VAD streaming (for non-streaming Sherpa models)
-        let use_sherpa_offline = !settings.online_asr_enabled
-            && !use_sherpa_online
-            && mm
-                .get_model_info(&settings.selected_model)
-                .map(|m| matches!(m.engine_type, EngineType::SherpaOnnx))
-                .unwrap_or(false);
-
-        if use_sherpa_online {
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.start_sherpa_online_session()?;
-                    while let Ok(frame) = frame_rx.recv() {
-                        tm.feed_sherpa_online_session(&frame)?;
-                    }
-                    tm.finish_sherpa_online_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!("Sherpa online transcription worker failed: {}", e);
-                }
-                let _ = app_handle.emit(
-                    "sherpa-online-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        } else if secondary_use_sherpa_online {
-            // Online ASR + secondary local streaming model (realtime captions only)
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            let model_id = secondary_local_model_id.clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.load_model(&model_id)?;
-                    tm.start_sherpa_online_session()?;
-                    while let Ok(frame) = frame_rx.recv() {
-                        tm.feed_sherpa_online_session(&frame)?;
-                    }
-                    tm.finish_sherpa_online_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!("Secondary Sherpa online transcription worker failed: {}", e);
-                }
-                let _ = app_handle.emit(
-                    "sherpa-online-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        } else if use_sherpa_offline {
-            // Sherpa offline model with VAD streaming
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.start_sherpa_offline_session()?;
-
-                    // Note: the audio pipeline emits *continuous* frames; when VAD reports
-                    // non-speech it forwards a zeroed frame. Use those "silent" frames to
-                    // drive the speech->silence transition logic.
-                    loop {
-                        match frame_rx.recv_timeout(Duration::from_millis(100)) {
-                            Ok(frame) => {
-                                let is_silence = frame.iter().all(|v| v.abs() <= 1e-7);
-                                if is_silence {
-                                    tm.check_sherpa_offline_silence()?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                } else {
-                                    tm.feed_sherpa_offline_session(&frame)?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                }
-                            }
-                            Err(mpsc::RecvTimeoutError::Timeout) => {
-                                // Check for silence timeout
-                                tm.check_sherpa_offline_silence()?;
-                                tm.maybe_force_sherpa_offline_partial()?;
-                            }
-                            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                                // Channel closed, finish session
-                                break;
-                            }
-                        }
-                    }
-
-                    tm.finish_sherpa_offline_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!("Sherpa offline transcription worker failed: {}", e);
-                }
-                let _ = app_handle.emit(
-                    "sherpa-offline-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        } else if secondary_use_sherpa_offline {
-            // Online ASR + secondary local offline model with VAD streaming (realtime captions only)
-            let tm = (*app.state::<Arc<TranscriptionManager>>()).clone();
-            let (frame_tx, frame_rx) = mpsc::channel::<Vec<f32>>();
-            let (final_tx, final_rx) = mpsc::channel::<anyhow::Result<String>>();
-
-            rm.set_speech_frame_sender(Some(frame_tx));
-            rm.set_online_transcription_receiver(Some(final_rx));
-
-            let app_handle = (*app).clone();
-            let model_id = secondary_local_model_id.clone();
-            std::thread::spawn(move || {
-                let result = (|| -> anyhow::Result<String> {
-                    tm.load_model(&model_id)?;
-                    tm.start_sherpa_offline_session()?;
-
-                    loop {
-                        match frame_rx.recv_timeout(Duration::from_millis(100)) {
-                            Ok(frame) => {
-                                let is_silence = frame.iter().all(|v| v.abs() <= 1e-7);
-                                if is_silence {
-                                    tm.check_sherpa_offline_silence()?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                } else {
-                                    tm.feed_sherpa_offline_session(&frame)?;
-                                    tm.maybe_force_sherpa_offline_partial()?;
-                                }
-                            }
-                            Err(mpsc::RecvTimeoutError::Timeout) => {
-                                tm.check_sherpa_offline_silence()?;
-                                tm.maybe_force_sherpa_offline_partial()?;
-                            }
-                            Err(mpsc::RecvTimeoutError::Disconnected) => {
-                                break;
-                            }
-                        }
-                    }
-
-                    tm.finish_sherpa_offline_session()
-                })();
-
-                if let Err(e) = &result {
-                    error!(
-                        "Secondary Sherpa offline transcription worker failed: {}",
-                        e
-                    );
-                }
-                let _ = app_handle.emit(
-                    "sherpa-offline-worker-exited",
-                    serde_json::json!({ "ok": result.is_ok() }),
-                );
-                let _ = final_tx.send(result);
-            });
-        }
 
         let mut recording_started = false;
         if is_always_on {
@@ -442,18 +272,16 @@ impl ShortcutAction for TranscribeAction {
                 rm_clone.apply_mute();
             });
 
-            recording_started = rm.try_start_recording(&binding_id);
+            recording_started = rm.try_start_recording(&binding_id, 0);
             debug!("Recording started: {}", recording_started);
         } else {
             let recording_start_time = Instant::now();
-            if rm.try_start_recording(&binding_id) {
+            if rm.try_start_recording(&binding_id, 0) {
                 recording_started = true;
                 debug!("Recording started in {:?}", recording_start_time.elapsed());
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
                 std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_millis(100));
-                    debug!("Handling delayed audio feedback/mute sequence");
                     play_feedback_sound_blocking(&app_clone, SoundType::Start);
                     rm_clone.apply_mute();
                 });
@@ -462,18 +290,31 @@ impl ShortcutAction for TranscribeAction {
             }
         }
 
-        if !recording_started
-            && (use_sherpa_online
-                || use_sherpa_offline
-                || secondary_use_sherpa_online
-                || secondary_use_sherpa_offline)
-        {
-            rm.set_speech_frame_sender(None);
-            rm.set_online_transcription_receiver(None);
-        }
-
         if recording_started {
             shortcut::register_cancel_shortcut(app);
+
+            if enable_realtime {
+                let tm_realtime = app.state::<Arc<TranscriptionManager>>().inner().clone();
+                let app_handle_realtime = app.clone();
+                let interval_ms = settings_for_load.offline_vad_force_interval_ms;
+                let window_secs = settings_for_load.offline_vad_force_window_seconds;
+
+                // Pre-load punct model in background so anchored punctuation is ready
+                let tm_punct = tm_realtime.clone();
+                std::thread::spawn(move || {
+                    tm_punct.ensure_punct_model_loaded();
+                });
+
+                std::thread::spawn(move || {
+                    realtime_worker_loop(
+                        realtime_rx,
+                        &tm_realtime,
+                        &app_handle_realtime,
+                        interval_ms,
+                        window_secs,
+                    );
+                });
+            }
         }
 
         debug!(
@@ -482,9 +323,7 @@ impl ShortcutAction for TranscribeAction {
         );
     }
 
-    fn stop(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
-        shortcut::unregister_cancel_shortcut(app);
-
+    fn stop(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str) {
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
@@ -499,14 +338,52 @@ impl ShortcutAction for TranscribeAction {
         change_tray_icon(app, TrayIconState::Transcribing);
         show_transcribing_overlay(app);
 
+        // Drop the speech frame sender so the realtime worker exits
+        // before the final transcription grabs the engine.
+        rm.set_speech_frame_sender(None);
+
         rm.remove_mute();
         play_feedback_sound(app, SoundType::Stop);
 
         let current_transcription_id = rm.get_current_transcription_id();
         let binding_id = binding_id.to_string();
+        let shortcut_str = shortcut_str.to_string();
+        let review_editor_active = shortcut_str == "review-window-local"
+            && crate::review_window::is_review_editor_active();
         let skill_mode = self.skill_mode;
+        let ppm_outer = Arc::clone(&ppm);
 
-        tauri::async_runtime::spawn(async move {
+        let pipeline_handle = tauri::async_runtime::spawn(async move {
+            // RAII guard that fires on every exit path of this async block —
+            // whether it returns normally, is aborted, or panics.
+            struct FinishGuard {
+                app: AppHandle,
+                transcription_id: u64,
+            }
+            impl Drop for FinishGuard {
+                fn drop(&mut self) {
+                    let rm = self.app.state::<Arc<AudioRecordingManager>>();
+                    if rm.get_current_transcription_id() == self.transcription_id {
+                        shortcut::unregister_cancel_shortcut(&self.app);
+                    }
+
+                    // Always notify coordinator that processing is done
+                    if let Some(coordinator) =
+                        self.app.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
+                    {
+                        coordinator.notify_processing_finished();
+                    }
+
+                    // Clean up UI state
+                    utils::hide_recording_overlay(&self.app);
+                    change_tray_icon(&self.app, TrayIconState::Idle);
+                }
+            }
+            let _finish_guard = FinishGuard {
+                app: ah.clone(),
+                transcription_id: current_transcription_id,
+            };
+
             debug!(
                 "Starting async transcription task for binding: {} (ID: {})",
                 binding_id, current_transcription_id
@@ -520,14 +397,6 @@ impl ShortcutAction for TranscribeAction {
                         "Recording too short or empty ({} samples), skipping transcription and error.",
                         samples.len()
                     );
-                    utils::hide_recording_overlay(&ah);
-                    change_tray_icon(&ah, TrayIconState::Idle);
-
-                    if let Some(coordinator) =
-                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                    {
-                        coordinator.notify_processing_finished();
-                    }
                     return;
                 }
 
@@ -547,9 +416,32 @@ impl ShortcutAction for TranscribeAction {
                         info.app_name, info.title, info.process_id, info.window_id
                     );
                 }
+                let selected_text = crate::clipboard::get_selected_text(&ah).ok();
+                let review_document_text = if shortcut_str == "review-window-local" {
+                    crate::review_window::take_frozen_review_editor_content()
+                        .or_else(crate::review_window::current_review_editor_content)
+                } else {
+                    None
+                };
+                let votype_mode = if shortcut_str == "review-window-local" {
+                    VotypeInputMode::ReviewRewrite
+                } else {
+                    crate::window_context::resolve_votype_input_mode(
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.app_name.as_str()),
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.title.as_str()),
+                        review_editor_active,
+                        selected_text
+                            .as_ref()
+                            .map(|text| !text.trim().is_empty())
+                            .unwrap_or(false),
+                    )
+                };
 
                 // Capture selected text for Mode C (auto-routing)
-                let selected_text = crate::clipboard::get_selected_text(&ah).ok();
                 // [DEBUG] Log selected text at recording stop
                 match &selected_text {
                     Some(text) if !text.trim().is_empty() => {
@@ -574,46 +466,143 @@ impl ShortcutAction for TranscribeAction {
                     }
                 }
 
+                // Pre-save audio with empty placeholder so the recording is preserved
+                // even if the pipeline is aborted during transcription/post-processing.
+                let asr_model_for_presave = if settings.online_asr_enabled {
+                    settings
+                        .selected_asr_model_id
+                        .clone()
+                        .unwrap_or_else(|| "online".to_string())
+                } else {
+                    settings.selected_model.clone()
+                };
+                let streaming_asr_model_for_presave =
+                    if settings.online_asr_enabled && settings.post_process_use_secondary_output {
+                        settings
+                            .post_process_secondary_model_id
+                            .clone()
+                            .or(Some(settings.selected_model.clone()))
+                    } else if !settings.online_asr_enabled {
+                        Some(settings.selected_model.clone())
+                    } else {
+                        None
+                    };
+                let presave_history_id = match hm
+                    .save_transcription(
+                        samples.clone(),
+                        String::new(), // empty placeholder
+                        None,
+                        streaming_asr_model_for_presave,
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some(duration_ms),
+                        None, // transcription_ms not known yet
+                        Some(settings.selected_language.clone()),
+                        Some(asr_model_for_presave),
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.app_name.clone()),
+                        active_window_snapshot
+                            .as_ref()
+                            .map(|info| info.title.clone()),
+                    )
+                    .await
+                {
+                    Ok(id) => Some(id),
+                    Err(e) => {
+                        error!("Failed to pre-save audio to history: {}", e);
+                        None
+                    }
+                };
+
                 let transcription_time = Instant::now();
-                let had_streaming_worker = rm.take_online_transcription_receiver().is_some();
-                let mut incremental_result: Option<String> = None;
-                if had_streaming_worker {
-                    // Cancel streaming/offline sessions so stop never waits on in-flight partial/final decode.
-                    let r1 = tm.abort_sherpa_online_session();
-                    let r2 = tm.abort_sherpa_offline_session();
-                    incremental_result = r1.or(r2);
-                }
+                // Streaming workers no longer exist without Sherpa
+                let incremental_result: Option<String> = None;
 
                 let use_parallel_online_secondary = settings.online_asr_enabled
                     && settings.post_process_enabled
                     && settings.post_process_use_secondary_output;
 
                 // Always compute the final transcription from full audio on stop.
-                // If online ASR is enabled and a secondary local candidate is requested for post-processing,
-                // run the online request and the secondary local transcription concurrently.
+                // If online ASR is enabled, use OnlineAsrClient for the primary transcription.
+                // If a secondary local candidate is also requested, run both concurrently.
                 let (transcription_result, secondary_result): (
                     anyhow::Result<String>,
                     Option<String>,
-                ) = if use_parallel_online_secondary {
-                    let tm_for_primary = Arc::clone(&tm);
-                    let samples_for_primary = samples.clone();
+                ) = if settings.online_asr_enabled {
+                    // --- Online ASR primary ---
+                    use crate::online_asr::OnlineAsrClient;
 
-                    let incremental_for_secondary = incremental_result.clone();
-                    let model_id_for_secondary = settings
-                        .post_process_secondary_model_id
-                        .as_ref()
-                        .filter(|id| !id.trim().is_empty())
-                        .cloned()
-                        .unwrap_or_else(|| settings.selected_model.clone());
-                    let tm_for_secondary = Arc::clone(&tm);
-                    let samples_for_secondary = samples.clone();
+                    let online_model_id = settings
+                        .selected_asr_model_id
+                        .clone()
+                        .unwrap_or_else(|| "online".to_string());
 
-                    let primary_handle = tokio::task::spawn_blocking(move || {
-                        tm_for_primary.transcribe(samples_for_primary)
-                    });
+                    let cached_model = settings
+                        .cached_models
+                        .iter()
+                        .find(|m| {
+                            m.model_type == crate::settings::ModelType::Asr
+                                && m.id == online_model_id
+                        })
+                        .cloned();
 
-                    let secondary_handle =
-                        tokio::task::spawn_blocking(move || -> Option<String> {
+                    let samples_for_online = samples.clone();
+                    let language = settings.selected_language.clone();
+
+                    let primary_handle = if let Some(cached) = cached_model {
+                        let provider_info = settings
+                            .post_process_providers
+                            .iter()
+                            .find(|p| p.id == cached.provider_id)
+                            .cloned();
+                        let api_key = settings
+                            .post_process_api_keys
+                            .get(&cached.provider_id)
+                            .cloned();
+                        let remote_model_id = cached.model_id.clone();
+
+                        tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                            let provider = provider_info
+                                .ok_or_else(|| anyhow::anyhow!("Online ASR provider not found"))?;
+                            let client =
+                                OnlineAsrClient::new(16000, std::time::Duration::from_secs(120));
+                            let lang = if language == "auto" {
+                                None
+                            } else {
+                                Some(language.as_str())
+                            };
+                            client.transcribe(
+                                &provider,
+                                api_key,
+                                &remote_model_id,
+                                lang,
+                                &samples_for_online,
+                            )
+                        })
+                    } else {
+                        // No cached model found, fall back to local
+                        let tm_fallback = Arc::clone(&tm);
+                        tokio::task::spawn_blocking(move || {
+                            tm_fallback.transcribe(samples_for_online)
+                        })
+                    };
+
+                    // --- Optional secondary local candidate ---
+                    let secondary_handle = if use_parallel_online_secondary {
+                        let incremental_for_secondary = incremental_result.clone();
+                        let model_id_for_secondary = settings
+                            .post_process_secondary_model_id
+                            .as_ref()
+                            .filter(|id| !id.trim().is_empty())
+                            .cloned()
+                            .unwrap_or_default();
+                        let tm_for_secondary = Arc::clone(&tm);
+                        let samples_for_secondary = samples.clone();
+
+                        Some(tokio::task::spawn_blocking(move || -> Option<String> {
                             if let Some(text) = incremental_for_secondary {
                                 if !text.trim().is_empty() {
                                     return Some(text);
@@ -624,16 +613,23 @@ impl ShortcutAction for TranscribeAction {
                                 return None;
                             }
 
-                            if let Err(e) = tm_for_secondary.load_model(&model_id_for_secondary) {
-                                log::warn!(
-                                    "Failed to load secondary model '{}': {}",
-                                    model_id_for_secondary,
-                                    e
-                                );
-                                return None;
+                            // Only load if a different model is needed; skip if already loaded
+                            let needs_load = tm_for_secondary
+                                .get_current_model()
+                                .map_or(true, |current| current != model_id_for_secondary);
+                            if needs_load {
+                                if let Err(e) = tm_for_secondary.load_model(&model_id_for_secondary)
+                                {
+                                    log::warn!(
+                                        "Failed to load secondary model '{}': {}",
+                                        model_id_for_secondary,
+                                        e
+                                    );
+                                    return None;
+                                }
                             }
 
-                            match tm_for_secondary.transcribe_local_only(samples_for_secondary) {
+                            match tm_for_secondary.transcribe(samples_for_secondary) {
                                 Ok(local_text) => {
                                     if local_text.trim().is_empty() {
                                         None
@@ -649,24 +645,219 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 }
                             }
-                        });
-
-                    let (primary_joined, secondary_joined) =
-                        tokio::join!(primary_handle, secondary_handle);
-
-                    let primary = match primary_joined {
-                        Ok(res) => res,
-                        Err(e) => Err(anyhow::anyhow!("Primary transcription task failed: {}", e)),
+                        }))
+                    } else {
+                        None
                     };
-                    let secondary = match secondary_joined {
-                        Ok(res) => res,
-                        Err(e) => {
-                            log::warn!("Secondary transcription task failed: {}", e);
-                            None
+
+                    // Cache model info for potential retry in online-only timeout path
+                    let cached_model_for_retry = settings
+                        .cached_models
+                        .iter()
+                        .find(|m| {
+                            m.model_type == crate::settings::ModelType::Asr
+                                && Some(&m.id) == settings.selected_asr_model_id.as_ref()
+                        })
+                        .cloned();
+
+                    // Determine if we have a local fallback running in parallel
+                    let has_local_fallback = secondary_handle.is_some();
+                    // 10s chosen as reasonable upper bound for network ASR latency;
+                    // the internal HTTP client timeout is 120s.
+                    const ONLINE_TIMEOUT_WITH_LOCAL: u64 = 10;
+
+                    if has_local_fallback {
+                        // Race: wait up to 10s for online, otherwise use local
+                        let secondary_handle = secondary_handle.unwrap();
+
+                        match timeout(
+                            Duration::from_secs(ONLINE_TIMEOUT_WITH_LOCAL),
+                            primary_handle,
+                        )
+                        .await
+                        {
+                            Ok(join_result) => {
+                                // Online finished within timeout
+                                let primary = match join_result {
+                                    Ok(res) => res,
+                                    Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
+                                };
+                                // Still await secondary (it's likely done or almost done)
+                                let secondary = match secondary_handle.await {
+                                    Ok(res) => res,
+                                    Err(e) => {
+                                        log::warn!("Secondary transcription task failed: {}", e);
+                                        None
+                                    }
+                                };
+                                (primary, secondary)
+                            }
+                            Err(_elapsed) => {
+                                // Online timed out — use local result.
+                                // Note: dropping primary_handle does NOT cancel the blocking thread;
+                                // the online request continues until its internal 120s HTTP timeout.
+                                log::warn!(
+                                    "[ASR] Online timeout ({}s), using local result",
+                                    ONLINE_TIMEOUT_WITH_LOCAL
+                                );
+                                // Await the secondary (local) result — local transcription is expected
+                                // to be fast (sub-second) so no additional timeout is applied here.
+                                let secondary = match secondary_handle.await {
+                                    Ok(res) => res,
+                                    Err(e) => {
+                                        log::warn!("Secondary transcription task failed: {}", e);
+                                        None
+                                    }
+                                };
+                                // Return online as error so fallback logic picks up secondary
+                                (
+                                    Err(anyhow::anyhow!(
+                                        "Online ASR timed out after {}s, fell back to local",
+                                        ONLINE_TIMEOUT_WITH_LOCAL
+                                    )),
+                                    secondary,
+                                )
+                            }
                         }
-                    };
+                    } else {
+                        // No local fallback — online-only mode with 30s timeout prompt
+                        const ONLINE_TIMEOUT_NO_LOCAL: u64 = 30;
 
-                    (primary, secondary)
+                        match timeout(Duration::from_secs(ONLINE_TIMEOUT_NO_LOCAL), primary_handle)
+                            .await
+                        {
+                            Ok(join_result) => {
+                                let primary = match join_result {
+                                    Ok(res) => res,
+                                    Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
+                                };
+                                (primary, None)
+                            }
+                            Err(_elapsed) => {
+                                log::warn!(
+                                    "[ASR] Online-only ASR timed out after {}s, prompting user",
+                                    ONLINE_TIMEOUT_NO_LOCAL
+                                );
+                                let _ = ah.emit(
+                                    "asr-online-timeout",
+                                    serde_json::json!({
+                                        "has_local_fallback": false
+                                    }),
+                                );
+
+                                // Wait for user decision via oneshot channel
+                                let (tx, rx) = tokio::sync::oneshot::channel::<String>();
+                                {
+                                    let state = ah.state::<crate::AsrTimeoutResponseSender>();
+                                    let mut guard = state.lock().unwrap_or_else(|e| e.into_inner());
+                                    *guard = Some(tx);
+                                }
+
+                                // Give user up to 120s to respond; auto-cancel if no response
+                                match timeout(Duration::from_secs(120), rx).await {
+                                    Err(_elapsed) => {
+                                        log::warn!("[ASR] User did not respond to timeout prompt within 120s, auto-cancelling");
+                                        (
+                                            Err(anyhow::anyhow!("ASR timeout: no user response")),
+                                            None,
+                                        )
+                                    }
+                                    Ok(channel_result) => match channel_result {
+                                        Ok(action) => match action.as_str() {
+                                            "continue" | "retry" => {
+                                                log::info!(
+                                                    "[ASR] User chose to {} online ASR",
+                                                    action
+                                                );
+                                                // Re-send the online ASR request (original handle was consumed by timeout)
+                                                if let Some(cached) =
+                                                    cached_model_for_retry.as_ref()
+                                                {
+                                                    let provider_info = settings
+                                                        .post_process_providers
+                                                        .iter()
+                                                        .find(|p| p.id == cached.provider_id)
+                                                        .cloned();
+                                                    let api_key = settings
+                                                        .post_process_api_keys
+                                                        .get(&cached.provider_id)
+                                                        .cloned();
+                                                    let remote_model_id = cached.model_id.clone();
+                                                    let language =
+                                                        settings.selected_language.clone();
+                                                    let samples_retry = samples.clone();
+
+                                                    let retry_handle = tokio::task::spawn_blocking(
+                                                        move || -> anyhow::Result<String> {
+                                                            let provider = provider_info
+                                                                .ok_or_else(|| {
+                                                                    anyhow::anyhow!(
+                                                                    "Online ASR provider not found"
+                                                                )
+                                                                })?;
+                                                            let client = OnlineAsrClient::new(
+                                                                16000,
+                                                                Duration::from_secs(120),
+                                                            );
+                                                            let lang = if language == "auto" {
+                                                                None
+                                                            } else {
+                                                                Some(language.as_str())
+                                                            };
+                                                            client.transcribe(
+                                                                &provider,
+                                                                api_key,
+                                                                &remote_model_id,
+                                                                lang,
+                                                                &samples_retry,
+                                                            )
+                                                        },
+                                                    );
+                                                    let primary = match retry_handle.await {
+                                                        Ok(res) => res,
+                                                        Err(e) => Err(anyhow::anyhow!(
+                                                            "Online ASR {} failed: {}",
+                                                            action,
+                                                            e
+                                                        )),
+                                                    };
+                                                    (primary, None)
+                                                } else {
+                                                    (
+                                                        Err(anyhow::anyhow!(
+                                                            "No cached model for retry"
+                                                        )),
+                                                        None,
+                                                    )
+                                                }
+                                            }
+                                            _ => {
+                                                // "cancel" or unknown
+                                                log::info!("[ASR] User cancelled online ASR");
+                                                (
+                                                    Err(anyhow::anyhow!(
+                                                        "User cancelled online ASR"
+                                                    )),
+                                                    None,
+                                                )
+                                            }
+                                        },
+                                        Err(_) => {
+                                            log::warn!(
+                                            "[ASR] Timeout response channel dropped, cancelling"
+                                        );
+                                            (
+                                                Err(anyhow::anyhow!(
+                                                    "ASR timeout response channel dropped"
+                                                )),
+                                                None,
+                                            )
+                                        }
+                                    },
+                                }
+                            }
+                        }
+                    }
                 } else {
                     (tm.transcribe(samples.clone()), None)
                 };
@@ -711,7 +902,7 @@ impl ShortcutAction for TranscribeAction {
                         let samples_fallback = samples.clone();
                         match tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
                             tm_fallback.load_model(&model_id)?;
-                            tm_fallback.transcribe_local_only(samples_fallback)
+                            tm_fallback.transcribe(samples_fallback)
                         })
                         .await
                         {
@@ -731,7 +922,7 @@ impl ShortcutAction for TranscribeAction {
                 }
 
                 let transcription_ms = transcription_time.elapsed().as_millis() as i64;
-                let streaming_text = secondary_result
+                let _streaming_text = secondary_result
                     .clone()
                     .or_else(|| incremental_result.clone())
                     .filter(|t| !t.trim().is_empty());
@@ -743,35 +934,7 @@ impl ShortcutAction for TranscribeAction {
                         transcription
                     );
 
-                    // If we canceled a streaming/offline Sherpa worker on stop, it won't
-                    // emit the final partial event. Emit a final payload here so the overlay
-                    // shows the completed text (useful for long offline VAD streaming).
-                    if tm.is_current_sherpa_offline() {
-                        let punctuated_text =
-                            settings.punctuation_enabled.then(|| transcription.clone());
-                        let _ = ah.emit(
-                            "sherpa-offline-partial",
-                            SherpaPartialEvent {
-                                text: transcription.clone(),
-                                punctuated_text,
-                                is_final: true,
-                            },
-                        );
-                    } else if tm.is_current_sherpa_online() {
-                        let punctuated_text =
-                            settings.punctuation_enabled.then(|| transcription.clone());
-                        let _ = ah.emit(
-                            "sherpa-online-partial",
-                            SherpaPartialEvent {
-                                text: transcription.clone(),
-                                punctuated_text,
-                                is_final: true,
-                            },
-                        );
-                    }
-
                     let transcription_clone = transcription.clone();
-                    let samples_clone = samples.clone();
 
                     let asr_model = if settings.online_asr_enabled {
                         settings
@@ -782,47 +945,26 @@ impl ShortcutAction for TranscribeAction {
                         settings.selected_model.clone()
                     };
 
-                    let streaming_asr_model = if settings.online_asr_enabled
-                        && settings.post_process_use_secondary_output
-                    {
-                        settings
-                            .post_process_secondary_model_id
-                            .clone()
-                            .or(Some(settings.selected_model.clone()))
-                    } else if !settings.online_asr_enabled {
-                        Some(settings.selected_model.clone())
+                    // Update the pre-saved placeholder with actual transcription content
+                    let history_id = if let Some(pid) = presave_history_id {
+                        let char_count = transcription.chars().count() as i64;
+                        if let Err(e) = hm
+                            .update_transcription_content(
+                                pid,
+                                transcription.clone(),
+                                asr_model,
+                                settings.selected_language.clone(),
+                                duration_ms,
+                                transcription_ms,
+                                char_count,
+                            )
+                            .await
+                        {
+                            error!("Failed to update transcription content: {}", e);
+                        }
+                        Some(pid)
                     } else {
                         None
-                    };
-
-                    let history_id = match hm
-                        .save_transcription(
-                            samples_clone,
-                            transcription.clone(),
-                            streaming_text.clone(),
-                            streaming_asr_model,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(duration_ms),
-                            Some(transcription_ms),
-                            Some(settings.selected_language.clone()),
-                            Some(asr_model),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.app_name.clone()),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.title.clone()),
-                        )
-                        .await
-                    {
-                        Ok(id) => Some(id),
-                        Err(e) => {
-                            error!("Failed to save transcription to history: {}", e);
-                            None
-                        }
                     };
 
                     if rm.get_current_transcription_id() != current_transcription_id {
@@ -831,11 +973,6 @@ impl ShortcutAction for TranscribeAction {
                                     rm.get_current_transcription_id(),
                                     current_transcription_id
                                 );
-                        utils::hide_recording_overlay(&ah);
-                        change_tray_icon(&ah, TrayIconState::Idle);
-                        if let Some(coordinator) = ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                            coordinator.notify_processing_finished();
-                        }
                         return;
                     }
 
@@ -844,11 +981,31 @@ impl ShortcutAction for TranscribeAction {
                         let settings_clone = settings.clone();
                         let rm_clone = Arc::clone(&rm);
                         let hm_clone = Arc::clone(&hm);
-                        let ppm_clone = Arc::clone(&ppm);
                         let secondary_result_for_post = secondary_result.clone();
                         let incremental_result_for_post = incremental_result.clone();
 
-                        let active_window_snapshot_for_review = active_window_snapshot.clone();
+                        let mut active_window_snapshot_for_review = active_window_snapshot.clone();
+                        if shortcut_str == "review-window-local" {
+                            if let Some(info) = active_window_snapshot_for_review.as_mut() {
+                                info.app_name = "Votype".to_string();
+                                info.title = "Votype Review".to_string();
+                            } else {
+                                active_window_snapshot_for_review =
+                                    Some(crate::active_window::ActiveWindowInfo {
+                                        title: "Votype Review".to_string(),
+                                        app_name: "Votype".to_string(),
+                                        window_id: "review_window".to_string(),
+                                        process_id: std::process::id() as u64,
+                                        process_path: String::new(),
+                                        position: crate::active_window::WindowPosition {
+                                            x: 0.0,
+                                            y: 0.0,
+                                            width: 0.0,
+                                            height: 0.0,
+                                        },
+                                    });
+                            }
+                        }
                         let task = tokio::spawn(async move {
                             let mut final_text = transcription_clone.clone();
                             let mut post_process_prompt_text = String::new();
@@ -869,6 +1026,8 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             // 2. Apply LLM post-processing if enabled
+                            let token_count: Option<i64>;
+                            let llm_call_count: Option<i64>;
                             {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
@@ -948,55 +1107,271 @@ impl ShortcutAction for TranscribeAction {
                                     .and_then(|r| r.prompt_id.clone())
                                     .or_else(|| app_profile.and_then(|p| p.prompt_id.clone()));
 
-                                let (
-                                    processed_text,
-                                    model,
-                                    prompt_id,
-                                    err,
-                                    confidence_score,
-                                    reason,
-                                ) = maybe_post_process_transcription(
-                                    &ah_clone,
-                                    &settings_clone,
-                                    &chinese_converted_text,
-                                    secondary.as_deref(),
-                                    true,
+                                info!(
+                                    "[Transcribe] App profile resolution: app_profile={:?}, matched_rule={:?}, override_prompt_id={:?}, app_policy={:?}, global_selected_prompt_id={:?}",
+                                    app_profile.map(|p| &p.id),
+                                    matched_rule.map(|r| &r.pattern),
                                     override_prompt_id,
-                                    active_window_snapshot_for_review
-                                        .as_ref()
-                                        .map(|info| info.app_name.clone()),
-                                    active_window_snapshot_for_review
-                                        .as_ref()
-                                        .map(|info| info.title.clone()),
-                                    matched_rule.map(|r| r.pattern.clone()),
-                                    matched_rule.map(|r| r.match_type),
-                                    history_id,
-                                    skill_mode, // Pass skill_mode to control LLM routing
-                                    selected_text.clone(), // Pass captured context for Mode C
-                                )
-                                .await;
+                                    app_policy,
+                                    settings_clone.post_process_selected_prompt_id,
+                                );
 
-                                // Check if pending skill confirmation - skip all subsequent processing
-                                if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
-                                    info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
-                                    if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                        coordinator.notify_processing_finished();
+                                // ═══════════════════════════════════════════
+                                // Unified post-processing pipeline
+                                // ═══════════════════════════════════════════
+                                let pipeline_result =
+                                    crate::actions::post_process::unified_post_process(
+                                        &ah_clone,
+                                        &settings_clone,
+                                        &chinese_converted_text,
+                                        secondary.as_deref(),
+                                        true,
+                                        override_prompt_id.clone(),
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.app_name.clone()),
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.title.clone()),
+                                        matched_rule.map(|r| r.pattern.clone()),
+                                        matched_rule.map(|r| r.match_type),
+                                        history_id,
+                                        skill_mode,
+                                        review_editor_active,
+                                        selected_text.clone(),
+                                        review_document_text.clone(),
+                                    )
+                                    .await;
+
+                                // Handle pipeline result
+                                let mut post_process_failed = false;
+                                match pipeline_result {
+                                    crate::actions::post_process::PipelineResult::Skipped => {
+                                        // No post-processing — use original transcription
+                                        used_model = Some("无模型".to_string());
+                                        token_count = None;
+                                        llm_call_count = None;
                                     }
-                                    // Don't hide overlay, don't paste - wait for user confirmation via confirm_skill
-                                    return;
-                                }
 
-                                error_shown = error_shown || err;
-                                if model.is_some() {
-                                    used_model = model;
-                                }
+                                    crate::actions::post_process::PipelineResult::Cached {
+                                        text,
+                                        model,
+                                        prompt_id,
+                                    } => {
+                                        final_text = text;
+                                        if model.is_some() {
+                                            used_model = model;
+                                        }
+                                        if prompt_id.is_some() {
+                                            post_process_prompt_id = prompt_id;
+                                        }
+                                        token_count = Some(0);
+                                        llm_call_count = Some(0);
+                                    }
 
-                                if let Some(text) = processed_text.as_ref() {
-                                    final_text = text.clone();
-                                }
+                                    crate::actions::post_process::PipelineResult::PassThrough {
+                                        text,
+                                        intent_token_count,
+                                    } => {
+                                        final_text = text;
+                                        used_model = Some("无模型".to_string());
+                                        post_process_prompt_id =
+                                            Some("__PASS_THROUGH__".to_string());
+                                        token_count = intent_token_count;
+                                        llm_call_count = if intent_token_count.is_some() {
+                                            Some(1)
+                                        } else {
+                                            Some(0)
+                                        };
+                                    }
 
-                                if prompt_id.is_some() {
-                                    post_process_prompt_id = prompt_id;
+                                    crate::actions::post_process::PipelineResult::PendingSkillConfirmation => {
+                                        info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
+                                        return;
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::MultiModelManual {
+                                        multi_items,
+                                        intent_token_count,
+                                        prompt_id: effective_prompt_id,
+                                    } => {
+                                        // Manual mode: show review window immediately with loading candidates,
+                                        // then start multi-model processing (results stream via events).
+                                        let output_mode = if let Some(ref pid) = effective_prompt_id {
+                                            settings_clone
+                                                .post_process_prompts
+                                                .iter()
+                                                .find(|p| &p.id == pid)
+                                                .map(|p| p.output_mode)
+                                                .or_else(|| {
+                                                    let sm = crate::managers::skill::SkillManager::new(&ah_clone);
+                                                    sm.get_all_skills()
+                                                        .into_iter()
+                                                        .find(|p| &p.id == pid)
+                                                        .map(|p| p.output_mode)
+                                                })
+                                                .unwrap_or_default()
+                                        } else {
+                                            crate::settings::PromptOutputMode::default()
+                                        };
+
+                                        // Build loading candidates (not ready yet)
+                                        let loading_candidates: Vec<crate::review_window::MultiModelCandidate> =
+                                            multi_items
+                                                .iter()
+                                                .map(|item| {
+                                                    let provider_label = settings_clone
+                                                        .post_process_provider(&item.provider_id)
+                                                        .map(|p| p.label.clone())
+                                                        .unwrap_or_else(|| item.provider_id.clone());
+                                                    let label = item
+                                                        .custom_label
+                                                        .clone()
+                                                        .unwrap_or_else(|| item.model_id.clone());
+                                                    crate::review_window::MultiModelCandidate {
+                                                        id: item.id.clone(),
+                                                        label,
+                                                        provider_label,
+                                                        text: String::new(),
+                                                        confidence: None,
+                                                        processing_time_ms: 0,
+                                                        error: None,
+                                                        ready: false,
+                                                    }
+                                                })
+                                                .collect();
+
+                                        // Show review window immediately
+                                        crate::review_window::set_last_active_window(
+                                            active_window_snapshot_for_review.clone(),
+                                        );
+                                        crate::review_window::show_review_window_with_candidates(
+                                            &ah_clone,
+                                            transcription_clone.clone(),
+                                            loading_candidates,
+                                            history_id,
+                                            output_mode,
+                                            None,
+                                            effective_prompt_id.clone(),
+                                        );
+                                        utils::hide_recording_overlay(&ah_clone);
+                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+
+                                        // Now start multi-model processing (emits progress events for live UI updates)
+                                        info!("[MultiModel] Starting streaming multi-model post-processing ({} models)", multi_items.len());
+                                        let results =
+                                            crate::actions::post_process::multi_post_process_transcription(
+                                                &ah_clone,
+                                                &settings_clone,
+                                                &chinese_converted_text,
+                                                secondary.as_deref(),
+                                                history_id,
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.app_name.clone()),
+                                                active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.title.clone()),
+                                                override_prompt_id.clone(),
+                                            )
+                                            .await;
+
+                                        // Save best result to history
+                                        let multi_total_tokens: Option<i64> = {
+                                            let mut sum: i64 = intent_token_count.unwrap_or(0);
+                                            sum += results.iter().filter_map(|r| r.token_count).sum::<i64>();
+                                            if sum > 0 { Some(sum) } else { None }
+                                        };
+                                        let multi_call_count: Option<i64> = {
+                                            let mut count = results.len() as i64;
+                                            if intent_token_count.is_some() { count += 1; }
+                                            if count > 0 { Some(count) } else { None }
+                                        };
+                                        if let Some(best) = results.iter().find(|r| r.ready && r.error.is_none()) {
+                                            let model_name = multi_items
+                                                .iter()
+                                                .find(|item| item.id == best.id)
+                                                .map(|item| item.model_id.clone())
+                                                .unwrap_or_else(|| best.label.clone());
+                                            if let Some(hid) = history_id {
+                                                if let Err(e) = hm_clone
+                                                    .save_post_processed_text(
+                                                        hid,
+                                                        best.text.clone(),
+                                                        Some(model_name),
+                                                        settings_clone.post_process_selected_prompt_id.clone(),
+                                                        multi_total_tokens,
+                                                        multi_call_count,
+                                                    )
+                                                    .await
+                                                {
+                                                    error!("Failed to save multi-model result to history: {}", e);
+                                                }
+                                            }
+                                        }
+                                        return;
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::MultiModelAutoPick {
+                                        candidates,
+                                        multi_items,
+                                        total_token_count,
+                                        llm_call_count: multi_call_count,
+                                        prompt_id: effective_prompt_id,
+                                    } => {
+                                        token_count = total_token_count;
+                                        llm_call_count = multi_call_count;
+
+                                        // Auto-pick: select best result
+                                        let best_result = candidates.iter().find(|r| r.ready && r.error.is_none());
+                                        if let Some(best) = best_result {
+                                            let model_name = multi_items
+                                                .iter()
+                                                .find(|item| item.id == best.id)
+                                                .map(|item| item.model_id.clone())
+                                                .unwrap_or_else(|| best.label.clone());
+
+                                            final_text = best.text.clone();
+                                            used_model = Some(model_name);
+                                            if effective_prompt_id.is_some() {
+                                                post_process_prompt_id = effective_prompt_id;
+                                            }
+                                        } else {
+                                            // All candidates failed — use original text
+                                            info!("[UnifiedPipeline] All multi-model candidates failed, using original transcription");
+                                            error_shown = true;
+                                        }
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::SingleModel {
+                                        text: processed_text,
+                                        model,
+                                        prompt_id,
+                                        token_count: tc,
+                                        llm_call_count: lc,
+                                        error: err,
+                                        error_message,
+                                    } => {
+                                        token_count = tc;
+                                        llm_call_count = lc;
+                                        post_process_failed = err && processed_text.is_none();
+                                        error_shown = error_shown || err;
+
+                                        if model.is_some() {
+                                            used_model = model;
+                                        }
+                                        if let Some(ref text) = processed_text {
+                                            final_text = text.clone();
+                                        }
+                                        if prompt_id.is_some() {
+                                            post_process_prompt_id = prompt_id;
+                                        }
+                                        if post_process_failed {
+                                            if let Some(msg) = error_message {
+                                                error!("Post-processing failed: {}", msg);
+                                            }
+                                        }
+                                    }
                                 }
 
                                 // Capture the prompt content for history
@@ -1011,68 +1386,41 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
 
-                                let change_percent = processed_text
-                                    .as_ref()
-                                    .map(|text| compute_change_percent(&transcription_clone, text))
-                                    .unwrap_or(0);
+                                let change_percent =
+                                    compute_change_percent(&transcription_clone, &final_text);
 
                                 // Get output_mode early to determine review behavior
+                                // Default to Polish (not Chat) when no prompt is configured
                                 let output_mode = if let Some(pid) = &post_process_prompt_id {
                                     settings_clone
                                         .post_process_prompts
                                         .iter()
                                         .find(|p| &p.id == pid)
                                         .map(|p| p.output_mode)
-                                        .unwrap_or_default()
+                                        .unwrap_or(crate::settings::PromptOutputMode::Polish)
                                 } else {
-                                    crate::settings::PromptOutputMode::default()
+                                    crate::settings::PromptOutputMode::Polish
                                 };
 
-                                let should_review =
-                                    // Chat mode always shows review window
-                                    if output_mode == crate::settings::PromptOutputMode::Chat {
-                                        true
-                                    } else {
-                                        match app_policy {
-                                            crate::settings::AppReviewPolicy::Always => true,
-                                            crate::settings::AppReviewPolicy::Never => false,
-                                            crate::settings::AppReviewPolicy::Auto => {
-                                                // Gate Auto policy with PROMPT-level setting
-                                                // Find the prompt object used
-                                                let (prompt_compliance_enabled, prompt_threshold) =
-                                                    if let Some(pid) = &post_process_prompt_id {
-                                                        settings_clone
-                                                            .post_process_prompts
-                                                            .iter()
-                                                            .find(|p| &p.id == pid)
-                                                            .map(|p| {
-                                                                (
-                                                                    p.compliance_check_enabled,
-                                                                    p.compliance_threshold.unwrap_or(70),
-                                                                )
-                                                            })
-                                                            .unwrap_or((false, 70))
-                                                    } else {
-                                                        (false, 70)
-                                                    };
-
-                                                if !prompt_compliance_enabled {
-                                                    false
-                                                } else {
-                                                    // Unified Risk Logic:
-                                                    // 1. If LLM provides confidence (0-100, where 100 is best), Risk = 100 - confidence.
-                                                    // 2. Otherwise, Risk = Change Percent (0-100, where 0 is no change).
-                                                    // Trigger review if Risk >= Threshold.
-                                                    let risk = if let Some(conf) = confidence_score {
-                                                        100u8.saturating_sub(conf)
-                                                    } else {
-                                                        change_percent
-                                                    };
-                                                    risk >= prompt_threshold
-                                                }
-                                            }
-                                        }
-                                    };
+                                // Always show review/confidence window for normal polish mode.
+                                // Only skip for Votype internal modes and explicit skip markers.
+                                let should_review = if matches!(
+                                    votype_mode,
+                                    VotypeInputMode::MainPolishInput
+                                        | VotypeInputMode::MainSelectedEdit
+                                        | VotypeInputMode::ReviewRewrite
+                                ) {
+                                    false
+                                } else if override_prompt_id.as_deref()
+                                    == Some("__SKIP_POST_PROCESS__")
+                                {
+                                    false
+                                } else if app_policy == crate::settings::AppReviewPolicy::Never {
+                                    false
+                                } else {
+                                    // Normal polish mode: always show confidence window
+                                    true
+                                };
 
                                 if should_review {
                                     log::info!(
@@ -1093,6 +1441,8 @@ impl ShortcutAction for TranscribeAction {
                                                 post_process_prompt_name.clone(),
                                                 post_process_prompt_id.clone(),
                                                 used_model.clone(),
+                                                token_count,
+                                                llm_call_count,
                                             )
                                             .await
                                         {
@@ -1103,25 +1453,73 @@ impl ShortcutAction for TranscribeAction {
                                         }
                                     }
 
-                                    // Show the review window with the transcription
+                                    // Single-model / PassThrough: use polish-style review window
+                                    let skill_name_for_review =
+                                        if skill_mode && !post_process_prompt_name.is_empty() {
+                                            Some(post_process_prompt_name.clone())
+                                        } else {
+                                            None
+                                        };
                                     crate::review_window::show_review_window(
                                         &ah_clone,
                                         transcription_clone.clone(),
                                         final_text.clone(),
                                         change_percent,
                                         history_id,
-                                        reason.clone(),
+                                        None, // confidence_reason
                                         output_mode,
-                                        None, // No skill_name for confidence review
+                                        skill_name_for_review,
+                                        post_process_prompt_id
+                                            .clone()
+                                            .or(override_prompt_id.clone()),
+                                        used_model.clone(),
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);
                                     change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                    if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                        coordinator.notify_processing_finished();
-                                    }
                                     return;
                                 }
+                                if post_process_failed {
+                                    // Error already logged in PipelineResult::SingleModel arm
+                                }
+                            }
+
+                            // Handle Votype internal modes before history save (they return early)
+                            if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
+                                return;
+                            }
+
+                            if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
+                                return;
+                            }
+
+                            if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                // Update REVIEW_EDITOR_CONTENT synchronously BEFORE emitting.
+                                // This ensures the next freeze_review_editor_content_snapshot()
+                                // captures the latest text, avoiding the race condition where
+                                // the frontend's async invoke hasn't arrived yet.
+                                crate::review_window::set_review_editor_content(final_text.clone());
+                                #[derive(serde::Serialize, Clone)]
+                                struct RewriteApplyPayload {
+                                    text: String,
+                                    model: Option<String>,
+                                }
+                                let _ = ah_clone.emit(
+                                    "review-window-rewrite-apply",
+                                    RewriteApplyPayload {
+                                        text: final_text.clone(),
+                                        model: used_model,
+                                    },
+                                );
+                                return;
                             }
 
                             // 3. Save the result to database (Available for both branches)
@@ -1134,6 +1532,8 @@ impl ShortcutAction for TranscribeAction {
                                         post_process_prompt_name,
                                         post_process_prompt_id,
                                         used_model,
+                                        token_count,
+                                        llm_call_count,
                                     )
                                     .await
                                 {
@@ -1148,11 +1548,6 @@ impl ShortcutAction for TranscribeAction {
                                 info!(
                                     "New recording started during post-processing; skipping paste."
                                 );
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                if let Some(coordinator) = ah_clone.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                    coordinator.notify_processing_finished();
-                                }
                                 return;
                             }
 
@@ -1172,10 +1567,6 @@ impl ShortcutAction for TranscribeAction {
                                         });
                                     }
 
-                                    if let Some(coordinator) = ah_clone_inner.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>() {
-                                        coordinator.notify_processing_finished();
-                                    }
-
                                     if let Err(e) = utils::paste(final_text, ah_clone_inner) {
                                         error!("Failed to paste transcription: {}", e);
                                     }
@@ -1185,31 +1576,160 @@ impl ShortcutAction for TranscribeAction {
                                 });
                         });
 
-                        ppm_clone.set_current_task(task.abort_handle());
+                        ppm.set_current_task(task.abort_handle());
+                        // Await the inner task so the FinishGuard stays
+                        // alive (keeping Esc registered) during post-processing.
+                        let _ = task.await;
                     } else {
-                        let ah_clone = ah.clone();
-                        ah.run_on_main_thread(move || {
+                        // Post-processing is disabled — check if app policy still
+                        // requires showing the review window before pasting.
+                        let votype_mode = if shortcut_str == "review-window-local" {
+                            VotypeInputMode::ReviewRewrite
+                        } else {
+                            crate::window_context::resolve_votype_input_mode(
+                                active_window_snapshot
+                                    .as_ref()
+                                    .map(|info| info.app_name.as_str()),
+                                active_window_snapshot
+                                    .as_ref()
+                                    .map(|info| info.title.as_str()),
+                                review_editor_active,
+                                selected_text
+                                    .as_ref()
+                                    .map(|text| !text.trim().is_empty())
+                                    .unwrap_or(false),
+                            )
+                        };
+                        let (app_policy, resolved_prompt_id) = active_window_snapshot
+                            .as_ref()
+                            .and_then(|info| {
+                                let profile_id = settings
+                                    .app_to_profile
+                                    .iter()
+                                    .find(|(k, _)| k.eq_ignore_ascii_case(&info.app_name))
+                                    .map(|(_, v)| v);
+                                let profile = profile_id.and_then(|pid| {
+                                    settings.app_profiles.iter().find(|p| &p.id == pid)
+                                });
+                                profile.map(|p| {
+                                    // Check title rules for a more specific policy
+                                    let matched_rule = p
+                                        .rules
+                                        .iter()
+                                        .filter(|r| match r.match_type {
+                                            crate::settings::TitleMatchType::Text => info
+                                                .title
+                                                .to_lowercase()
+                                                .contains(&r.pattern.to_lowercase()),
+                                            crate::settings::TitleMatchType::Regex => {
+                                                regex::Regex::new(&r.pattern)
+                                                    .map(|re| re.is_match(&info.title))
+                                                    .unwrap_or(false)
+                                            }
+                                        })
+                                        .max_by_key(|r| r.pattern.chars().count());
+                                    let policy = matched_rule.map(|r| r.policy).unwrap_or(p.policy);
+                                    let prompt_id = matched_rule
+                                        .and_then(|r| r.prompt_id.clone())
+                                        .or_else(|| p.prompt_id.clone());
+                                    (policy, prompt_id)
+                                })
+                            })
+                            .unwrap_or((crate::settings::AppReviewPolicy::Auto, None));
+
+                        if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", transcription_clone);
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to emit local insert on main thread: {:?}", e)
+                            });
+                        } else if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                log::warn!(
+                                    "Selected-edit mode requires post-processing; skipping raw insertion"
+                                );
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to finish selected-edit fallback on main thread: {:?}", e)
+                            });
+                        } else if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                log::warn!(
+                                    "Review rewrite mode requires post-processing; skipping raw document replacement"
+                                );
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to finish review rewrite fallback on main thread: {:?}", e)
+                            });
+                        } else if app_policy == crate::settings::AppReviewPolicy::Always {
+                            // Resolve output_mode from the prompt configured for this app,
+                            // falling back to the global selected prompt.
+                            let effective_prompt_id = resolved_prompt_id
+                                .or_else(|| settings.post_process_selected_prompt_id.clone());
+                            let output_mode = effective_prompt_id
+                                .as_ref()
+                                .and_then(|pid| {
+                                    settings
+                                        .post_process_prompts
+                                        .iter()
+                                        .find(|p| &p.id == pid)
+                                        .map(|p| p.output_mode)
+                                })
+                                .unwrap_or(crate::settings::SkillOutputMode::Polish);
+
+                            info!(
+                                "[Transcribe] App policy is Always (no post-processing), showing review window (output_mode={:?})",
+                                output_mode
+                            );
+                            crate::review_window::set_last_active_window(
+                                active_window_snapshot.clone(),
+                            );
+                            let ah_clone = ah.clone();
+                            crate::review_window::show_review_window(
+                                &ah_clone,
+                                transcription_clone.clone(),
+                                transcription_clone.clone(),
+                                0,
+                                history_id,
+                                None,
+                                output_mode,
+                                None,
+                                effective_prompt_id,
+                                None,
+                            );
                             utils::hide_recording_overlay(&ah_clone);
                             change_tray_icon(&ah_clone, TrayIconState::Idle);
+                        } else {
+                            let ah_clone = ah.clone();
+                            ah.run_on_main_thread(move || {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
 
-                            // Notify coordinator that processing is finished
-                            if let Some(coordinator) = ah_clone
-                                .try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                            {
-                                coordinator.notify_processing_finished();
-                            }
-
-                            if let Err(e) = utils::paste(transcription_clone, ah_clone) {
-                                error!("Failed to paste transcription: {}", e);
-                            }
-                        })
-                        .unwrap_or_else(|e| error!("Failed to run paste on main thread: {:?}", e));
+                                if let Err(e) = utils::paste(transcription_clone, ah_clone) {
+                                    error!("Failed to paste transcription: {}", e);
+                                }
+                            })
+                            .unwrap_or_else(|e| {
+                                error!("Failed to run paste on main thread: {:?}", e)
+                            });
+                        }
                     }
                 } else {
                     let err_msg = primary_error.unwrap_or_else(|| "unknown".to_string());
                     debug!("Global Shortcut Transcription error: {}", err_msg);
 
-                    // Save the audio even when transcription fails, so users can retry later.
+                    // Update the pre-saved placeholder with the failure message.
+                    // Audio was already saved during pre-save so users can retry later.
                     let asr_model = if settings.online_asr_enabled {
                         settings
                             .selected_asr_model_id
@@ -1219,44 +1739,22 @@ impl ShortcutAction for TranscribeAction {
                         settings.selected_model.clone()
                     };
 
-                    let streaming_asr_model = if settings.online_asr_enabled
-                        && settings.post_process_use_secondary_output
-                    {
-                        settings
-                            .post_process_secondary_model_id
-                            .clone()
-                            .or(Some(settings.selected_model.clone()))
-                    } else if !settings.online_asr_enabled {
-                        Some(settings.selected_model.clone())
-                    } else {
-                        None
-                    };
-
                     let failure_text = format!("[Transcription failed] {}", err_msg);
-                    if let Err(e) = hm
-                        .save_transcription(
-                            samples.clone(),
-                            failure_text,
-                            streaming_text.clone(),
-                            streaming_asr_model,
-                            None,
-                            None,
-                            None,
-                            None,
-                            Some(duration_ms),
-                            Some(transcription_ms),
-                            Some(settings.selected_language.clone()),
-                            Some(asr_model),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.app_name.clone()),
-                            active_window_snapshot
-                                .as_ref()
-                                .map(|info| info.title.clone()),
-                        )
-                        .await
-                    {
-                        error!("Failed to save failed transcription to history: {}", e);
+                    if let Some(pid) = presave_history_id {
+                        if let Err(e) = hm
+                            .update_transcription_content(
+                                pid,
+                                failure_text,
+                                asr_model,
+                                settings.selected_language.clone(),
+                                duration_ms,
+                                transcription_ms,
+                                0,
+                            )
+                            .await
+                        {
+                            error!("Failed to update failed transcription in history: {}", e);
+                        }
                     }
 
                     let _ = ah.emit(
@@ -1268,26 +1766,13 @@ impl ShortcutAction for TranscribeAction {
 
                     // Give the user a moment to see the failure state, then close the overlay.
                     sleep(Duration::from_millis(2500)).await;
-                    utils::hide_recording_overlay(&ah);
-                    change_tray_icon(&ah, TrayIconState::Idle);
-
-                    if let Some(coordinator) =
-                        ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                    {
-                        coordinator.notify_processing_finished();
-                    }
                 }
             } else {
                 debug!("No samples retrieved from recording stop");
-                utils::hide_recording_overlay(&ah);
-                change_tray_icon(&ah, TrayIconState::Idle);
-                if let Some(coordinator) =
-                    ah.try_state::<crate::transcription_coordinator::TranscriptionCoordinator>()
-                {
-                    coordinator.notify_processing_finished();
-                }
             }
         });
+
+        ppm_outer.set_pipeline_task(pipeline_handle);
 
         debug!(
             "TranscribeAction::stop completed in {:?}",
@@ -1298,4 +1783,274 @@ impl ShortcutAction for TranscribeAction {
     fn mode(&self) -> super::ActionMode {
         super::ActionMode::Stateful
     }
+}
+
+fn realtime_worker_loop(
+    rx: std::sync::mpsc::Receiver<Vec<f32>>,
+    tm: &TranscriptionManager,
+    app: &AppHandle,
+    interval_ms: u64,
+    window_seconds: u64,
+) {
+    let sample_rate = 16000;
+    let max_window_samples = (window_seconds as usize) * sample_rate;
+    let mut accumulated: Vec<f32> = Vec::new();
+    let mut last_transcribe = Instant::now();
+    let mut has_new_audio = false;
+    // Segment-based: keep finalized text from previous segments, only re-transcribe current window
+    let mut finalized_text = String::new();
+    let mut finalized_samples: usize = 0;
+
+    // Punctuation anchoring: run punct model every cycle, anchors as fallback when busy
+    let mut punct_anchors: Vec<PunctAnchor> = Vec::new();
+    // Track the last raw text so we can apply final punctuation on exit
+    let mut last_raw_text = String::new();
+
+    loop {
+        match rx.recv_timeout(Duration::from_millis(interval_ms)) {
+            Ok(frame) => {
+                accumulated.extend_from_slice(&frame);
+                has_new_audio = true;
+
+                // Check if it's time to transcribe
+                if last_transcribe.elapsed().as_millis() < interval_ms as u128 {
+                    continue;
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                // No new speech frames — skip if no new audio since last transcription
+                if !has_new_audio || accumulated.is_empty() {
+                    continue;
+                }
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                // Recording ended — do one final punct pass on the full text
+                if !last_raw_text.is_empty() {
+                    if let Some(final_punctuated) = tm.try_add_punctuation(&last_raw_text) {
+                        debug!("Realtime worker: final punct pass before exit");
+                        let _ = app.emit(
+                            "realtime-partial",
+                            serde_json::json!({ "text": final_punctuated }),
+                        );
+                    }
+                }
+                debug!("Realtime worker: channel disconnected, exiting");
+                break;
+            }
+        }
+
+        if accumulated.is_empty() {
+            continue;
+        }
+
+        // Only transcribe the current (un-finalized) window
+        let current_audio = &accumulated[finalized_samples..];
+        // Need at least ~1.5s of audio for meaningful transcription;
+        // shorter clips produce garbage results.
+        if current_audio.len() < sample_rate * 3 / 2 {
+            continue;
+        }
+
+        let st = Instant::now();
+        if let Some(current_text) = tm.try_transcribe_raw(current_audio.to_vec()) {
+            let elapsed_ms = st.elapsed().as_millis();
+
+            // Filter out non-displayable characters (rare model tokens that render
+            // as replacement chars or control chars in UI/terminal).
+            let clean_text: String = current_text
+                .chars()
+                .filter(|c| {
+                    !c.is_control() && *c != '\u{FFFD}' && !('\u{E000}'..='\u{F8FF}').contains(c)
+                    // Private Use Area
+                })
+                .collect();
+            if clean_text.is_empty() {
+                continue;
+            }
+
+            // Combine finalized segments with current window
+            let raw_text = if finalized_text.is_empty() {
+                clean_text.clone()
+            } else {
+                format!("{}{}", finalized_text, clean_text)
+            };
+            last_raw_text.clone_from(&raw_text);
+
+            // Punctuation: run every cycle so display always has punctuation.
+            // Anchors are fallback only when punct model is busy.
+            let display_text = if let Some(punctuated) = tm.try_add_punctuation(&raw_text) {
+                punct_anchors = extract_punct_anchors(&raw_text, &punctuated);
+                punctuated
+            } else {
+                apply_punct_anchors(&raw_text, &punct_anchors)
+            };
+
+            if crate::DEBUG_LOG_TRANSCRIPTION.load(std::sync::atomic::Ordering::Relaxed) {
+                let preview: String = display_text.chars().take(80).collect();
+                let suffix = if display_text.chars().count() > 80 {
+                    "…"
+                } else {
+                    ""
+                };
+                info!(
+                    "Realtime partial ({}ms, {}s audio, len={}): {}{}",
+                    elapsed_ms,
+                    current_audio.len() / sample_rate,
+                    display_text.chars().count(),
+                    preview,
+                    suffix,
+                );
+            }
+            let _ = app.emit(
+                "realtime-partial",
+                serde_json::json!({ "text": display_text }),
+            );
+            last_transcribe = Instant::now();
+            has_new_audio = false;
+
+            // If current window exceeds max, finalize it and start fresh
+            if current_audio.len() > max_window_samples {
+                finalized_text = raw_text;
+                finalized_samples = accumulated.len();
+                debug!(
+                    "Realtime: finalized segment, total finalized text len={}",
+                    finalized_text.len()
+                );
+            }
+        }
+        // If engine is busy, skip this round — try again next interval
+    }
+}
+
+// ─── Punctuation anchoring ──────────────────────────────────────────────────
+
+/// A punctuation mark with its surrounding character context, used to
+/// re-insert punctuation into new ASR output between punct-model runs.
+struct PunctAnchor {
+    /// Up to 2 characters immediately before the punctuation mark.
+    before: String,
+    /// Up to 1 character immediately after (empty if punct is at end of text).
+    after: String,
+    /// The punctuation character itself.
+    punct: char,
+}
+
+/// Characters the CT-Transformer punct model may insert.
+fn is_inserted_punct(c: char) -> bool {
+    matches!(
+        c,
+        '，' | '。'
+            | '！'
+            | '？'
+            | '；'
+            | '：'
+            | '、'
+            | '\u{201C}' // "
+            | '\u{201D}' // "
+            | '\u{2018}' // '
+            | '\u{2019}' // '
+            | '（'
+            | '）'
+            | '《'
+            | '》'
+            | '【'
+            | '】'
+            | '…'
+            | '—'
+            | ','
+            | '.'
+            | '!'
+            | '?'
+            | ';'
+            | ':'
+    )
+}
+
+/// Compare raw text with its punctuated version and extract anchors
+/// that record where each punctuation mark was inserted.
+fn extract_punct_anchors(raw: &str, punctuated: &str) -> Vec<PunctAnchor> {
+    let raw_chars: Vec<char> = raw.chars().collect();
+    let punct_chars: Vec<char> = punctuated.chars().collect();
+    let mut anchors = Vec::new();
+    let mut ri = 0; // index into raw_chars
+    let mut pi = 0; // index into punct_chars
+
+    while pi < punct_chars.len() {
+        if ri < raw_chars.len() && punct_chars[pi] == raw_chars[ri] {
+            // Characters match — advance both
+            ri += 1;
+            pi += 1;
+        } else if is_inserted_punct(punct_chars[pi]) {
+            // Inserted punctuation — record surrounding context from raw text
+            let before: String = raw_chars[..ri]
+                .iter()
+                .rev()
+                .take(2)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .cloned()
+                .collect();
+            let after: String = raw_chars[ri..].iter().take(1).cloned().collect();
+
+            if !before.is_empty() {
+                anchors.push(PunctAnchor {
+                    before,
+                    after,
+                    punct: punct_chars[pi],
+                });
+            }
+            pi += 1;
+        } else {
+            // Non-punct mismatch — alignment is broken, stop
+            break;
+        }
+    }
+
+    anchors
+}
+
+/// Apply saved punctuation anchors to new raw text by matching the
+/// surrounding character patterns and inserting punct marks.
+fn apply_punct_anchors(raw: &str, anchors: &[PunctAnchor]) -> String {
+    if anchors.is_empty() {
+        return raw.to_string();
+    }
+
+    // Collect insertion points: (byte_position, punct_char)
+    let mut insertions: Vec<(usize, char)> = Vec::new();
+    let mut search_from: usize = 0;
+
+    for anchor in anchors {
+        if anchor.after.is_empty() {
+            // Punct was at the end of text — only insert if text still ends with `before`
+            if raw.ends_with(&anchor.before) {
+                insertions.push((raw.len(), anchor.punct));
+            }
+        } else {
+            let pattern = format!("{}{}", anchor.before, anchor.after);
+            if let Some(rel_pos) = raw[search_from..].find(&pattern) {
+                let abs_pos = search_from + rel_pos;
+                let insert_pos = abs_pos + anchor.before.len();
+                insertions.push((insert_pos, anchor.punct));
+                search_from = insert_pos;
+            }
+        }
+    }
+
+    if insertions.is_empty() {
+        return raw.to_string();
+    }
+
+    // Insert from right to left so earlier byte positions stay valid
+    insertions.sort_by(|a, b| b.0.cmp(&a.0));
+
+    let mut result = raw.to_string();
+    for (pos, punct) in insertions {
+        if pos <= result.len() {
+            result.insert(pos, punct);
+        }
+    }
+
+    result
 }
