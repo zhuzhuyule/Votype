@@ -236,6 +236,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   >(multiCandidates);
   const [isRerunning, setIsRerunning] = useState(false);
   const [editedTexts, setEditedTexts] = useState<Record<string, string>>({});
+  const localCandidatesRef = useRef(localCandidates);
+  useEffect(() => {
+    localCandidatesRef.current = localCandidates;
+  }, [localCandidates]);
+  const editedTextsRef = useRef(editedTexts);
+  useEffect(() => {
+    editedTextsRef.current = editedTexts;
+  }, [editedTexts]);
   const [showCandidateShortcutHints, setShowCandidateShortcutHints] =
     useState(false);
   const [multiSortMode, setMultiSortMode] = useState<MultiSortMode>(() =>
@@ -1109,21 +1117,29 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           const { text, model } = event.payload;
           setShowDiff(true);
           if (isMultiCandidateMode.current) {
-            // In multi-candidate mode: add rewrite result as a new candidate
-            const newCandidate: MultiModelCandidate = {
-              id: `rewrite-${Date.now()}`,
-              label: model || "语音改写",
-              provider_label: "",
-              text,
-              processing_time_ms: 0,
-              ready: true,
-            };
-            setLocalCandidates((prev) => {
-              if (prev) return [...prev, newCandidate];
-              return [newCandidate];
-            });
-            // Auto-select the new candidate
-            setSelectedCandidateId(newCandidate.id);
+            // In multi-candidate mode: replace the selected candidate's text with the rewrite result
+            const targetId = selectedCandidateIdRef.current;
+            if (targetId) {
+              setLocalCandidates((prev) => {
+                if (!prev) return prev;
+                return prev.map((c) =>
+                  c.id === targetId
+                    ? {
+                        ...c,
+                        text,
+                        label: model || c.label,
+                        ready: true,
+                      }
+                    : c,
+                );
+              });
+              // Clear any manual edits for this candidate
+              setEditedTexts((prev) => {
+                const next = { ...prev };
+                delete next[targetId];
+                return next;
+              });
+            }
           } else {
             replaceEditorDocument(text);
           }
@@ -1180,12 +1196,25 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     };
 
     const syncEditorContent = () => {
-      if (!editor || isMultiCandidateMode.current) return;
-      void invoke("set_review_editor_content_state", {
-        text: editor.getText({ blockSeparator: "\n" }),
-      }).catch((e) => {
-        console.error("Failed to sync review editor content state:", e);
-      });
+      let text: string | undefined;
+      if (isMultiCandidateMode.current) {
+        // In multi-candidate mode: sync the selected candidate's text
+        const id = selectedCandidateIdRef.current;
+        if (id) {
+          const candidates = localCandidatesRef.current;
+          const candidate = candidates?.find((c) => c.id === id);
+          if (candidate) {
+            text = editedTextsRef.current[id] ?? candidate.text;
+          }
+        }
+      } else if (editor) {
+        text = editor.getText({ blockSeparator: "\n" });
+      }
+      if (text !== undefined) {
+        void invoke("set_review_editor_content_state", { text }).catch((e) => {
+          console.error("Failed to sync review editor content state:", e);
+        });
+      }
     };
 
     const updateEditorStateFromTarget = (target: EventTarget | null) => {
