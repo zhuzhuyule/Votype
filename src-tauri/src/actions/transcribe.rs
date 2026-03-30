@@ -1,4 +1,4 @@
-use super::post_process::{maybe_convert_chinese_variant, maybe_post_process_transcription};
+use super::post_process::maybe_convert_chinese_variant;
 use super::ShortcutAction;
 use crate::active_window;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
@@ -1118,57 +1118,100 @@ impl ShortcutAction for TranscribeAction {
                                     settings_clone.post_process_selected_prompt_id,
                                 );
 
-                                // Check if multi-model post-processing is enabled
-                                // When skill_mode is active, bypass multi-model and use single-model
-                                // with skill routing instead (user explicitly wants skill, not model comparison)
-                                if settings_clone.multi_model_post_process_enabled
-                                    && !skill_mode
-                                    && !matches!(
-                                        votype_mode,
-                                        VotypeInputMode::MainPolishInput
-                                            | VotypeInputMode::MainSelectedEdit
-                                            | VotypeInputMode::ReviewRewrite
+                                // ═══════════════════════════════════════════
+                                // Unified post-processing pipeline
+                                // ═══════════════════════════════════════════
+                                let pipeline_result =
+                                    crate::actions::post_process::unified_post_process(
+                                        &ah_clone,
+                                        &settings_clone,
+                                        &chinese_converted_text,
+                                        secondary.as_deref(),
+                                        true,
+                                        override_prompt_id.clone(),
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.app_name.clone()),
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.title.clone()),
+                                        matched_rule.map(|r| r.pattern.clone()),
+                                        matched_rule.map(|r| r.match_type),
+                                        history_id,
+                                        skill_mode,
+                                        review_editor_active,
+                                        selected_text.clone(),
+                                        review_document_text.clone(),
                                     )
-                                {
-                                    let multi_items =
-                                        settings_clone.build_multi_model_items_from_selection();
-                                    if !multi_items.is_empty() {
-                                        let multi_strategy =
-                                            settings_clone.multi_model_strategy.clone();
-                                        let auto_pick_multi =
-                                            multi_strategy == "race" || multi_strategy == "lazy";
-                                        info!(
-                                            "[MultiModel] Starting multi-model post-processing with {} models (strategy={})",
-                                            multi_items.len(),
-                                            multi_strategy
-                                        );
+                                    .await;
 
-                                        if auto_pick_multi {
-                                            show_llm_processing_overlay(&ah_clone);
-                                            ah_clone
-                                                .emit("post-process-status", "正在多模型润色中...")
-                                                .ok();
+                                // Handle pipeline result
+                                let mut post_process_failed = false;
+                                match pipeline_result {
+                                    crate::actions::post_process::PipelineResult::Skipped => {
+                                        // No post-processing — use original transcription
+                                        token_count = None;
+                                        llm_call_count = None;
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::Cached {
+                                        text,
+                                        model,
+                                        prompt_id,
+                                    } => {
+                                        final_text = text;
+                                        if model.is_some() {
+                                            used_model = model;
                                         }
+                                        if prompt_id.is_some() {
+                                            post_process_prompt_id = prompt_id;
+                                        }
+                                        token_count = Some(0);
+                                        llm_call_count = Some(0);
+                                    }
 
-                                        // Get output_mode from the actual prompt being used
-                                        // Must search both builtin and external skills
-                                        let effective_prompt_id =
-                                            override_prompt_id.as_ref().or(settings_clone
-                                                .post_process_selected_prompt_id
-                                                .as_ref());
-                                        let output_mode = if let Some(pid) = effective_prompt_id {
-                                            // Search builtin first
+                                    crate::actions::post_process::PipelineResult::PassThrough {
+                                        text,
+                                        intent_token_count,
+                                    } => {
+                                        final_text = text;
+                                        token_count = intent_token_count;
+                                        llm_call_count = Some(1);
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::PendingSkillConfirmation {
+                                        token_count: tc,
+                                        llm_call_count: lc,
+                                    } => {
+                                        info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
+                                        token_count = tc;
+                                        llm_call_count = lc;
+                                        return;
+                                    }
+
+                                    crate::actions::post_process::PipelineResult::MultiModel {
+                                        candidates,
+                                        multi_items,
+                                        strategy,
+                                        total_token_count,
+                                        llm_call_count: multi_call_count,
+                                        prompt_id: effective_prompt_id,
+                                    } => {
+                                        token_count = total_token_count;
+                                        llm_call_count = multi_call_count;
+
+                                        let auto_pick =
+                                            strategy == "race" || strategy == "lazy";
+
+                                        // Get output_mode from the prompt
+                                        let output_mode = if let Some(ref pid) = effective_prompt_id {
                                             settings_clone
                                                 .post_process_prompts
                                                 .iter()
                                                 .find(|p| &p.id == pid)
                                                 .map(|p| p.output_mode)
                                                 .or_else(|| {
-                                                    // Fallback: search external skills from filesystem
-                                                    let sm =
-                                                        crate::managers::skill::SkillManager::new(
-                                                            &ah_clone,
-                                                        );
+                                                    let sm = crate::managers::skill::SkillManager::new(&ah_clone);
                                                     sm.get_all_skills()
                                                         .into_iter()
                                                         .find(|p| &p.id == pid)
@@ -1179,28 +1222,21 @@ impl ShortcutAction for TranscribeAction {
                                             crate::settings::PromptOutputMode::default()
                                         };
 
-                                        if !auto_pick_multi {
-                                            // Build initial loading candidates and show review window immediately
-                                            let initial_candidates: Vec<
-                                                crate::review_window::MultiModelCandidate,
-                                            > = multi_items
-                                                .iter()
-                                                .map(|item| {
-                                                    let label = item
-                                                        .custom_label
-                                                        .clone()
-                                                        .unwrap_or_else(|| item.model_id.clone());
-                                                    crate::review_window::MultiModelCandidate {
-                                                        id: item.id.clone(),
-                                                        label,
-                                                        text: String::new(),
-                                                        confidence: None,
-                                                        processing_time_ms: 0,
-                                                        error: None,
-                                                        ready: false,
-                                                    }
-                                                })
-                                                .collect();
+                                        if !auto_pick {
+                                            // Manual strategy: show review window with candidates
+                                            let initial_candidates: Vec<crate::review_window::MultiModelCandidate> =
+                                                candidates
+                                                    .iter()
+                                                    .map(|r| crate::review_window::MultiModelCandidate {
+                                                        id: r.id.clone(),
+                                                        label: r.label.clone(),
+                                                        text: r.text.clone(),
+                                                        confidence: r.confidence,
+                                                        processing_time_ms: r.processing_time_ms,
+                                                        error: r.error.clone(),
+                                                        ready: r.ready,
+                                                    })
+                                                    .collect();
 
                                             crate::review_window::set_last_active_window(
                                                 active_window_snapshot_for_review.clone(),
@@ -1212,456 +1248,87 @@ impl ShortcutAction for TranscribeAction {
                                                 history_id,
                                                 output_mode,
                                                 None,
-                                                effective_prompt_id.cloned(),
+                                                effective_prompt_id,
                                             );
-
-                                            // Hide overlay since review window is now visible
                                             utils::hide_recording_overlay(&ah_clone);
                                             change_tray_icon(&ah_clone, TrayIconState::Idle);
+
+                                            // Save best result to history
+                                            if let Some(best) = candidates.iter().find(|r| r.ready && r.error.is_none()) {
+                                                let model_name = multi_items
+                                                    .iter()
+                                                    .find(|item| item.id == best.id)
+                                                    .map(|item| item.model_id.clone())
+                                                    .unwrap_or_else(|| best.label.clone());
+                                                if let Some(hid) = history_id {
+                                                    if let Err(e) = hm_clone
+                                                        .save_post_processed_text(
+                                                            hid,
+                                                            best.text.clone(),
+                                                            Some(model_name),
+                                                            settings_clone.post_process_selected_prompt_id.clone(),
+                                                            total_token_count,
+                                                            multi_call_count,
+                                                        )
+                                                        .await
+                                                    {
+                                                        error!("Failed to save multi-model result to history: {}", e);
+                                                    }
+                                                }
+                                            }
+                                            return;
                                         }
 
-                                        info!("[MultiModel] Waiting for multi_task result");
-                                        let results =
-                                            crate::actions::post_process::multi_post_process_transcription(
-                                                &ah_clone,
-                                                &settings_clone,
-                                                &chinese_converted_text,
-                                                secondary.as_deref(),
-                                                history_id,
-                                                active_window_snapshot_for_review
-                                                    .as_ref()
-                                                    .map(|info| info.app_name.clone()),
-                                                active_window_snapshot_for_review
-                                                    .as_ref()
-                                                    .map(|info| info.title.clone()),
-                                                override_prompt_id.clone(),
-                                            )
-                                            .await;
-                                        info!(
-                                            "[MultiModel] multi_task completed with {} result(s)",
-                                            results.len()
-                                        );
-
-                                        // Aggregate token counts from ALL models (not just the winner)
-                                        let multi_total_tokens: Option<i64> = {
-                                            let sum: i64 =
-                                                results.iter().filter_map(|r| r.token_count).sum();
-                                            if sum > 0 {
-                                                Some(sum)
-                                            } else {
-                                                None
-                                            }
-                                        };
-                                        // Count actual API calls (any result that was attempted, regardless of success)
-                                        let multi_llm_call_count: Option<i64> = {
-                                            let count = results.len() as i64;
-                                            if count > 0 {
-                                                Some(count)
-                                            } else {
-                                                None
-                                            }
-                                        };
-
-                                        // Save the best result to history (without creating PostProcessStep)
-                                        let best_result =
-                                            results.iter().find(|r| r.ready && r.error.is_none());
+                                        // Auto-pick: select best result
+                                        let best_result = candidates.iter().find(|r| r.ready && r.error.is_none());
                                         if let Some(best) = best_result {
-                                            info!(
-                                                "[MultiModel] best_result resolved id={}, ready={}, error={:?}",
-                                                best.id, best.ready, best.error
-                                            );
                                             let model_name = multi_items
                                                 .iter()
                                                 .find(|item| item.id == best.id)
                                                 .map(|item| item.model_id.clone())
                                                 .unwrap_or_else(|| best.label.clone());
 
-                                            if auto_pick_multi {
-                                                let final_text = best.text.clone();
-                                                info!(
-                                                    "[MultiModel] Auto-pick selected result id={}, model_name={}, text_len={}",
-                                                    best.id,
-                                                    model_name,
-                                                    final_text.len()
-                                                );
-
-                                                // Check if review is required based on app policy
-                                                let change_percent = compute_change_percent(
-                                                    &transcription_clone,
-                                                    &final_text,
-                                                );
-                                                let should_review = if output_mode
-                                                    == crate::settings::PromptOutputMode::Chat
-                                                {
-                                                    true
-                                                } else {
-                                                    match app_policy {
-                                                            crate::settings::AppReviewPolicy::Always => true,
-                                                            crate::settings::AppReviewPolicy::Never => false,
-                                                            crate::settings::AppReviewPolicy::Auto => {
-                                                                let (check_enabled, threshold) =
-                                                                    if let Some(pid) = effective_prompt_id {
-                                                                        settings_clone
-                                                                            .post_process_prompts
-                                                                            .iter()
-                                                                            .find(|p| &p.id == pid)
-                                                                            .map(|p| {
-                                                                                (
-                                                                                    p.confidence_check_enabled,
-                                                                                    p.confidence_threshold.unwrap_or(70),
-                                                                                )
-                                                                            })
-                                                                            .unwrap_or((false, 70))
-                                                                    } else {
-                                                                        (false, 70)
-                                                                    };
-                                                                if !check_enabled {
-                                                                    false
-                                                                } else {
-                                                                    change_percent >= threshold
-                                                                }
-                                                            }
-                                                        }
-                                                };
-
-                                                if should_review {
-                                                    info!(
-                                                        "[MultiModel] Auto-pick review required (policy={:?}, change_percent={}), showing review window",
-                                                        app_policy, change_percent
-                                                    );
-                                                    crate::review_window::set_last_active_window(
-                                                        active_window_snapshot_for_review.clone(),
-                                                    );
-                                                    // Persist result to history before review
-                                                    if let Some(hid) = history_id {
-                                                        if let Err(e) = hm_clone
-                                                            .save_post_processed_text(
-                                                                hid,
-                                                                final_text.clone(),
-                                                                Some(model_name.clone()),
-                                                                settings_clone
-                                                                    .post_process_selected_prompt_id
-                                                                    .clone(),
-                                                                multi_total_tokens,
-                                                                multi_llm_call_count,
-                                                            )
-                                                            .await
-                                                        {
-                                                            error!(
-                                                                "Failed to save auto-picked multi-model result to history before review: {}",
-                                                                e
-                                                            );
-                                                        }
-                                                    }
-                                                    crate::review_window::show_review_window(
-                                                        &ah_clone,
-                                                        transcription_clone.clone(),
-                                                        final_text,
-                                                        change_percent,
-                                                        history_id,
-                                                        None,
-                                                        output_mode,
-                                                        None,
-                                                        effective_prompt_id.cloned(),
-                                                        Some(best.id.clone()),
-                                                    );
-                                                    return;
-                                                }
-
-                                                // No review needed — direct paste
-                                                let final_text_for_history = final_text.clone();
-                                                let model_name_for_history = model_name.clone();
-                                                let prompt_id_for_history = settings_clone
-                                                    .post_process_selected_prompt_id
-                                                    .clone();
-                                                let hm_for_history = hm_clone.clone();
-                                                let history_id_for_save = history_id;
-                                                let tokens_for_history = multi_total_tokens;
-                                                let calls_for_history = multi_llm_call_count;
-                                                let ah_clone_inner = ah_clone.clone();
-                                                let last_active_window =
-                                                    active_window_snapshot_for_review.clone();
-                                                ah_clone
-                                                    .run_on_main_thread(move || {
-                                                        info!("[MultiModel] Entered auto-pick main-thread branch");
-                                                        utils::hide_recording_overlay(
-                                                            &ah_clone_inner,
-                                                        );
-                                                        info!("[MultiModel] Overlay hidden for auto-pick");
-                                                        change_tray_icon(
-                                                            &ah_clone_inner,
-                                                            TrayIconState::Idle,
-                                                        );
-                                                        if let Some(info) = last_active_window {
-                                                            if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
-                                                                error!(
-                                                                    "Failed to refocus target app before auto-pick paste: {}",
-                                                                    e
-                                                                );
-                                                            } else {
-                                                                info!("[MultiModel] Refocused target app before auto-pick paste");
-                                                                std::thread::sleep(std::time::Duration::from_millis(120));
-                                                            }
-                                                        }
-                                                        info!("[MultiModel] Invoking auto-pick paste");
-                                                        if let Err(e) = utils::paste(
-                                                            final_text,
-                                                            ah_clone_inner,
-                                                        ) {
-                                                            error!(
-                                                                "Failed to paste auto-picked multi-model transcription: {}",
-                                                                e
-                                                            );
-                                                        } else {
-                                                            info!("[MultiModel] Auto-pick paste completed");
-                                                        }
-                                                    })
-                                                    .unwrap_or_else(|e| {
-                                                        error!(
-                                                            "Failed to run auto-picked multi-model paste on main thread: {:?}",
-                                                            e
-                                                        )
-                                                    });
-                                                if let Some(hid) = history_id_for_save {
-                                                    tauri::async_runtime::spawn(async move {
-                                                        if let Err(e) = hm_for_history
-                                                            .save_post_processed_text(
-                                                                hid,
-                                                                final_text_for_history,
-                                                                Some(model_name_for_history),
-                                                                prompt_id_for_history,
-                                                                tokens_for_history,
-                                                                calls_for_history,
-                                                            )
-                                                            .await
-                                                        {
-                                                            error!(
-                                                                "Failed to save auto-picked multi-model result to history: {}",
-                                                                e
-                                                            );
-                                                        }
-                                                    });
-                                                }
-                                                return;
+                                            final_text = best.text.clone();
+                                            used_model = Some(model_name);
+                                            if effective_prompt_id.is_some() {
+                                                post_process_prompt_id = effective_prompt_id;
                                             }
-
-                                            if let Some(hid) = history_id {
-                                                if let Err(e) = hm_clone
-                                                    .save_post_processed_text(
-                                                        hid,
-                                                        best.text.clone(),
-                                                        Some(model_name.clone()),
-                                                        settings_clone
-                                                            .post_process_selected_prompt_id
-                                                            .clone(),
-                                                        multi_total_tokens,
-                                                        multi_llm_call_count,
-                                                    )
-                                                    .await
-                                                {
-                                                    error!(
-                                                        "Failed to save multi-model result to history: {}",
-                                                        e
-                                                    );
-                                                }
-                                            }
-                                        } else if auto_pick_multi {
-                                            // All multi-model candidates failed — fallback to single-model post-processing
-                                            info!(
-                                                "[MultiModel] Auto-pick multi-model produced no successful result, falling back to single-model post-processing"
-                                            );
-                                            ah_clone
-                                                .emit(
-                                                    "post-process-status",
-                                                    "多模型全部失败，正在使用单模型兜底...",
-                                                )
-                                                .ok();
-
-                                            let (
-                                                fallback_result,
-                                                fallback_model,
-                                                _fb_prompt_id,
-                                                fb_err,
-                                                _fb_error_msg,
-                                                _fb_token_count,
-                                                _fb_call_count,
-                                            ) = maybe_post_process_transcription(
-                                                &ah_clone,
-                                                &settings_clone,
-                                                &chinese_converted_text,
-                                                secondary.as_deref(),
-                                                true,
-                                                override_prompt_id.clone(),
-                                                active_window_snapshot_for_review
-                                                    .as_ref()
-                                                    .map(|info| info.app_name.clone()),
-                                                active_window_snapshot_for_review
-                                                    .as_ref()
-                                                    .map(|info| info.title.clone()),
-                                                matched_rule.map(|r| r.pattern.clone()),
-                                                matched_rule.map(|r| r.match_type),
-                                                history_id,
-                                                false,
-                                                review_editor_active,
-                                                selected_text.clone(),
-                                                review_document_text.clone(),
-                                            )
-                                            .await;
-
-                                            let fallback_text = if fb_err
-                                                || fallback_result.is_none()
-                                            {
-                                                info!("[MultiModel] Single-model fallback also failed, using original transcription");
-                                                chinese_converted_text.clone()
-                                            } else {
-                                                info!(
-                                                    "[MultiModel] Single-model fallback succeeded (model={:?})",
-                                                    fallback_model
-                                                );
-                                                fallback_result.unwrap()
-                                            };
-
-                                            // Check if review is needed
-                                            let change_percent = compute_change_percent(
-                                                &transcription_clone,
-                                                &fallback_text,
-                                            );
-                                            let should_review = match app_policy {
-                                                crate::settings::AppReviewPolicy::Always => true,
-                                                crate::settings::AppReviewPolicy::Never => false,
-                                                crate::settings::AppReviewPolicy::Auto => {
-                                                    let (check_enabled, threshold) =
-                                                        if let Some(pid) = effective_prompt_id {
-                                                            settings_clone
-                                                                .post_process_prompts
-                                                                .iter()
-                                                                .find(|p| &p.id == pid)
-                                                                .map(|p| {
-                                                                    (
-                                                                        p.confidence_check_enabled,
-                                                                        p.confidence_threshold
-                                                                            .unwrap_or(70),
-                                                                    )
-                                                                })
-                                                                .unwrap_or((false, 70))
-                                                        } else {
-                                                            (false, 70)
-                                                        };
-                                                    if !check_enabled {
-                                                        false
-                                                    } else {
-                                                        change_percent >= threshold
-                                                    }
-                                                }
-                                            };
-
-                                            if should_review {
-                                                crate::review_window::set_last_active_window(
-                                                    active_window_snapshot_for_review.clone(),
-                                                );
-                                                crate::review_window::show_review_window(
-                                                    &ah_clone,
-                                                    transcription_clone.clone(),
-                                                    fallback_text,
-                                                    change_percent,
-                                                    history_id,
-                                                    None,
-                                                    output_mode,
-                                                    None,
-                                                    effective_prompt_id.cloned(),
-                                                    fallback_model,
-                                                );
-                                                return;
-                                            }
-
-                                            // No review — direct paste
-                                            let ah_clone_inner = ah_clone.clone();
-                                            let last_active_window =
-                                                active_window_snapshot_for_review.clone();
-                                            ah_clone
-                                                .run_on_main_thread(move || {
-                                                    utils::hide_recording_overlay(&ah_clone_inner);
-                                                    change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
-                                                    if let Some(info) = last_active_window {
-                                                        if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
-                                                            error!("Failed to refocus target app before fallback paste: {}", e);
-                                                        } else {
-                                                            std::thread::sleep(std::time::Duration::from_millis(120));
-                                                        }
-                                                    }
-                                                    if let Err(e) = utils::paste(
-                                                        fallback_text,
-                                                        ah_clone_inner,
-                                                    ) {
-                                                        error!("Failed to paste fallback transcription: {}", e);
-                                                    } else {
-                                                        info!("[MultiModel] Fallback paste completed");
-                                                    }
-                                                })
-                                                .unwrap_or_else(|e| {
-                                                    error!("Failed to run fallback paste on main thread: {:?}", e)
-                                                });
-                                            return;
+                                        } else {
+                                            // All candidates failed — use original text
+                                            info!("[UnifiedPipeline] All multi-model candidates failed, using original transcription");
+                                            error_shown = true;
                                         }
-
-                                        return;
                                     }
-                                }
 
-                                let (
-                                    processed_text,
-                                    model,
-                                    prompt_id,
-                                    err,
-                                    error_message,
-                                    inner_token_count,
-                                    inner_llm_call_count,
-                                ) = maybe_post_process_transcription(
-                                    &ah_clone,
-                                    &settings_clone,
-                                    &chinese_converted_text,
-                                    secondary.as_deref(),
-                                    true,
-                                    override_prompt_id.clone(),
-                                    active_window_snapshot_for_review
-                                        .as_ref()
-                                        .map(|info| info.app_name.clone()),
-                                    active_window_snapshot_for_review
-                                        .as_ref()
-                                        .map(|info| info.title.clone()),
-                                    matched_rule.map(|r| r.pattern.clone()),
-                                    matched_rule.map(|r| r.match_type),
-                                    history_id,
-                                    skill_mode, // Pass skill_mode to control LLM routing
-                                    review_editor_active,
-                                    selected_text.clone(), // Pass captured context for Mode C
-                                    review_document_text.clone(),
-                                )
-                                .await;
+                                    crate::actions::post_process::PipelineResult::SingleModel {
+                                        text: processed_text,
+                                        model,
+                                        prompt_id,
+                                        token_count: tc,
+                                        llm_call_count: lc,
+                                        error: err,
+                                        error_message,
+                                    } => {
+                                        token_count = tc;
+                                        llm_call_count = lc;
+                                        post_process_failed = err && processed_text.is_none();
+                                        error_shown = error_shown || err;
 
-                                (token_count, llm_call_count) =
-                                    (inner_token_count, inner_llm_call_count);
-                                let post_process_failed = err && processed_text.is_none();
-                                let post_process_error_message = error_message;
-
-                                // Check if pending skill confirmation - skip all subsequent processing
-                                if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
-                                    info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
-                                    // Don't hide overlay, don't paste - wait for user confirmation via confirm_skill
-                                    return;
-                                }
-
-                                error_shown = error_shown || err;
-                                if model.is_some() {
-                                    used_model = model;
-                                }
-
-                                if let Some(text) = processed_text.as_ref() {
-                                    final_text = text.clone();
-                                }
-
-                                if prompt_id.is_some() {
-                                    post_process_prompt_id = prompt_id;
+                                        if model.is_some() {
+                                            used_model = model;
+                                        }
+                                        if let Some(ref text) = processed_text {
+                                            final_text = text.clone();
+                                        }
+                                        if prompt_id.is_some() {
+                                            post_process_prompt_id = prompt_id;
+                                        }
+                                        if post_process_failed {
+                                            if let Some(msg) = error_message {
+                                                error!("Post-processing failed: {}", msg);
+                                            }
+                                        }
+                                    }
                                 }
 
                                 // Capture the prompt content for history
@@ -1676,10 +1343,8 @@ impl ShortcutAction for TranscribeAction {
                                     }
                                 }
 
-                                let change_percent = processed_text
-                                    .as_ref()
-                                    .map(|text| compute_change_percent(&transcription_clone, text))
-                                    .unwrap_or(0);
+                                let change_percent =
+                                    compute_change_percent(&transcription_clone, &final_text);
 
                                 let confidence_reason: Option<String> = None;
 
@@ -1811,9 +1476,7 @@ impl ShortcutAction for TranscribeAction {
                                     return;
                                 }
                                 if post_process_failed {
-                                    if let Some(msg) = post_process_error_message {
-                                        error!("Post-processing failed: {}", msg);
-                                    }
+                                    // Error already logged in PipelineResult::SingleModel arm
                                 }
                             }
 
