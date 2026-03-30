@@ -13,6 +13,14 @@ import {
   computeChangePercent,
 } from "./diff-utils";
 
+export interface ModelSpeedStats {
+  model_id: string;
+  provider: string;
+  call_type: string;
+  avg_speed: number;
+  total_calls: number;
+}
+
 export interface MultiModelCandidate {
   id: string;
   label: string;
@@ -44,6 +52,7 @@ interface CandidatePanelProps {
   onEditEnd: () => void;
   onTextChange: (text: string) => void;
   onInsert: (text: string, candidateId: string) => void;
+  speedStats?: ModelSpeedStats[];
 }
 
 function formatProcessingTime(ms: number): string {
@@ -56,6 +65,47 @@ function formatSpeed(tokensPerSec: number): string {
   if (tokensPerSec >= 100) return `${Math.round(tokensPerSec)} t/s`;
   if (tokensPerSec >= 10) return `${tokensPerSec.toFixed(0)} t/s`;
   return `${tokensPerSec.toFixed(1)} t/s`;
+}
+
+function findHistoricalSpeed(
+  stats: ModelSpeedStats[],
+  candidateLabel: string,
+): ModelSpeedStats | undefined {
+  return stats.find(
+    (s) =>
+      s.call_type === "multi_model" &&
+      (s.model_id === candidateLabel ||
+        candidateLabel.includes(s.model_id) ||
+        s.model_id.includes(candidateLabel)),
+  );
+}
+
+function SpeedWithTooltip({
+  currentSpeed,
+  historicalStats,
+}: {
+  currentSpeed: number;
+  historicalStats?: ModelSpeedStats;
+}) {
+  if (!historicalStats || historicalStats.total_calls < 2) {
+    return <span className="candidate-speed">{formatSpeed(currentSpeed)}</span>;
+  }
+
+  const diff =
+    ((currentSpeed - historicalStats.avg_speed) / historicalStats.avg_speed) *
+    100;
+  const diffLabel =
+    diff > 0
+      ? `↑${Math.abs(diff).toFixed(0)}%`
+      : `↓${Math.abs(diff).toFixed(0)}%`;
+
+  return (
+    <Tooltip
+      content={`历史平均: ${formatSpeed(historicalStats.avg_speed)} (${historicalStats.total_calls} 次)\n本次: ${formatSpeed(currentSpeed)} (${diffLabel})`}
+    >
+      <span className="candidate-speed">{formatSpeed(currentSpeed)}</span>
+    </Tooltip>
+  );
 }
 
 export const CandidatePanel: React.FC<CandidatePanelProps> = ({
@@ -75,6 +125,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   onEditEnd,
   onTextChange,
   onInsert,
+  speedStats,
 }) => {
   const { t } = useTranslation();
   const displayText = editedText ?? candidate.text;
@@ -252,9 +303,14 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                     candidate.output_speed > 0 && (
                       <>
                         <span className="stat-separator">|</span>
-                        <span className="candidate-speed">
-                          {formatSpeed(candidate.output_speed)}
-                        </span>
+                        <SpeedWithTooltip
+                          currentSpeed={candidate.output_speed}
+                          historicalStats={
+                            speedStats
+                              ? findHistoricalSpeed(speedStats, candidate.label)
+                              : undefined
+                          }
+                        />
                       </>
                     )}
                 </span>

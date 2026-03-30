@@ -2,9 +2,14 @@
 
 import { ScrollArea } from "@radix-ui/themes";
 import { IconTextPlus } from "@tabler/icons-react";
-import React, { useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CandidatePanel, MultiModelCandidate } from "./CandidatePanel";
+import {
+  CandidatePanel,
+  ModelSpeedStats,
+  MultiModelCandidate,
+} from "./CandidatePanel";
 import { buildDiffViews } from "./diff-utils";
 
 interface MultiCandidateViewProps {
@@ -42,6 +47,14 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
 }) => {
   const { t } = useTranslation();
   const [isSourceHovered, setIsSourceHovered] = useState(false);
+  const [speedStats, setSpeedStats] = useState<ModelSpeedStats[]>([]);
+
+  useEffect(() => {
+    invoke<ModelSpeedStats[]>("get_model_speed_stats")
+      .then(setSpeedStats)
+      .catch((err) => console.warn("Failed to fetch speed stats:", err));
+  }, []);
+
   const maxTime = Math.max(...candidates.map((c) => c.processing_time_ms), 1);
 
   // Compute source diff HTML when a candidate is selected and diff is enabled
@@ -101,6 +114,7 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             onEditEnd={onEditEnd}
             onTextChange={(text) => onTextChange(candidate.id, text)}
             onInsert={onInsert}
+            speedStats={speedStats}
           />
         ))}
       </ScrollArea>
