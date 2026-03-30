@@ -1771,6 +1771,12 @@ span[data-diff-level="major"] {
   }
 }
 
+.candidate-speed {
+  color: var(--gray-10);
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+}
+
 .candidate-header-stats .stat-separator {
   opacity: 0.4;
 }

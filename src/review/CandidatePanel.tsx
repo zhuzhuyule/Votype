@@ -22,6 +22,8 @@ export interface MultiModelCandidate {
   processing_time_ms: number;
   error?: string;
   ready?: boolean;
+  /** Output speed in characters per second */
+  output_speed?: number;
 }
 
 interface CandidatePanelProps {
@@ -48,6 +50,12 @@ function formatProcessingTime(ms: number): string {
   if (ms <= 0) return "";
   if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
   return `${ms}ms`;
+}
+
+function formatSpeed(charsPerSec: number): string {
+  if (charsPerSec >= 100) return `${Math.round(charsPerSec)} c/s`;
+  if (charsPerSec >= 10) return `${charsPerSec.toFixed(0)} c/s`;
+  return `${charsPerSec.toFixed(1)} c/s`;
 }
 
 export const CandidatePanel: React.FC<CandidatePanelProps> = ({
@@ -239,6 +247,15 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                       {formatProcessingTime(candidate.processing_time_ms)}
                     </span>
                   )}
+                  {candidate.output_speed != null &&
+                    candidate.output_speed > 0 && (
+                      <>
+                        <span className="stat-separator">|</span>
+                        <span className="candidate-speed">
+                          {formatSpeed(candidate.output_speed)}
+                        </span>
+                      </>
+                    )}
                 </span>
               )}
             </>

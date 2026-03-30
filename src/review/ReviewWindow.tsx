@@ -354,6 +354,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               processing_time_ms: completed.processing_time_ms,
               error: completed.error,
               ready: completed.ready ?? true,
+              output_speed: completed.output_speed,
             };
           }
           return candidate;

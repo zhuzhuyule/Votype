@@ -271,6 +271,12 @@ pub async fn multi_post_process_transcription(
                 let ready = result.0.is_some();
 
                 let (model_label, provider_label) = get_item_labels(&settings, item);
+                let output_speed = if ready && elapsed > 0 {
+                    let char_count = text.chars().count() as f64;
+                    Some((char_count / elapsed as f64) * 1000.0) // chars per second
+                } else {
+                    None
+                };
                 super::MultiModelPostProcessResult {
                     id: item.id.clone(),
                     label: model_label,
@@ -281,6 +287,7 @@ pub async fn multi_post_process_transcription(
                     error: result.1,
                     ready,
                     token_count: result.2,
+                    output_speed,
                 }
             }
         })
