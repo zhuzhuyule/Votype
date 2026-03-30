@@ -368,28 +368,31 @@ pub async fn unified_post_process(
     let mut overridden_settings: Option<AppSettings> = None;
 
     if is_rewrite_mode {
+        // Rewrite mode: disable hotword injection (instruction should execute precisely)
+        // and select model based on target text length
         let target_len = review_document_text
             .as_ref()
             .map(|t| t.chars().count() as u32)
             .unwrap_or(0);
+        let mut s = settings.clone();
+        s.post_process_hotword_injection_enabled = false;
         if target_len <= settings.length_routing_threshold {
             if let Some(ref short_model_id) = settings.length_routing_short_model_id {
                 if log_routing {
                     info!(
-                        "[UnifiedPipeline] Rewrite: target_len={}, using lite model",
+                        "[UnifiedPipeline] Rewrite: target_len={}, using lite model, hotwords disabled",
                         target_len
                     );
                 }
-                let mut s = settings.clone();
                 s.selected_prompt_model_id = Some(short_model_id.clone());
-                overridden_settings = Some(s);
             }
         } else if log_routing {
             info!(
-                "[UnifiedPipeline] Rewrite: target_len={}, using full model",
+                "[UnifiedPipeline] Rewrite: target_len={}, using full model, hotwords disabled",
                 target_len
             );
         }
+        overridden_settings = Some(s);
     } else if !needs_hotword && settings.post_process_hotword_injection_enabled {
         let mut s = settings.clone();
         s.post_process_hotword_injection_enabled = false;
