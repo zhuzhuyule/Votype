@@ -1491,6 +1491,39 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
 
+                            // Handle Votype internal modes before history save (they return early)
+                            if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
+                                return;
+                            }
+
+                            if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
+                                return;
+                            }
+
+                            if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                #[derive(serde::Serialize, Clone)]
+                                struct RewriteApplyPayload {
+                                    text: String,
+                                    model: Option<String>,
+                                }
+                                let _ = ah_clone.emit(
+                                    "review-window-rewrite-apply",
+                                    RewriteApplyPayload {
+                                        text: final_text.clone(),
+                                        model: used_model,
+                                    },
+                                );
+                                return;
+                            }
+
                             // 3. Save the result to database (Available for both branches)
                             if let Some(history_id) = history_id {
                                 if let Err(e) = hm_clone
@@ -1517,28 +1550,6 @@ impl ShortcutAction for TranscribeAction {
                                 info!(
                                     "New recording started during post-processing; skipping paste."
                                 );
-                                return;
-                            }
-
-                            if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
-                                return;
-                            }
-
-                            if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                let _ = ah_clone.emit("votype-local-insert", final_text.clone());
-                                return;
-                            }
-
-                            if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                let _ = ah_clone
-                                    .emit("review-window-rewrite-apply", final_text.clone());
                                 return;
                             }
 

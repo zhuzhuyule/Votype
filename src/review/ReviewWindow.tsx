@@ -1077,21 +1077,29 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     let disposed = false;
 
     const setupListener = async () => {
-      const detach = await listen<string>(
+      const detach = await listen<{ text: string; model?: string }>(
         REVIEW_WINDOW_REWRITE_APPLY,
         (event) => {
+          const { text, model } = event.payload;
           setShowDiff(true);
           if (isMultiCandidateMode.current) {
-            // In multi-candidate mode: update the selected candidate's text
-            const targetId = selectedCandidateIdRef.current;
-            if (targetId) {
-              setEditedTexts((prev) => ({
-                ...prev,
-                [targetId]: event.payload,
-              }));
-            }
+            // In multi-candidate mode: add rewrite result as a new candidate
+            const newCandidate: MultiModelCandidate = {
+              id: `rewrite-${Date.now()}`,
+              label: model || "语音改写",
+              provider_label: "",
+              text,
+              processing_time_ms: 0,
+              ready: true,
+            };
+            setLocalCandidates((prev) => {
+              if (prev) return [...prev, newCandidate];
+              return [newCandidate];
+            });
+            // Auto-select the new candidate
+            setSelectedCandidateId(newCandidate.id);
           } else {
-            replaceEditorDocument(event.payload);
+            replaceEditorDocument(text);
           }
         },
       );
