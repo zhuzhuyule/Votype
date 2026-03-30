@@ -1145,9 +1145,11 @@ impl ShortcutAction for TranscribeAction {
 
                                 // Handle pipeline result
                                 let mut post_process_failed = false;
+                                let mut is_passthrough = false;
                                 match pipeline_result {
                                     crate::actions::post_process::PipelineResult::Skipped => {
                                         // No post-processing — use original transcription
+                                        is_passthrough = true;
                                         token_count = None;
                                         llm_call_count = None;
                                     }
@@ -1173,6 +1175,7 @@ impl ShortcutAction for TranscribeAction {
                                         intent_token_count,
                                     } => {
                                         final_text = text;
+                                        is_passthrough = true;
                                         token_count = intent_token_count;
                                         llm_call_count = Some(1);
                                     }
@@ -1449,7 +1452,11 @@ impl ShortcutAction for TranscribeAction {
                                     let single_candidate =
                                         crate::review_window::MultiModelCandidate {
                                             id: "single".to_string(),
-                                            label: used_model.clone().unwrap_or_default(),
+                                            label: if is_passthrough {
+                                                "无需后处理".to_string()
+                                            } else {
+                                                used_model.clone().unwrap_or_default()
+                                            },
                                             provider_label: String::new(),
                                             text: final_text.clone(),
                                             confidence: None,
