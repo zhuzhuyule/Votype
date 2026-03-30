@@ -337,6 +337,8 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN llm_call_count INTEGER NOT NULL DEFAULT 0;"),
     // Migration 32: Add post_process_rejected flag for feedback loop
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_rejected INTEGER NOT NULL DEFAULT 0;"),
+    // Migration 33: Add llm_call_log and llm_call_stats tables for model performance tracking
+    M::up(crate::managers::llm_metrics::MIGRATION_SQL),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1367,6 +1369,11 @@ impl HistoryManager {
     /// - Audio files: Cleaned up based on user's recording_retention_period setting
     /// - Database records: Permanently retained
     pub fn cleanup_old_entries(&self) -> Result<()> {
+        // Compact LLM call detail records older than 40 days
+        let metrics = crate::managers::llm_metrics::LlmMetricsManager::new(self.db_path.clone());
+        if let Err(e) = metrics.compact_old_entries(40) {
+            error!("Failed to compact LLM metrics: {}", e);
+        }
         // Clean up audio files based on user's retention period setting
         // Database records are kept permanently for historical data
         self.cleanup_audio_files()

@@ -171,6 +171,10 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(history_manager.clone());
     app_handle.manage(post_processing_manager.clone());
     app_handle.manage(summary_manager.clone());
+    let llm_metrics_manager = Arc::new(crate::managers::llm_metrics::LlmMetricsManager::new(
+        history_manager.db_path.clone(),
+    ));
+    app_handle.manage(llm_metrics_manager);
     let hotword_manager = Arc::new(managers::HotwordManager::new(db_path.clone()));
     app_handle.manage(hotword_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
@@ -472,6 +476,7 @@ pub fn run() {
             shortcut::review_cmds::get_review_model_options,
             shortcut::review_cmds::rerun_multi_model_with_prompt,
             shortcut::provider_cmds::fetch_post_process_models,
+            shortcut::provider_cmds::get_provider_avatar_path,
             shortcut::provider_cmds::add_custom_provider,
             shortcut::provider_cmds::update_custom_provider,
             shortcut::provider_cmds::remove_custom_provider,
@@ -729,6 +734,7 @@ pub fn run() {
             shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
             shortcut::settings_cmds::set_post_process_provider,
             shortcut::provider_cmds::fetch_post_process_models,
+            shortcut::provider_cmds::get_provider_avatar_path,
             shortcut::provider_cmds::add_custom_provider,
             shortcut::provider_cmds::update_custom_provider,
             shortcut::provider_cmds::remove_custom_provider,
