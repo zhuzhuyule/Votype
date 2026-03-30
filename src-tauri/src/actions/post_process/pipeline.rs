@@ -7,6 +7,449 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
+/// Unified post-processing entry point.
+///
+/// Implements the 4-step routing pipeline:
+///   1. History exact match (short-circuit if hit)
+///   2. Intent analysis (pass_through / lite_polish / full_polish + needs_hotword)
+///   3. Model selection (single vs multi-model, prompt selection)
+///   4. Execute polish
+///
+/// Returns `PipelineResult` — caller handles all UI (review window, paste, history).
+pub async fn unified_post_process(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    transcription: &str,
+    streaming_transcription: Option<&str>,
+    show_overlay: bool,
+    override_prompt_id: Option<String>,
+    app_name: Option<String>,
+    window_title: Option<String>,
+    match_pattern: Option<String>,
+    match_type: Option<crate::settings::TitleMatchType>,
+    history_id: Option<i64>,
+    skill_mode: bool,
+    review_editor_active: bool,
+    selected_text: Option<String>,
+    review_document_text: Option<String>,
+) -> super::PipelineResult {
+    let log_routing = crate::DEBUG_LOG_ROUTING.load(std::sync::atomic::Ordering::Relaxed);
+
+    // --- Gate: post-processing disabled ---
+    if !settings.post_process_enabled {
+        return super::PipelineResult::Skipped;
+    }
+    if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
+        info!("[UnifiedPipeline] Skipping post-processing due to app rule override");
+        return super::PipelineResult::Skipped;
+    }
+
+    let char_count = transcription.chars().count() as u32;
+    let smart_routing_enabled =
+        settings.length_routing_enabled && settings.post_process_intent_model_id.is_some();
+    let is_short_text = char_count <= settings.length_routing_threshold;
+
+    // ═══════════════════════════════════════════════════════════════
+    // Step 1 + 2: Smart Routing (only for short text with smart mode on)
+    // ═══════════════════════════════════════════════════════════════
+    let mut intent_decision: Option<super::IntentDecision> = None;
+
+    if smart_routing_enabled && is_short_text {
+        // Step 1: History exact match
+        if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
+            match hm.find_cached_post_process_result(transcription) {
+                Ok(Some((cached_text, cached_model, cached_prompt_id))) => {
+                    if log_routing {
+                        info!(
+                            "[UnifiedPipeline] Step 1: HistoryHit (len={})",
+                            cached_text.chars().count()
+                        );
+                    }
+                    return super::PipelineResult::Cached {
+                        text: cached_text,
+                        model: cached_model,
+                        prompt_id: cached_prompt_id,
+                    };
+                }
+                Ok(None) => {
+                    if log_routing {
+                        info!("[UnifiedPipeline] Step 1: HistoryMiss (len={})", char_count);
+                    }
+                }
+                Err(e) => {
+                    error!("[UnifiedPipeline] Step 1: History lookup failed: {}", e);
+                }
+            }
+        }
+
+        // Step 2: Intent analysis
+        let fallback_provider = match settings.active_post_process_provider() {
+            Some(p) => p,
+            None => return super::PipelineResult::Skipped,
+        };
+
+        let decision = super::routing::execute_smart_action_routing(
+            app_handle,
+            settings,
+            fallback_provider,
+            transcription,
+        )
+        .await;
+
+        match &decision {
+            Some(d) if d.action == super::routing::SmartAction::PassThrough => {
+                if log_routing {
+                    info!(
+                        "[UnifiedPipeline] Step 2: PassThrough ({} chars)",
+                        char_count
+                    );
+                }
+                return super::PipelineResult::PassThrough {
+                    text: transcription.to_string(),
+                    intent_token_count: d.token_count,
+                };
+            }
+            Some(d) => {
+                if log_routing {
+                    info!(
+                        "[UnifiedPipeline] Step 2: {:?} (needs_hotword={}, {} chars)",
+                        d.action, d.needs_hotword, char_count
+                    );
+                }
+            }
+            None => {
+                if log_routing {
+                    info!(
+                        "[UnifiedPipeline] Step 2: Intent analysis unavailable, defaulting to FullPolish"
+                    );
+                }
+            }
+        }
+        intent_decision = decision;
+    } else if log_routing {
+        if !smart_routing_enabled {
+            info!("[UnifiedPipeline] Smart routing disabled, going to full pipeline");
+        } else {
+            info!(
+                "[UnifiedPipeline] Long text ({} > {}), skipping smart routing",
+                char_count, settings.length_routing_threshold
+            );
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Step 3 + 4: Model Selection and Execution
+    // ═══════════════════════════════════════════════════════════════
+    let is_lite = intent_decision
+        .as_ref()
+        .map(|d| d.action == super::routing::SmartAction::LitePolish)
+        .unwrap_or(false);
+    let needs_hotword = intent_decision
+        .as_ref()
+        .map(|d| d.needs_hotword)
+        .unwrap_or(true); // Default: inject hotwords
+    let intent_tokens = intent_decision.as_ref().and_then(|d| d.token_count);
+
+    // For LitePolish: use lightweight model + lite prompt, always single-model
+    if is_lite {
+        if log_routing {
+            info!("[UnifiedPipeline] Step 3: LitePolish → lightweight single-model path");
+        }
+
+        // Build a temporary settings override for lightweight model
+        let mut lite_settings = settings.clone();
+        if let Some(ref short_model_id) = settings.length_routing_short_model_id {
+            lite_settings.selected_prompt_model_id = Some(short_model_id.clone());
+        }
+        // Disable hotwords if intent says not needed
+        if !needs_hotword {
+            lite_settings.post_process_hotword_injection_enabled = false;
+        }
+
+        // Load the lite polish prompt and create a temporary LLMPrompt
+        let prompt_manager = app_handle.state::<Arc<crate::managers::prompt::PromptManager>>();
+        let lite_instructions = prompt_manager
+            .get_prompt(app_handle, "system_lite_polish")
+            .unwrap_or_else(|_| "Fix minor ASR errors. Output corrected text only.".to_string());
+
+        // Use default prompt as base, override instructions
+        let lite_prompt = if let Some(base) = lite_settings.post_process_prompts.first() {
+            let mut p = base.clone();
+            p.instructions = lite_instructions;
+            p
+        } else {
+            return super::PipelineResult::Skipped;
+        };
+
+        // Resolve model for lite prompt
+        let fallback_provider = match lite_settings.active_post_process_provider() {
+            Some(p) => p,
+            None => return super::PipelineResult::Skipped,
+        };
+
+        let (actual_provider, model) = match super::routing::resolve_effective_model(
+            &lite_settings,
+            fallback_provider,
+            &lite_prompt,
+        ) {
+            Some((p, m)) => (p, m),
+            None => return super::PipelineResult::Skipped,
+        };
+
+        if show_overlay {
+            show_llm_processing_overlay(app_handle);
+        }
+
+        // Build prompt (minimal — no history context for lite, hotword only if needed)
+        let hotword_injection =
+            if needs_hotword && lite_settings.post_process_hotword_injection_enabled {
+                build_hotword_injection(app_handle, &app_name, transcription)
+            } else {
+                None
+            };
+
+        let built = super::prompt_builder::PromptBuilder::new(&lite_prompt, transcription)
+            .app_name(app_name.as_deref())
+            .window_title(window_title.as_deref())
+            .hotword_injection(hotword_injection)
+            .app_language(&lite_settings.app_language)
+            .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
+                &lite_settings,
+            ))
+            .build();
+
+        let cached_model_id = lite_prompt
+            .model_id
+            .as_deref()
+            .or(lite_settings.selected_prompt_model_id.as_deref());
+
+        let (result, err, error_message, api_token_count) =
+            super::core::execute_llm_request_with_messages(
+                app_handle,
+                &lite_settings,
+                actual_provider,
+                &model,
+                cached_model_id,
+                &built.system_messages,
+                built.user_message.as_deref(),
+                app_name,
+                window_title,
+                None,
+                None,
+                None,
+            )
+            .await;
+
+        let total_tokens = sum_tokens(intent_tokens, api_token_count);
+        let total_calls = Some(if intent_tokens.is_some() { 2 } else { 1 });
+
+        return super::PipelineResult::SingleModel {
+            text: result,
+            model: Some(model),
+            prompt_id: Some(lite_prompt.id.clone()),
+            token_count: total_tokens,
+            llm_call_count: total_calls,
+            error: err,
+            error_message,
+        };
+    }
+
+    // FullPolish path: check if multi-model should be used
+    let use_multi_model = settings.multi_model_post_process_enabled
+        && !skill_mode
+        && !matches!(
+            crate::window_context::resolve_votype_input_mode(
+                app_name.as_deref(),
+                window_title.as_deref(),
+                review_editor_active,
+                selected_text
+                    .as_ref()
+                    .map(|s| !s.trim().is_empty())
+                    .unwrap_or(false),
+            ),
+            crate::window_context::VotypeInputMode::MainPolishInput
+                | crate::window_context::VotypeInputMode::MainSelectedEdit
+                | crate::window_context::VotypeInputMode::ReviewRewrite
+        );
+
+    if use_multi_model {
+        let multi_items = settings.build_multi_model_items_from_selection();
+        if !multi_items.is_empty() {
+            if log_routing {
+                info!(
+                    "[UnifiedPipeline] Step 3: FullPolish → multi-model ({} models, strategy={})",
+                    multi_items.len(),
+                    settings.multi_model_strategy
+                );
+            }
+
+            if show_overlay {
+                show_llm_processing_overlay(app_handle);
+                app_handle
+                    .emit("post-process-status", "正在多模型润色中...")
+                    .ok();
+            }
+
+            let candidates = super::extensions::multi_post_process_transcription(
+                app_handle,
+                settings,
+                transcription,
+                streaming_transcription,
+                history_id,
+                app_name,
+                window_title,
+                override_prompt_id.clone(),
+            )
+            .await;
+
+            let total_tokens: Option<i64> = {
+                let mut sum: i64 = intent_tokens.unwrap_or(0);
+                sum += candidates.iter().filter_map(|r| r.token_count).sum::<i64>();
+                if sum > 0 {
+                    Some(sum)
+                } else {
+                    None
+                }
+            };
+            let call_count: Option<i64> = {
+                let mut count = candidates.len() as i64;
+                if intent_tokens.is_some() {
+                    count += 1;
+                }
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
+            };
+
+            let effective_prompt_id =
+                override_prompt_id.or(settings.post_process_selected_prompt_id.clone());
+
+            return super::PipelineResult::MultiModel {
+                candidates,
+                multi_items,
+                strategy: settings.multi_model_strategy.clone(),
+                total_token_count: total_tokens,
+                llm_call_count: call_count,
+                prompt_id: effective_prompt_id,
+            };
+        }
+    }
+
+    // Single-model full polish: delegate to existing maybe_post_process_transcription
+    if log_routing {
+        info!("[UnifiedPipeline] Step 3: FullPolish → single-model path");
+    }
+
+    // If intent said no hotwords needed, temporarily disable
+    let settings_ref;
+    let effective_settings;
+    if !needs_hotword && settings.post_process_hotword_injection_enabled {
+        let mut s = settings.clone();
+        s.post_process_hotword_injection_enabled = false;
+        effective_settings = s;
+        settings_ref = &effective_settings;
+    } else {
+        settings_ref = settings;
+    }
+
+    let (text, model, prompt_id, err, error_message, api_token_count, api_call_count) =
+        maybe_post_process_transcription(
+            app_handle,
+            settings_ref,
+            transcription,
+            streaming_transcription,
+            show_overlay,
+            override_prompt_id,
+            app_name,
+            window_title,
+            match_pattern,
+            match_type,
+            history_id,
+            skill_mode,
+            review_editor_active,
+            selected_text,
+            review_document_text,
+        )
+        .await;
+
+    // Check for pending skill confirmation
+    if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
+        return super::PipelineResult::PendingSkillConfirmation {
+            token_count: sum_tokens(intent_tokens, api_token_count),
+            llm_call_count: sum_counts(
+                if intent_tokens.is_some() {
+                    Some(1)
+                } else {
+                    None
+                },
+                api_call_count,
+            ),
+        };
+    }
+
+    super::PipelineResult::SingleModel {
+        text,
+        model,
+        prompt_id,
+        token_count: sum_tokens(intent_tokens, api_token_count),
+        llm_call_count: sum_counts(
+            if intent_tokens.is_some() {
+                Some(1)
+            } else {
+                None
+            },
+            api_call_count,
+        ),
+        error: err,
+        error_message,
+    }
+}
+
+/// Helper: sum two optional token counts
+fn sum_tokens(a: Option<i64>, b: Option<i64>) -> Option<i64> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(x + y),
+        (Some(x), None) => Some(x),
+        (None, Some(y)) => Some(y),
+        (None, None) => None,
+    }
+}
+
+/// Helper: sum two optional call counts
+fn sum_counts(a: Option<i64>, b: Option<i64>) -> Option<i64> {
+    sum_tokens(a, b) // Same logic
+}
+
+/// Helper: build hotword injection from history manager
+fn build_hotword_injection(
+    app_handle: &AppHandle,
+    app_name: &Option<String>,
+    transcription: &str,
+) -> Option<crate::managers::hotword::HotwordInjection> {
+    let hm = app_handle.try_state::<Arc<HistoryManager>>()?;
+    let hotword_manager = HotwordManager::new(hm.db_path.clone());
+    let scenario = detect_scenario(app_name);
+    let effective_scenario = scenario.unwrap_or(HotwordScenario::Work);
+    match hotword_manager.build_contextual_injection(
+        effective_scenario,
+        transcription,
+        transcription,
+        app_name.as_deref(),
+    ) {
+        Ok(injection)
+            if !(injection.person_names.is_empty()
+                && injection.product_names.is_empty()
+                && injection.domain_terms.is_empty()
+                && injection.hotwords.is_empty()) =>
+        {
+            Some(injection)
+        }
+        _ => None,
+    }
+}
+
 /// Detect usage scenario from app name
 pub(super) fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenario> {
     let work_apps = [
