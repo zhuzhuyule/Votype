@@ -918,9 +918,26 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     insertOriginalRef.current = handleInsertOriginal;
   }, [handleInsert, handleInsertOriginal]);
 
-  const handleCancel = useCallback(() => {
-    if (isSubmitting) return;
+  // Track whether user has made any edits (manual or voice rewrite)
+  const hasEdits = useMemo(() => {
+    if (Object.keys(editedTexts).length > 0) return true;
+    // Check if new candidates were added (voice rewrite)
+    const originalCount = multiCandidates?.length ?? 0;
+    const currentCount = localCandidates?.length ?? 0;
+    return currentCount > originalCount;
+  }, [editedTexts, multiCandidates, localCandidates]);
 
+  const [pendingClose, setPendingClose] = useState(false);
+
+  // Auto-reset pendingClose after timeout
+  useEffect(() => {
+    if (!pendingClose) return;
+    const timer = setTimeout(() => setPendingClose(false), 2000);
+    return () => clearTimeout(timer);
+  }, [pendingClose]);
+
+  const doClose = useCallback(() => {
+    if (isSubmitting) return;
     const trimmed = getEditorText().trim();
     const historyId = initialData.history_id;
     onClose();
@@ -936,6 +953,15 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       }
     })();
   }, [onClose, isSubmitting, initialData.history_id, getEditorText]);
+
+  const handleCancel = useCallback(() => {
+    if (isSubmitting) return;
+    if (hasEdits && !pendingClose) {
+      setPendingClose(true);
+      return;
+    }
+    doClose();
+  }, [isSubmitting, hasEdits, pendingClose, doClose]);
 
   // Keep refs updated
   useEffect(() => {
@@ -1414,6 +1440,15 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {pendingClose && (
+          <div className="review-pending-close-toast">
+            {t(
+              "transcription.review.pressEscAgain",
+              "内容已修改，再次按 ESC 关闭",
+            )}
           </div>
         )}
 

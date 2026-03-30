@@ -51,10 +51,12 @@ pub async fn unified_post_process(
 
     // ═══════════════════════════════════════════════════════════════
     // Step 1 + 2: Smart Routing (only for short text with smart mode on)
+    // Skip smart routing for ReviewRewrite mode (voice instruction on selected text)
     // ═══════════════════════════════════════════════════════════════
+    let is_rewrite_mode = review_document_text.is_some();
     let mut intent_decision: Option<super::IntentDecision> = None;
 
-    if smart_routing_enabled && is_short_text {
+    if smart_routing_enabled && is_short_text && !is_rewrite_mode {
         // Step 1: History exact match
         if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
             match hm.find_cached_post_process_result(transcription) {
@@ -127,7 +129,9 @@ pub async fn unified_post_process(
         }
         intent_decision = decision;
     } else if log_routing {
-        if !smart_routing_enabled {
+        if is_rewrite_mode {
+            info!("[UnifiedPipeline] Rewrite mode, skipping smart routing");
+        } else if !smart_routing_enabled {
             info!("[UnifiedPipeline] Smart routing disabled, going to full pipeline");
         } else {
             info!(
@@ -255,8 +259,10 @@ pub async fn unified_post_process(
     }
 
     // FullPolish path: check if multi-model should be used
+    // Skip multi-model for rewrite mode (voice instruction on selected text)
     let use_multi_model = settings.multi_model_post_process_enabled
         && !skill_mode
+        && !is_rewrite_mode
         && !matches!(
             crate::window_context::resolve_votype_input_mode(
                 app_name.as_deref(),
