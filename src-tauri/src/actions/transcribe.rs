@@ -1395,6 +1395,8 @@ impl ShortcutAction for TranscribeAction {
                                     crate::settings::PromptOutputMode::default()
                                 };
 
+                                // Always show review/confidence window for normal polish mode.
+                                // Only skip for Votype internal modes and explicit skip markers.
                                 let should_review = if matches!(
                                     votype_mode,
                                     VotypeInputMode::MainPolishInput
@@ -1402,55 +1404,15 @@ impl ShortcutAction for TranscribeAction {
                                         | VotypeInputMode::ReviewRewrite
                                 ) {
                                     false
-                                } else
-                                // App policy "Always" takes highest priority — show review
-                                // regardless of post-processing result or errors.
-                                if app_policy == crate::settings::AppReviewPolicy::Always {
-                                    true
-                                }
-                                // App policy "Never" — never show review
-                                else if app_policy == crate::settings::AppReviewPolicy::Never {
-                                    false
-                                }
-                                // If post-processing failed completely, skip review
-                                else if post_process_failed {
-                                    false
                                 } else if override_prompt_id.as_deref()
                                     == Some("__SKIP_POST_PROCESS__")
                                 {
                                     false
-                                }
-                                // Skill mode always shows review window (user explicitly invoked a skill)
-                                else if skill_mode {
-                                    true
-                                }
-                                // Chat mode always shows review window
-                                else if output_mode == crate::settings::PromptOutputMode::Chat {
-                                    true
+                                } else if app_policy == crate::settings::AppReviewPolicy::Never {
+                                    false
                                 } else {
-                                    // Auto policy: gate with prompt-level confidence check
-                                    let (check_enabled, threshold) =
-                                        if let Some(pid) = &post_process_prompt_id {
-                                            settings_clone
-                                                .post_process_prompts
-                                                .iter()
-                                                .find(|p| &p.id == pid)
-                                                .map(|p| {
-                                                    (
-                                                        p.confidence_check_enabled,
-                                                        p.confidence_threshold.unwrap_or(70),
-                                                    )
-                                                })
-                                                .unwrap_or((false, 70))
-                                        } else {
-                                            (false, 70)
-                                        };
-
-                                    if !check_enabled {
-                                        false
-                                    } else {
-                                        change_percent >= threshold
-                                    }
+                                    // Normal polish mode: always show confidence window
+                                    true
                                 };
 
                                 if should_review {
