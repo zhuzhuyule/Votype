@@ -1148,6 +1148,7 @@ impl ShortcutAction for TranscribeAction {
                                 match pipeline_result {
                                     crate::actions::post_process::PipelineResult::Skipped => {
                                         // No post-processing — use original transcription
+                                        used_model = Some("无模型".to_string());
                                         token_count = None;
                                         llm_call_count = None;
                                     }
@@ -1173,8 +1174,15 @@ impl ShortcutAction for TranscribeAction {
                                         intent_token_count,
                                     } => {
                                         final_text = text;
+                                        used_model = Some("无模型".to_string());
+                                        post_process_prompt_id =
+                                            Some("__PASS_THROUGH__".to_string());
                                         token_count = intent_token_count;
-                                        llm_call_count = Some(1);
+                                        llm_call_count = if intent_token_count.is_some() {
+                                            Some(1)
+                                        } else {
+                                            Some(0)
+                                        };
                                     }
 
                                     crate::actions::post_process::PipelineResult::PendingSkillConfirmation => {

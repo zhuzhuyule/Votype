@@ -186,6 +186,15 @@ pub async fn rerun_single_with_prompt(
 ) -> Result<RerunSingleResult, String> {
     let settings = settings::get_settings(&app);
 
+    // Handle built-in "pass through" — return source text as-is
+    if prompt_id == "__PASS_THROUGH__" {
+        return Ok(RerunSingleResult {
+            text: Some(source_text),
+            error: None,
+            model: Some("无模型".to_string()),
+        });
+    }
+
     // Find the prompt by id (handle built-in lite polish)
     let mut prompt = if prompt_id == "__LITE_POLISH__" {
         let prompt_manager = app.state::<std::sync::Arc<crate::managers::prompt::PromptManager>>();
@@ -297,12 +306,19 @@ pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
         });
     }
 
-    // Prepend built-in lite polish prompt as the first option
+    // Prepend built-in prompts
     all_prompts.insert(
         0,
         PromptInfo {
             id: "__LITE_POLISH__".to_string(),
             name: "轻量润色".to_string(),
+        },
+    );
+    all_prompts.insert(
+        0,
+        PromptInfo {
+            id: "__PASS_THROUGH__".to_string(),
+            name: "无需润色".to_string(),
         },
     );
 
