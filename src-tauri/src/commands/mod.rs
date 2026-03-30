@@ -353,7 +353,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 .ok();
         }
 
-        let (result, model, prompt_id, _err, _error_message, _token_count, _call_count) =
+        let (result, model, prompt_id, _err, _error_message, _token_count, _call_count, _, _, _) =
             crate::actions::post_process::maybe_post_process_transcription(
                 &app,
                 &settings,
@@ -501,26 +501,36 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         } else {
             // Fallback: execute default polish (should not happen with parallel requests)
             log::warn!("[SkillConfirmation] No cached polish result, executing default polish");
-            let (result, _model, _prompt_id, _err, _error_message, _token_count, _call_count) =
-                crate::actions::post_process::maybe_post_process_transcription(
-                    &app,
-                    &settings,
-                    &transcription,
-                    None,
-                    false,
-                    pending.override_prompt_id, // Use the stored override prompt
-                    pending.app_name,
-                    pending.window_title,
-                    None,
-                    None,
-                    pending.history_id,
-                    false, // Not skill_mode
-                    false,
-                    None, // Ignore selected text for polish
-                    None,
-                    false, // skip_smart_routing
-                )
-                .await;
+            let (
+                result,
+                _model,
+                _prompt_id,
+                _err,
+                _error_message,
+                _token_count,
+                _call_count,
+                _,
+                _,
+                _,
+            ) = crate::actions::post_process::maybe_post_process_transcription(
+                &app,
+                &settings,
+                &transcription,
+                None,
+                false,
+                pending.override_prompt_id, // Use the stored override prompt
+                pending.app_name,
+                pending.window_title,
+                None,
+                None,
+                pending.history_id,
+                false, // Not skill_mode
+                false,
+                None, // Ignore selected text for polish
+                None,
+                false, // skip_smart_routing
+            )
+            .await;
 
             // Paste result if available
             if let Some(text) = result {

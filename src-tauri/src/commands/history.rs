@@ -304,25 +304,26 @@ pub async fn retranscribe_history_entry(
         } else {
             // 2. Try LLM post-processing
             // For re-transcription, we don't have a separate streaming result, so we pass None.
-            let (llm_result, used_model, prompt_id, _, _, _, _) = maybe_post_process_transcription(
-                &app,
-                &settings,
-                &transcription_text,
-                None,
-                false,
-                None,
-                entry.app_name,
-                entry.window_title,
-                None,
-                None,
-                Some(id),
-                false, // skill_mode
-                false, // review_editor_active
-                None,  // selected_text
-                None,  // review_document_text
-                false, // skip_smart_routing
-            )
-            .await;
+            let (llm_result, used_model, prompt_id, _, _, _, _, _, _, _) =
+                maybe_post_process_transcription(
+                    &app,
+                    &settings,
+                    &transcription_text,
+                    None,
+                    false,
+                    None,
+                    entry.app_name,
+                    entry.window_title,
+                    None,
+                    None,
+                    Some(id),
+                    false, // skill_mode
+                    false, // review_editor_active
+                    None,  // selected_text
+                    None,  // review_document_text
+                    false, // skip_smart_routing
+                )
+                .await;
 
             if let Some(processed) = llm_result {
                 let mut post_process_prompt_text = String::new();

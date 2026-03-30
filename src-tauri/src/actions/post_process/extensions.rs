@@ -871,7 +871,7 @@ fn get_item_labels(settings: &AppSettings, item: &MultiModelPostProcessItem) -> 
 
 /// Estimate token count from text using a simple heuristic.
 /// Chinese characters ≈ 1 token each; English words ≈ 1.3 tokens each.
-fn estimate_tokens(text: &str) -> f64 {
+pub(crate) fn estimate_tokens(text: &str) -> f64 {
     let mut tokens = 0.0;
     let mut ascii_word_chars = 0;
 

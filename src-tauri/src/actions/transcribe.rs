@@ -1351,6 +1351,10 @@ impl ShortcutAction for TranscribeAction {
                                         llm_call_count: lc,
                                         error: err,
                                         error_message,
+                                        metrics_model_id: _,
+                                        metrics_provider_id: _,
+                                        metrics_duration_ms: _,
+                                        metrics_tokens_per_sec: _,
                                     } => {
                                         token_count = tc;
                                         llm_call_count = lc;

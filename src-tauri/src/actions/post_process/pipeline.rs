@@ -239,6 +239,7 @@ pub async fn unified_post_process(
             .as_deref()
             .or(lite_settings.selected_prompt_model_id.as_deref());
 
+        let lite_start = std::time::Instant::now();
         let (result, err, error_message, api_token_count) =
             super::core::execute_llm_request_with_messages(
                 app_handle,
@@ -255,18 +256,31 @@ pub async fn unified_post_process(
                 None,
             )
             .await;
+        let lite_duration_ms = lite_start.elapsed().as_millis() as u64;
 
         let total_tokens = sum_tokens(intent_tokens, api_token_count);
         let total_calls = Some(if intent_tokens.is_some() { 2 } else { 1 });
 
+        let lite_tokens_per_sec = match (&result, lite_duration_ms) {
+            (Some(ref t), d) if d > 0 => {
+                let estimate = super::extensions::estimate_tokens(t);
+                Some(estimate / d as f64 * 1000.0)
+            }
+            _ => None,
+        };
+
         return super::PipelineResult::SingleModel {
             text: result,
-            model: Some(model),
+            model: Some(model.clone()),
             prompt_id: Some(lite_prompt.id.clone()),
             token_count: total_tokens,
             llm_call_count: total_calls,
             error: err,
             error_message,
+            metrics_model_id: Some(model),
+            metrics_provider_id: Some(actual_provider.id.clone()),
+            metrics_duration_ms: Some(lite_duration_ms),
+            metrics_tokens_per_sec: lite_tokens_per_sec,
         };
     }
 
@@ -413,31 +427,49 @@ pub async fn unified_post_process(
 
     let settings_ref = overridden_settings.as_ref().unwrap_or(settings);
 
-    let (text, model, prompt_id, err, error_message, api_token_count, api_call_count) =
-        maybe_post_process_transcription(
-            app_handle,
-            settings_ref,
-            transcription,
-            streaming_transcription,
-            show_overlay,
-            override_prompt_id,
-            app_name,
-            window_title,
-            match_pattern,
-            match_type,
-            history_id,
-            skill_mode,
-            review_editor_active,
-            selected_text,
-            review_document_text,
-            true, // skip_smart_routing: already done by unified_post_process
-        )
-        .await;
+    let (
+        text,
+        model,
+        prompt_id,
+        err,
+        error_message,
+        api_token_count,
+        api_call_count,
+        metrics_model_id,
+        metrics_provider_id,
+        metrics_duration_ms,
+    ) = maybe_post_process_transcription(
+        app_handle,
+        settings_ref,
+        transcription,
+        streaming_transcription,
+        show_overlay,
+        override_prompt_id,
+        app_name,
+        window_title,
+        match_pattern,
+        match_type,
+        history_id,
+        skill_mode,
+        review_editor_active,
+        selected_text,
+        review_document_text,
+        true, // skip_smart_routing: already done by unified_post_process
+    )
+    .await;
 
     // Check for pending skill confirmation
     if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
         return super::PipelineResult::PendingSkillConfirmation;
     }
+
+    let metrics_tokens_per_sec = match (&text, metrics_duration_ms) {
+        (Some(ref t), Some(d)) if d > 0 => {
+            let estimate = super::extensions::estimate_tokens(t);
+            Some(estimate / d as f64 * 1000.0)
+        }
+        _ => None,
+    };
 
     super::PipelineResult::SingleModel {
         text,
@@ -454,6 +486,10 @@ pub async fn unified_post_process(
         ),
         error: err,
         error_message,
+        metrics_model_id,
+        metrics_provider_id,
+        metrics_duration_ms,
+        metrics_tokens_per_sec,
     }
 }
 
@@ -561,7 +597,10 @@ async fn execute_votype_rewrite_prompt(
     bool,
     Option<String>,
     Option<i64>,
-    Option<i64>, // llm_call_count
+    Option<i64>,    // llm_call_count
+    Option<String>, // metrics_model_id
+    Option<String>, // metrics_provider_id
+    Option<u64>,    // metrics_duration_ms
 ) {
     info!(
         "[VotypeRewrite] app={:?} title={:?} prompt_id={} target_len={} instruction_len={}",
@@ -583,6 +622,9 @@ async fn execute_votype_rewrite_prompt(
             None,
             true,
             Some("未找到可用的后处理模型".to_string()),
+            None,
+            None,
+            None,
             None,
             None,
         );
@@ -609,6 +651,7 @@ async fn execute_votype_rewrite_prompt(
         .as_deref()
         .or(settings.selected_prompt_model_id.as_deref());
 
+    let rewrite_start = std::time::Instant::now();
     let (result, err, error_message, api_token_count) =
         super::core::execute_llm_request_with_messages(
             app_handle,
@@ -625,6 +668,7 @@ async fn execute_votype_rewrite_prompt(
             None,
         )
         .await;
+    let rewrite_duration_ms = rewrite_start.elapsed().as_millis() as u64;
 
     let prompt_text = format!("{}\n{}", system_prompts.join("\n"), user_message);
     let token_count: i64 = api_token_count.unwrap_or_else(|| match tiktoken_rs::cl100k_base() {
@@ -653,24 +697,30 @@ async fn execute_votype_rewrite_prompt(
             }
             return (
                 Some(parsed.rewritten_text),
-                Some(model),
+                Some(model.clone()),
                 Some(prompt.id.clone()),
                 false,
                 None,
                 Some(token_count),
                 Some(1),
+                Some(model),
+                Some(actual_provider.id.clone()),
+                Some(rewrite_duration_ms),
             );
         }
     }
 
     (
         result,
-        Some(model),
+        Some(model.clone()),
         Some(prompt.id.clone()),
         err,
         error_message,
         Some(token_count),
         Some(1),
+        Some(model),
+        Some(actual_provider.id.clone()),
+        Some(rewrite_duration_ms),
     )
 }
 
@@ -752,17 +802,20 @@ pub async fn maybe_post_process_transcription(
     Option<String>, // error message
     Option<i64>,    // token count (total across all LLM calls)
     Option<i64>,    // llm call count
+    Option<String>, // metrics_model_id
+    Option<String>, // metrics_provider_id
+    Option<u64>,    // metrics_duration_ms
 ) {
     let log_routing = crate::DEBUG_LOG_ROUTING.load(std::sync::atomic::Ordering::Relaxed);
 
     if !settings.post_process_enabled {
-        return (None, None, None, false, None, None, None);
+        return (None, None, None, false, None, None, None, None, None, None);
     }
 
     // Check for skip post-process marker
     if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
         info!("[PostProcess] Skipping post-processing due to app rule override");
-        return (None, None, None, false, None, None, None);
+        return (None, None, None, false, None, None, None, None, None, None);
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -793,6 +846,9 @@ pub async fn maybe_post_process_transcription(
                         None,
                         Some(0),
                         Some(0),
+                        None,
+                        None,
+                        None,
                     );
                 }
                 Ok(None) => {
@@ -815,7 +871,7 @@ pub async fn maybe_post_process_transcription(
         {
             let fallback_provider = match settings.active_post_process_provider() {
                 Some(p) => p,
-                None => return (None, None, None, false, None, None, None),
+                None => return (None, None, None, false, None, None, None, None, None, None),
             };
 
             let action_result = super::routing::execute_smart_action_routing(
@@ -846,6 +902,9 @@ pub async fn maybe_post_process_transcription(
                         None,
                         *token_count,
                         Some(1),
+                        None,
+                        None,
+                        None,
                     );
                 }
                 Some(super::IntentDecision {
@@ -930,7 +989,7 @@ pub async fn maybe_post_process_transcription(
 
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None, None, None),
+        None => return (None, None, None, false, None, None, None, None, None, None),
     };
 
     // Load external skills (Phase 9)
@@ -1308,6 +1367,9 @@ pub async fn maybe_post_process_transcription(
                                     None,
                                     total_tokens,
                                     total_calls,
+                                    None,
+                                    None,
+                                    None,
                                 );
                             }
                             // If polish failed, fall through to standard processing
@@ -1410,6 +1472,9 @@ pub async fn maybe_post_process_transcription(
                             None,
                             total_tokens,
                             total_calls,
+                            None,
+                            None,
+                            None,
                         );
                     }
                 }
@@ -1439,6 +1504,9 @@ pub async fn maybe_post_process_transcription(
                         None,
                         total_tokens,
                         total_calls,
+                        None,
+                        None,
+                        None,
                     );
                 }
 
@@ -1467,6 +1535,9 @@ pub async fn maybe_post_process_transcription(
                 None,
                 None,
                 None,
+                None,
+                None,
+                None,
             );
         }
     };
@@ -1481,6 +1552,9 @@ pub async fn maybe_post_process_transcription(
     let last_err;
     let last_error_message;
     let last_token_count;
+    let last_metrics_model_id;
+    let last_metrics_provider_id;
+    let last_metrics_duration_ms;
 
     loop {
         let prompt = current_prompt.clone();
@@ -1504,7 +1578,18 @@ pub async fn maybe_post_process_transcription(
             }
             None => {
                 log::warn!("[PostProcess] resolve_effective_model returned None for fallback_provider={}, prompt={}. Aborting.", fallback_provider.id, prompt.id);
-                return (None, None, Some(prompt.id.clone()), false, None, None, None);
+                return (
+                    None,
+                    None,
+                    Some(prompt.id.clone()),
+                    false,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                );
             }
         };
 
@@ -1667,8 +1752,13 @@ pub async fn maybe_post_process_transcription(
             None
         };
 
+        // Capture model/provider info for metrics before the LLM call
+        let captured_model_id = model.clone();
+        let captured_provider_id = actual_provider.id.clone();
+
         // Single-model request: apply a 10s timeout.
         // If the LLM takes too long, skip post-processing and return the original text.
+        let polish_start = std::time::Instant::now();
         let llm_future = super::core::execute_llm_request_with_messages(
             app_handle,
             settings,
@@ -1703,6 +1793,7 @@ pub async fn maybe_post_process_transcription(
                 )
             }
         };
+        let polish_duration_ms = polish_start.elapsed().as_millis() as u64;
 
         let prompt_text = format!(
             "{}\n{}",
@@ -1728,6 +1819,9 @@ pub async fn maybe_post_process_transcription(
         last_err = err;
         last_error_message = error_message;
         last_token_count = Some(computed_token_count + routing_token_count);
+        last_metrics_model_id = Some(captured_model_id);
+        last_metrics_provider_id = Some(captured_provider_id);
+        last_metrics_duration_ms = Some(polish_duration_ms);
 
         if let Some(final_text) = final_result.as_deref() {
             if log_routing {
@@ -1760,6 +1854,9 @@ pub async fn maybe_post_process_transcription(
         last_error_message,
         last_token_count,
         total_call_count,
+        last_metrics_model_id,
+        last_metrics_provider_id,
+        last_metrics_duration_ms,
     )
 }
 

@@ -107,6 +107,12 @@ pub struct IntentDecision {
     pub language: Option<String>,
     /// Token count consumed by the intent model call
     pub token_count: Option<i64>,
+    /// Model ID used for intent analysis
+    pub model_id: String,
+    /// Provider ID used for intent analysis
+    pub provider_id: String,
+    /// Duration of the intent LLM call in milliseconds
+    pub duration_ms: u64,
 }
 
 /// Unified result from the post-processing pipeline.
@@ -138,6 +144,14 @@ pub enum PipelineResult {
         llm_call_count: Option<i64>,
         error: bool,
         error_message: Option<String>,
+        /// Model ID used for the polish/rewrite call (for metrics logging)
+        metrics_model_id: Option<String>,
+        /// Provider ID used for the polish/rewrite call (for metrics logging)
+        metrics_provider_id: Option<String>,
+        /// Duration of the polish/rewrite LLM call in milliseconds
+        metrics_duration_ms: Option<u64>,
+        /// Estimated output tokens per second
+        metrics_tokens_per_sec: Option<f64>,
     },
 
     /// Multi-model auto-pick: all results ready, caller picks best (race/lazy strategy)

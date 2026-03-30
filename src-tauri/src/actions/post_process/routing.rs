@@ -30,6 +30,10 @@ pub(super) async fn execute_smart_action_routing(
     let (provider, model, _api_key) =
         resolve_intent_routing_model(settings, fallback_provider, default_prompt)?;
 
+    // Capture model/provider info before the LLM call
+    let captured_provider_id = provider.id.clone();
+    let captured_model_id = model.clone();
+
     // Load the smart routing prompt
     let prompt_manager = app_handle.state::<Arc<PromptManager>>();
     let system_prompt = prompt_manager
@@ -38,6 +42,7 @@ pub(super) async fn execute_smart_action_routing(
             "You are a text router. Output JSON: {\"action\": \"pass_through|lite_polish|full_polish\", \"needs_hotword\": true|false}".to_string()
         });
 
+    let start = std::time::Instant::now();
     let (result, _err, _error_msg, token_count) = super::core::execute_llm_request(
         app_handle,
         settings,
@@ -52,6 +57,7 @@ pub(super) async fn execute_smart_action_routing(
         None,
     )
     .await;
+    let duration_ms = start.elapsed().as_millis() as u64;
 
     let response_text = result?;
 
@@ -102,6 +108,9 @@ pub(super) async fn execute_smart_action_routing(
         needs_hotword,
         language,
         token_count,
+        model_id: captured_model_id,
+        provider_id: captured_provider_id,
+        duration_ms,
     })
 }
 
@@ -327,6 +336,9 @@ pub(super) async fn perform_skill_routing(
 pub(super) struct DefaultPolishResult {
     pub text: String,
     pub token_count: Option<i64>,
+    pub model_id: String,
+    pub provider_id: String,
+    pub duration_ms: u64,
 }
 
 /// Execute default polish request for parallel processing.
@@ -493,6 +505,7 @@ pub(super) async fn execute_default_polish<'a>(
         None
     };
 
+    let polish_start = std::time::Instant::now();
     let (result, _err, _error_message, api_token_count) =
         super::core::execute_llm_request_with_messages(
             app_handle,
@@ -516,9 +529,13 @@ pub(super) async fn execute_default_polish<'a>(
             text.len()
         );
     }
+    let polish_duration = polish_start.elapsed().as_millis() as u64;
     result.map(|text| DefaultPolishResult {
         text,
         token_count: api_token_count,
+        model_id: model.clone(),
+        provider_id: actual_provider.id.clone(),
+        duration_ms: polish_duration,
     })
 }
 
