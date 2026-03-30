@@ -193,6 +193,14 @@ async setAppToProfile(appToProfile: Partial<{ [key in string]: string }>) : Prom
     else return { status: "error", error: e  as any };
 }
 },
+async changeLazyStreamCloseSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_lazy_stream_close_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeMuteWhileRecordingSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_mute_while_recording_setting", { enabled }) };
@@ -289,6 +297,22 @@ async changePasteMethodSetting(method: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async changePasteDelayMsSetting(delayMs: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_paste_delay_ms_setting", { delayMs }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeExtraRecordingBufferSetting(bufferMs: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_extra_recording_buffer_setting", { bufferMs }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeClipboardHandlingSetting(handling: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_clipboard_handling_setting", { handling }) };
@@ -372,6 +396,14 @@ async changeOverlayPositionSetting(position: string) : Promise<Result<null, stri
 async changeDebugModeSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_debug_mode_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeDebugLogChannel(channel: string, enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_debug_log_channel", { channel, enabled }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -590,6 +622,33 @@ async updateCachedModelFamily(id: string, modelFamily: string | null) : Promise<
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async changeWhisperAcceleratorSetting(accelerator: WhisperAcceleratorSetting) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_whisper_accelerator_setting", { accelerator }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeOrtAcceleratorSetting(accelerator: OrtAcceleratorSetting) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_ort_accelerator_setting", { accelerator }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeWhisperGpuDevice(device: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_whisper_gpu_device", { device }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getAvailableAccelerators() : Promise<AvailableAccelerators> {
+    return await TAURI_INVOKE("get_available_accelerators");
 },
 async toggleMultiModelSelection(cachedModelId: string, selected: boolean) : Promise<Result<null, string>> {
     try {
@@ -928,6 +987,7 @@ export type AppReviewPolicy =
  * Never show review window, direct insert
  */
 "never"
+export type AvailableAccelerators = { whisper: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 export type CachedModel = { id: string; name: string; model_type: ModelType; provider_id: string; model_id: string; added_at: string; custom_label?: string | null; 
 /**
@@ -953,6 +1013,7 @@ extra_params?: Partial<{ [key in string]: JsonValue }> | null;
  * 例如: {"X-Custom-Token": "abc123"}
  */
 extra_headers?: Partial<{ [key in string]: string }> | null }
+export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number }
 export type ImplementationChangeResult = { success: boolean; reset_bindings: string[] }
 export type InferenceResult = { content: string | null; reasoning_content: string | null }
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
@@ -987,6 +1048,7 @@ custom_label?: string | null;
  * Whether this item is enabled
  */
 enabled?: boolean }
+export type OrtAcceleratorSetting = "auto" | "cpu" | "cuda" | "direct_ml" | "rocm"
 export type PostProcessProvider = { id: string; label: string; base_url: string; builtin?: boolean; deletable?: boolean; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
 /**
  * Custom HTTP headers to include in every request to this provider
@@ -1110,6 +1172,7 @@ export type TitleMatchType =
  */
 "regex"
 export type TitleRule = { id: string; pattern: string; match_type?: TitleMatchType; policy: AppReviewPolicy; prompt_id: string | null }
+export type WhisperAcceleratorSetting = "auto" | "cpu" | "gpu"
 
 /** tauri-specta globals **/
 
