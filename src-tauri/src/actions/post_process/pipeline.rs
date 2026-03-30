@@ -362,17 +362,41 @@ pub async fn unified_post_process(
         info!("[UnifiedPipeline] Step 3: FullPolish → single-model path");
     }
 
-    // If intent said no hotwords needed, temporarily disable
-    let settings_ref;
-    let effective_settings;
-    if !needs_hotword && settings.post_process_hotword_injection_enabled {
+    // Build effective settings for single-model path
+    // - Rewrite mode: select model based on target text length
+    // - Non-rewrite: disable hotwords if intent says not needed
+    let mut overridden_settings: Option<AppSettings> = None;
+
+    if is_rewrite_mode {
+        let target_len = review_document_text
+            .as_ref()
+            .map(|t| t.chars().count() as u32)
+            .unwrap_or(0);
+        if target_len <= settings.length_routing_threshold {
+            if let Some(ref short_model_id) = settings.length_routing_short_model_id {
+                if log_routing {
+                    info!(
+                        "[UnifiedPipeline] Rewrite: target_len={}, using lite model",
+                        target_len
+                    );
+                }
+                let mut s = settings.clone();
+                s.selected_prompt_model_id = Some(short_model_id.clone());
+                overridden_settings = Some(s);
+            }
+        } else if log_routing {
+            info!(
+                "[UnifiedPipeline] Rewrite: target_len={}, using full model",
+                target_len
+            );
+        }
+    } else if !needs_hotword && settings.post_process_hotword_injection_enabled {
         let mut s = settings.clone();
         s.post_process_hotword_injection_enabled = false;
-        effective_settings = s;
-        settings_ref = &effective_settings;
-    } else {
-        settings_ref = settings;
+        overridden_settings = Some(s);
     }
+
+    let settings_ref = overridden_settings.as_ref().unwrap_or(settings);
 
     let (text, model, prompt_id, err, error_message, api_token_count, api_call_count) =
         maybe_post_process_transcription(
