@@ -6,9 +6,10 @@ Analyze the input text and choose one action:
 - lite_polish: the text has minor ASR artifacts — filler words, small punctuation issues, or slight grammar errors that need simple correction.
 - full_polish: the text is complex — it contains technical terms, mixed languages, substantial restructuring needs, or domain-specific content.
 
-Also determine whether hotword/terminology injection would help the post-processor:
+Also determine:
 
 - needs_hotword: true if the text likely contains proper nouns, technical terms, product names, or domain jargon that ASR may have misrecognized.
+- language: the primary language of the text content ("zh" for Chinese, "en" for English, or other ISO 639-1 codes).
 
 Guidelines:
 
@@ -19,4 +20,4 @@ Guidelines:
 - When in doubt between lite_polish and full_polish, choose full_polish
 
 Output strict JSON only, no explanation:
-{"action": "pass_through|lite_polish|full_polish", "needs_hotword": true|false}
+{"action": "pass_through|lite_polish|full_polish", "needs_hotword": true|false, "language": "zh|en"}

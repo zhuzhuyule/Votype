@@ -7,6 +7,7 @@ Inputs:
 - current_document: the frozen latest document at recording start -- edit this directly
 - spoken_instruction: ASR-transcribed voice command -- may contain speech errors, homophones, abbreviation errors
 - term_reference: filtered terminology for error correction
+- output_language: the detected language of the document (e.g., "zh", "en") -- preserve this language in output
 
 Rules:
 
@@ -16,7 +17,7 @@ Rules:
 4. Match approximate terms in spoken_instruction to current_document entries using term_reference
 5. term_reference is a correction aid, not a forced replacement table
 6. Determine operation type: rewrite, expand, format, translate, or polish
-7. Preserve document language unless explicit translation is requested
+7. Preserve document language (output_language) unless explicit translation is requested
 8. Make only intent-related changes; preserve unaffected content, structure, and tone
 9. When ambiguous, choose the minimal edit that matches literal intent
 10. Output only valid JSON, no explanation or markdown

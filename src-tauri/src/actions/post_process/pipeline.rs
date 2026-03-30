@@ -154,6 +154,16 @@ pub async fn unified_post_process(
         .unwrap_or(true); // Default: inject hotwords
     let intent_tokens = intent_decision.as_ref().and_then(|d| d.token_count);
 
+    // Resolve detected language: intent model > heuristic > user setting
+    let detected_language = intent_decision
+        .as_ref()
+        .and_then(|d| d.language.clone())
+        .unwrap_or_else(|| detect_language_heuristic(transcription, &settings.app_language));
+
+    if log_routing {
+        info!("[UnifiedPipeline] Detected language: {}", detected_language);
+    }
+
     // For LitePolish: use lightweight model + lite prompt, always single-model
     if is_lite {
         if log_routing {
@@ -490,6 +500,27 @@ fn build_hotword_injection(
     }
 }
 
+/// Detect language from text heuristic: if all printable chars are ASCII, assume English;
+/// otherwise use the user's app_language setting.
+fn detect_language_heuristic(text: &str, app_language: &str) -> String {
+    let has_non_ascii = text
+        .chars()
+        .any(|c| !c.is_ascii() && !c.is_ascii_whitespace());
+    if has_non_ascii {
+        // Contains CJK or other non-ASCII → use app language (likely "zh" or "ja")
+        if app_language.starts_with("zh") {
+            "zh".to_string()
+        } else if app_language.starts_with("en") {
+            "en".to_string()
+        } else {
+            app_language.to_string()
+        }
+    } else {
+        // All ASCII → English
+        "en".to_string()
+    }
+}
+
 /// Detect usage scenario from app name
 pub(super) fn detect_scenario(app_name: &Option<String>) -> Option<HotwordScenario> {
     let work_apps = [
@@ -522,6 +553,7 @@ async fn execute_votype_rewrite_prompt(
     target_text: &str,
     app_name: Option<String>,
     window_title: Option<String>,
+    language: Option<&str>,
 ) -> (
     Option<String>,
     Option<String>,
@@ -570,7 +602,8 @@ async fn execute_votype_rewrite_prompt(
         input_text,
         app_name.as_deref(),
     );
-    let user_message = build_rewrite_user_message(target_text, input_text, &term_reference);
+    let user_message =
+        build_rewrite_user_message(target_text, input_text, &term_reference, language);
     let cached_model_id = prompt
         .model_id
         .as_deref()
@@ -641,12 +674,21 @@ async fn execute_votype_rewrite_prompt(
     )
 }
 
-fn build_rewrite_user_message(target_text: &str, input_text: &str, term_reference: &str) -> String {
+fn build_rewrite_user_message(
+    target_text: &str,
+    input_text: &str,
+    term_reference: &str,
+    language: Option<&str>,
+) -> String {
+    let lang_section = language
+        .map(|l| format!("\n\n[output_language]\n{}", l))
+        .unwrap_or_default();
     format!(
-        "[current_document]\n{}\n\n[spoken_instruction]\n{}\n\n[term_reference]\n{}",
+        "[current_document]\n{}\n\n[spoken_instruction]\n{}\n\n[term_reference]\n{}{}",
         target_text.trim(),
         input_text.trim(),
-        term_reference
+        term_reference,
+        lang_section
     )
 }
 
@@ -1017,6 +1059,7 @@ pub async fn maybe_post_process_transcription(
                 target_text,
                 app_name,
                 window_title,
+                None, // language: detect from target_text heuristic
             )
             .await;
         }
@@ -1034,6 +1077,8 @@ pub async fn maybe_post_process_transcription(
             // (set by unified_post_process for lite/full model selection) takes effect
             let mut rewrite_prompt_adjusted = rewrite_prompt.clone();
             rewrite_prompt_adjusted.model_id = None;
+            // Detect language from target text for rewrite consistency
+            let lang = detect_language_heuristic(target_text, &settings.app_language);
             return execute_votype_rewrite_prompt(
                 app_handle,
                 settings,
@@ -1043,6 +1088,7 @@ pub async fn maybe_post_process_transcription(
                 target_text,
                 app_name,
                 window_title,
+                Some(&lang),
             )
             .await;
         }

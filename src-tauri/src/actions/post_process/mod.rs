@@ -103,6 +103,8 @@ pub struct IntentDecision {
     pub action: routing::SmartAction,
     /// Whether hotword/terminology injection should be enabled for this text
     pub needs_hotword: bool,
+    /// Detected primary language of the text (ISO 639-1: "zh", "en", etc.)
+    pub language: Option<String>,
     /// Token count consumed by the intent model call
     pub token_count: Option<i64>,
 }

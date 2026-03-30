@@ -77,6 +77,11 @@ pub(super) async fn execute_smart_action_routing(
         .and_then(|v| v.as_bool())
         .unwrap_or(true); // Default to true (safe fallback)
 
+    let language = parsed
+        .get("language")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
     let action = match action_str {
         "pass_through" => SmartAction::PassThrough,
         "lite_polish" => SmartAction::LitePolish,
@@ -84,9 +89,10 @@ pub(super) async fn execute_smart_action_routing(
     };
 
     info!(
-        "[SmartRouting] Action={} needs_hotword={} tokens={:?} input_len={}",
+        "[SmartRouting] Action={} needs_hotword={} language={:?} tokens={:?} input_len={}",
         action_str,
         needs_hotword,
+        language,
         token_count,
         transcription.chars().count()
     );
@@ -94,6 +100,7 @@ pub(super) async fn execute_smart_action_routing(
     Some(super::IntentDecision {
         action,
         needs_hotword,
+        language,
         token_count,
     })
 }
