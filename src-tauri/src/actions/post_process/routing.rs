@@ -11,20 +11,20 @@ use tauri::{AppHandle, Manager};
 pub enum SmartAction {
     /// Text needs no correction — output as-is.
     PassThrough,
-    /// Minor corrections done by the routing model itself.
-    LitePolish { result: String },
+    /// Minor corrections needed — delegate to lightweight model + prompt.
+    LitePolish,
     /// Complex content — needs full polish pipeline.
     FullPolish,
 }
 
 /// Execute smart action routing using the intent model.
-/// Returns the determined action + token count, or None on failure (caller should fallback to full polish).
+/// Returns an IntentDecision, or None on failure (caller should fallback to full polish).
 pub(super) async fn execute_smart_action_routing(
     app_handle: &AppHandle,
     settings: &AppSettings,
     fallback_provider: &PostProcessProvider,
     transcription: &str,
-) -> Option<(SmartAction, Option<i64>)> {
+) -> Option<super::IntentDecision> {
     // Resolve intent model
     let default_prompt = settings.post_process_prompts.first()?;
     let (provider, model, _api_key) =
@@ -35,7 +35,7 @@ pub(super) async fn execute_smart_action_routing(
     let system_prompt = prompt_manager
         .get_prompt(app_handle, "system_smart_routing")
         .unwrap_or_else(|_| {
-            "You are a text router. Output JSON: {\"action\": \"pass_through|lite_polish|full_polish\", \"result\": null or corrected text}".to_string()
+            "You are a text router. Output JSON: {\"action\": \"pass_through|lite_polish|full_polish\", \"needs_hotword\": true|false}".to_string()
         });
 
     let (result, _err, _error_msg, token_count) = super::core::execute_llm_request(
@@ -71,31 +71,31 @@ pub(super) async fn execute_smart_action_routing(
         .get("action")
         .and_then(|v| v.as_str())
         .unwrap_or("full_polish");
-    let result_text = parsed
-        .get("result")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
+
+    let needs_hotword = parsed
+        .get("needs_hotword")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true); // Default to true (safe fallback)
 
     let action = match action_str {
         "pass_through" => SmartAction::PassThrough,
-        "lite_polish" => {
-            if let Some(text) = result_text.filter(|t| !t.trim().is_empty()) {
-                SmartAction::LitePolish { result: text }
-            } else {
-                SmartAction::FullPolish
-            }
-        }
+        "lite_polish" => SmartAction::LitePolish,
         _ => SmartAction::FullPolish,
     };
 
     info!(
-        "[SmartRouting] Action={} tokens={:?} input_len={}",
+        "[SmartRouting] Action={} needs_hotword={} tokens={:?} input_len={}",
         action_str,
+        needs_hotword,
         token_count,
         transcription.chars().count()
     );
 
-    Some((action, token_count))
+    Some(super::IntentDecision {
+        action,
+        needs_hotword,
+        token_count,
+    })
 }
 
 /// Build the system prompt for skill routing

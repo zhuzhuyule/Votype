@@ -318,15 +318,17 @@ pub async fn maybe_post_process_transcription(
             .await;
 
             match &action_result {
-                Some((super::routing::SmartAction::PassThrough, token_count)) => {
+                Some(super::IntentDecision {
+                    action: super::routing::SmartAction::PassThrough,
+                    token_count,
+                    ..
+                }) => {
                     if log_routing {
                         info!(
                             "[SmartRouting] Action: pass_through ({} chars), returning original text",
                             char_count
                         );
                     }
-                    // Return original text as processed result (unchanged).
-                    // Review window still shows per user's app_policy setting.
                     return (
                         Some(transcription.to_string()),
                         None,
@@ -337,28 +339,32 @@ pub async fn maybe_post_process_transcription(
                         Some(1),
                     );
                 }
-                Some((super::routing::SmartAction::LitePolish { result }, token_count)) => {
+                Some(super::IntentDecision {
+                    action: super::routing::SmartAction::LitePolish,
+                    token_count,
+                    ..
+                }) => {
                     if log_routing {
-                        info!("[SmartRouting] Action: lite_polish ({} chars)", char_count);
+                        info!(
+                            "[SmartRouting] Action: lite_polish ({} chars), delegating to lightweight model",
+                            char_count
+                        );
                     }
-                    return (
-                        Some(result.clone()),
-                        None,
-                        override_prompt_id.clone(),
-                        false,
-                        None,
-                        *token_count,
-                        Some(1),
-                    );
+                    // LitePolish no longer short-circuits — fall through to execution with lightweight model.
+                    smart_routing_tokens = *token_count;
                 }
-                Some((super::routing::SmartAction::FullPolish, _)) => {
+                Some(super::IntentDecision {
+                    action: super::routing::SmartAction::FullPolish,
+                    token_count,
+                    ..
+                }) => {
                     if log_routing {
                         info!(
                             "[SmartRouting] Action: full_polish ({} chars), delegating to model selection",
                             char_count
                         );
                     }
-                    smart_routing_tokens = action_result.as_ref().and_then(|(_, tc)| *tc);
+                    smart_routing_tokens = *token_count;
                 }
                 None => {
                     if log_routing {

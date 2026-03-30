@@ -16,7 +16,7 @@ pub(crate) use core::{
 pub use extensions::{maybe_convert_chinese_variant, multi_post_process_transcription};
 pub use manual::post_process_text_with_prompt;
 pub use pipeline::maybe_post_process_transcription;
-pub use pipeline::unified_post_process;
+// pub use pipeline::unified_post_process; // Uncommented in Task 4 when function exists
 
 /// Internal type used by core.rs and extensions.rs
 #[derive(Debug, Deserialize)]
