@@ -1145,11 +1145,9 @@ impl ShortcutAction for TranscribeAction {
 
                                 // Handle pipeline result
                                 let mut post_process_failed = false;
-                                let mut is_passthrough = false;
                                 match pipeline_result {
                                     crate::actions::post_process::PipelineResult::Skipped => {
                                         // No post-processing — use original transcription
-                                        is_passthrough = true;
                                         token_count = None;
                                         llm_call_count = None;
                                     }
@@ -1175,7 +1173,6 @@ impl ShortcutAction for TranscribeAction {
                                         intent_token_count,
                                     } => {
                                         final_text = text;
-                                        is_passthrough = true;
                                         token_count = intent_token_count;
                                         llm_call_count = Some(1);
                                     }
@@ -1447,39 +1444,26 @@ impl ShortcutAction for TranscribeAction {
                                         }
                                     }
 
-                                    // Always use confidence window (multi-candidate view) for all results.
-                                    // Wrap single-model / pass-through result as a single candidate.
-                                    let single_candidate =
-                                        crate::review_window::MultiModelCandidate {
-                                            id: "single".to_string(),
-                                            label: if is_passthrough {
-                                                "无需后处理".to_string()
-                                            } else {
-                                                used_model.clone().unwrap_or_default()
-                                            },
-                                            provider_label: String::new(),
-                                            text: final_text.clone(),
-                                            confidence: None,
-                                            processing_time_ms: 0,
-                                            error: None,
-                                            ready: true,
-                                        };
+                                    // Single-model / PassThrough: use polish-style review window
                                     let skill_name_for_review =
                                         if skill_mode && !post_process_prompt_name.is_empty() {
                                             Some(post_process_prompt_name.clone())
                                         } else {
                                             None
                                         };
-                                    crate::review_window::show_review_window_with_candidates(
+                                    crate::review_window::show_review_window(
                                         &ah_clone,
                                         transcription_clone.clone(),
-                                        vec![single_candidate],
+                                        final_text.clone(),
+                                        change_percent,
                                         history_id,
+                                        None, // confidence_reason
                                         output_mode,
                                         skill_name_for_review,
                                         post_process_prompt_id
                                             .clone()
                                             .or(override_prompt_id.clone()),
+                                        used_model.clone(),
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);
