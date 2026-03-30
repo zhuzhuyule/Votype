@@ -220,6 +220,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       ? multiCandidates[0].id
       : null,
   );
+  const selectedCandidateIdRef = useRef(selectedCandidateId);
+  useEffect(() => {
+    selectedCandidateIdRef.current = selectedCandidateId;
+  }, [selectedCandidateId]);
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(
     null,
   );
@@ -1077,7 +1081,18 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         REVIEW_WINDOW_REWRITE_APPLY,
         (event) => {
           setShowDiff(true);
-          replaceEditorDocument(event.payload);
+          if (isMultiCandidateMode.current) {
+            // In multi-candidate mode: update the selected candidate's text
+            const targetId = selectedCandidateIdRef.current;
+            if (targetId) {
+              setEditedTexts((prev) => ({
+                ...prev,
+                [targetId]: event.payload,
+              }));
+            }
+          } else {
+            replaceEditorDocument(event.payload);
+          }
         },
       );
 
