@@ -839,16 +839,8 @@ fn get_item_label(settings: &AppSettings, item: &MultiModelPostProcessItem) -> S
         .map(|p| p.label.clone())
         .unwrap_or_else(|| item.provider_id.clone());
 
-    let model_name = settings
-        .post_process_models
-        .get(&item.provider_id)
-        .cloned()
-        .unwrap_or_else(|| item.model_id.clone());
+    // Show model name from the item's model_id (the actual model being used)
+    let model_display = item.model_id.clone();
 
-    let prompt_name = settings
-        .get_prompt(&item.prompt_id)
-        .map(|p| p.name.clone())
-        .unwrap_or_else(|| item.prompt_id.clone());
-
-    format!("{} {} + {}", provider_label, model_name, prompt_name)
+    format!("{} {}", provider_label, model_display)
 }
