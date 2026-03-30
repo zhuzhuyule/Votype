@@ -1139,9 +1139,21 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 delete next[targetId];
                 return next;
               });
+              // Sync updated text to backend for next rewrite
+              void invoke("set_review_editor_content_state", { text }).catch(
+                (e) => {
+                  console.error("Failed to sync rewrite result to backend:", e);
+                },
+              );
             }
           } else {
             replaceEditorDocument(text);
+            // Sync the new content to backend immediately so next rewrite uses it as target
+            void invoke("set_review_editor_content_state", { text }).catch(
+              (e) => {
+                console.error("Failed to sync rewrite result to backend:", e);
+              },
+            );
           }
         },
       );
