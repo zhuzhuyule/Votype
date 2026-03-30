@@ -186,13 +186,25 @@ pub async fn rerun_single_with_prompt(
 ) -> Result<RerunSingleResult, String> {
     let settings = settings::get_settings(&app);
 
-    // Find the prompt by id
-    let mut prompt = settings
-        .post_process_prompts
-        .iter()
-        .find(|p| p.id == prompt_id)
-        .cloned()
-        .ok_or_else(|| format!("Prompt not found: {}", prompt_id))?;
+    // Find the prompt by id (handle built-in lite polish)
+    let mut prompt = if prompt_id == "__LITE_POLISH__" {
+        let prompt_manager = app.state::<std::sync::Arc<crate::managers::prompt::PromptManager>>();
+        let lite_instructions = prompt_manager
+            .get_prompt(&app, "system_lite_polish")
+            .unwrap_or_else(|_| "Fix minor ASR errors. Output corrected text only.".to_string());
+        let mut p = crate::settings::LLMPrompt::default();
+        p.id = "__LITE_POLISH__".to_string();
+        p.name = "轻量润色".to_string();
+        p.instructions = lite_instructions;
+        p
+    } else {
+        let skill_manager = crate::managers::skill::SkillManager::new(&app);
+        skill_manager
+            .get_all_skills()
+            .into_iter()
+            .find(|p| p.id == prompt_id)
+            .ok_or_else(|| format!("Prompt not found: {}", prompt_id))?
+    };
 
     // Override prompt's model_id if caller specified one
     if model_id.is_some() {
@@ -284,6 +296,15 @@ pub fn get_post_process_prompts(app: AppHandle) -> PromptListResponse {
             }
         });
     }
+
+    // Prepend built-in lite polish prompt as the first option
+    all_prompts.insert(
+        0,
+        PromptInfo {
+            id: "__LITE_POLISH__".to_string(),
+            name: "轻量润色".to_string(),
+        },
+    );
 
     PromptListResponse {
         prompts: all_prompts,

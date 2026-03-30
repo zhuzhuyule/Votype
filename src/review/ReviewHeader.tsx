@@ -231,7 +231,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             {t("transcription.review.source", "ASR 结果")}
           </span>
           <AudioPlayButton historyId={historyId} />
-          {prompts.length > 1 ? (
+          {prompts.length > 0 && (
             <select
               className="prompt-select"
               value={selectedPromptId}
@@ -244,9 +244,6 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
                 </option>
               ))}
             </select>
-          ) : null}
-          {selectedCandidateLabel && (
-            <span className="review-model-badge">{selectedCandidateLabel}</span>
           )}
           <button
             type="button"

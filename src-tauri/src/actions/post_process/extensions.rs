@@ -114,6 +114,22 @@ pub async fn multi_post_process_transcription(
         }
     }
 
+    // Inject built-in lite polish prompt if referenced
+    if items.iter().any(|i| i.prompt_id == "__LITE_POLISH__")
+        && !all_prompts.iter().any(|p| p.id == "__LITE_POLISH__")
+    {
+        let prompt_manager =
+            _app_handle.state::<std::sync::Arc<crate::managers::prompt::PromptManager>>();
+        let lite_instructions = prompt_manager
+            .get_prompt(_app_handle, "system_lite_polish")
+            .unwrap_or_else(|_| "Fix minor ASR errors. Output corrected text only.".to_string());
+        let mut lite_prompt = LLMPrompt::default();
+        lite_prompt.id = "__LITE_POLISH__".to_string();
+        lite_prompt.name = "轻量润色".to_string();
+        lite_prompt.instructions = lite_instructions;
+        all_prompts.push(lite_prompt);
+    }
+
     let unique_prompt_ids: Vec<String> = {
         let mut ids: Vec<String> = items.iter().map(|i| i.prompt_id.clone()).collect();
         ids.sort();
