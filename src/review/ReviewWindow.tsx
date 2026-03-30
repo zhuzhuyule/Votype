@@ -6,7 +6,7 @@ import { IconCheck, IconClipboard, IconTextPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Extension, Mark } from "@tiptap/core";
+import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -42,6 +42,7 @@ import {
   buildPlainViews,
   computeChangePercent,
 } from "./diff-utils";
+import { DiffMark } from "./diff-mark";
 import { hljs } from "./highlight";
 import { simpleMarkdownToHtml } from "./markdown-utils";
 
@@ -114,40 +115,6 @@ function isEditableTarget(target: EventTarget | null): boolean {
     ),
   );
 }
-
-const DiffMark = Mark.create({
-  name: "diffMark",
-  addAttributes() {
-    return {
-      level: {
-        default: "minor",
-      },
-    };
-  },
-  parseHTML() {
-    return [
-      {
-        tag: "span[data-diff-level]",
-        getAttrs: (element) => {
-          if (!(element instanceof HTMLElement)) return false;
-          return { level: element.getAttribute("data-diff-level") };
-        },
-      },
-    ];
-  },
-  renderHTML({ HTMLAttributes }) {
-    const level = HTMLAttributes.level ?? "minor";
-    return [
-      "span",
-      {
-        ...HTMLAttributes,
-        "data-diff-level": level,
-        class: `diff-mark diff-${level}`,
-      },
-      0,
-    ];
-  },
-});
 
 const CodeBlockComponent = ({
   node: { textContent },

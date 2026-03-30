@@ -2,9 +2,16 @@
 
 import { Tooltip } from "@radix-ui/themes";
 import { IconTextPlus } from "@tabler/icons-react";
+import StarterKit from "@tiptap/starter-kit";
+import { EditorContent, useEditor } from "@tiptap/react";
 import React, { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { buildDiffViews, computeChangePercent } from "./diff-utils";
+import { DiffMark } from "./diff-mark";
+import {
+  buildDiffViews,
+  buildPlainViews,
+  computeChangePercent,
+} from "./diff-utils";
 
 export interface MultiModelCandidate {
   id: string;
@@ -61,14 +68,17 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
 }) => {
   const { t } = useTranslation();
   const displayText = editedText ?? candidate.text;
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Compute diff HTML for colored display
-  const diffTargetHtml = useMemo(() => {
-    if (!showDiff || !candidate.ready || candidate.error || !displayText) {
-      return null;
+  // Track whether content was set programmatically to avoid echo in onUpdate
+  const suppressUpdateRef = useRef(false);
+
+  // Compute initial HTML content with diff marks
+  const editorHtml = useMemo(() => {
+    if (!candidate.ready || candidate.error || !displayText) return "";
+    if (showDiff) {
+      return buildDiffViews(sourceText, displayText).targetHtml;
     }
-    return buildDiffViews(sourceText, displayText).targetHtml;
+    return buildPlainViews(sourceText, displayText).targetHtml;
   }, [showDiff, sourceText, displayText, candidate.ready, candidate.error]);
 
   // Compute change percent for header stats
@@ -76,17 +86,74 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
     if (!candidate.ready || candidate.error || !displayText) return null;
     return computeChangePercent(sourceText, displayText);
   }, [sourceText, displayText, candidate.ready, candidate.error]);
-  // Track whether blur was caused by our keydown handler (Esc/Tab)
-  const blurFromKeydownRef = useRef(false);
 
-  // Auto-focus textarea when entering edit mode
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          codeBlock: false,
+          code: false,
+          heading: false,
+          blockquote: false,
+          bulletList: false,
+          orderedList: false,
+          listItem: false,
+          horizontalRule: false,
+        }),
+        DiffMark,
+      ],
+      content: editorHtml,
+      editorProps: {
+        attributes: {
+          class: "candidate-tiptap-editor",
+        },
+      },
+      onUpdate: ({ editor: ed }) => {
+        if (suppressUpdateRef.current) return;
+        const text = ed.getText({ blockSeparator: "\n" });
+        onTextChange(text);
+      },
+      onFocus: () => {
+        onSelect();
+      },
+      onBlur: () => {
+        onEditEnd();
+      },
+    },
+    [candidate.id],
+  );
+
+  // Sync content when candidate text changes externally (e.g. new result arrives)
+  const prevCandidateTextRef = useRef(candidate.text);
   useEffect(() => {
-    if (isEditing && textareaRef.current) {
-      textareaRef.current.focus();
-    } else if (!isEditing && textareaRef.current) {
-      textareaRef.current.blur();
+    if (!editor || !candidate.ready || candidate.error) return;
+    // Only reset content when the candidate's original text changes (new result)
+    // Don't reset on editedText changes (user typing)
+    if (prevCandidateTextRef.current !== candidate.text) {
+      prevCandidateTextRef.current = candidate.text;
+      const html = showDiff
+        ? buildDiffViews(sourceText, candidate.text).targetHtml
+        : buildPlainViews(sourceText, candidate.text).targetHtml;
+      suppressUpdateRef.current = true;
+      editor.commands.setContent(html, { emitUpdate: false });
+      suppressUpdateRef.current = false;
     }
-  }, [isEditing]);
+  }, [
+    editor,
+    candidate.text,
+    candidate.ready,
+    candidate.error,
+    sourceText,
+    showDiff,
+  ]);
+
+  // Focus/blur editor based on editing state
+  useEffect(() => {
+    if (!editor) return;
+    if (isEditing) {
+      editor.commands.focus("end");
+    }
+  }, [editor, isEditing]);
 
   return (
     <div
@@ -180,46 +247,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
           ) : (
             <>
               <div className="candidate-editable-container">
-                {diffTargetHtml && (
-                  <div
-                    className="candidate-diff-backdrop"
-                    dangerouslySetInnerHTML={{ __html: diffTargetHtml }}
-                    aria-hidden
-                  />
-                )}
-                <textarea
-                  className={`candidate-edit-textarea${diffTargetHtml ? " diff-overlay" : ""}`}
-                  value={displayText}
-                  onChange={(e) => {
-                    const el = e.target;
-                    onTextChange(el.value);
-                    el.style.height = "auto";
-                    el.style.height = el.scrollHeight + "px";
-                  }}
-                  ref={(el) => {
-                    (
-                      textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>
-                    ).current = el;
-                    if (el) {
-                      el.style.height = "auto";
-                      el.style.height = el.scrollHeight + "px";
-                    }
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                  onFocus={onSelect}
-                  onBlur={() => {
-                    if (blurFromKeydownRef.current) {
-                      blurFromKeydownRef.current = false;
-                      return;
-                    }
-                    onEditEnd();
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Escape" || e.key === "Tab") {
-                      blurFromKeydownRef.current = true;
-                    }
-                  }}
-                />
+                <EditorContent editor={editor} />
               </div>
               <Tooltip content={t("transcription.review.insert", "Insert")}>
                 <button

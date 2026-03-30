@@ -1757,61 +1757,29 @@ span[data-diff-level="major"] {
 }
 
 /* Editable textarea inside candidate panel — blends seamlessly */
-.candidate-edit-textarea {
-  display: block;
+/* Editable container for Tiptap candidate editor */
+.candidate-editable-container {
+  position: relative;
   width: 100%;
-  background: transparent;
-  border: none;
+}
+
+.candidate-tiptap-editor {
   outline: none;
-  resize: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  color: inherit;
-  line-height: inherit;
   white-space: pre-wrap;
-  overflow: hidden;
+  word-break: break-word;
   min-height: 24px;
   -webkit-app-region: no-drag;
 }
 
-.candidate-edit-textarea:focus {
+.candidate-tiptap-editor:focus {
   background: color-mix(in srgb, var(--accent-3) 20%, transparent);
   border-radius: 4px;
   margin: -2px;
   padding: 2px;
 }
 
-/* Editable container with diff backdrop overlay */
-.candidate-editable-container {
-  position: relative;
-  width: 100%;
-}
-
-.candidate-diff-backdrop {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  font: inherit;
-  color: inherit;
-  line-height: inherit;
-  white-space: pre-wrap;
-  word-break: break-word;
-  pointer-events: none;
-}
-
-/* When diff backdrop is active, make textarea text transparent so colored backdrop shows through */
-.candidate-edit-textarea.diff-overlay {
-  color: transparent;
-  caret-color: var(--gray-12);
-}
-
-.candidate-edit-textarea.diff-overlay::selection {
-  background: color-mix(in srgb, var(--accent-5) 60%, transparent);
-}
-
-.candidate-edit-textarea.diff-overlay:focus {
-  color: transparent;
+.candidate-tiptap-editor p {
+  margin: 0;
 }
 
 /* Hover insert button — hidden by default, shown on panel hover */
