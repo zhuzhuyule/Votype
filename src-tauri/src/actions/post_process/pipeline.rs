@@ -377,17 +377,7 @@ pub async fn unified_post_process(
 
     // Check for pending skill confirmation
     if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
-        return super::PipelineResult::PendingSkillConfirmation {
-            token_count: sum_tokens(intent_tokens, api_token_count),
-            llm_call_count: sum_counts(
-                if intent_tokens.is_some() {
-                    Some(1)
-                } else {
-                    None
-                },
-                api_call_count,
-            ),
-        };
+        return super::PipelineResult::PendingSkillConfirmation;
     }
 
     super::PipelineResult::SingleModel {

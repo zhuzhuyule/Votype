@@ -147,8 +147,5 @@ pub enum PipelineResult {
     },
 
     /// Skill confirmation is pending — UI waiting for user input
-    PendingSkillConfirmation {
-        token_count: Option<i64>,
-        llm_call_count: Option<i64>,
-    },
+    PendingSkillConfirmation,
 }

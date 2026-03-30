@@ -6,9 +6,7 @@ use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::overlay::{
-    show_llm_processing_overlay, show_recording_overlay, show_transcribing_overlay,
-};
+use crate::overlay::{show_recording_overlay, show_transcribing_overlay};
 use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -1179,13 +1177,8 @@ impl ShortcutAction for TranscribeAction {
                                         llm_call_count = Some(1);
                                     }
 
-                                    crate::actions::post_process::PipelineResult::PendingSkillConfirmation {
-                                        token_count: tc,
-                                        llm_call_count: lc,
-                                    } => {
+                                    crate::actions::post_process::PipelineResult::PendingSkillConfirmation => {
                                         info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
-                                        token_count = tc;
-                                        llm_call_count = lc;
                                         return;
                                     }
 
