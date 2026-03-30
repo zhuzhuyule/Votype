@@ -16,6 +16,7 @@ pub(crate) use core::{
 pub use extensions::{maybe_convert_chinese_variant, multi_post_process_transcription};
 pub use manual::post_process_text_with_prompt;
 pub use pipeline::maybe_post_process_transcription;
+pub use pipeline::unified_post_process;
 
 /// Internal type used by core.rs and extensions.rs
 #[derive(Debug, Deserialize)]
@@ -89,4 +90,65 @@ pub struct MultiModelProgressEvent {
     pub results: Vec<MultiModelPostProcessResult>,
     /// Whether all models have completed
     pub done: bool,
+}
+
+/// Decision output from the intent analysis model (Step 2 of unified pipeline).
+#[derive(Debug, Clone)]
+pub struct IntentDecision {
+    /// What level of processing is needed
+    pub action: routing::SmartAction,
+    /// Whether hotword/terminology injection should be enabled for this text
+    pub needs_hotword: bool,
+    /// Token count consumed by the intent model call
+    pub token_count: Option<i64>,
+}
+
+/// Unified result from the post-processing pipeline.
+/// `transcribe.rs` matches on this to handle UI (review window, paste, history).
+#[derive(Debug, Clone)]
+pub enum PipelineResult {
+    /// Post-processing is disabled or skipped (skip marker, no prompt configured, etc.)
+    Skipped,
+
+    /// History cache hit — reuse previous result (Step 1)
+    Cached {
+        text: String,
+        model: Option<String>,
+        prompt_id: Option<String>,
+    },
+
+    /// Intent model determined no changes needed (Step 2: pass_through)
+    PassThrough {
+        text: String,
+        intent_token_count: Option<i64>,
+    },
+
+    /// Single-model polish completed (Step 4, single path)
+    SingleModel {
+        text: Option<String>,
+        model: Option<String>,
+        prompt_id: Option<String>,
+        token_count: Option<i64>,
+        llm_call_count: Option<i64>,
+        error: bool,
+        error_message: Option<String>,
+    },
+
+    /// Multi-model results ready (Step 4, multi path)
+    MultiModel {
+        candidates: Vec<MultiModelPostProcessResult>,
+        /// The multi-model item configs used (needed by transcribe.rs for label lookup)
+        multi_items: Vec<crate::settings::MultiModelPostProcessItem>,
+        strategy: String,
+        total_token_count: Option<i64>,
+        llm_call_count: Option<i64>,
+        /// Prompt ID used for all candidates
+        prompt_id: Option<String>,
+    },
+
+    /// Skill confirmation is pending — UI waiting for user input
+    PendingSkillConfirmation {
+        token_count: Option<i64>,
+        llm_call_count: Option<i64>,
+    },
 }
