@@ -1502,6 +1502,11 @@ impl ShortcutAction for TranscribeAction {
                             if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                // Update REVIEW_EDITOR_CONTENT synchronously BEFORE emitting.
+                                // This ensures the next freeze_review_editor_content_snapshot()
+                                // captures the latest text, avoiding the race condition where
+                                // the frontend's async invoke hasn't arrived yet.
+                                crate::review_window::set_review_editor_content(final_text.clone());
                                 #[derive(serde::Serialize, Clone)]
                                 struct RewriteApplyPayload {
                                     text: String,

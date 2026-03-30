@@ -176,9 +176,11 @@ pub async fn unified_post_process(
             .get_prompt(app_handle, "system_lite_polish")
             .unwrap_or_else(|_| "Fix minor ASR errors. Output corrected text only.".to_string());
 
-        // Use default prompt as base, override instructions
+        // Use default prompt as base, override id and instructions
         let lite_prompt = if let Some(base) = lite_settings.post_process_prompts.first() {
             let mut p = base.clone();
+            p.id = "__LITE_POLISH__".to_string();
+            p.name = "轻量润色".to_string();
             p.instructions = lite_instructions;
             p
         } else {
@@ -554,30 +556,13 @@ async fn execute_votype_rewrite_prompt(
         );
     };
 
-    let system_prompts = vec![
-        "You are a high-fidelity document editor.\n\n\
-        Task: interpret the user's spoken_instruction and edit current_document accordingly.\n\n\
-        Inputs:\n\
-        - current_document: the frozen latest document at recording start -- edit this directly\n\
-        - spoken_instruction: ASR-transcribed voice command -- may contain speech errors, homophones, abbreviation errors\n\
-        - term_reference: filtered terminology for error correction\n\n\
-        Rules:\n\
-        1. First normalize spoken_instruction: fix ASR noise, produce a clear edit intent\n\
-        2. Apply normalized intent to current_document\n\
-        3. current_document is the authoritative text -- its terminology, casing, style override spoken_instruction\n\
-        4. Match approximate terms in spoken_instruction to current_document entries using term_reference\n\
-        5. term_reference is a correction aid, not a forced replacement table\n\
-        6. Determine operation type: rewrite, expand, format, translate, or polish\n\
-        7. Preserve document language unless explicit translation is requested\n\
-        8. Make only intent-related changes; preserve unaffected content, structure, and tone\n\
-        9. When ambiguous, choose the minimal edit that matches literal intent\n\
-        10. Output only valid JSON, no explanation or markdown\n\n\
-        Output JSON:\n\
-        - normalized_instruction: corrected edit intent\n\
-        - operation: rewrite|expand|format|translate|polish\n\
-        - rewritten_text: the fully edited document\n\
-        - changes: [{from, to, reason}]".to_string(),
-    ];
+    let prompt_manager = app_handle.state::<Arc<crate::managers::prompt::PromptManager>>();
+    let rewrite_system_prompt = prompt_manager
+        .get_prompt(app_handle, "system_votype_rewrite")
+        .unwrap_or_else(|_| {
+            "You are a high-fidelity document editor. Interpret spoken_instruction, edit current_document. Output JSON with normalized_instruction, operation, rewritten_text, changes.".to_string()
+        });
+    let system_prompts = vec![rewrite_system_prompt];
     let term_reference = build_rewrite_term_reference(
         app_handle,
         settings,
@@ -1045,11 +1030,15 @@ pub async fn maybe_post_process_transcription(
             initial_prompt_opt.as_ref().or(default_prompt),
             review_document_text.as_deref(),
         ) {
+            // Clear prompt's model_id so the overridden selected_prompt_model_id
+            // (set by unified_post_process for lite/full model selection) takes effect
+            let mut rewrite_prompt_adjusted = rewrite_prompt.clone();
+            rewrite_prompt_adjusted.model_id = None;
             return execute_votype_rewrite_prompt(
                 app_handle,
                 settings,
                 fallback_provider,
-                rewrite_prompt,
+                &rewrite_prompt_adjusted,
                 transcription,
                 target_text,
                 app_name,
