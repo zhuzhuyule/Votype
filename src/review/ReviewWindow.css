@@ -1753,6 +1753,22 @@ span[data-diff-level="major"] {
   box-shadow: 0 0 6px color-mix(in srgb, var(--bronze-9) 40%, transparent);
 }
 
+.candidate-rank.shortcut-active {
+  background: linear-gradient(135deg, var(--blue-9), var(--blue-11));
+  color: white;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--blue-9) 60%, transparent);
+  animation: shortcut-pulse 0.3s ease-out;
+}
+
+@keyframes shortcut-pulse {
+  0% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* Skeleton placeholders for loading state */
 .candidate-rank.skeleton {
   background: var(--gray-a4);

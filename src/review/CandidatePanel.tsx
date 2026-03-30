@@ -189,9 +189,13 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
               : undefined
           }
         />
-        {/* Left: rank + model + provider badge + change% */}
+        {/* Left: rank/shortcut + model + provider badge + change% */}
         <span className="candidate-label">
-          {candidate.ready && !candidate.error && timeRank ? (
+          {showShortcutHint && shortcutIndex != null && shortcutIndex <= 5 ? (
+            <span className="candidate-rank shortcut-active">
+              {shortcutIndex}
+            </span>
+          ) : candidate.ready && !candidate.error && timeRank ? (
             <span className={`candidate-rank rank-${timeRank}`}>
               {timeRank}
             </span>
@@ -202,9 +206,6 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
           <span className="candidate-provider-badge">
             {candidate.provider_label}
           </span>
-          {showShortcutHint && shortcutIndex != null && shortcutIndex <= 5 && (
-            <span className="candidate-shortcut-badge">{shortcutIndex}</span>
-          )}
           {candidate.ready && !candidate.error && changePercent != null ? (
             <span
               className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
