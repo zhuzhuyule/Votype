@@ -1,5 +1,5 @@
 # Votype — Agent Configuration
 
-See [CLAUDE.md](./CLAUDE.md) for the full project guide (architecture, conventions, rules).
+All project rules, architecture, and conventions are defined in [CLAUDE.md](./CLAUDE.md). Follow it as the authoritative guide.
 
 - 所有的回复始终都是用中文

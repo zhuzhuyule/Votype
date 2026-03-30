@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.6.8] - 2026-03-30 (votype branch)
+
+### Added
+
+- **Unified Post-Processing Pipeline**: 4-step routing (history match → intent analysis → model selection → execution) replaces split multi/single-model branches
+- **Smart Routing**: Intent model classifies text as PassThrough / LitePolish / FullPolish with hotword and language detection
+- **Language Detection**: Pipeline detects text language (zh/en) and passes to rewrite prompt for consistency
+- **Lightweight Polish**: Built-in lite polish prompt for minimal ASR corrections (filler words, punctuation)
+- **Multi-Model Candidate System**: Concurrent model execution with ranking, speed tracking (tokens/sec), skeleton loading
+- **Review Window Improvements**: Audio playback button, ESC double-confirm, shortcut overlay on rank badges
+- **Voice Rewrite**: Spoken instructions to edit text in review window (add punctuation, translate, expand, etc.)
+- **Built-in Prompt Options**: "无需润色" (pass-through) and "轻量润色" (lite polish) in prompt dropdown
+- **Output Speed Tracking**: Estimated tokens/sec displayed per candidate using heuristic tokenization
+
+### Changed
+
+- All post-processing flows through single `unified_post_process()` entry point
+- Single-model results use polish-style editor; multi-model (2+) uses candidate panels
+- Review window always shown for normal polish mode (removed Auto threshold logic)
+- Rewrite prompt extracted from code to external file (`system_votype_rewrite.md`)
+- Candidate labels show model + provider badge (removed prompt name from section titles)
+- Smart routing prompt outputs language field alongside action and needs_hotword
+- Change percent symbol changed from Δ to ±
+
+### Fixed
+
+- Short text bypassing smart routing when multi-model was enabled
+- Frozen content race condition in voice rewrite (sync before freeze)
+- Model resolution using wrong prompt model_id during rewrite
+- PassThrough incorrectly showing as chat mode (SkillOutputMode default was Chat)
+- Hotword injection causing rewrite instructions to be misinterpreted
+- Voice rewrite accumulating candidates instead of replacing
+
 ## [0.3.0] - 2025-07-11
 
 ### Added

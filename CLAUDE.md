@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-The Votype application is a cross-platform desktop application built with the Tauri framework for speech-to-text transcription with a focus on efficiency, privacy, and system integration.
+Votype is a cross-platform desktop application built with Tauri for speech-to-text transcription with a focus on efficiency, privacy, and system integration. It supports local and online ASR, AI-powered post-processing with smart routing, and a multi-model comparison system.
 
 ## Architecture
 
@@ -27,6 +27,7 @@ The application adopts a hybrid architecture:
 - Radix UI for accessible components, styled with Tailwind CSS 4
 - Zustand for state management
 - Sonner for notifications, Zod for validation
+- TipTap for rich text editing (review window)
 
 **Backend:**
 
@@ -41,10 +42,16 @@ The application adopts a hybrid architecture:
   - `src/components/`: UI components with `src/components/ui/` for primitives
   - `src/hooks/`, `src/stores/`: React hooks and Zustand stores
   - `src/lib/`: Utility functions
+  - `src/review/`: Review/confidence window (separate Tauri webview)
 - `src-tauri/`: Rust backend
-  - `src-tauri/src/`: Rust modules (commands, managers)
-  - `src-tauri/tauri.conf.json`: Tauri configuration
-  - `src-tauri/Cargo.toml`: Rust dependencies
+  - `src-tauri/src/actions/`: Core actions (transcribe, post_process/)
+  - `src-tauri/src/actions/post_process/`: Unified pipeline (pipeline.rs, routing.rs, extensions.rs, core.rs)
+  - `src-tauri/src/managers/`: Business logic managers (history, model, transcription, hotword, prompt, etc.)
+  - `src-tauri/src/shortcut/`: Shortcut handlers and review commands
+  - `src-tauri/src/review_window.rs`: Review window lifecycle and state
+  - `src-tauri/resources/prompts/`: AI prompt templates (loaded at runtime)
+  - `src-tauri/resources/skills/`: Built-in skill definitions
+- `docs/`: Project documentation, specs, and plans
 
 ## Development Commands
 
@@ -59,14 +66,74 @@ The application adopts a hybrid architecture:
 
 ## Core Functionality
 
-- **Speech-to-Text**: Local transcription using various models
+- **Speech-to-Text**: Local (SenseVoice, Whisper) and online (API) transcription
+- **Unified Post-Processing Pipeline**: 4-step routing (history → intent → model selection → execution)
+- **Smart Routing**: Intent model classifies text as PassThrough / LitePolish / FullPolish
+- **Multi-Model Comparison**: Concurrent model execution with candidate ranking
+- **Review Window**: Polish mode (single editor) and multi-candidate mode (comparison panels)
+- **Voice Rewrite**: Spoken instructions to edit text in review window
 - **Audio Management**: Microphone input/output device control
 - **Model Management**: Download, delete, and select STT models
 - **History**: Transcription history stored in SQLite database
 - **Global Shortcuts**: Configurable hotkeys for transcription control
 - **System Tray**: Application runs in system tray
-- **Settings System**: Comprehensive configuration options
 - **Overlay**: Visual indicator during recording
+
+## Post-Processing Pipeline
+
+All post-processing flows through `unified_post_process()` in `pipeline.rs`:
+
+```
+Step 1: History exact match (short text + smart routing enabled)
+Step 2: Intent analysis → PassThrough / LitePolish / FullPolish + needs_hotword + language
+Step 3: Model selection → lightweight model / full model / multi-model
+Step 4: Execute polish
+```
+
+**Bypass rules:**
+
+- Text > `length_routing_threshold` → skip Steps 1-2, go to FullPolish
+- Smart routing disabled → skip Steps 1-2
+- ReviewRewrite mode → skip Steps 1-2 and multi-model
+
+**Key types:**
+
+- `PipelineResult` enum: Skipped, Cached, PassThrough, SingleModel, MultiModelAutoPick, MultiModelManual, PendingSkillConfirmation
+- `IntentDecision`: action + needs_hotword + language + token_count
+
+## Review Window
+
+Two display modes based on candidate count:
+
+- **Polish mode** (1 candidate): Large TipTap editor with diff, undo/redo, direct editing
+- **Multi-candidate mode** (2+ candidates): Candidate panels with ranking, speed, comparison
+
+**Voice rewrite flow:**
+
+1. Voice key in review window → `freeze_review_editor_content_snapshot()` captures text
+2. ASR produces spoken instruction
+3. Pipeline uses `execute_votype_rewrite_prompt()` with frozen content as target
+4. Result emitted via `review-window-rewrite-apply` event
+5. `REVIEW_EDITOR_CONTENT` updated synchronously before emit (prevents race condition)
+
+**ESC behavior:** Text modified → double-ESC required; no modification → single ESC closes.
+
+## Prompt System
+
+### Built-in Prompts
+
+| ID                 | Name     | File                    |
+| ------------------ | -------- | ----------------------- |
+| `__PASS_THROUGH__` | 无需润色 | —                       |
+| `__LITE_POLISH__`  | 轻量润色 | `system_lite_polish.md` |
+
+### Prompt Files (`src-tauri/resources/prompts/`)
+
+| File                       | Purpose                                             |
+| -------------------------- | --------------------------------------------------- |
+| `system_smart_routing.md`  | Intent analysis (action + needs_hotword + language) |
+| `system_lite_polish.md`    | Lightweight ASR post-processing                     |
+| `system_votype_rewrite.md` | Voice instruction rewrite prompt                    |
 
 ## UI Architecture
 
@@ -94,3 +161,10 @@ The application adopts a hybrid architecture:
 - **Runtime Loading:** Prompts are loaded at runtime using `PromptManager`, which first checks the user's data directory for customizations, then falls back to built-in resources.
 - **Template Variables:** Use `${variable_name}` syntax for dynamic values in prompts.
 - **User Customization:** Users can override built-in prompts by placing modified files in their app data directory.
+
+## Critical Runtime Rules
+
+- **NEVER use `tokio::spawn` from non-async contexts** (e.g., shortcut handler threads). Use `tauri::async_runtime::spawn` instead.
+- **NEVER use `tauri::async_runtime::block_on()` from coordinator thread** — causes deadlocks.
+- `TranscriptionCoordinator` runs on a dedicated `std::thread`, not a tokio task.
+- Shortcut register/unregister must be synchronous — never wrap in async spawn + block_on.

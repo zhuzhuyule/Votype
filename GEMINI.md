@@ -1,6 +1,6 @@
 # Votype — Gemini Configuration
 
-See [CLAUDE.md](./CLAUDE.md) for the full project guide (architecture, conventions, rules).
+All project rules, architecture, and conventions are defined in [CLAUDE.md](./CLAUDE.md). Follow it as the authoritative guide.
 
 ## Gemini-Specific
 
