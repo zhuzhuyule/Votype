@@ -8,10 +8,13 @@ import {
   IconEyeOff,
   IconLanguage,
   IconLoader2,
+  IconPlayerPause,
+  IconPlayerPlay,
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Editor } from "@tiptap/react";
-import React from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CancelIcon } from "../components/icons";
 
@@ -59,6 +62,66 @@ interface ReviewHeaderProps {
   /** Label of the currently selected candidate in multi mode */
   selectedCandidateLabel?: string | null;
 }
+
+/** Inline play/pause button for ASR audio playback */
+const AudioPlayButton: React.FC<{ historyId: number | null }> = ({
+  historyId,
+}) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  const togglePlay = useCallback(async () => {
+    if (!historyId) return;
+
+    // Load audio URL on first play
+    if (!audioUrl) {
+      try {
+        const filePath = await invoke<string>("get_audio_path_by_history_id", {
+          historyId,
+        });
+        const url = convertFileSrc(filePath, "asset");
+        setAudioUrl(url);
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => setIsPlaying(false);
+        audio.play();
+        setIsPlaying(true);
+      } catch (err) {
+        console.error("Failed to load audio:", err);
+      }
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio.currentTime = 0;
+      audio.play();
+      setIsPlaying(true);
+    }
+  }, [historyId, audioUrl, isPlaying]);
+
+  if (!historyId) return null;
+
+  return (
+    <button
+      type="button"
+      className="review-audio-play-btn"
+      onClick={(e) => {
+        e.stopPropagation();
+        togglePlay();
+      }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      {isPlaying ? <IconPlayerPause size={13} /> : <IconPlayerPlay size={13} />}
+    </button>
+  );
+};
 
 export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
   mode,
@@ -167,6 +230,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
           <span className="review-panel-label">
             {t("transcription.review.source", "ASR 结果")}
           </span>
+          <AudioPlayButton historyId={historyId} />
           {prompts.length > 1 ? (
             <select
               className="prompt-select"
@@ -180,8 +244,6 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
                 </option>
               ))}
             </select>
-          ) : prompts.length === 1 ? (
-            <span className="review-prompt-badge">{prompts[0].name}</span>
           ) : null}
           {selectedCandidateLabel && (
             <span className="review-model-badge">{selectedCandidateLabel}</span>
@@ -274,6 +336,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
         <span className="review-panel-label">
           {t("transcription.review.source", "Live transcript")}
         </span>
+        <AudioPlayButton historyId={historyId} />
         {prompts.length > 1 ? (
           <select
             className="prompt-select"
@@ -287,8 +350,6 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
               </option>
             ))}
           </select>
-        ) : prompts.length === 1 ? (
-          <span className="review-prompt-badge">{prompts[0].name}</span>
         ) : null}
         {modelOptions.length > 1 && (
           <select

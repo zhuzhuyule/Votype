@@ -851,6 +851,7 @@ pub fn run() {
             commands::history::get_history_dashboard_stats,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,
+            commands::history::get_audio_path_by_history_id,
             commands::history::delete_history_entry,
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,

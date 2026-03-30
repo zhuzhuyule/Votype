@@ -65,6 +65,24 @@ pub async fn get_audio_file_path(
 }
 
 #[tauri::command]
+#[specta::specta]
+pub async fn get_audio_path_by_history_id(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    history_id: i64,
+) -> Result<String, String> {
+    let entry = history_manager
+        .get_entry_by_id(history_id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("History entry not found: {}", history_id))?;
+    let path = history_manager.get_audio_file_path(&entry.file_name);
+    path.to_str()
+        .ok_or_else(|| "Invalid file path".to_string())
+        .map(|s| s.to_string())
+}
+
+#[tauri::command]
 pub async fn delete_history_entry(
     _app: AppHandle,
     history_manager: State<'_, Arc<HistoryManager>>,
