@@ -16,6 +16,7 @@ import {
 export interface MultiModelCandidate {
   id: string;
   label: string;
+  provider_label: string;
   text: string;
   confidence?: number;
   processing_time_ms: number;
@@ -34,7 +35,8 @@ interface CandidatePanelProps {
   isEditing: boolean;
   maxTime: number;
   timeRank?: number;
-  rankCount?: number;
+  /** Counts for 1st/2nd/3rd place finishes for this candidate */
+  rankCounts?: Partial<Record<1 | 2 | 3, number>>;
   editedText?: string;
   onSelect: () => void;
   onEditEnd: () => void;
@@ -59,7 +61,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   isEditing,
   maxTime,
   timeRank,
-  rankCount,
+  rankCounts,
   editedText,
   onSelect,
   onEditEnd,
@@ -179,12 +181,29 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
               : undefined
           }
         />
+        {/* Left: rank + model + provider badge + change% */}
         <span className="candidate-label">
+          {timeRank && candidate.ready && !candidate.error && (
+            <span className={`candidate-rank rank-${timeRank}`}>
+              {timeRank}
+            </span>
+          )}
           {candidate.label}
+          <span className="candidate-provider-badge">
+            {candidate.provider_label}
+          </span>
           {showShortcutHint && shortcutIndex != null && shortcutIndex <= 5 && (
             <span className="candidate-shortcut-badge">{shortcutIndex}</span>
           )}
+          {candidate.ready && !candidate.error && changePercent != null && (
+            <span
+              className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
+            >
+              Δ{changePercent}%
+            </span>
+          )}
         </span>
+        {/* Right: rank history counts | time */}
         <div className="candidate-meta">
           {candidate.ready ? (
             <>
@@ -194,41 +213,27 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
                 </span>
               ) : (
                 <span className="candidate-header-stats">
-                  {timeRank && (
-                    <span className={`candidate-rank rank-${timeRank}`}>
-                      {timeRank}
+                  {rankCounts && (
+                    <span className="candidate-rank-history">
+                      {([1, 2, 3] as const).map((r, i) => (
+                        <React.Fragment key={r}>
+                          {i > 0 && <span className="rank-sep">/</span>}
+                          <span
+                            className={`rank-count${timeRank === r ? " rank-active" : ""}`}
+                          >
+                            {rankCounts[r] ?? 0}
+                          </span>
+                        </React.Fragment>
+                      ))}
                     </span>
                   )}
-                  {timeRank != null && timeRank <= 3 && rankCount != null && (
-                    <span className="candidate-rank-count">
-                      {t("transcription.review.rankCount", {
-                        defaultValue: "第{{rank}}名 {{count}}次",
-                        rank: timeRank,
-                        count: rankCount,
-                      })}
-                    </span>
+                  {candidate.processing_time_ms > 0 && rankCounts && (
+                    <span className="stat-separator">|</span>
                   )}
                   {candidate.processing_time_ms > 0 && (
                     <span>
                       {formatProcessingTime(candidate.processing_time_ms)}
                     </span>
-                  )}
-                  {changePercent != null && (
-                    <>
-                      <span className="stat-separator">|</span>
-                      <span
-                        className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
-                      >
-                        Δ{changePercent}%
-                      </span>
-                    </>
-                  )}
-                  {candidate.confidence != null &&
-                    candidate.processing_time_ms > 0 && (
-                      <span className="stat-separator">|</span>
-                    )}
-                  {candidate.confidence != null && (
-                    <span>{candidate.confidence}%</span>
                   )}
                 </span>
               )}

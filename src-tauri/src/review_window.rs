@@ -40,6 +40,7 @@ struct ReviewWindowPayload {
 pub struct MultiModelCandidate {
     pub id: String,
     pub label: String,
+    pub provider_label: String,
     pub text: String,
     pub confidence: Option<u8>,
     pub processing_time_ms: u64,

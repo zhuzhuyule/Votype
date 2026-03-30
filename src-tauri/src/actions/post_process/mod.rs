@@ -62,8 +62,10 @@ pub struct SkillRouteResponse {
 pub struct MultiModelPostProcessResult {
     /// Unique identifier for this result (matches the item id)
     pub id: String,
-    /// Display label (model name + prompt name or custom)
+    /// Display label (model name, e.g. "qwen3-max")
     pub label: String,
+    /// Provider display name (e.g. "Groq", "OpenAI")
+    pub provider_label: String,
     /// Processed text result
     pub text: String,
     /// Confidence score (0-100), None if not available

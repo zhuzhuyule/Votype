@@ -95,14 +95,7 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             isEditing={editingCandidateId === candidate.id}
             maxTime={maxTime}
             timeRank={timeRankMap.get(candidate.id)}
-            rankCount={
-              timeRankMap.get(candidate.id) &&
-              timeRankMap.get(candidate.id)! <= 3
-                ? rankStats?.[candidate.id]?.[
-                    timeRankMap.get(candidate.id)! as 1 | 2 | 3
-                  ]
-                : undefined
-            }
+            rankCounts={rankStats?.[candidate.id]}
             editedText={editedTexts[candidate.id]}
             onSelect={() => onCandidateSelect(candidate.id)}
             onEditEnd={onEditEnd}

@@ -1212,19 +1212,18 @@ impl ShortcutAction for TranscribeAction {
                                             multi_items
                                                 .iter()
                                                 .map(|item| {
+                                                    let provider_label = settings_clone
+                                                        .post_process_provider(&item.provider_id)
+                                                        .map(|p| p.label.clone())
+                                                        .unwrap_or_else(|| item.provider_id.clone());
                                                     let label = item
                                                         .custom_label
                                                         .clone()
-                                                        .unwrap_or_else(|| {
-                                                            let provider_label = settings_clone
-                                                                .post_process_provider(&item.provider_id)
-                                                                .map(|p| p.label.clone())
-                                                                .unwrap_or_else(|| item.provider_id.clone());
-                                                            format!("{} {}", provider_label, item.model_id)
-                                                        });
+                                                        .unwrap_or_else(|| item.model_id.clone());
                                                     crate::review_window::MultiModelCandidate {
                                                         id: item.id.clone(),
                                                         label,
+                                                        provider_label,
                                                         text: String::new(),
                                                         confidence: None,
                                                         processing_time_ms: 0,

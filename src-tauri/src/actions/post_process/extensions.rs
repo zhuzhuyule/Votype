@@ -270,9 +270,11 @@ pub async fn multi_post_process_transcription(
                 let text = result.0.clone().unwrap_or_default();
                 let ready = result.0.is_some();
 
+                let (model_label, provider_label) = get_item_labels(&settings, item);
                 super::MultiModelPostProcessResult {
                     id: item.id.clone(),
-                    label: get_item_label(&settings, item),
+                    label: model_label,
+                    provider_label,
                     text,
                     confidence: None,
                     processing_time_ms: elapsed,
@@ -828,19 +830,18 @@ async fn execute_single_model_post_process(
 }
 
 #[allow(dead_code)]
-/// Get display label for a multi-model item
-fn get_item_label(settings: &AppSettings, item: &MultiModelPostProcessItem) -> String {
-    if let Some(custom) = &item.custom_label {
-        return custom.clone();
-    }
-
+/// Get display label and provider label for a multi-model item.
+/// Returns (model_label, provider_label).
+fn get_item_labels(settings: &AppSettings, item: &MultiModelPostProcessItem) -> (String, String) {
     let provider_label = settings
         .post_process_provider(&item.provider_id)
         .map(|p| p.label.clone())
         .unwrap_or_else(|| item.provider_id.clone());
 
-    // Show model name from the item's model_id (the actual model being used)
-    let model_display = item.model_id.clone();
+    let model_label = item
+        .custom_label
+        .clone()
+        .unwrap_or_else(|| item.model_id.clone());
 
-    format!("{} {}", provider_label, model_display)
+    (model_label, provider_label)
 }

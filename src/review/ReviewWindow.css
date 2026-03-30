@@ -1662,10 +1662,42 @@ span[data-diff-level="major"] {
   font-variant-numeric: tabular-nums;
 }
 
-.candidate-rank-count {
+/* Provider badge in candidate header */
+.candidate-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  background: var(--gray-a3);
   color: var(--gray-11);
-  font-weight: 600;
   white-space: nowrap;
+}
+
+/* Rank history: 1st/2nd/3rd counts */
+.candidate-rank-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-9);
+}
+
+.candidate-rank-history .rank-sep {
+  opacity: 0.4;
+  margin: 0 1px;
+}
+
+.candidate-rank-history .rank-count {
+  min-width: 12px;
+  text-align: center;
+}
+
+.candidate-rank-history .rank-count.rank-active {
+  color: var(--gray-12);
+  font-weight: 700;
 }
 
 /* Time rank badge */

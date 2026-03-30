@@ -391,6 +391,10 @@ pub fn rerun_multi_model_with_prompt(
     let initial_candidates: Vec<crate::review_window::MultiModelCandidate> = items
         .iter()
         .map(|item| {
+            let provider_label = settings
+                .post_process_provider(&item.provider_id)
+                .map(|p| p.label.clone())
+                .unwrap_or_else(|| item.provider_id.clone());
             let label = item
                 .custom_label
                 .clone()
@@ -398,6 +402,7 @@ pub fn rerun_multi_model_with_prompt(
             crate::review_window::MultiModelCandidate {
                 id: item.id.clone(),
                 label,
+                provider_label,
                 text: String::new(),
                 confidence: None,
                 processing_time_ms: 0,
