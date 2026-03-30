@@ -1382,15 +1382,16 @@ impl ShortcutAction for TranscribeAction {
                                     compute_change_percent(&transcription_clone, &final_text);
 
                                 // Get output_mode early to determine review behavior
+                                // Default to Polish (not Chat) when no prompt is configured
                                 let output_mode = if let Some(pid) = &post_process_prompt_id {
                                     settings_clone
                                         .post_process_prompts
                                         .iter()
                                         .find(|p| &p.id == pid)
                                         .map(|p| p.output_mode)
-                                        .unwrap_or_default()
+                                        .unwrap_or(crate::settings::PromptOutputMode::Polish)
                                 } else {
-                                    crate::settings::PromptOutputMode::default()
+                                    crate::settings::PromptOutputMode::Polish
                                 };
 
                                 // Always show review/confidence window for normal polish mode.
