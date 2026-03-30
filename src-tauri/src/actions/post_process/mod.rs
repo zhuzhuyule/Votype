@@ -78,7 +78,7 @@ pub struct MultiModelPostProcessResult {
     pub ready: bool,
     /// Token count from API usage or estimated via tiktoken
     pub token_count: Option<i64>,
-    /// Output speed in characters per second (chars / processing_time)
+    /// Output speed in estimated tokens per second
     pub output_speed: Option<f64>,
 }
 

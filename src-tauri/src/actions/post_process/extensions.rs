@@ -272,8 +272,8 @@ pub async fn multi_post_process_transcription(
 
                 let (model_label, provider_label) = get_item_labels(&settings, item);
                 let output_speed = if ready && elapsed > 0 {
-                    let char_count = text.chars().count() as f64;
-                    Some((char_count / elapsed as f64) * 1000.0) // chars per second
+                    let token_estimate = estimate_tokens(&text);
+                    Some((token_estimate / elapsed as f64) * 1000.0) // tokens per second
                 } else {
                     None
                 };
@@ -851,4 +851,39 @@ fn get_item_labels(settings: &AppSettings, item: &MultiModelPostProcessItem) -> 
         .unwrap_or_else(|| item.model_id.clone());
 
     (model_label, provider_label)
+}
+
+/// Estimate token count from text using a simple heuristic.
+/// Chinese characters ≈ 1 token each; English words ≈ 1.3 tokens each.
+fn estimate_tokens(text: &str) -> f64 {
+    let mut tokens = 0.0;
+    let mut ascii_word_chars = 0;
+
+    for ch in text.chars() {
+        if ch.is_ascii_alphanumeric() || ch == '_' {
+            ascii_word_chars += 1;
+        } else {
+            if ascii_word_chars > 0 {
+                // Flush accumulated ASCII word: ~1.3 tokens per word
+                tokens += 1.3;
+                ascii_word_chars = 0;
+            }
+            if ch.is_ascii_whitespace() || ch.is_ascii_punctuation() {
+                // Whitespace/punctuation: shared across tokens, negligible
+            } else {
+                // CJK and other non-ASCII chars: ~1 token each
+                tokens += 1.0;
+            }
+        }
+    }
+    // Flush remaining ASCII word
+    if ascii_word_chars > 0 {
+        tokens += 1.3;
+    }
+
+    if tokens < 1.0 {
+        1.0
+    } else {
+        tokens
+    }
 }

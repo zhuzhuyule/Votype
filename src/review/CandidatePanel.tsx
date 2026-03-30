@@ -22,7 +22,7 @@ export interface MultiModelCandidate {
   processing_time_ms: number;
   error?: string;
   ready?: boolean;
-  /** Output speed in characters per second */
+  /** Output speed in estimated tokens per second */
   output_speed?: number;
 }
 
@@ -52,10 +52,10 @@ function formatProcessingTime(ms: number): string {
   return `${ms}ms`;
 }
 
-function formatSpeed(charsPerSec: number): string {
-  if (charsPerSec >= 100) return `${Math.round(charsPerSec)} c/s`;
-  if (charsPerSec >= 10) return `${charsPerSec.toFixed(0)} c/s`;
-  return `${charsPerSec.toFixed(1)} c/s`;
+function formatSpeed(tokensPerSec: number): string {
+  if (tokensPerSec >= 100) return `${Math.round(tokensPerSec)} t/s`;
+  if (tokensPerSec >= 10) return `${tokensPerSec.toFixed(0)} t/s`;
+  return `${tokensPerSec.toFixed(1)} t/s`;
 }
 
 export const CandidatePanel: React.FC<CandidatePanelProps> = ({
@@ -209,7 +209,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
             <span
               className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
             >
-              Δ{changePercent}%
+              ±{changePercent}%
             </span>
           ) : !candidate.ready ? (
             <span className="candidate-change-percent skeleton-text" />
