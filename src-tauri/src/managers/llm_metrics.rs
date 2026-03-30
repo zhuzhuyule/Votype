@@ -65,6 +65,13 @@ pub struct ModelSpeedStats {
     pub total_calls: i64,
 }
 
+/// Aggregated LLM usage stats for dashboard display.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmUsageStats {
+    pub total_calls: i64,
+    pub total_tokens: i64,
+}
+
 pub struct LlmMetricsManager {
     db_path: PathBuf,
 }
@@ -288,5 +295,47 @@ impl LlmMetricsManager {
             info!("[LlmMetrics] Compacted {} old records into stats", deleted);
         }
         Ok(deleted)
+    }
+
+    /// Get aggregated LLM usage stats, optionally filtered by a timestamp range.
+    /// Combines data from both `llm_call_log` (detail) and `llm_call_stats` (aggregated).
+    pub fn get_usage_stats(&self, since_timestamp: Option<i64>) -> Result<LlmUsageStats> {
+        let conn = self.get_connection()?;
+
+        // Detail records (llm_call_log)
+        let (detail_calls, detail_tokens): (i64, i64) = if let Some(ts) = since_timestamp {
+            let ts_str = chrono::DateTime::from_timestamp(ts, 0).map(|dt| dt.to_rfc3339());
+            match ts_str {
+                Some(s) => conn.query_row(
+                    "SELECT COUNT(*), COALESCE(SUM(total_tokens), 0) FROM llm_call_log WHERE created_at >= ?1",
+                    params![s],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )?,
+                None => (0, 0),
+            }
+        } else {
+            conn.query_row(
+                "SELECT COUNT(*), COALESCE(SUM(total_tokens), 0) FROM llm_call_log",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?
+        };
+
+        // Aggregated stats (llm_call_stats) — only included for all-time queries (no timestamp filter)
+        // because stats have already been compacted and we can't filter by time range
+        let (stats_calls, stats_tokens): (i64, i64) = if since_timestamp.is_none() {
+            conn.query_row(
+                "SELECT COALESCE(SUM(total_calls), 0), COALESCE(SUM(total_tokens), 0) FROM llm_call_stats",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?
+        } else {
+            (0, 0)
+        };
+
+        Ok(LlmUsageStats {
+            total_calls: detail_calls + stats_calls,
+            total_tokens: detail_tokens + stats_tokens,
+        })
     }
 }

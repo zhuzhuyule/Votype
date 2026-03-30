@@ -300,76 +300,155 @@ export const Dashboard: React.FC = () => {
     });
   }, [allEntries, selection]);
 
-  // Helper to calculate summary from entries
-  const calculateSummary = useCallback((entries: HistoryEntry[]) => {
-    let entryCount = 0;
-    let durationMs = 0;
-    let charCount = 0;
-    let transcriptionMs = 0;
-    let savedCount = 0;
-    let llmCalls = 0;
-    let llmHits = 0;
-    let totalTokens = 0;
-    const appCounts = new Map<string, number>();
+  // LLM usage stats from llm_call_log (replaces per-entry token_count/llm_call_count)
+  const [llmUsageAll, setLlmUsageAll] = useState({
+    total_calls: 0,
+    total_tokens: 0,
+  });
+  const [llmUsagePeriod, setLlmUsagePeriod] = useState({
+    total_calls: 0,
+    total_tokens: 0,
+  });
+  const [llmUsagePrev, setLlmUsagePrev] = useState({
+    total_calls: 0,
+    total_tokens: 0,
+  });
 
-    for (const entry of entries) {
-      entryCount += 1;
-      durationMs += entry.duration_ms ?? 0;
-      transcriptionMs += entry.transcription_ms ?? 0;
+  // Fetch LLM usage stats when selection changes
+  useEffect(() => {
+    // All-time stats
+    invoke<{ total_calls: number; total_tokens: number }>(
+      "get_llm_usage_stats",
+      { sinceTimestamp: null },
+    )
+      .then(setLlmUsageAll)
+      .catch(() => {});
 
-      if (entry.saved) savedCount += 1;
-      if (entry.llm_call_count && entry.llm_call_count > 0) {
-        llmCalls += entry.llm_call_count;
-      } else if (entry.post_process_prompt?.trim()) {
-        llmCalls += 1;
+    // Period-specific stats
+    if (selection.type === "preset" && selection.preset === "all") {
+      // "all" uses the all-time stats
+      invoke<{ total_calls: number; total_tokens: number }>(
+        "get_llm_usage_stats",
+        { sinceTimestamp: null },
+      )
+        .then(setLlmUsagePeriod)
+        .catch(() => {});
+      setLlmUsagePrev({ total_calls: 0, total_tokens: 0 });
+    } else {
+      const now = Math.floor(Date.now() / 1000);
+      let periodStart: number;
+      let prevStart: number;
+
+      if (selection.type === "day") {
+        const dayDate = new Date(selection.day + "T00:00:00");
+        periodStart = Math.floor(dayDate.getTime() / 1000);
+        const prevDate = new Date(dayDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        prevStart = Math.floor(prevDate.getTime() / 1000);
+      } else {
+        const days =
+          selection.preset === "7d" ? 7 : selection.preset === "30d" ? 30 : 40;
+        periodStart = now - days * 86400;
+        prevStart = periodStart - days * 86400;
       }
-      if (entry.post_processed_text?.trim()) llmHits += 1;
-      totalTokens += entry.token_count ?? 0;
 
-      const appName = entry.app_name?.trim();
-      if (appName) {
-        appCounts.set(appName, (appCounts.get(appName) ?? 0) + 1);
-      }
-
-      if (typeof entry.char_count === "number") {
-        charCount += entry.char_count;
-      } else if (entry.transcription_text) {
-        charCount += countUnicodeChars(entry.transcription_text);
-      }
+      invoke<{ total_calls: number; total_tokens: number }>(
+        "get_llm_usage_stats",
+        { sinceTimestamp: periodStart },
+      )
+        .then(setLlmUsagePeriod)
+        .catch(() => {});
+      invoke<{ total_calls: number; total_tokens: number }>(
+        "get_llm_usage_stats",
+        { sinceTimestamp: prevStart },
+      )
+        .then((all) => {
+          // Previous period = all since prevStart - current period
+          setLlmUsagePrev({
+            total_calls: Math.max(
+              0,
+              all.total_calls - (llmUsagePeriod.total_calls || 0),
+            ),
+            total_tokens: Math.max(
+              0,
+              all.total_tokens - (llmUsagePeriod.total_tokens || 0),
+            ),
+          });
+        })
+        .catch(() => {});
     }
+  }, [selection]);
 
-    const rtf = durationMs > 0 ? transcriptionMs / durationMs : 0;
-    const llmHitRate = llmCalls > 0 ? llmHits / llmCalls : 0;
-    const charsPerMinute =
-      durationMs > 0 ? (charCount / durationMs) * 60_000 : 0;
-    const topApps = Array.from(appCounts.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3);
+  // Helper to calculate summary from entries
+  const calculateSummary = useCallback(
+    (
+      entries: HistoryEntry[],
+      llmUsage: { total_calls: number; total_tokens: number },
+    ) => {
+      let entryCount = 0;
+      let durationMs = 0;
+      let charCount = 0;
+      let transcriptionMs = 0;
+      let savedCount = 0;
+      let llmHits = 0;
+      const appCounts = new Map<string, number>();
 
-    return {
-      entryCount,
-      durationMs,
-      charCount,
-      transcriptionMs,
-      rtf,
-      savedCount,
-      llmCalls,
-      llmHits,
-      llmHitRate,
-      charsPerMinute,
-      topApps,
-      totalTokens,
-    };
-  }, []);
+      for (const entry of entries) {
+        entryCount += 1;
+        durationMs += entry.duration_ms ?? 0;
+        transcriptionMs += entry.transcription_ms ?? 0;
+
+        if (entry.saved) savedCount += 1;
+        if (entry.post_processed_text?.trim()) llmHits += 1;
+
+        const appName = entry.app_name?.trim();
+        if (appName) {
+          appCounts.set(appName, (appCounts.get(appName) ?? 0) + 1);
+        }
+
+        if (typeof entry.char_count === "number") {
+          charCount += entry.char_count;
+        } else if (entry.transcription_text) {
+          charCount += countUnicodeChars(entry.transcription_text);
+        }
+      }
+
+      const llmCalls = llmUsage.total_calls;
+      const totalTokens = llmUsage.total_tokens;
+      const rtf = durationMs > 0 ? transcriptionMs / durationMs : 0;
+      const llmHitRate = llmCalls > 0 ? llmHits / llmCalls : 0;
+      const charsPerMinute =
+        durationMs > 0 ? (charCount / durationMs) * 60_000 : 0;
+      const topApps = Array.from(appCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3);
+
+      return {
+        entryCount,
+        durationMs,
+        charCount,
+        transcriptionMs,
+        rtf,
+        savedCount,
+        llmCalls,
+        llmHits,
+        llmHitRate,
+        charsPerMinute,
+        topApps,
+        totalTokens,
+      };
+    },
+    [],
+  );
 
   const summary = useMemo(
-    () => calculateSummary(selectedEntries),
-    [calculateSummary, selectedEntries],
+    () => calculateSummary(selectedEntries, llmUsagePeriod),
+    [calculateSummary, selectedEntries, llmUsagePeriod],
   );
 
   const previousSummary = useMemo(
-    () => calculateSummary(previousPeriodEntries),
-    [calculateSummary, previousPeriodEntries],
+    () => calculateSummary(previousPeriodEntries, llmUsagePrev),
+    [calculateSummary, previousPeriodEntries, llmUsagePrev],
   );
 
   // Calculate trend percentages

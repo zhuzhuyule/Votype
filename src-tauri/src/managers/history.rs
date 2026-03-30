@@ -339,6 +339,16 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_rejected INTEGER NOT NULL DEFAULT 0;"),
     // Migration 33: Add llm_call_log and llm_call_stats tables for model performance tracking
     M::up(crate::managers::llm_metrics::MIGRATION_SQL),
+    // Migration 34: Migrate historical token_count/llm_call_count from transcription_history into llm_call_log
+    // This is a one-time data migration so the new llm_call_log table has complete history.
+    // We use post_process_model as model_id and 'legacy' as provider since the original provider is unknown.
+    M::up(
+        "INSERT INTO llm_call_log (history_id, model_id, provider, call_type, total_tokens, duration_ms, tokens_per_sec, created_at)
+         SELECT id, COALESCE(post_process_model, 'unknown'), 'legacy', 'single_polish', token_count, 0, NULL,
+                datetime(timestamp, 'unixepoch')
+         FROM transcription_history
+         WHERE token_count > 0 AND post_process_model IS NOT NULL;"
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -958,9 +968,9 @@ impl HistoryManager {
                 if !diffs.is_empty() {
                     let vocab_manager = VocabularyManager::new(self.db_path.clone());
 
-                    // Once the diff is extracted from the exact text the user saw,
-                    // let the downstream similarity/LLM pipeline decide whether each
-                    // A→B correction is worth learning instead of short-circuiting here.
+                    // Record all corrections as candidates, then send all to LLM
+                    // for holistic analysis. LLM is better at judging ASR errors
+                    // in context than local phonetic similarity alone.
                     let mut corrections: Vec<(String, String)> = Vec::new();
 
                     for diff in &diffs {
@@ -1126,12 +1136,13 @@ impl HistoryManager {
             if !diffs.is_empty() {
                 let vocab_manager = VocabularyManager::new(self.db_path.clone());
 
-                // Collect corrections for LLM analysis
+                // Record all corrections as candidates, then send all to LLM
+                // for holistic analysis. LLM is better at judging ASR errors
+                // in context than local phonetic similarity alone.
                 let mut corrections: Vec<(String, String)> = Vec::new();
 
                 for diff in &diffs {
                     let similarity = calculate_phonetic_similarity(&diff.original, &diff.corrected);
-                    // Record candidate for debugging/analytics
                     if let Err(e) = vocab_manager.record_candidate(diff, &similarity) {
                         error!("Failed to record correction candidate: {}", e);
                     }

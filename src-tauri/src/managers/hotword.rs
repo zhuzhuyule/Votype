@@ -1165,21 +1165,30 @@ impl HotwordManager {
             .ok();
 
         if let Some((id, originals_json)) = existing {
-            // Merge original into existing originals
+            // Merge original into existing originals and bump use_count
             let mut originals: Vec<String> =
                 serde_json::from_str(&originals_json).unwrap_or_default();
-            if !originals.iter().any(|o| o.eq_ignore_ascii_case(original)) {
+            let new_variant = !originals.iter().any(|o| o.eq_ignore_ascii_case(original));
+            if new_variant {
                 originals.push(original.to_string());
-                let merged_json = serde_json::to_string(&originals)?;
-                conn.execute(
-                    "UPDATE hotwords SET originals = ?1 WHERE id = ?2",
-                    params![merged_json, id],
-                )?;
-                info!(
-                    "[Hotword] LLM suggested: merged \"{}\" into existing hotword \"{}\" (id={})",
-                    original, target, id
-                );
             }
+            let merged_json = serde_json::to_string(&originals)?;
+            // Always increment use_count to track correction frequency
+            conn.execute(
+                "UPDATE hotwords SET originals = ?1, use_count = use_count + 1, recent_use_count = recent_use_count + 1 WHERE id = ?2",
+                params![merged_json, id],
+            )?;
+            info!(
+                "[Hotword] LLM suggested: {} \"{}\" for hotword \"{}\" (id={})",
+                if new_variant {
+                    "merged new variant"
+                } else {
+                    "bumped count for"
+                },
+                original,
+                target,
+                id
+            );
         } else {
             let originals_json = serde_json::to_string(&vec![original])?;
             conn.execute(

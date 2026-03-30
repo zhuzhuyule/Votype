@@ -474,3 +474,16 @@ pub async fn get_model_speed_stats(
         .get_all_model_speed_stats()
         .map_err(|e| e.to_string())
 }
+
+/// Get aggregated LLM usage stats (call count + token total).
+/// Optional `since_timestamp` filters to entries after that unix timestamp.
+#[tauri::command]
+pub async fn get_llm_usage_stats(
+    _app: AppHandle,
+    llm_metrics: State<'_, Arc<crate::managers::llm_metrics::LlmMetricsManager>>,
+    since_timestamp: Option<i64>,
+) -> Result<crate::managers::llm_metrics::LlmUsageStats, String> {
+    llm_metrics
+        .get_usage_stats(since_timestamp)
+        .map_err(|e| e.to_string())
+}
