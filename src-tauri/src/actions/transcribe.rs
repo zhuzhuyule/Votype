@@ -1381,8 +1381,6 @@ impl ShortcutAction for TranscribeAction {
                                 let change_percent =
                                     compute_change_percent(&transcription_clone, &final_text);
 
-                                let confidence_reason: Option<String> = None;
-
                                 // Get output_mode early to determine review behavior
                                 let output_mode = if let Some(pid) = &post_process_prompt_id {
                                     settings_clone
@@ -1446,26 +1444,35 @@ impl ShortcutAction for TranscribeAction {
                                         }
                                     }
 
-                                    // Show the review window with the transcription
+                                    // Always use confidence window (multi-candidate view) for all results.
+                                    // Wrap single-model / pass-through result as a single candidate.
+                                    let single_candidate =
+                                        crate::review_window::MultiModelCandidate {
+                                            id: "single".to_string(),
+                                            label: used_model.clone().unwrap_or_default(),
+                                            provider_label: String::new(),
+                                            text: final_text.clone(),
+                                            confidence: None,
+                                            processing_time_ms: 0,
+                                            error: None,
+                                            ready: true,
+                                        };
                                     let skill_name_for_review =
                                         if skill_mode && !post_process_prompt_name.is_empty() {
                                             Some(post_process_prompt_name.clone())
                                         } else {
                                             None
                                         };
-                                    crate::review_window::show_review_window(
+                                    crate::review_window::show_review_window_with_candidates(
                                         &ah_clone,
                                         transcription_clone.clone(),
-                                        final_text.clone(),
-                                        change_percent,
+                                        vec![single_candidate],
                                         history_id,
-                                        confidence_reason.clone(),
                                         output_mode,
                                         skill_name_for_review,
                                         post_process_prompt_id
                                             .clone()
                                             .or(override_prompt_id.clone()),
-                                        used_model.clone(),
                                     );
                                     // Hide the overlay since review window is now shown
                                     utils::hide_recording_overlay(&ah_clone);
