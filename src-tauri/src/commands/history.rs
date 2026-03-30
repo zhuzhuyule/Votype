@@ -464,3 +464,13 @@ pub async fn cascade_reject_post_process(
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub async fn get_model_speed_stats(
+    _app: AppHandle,
+    llm_metrics: State<'_, Arc<crate::managers::llm_metrics::LlmMetricsManager>>,
+) -> Result<Vec<crate::managers::llm_metrics::ModelSpeedStats>, String> {
+    llm_metrics
+        .get_all_model_speed_stats()
+        .map_err(|e| e.to_string())
+}

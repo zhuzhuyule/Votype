@@ -866,6 +866,7 @@ pub fn run() {
             commands::history::update_history_entry_text,
             commands::history::reject_post_process_result,
             commands::history::cascade_reject_post_process,
+            commands::history::get_model_speed_stats,
             commands::hotword::get_hotwords,
             commands::hotword::add_hotword,
             commands::hotword::update_hotword,
