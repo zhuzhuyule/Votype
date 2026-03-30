@@ -293,7 +293,7 @@ pub async fn multi_post_process_transcription(
                 } else {
                     None
                 };
-                super::MultiModelPostProcessResult {
+                let result_struct = super::MultiModelPostProcessResult {
                     id: item.id.clone(),
                     label: model_label,
                     provider_label,
@@ -304,7 +304,30 @@ pub async fn multi_post_process_transcription(
                     ready,
                     token_count: result.2,
                     output_speed,
+                };
+
+                // Log to metrics
+                if let Some(metrics) = app_handle
+                    .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+                {
+                    if let Err(e) = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                        history_id: _history_id,
+                        model_id: item.model_id.clone(),
+                        provider: item.provider_id.clone(),
+                        call_type: "multi_model".to_string(),
+                        input_tokens: None,
+                        output_tokens: None,
+                        total_tokens: result_struct.token_count,
+                        token_estimate: output_speed.map(|s| s * elapsed as f64 / 1000.0),
+                        duration_ms: elapsed as i64,
+                        tokens_per_sec: output_speed,
+                        error: result_struct.error.clone(),
+                    }) {
+                        log::error!("[LlmMetrics] Failed to log multi-model call: {}", e);
+                    }
                 }
+
+                result_struct
             }
         })
         .collect();

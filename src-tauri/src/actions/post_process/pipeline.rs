@@ -127,6 +127,34 @@ pub async fn unified_post_process(
                 }
             }
         }
+        // Log intent LLM call to metrics
+        if let Some(ref d) = decision {
+            if let Some(metrics) = app_handle
+                .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+            {
+                let token_estimate = d.token_count.map(|t| t as f64);
+                let tokens_per_sec = match (token_estimate, d.duration_ms) {
+                    (Some(est), dur) if dur > 0 => Some(est / dur as f64 * 1000.0),
+                    _ => None,
+                };
+                if let Err(e) = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                    history_id,
+                    model_id: d.model_id.clone(),
+                    provider: d.provider_id.clone(),
+                    call_type: "intent".to_string(),
+                    input_tokens: None,
+                    output_tokens: None,
+                    total_tokens: d.token_count,
+                    token_estimate,
+                    duration_ms: d.duration_ms as i64,
+                    tokens_per_sec,
+                    error: None,
+                }) {
+                    log::error!("[LlmMetrics] Failed to log intent call: {}", e);
+                }
+            }
+        }
+
         intent_decision = decision;
     } else if log_routing {
         if is_rewrite_mode {

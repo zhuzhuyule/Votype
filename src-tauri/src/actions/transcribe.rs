@@ -1300,8 +1300,8 @@ impl ShortcutAction for TranscribeAction {
                                                         best.text.clone(),
                                                         Some(model_name),
                                                         settings_clone.post_process_selected_prompt_id.clone(),
-                                                        multi_total_tokens,
-                                                        multi_call_count,
+                                                        None,
+                                                        None,
                                                     )
                                                     .await
                                                 {
@@ -1351,10 +1351,10 @@ impl ShortcutAction for TranscribeAction {
                                         llm_call_count: lc,
                                         error: err,
                                         error_message,
-                                        metrics_model_id: _,
-                                        metrics_provider_id: _,
-                                        metrics_duration_ms: _,
-                                        metrics_tokens_per_sec: _,
+                                        metrics_model_id,
+                                        metrics_provider_id,
+                                        metrics_duration_ms,
+                                        metrics_tokens_per_sec,
                                     } => {
                                         token_count = tc;
                                         llm_call_count = lc;
@@ -1371,8 +1371,30 @@ impl ShortcutAction for TranscribeAction {
                                             post_process_prompt_id = prompt_id;
                                         }
                                         if post_process_failed {
-                                            if let Some(msg) = error_message {
+                                            if let Some(ref msg) = error_message {
                                                 error!("Post-processing failed: {}", msg);
+                                            }
+                                        }
+
+                                        // Log metrics
+                                        if let (Some(m_id), Some(p_id)) = (metrics_model_id, metrics_provider_id) {
+                                            if let Some(metrics) = ah_clone.try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>() {
+                                                let call_type = if review_document_text.is_some() { "rewrite" } else { "single_polish" };
+                                                if let Err(e) = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                                                    history_id,
+                                                    model_id: m_id,
+                                                    provider: p_id,
+                                                    call_type: call_type.to_string(),
+                                                    input_tokens: None,
+                                                    output_tokens: None,
+                                                    total_tokens: token_count,
+                                                    token_estimate: None,
+                                                    duration_ms: metrics_duration_ms.unwrap_or(0) as i64,
+                                                    tokens_per_sec: metrics_tokens_per_sec,
+                                                    error: if err { error_message.clone() } else { None },
+                                                }) {
+                                                    log::error!("[LlmMetrics] Failed to log single model call: {}", e);
+                                                }
                                             }
                                         }
                                     }
@@ -1445,8 +1467,8 @@ impl ShortcutAction for TranscribeAction {
                                                 post_process_prompt_name.clone(),
                                                 post_process_prompt_id.clone(),
                                                 used_model.clone(),
-                                                token_count,
-                                                llm_call_count,
+                                                None,
+                                                None,
                                             )
                                             .await
                                         {
@@ -1536,8 +1558,8 @@ impl ShortcutAction for TranscribeAction {
                                         post_process_prompt_name,
                                         post_process_prompt_id,
                                         used_model,
-                                        token_count,
-                                        llm_call_count,
+                                        None,
+                                        None,
                                     )
                                     .await
                                 {
