@@ -1733,6 +1733,44 @@ span[data-diff-level="major"] {
   box-shadow: 0 0 6px color-mix(in srgb, var(--bronze-9) 40%, transparent);
 }
 
+/* Skeleton placeholders for loading state */
+.candidate-rank.skeleton {
+  background: var(--gray-a4);
+  color: transparent;
+}
+
+.skeleton-text {
+  display: inline-block;
+  background: var(--gray-a4);
+  border-radius: 3px;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-text.stat-placeholder {
+  width: 42px;
+  height: 12px;
+}
+
+.skeleton-text.stat-placeholder-sm {
+  width: 24px;
+  height: 12px;
+}
+
+.candidate-change-percent.skeleton-text {
+  width: 32px;
+  height: 12px;
+}
+
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
 .candidate-header-stats .stat-separator {
   opacity: 0.4;
 }

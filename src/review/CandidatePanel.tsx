@@ -183,10 +183,12 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
         />
         {/* Left: rank + model + provider badge + change% */}
         <span className="candidate-label">
-          {timeRank && candidate.ready && !candidate.error && (
+          {candidate.ready && !candidate.error && timeRank ? (
             <span className={`candidate-rank rank-${timeRank}`}>
               {timeRank}
             </span>
+          ) : (
+            <span className="candidate-rank skeleton" />
           )}
           {candidate.label}
           <span className="candidate-provider-badge">
@@ -195,13 +197,15 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
           {showShortcutHint && shortcutIndex != null && shortcutIndex <= 5 && (
             <span className="candidate-shortcut-badge">{shortcutIndex}</span>
           )}
-          {candidate.ready && !candidate.error && changePercent != null && (
+          {candidate.ready && !candidate.error && changePercent != null ? (
             <span
               className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
             >
               Δ{changePercent}%
             </span>
-          )}
+          ) : !candidate.ready ? (
+            <span className="candidate-change-percent skeleton-text" />
+          ) : null}
         </span>
         {/* Right: rank history counts | time */}
         <div className="candidate-meta">
@@ -239,8 +243,10 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
               )}
             </>
           ) : (
-            <span className="candidate-loading-badge">
-              {t("transcription.review.processing", "Processing...")}
+            <span className="candidate-header-stats">
+              <span className="skeleton-text stat-placeholder" />
+              <span className="stat-separator">|</span>
+              <span className="skeleton-text stat-placeholder-sm" />
             </span>
           )}
         </div>
