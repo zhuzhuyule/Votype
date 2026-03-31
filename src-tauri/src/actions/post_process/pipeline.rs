@@ -1288,10 +1288,19 @@ pub async fn maybe_post_process_transcription(
                             routed_prompt.name, route_response.input_source
                         );
 
-                        // Use input_source to determine which content to use
-                        initial_content = match route_response.input_source.as_deref() {
-                            Some("select") => effective_selected_text.clone().unwrap_or_default(),
-                            Some("extract") => route_response
+                        // Use input_source to determine which content to use.
+                        // Heuristic: in skill mode with selected text, default to "select"
+                        // unless routing explicitly says "extract". The user pressed the
+                        // skill hotkey with a selection — the instruction targets it.
+                        let effective_input_source = match route_response.input_source.as_deref() {
+                            Some("extract") => "extract",
+                            Some("select") => "select",
+                            _ if has_selected_text => "select",
+                            _ => "output",
+                        };
+                        initial_content = match effective_input_source {
+                            "select" => effective_selected_text.clone().unwrap_or_default(),
+                            "extract" => route_response
                                 .extracted_content
                                 .clone()
                                 .unwrap_or_else(|| transcription.to_string()),
