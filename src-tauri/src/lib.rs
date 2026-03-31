@@ -128,6 +128,10 @@ pub struct PendingSkillConfirmation {
     pub process_id: Option<u64>,
     /// Cached polish result from parallel request
     pub polish_result: Option<String>,
+    /// Input source from skill routing: "select", "output", or "extract"
+    pub input_source: Option<String>,
+    /// Extracted content from speech (when input_source is "extract")
+    pub extracted_content: Option<String>,
     /// Whether the confirmation UI is visible in the frontend
     pub is_ui_visible: bool,
 }

@@ -1520,6 +1520,8 @@ pub async fn maybe_post_process_transcription(
                                     history_id,
                                     process_id: active_pid,
                                     polish_result: polish_text.clone(), // May be None if parallel polish failed!
+                                    input_source: route_response.input_source.clone(),
+                                    extracted_content: route_response.extracted_content.clone(),
                                     is_ui_visible: false,
                                 };
                             }

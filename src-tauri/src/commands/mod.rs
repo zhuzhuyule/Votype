@@ -330,16 +330,38 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         // - transcription: polished text if available, otherwise raw ASR
         // - secondary_output: raw ASR text when polished is used (for ${streaming_output})
         // - selected_text: the text user selected (for ${select} variable)
-        let polished_text = pending
-            .polish_result
-            .clone()
-            .filter(|text| !text.trim().is_empty());
-        let skill_input = polished_text.as_deref().unwrap_or(&transcription);
-        let secondary_output = if polished_text.is_some() {
-            Some(transcription.as_str())
-        } else {
-            None
+        // Determine primary input based on Skill Router's input_source decision
+        let skill_input_owned: String;
+        let secondary_output: Option<&str>;
+
+        match pending.input_source.as_deref() {
+            Some("select") => {
+                // Instruction targets selected text — selected text is primary input
+                skill_input_owned = pending
+                    .selected_text
+                    .clone()
+                    .unwrap_or_else(|| transcription.clone());
+                secondary_output = Some(&transcription);
+            }
+            Some("extract") => {
+                // Speech contains both instruction and content — use extracted portion
+                skill_input_owned = pending
+                    .extracted_content
+                    .clone()
+                    .unwrap_or_else(|| transcription.clone());
+                secondary_output = Some(&transcription);
+            }
+            _ => {
+                // "output" or unspecified — use polished transcription (current behavior)
+                let polished_text = pending
+                    .polish_result
+                    .clone()
+                    .filter(|text| !text.trim().is_empty());
+                skill_input_owned = polished_text.unwrap_or_else(|| transcription.clone());
+                secondary_output = None;
+            }
         };
+        let skill_input = skill_input_owned.as_str();
 
         // Switch overlay to LLM processing state and notify UI about the specific skill
         crate::overlay::show_llm_processing_overlay(&app);
