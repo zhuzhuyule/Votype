@@ -937,14 +937,17 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     insertOriginalRef.current = handleInsertOriginal;
   }, [handleInsert, handleInsertOriginal]);
 
+  const [hasRewriteApplied, setHasRewriteApplied] = useState(false);
+
   // Track whether user has made any edits (manual or voice rewrite)
   const hasEdits = useMemo(() => {
+    if (hasRewriteApplied) return true;
     if (Object.keys(editedTexts).length > 0) return true;
     // Check if new candidates were added (voice rewrite)
     const originalCount = multiCandidates?.length ?? 0;
     const currentCount = localCandidates?.length ?? 0;
     return currentCount > originalCount;
-  }, [editedTexts, multiCandidates, localCandidates]);
+  }, [hasRewriteApplied, editedTexts, multiCandidates, localCandidates]);
 
   const [pendingClose, setPendingClose] = useState(false);
 
@@ -1127,6 +1130,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         (event) => {
           const { text, model } = event.payload;
           setShowDiff(true);
+          setHasRewriteApplied(true);
           if (isMultiCandidateMode.current) {
             // In multi-candidate mode: replace the selected candidate's text with the rewrite result
             const targetId = selectedCandidateIdRef.current;
