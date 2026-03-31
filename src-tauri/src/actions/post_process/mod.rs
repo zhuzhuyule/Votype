@@ -118,6 +118,7 @@ pub struct IntentDecision {
 /// Unified result from the post-processing pipeline.
 /// `transcribe.rs` matches on this to handle UI (review window, paste, history).
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum PipelineResult {
     /// Post-processing is disabled or skipped (skip marker, no prompt configured, etc.)
     Skipped,

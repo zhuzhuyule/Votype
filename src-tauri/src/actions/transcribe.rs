@@ -1026,8 +1026,6 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             // 2. Apply LLM post-processing if enabled
-                            let token_count: Option<i64>;
-                            let llm_call_count: Option<i64>;
                             {
                                 let secondary = if settings_clone.post_process_use_secondary_output
                                 {
@@ -1149,8 +1147,6 @@ impl ShortcutAction for TranscribeAction {
                                     crate::actions::post_process::PipelineResult::Skipped => {
                                         // No post-processing — use original transcription
                                         used_model = Some("无模型".to_string());
-                                        token_count = None;
-                                        llm_call_count = None;
                                     }
 
                                     crate::actions::post_process::PipelineResult::Cached {
@@ -1165,24 +1161,16 @@ impl ShortcutAction for TranscribeAction {
                                         if prompt_id.is_some() {
                                             post_process_prompt_id = prompt_id;
                                         }
-                                        token_count = Some(0);
-                                        llm_call_count = Some(0);
                                     }
 
                                     crate::actions::post_process::PipelineResult::PassThrough {
                                         text,
-                                        intent_token_count,
+                                        ..
                                     } => {
                                         final_text = text;
                                         used_model = Some("无模型".to_string());
                                         post_process_prompt_id =
                                             Some("__PASS_THROUGH__".to_string());
-                                        token_count = intent_token_count;
-                                        llm_call_count = if intent_token_count.is_some() {
-                                            Some(1)
-                                        } else {
-                                            Some(0)
-                                        };
                                     }
 
                                     crate::actions::post_process::PipelineResult::PendingSkillConfirmation => {
@@ -1192,8 +1180,8 @@ impl ShortcutAction for TranscribeAction {
 
                                     crate::actions::post_process::PipelineResult::MultiModelManual {
                                         multi_items,
-                                        intent_token_count,
                                         prompt_id: effective_prompt_id,
+                                        ..
                                     } => {
                                         // Manual mode: show review window immediately with loading candidates,
                                         // then start multi-model processing (results stream via events).
@@ -1277,16 +1265,6 @@ impl ShortcutAction for TranscribeAction {
                                             .await;
 
                                         // Save best result to history
-                                        let multi_total_tokens: Option<i64> = {
-                                            let mut sum: i64 = intent_token_count.unwrap_or(0);
-                                            sum += results.iter().filter_map(|r| r.token_count).sum::<i64>();
-                                            if sum > 0 { Some(sum) } else { None }
-                                        };
-                                        let multi_call_count: Option<i64> = {
-                                            let mut count = results.len() as i64;
-                                            if intent_token_count.is_some() { count += 1; }
-                                            if count > 0 { Some(count) } else { None }
-                                        };
                                         if let Some(best) = results.iter().find(|r| r.ready && r.error.is_none()) {
                                             let model_name = multi_items
                                                 .iter()
@@ -1315,13 +1293,9 @@ impl ShortcutAction for TranscribeAction {
                                     crate::actions::post_process::PipelineResult::MultiModelAutoPick {
                                         candidates,
                                         multi_items,
-                                        total_token_count,
-                                        llm_call_count: multi_call_count,
                                         prompt_id: effective_prompt_id,
+                                        ..
                                     } => {
-                                        token_count = total_token_count;
-                                        llm_call_count = multi_call_count;
-
                                         // Auto-pick: select best result
                                         let best_result = candidates.iter().find(|r| r.ready && r.error.is_none());
                                         if let Some(best) = best_result {
@@ -1348,16 +1322,14 @@ impl ShortcutAction for TranscribeAction {
                                         model,
                                         prompt_id,
                                         token_count: tc,
-                                        llm_call_count: lc,
                                         error: err,
                                         error_message,
                                         metrics_model_id,
                                         metrics_provider_id,
                                         metrics_duration_ms,
                                         metrics_tokens_per_sec,
+                                        ..
                                     } => {
-                                        token_count = tc;
-                                        llm_call_count = lc;
                                         post_process_failed = err && processed_text.is_none();
                                         error_shown = error_shown || err;
 
@@ -1387,7 +1359,7 @@ impl ShortcutAction for TranscribeAction {
                                                     call_type: call_type.to_string(),
                                                     input_tokens: None,
                                                     output_tokens: None,
-                                                    total_tokens: token_count,
+                                                    total_tokens: tc,
                                                     token_estimate: None,
                                                     duration_ms: metrics_duration_ms.unwrap_or(0) as i64,
                                                     tokens_per_sec: metrics_tokens_per_sec,

@@ -333,6 +333,7 @@ pub(super) async fn perform_skill_routing(
 }
 
 /// Result from default polish that includes token usage
+#[allow(dead_code)]
 pub(super) struct DefaultPolishResult {
     pub text: String,
     pub token_count: Option<i64>,
