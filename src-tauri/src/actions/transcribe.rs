@@ -381,8 +381,19 @@ impl ShortcutAction for TranscribeAction {
                         coordinator.notify_processing_finished();
                     }
 
-                    // Clean up UI state
-                    utils::hide_recording_overlay(&self.app);
+                    // Clean up UI state — keep overlay visible when skill confirmation is pending (Mode C)
+                    let has_pending_skill = if let Some(state) =
+                        self.app
+                            .try_state::<crate::ManagedPendingSkillConfirmation>()
+                    {
+                        state.lock().map(|g| g.skill_id.is_some()).unwrap_or(false)
+                    } else {
+                        false
+                    };
+
+                    if !has_pending_skill {
+                        utils::hide_recording_overlay(&self.app);
+                    }
                     change_tray_icon(&self.app, TrayIconState::Idle);
                 }
             }

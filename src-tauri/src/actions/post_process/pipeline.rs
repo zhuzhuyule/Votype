@@ -54,9 +54,22 @@ pub async fn unified_post_process(
     // Skip smart routing for ReviewRewrite mode (voice instruction on selected text)
     // ═══════════════════════════════════════════════════════════════
     let is_rewrite_mode = review_document_text.is_some();
+    let has_selected_text_raw = selected_text
+        .as_ref()
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false);
     let mut intent_decision: Option<super::IntentDecision> = None;
 
-    if smart_routing_enabled && is_short_text && !is_rewrite_mode {
+    // Skip smart routing when:
+    // - skill_mode: dedicated skill hotkey pressed, need skill routing not smart routing
+    // - has_selected_text_raw: speech may be an instruction targeting selected text,
+    //   need intent detection (Mode C) which smart routing would preempt
+    if smart_routing_enabled
+        && is_short_text
+        && !is_rewrite_mode
+        && !skill_mode
+        && !has_selected_text_raw
+    {
         // Step 1: History exact match
         if let Some(hm) = app_handle.try_state::<Arc<HistoryManager>>() {
             match hm.find_cached_post_process_result(transcription) {
@@ -178,6 +191,12 @@ pub async fn unified_post_process(
     } else if log_routing {
         if is_rewrite_mode {
             info!("[UnifiedPipeline] Rewrite mode, skipping smart routing");
+        } else if skill_mode {
+            info!("[UnifiedPipeline] Skill mode, skipping smart routing");
+        } else if has_selected_text_raw {
+            info!(
+                "[UnifiedPipeline] Has selected text, skipping smart routing for intent detection"
+            );
         } else if !smart_routing_enabled {
             info!("[UnifiedPipeline] Smart routing disabled, going to full pipeline");
         } else {
@@ -333,10 +352,12 @@ pub async fn unified_post_process(
     }
 
     // FullPolish path: check if multi-model should be used
-    // Skip multi-model for rewrite mode (voice instruction on selected text)
+    // Skip multi-model for rewrite mode, skill mode, and when selected text is present
+    // (selected text needs intent detection in Mode C which lives in maybe_post_process_transcription)
     let use_multi_model = settings.multi_model_post_process_enabled
         && !skill_mode
         && !is_rewrite_mode
+        && !has_selected_text_raw
         && !matches!(
             crate::window_context::resolve_votype_input_mode(
                 app_name.as_deref(),
@@ -1261,13 +1282,13 @@ pub async fn maybe_post_process_transcription(
                     let route_response = routing_result.response;
                     let skill_id = &route_response.skill_id;
                     if let Some(routed_prompt) = all_prompts.iter().find(|p| &p.id == skill_id) {
-                        // If routed to "default", we likely already have the default prompt selected in initial_prompt_opt
+                        // If routed to "default", fall through to normal polish
                         if skill_id != "default" {
                             initial_prompt_opt = Some(routed_prompt.clone());
-                            is_explicit = true; // Mark as explicit so we don't treat it as default polish
+                            is_explicit = true;
                         }
                         info!(
-                            "[PostProcess] Routed to skill \"{}\" via LLM (input_source: {:?})",
+                            "[PostProcess] Skill mode routed to \"{}\" (input_source: {:?})",
                             routed_prompt.name, route_response.input_source
                         );
 
@@ -1278,7 +1299,7 @@ pub async fn maybe_post_process_transcription(
                                 .extracted_content
                                 .clone()
                                 .unwrap_or_else(|| transcription.to_string()),
-                            _ => transcription.to_string(), // "output" or unspecified
+                            _ => transcription.to_string(),
                         };
 
                         // Notify UI about the routed skill
@@ -1304,13 +1325,10 @@ pub async fn maybe_post_process_transcription(
         );
     }
 
-    if !effective_skill_mode
-        && !is_explicit
-        && override_prompt_id.is_none()
-        && !transcription.trim().is_empty()
-        && has_selected_text
-    // Only trigger intent detection when text is selected
-    {
+    // Intent detection: when user has selected text, speech may be an instruction
+    // targeting that text. Override prompt (from app rules) is used as fallback for
+    // polish if no skill is matched, but should NOT block intent detection.
+    if !effective_skill_mode && !transcription.trim().is_empty() && has_selected_text {
         info!("[PostProcess] Entering intent detection mode (has selected text)");
 
         // Switch overlay to LLM processing state and notify UI

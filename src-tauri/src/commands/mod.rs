@@ -370,7 +370,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 false,
                 pending.selected_text.clone(),
                 None,
-                false, // skip_smart_routing
+                true, // skip_smart_routing: skill already identified, execute directly
             )
             .await;
 
