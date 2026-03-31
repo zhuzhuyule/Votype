@@ -117,7 +117,6 @@ pub struct IntentDecision {
 
 /// Result from the smart polish pipeline (Smart Routing → classify → execute)
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub(crate) struct SmartPolishResult {
     /// Polished text (or original for PassThrough)
     pub text: String,

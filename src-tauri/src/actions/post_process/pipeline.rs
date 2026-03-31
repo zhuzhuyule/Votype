@@ -1349,7 +1349,7 @@ pub async fn maybe_post_process_transcription(
                 );
 
                 // Execute both requests in parallel
-                let (intent_result, polish_result) = tokio::join!(
+                let (intent_result, smart_polish_result) = tokio::join!(
                     // Intent detection
                     super::routing::perform_skill_routing(
                         app_handle,
@@ -1360,8 +1360,8 @@ pub async fn maybe_post_process_transcription(
                         transcription,
                         effective_selected_text.as_deref(),
                     ),
-                    // Default polish
-                    super::routing::execute_default_polish(
+                    // Smart polish (routes internally via Smart Routing classification)
+                    super::routing::execute_smart_polish(
                         app_handle,
                         settings,
                         fallback_provider,
@@ -1380,16 +1380,19 @@ pub async fn maybe_post_process_transcription(
                     }
                     routing_call_count += 1;
                 }
-                if let Some(ref pr) = polish_result {
+                if let Some(ref pr) = smart_polish_result {
                     if let Some(tc) = pr.token_count {
                         routing_token_count += tc;
                     }
-                    routing_call_count += 1;
+                    routing_call_count += match pr.action {
+                        super::routing::SmartAction::PassThrough => 1,
+                        _ => 2,
+                    };
                 }
 
                 // Extract inner values for downstream use
                 let intent_response = intent_result.map(|r| r.response);
-                let polish_text = polish_result.map(|r| r.text);
+                let polish_text = smart_polish_result.map(|r| r.text);
 
                 // Log results for debugging concurrency issues
                 let intent_ok = intent_response.is_some();
