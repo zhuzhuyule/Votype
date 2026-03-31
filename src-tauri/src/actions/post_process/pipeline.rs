@@ -661,6 +661,14 @@ async fn execute_votype_rewrite_prompt(
     info!("[VotypeRewrite] TargetText:\n{}", target_text);
     info!("[VotypeRewrite] SpokenInstruction:\n{}", input_text);
 
+    let session_id = crate::review_window::current_rewrite_session_id();
+    let history = crate::review_window::get_rewrite_conversation(session_id);
+    let history_turns = history.as_ref().map(|h| h.len() / 2).unwrap_or(0);
+    info!(
+        "[VotypeRewrite] session_id={} history_turns={}",
+        session_id, history_turns
+    );
+
     let Some((actual_provider, model)) =
         super::routing::resolve_effective_model(settings, fallback_provider, prompt)
     else {
@@ -709,7 +717,7 @@ async fn execute_votype_rewrite_prompt(
             cached_model_id,
             &system_prompts,
             Some(&user_message),
-            None,
+            history.as_deref(),
             app_name,
             window_title,
             None,
@@ -744,6 +752,17 @@ async fn execute_votype_rewrite_prompt(
                     change.from, change.to, change.reason
                 );
             }
+            // Append this exchange to the multi-turn conversation history
+            crate::review_window::append_rewrite_message(
+                session_id,
+                crate::review_window::RewriteRole::User,
+                user_message.clone(),
+            );
+            crate::review_window::append_rewrite_message(
+                session_id,
+                crate::review_window::RewriteRole::Assistant,
+                parsed.rewritten_text.clone(),
+            );
             return (
                 Some(parsed.rewritten_text),
                 Some(model.clone()),
