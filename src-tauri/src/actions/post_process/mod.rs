@@ -115,6 +115,24 @@ pub struct IntentDecision {
     pub duration_ms: u64,
 }
 
+/// Result from the smart polish pipeline (Smart Routing → classify → execute)
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub(crate) struct SmartPolishResult {
+    /// Polished text (or original for PassThrough)
+    pub text: String,
+    /// Which action was taken
+    pub action: routing::SmartAction,
+    /// Combined token count (routing + polish)
+    pub token_count: Option<i64>,
+    /// Model used for the final execution step
+    pub model_id: String,
+    /// Provider used for the final execution step
+    pub provider_id: String,
+    /// Total duration in milliseconds (routing + polish)
+    pub duration_ms: u64,
+}
+
 /// Unified result from the post-processing pipeline.
 /// `transcribe.rs` matches on this to handle UI (review window, paste, history).
 #[derive(Debug, Clone)]

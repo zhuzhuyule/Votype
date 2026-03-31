@@ -730,3 +730,294 @@ pub(super) fn get_default_prompt<'a>(
 
     prompts.first()
 }
+
+/// Execute the full Smart Routing pipeline (classify → execute) as a single reusable call.
+///
+/// When Smart Routing is enabled and text is short enough, this runs intent classification
+/// first, then dispatches to PassThrough, LitePolish, or FullPolish accordingly.
+/// When Smart Routing is disabled or text exceeds the threshold, falls back to FullPolish.
+///
+/// Has the same parameter signature as `execute_default_polish` for drop-in use.
+pub(super) async fn execute_smart_polish<'a>(
+    app_handle: &AppHandle,
+    settings: &'a AppSettings,
+    fallback_provider: &'a PostProcessProvider,
+    default_prompt: &LLMPrompt,
+    transcription: &str,
+    app_name: Option<String>,
+    window_title: Option<String>,
+    history_id: Option<i64>,
+) -> Option<super::SmartPolishResult> {
+    let start = std::time::Instant::now();
+    let char_count = transcription.chars().count() as u32;
+    let smart_routing_enabled =
+        settings.length_routing_enabled && settings.post_process_intent_model_id.is_some();
+    let is_short_text = char_count <= settings.length_routing_threshold;
+
+    // If smart routing is enabled and text is short, run classification first
+    if smart_routing_enabled && is_short_text {
+        let decision =
+            execute_smart_action_routing(app_handle, settings, fallback_provider, transcription)
+                .await;
+
+        match decision {
+            Some(d) => {
+                let routing_tokens = d.token_count;
+                let _routing_duration = d.duration_ms;
+
+                match d.action {
+                    SmartAction::PassThrough => {
+                        // Override PassThrough to LitePolish if repetition detected
+                        if super::pipeline::has_repetition_pattern(transcription) {
+                            info!(
+                                "[SmartPolish] PassThrough overridden to LitePolish (repetition detected, {} chars)",
+                                char_count
+                            );
+                            return execute_smart_polish_lite(
+                                app_handle,
+                                settings,
+                                fallback_provider,
+                                transcription,
+                                d.needs_hotword,
+                                &app_name,
+                                routing_tokens,
+                                start,
+                            )
+                            .await;
+                        }
+
+                        info!("[SmartPolish] PassThrough ({} chars)", char_count);
+                        Some(super::SmartPolishResult {
+                            text: transcription.to_string(),
+                            action: SmartAction::PassThrough,
+                            token_count: routing_tokens,
+                            model_id: d.model_id,
+                            provider_id: d.provider_id,
+                            duration_ms: start.elapsed().as_millis() as u64,
+                        })
+                    }
+                    SmartAction::LitePolish => {
+                        info!(
+                            "[SmartPolish] LitePolish (needs_hotword={}, {} chars)",
+                            d.needs_hotword, char_count
+                        );
+                        execute_smart_polish_lite(
+                            app_handle,
+                            settings,
+                            fallback_provider,
+                            transcription,
+                            d.needs_hotword,
+                            &app_name,
+                            routing_tokens,
+                            start,
+                        )
+                        .await
+                    }
+                    SmartAction::FullPolish => {
+                        info!(
+                            "[SmartPolish] FullPolish via routing ({} chars)",
+                            char_count
+                        );
+                        // Delegate to existing execute_default_polish and wrap
+                        let result = execute_default_polish(
+                            app_handle,
+                            settings,
+                            fallback_provider,
+                            default_prompt,
+                            transcription,
+                            app_name,
+                            window_title,
+                            history_id,
+                        )
+                        .await?;
+
+                        let combined_tokens = match (routing_tokens, result.token_count) {
+                            (Some(a), Some(b)) => Some(a + b),
+                            (Some(a), None) => Some(a),
+                            (None, Some(b)) => Some(b),
+                            (None, None) => None,
+                        };
+
+                        Some(super::SmartPolishResult {
+                            text: result.text,
+                            action: SmartAction::FullPolish,
+                            token_count: combined_tokens,
+                            model_id: result.model_id,
+                            provider_id: result.provider_id,
+                            duration_ms: start.elapsed().as_millis() as u64,
+                        })
+                    }
+                }
+            }
+            None => {
+                // Intent analysis failed — fall back to FullPolish
+                info!("[SmartPolish] Intent analysis unavailable, falling back to FullPolish");
+                let result = execute_default_polish(
+                    app_handle,
+                    settings,
+                    fallback_provider,
+                    default_prompt,
+                    transcription,
+                    app_name,
+                    window_title,
+                    history_id,
+                )
+                .await?;
+
+                Some(super::SmartPolishResult {
+                    text: result.text,
+                    action: SmartAction::FullPolish,
+                    token_count: result.token_count,
+                    model_id: result.model_id,
+                    provider_id: result.provider_id,
+                    duration_ms: start.elapsed().as_millis() as u64,
+                })
+            }
+        }
+    } else {
+        // Smart routing disabled or text too long — go straight to FullPolish
+        if !smart_routing_enabled {
+            info!("[SmartPolish] Smart routing disabled, using FullPolish");
+        } else {
+            info!(
+                "[SmartPolish] Long text ({} > {}), using FullPolish",
+                char_count, settings.length_routing_threshold
+            );
+        }
+
+        let result = execute_default_polish(
+            app_handle,
+            settings,
+            fallback_provider,
+            default_prompt,
+            transcription,
+            app_name,
+            window_title,
+            history_id,
+        )
+        .await?;
+
+        Some(super::SmartPolishResult {
+            text: result.text,
+            action: SmartAction::FullPolish,
+            token_count: result.token_count,
+            model_id: result.model_id,
+            provider_id: result.provider_id,
+            duration_ms: start.elapsed().as_millis() as u64,
+        })
+    }
+}
+
+/// Execute the LitePolish path: lightweight model + lite prompt.
+async fn execute_smart_polish_lite<'a>(
+    app_handle: &AppHandle,
+    settings: &'a AppSettings,
+    fallback_provider: &'a PostProcessProvider,
+    transcription: &str,
+    needs_hotword: bool,
+    app_name: &Option<String>,
+    routing_tokens: Option<i64>,
+    start: std::time::Instant,
+) -> Option<super::SmartPolishResult> {
+    // Build temporary settings with lightweight model override
+    let mut lite_settings = settings.clone();
+    if let Some(ref short_model_id) = settings.length_routing_short_model_id {
+        lite_settings.selected_prompt_model_id = Some(short_model_id.clone());
+    }
+    if !needs_hotword {
+        lite_settings.post_process_hotword_injection_enabled = false;
+    }
+
+    // Load the lite polish prompt
+    let prompt_manager = app_handle.state::<Arc<PromptManager>>();
+    let lite_instructions = prompt_manager
+        .get_prompt(app_handle, "system_lite_polish")
+        .unwrap_or_else(|_| "Fix minor ASR errors. Output corrected text only.".to_string());
+
+    // Build a synthetic LLMPrompt from the first prompt in settings
+    let lite_prompt = if let Some(base) = lite_settings.post_process_prompts.first() {
+        let mut p = base.clone();
+        p.id = "__LITE_POLISH__".to_string();
+        p.name = "轻量润色".to_string();
+        p.instructions = lite_instructions;
+        p
+    } else {
+        return None;
+    };
+
+    // Resolve model
+    let lite_fallback = match lite_settings.active_post_process_provider() {
+        Some(p) => p,
+        None => fallback_provider,
+    };
+
+    let (actual_provider, model) =
+        resolve_effective_model(&lite_settings, lite_fallback, &lite_prompt)?;
+
+    // Build hotword injection only if needed
+    let hotword_injection = if needs_hotword && lite_settings.post_process_hotword_injection_enabled
+    {
+        super::pipeline::build_hotword_injection(app_handle, app_name, transcription)
+    } else {
+        None
+    };
+
+    // Build prompt
+    let built = super::prompt_builder::PromptBuilder::new(&lite_prompt, transcription)
+        .app_name(app_name.as_deref())
+        .hotword_injection(hotword_injection)
+        .app_language(&lite_settings.app_language)
+        .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
+            &lite_settings,
+        ))
+        .build();
+
+    let cached_model_id = lite_prompt
+        .model_id
+        .as_deref()
+        .or(lite_settings.selected_prompt_model_id.as_deref());
+
+    let lite_start = std::time::Instant::now();
+    let (result, _err, _error_message, api_token_count) =
+        super::core::execute_llm_request_with_messages(
+            app_handle,
+            &lite_settings,
+            actual_provider,
+            &model,
+            cached_model_id,
+            &built.system_messages,
+            built.user_message.as_deref(),
+            None,
+            app_name.clone(),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+    let text = result?;
+    let lite_duration_ms = lite_start.elapsed().as_millis() as u64;
+
+    let combined_tokens = match (routing_tokens, api_token_count) {
+        (Some(a), Some(b)) => Some(a + b),
+        (Some(a), None) => Some(a),
+        (None, Some(b)) => Some(b),
+        (None, None) => None,
+    };
+
+    info!(
+        "[SmartPolish] LitePolish completed: result_len={}, duration={}ms",
+        text.len(),
+        lite_duration_ms
+    );
+
+    Some(super::SmartPolishResult {
+        text,
+        action: SmartAction::LitePolish,
+        token_count: combined_tokens,
+        model_id: model,
+        provider_id: actual_provider.id.clone(),
+        duration_ms: start.elapsed().as_millis() as u64,
+    })
+}

@@ -578,7 +578,7 @@ fn sum_counts(a: Option<i64>, b: Option<i64>) -> Option<i64> {
 }
 
 /// Helper: build hotword injection from history manager
-fn build_hotword_injection(
+pub(super) fn build_hotword_injection(
     app_handle: &AppHandle,
     app_name: &Option<String>,
     transcription: &str,
@@ -1959,7 +1959,7 @@ pub async fn maybe_post_process_transcription(
 /// - Consecutive identical characters: "啊啊啊", "嗯嗯", "呃呃"
 /// - Repeated word patterns (ABAB): "好的好的", "对对对"
 /// - Repeated filler sounds: "um um", "uh uh"
-fn has_repetition_pattern(text: &str) -> bool {
+pub(super) fn has_repetition_pattern(text: &str) -> bool {
     let text = text.trim();
     if text.is_empty() {
         return false;
