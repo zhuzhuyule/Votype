@@ -128,16 +128,31 @@ pub async fn unified_post_process(
 
         match &decision {
             Some(d) if d.action == super::routing::SmartAction::PassThrough => {
-                if log_routing {
-                    info!(
-                        "[UnifiedPipeline] Step 2: PassThrough ({} chars)",
-                        char_count
-                    );
+                // Override PassThrough to LitePolish if text contains repetition patterns
+                // (e.g. stuttering, filler sounds like "啊啊", "嗯嗯", or ABAB patterns)
+                if has_repetition_pattern(transcription) {
+                    if log_routing {
+                        info!(
+                            "[UnifiedPipeline] Step 2: PassThrough overridden to LitePolish (repetition detected, {} chars)",
+                            char_count
+                        );
+                    }
+                    // Fall through to LitePolish handling below
+                    let mut upgraded = d.clone();
+                    upgraded.action = super::routing::SmartAction::LitePolish;
+                    intent_decision = Some(upgraded);
+                } else {
+                    if log_routing {
+                        info!(
+                            "[UnifiedPipeline] Step 2: PassThrough ({} chars)",
+                            char_count
+                        );
+                    }
+                    return super::PipelineResult::PassThrough {
+                        text: transcription.to_string(),
+                        intent_token_count: d.token_count,
+                    };
                 }
-                return super::PipelineResult::PassThrough {
-                    text: transcription.to_string(),
-                    intent_token_count: d.token_count,
-                };
             }
             Some(d) => {
                 if log_routing {
@@ -156,7 +171,10 @@ pub async fn unified_post_process(
             }
         }
 
-        intent_decision = decision;
+        // Only set from original decision if we didn't already upgrade it
+        if intent_decision.is_none() {
+            intent_decision = decision;
+        }
     } else if log_routing {
         if is_rewrite_mode {
             info!("[UnifiedPipeline] Rewrite mode, skipping smart routing");
@@ -1889,9 +1907,92 @@ pub async fn maybe_post_process_transcription(
     )
 }
 
+/// Detect repetition patterns in text that indicate ASR stuttering or filler sounds.
+///
+/// Catches:
+/// - Consecutive identical characters: "啊啊啊", "嗯嗯", "呃呃"
+/// - Repeated word patterns (ABAB): "好的好的", "对对对"
+/// - Repeated filler sounds: "um um", "uh uh"
+fn has_repetition_pattern(text: &str) -> bool {
+    let text = text.trim();
+    if text.is_empty() {
+        return false;
+    }
+
+    let chars: Vec<char> = text.chars().collect();
+
+    // Check for consecutive identical characters (≥2 non-punctuation)
+    let mut repeat_count = 1;
+    for i in 1..chars.len() {
+        if chars[i] == chars[i - 1] && !chars[i].is_whitespace() && !chars[i].is_ascii_punctuation()
+        {
+            repeat_count += 1;
+            if repeat_count >= 2 {
+                return true;
+            }
+        } else {
+            repeat_count = 1;
+        }
+    }
+
+    // Check for repeated word/segment patterns (ABAB)
+    // Split into words and check for consecutive duplicates
+    let words: Vec<&str> = text.split_whitespace().collect();
+    if words.len() >= 2 {
+        let mut dup_count = 1;
+        for i in 1..words.len() {
+            if words[i].eq_ignore_ascii_case(words[i - 1]) {
+                dup_count += 1;
+                if dup_count >= 2 {
+                    return true;
+                }
+            } else {
+                dup_count = 1;
+            }
+        }
+    }
+
+    // Check CJK repeated segments: split into 1-3 char segments and look for ABAB
+    let cjk_chars: Vec<char> = chars
+        .iter()
+        .filter(|c| matches!(**c, '\u{4E00}'..='\u{9FFF}' | '\u{3400}'..='\u{4DBF}'))
+        .copied()
+        .collect();
+    for seg_len in 1..=3 {
+        if cjk_chars.len() >= seg_len * 2 {
+            for i in 0..=cjk_chars.len() - seg_len * 2 {
+                let seg1: String = cjk_chars[i..i + seg_len].iter().collect();
+                let seg2: String = cjk_chars[i + seg_len..i + seg_len * 2].iter().collect();
+                if seg1 == seg2 {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::build_rewrite_user_message;
+
+    #[test]
+    fn test_has_repetition_pattern() {
+        // Filler sounds
+        assert!(has_repetition_pattern("啊啊啊"));
+        assert!(has_repetition_pattern("嗯嗯"));
+        assert!(has_repetition_pattern("呃呃呃"));
+
+        // Repeated words
+        assert!(has_repetition_pattern("好的好的"));
+        assert!(has_repetition_pattern("对对对"));
+
+        // Normal text
+        assert!(!has_repetition_pattern("你好"));
+        assert!(!has_repetition_pattern("今天天气不错"));
+        assert!(!has_repetition_pattern("hello world"));
+    }
 
     #[test]
     fn test_build_rewrite_user_message_excludes_app_context() {
