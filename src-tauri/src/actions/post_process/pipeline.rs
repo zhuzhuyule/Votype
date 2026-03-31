@@ -461,7 +461,7 @@ pub async fn unified_post_process(
             }
         } else if log_routing {
             info!(
-                "[UnifiedPipeline] Rewrite: target_len={}, using full model, hotwords disabled",
+                "[UnifiedPipeline] Rewrite: target_len={}, using default model, hotwords disabled",
                 target_len
             );
         }
@@ -1179,10 +1179,16 @@ pub async fn maybe_post_process_transcription(
             initial_prompt_opt.as_ref().or(default_prompt),
             review_document_text.as_deref(),
         ) {
-            // Clear prompt's model_id so the overridden selected_prompt_model_id
-            // (set by unified_post_process for lite/full model selection) takes effect
+            // Only clear prompt's model_id when unified_post_process has overridden
+            // selected_prompt_model_id (lite model for short text). For full model path,
+            // keep the prompt's own model_id so it can resolve normally.
             let mut rewrite_prompt_adjusted = rewrite_prompt.clone();
-            rewrite_prompt_adjusted.model_id = None;
+            let target_len = target_text.chars().count() as u32;
+            if target_len <= settings.length_routing_threshold
+                && settings.length_routing_short_model_id.is_some()
+            {
+                rewrite_prompt_adjusted.model_id = None;
+            }
             // Detect language from target text for rewrite consistency
             let lang = detect_language_heuristic(target_text, &settings.app_language);
             return execute_votype_rewrite_prompt(

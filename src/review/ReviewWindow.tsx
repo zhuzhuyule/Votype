@@ -1290,19 +1290,22 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     };
   }, [editor]);
 
-  // Sync selected candidate content to backend when candidate selection changes
+  // Sync selected candidate content to backend when selection or candidates change.
+  // This covers: initial selection, candidate switching, and candidate completion
+  // (when localCandidates updates with ready text but selectedCandidateId stays the same).
   useEffect(() => {
     if (!isMultiCandidateMode.current || !selectedCandidateId) return;
-    const candidates = localCandidatesRef.current;
-    const candidate = candidates?.find((c) => c.id === selectedCandidateId);
-    if (candidate) {
+    const candidate = localCandidates?.find(
+      (c) => c.id === selectedCandidateId,
+    );
+    if (candidate?.ready && candidate.text) {
       const text =
         editedTextsRef.current[selectedCandidateId] ?? candidate.text;
       void invoke("set_review_editor_content_state", { text }).catch((e) => {
-        console.error("Failed to sync candidate content on selection:", e);
+        console.error("Failed to sync candidate content:", e);
       });
     }
-  }, [selectedCandidateId]);
+  }, [selectedCandidateId, localCandidates]);
 
   const handleDrag = useCallback(async () => {
     try {

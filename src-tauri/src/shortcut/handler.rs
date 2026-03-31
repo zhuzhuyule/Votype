@@ -4,6 +4,7 @@
 //! used by both the Tauri and handy-keys implementations.
 
 use log::{debug, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Manager};
 
 use crate::actions::ACTION_MAP;
@@ -11,10 +12,25 @@ use crate::settings::get_settings;
 use crate::transcription_coordinator::is_transcribe_binding;
 use crate::TranscriptionCoordinator;
 
-fn is_review_window_focused(app: &AppHandle) -> bool {
-    app.get_webview_window("review_window")
-        .and_then(|window| window.is_focused().ok())
-        .unwrap_or(false)
+/// Tracks whether the review window was focused/active at the time of key press.
+/// Used so that the key release event uses the same routing decision.
+static REVIEW_ROUTE_ON_PRESS: AtomicBool = AtomicBool::new(false);
+
+/// Check if the review window should capture this transcription shortcut.
+/// Returns true only when the review window is open AND Votype is the foreground app
+/// (i.e., the user was interacting with the review window, not another application).
+fn should_route_to_review_window(app: &AppHandle) -> bool {
+    if !crate::review_window::is_review_window_active() {
+        return false;
+    }
+    // Check if any Votype window is focused — this means the user is in Votype,
+    // not in another app (browser, editor, etc.)
+    for (_label, window) in app.webview_windows() {
+        if window.is_focused().unwrap_or(false) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Handle a shortcut event from either implementation.
@@ -40,16 +56,27 @@ pub fn handle_shortcut_event(
 
     // Transcribe bindings are handled by the coordinator.
     if is_transcribe_binding(binding_id) {
-        let effective_hotkey =
-            if hotkey_string != "review-window-local" && is_review_window_focused(app) {
-                debug!(
-                    "Routing global transcribe shortcut '{}' through review-window-local",
-                    binding_id
-                );
-                "review-window-local"
-            } else {
-                hotkey_string
-            };
+        // On key press: decide whether to route to review-window-local and cache the decision.
+        // On key release: reuse the cached decision. This prevents the recording overlay
+        // or focus loss from changing the routing mid-cycle.
+        let should_route_to_review = if is_pressed {
+            let route =
+                hotkey_string != "review-window-local" && should_route_to_review_window(app);
+            REVIEW_ROUTE_ON_PRESS.store(route, Ordering::SeqCst);
+            route
+        } else {
+            hotkey_string != "review-window-local" && REVIEW_ROUTE_ON_PRESS.load(Ordering::SeqCst)
+        };
+
+        let effective_hotkey = if should_route_to_review {
+            debug!(
+                "[ShortcutRouter] Routing '{}' → review-window-local (is_pressed={})",
+                binding_id, is_pressed
+            );
+            "review-window-local"
+        } else {
+            hotkey_string
+        };
 
         if effective_hotkey == "review-window-local" && is_pressed {
             crate::review_window::freeze_review_editor_content_snapshot();

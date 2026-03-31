@@ -2,7 +2,7 @@ use crate::managers::history::{
     HistoryDashboardStats, HistoryEntry, HistoryManager, PaginatedHistoryResult,
 };
 use crate::managers::transcription::TranscriptionManager;
-use log::{debug, info};
+use log::{debug, error, info};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
@@ -185,18 +185,36 @@ pub async fn retranscribe_history_entry(
     use crate::audio_toolkit::read_wav_file;
     use crate::settings::get_settings;
 
-    let entries = history_manager
-        .get_history_entries()
-        .await
-        .map_err(|e| e.to_string())?;
+    info!("[retranscribe] Starting retranscribe for entry id={}", id);
 
-    let entry = entries
-        .into_iter()
-        .find(|e| e.id == id)
-        .ok_or_else(|| format!("History entry not found: {}", id))?;
+    let entries = history_manager.get_history_entries().await.map_err(|e| {
+        error!("[retranscribe] Failed to get history entries: {}", e);
+        e.to_string()
+    })?;
+
+    let entry = entries.into_iter().find(|e| e.id == id).ok_or_else(|| {
+        error!("[retranscribe] History entry not found: {}", id);
+        format!("History entry not found: {}", id)
+    })?;
 
     let file_path = history_manager.get_audio_file_path(&entry.file_name);
-    let samples = read_wav_file(&file_path).map_err(|e| e.to_string())?;
+    info!(
+        "[retranscribe] Audio file: {:?}, exists: {}",
+        file_path,
+        file_path.exists()
+    );
+    let samples = read_wav_file(&file_path).map_err(|e| {
+        error!(
+            "[retranscribe] Failed to read WAV file {:?}: {}",
+            file_path, e
+        );
+        e.to_string()
+    })?;
+    info!(
+        "[retranscribe] Loaded {} samples ({:.1}s)",
+        samples.len(),
+        samples.len() as f64 / 16000.0
+    );
 
     // Ensure we have a valid duration even if missing in original entry
     let duration_ms = (samples.len() as f64 / 16000.0 * 1000.0) as i64;
@@ -210,6 +228,10 @@ pub async fn retranscribe_history_entry(
     } else {
         settings.selected_model.clone()
     };
+    info!(
+        "[retranscribe] online_asr_enabled={}, model_id={}",
+        settings.online_asr_enabled, model_id
+    );
 
     let start_time = std::time::Instant::now();
     let transcription_text = if settings.online_asr_enabled {
@@ -251,14 +273,31 @@ pub async fn retranscribe_history_entry(
         .map_err(|e| e.to_string())?
     } else {
         // Use local transcription manager
-        transcription_manager
-            .load_model(&model_id)
-            .map_err(|e| e.to_string())?;
-        transcription_manager
-            .transcribe(samples)
-            .map_err(|e| e.to_string())?
+        info!("[retranscribe] Loading local model: {}", model_id);
+        transcription_manager.load_model(&model_id).map_err(|e| {
+            error!(
+                "[retranscribe] Failed to load local model '{}': {}",
+                model_id, e
+            );
+            e.to_string()
+        })?;
+        info!("[retranscribe] Model loaded, starting transcription...");
+        let result = transcription_manager.transcribe(samples).map_err(|e| {
+            error!("[retranscribe] Local transcription failed: {}", e);
+            e.to_string()
+        })?;
+        info!(
+            "[retranscribe] Local transcription succeeded: {} chars",
+            result.chars().count()
+        );
+        result
     };
     let elapsed = start_time.elapsed().as_millis() as i64;
+    info!(
+        "[retranscribe] Transcription completed in {}ms, text length={}",
+        elapsed,
+        transcription_text.len()
+    );
 
     let char_count = transcription_text.chars().count() as i64;
 

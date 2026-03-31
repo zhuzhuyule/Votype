@@ -401,6 +401,12 @@ pub async fn multi_post_process_transcription(
             completed, total, result.id
         );
 
+        // Keep REVIEW_EDITOR_CONTENT in sync with the first successful candidate
+        // so voice rewrite can freeze it at any time.
+        if completed == 1 && result.ready && result.error.is_none() {
+            crate::review_window::set_review_editor_content(result.text.clone());
+        }
+
         // Emit progress event
         let _ = _app_handle.emit(
             "multi-post-process-progress",

@@ -3,7 +3,7 @@
 
 use crate::active_window::ActiveWindowInfo;
 use crate::settings::PromptOutputMode;
-use log::{debug, error, info};
+use log::{debug, error};
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
 use std::sync::{
@@ -567,7 +567,7 @@ pub fn current_review_editor_content() -> Option<String> {
 
 pub fn freeze_review_editor_content_snapshot() {
     let snapshot = current_review_editor_content();
-    log::info!(
+    debug!(
         "[ReviewWindow] freeze_snapshot: content_len={:?}",
         snapshot.as_ref().map(|s| s.len())
     );
@@ -606,16 +606,6 @@ pub fn show_review_window_with_candidates(
     {
         let mut last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
         *last_id = history_id;
-    }
-
-    // Pre-populate REVIEW_EDITOR_CONTENT with the first candidate's text
-    // so that voice rewrite can freeze it before the frontend syncs.
-    if let Some(first_ready) = candidates.iter().find(|c| c.ready && c.error.is_none()) {
-        info!(
-            "[ReviewWindow] Multi-candidate: pre-populating editor content from first candidate (len={})",
-            first_ready.text.len()
-        );
-        set_review_editor_content(first_ready.text.clone());
     }
 
     let candidate_count = candidates.len() as f64;

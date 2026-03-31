@@ -545,32 +545,99 @@ pub(super) fn resolve_effective_model<'a>(
     fallback_provider: &'a PostProcessProvider,
     prompt: &LLMPrompt,
 ) -> Option<(&'a PostProcessProvider, String)> {
-    let check_cached_model =
-        |model_id_opt: Option<&String>| -> Option<(&'a PostProcessProvider, String)> {
-            let id_str = model_id_opt.filter(|id| !id.trim().is_empty())?;
-            let cached = settings.cached_models.iter().find(|m| m.id == *id_str)?;
-            let provider = settings.post_process_provider(&cached.provider_id)?;
-            Some((provider, cached.model_id.clone()))
-        };
+    let check_cached_model = |model_id_opt: Option<&String>,
+                              source: &str|
+     -> Option<(&'a PostProcessProvider, String)> {
+        let id_str = model_id_opt.filter(|id| !id.trim().is_empty())?;
+        let cached = settings.cached_models.iter().find(|m| m.id == *id_str);
+        if cached.is_none() {
+            log::warn!(
+                "[ResolveModel] {} id={} not found in cached_models",
+                source,
+                id_str
+            );
+            return None;
+        }
+        let cached = cached.unwrap();
+        let provider = settings.post_process_provider(&cached.provider_id);
+        if provider.is_none() {
+            log::warn!(
+                "[ResolveModel] {} id={} found model={} but provider={} not found",
+                source,
+                id_str,
+                cached.model_id,
+                cached.provider_id
+            );
+            return None;
+        }
+        Some((provider.unwrap(), cached.model_id.clone()))
+    };
 
-    if let Some(res) = check_cached_model(prompt.model_id.as_ref()) {
+    log::debug!(
+        "[ResolveModel] prompt.model_id={:?} selected_prompt_model_id={:?} fallback_provider={}",
+        prompt.model_id,
+        settings.selected_prompt_model_id,
+        fallback_provider.id
+    );
+
+    if let Some(res) = check_cached_model(prompt.model_id.as_ref(), "prompt.model_id") {
         if !res.1.trim().is_empty() {
+            log::debug!(
+                "[ResolveModel] Resolved via prompt.model_id → provider={} model={}",
+                res.0.id,
+                res.1
+            );
             return Some(res);
         }
     }
 
-    if let Some(res) = check_cached_model(settings.selected_prompt_model_id.as_ref()) {
+    if let Some(res) = check_cached_model(
+        settings.selected_prompt_model_id.as_ref(),
+        "selected_prompt_model_id",
+    ) {
         if !res.1.trim().is_empty() {
+            log::debug!(
+                "[ResolveModel] Resolved via selected_prompt_model_id → provider={} model={}",
+                res.0.id,
+                res.1
+            );
             return Some(res);
         }
     }
 
     if let Some(m) = settings.post_process_models.get(&fallback_provider.id) {
         if !m.trim().is_empty() {
+            log::debug!(
+                "[ResolveModel] Resolved via fallback_provider → provider={} model={}",
+                fallback_provider.id,
+                m
+            );
             return Some((fallback_provider, m.clone()));
         }
     }
 
+    // Last resort: pick the first valid model from multi-model selection.
+    // This handles cases where single-model settings are stale but multi-model is configured.
+    for id in &settings.multi_model_selected_ids {
+        if let Some(res) = check_cached_model(Some(id), "multi_model_fallback") {
+            if !res.1.trim().is_empty() {
+                log::info!(
+                    "[ResolveModel] Resolved via multi_model_fallback → provider={} model={}",
+                    res.0.id,
+                    res.1
+                );
+                return Some(res);
+            }
+        }
+    }
+
+    log::warn!(
+        "[ResolveModel] No model found! prompt.model_id={:?} selected_prompt_model_id={:?} fallback_provider={} cached_models_count={}",
+        prompt.model_id,
+        settings.selected_prompt_model_id,
+        fallback_provider.id,
+        settings.cached_models.len()
+    );
     None
 }
 
