@@ -1253,12 +1253,8 @@ pub async fn maybe_post_process_transcription(
         .map(|s| !s.trim().is_empty())
         .unwrap_or(false);
 
-    // Mode B: Skill shortcut pressed - do LLM routing and execute
-    if effective_skill_mode
-        && !is_explicit
-        && override_prompt_id.is_none()
-        && !transcription.trim().is_empty()
-    {
+    // Mode B: invoke_skill hotkey always enters skill routing, regardless of app rules
+    if effective_skill_mode && !transcription.trim().is_empty() {
         if let Some(p) = &initial_prompt_opt {
             if let Some((route_provider, route_model, route_api_key)) =
                 super::routing::resolve_intent_routing_model(settings, fallback_provider, p)
