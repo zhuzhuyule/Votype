@@ -3,7 +3,7 @@
 
 use crate::active_window::ActiveWindowInfo;
 use crate::settings::PromptOutputMode;
-use log::{debug, error};
+use log::{debug, error, info};
 use once_cell::sync::Lazy;
 use std::collections::HashSet;
 use std::sync::{
@@ -24,7 +24,7 @@ const REVIEW_WINDOW_MAX_HEIGHT: f64 = 920.0;
 struct ReviewWindowPayload {
     source_text: String,
     final_text: String,
-    change_percent: u8,
+    change_percent: i8,
     history_id: Option<i64>,
     reason: Option<String>,
     output_mode: PromptOutputMode,
@@ -356,7 +356,7 @@ pub fn show_review_window(
     app_handle: &AppHandle,
     source_text: String,
     final_text: String,
-    change_percent: u8,
+    change_percent: i8,
     history_id: Option<i64>,
     reason: Option<String>,
     output_mode: PromptOutputMode,
@@ -534,6 +534,10 @@ pub fn get_last_active_window() -> Option<ActiveWindowInfo> {
     last_window.clone()
 }
 
+pub fn is_review_window_active() -> bool {
+    REVIEW_WINDOW_ACTIVE.load(Ordering::SeqCst)
+}
+
 pub fn set_review_editor_active(active: bool) {
     if let Ok(mut guard) = REVIEW_EDITOR_ACTIVE.lock() {
         *guard = active;
@@ -563,6 +567,10 @@ pub fn current_review_editor_content() -> Option<String> {
 
 pub fn freeze_review_editor_content_snapshot() {
     let snapshot = current_review_editor_content();
+    log::info!(
+        "[ReviewWindow] freeze_snapshot: content_len={:?}",
+        snapshot.as_ref().map(|s| s.len())
+    );
     if let Ok(mut guard) = FROZEN_REVIEW_EDITOR_CONTENT.lock() {
         *guard = snapshot;
     }
@@ -598,6 +606,16 @@ pub fn show_review_window_with_candidates(
     {
         let mut last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
         *last_id = history_id;
+    }
+
+    // Pre-populate REVIEW_EDITOR_CONTENT with the first candidate's text
+    // so that voice rewrite can freeze it before the frontend syncs.
+    if let Some(first_ready) = candidates.iter().find(|c| c.ready && c.error.is_none()) {
+        info!(
+            "[ReviewWindow] Multi-candidate: pre-populating editor content from first candidate (len={})",
+            first_ready.text.len()
+        );
+        set_review_editor_content(first_ready.text.clone());
     }
 
     let candidate_count = candidates.len() as f64;

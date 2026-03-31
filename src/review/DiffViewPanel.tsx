@@ -4,12 +4,14 @@ import { Editor, EditorContent } from "@tiptap/react";
 import { IconTextPlus } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { ChangeStats } from "./diff-utils";
 
 interface DiffViewPanelProps {
   sourceHtml: string;
   editor: Editor | null;
   isRerunning: boolean;
   currentModelName?: string;
+  changeStats?: ChangeStats | null;
   onInsertOriginal?: () => void;
 }
 
@@ -18,6 +20,7 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
   editor,
   isRerunning,
   currentModelName,
+  changeStats,
   onInsertOriginal,
 }) => {
   const { t } = useTranslation();
@@ -54,6 +57,15 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
           </span>
           {currentModelName && (
             <span className="review-model-tag">{currentModelName}</span>
+          )}
+          {changeStats && changeStats.changePercent !== 0 && (
+            <span
+              className={`review-change-stats ${Math.abs(changeStats.changePercent) < 20 ? "low" : Math.abs(changeStats.changePercent) < 40 ? "mid" : "high"}`}
+              title={`+${changeStats.addedChars} −${changeStats.removedChars}`}
+            >
+              {changeStats.changePercent > 0 ? "+" : ""}
+              {changeStats.changePercent}%
+            </span>
           )}
         </div>
         <div

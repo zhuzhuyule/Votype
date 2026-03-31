@@ -124,7 +124,7 @@ fn count_sentence_markers(text: &str) -> usize {
     }
 }
 
-fn compute_change_percent(source: &str, target: &str) -> u8 {
+fn compute_change_percent(source: &str, target: &str) -> i8 {
     let source_tokens = tokenize_diff_words(source);
     let target_tokens = tokenize_diff_words(target);
     let source_len = source_tokens.len();
@@ -186,8 +186,14 @@ fn compute_change_percent(source: &str, target: &str) -> u8 {
     };
 
     let score = 0.6 * token_change_rate + 0.3 * script_switch_rate + 0.1 * sentence_change_rate;
-    let percent = (score * 100.0).round() as i32;
-    percent.clamp(0, 100) as u8
+    let magnitude = (score * 100.0).round() as i32;
+    let magnitude = magnitude.clamp(0, 100);
+    // Negative when content was reduced
+    if target.len() < source.len() {
+        -(magnitude as i8)
+    } else {
+        magnitude as i8
+    }
 }
 
 impl ShortcutAction for TranscribeAction {
@@ -349,7 +355,8 @@ impl ShortcutAction for TranscribeAction {
         let binding_id = binding_id.to_string();
         let shortcut_str = shortcut_str.to_string();
         let review_editor_active = shortcut_str == "review-window-local"
-            && crate::review_window::is_review_editor_active();
+            && (crate::review_window::is_review_editor_active()
+                || crate::review_window::is_review_window_active());
         let skill_mode = self.skill_mode;
         let ppm_outer = Arc::clone(&ppm);
 

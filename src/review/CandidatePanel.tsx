@@ -10,7 +10,8 @@ import { DiffMark } from "./diff-mark";
 import {
   buildDiffViews,
   buildPlainViews,
-  computeChangePercent,
+  computeChangeStats,
+  type ChangeStats,
 } from "./diff-utils";
 
 export interface ModelSpeedStats {
@@ -149,10 +150,10 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
     return buildPlainViews(sourceText, displayText).targetHtml;
   }, [showDiff, sourceText, displayText, candidate.ready, candidate.error]);
 
-  // Compute change percent for header stats
-  const changePercent = useMemo(() => {
+  // Compute change stats for header
+  const changeStats = useMemo<ChangeStats | null>(() => {
     if (!candidate.ready || candidate.error || !displayText) return null;
-    return computeChangePercent(sourceText, displayText);
+    return computeChangeStats(sourceText, displayText);
   }, [sourceText, displayText, candidate.ready, candidate.error]);
 
   const editor = useEditor(
@@ -264,14 +265,16 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
           <span className="candidate-provider-badge">
             {candidate.provider_label}
           </span>
-          {candidate.ready && !candidate.error && changePercent != null ? (
+          {candidate.ready && !candidate.error && changeStats ? (
             <span
-              className={`candidate-change-percent ${changePercent < 20 ? "low" : changePercent < 40 ? "mid" : "high"}`}
+              className={`candidate-change-stats ${Math.abs(changeStats.changePercent) < 20 ? "low" : Math.abs(changeStats.changePercent) < 40 ? "mid" : "high"}`}
+              title={`+${changeStats.addedChars} −${changeStats.removedChars}`}
             >
-              ±{changePercent}%
+              {changeStats.changePercent > 0 ? "+" : ""}
+              {changeStats.changePercent}%
             </span>
           ) : !candidate.ready ? (
-            <span className="candidate-change-percent skeleton-text" />
+            <span className="candidate-change-stats skeleton-text" />
           ) : null}
         </span>
         {/* Right: rank history counts | time */}

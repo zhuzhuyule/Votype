@@ -41,6 +41,7 @@ import {
   buildDiffViews,
   buildPlainViews,
   computeChangePercent,
+  computeChangeStats,
 } from "./diff-utils";
 import { DiffMark } from "./diff-mark";
 import { hljs } from "./highlight";
@@ -432,8 +433,12 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             return a.processing_time_ms - b.processing_time_ms;
           }
         } else if (multiSortMode === "change") {
-          const aChange = computeChangePercent(initialData.source_text, a.text);
-          const bChange = computeChangePercent(initialData.source_text, b.text);
+          const aChange = Math.abs(
+            computeChangePercent(initialData.source_text, a.text),
+          );
+          const bChange = Math.abs(
+            computeChangePercent(initialData.source_text, b.text),
+          );
           if (aChange !== bChange) return aChange - bChange;
         }
       }
@@ -503,13 +508,19 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   // Diff toggle: auto-off when change_percent >= threshold
   const [showDiff, setShowDiff] = useState(() => {
     if (initialData.output_mode === "chat") return false;
-    return (initialData.change_percent ?? 0) < DIFF_THRESHOLD;
+    return Math.abs(initialData.change_percent ?? 0) < DIFF_THRESHOLD;
   });
 
   // Track current final text (updated by rerun results)
   const [currentFinalText, setCurrentFinalText] = useState(
     initialData.final_text,
   );
+
+  // Compute change stats for single-model view
+  const singleModelChangeStats = useMemo(() => {
+    if (initialData.output_mode === "chat") return null;
+    return computeChangeStats(initialData.source_text, currentFinalText);
+  }, [initialData.source_text, currentFinalText, initialData.output_mode]);
 
   const [sourceHtml, setSourceHtml] = useState(() => {
     if (initialData.output_mode === "chat") return "";
@@ -1279,6 +1290,20 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     };
   }, [editor]);
 
+  // Sync selected candidate content to backend when candidate selection changes
+  useEffect(() => {
+    if (!isMultiCandidateMode.current || !selectedCandidateId) return;
+    const candidates = localCandidatesRef.current;
+    const candidate = candidates?.find((c) => c.id === selectedCandidateId);
+    if (candidate) {
+      const text =
+        editedTextsRef.current[selectedCandidateId] ?? candidate.text;
+      void invoke("set_review_editor_content_state", { text }).catch((e) => {
+        console.error("Failed to sync candidate content on selection:", e);
+      });
+    }
+  }, [selectedCandidateId]);
+
   const handleDrag = useCallback(async () => {
     try {
       const appWindow = getCurrentWindow();
@@ -1383,7 +1408,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             onMeasureAndResize={measureAndResize}
             onRerunResult={(text: string) => {
               const cp = computeChangePercent(initialData.source_text, text);
-              setShowDiff(cp < DIFF_THRESHOLD);
+              setShowDiff(Math.abs(cp) < DIFF_THRESHOLD);
               replaceEditorDocument(text);
             }}
             multiSortMode={multiSortMode}
@@ -1424,6 +1449,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             editor={editor}
             isRerunning={isRerunning}
             currentModelName={currentModelName}
+            changeStats={singleModelChangeStats}
             onInsertOriginal={handleInsertOriginal}
           />
         ) : (

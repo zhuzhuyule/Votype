@@ -263,14 +263,50 @@ const buildTargetHtml = (
   return html;
 };
 
+export interface ChangeStats {
+  addedChars: number;
+  removedChars: number;
+  changePercent: number;
+}
+
+export const computeChangeStats = (
+  source: string,
+  target: string,
+): ChangeStats => {
+  const { sourceStatuses, targetLevels } = computeDiffAnnotations(
+    source,
+    target,
+  );
+  const sourceTokens = tokenizeWithIndices(source);
+  const targetTokens = tokenizeWithIndices(target);
+  const totalTokens = Math.max(sourceStatuses.length, targetLevels.length);
+
+  let removedChars = 0;
+  sourceTokens.forEach((t, i) => {
+    if (sourceStatuses[i] === "delete") removedChars += t.value.length;
+  });
+  let addedChars = 0;
+  targetTokens.forEach((t, i) => {
+    if (targetLevels[i] !== null) addedChars += t.value.length;
+  });
+
+  if (totalTokens === 0)
+    return { addedChars: 0, removedChars: 0, changePercent: 0 };
+  const deletedCount = sourceStatuses.filter((s) => s === "delete").length;
+  const changedCount = targetLevels.filter((l) => l !== null).length;
+  const magnitude = Math.round(
+    ((deletedCount + changedCount) / totalTokens) * 100,
+  );
+  const changePercent = target.length < source.length ? -magnitude : magnitude;
+
+  return { addedChars, removedChars, changePercent };
+};
+
 export const computeChangePercent = (
   source: string,
   target: string,
 ): number => {
-  const { targetLevels } = computeDiffAnnotations(source, target);
-  if (targetLevels.length === 0) return 0;
-  const changed = targetLevels.filter((l) => l !== null).length;
-  return Math.round((changed / targetLevels.length) * 100);
+  return computeChangeStats(source, target).changePercent;
 };
 
 export const buildPlainViews = (source: string, target: string) => ({

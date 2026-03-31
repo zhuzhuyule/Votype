@@ -1818,7 +1818,8 @@ span[data-diff-level="major"] {
   height: 12px;
 }
 
-.candidate-change-percent.skeleton-text {
+.candidate-change-percent.skeleton-text,
+.candidate-change-stats.skeleton-text {
   width: 32px;
   height: 12px;
 }
@@ -1843,20 +1844,30 @@ span[data-diff-level="major"] {
   opacity: 0.4;
 }
 
-.candidate-change-percent {
+.candidate-change-stats,
+.review-change-stats {
+  font-size: 10px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
-.candidate-change-percent.low {
+.candidate-change-stats.low,
+.review-change-stats.low {
   color: var(--green-11);
 }
 
-.candidate-change-percent.mid {
+.candidate-change-stats.mid,
+.review-change-stats.mid {
   color: var(--amber-11);
 }
 
-.candidate-change-percent.high {
+.candidate-change-stats.high,
+.review-change-stats.high {
   color: var(--ruby-11);
+}
+
+.review-change-stats {
+  margin-left: 4px;
 }
 
 .error-badge {
