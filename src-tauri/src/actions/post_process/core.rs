@@ -242,6 +242,7 @@ pub async fn execute_llm_request(
         cached_model_id,
         &prompts,
         user_message,
+        None,
         _app_name,
         _window_title,
         _match_pattern,
@@ -259,6 +260,7 @@ pub async fn execute_llm_request_with_messages(
     cached_model_id: Option<&str>,
     system_prompts: &[String],
     user_message: Option<&str>,
+    conversation_history: Option<&[crate::review_window::RewriteMessage]>,
     _app_name: Option<String>,
     _window_title: Option<String>,
     _match_pattern: Option<String>,
@@ -367,7 +369,22 @@ pub async fn execute_llm_request_with_messages(
         }
     }
 
-    // 2. Single user message
+    // 2. Insert conversation history between system prompts and the new user message
+    if let Some(history) = conversation_history {
+        for msg in history {
+            let chat_msg = match msg.role {
+                crate::review_window::RewriteRole::User => build_user_message(&msg.content),
+                crate::review_window::RewriteRole::Assistant => {
+                    build_assistant_message(&msg.content)
+                }
+            };
+            if let Some(m) = chat_msg {
+                messages.push(m);
+            }
+        }
+    }
+
+    // 3. Single user message
     if let Some(user_content) = user_message {
         if let Some(msg) = build_user_message(user_content) {
             messages.push(msg);

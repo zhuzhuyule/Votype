@@ -516,6 +516,7 @@ pub(super) async fn execute_default_polish<'a>(
             cached_model_id,
             &built.system_messages,
             built.user_message.as_deref(),
+            None,
             app_name,
             window_title,
             None,
