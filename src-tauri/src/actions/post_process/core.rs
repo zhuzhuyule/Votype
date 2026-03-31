@@ -4,8 +4,9 @@ use crate::settings::{
     AppSettings, PostProcessProvider, PromptMessageRole, APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use async_openai::types::{
-    ChatCompletionRequestDeveloperMessageArgs, ChatCompletionRequestMessage,
-    ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs,
+    ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestDeveloperMessageArgs,
+    ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
+    ChatCompletionRequestUserMessageArgs,
 };
 use log::{error, info};
 use std::collections::HashMap;
@@ -207,6 +208,16 @@ pub(crate) fn build_user_message(
         .build()
         .ok()
         .map(ChatCompletionRequestMessage::User)
+}
+
+pub(crate) fn build_assistant_message(
+    content: impl Into<String>,
+) -> Option<ChatCompletionRequestMessage> {
+    ChatCompletionRequestAssistantMessageArgs::default()
+        .content(content.into())
+        .build()
+        .ok()
+        .map(ChatCompletionRequestMessage::Assistant)
 }
 
 pub async fn execute_llm_request(
