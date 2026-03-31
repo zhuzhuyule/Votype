@@ -83,6 +83,34 @@ static REVIEW_EDITOR_ACTIVE: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false))
 static REVIEW_EDITOR_CONTENT: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new(String::new()));
 static FROZEN_REVIEW_EDITOR_CONTENT: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 
+/// Role in a rewrite conversation turn.
+#[derive(Clone, Debug)]
+pub enum RewriteRole {
+    User,
+    Assistant,
+}
+
+/// A single message in the rewrite conversation history.
+#[derive(Clone, Debug)]
+pub struct RewriteMessage {
+    pub role: RewriteRole,
+    pub content: String,
+}
+
+/// Session-scoped conversation history for multi-turn voice rewrite.
+struct RewriteConversation {
+    session_id: u64,
+    messages: Vec<RewriteMessage>,
+}
+
+static REWRITE_SESSION_COUNTER: AtomicU64 = AtomicU64::new(0);
+static REWRITE_CONVERSATION: Lazy<Mutex<RewriteConversation>> = Lazy::new(|| {
+    Mutex::new(RewriteConversation {
+        session_id: 0,
+        messages: Vec::new(),
+    })
+});
+
 fn emit_review_payload(app_handle: &AppHandle, payload: ReviewWindowPayload) -> bool {
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         let emit_result = review_window.emit("review-window-show", payload);
@@ -365,6 +393,7 @@ pub fn show_review_window(
     model_id: Option<String>,
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
+    reset_rewrite_conversation();
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
     ensure_app_active_for_review(app_handle, had_visible_windows);
@@ -448,6 +477,7 @@ pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
     REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst);
     schedule_hide_windows(app_handle.clone());
     maybe_restore_activation_policy(app_handle);
+    reset_rewrite_conversation();
     let mut hidden = HIDDEN_WINDOWS_BEFORE_REVIEW.lock().unwrap();
     hidden.clear();
 }
@@ -583,6 +613,40 @@ pub fn take_frozen_review_editor_content() -> Option<String> {
         .and_then(|mut guard| guard.take())
 }
 
+/// Get the current rewrite session ID.
+pub fn current_rewrite_session_id() -> u64 {
+    REWRITE_SESSION_COUNTER.load(Ordering::SeqCst)
+}
+
+/// Get conversation history, only if the session ID matches.
+pub fn get_rewrite_conversation(session_id: u64) -> Option<Vec<RewriteMessage>> {
+    REWRITE_CONVERSATION.lock().ok().and_then(|guard| {
+        if guard.session_id == session_id {
+            Some(guard.messages.clone())
+        } else {
+            None
+        }
+    })
+}
+
+/// Append a message to the conversation history, only if the session ID matches.
+pub fn append_rewrite_message(session_id: u64, role: RewriteRole, content: String) {
+    if let Ok(mut guard) = REWRITE_CONVERSATION.lock() {
+        if guard.session_id == session_id {
+            guard.messages.push(RewriteMessage { role, content });
+        }
+    }
+}
+
+/// Clear conversation history and start a new session.
+fn reset_rewrite_conversation() {
+    let new_id = REWRITE_SESSION_COUNTER.fetch_add(1, Ordering::SeqCst) + 1;
+    if let Ok(mut guard) = REWRITE_CONVERSATION.lock() {
+        guard.session_id = new_id;
+        guard.messages.clear();
+    }
+}
+
 /// Shows the review window with multiple model candidates for selection
 pub fn show_review_window_with_candidates(
     app_handle: &AppHandle,
@@ -594,6 +658,7 @@ pub fn show_review_window_with_candidates(
     prompt_id: Option<String>,
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
+    reset_rewrite_conversation();
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
     ensure_app_active_for_review(app_handle, had_visible_windows);
