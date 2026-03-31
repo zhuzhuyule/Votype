@@ -12,7 +12,6 @@ import {
 } from "@radix-ui/themes";
 import {
   IconBolt,
-  IconBrain,
   IconCpu,
   IconEye,
   IconEyeOff,
@@ -37,7 +36,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
-import type { CachedModel } from "../../../lib/types";
 import { Card } from "../../ui/Card";
 import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { AdvancedSettings } from "./AdvancedSettings";
@@ -200,8 +198,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     updateCustomProvider,
     removeCustomProvider,
     addCustomProvider,
-    removeCachedModel,
-    isUpdating,
     refreshSettings,
   } = useSettings();
 
@@ -216,15 +212,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [avatarSearch, setAvatarSearch] = useState("");
 
   const selectedProviderLabel = state.selectedProvider?.label ?? "";
-  const providerModels = useMemo<CachedModel[]>(() => {
-    return (settings?.cached_models ?? [])
-      .filter((model) => model.provider_id === state.selectedProviderId)
-      .sort((a, b) => {
-        const left = a.custom_label || a.model_id;
-        const right = b.custom_label || b.model_id;
-        return left.localeCompare(right);
-      });
-  }, [settings?.cached_models, state.selectedProviderId]);
 
   const visibleProviders = useMemo(() => {
     return state.providers.filter((provider) => {
@@ -291,19 +278,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
       return a.label.localeCompare(b.label);
     });
   }, [filteredIconCatalog, recommendedAvatarKeys]);
-
-  const groupedTemplates = useMemo(() => {
-    return PROVIDER_TEMPLATES.reduce<Record<string, ProviderTemplate[]>>(
-      (groups, template) => {
-        if (!groups[template.category]) {
-          groups[template.category] = [];
-        }
-        groups[template.category].push(template);
-        return groups;
-      },
-      {},
-    );
-  }, []);
 
   const getTemplateHost = (baseUrl: string) => {
     if (!baseUrl.trim()) return "Custom endpoint";
@@ -477,88 +451,66 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 <Dialog.Title>
                   {t("settings.postProcessing.api.providers.add")}
                 </Dialog.Title>
-                <Box className="h-[70vh] max-h-160 overflow-hidden py-2 pl-2">
+                <Box className="py-2 pl-2">
                   <ScrollArea
                     scrollbars="vertical"
                     type="hover"
-                    className="h-[400px] overflow-auto pr-4"
+                    className="max-h-[60vh] overflow-auto pr-4"
                   >
-                    <Flex direction="column" gap="4" className="pr-2 py-1">
-                      {Object.entries(groupedTemplates).map(
-                        ([category, templates]) => (
-                          <Box key={category}>
-                            <Text
-                              size="1"
-                              weight="bold"
-                              className="mb-1! block  text-gray-500"
-                            >
-                              {category}
-                            </Text>
-                            <Grid
-                              columns={{ initial: "2", sm: "3", lg: "4" }}
-                              gap="2"
-                            >
-                              {templates.map((template) => (
-                                <button
-                                  key={template.id}
-                                  type="button"
-                                  onClick={() =>
-                                    void handleAddProvider(template)
-                                  }
-                                  className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
+                    <Grid
+                      columns={{ initial: "2", sm: "3", lg: "4" }}
+                      gap="2"
+                      className="pr-2 py-1"
+                    >
+                      {PROVIDER_TEMPLATES.map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => void handleAddProvider(template)}
+                          className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
+                        >
+                          <Flex align="center" gap="3">
+                            <Flex align="center" gap="3" className="min-w-0">
+                              <ProviderAvatar
+                                providerId={template.id}
+                                baseUrl={template.baseUrl}
+                                large
+                                refreshToken={avatarRefreshToken}
+                                overrideValue={
+                                  settings
+                                    ?.post_process_provider_avatar_overrides?.[
+                                    template.id
+                                  ] ?? null
+                                }
+                              />
+                              <Flex
+                                direction="column"
+                                justify="between"
+                                className="min-w-0 flex-1"
+                                style={{ minHeight: 40 }}
+                              >
+                                <Text
+                                  size="2"
+                                  weight="medium"
+                                  className="block truncate text-(--gray-12)"
+                                  title={template.label}
                                 >
-                                  <Flex align="center" gap="3">
-                                    <Flex
-                                      align="center"
-                                      gap="3"
-                                      className="min-w-0"
-                                    >
-                                      <ProviderAvatar
-                                        providerId={template.id}
-                                        baseUrl={template.baseUrl}
-                                        large
-                                        refreshToken={avatarRefreshToken}
-                                        overrideValue={
-                                          settings
-                                            ?.post_process_provider_avatar_overrides?.[
-                                            template.id
-                                          ] ?? null
-                                        }
-                                      />
-                                      <Flex
-                                        direction="column"
-                                        justify="between"
-                                        className="min-w-0 flex-1"
-                                        style={{ minHeight: 40 }}
-                                      >
-                                        <Text
-                                          size="2"
-                                          weight="medium"
-                                          className="block truncate text-(--gray-12)"
-                                          title={template.label}
-                                        >
-                                          {template.label}
-                                        </Text>
-                                        <Text
-                                          size="1"
-                                          color="gray"
-                                          className="block truncate leading-[1.2]"
-                                          title={getTemplateHost(
-                                            template.baseUrl,
-                                          )}
-                                        >
-                                          {getTemplateHost(template.baseUrl)}
-                                        </Text>
-                                      </Flex>
-                                    </Flex>
-                                  </Flex>
-                                </button>
-                              ))}
-                            </Grid>
-                          </Box>
-                        ),
-                      )}
-                    </Flex>
+                                  {template.label}
+                                </Text>
+                                <Text
+                                  size="1"
+                                  color="gray"
+                                  className="block truncate leading-[1.2]"
+                                  title={getTemplateHost(template.baseUrl)}
+                                >
+                                  {getTemplateHost(template.baseUrl)}
+                                </Text>
+                              </Flex>
+                            </Flex>
+                          </Flex>
+                        </button>
+                      ))}
+                    </Grid>
                   </ScrollArea>
                 </Box>
               </Dialog.Content>
@@ -620,14 +572,15 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       />
                     </button>
                   </Dialog.Trigger>
-                  <Dialog.Content maxWidth="760px" className="max-h-[82vh]">
+                  <Dialog.Content maxWidth="680px" className="max-h-[82vh]">
                     <Dialog.Title>Change Provider Icon</Dialog.Title>
-                    <Box className="mt-3 space-y-4">
+                    <Box className="mt-3 space-y-5">
+                      {/* Provider info + search */}
                       <Flex
                         align="center"
                         justify="between"
                         gap="4"
-                        className="rounded-xl border border-(--gray-a4) bg-(--gray-a2) px-3 py-2.5"
+                        className="px-1"
                       >
                         <Flex align="center" gap="3" className="min-w-0">
                           <ProviderAvatar
@@ -637,7 +590,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                             refreshToken={avatarRefreshToken}
                             overrideValue={selectedProviderAvatarOverride}
                           />
-                          <Box className="min-w-0">
+                          <Flex direction="column" gap="1" className="min-w-0">
                             <Text size="2" weight="medium" className="truncate">
                               {state.selectedProvider?.label ?? "Provider"}
                             </Text>
@@ -646,10 +599,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                                 state.selectedProvider?.base_url ?? "",
                               )}
                             </Text>
-                          </Box>
+                          </Flex>
                         </Flex>
-                        <Box className="w-[220px] max-w-full">
+                        <Box className="w-[200px] max-w-full">
                           <TextField.Root
+                            size="1"
                             value={avatarSearch}
                             onChange={(e) => setAvatarSearch(e.target.value)}
                             placeholder="Search icons"
@@ -661,87 +615,104 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                         </Box>
                       </Flex>
 
+                      {/* Icon grid */}
                       <Box>
-                        <Text size="1" weight="bold" color="gray">
+                        <Text
+                          size="1"
+                          weight="medium"
+                          color="gray"
+                          className="uppercase tracking-wider"
+                        >
                           Icons
                         </Text>
                         <ScrollArea
                           scrollbars="vertical"
                           className="mt-2 max-h-[260px] -mr-5"
                         >
-                          <Box className="flex! flex-wrap gap-5! pr-5">
+                          <Box className="flex! flex-wrap gap-3! pr-5">
                             {orderedIconCatalog.map((entry) => {
+                              const isRecommended =
+                                recommendedAvatarKeys.includes(entry.key);
                               return (
-                                <Button
-                                  variant="outline"
-                                  key={entry.key}
-                                  onClick={() =>
-                                    void handleApplyCatalogAvatar(entry.key)
-                                  }
-                                >
-                                  <img
-                                    src={entry.asset}
-                                    alt=""
-                                    className="h-7 w-7 shrink-0 object-contain"
-                                  />
-                                </Button>
+                                <Box key={entry.key} className="relative">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                      void handleApplyCatalogAvatar(entry.key)
+                                    }
+                                  >
+                                    <img
+                                      src={entry.asset}
+                                      alt=""
+                                      className="h-7 w-7 shrink-0 object-contain"
+                                    />
+                                  </Button>
+                                  {isRecommended && (
+                                    <Box className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-(--accent-9) border-2 border-white dark:border-(--gray-1)" />
+                                  )}
+                                </Box>
                               );
                             })}
                           </Box>
                         </ScrollArea>
                       </Box>
 
-                      <Box className="rounded-xl border border-(--gray-a4) bg-(--gray-a2) px-3 py-3">
-                        <Text size="1" weight="bold" color="gray">
+                      {/* Divider */}
+                      <Box className="border-t border-(--gray-a4)" />
+
+                      {/* Custom source - compact single section */}
+                      <Box className="px-1">
+                        <Text
+                          size="1"
+                          weight="medium"
+                          color="gray"
+                          className="uppercase tracking-wider"
+                        >
                           Custom Source
                         </Text>
-                        <Flex direction="column" gap="2.5" className="mt-2.5">
-                          <Flex gap="2" align="center">
-                            <TextField.Root
-                              value={avatarUrlInput}
-                              onChange={(e) =>
-                                setAvatarUrlInput(e.target.value)
-                              }
-                              placeholder="https://example.com/logo.png"
-                              className="flex-1"
-                            />
-                            <Button
-                              variant="soft"
-                              onClick={() =>
-                                void handleApplyProviderAvatarUrl()
-                              }
-                              disabled={!avatarUrlInput.trim()}
-                            >
-                              Apply
-                            </Button>
-                          </Flex>
-
-                          <Flex gap="2" wrap="wrap">
-                            <Button
-                              variant="soft"
-                              color="gray"
-                              onClick={() => void handleSelectProviderAvatar()}
-                            >
-                              <IconUpload size={14} />
-                              Upload
-                            </Button>
-                            <Button
-                              variant="soft"
-                              color="gray"
-                              onClick={() => void handleRefetchProviderAvatar()}
-                            >
-                              <IconRefresh size={14} />
-                              Refetch
-                            </Button>
-                            <Button
-                              variant="soft"
-                              color="gray"
-                              onClick={() => void handleResetProviderAvatar()}
-                            >
-                              <IconX size={14} />
-                              Reset
-                            </Button>
-                          </Flex>
+                        <Flex gap="2" align="center" className="mt-2.5">
+                          <TextField.Root
+                            size="1"
+                            value={avatarUrlInput}
+                            onChange={(e) => setAvatarUrlInput(e.target.value)}
+                            placeholder="https://example.com/logo.png"
+                            className="flex-1"
+                          />
+                          <Button
+                            size="1"
+                            variant="soft"
+                            onClick={() => void handleApplyProviderAvatarUrl()}
+                            disabled={!avatarUrlInput.trim()}
+                          >
+                            Apply
+                          </Button>
+                          <IconButton
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            title="Upload"
+                            onClick={() => void handleSelectProviderAvatar()}
+                          >
+                            <IconUpload size={14} />
+                          </IconButton>
+                          <IconButton
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            title="Refetch"
+                            onClick={() => void handleRefetchProviderAvatar()}
+                          >
+                            <IconRefresh size={14} />
+                          </IconButton>
+                          <IconButton
+                            size="1"
+                            variant="soft"
+                            color="gray"
+                            title="Reset"
+                            onClick={() => void handleResetProviderAvatar()}
+                          >
+                            <IconX size={14} />
+                          </IconButton>
                         </Flex>
                       </Box>
                     </Box>
@@ -762,17 +733,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     )}
                     className="max-w-sm font-medium"
                   />
-                  <Flex align="center" gap="2" mt="2">
-                    <Badge variant="soft" color="gray" size="1">
-                      {state.selectedProvider?.builtin
-                        ? t("settings.postProcessing.api.provider.builtin")
-                        : "Custom"}
-                    </Badge>
-                    <Text size="1" color="gray">
-                      {providerModels.length} model
-                      {providerModels.length === 1 ? "" : "s"}
-                    </Text>
-                  </Flex>
                 </Box>
               </Flex>
               <Flex align="center" gap="2">
@@ -936,12 +896,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 <Button
                   variant="solid"
                   onClick={async () => {
-                    // 允许空 API Key
-                    // if (!localApiKey) {
-                    //   toast.error("API Key is required");
-                    //   return;
-                    // }
-
                     // 规范化 URL（仅去除尾部斜杠）
                     let normalizedUrl = localBaseUrl.trim();
 
@@ -1072,101 +1026,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     </Text>
                   </Flex>
                 </Card>
-              )}
-            </Flex>
-
-            <Flex direction="column" gap="3">
-              <Flex align="center" justify="between">
-                <Text size="2" weight="medium" color="gray">
-                  Added Models
-                </Text>
-                {providerModels.length > 0 && (
-                  <Badge variant="soft" color="gray">
-                    {providerModels.length}
-                  </Badge>
-                )}
-              </Flex>
-              {providerModels.length === 0 ? (
-                <Card className="border border-dashed border-(--gray-a5) bg-(--gray-a2) p-4">
-                  <Flex align="center" justify="between" gap="4">
-                    <Flex direction="column" gap="1">
-                      <Text size="2" weight="medium">
-                        No models added yet
-                      </Text>
-                      <Text size="1" color="gray">
-                        Add a model from this provider to start using it faster.
-                      </Text>
-                    </Flex>
-                    <Button variant="soft" onClick={onOpenAddModel}>
-                      <IconPlus size={14} />
-                      Add Model
-                    </Button>
-                  </Flex>
-                </Card>
-              ) : (
-                <Flex direction="column" gap="2">
-                  {providerModels.map((model) => (
-                    <Card
-                      key={model.id}
-                      className="border border-(--gray-a4) bg-(--gray-a2) p-3"
-                    >
-                      <Flex align="center" justify="between" gap="3">
-                        <Flex align="center" gap="2" className="min-w-0">
-                          {model.model_type === "text" ? (
-                            <IconBolt
-                              size={15}
-                              className="text-(--accent-10) shrink-0"
-                            />
-                          ) : model.model_type === "asr" ? (
-                            <IconCpu
-                              size={15}
-                              className="text-sky-600 shrink-0"
-                            />
-                          ) : (
-                            <IconWorld
-                              size={15}
-                              className="text-violet-600 shrink-0"
-                            />
-                          )}
-                          <Box className="min-w-0">
-                            <Text size="2" weight="medium" className="truncate">
-                              {model.custom_label || model.model_id}
-                            </Text>
-                            <Flex align="center" gap="2" mt="1">
-                              {model.custom_label && (
-                                <Text
-                                  size="1"
-                                  color="gray"
-                                  className="truncate"
-                                >
-                                  {model.model_id}
-                                </Text>
-                              )}
-                              {model.is_thinking_model && (
-                                <Badge size="1" color="amber" variant="soft">
-                                  <IconBrain size={12} />
-                                  Thinking
-                                </Badge>
-                              )}
-                            </Flex>
-                          </Box>
-                        </Flex>
-                        <IconButton
-                          size="1"
-                          variant="ghost"
-                          color="red"
-                          disabled={isUpdating(
-                            `cached_model_remove:${model.id}`,
-                          )}
-                          onClick={() => void removeCachedModel(model.id)}
-                          title={t("common.delete")}
-                        >
-                          <IconX size={14} />
-                        </IconButton>
-                      </Flex>
-                    </Card>
-                  ))}
-                </Flex>
               )}
             </Flex>
 

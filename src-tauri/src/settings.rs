@@ -1229,32 +1229,12 @@ fn default_post_process_prompts() -> Vec<LLMPrompt> {
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
     for provider in default_post_process_providers() {
-        let should_restore_if_missing = provider.builtin && !provider.deletable;
-
-        if settings
-            .post_process_providers
-            .iter()
-            .all(|existing| existing.id != provider.id)
-            && should_restore_if_missing
-        {
-            settings.post_process_providers.push(provider.clone());
-            changed = true;
-        }
-
-        // Sync metadata for existing builtin providers.
+        // Sync metadata for existing providers from templates.
         if let Some(existing) = settings
             .post_process_providers
             .iter_mut()
             .find(|p| p.id == provider.id)
         {
-            if existing.builtin != provider.builtin {
-                existing.builtin = provider.builtin;
-                changed = true;
-            }
-            if existing.deletable != provider.deletable {
-                existing.deletable = provider.deletable;
-                changed = true;
-            }
             if existing.supports_structured_output != provider.supports_structured_output {
                 existing.supports_structured_output = provider.supports_structured_output;
                 changed = true;

@@ -65,16 +65,20 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       style={style}
       onClick={onClick}
       className={`
-        group flex items-center justify-between px-3 py-2 rounded-md cursor-pointer text-sm select-none
-        transition-colors duration-200
+        group relative flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-sm select-none
+        transition-all duration-150
         ${
           isSelected
             ? "bg-(--accent-a3) text-(--accent-11) font-medium"
-            : "text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+            : "text-gray-600 hover:bg-(--gray-a3) dark:hover:bg-(--gray-a3)"
         }
         ${isDragging ? "shadow-lg bg-white dark:bg-gray-900" : ""}
       `}
     >
+      {/* Active indicator bar */}
+      {isSelected && (
+        <Box className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-(--accent-9)" />
+      )}
       <Flex align="start" gap="2" className="flex-1 min-w-0">
         {/* Drag handle - only visible when sortable */}
         {sortable && (
@@ -90,7 +94,9 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
         {iconNode ? (
           <Box className="shrink-0 mt-0.5">{iconNode}</Box>
         ) : icon ? (
-          <Box className="shrink-0 text-gray-400 group-hover:text-(--accent-11) mt-0.5">
+          <Box
+            className={`shrink-0 mt-0.5 ${isSelected ? "text-(--accent-9)" : "text-gray-400 group-hover:text-(--accent-11)"}`}
+          >
             <DynamicIcon name={icon} size={16} />
           </Box>
         ) : null}
@@ -101,7 +107,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
               {option.label}
             </Text>
             {outputMode === "chat" && (
-              <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-medium leading-none">
+              <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-(--accent-a3) text-(--accent-11) font-medium leading-none">
                 {t(
                   "settings.postProcessing.prompts.outputMode.chat",
                   "AI Chat",
