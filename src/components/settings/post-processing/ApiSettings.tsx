@@ -22,6 +22,7 @@ import {
   IconPlus,
   IconRefresh,
   IconRobot,
+  IconRosetteDiscountCheckFilled,
   IconSearch,
   IconServer,
   IconTrash,
@@ -45,8 +46,26 @@ import {
   PROVIDER_ICON_CATALOG,
   resolveProviderIconAsset,
 } from "./providerBrandAssets";
-import { type ProviderTemplate, PROVIDER_TEMPLATES } from "./providerTemplates";
+import {
+  type ProviderTemplate,
+  PROVIDER_TEMPLATES,
+  RECOMMENDED_PROVIDER_TEMPLATE_IDS,
+} from "./providerTemplates";
 import { SidebarItem } from "./SidebarItem";
+
+const RECOMMENDED_PROVIDER_TEMPLATE_ID_SET = new Set<string>(
+  RECOMMENDED_PROVIDER_TEMPLATE_IDS,
+);
+
+const LOCAL_PROVIDER_TEMPLATE_ID_SET = new Set<string>([
+  "ollama",
+  "lmstudio",
+  "localai",
+  "vllm",
+  "xinference",
+  "omlx",
+  "apple_intelligence",
+]);
 
 const getProviderGlyph = (
   providerId: string,
@@ -61,6 +80,9 @@ const getProviderGlyph = (
   if (normalized.includes("localai")) return IconServer;
   if (normalized.includes("vllm")) return IconCpu;
   if (normalized.includes("xinference")) return IconHexagonLetterA;
+  if (normalized.includes("omlx") || normalized.includes("mlx")) {
+    return IconBolt;
+  }
   if (normalized.includes("custom")) return IconPlug;
 
   return null;
@@ -288,6 +310,46 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     }
   };
 
+  const groupedProviderTemplates = useMemo(() => {
+    const recommendedOrder = new Map<string, number>(
+      RECOMMENDED_PROVIDER_TEMPLATE_IDS.map((id, index) => [id, index]),
+    );
+
+    const recommended = PROVIDER_TEMPLATES.filter((template) =>
+      RECOMMENDED_PROVIDER_TEMPLATE_ID_SET.has(template.id),
+    ).sort(
+      (a, b) =>
+        (recommendedOrder.get(a.id) ?? Number.MAX_SAFE_INTEGER) -
+        (recommendedOrder.get(b.id) ?? Number.MAX_SAFE_INTEGER),
+    );
+
+    const localCompatible = PROVIDER_TEMPLATES.filter(
+      (template) =>
+        !RECOMMENDED_PROVIDER_TEMPLATE_ID_SET.has(template.id) &&
+        LOCAL_PROVIDER_TEMPLATE_ID_SET.has(template.id),
+    );
+
+    const openAiCompatible = PROVIDER_TEMPLATES.filter(
+      (template) =>
+        !RECOMMENDED_PROVIDER_TEMPLATE_ID_SET.has(template.id) &&
+        !LOCAL_PROVIDER_TEMPLATE_ID_SET.has(template.id),
+    );
+
+    return [
+      { key: "recommended", label: "推荐系列", templates: recommended },
+      {
+        key: "openai-compatible",
+        label: "OpenAI 兼容系列",
+        templates: openAiCompatible,
+      },
+      {
+        key: "local-openai-compatible",
+        label: "本地 OpenAI 兼容系列",
+        templates: localCompatible,
+      },
+    ].filter((group) => group.templates.length > 0);
+  }, []);
+
   // Update local state when provider changes
   useEffect(() => {
     setLocalBaseUrl(state.baseUrl);
@@ -457,60 +519,80 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     type="hover"
                     className="max-h-[60vh] overflow-auto pr-4"
                   >
-                    <Grid
-                      columns={{ initial: "2", sm: "3", lg: "4" }}
-                      gap="2"
-                      className="pr-2 py-1"
-                    >
-                      {PROVIDER_TEMPLATES.map((template) => (
-                        <button
-                          key={template.id}
-                          type="button"
-                          onClick={() => void handleAddProvider(template)}
-                          className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
-                        >
-                          <Flex align="center" gap="3">
-                            <Flex align="center" gap="3" className="min-w-0">
-                              <ProviderAvatar
-                                providerId={template.id}
-                                baseUrl={template.baseUrl}
-                                large
-                                refreshToken={avatarRefreshToken}
-                                overrideValue={
-                                  settings
-                                    ?.post_process_provider_avatar_overrides?.[
-                                    template.id
-                                  ] ?? null
-                                }
-                              />
-                              <Flex
-                                direction="column"
-                                justify="between"
-                                className="min-w-0 flex-1"
-                                style={{ minHeight: 40 }}
+                    <Flex direction="column" gap="4" className="pr-2 py-1">
+                      {groupedProviderTemplates.map((group) => (
+                        <Box key={group.key}>
+                          <Text
+                            size="1"
+                            weight="bold"
+                            className="mb-2 block px-1 tracking-[0.08em] text-(--gray-11)"
+                          >
+                            {group.label}
+                          </Text>
+                          <Grid
+                            columns={{ initial: "2", sm: "3", lg: "4" }}
+                            gap="2"
+                          >
+                            {group.templates.map((template) => (
+                              <button
+                                key={template.id}
+                                type="button"
+                                onClick={() => void handleAddProvider(template)}
+                                className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
                               >
-                                <Text
-                                  size="2"
-                                  weight="medium"
-                                  className="block truncate text-(--gray-12)"
-                                  title={template.label}
-                                >
-                                  {template.label}
-                                </Text>
-                                <Text
-                                  size="1"
-                                  color="gray"
-                                  className="block truncate leading-[1.2]"
-                                  title={getTemplateHost(template.baseUrl)}
-                                >
-                                  {getTemplateHost(template.baseUrl)}
-                                </Text>
-                              </Flex>
-                            </Flex>
-                          </Flex>
-                        </button>
+                                <Flex align="center" gap="3">
+                                  <Flex
+                                    align="center"
+                                    gap="3"
+                                    className="min-w-0"
+                                  >
+                                    <Box className="scale-[1.18] shrink-0">
+                                      <ProviderAvatar
+                                        providerId={template.id}
+                                        baseUrl={template.baseUrl}
+                                        large
+                                        refreshToken={avatarRefreshToken}
+                                        overrideValue={
+                                          settings
+                                            ?.post_process_provider_avatar_overrides?.[
+                                            template.id
+                                          ] ?? null
+                                        }
+                                      />
+                                    </Box>
+                                    <Flex
+                                      direction="column"
+                                      justify="between"
+                                      className="min-w-0 flex-1"
+                                      style={{ minHeight: 40 }}
+                                    >
+                                      <Text
+                                        size="2"
+                                        weight="medium"
+                                        className="block truncate text-(--gray-12)"
+                                        title={template.label}
+                                      >
+                                        {template.label}
+                                      </Text>
+                                      <Text
+                                        size="1"
+                                        color="gray"
+                                        className="block truncate leading-[1.2]"
+                                        title={getTemplateHost(
+                                          template.baseUrl,
+                                        )}
+                                      >
+                                        {getTemplateHost(template.baseUrl)}
+                                      </Text>
+                                    </Flex>
+                                  </Flex>
+                                </Flex>
+                              </button>
+                            ))}
+                          </Grid>
+                        </Box>
                       ))}
-                    </Grid>
+                    </Flex>
                   </ScrollArea>
                 </Box>
               </Dialog.Content>
@@ -640,15 +722,22 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                                     onClick={() =>
                                       void handleApplyCatalogAvatar(entry.key)
                                     }
+                                    className="h-12! w-12! p-0!"
                                   >
                                     <img
                                       src={entry.asset}
                                       alt=""
-                                      className="h-7 w-7 shrink-0 object-contain"
+                                      className="h-8 w-8 shrink-0 object-contain"
                                     />
                                   </Button>
                                   {isRecommended && (
-                                    <Box className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-(--accent-9) border-2 border-white dark:border-(--gray-1)" />
+                                    <Box className="pointer-events-none absolute -top-2 -right-2 inline-flex! items-center gap-1 rounded-full border border-amber-300/80 bg-[linear-gradient(135deg,#fef3c7,#f59e0b)] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-amber-950 shadow-[0_6px_16px_rgba(245,158,11,0.3)] dark:border-amber-200/30 dark:bg-[linear-gradient(135deg,rgba(251,191,36,0.96),rgba(217,119,6,0.96))] dark:text-white">
+                                      <IconRosetteDiscountCheckFilled
+                                        size={11}
+                                        className="shrink-0"
+                                      />
+                                      <span>推荐</span>
+                                    </Box>
                                   )}
                                 </Box>
                               );

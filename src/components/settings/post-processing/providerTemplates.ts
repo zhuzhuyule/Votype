@@ -6,6 +6,14 @@ export type ProviderTemplate = {
   modelsEndpoint?: string;
 };
 
+export const RECOMMENDED_PROVIDER_TEMPLATE_IDS = [
+  "groq",
+  "xingchen",
+  "longcat",
+  "zai",
+  "gitee",
+] as const;
+
 export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
   {
     id: "openai",
@@ -179,6 +187,13 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     id: "xinference",
     label: "Xinference",
     baseUrl: "http://localhost:9997/v1",
+    category: "Local",
+    modelsEndpoint: "/models",
+  },
+  {
+    id: "omlx",
+    label: "oMLX",
+    baseUrl: "http://localhost:8000/v1",
     category: "Local",
     modelsEndpoint: "/models",
   },
