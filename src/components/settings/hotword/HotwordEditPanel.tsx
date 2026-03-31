@@ -10,7 +10,7 @@ import {
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
-import { IconCheck, IconTrash } from "@tabler/icons-react";
+import { IconCheck, IconMinus, IconPlus, IconTrash } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -47,6 +47,7 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
   );
   const [newOriginal, setNewOriginal] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [useCount, setUseCount] = useState(hotword.use_count);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +56,7 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
     setOriginals(hotword.originals);
     setCategory(hotword.category);
     setScenarios(hotword.scenarios);
+    setUseCount(hotword.use_count);
     setNewOriginal("");
     setConfirmDelete(false);
   }, [
@@ -63,6 +65,7 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
     hotword.originals,
     hotword.category,
     hotword.scenarios,
+    hotword.use_count,
   ]);
 
   const hasChanges = useMemo(() => {
@@ -113,6 +116,19 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
     setOriginals((prev) => prev.filter((o) => o !== tag));
   };
 
+  const handleAdjustUseCount = async (delta: number) => {
+    try {
+      const newCount = await invoke<number>("adjust_hotword_use_count", {
+        id: hotword.id,
+        delta,
+      });
+      setUseCount(newCount);
+      onUpdate();
+    } catch (e) {
+      console.error("[HotwordEditPanel] Adjust use_count failed:", e);
+    }
+  };
+
   const handleScenarioToggle = (scenario: HotwordScenario) => {
     setScenarios((prev) =>
       prev.includes(scenario)
@@ -144,9 +160,32 @@ export const HotwordEditPanel: React.FC<HotwordEditPanelProps> = ({
             <Badge size="1" variant="soft" color={sourceColor}>
               {SOURCE_LABELS[hotword.source]}
             </Badge>
-            <Text size="1" color="gray">
-              使用 {hotword.use_count} 次
-            </Text>
+            <Flex align="center" gap="1">
+              <Tooltip content="减少权重">
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => handleAdjustUseCount(-1)}
+                  disabled={useCount <= 0}
+                >
+                  <IconMinus size={10} />
+                </IconButton>
+              </Tooltip>
+              <Text size="1" color="gray" className="min-w-[3ch] text-center">
+                {useCount}
+              </Text>
+              <Tooltip content="增加权重">
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => handleAdjustUseCount(1)}
+                >
+                  <IconPlus size={10} />
+                </IconButton>
+              </Tooltip>
+            </Flex>
             {hotword.false_positive_count > 0 && (
               <Text size="1" color="red">
                 误报 {hotword.false_positive_count}

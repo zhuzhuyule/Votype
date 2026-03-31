@@ -766,6 +766,46 @@ async getProviderAvatarPath(providerId: string) : Promise<Result<string | null, 
     else return { status: "error", error: e  as any };
 }
 },
+async setProviderAvatarIconKey(providerId: string, iconKey: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_provider_avatar_icon_key", { providerId, iconKey }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setProviderAvatarFromPath(providerId: string, sourcePath: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_provider_avatar_from_path", { providerId, sourcePath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setProviderAvatarFromUrl(providerId: string, imageUrl: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_provider_avatar_from_url", { providerId, imageUrl }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async resetProviderAvatar(providerId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reset_provider_avatar", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async refreshProviderAvatar(providerId: string) : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("refresh_provider_avatar", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async addCustomProvider(label: string, baseUrl: string, modelsEndpoint: string | null) : Promise<Result<PostProcessProvider, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("add_custom_provider", { label, baseUrl, modelsEndpoint }) };

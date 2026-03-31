@@ -15,6 +15,7 @@ import {
   IconButton,
   Text,
   TextField,
+  Tooltip,
 } from "@radix-ui/themes";
 import {
   IconArrowRight,
@@ -22,6 +23,8 @@ import {
   IconDownload,
   IconPlus,
   IconSearch,
+  IconSortAscendingLetters,
+  IconSortDescendingNumbers,
   IconUpload,
   IconX,
 } from "@tabler/icons-react";
@@ -124,6 +127,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
   onDeleteCategory,
 }) => {
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<"alpha" | "weight">("alpha");
   const [showAddBar, setShowAddBar] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -146,7 +150,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
     );
   }, [hotwords, search]);
 
-  // Group by category, sorted: non-CJK first (alpha), then CJK by pinyin
+  // Group by category with configurable sort
   const grouped = useMemo(() => {
     const cjkRegex = /^[\u4e00-\u9fff\u3400-\u4dbf]/;
     const collator = new Intl.Collator("zh-Hans-CN", { sensitivity: "base" });
@@ -162,6 +166,11 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
     });
     for (const cat of Object.keys(groups)) {
       groups[cat].sort((a, b) => {
+        if (sortMode === "weight") {
+          return (
+            b.use_count - a.use_count || collator.compare(a.target, b.target)
+          );
+        }
         const aCJK = cjkRegex.test(a.target);
         const bCJK = cjkRegex.test(b.target);
         if (aCJK !== bCJK) return aCJK ? 1 : -1;
@@ -169,7 +178,7 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
       });
     }
     return groups;
-  }, [filteredHotwords, sortedIds]);
+  }, [filteredHotwords, sortedIds, sortMode]);
 
   const selectedHotword = selectedId
     ? hotwords.find((h) => h.id === selectedId) || null
@@ -291,29 +300,49 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
               onDelete={onDeleteCategory}
             />
           </Flex>
-          <div className="relative w-48">
-            <TextField.Root
-              size="2"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索热词..."
+          <Flex align="center" gap="2">
+            <Tooltip
+              content={sortMode === "alpha" ? "按权重排序" : "按字母排序"}
             >
-              <TextField.Slot>
-                <IconSearch size={14} />
-              </TextField.Slot>
-              {search && (
+              <IconButton
+                size="2"
+                variant="ghost"
+                color="gray"
+                onClick={() =>
+                  setSortMode((m) => (m === "alpha" ? "weight" : "alpha"))
+                }
+              >
+                {sortMode === "alpha" ? (
+                  <IconSortAscendingLetters size={16} />
+                ) : (
+                  <IconSortDescendingNumbers size={16} />
+                )}
+              </IconButton>
+            </Tooltip>
+            <div className="relative w-48">
+              <TextField.Root
+                size="2"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜索热词..."
+              >
                 <TextField.Slot>
-                  <IconButton
-                    size="1"
-                    variant="ghost"
-                    onClick={() => setSearch("")}
-                  >
-                    <IconX size={12} />
-                  </IconButton>
+                  <IconSearch size={14} />
                 </TextField.Slot>
-              )}
-            </TextField.Root>
-          </div>
+                {search && (
+                  <TextField.Slot>
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      onClick={() => setSearch("")}
+                    >
+                      <IconX size={12} />
+                    </IconButton>
+                  </TextField.Slot>
+                )}
+              </TextField.Root>
+            </div>
+          </Flex>
         </Flex>
       </div>
 

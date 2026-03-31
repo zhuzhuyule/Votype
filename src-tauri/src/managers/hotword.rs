@@ -549,6 +549,28 @@ impl HotwordManager {
     }
 
     /// Increment false positive count for a hotword
+    /// Adjust use_count by a delta (positive or negative). Returns the new use_count.
+    pub fn adjust_use_count(&self, id: i64, delta: i64) -> Result<i64> {
+        let conn = self.get_connection()?;
+
+        conn.execute(
+            "UPDATE hotwords SET use_count = MAX(0, use_count + ?1) WHERE id = ?2",
+            params![delta, id],
+        )?;
+
+        let new_count: i64 = conn.query_row(
+            "SELECT use_count FROM hotwords WHERE id = ?1",
+            params![id],
+            |row| row.get(0),
+        )?;
+
+        info!(
+            "[Hotword] Adjusted use_count for hotword id={} by {}, new count={}",
+            id, delta, new_count
+        );
+        Ok(new_count)
+    }
+
     pub fn increment_false_positive(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
 
@@ -1449,15 +1471,50 @@ impl HotwordManager {
             .collect::<Vec<_>>()
             .join("\n");
 
+        // Build reference from hotwords that have correction pairs (originals)
+        let existing_hotwords_text = {
+            let hotword_manager = HotwordManager::new(db_path.clone());
+            match hotword_manager.get_all() {
+                Ok(hotwords) => {
+                    let mut with_corrections: Vec<_> = hotwords
+                        .into_iter()
+                        .filter(|h| !h.originals.is_empty())
+                        .collect();
+                    // Sort by use_count desc, multi-word first
+                    with_corrections.sort_by(|a, b| {
+                        let a_multi = a.target.contains(' ') || a.target.len() > 5;
+                        let b_multi = b.target.contains(' ') || b.target.len() > 5;
+                        b_multi.cmp(&a_multi).then(b.use_count.cmp(&a.use_count))
+                    });
+                    let entries: Vec<String> = with_corrections
+                        .iter()
+                        .take(30)
+                        .map(|h| format!("- {} → {}", h.originals.join("/"), h.target))
+                        .collect();
+                    if entries.is_empty() {
+                        String::new()
+                    } else {
+                        format!(
+                            "## Known correction pairs (reference)\n\n{}\n",
+                            entries.join("\n")
+                        )
+                    }
+                }
+                _ => String::new(),
+            }
+        };
+
         info!(
-            "[Hotword] LLM correction analysis: provider={}, model={}, corrections_text_len={}",
+            "[Hotword] LLM correction analysis: provider={}, model={}, corrections_text_len={}, existing_hotwords_len={}",
             provider.id,
             model,
-            corrections_text.len()
+            corrections_text.len(),
+            existing_hotwords_text.len()
         );
 
         let mut vars = HashMap::new();
         vars.insert("corrections", corrections_text);
+        vars.insert("existing_hotwords", existing_hotwords_text);
         let system_prompt = prompt::substitute_variables(&template, &vars);
         info!(
             "[Hotword] LLM correction analysis prompt:\n{}",

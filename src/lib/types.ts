@@ -242,6 +242,10 @@ export const SettingsSchema = z.object({
     .default([]),
   post_process_api_keys: z.record(z.string()).optional().default({}),
   post_process_models: z.record(z.string()).optional().default({}),
+  post_process_provider_avatar_overrides: z
+    .record(z.string())
+    .optional()
+    .default({}),
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
   post_process_intent_model_id: z.string().nullable().optional().default(null),

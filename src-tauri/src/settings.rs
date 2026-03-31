@@ -821,6 +821,8 @@ pub struct AppSettings {
     pub post_process_api_keys: SecretMap,
     #[serde(default = "default_post_process_models")]
     pub post_process_models: HashMap<String, String>,
+    #[serde(default = "default_post_process_provider_avatar_overrides")]
+    pub post_process_provider_avatar_overrides: HashMap<String, String>,
     #[serde(default = "default_post_process_prompts")]
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
@@ -1170,6 +1172,10 @@ fn default_post_process_models() -> HashMap<String, String> {
         );
     }
     map
+}
+
+fn default_post_process_provider_avatar_overrides() -> HashMap<String, String> {
+    HashMap::new()
 }
 
 fn default_punctuation_enabled() -> bool {
@@ -1604,6 +1610,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
+        post_process_provider_avatar_overrides: default_post_process_provider_avatar_overrides(),
         post_process_prompts: default_post_process_prompts(),
         builtin_prompt_resource_hashes: HashMap::new(),
         post_process_selected_prompt_id: None,

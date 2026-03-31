@@ -10,7 +10,6 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import ProviderIcon from "@lobehub/icons/es/features/ProviderIcon";
 import {
   IconBolt,
   IconBrain,
@@ -22,13 +21,17 @@ import {
   IconPlug,
   IconPlugConnected,
   IconPlus,
+  IconRefresh,
   IconRobot,
+  IconSearch,
   IconServer,
   IconTrash,
+  IconUpload,
   IconWorld,
   IconX,
 } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -38,7 +41,12 @@ import type { CachedModel } from "../../../lib/types";
 import { Card } from "../../ui/Card";
 import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { AdvancedSettings } from "./AdvancedSettings";
-import { PROVIDER_BRAND_ASSETS } from "./providerBrandAssets";
+import {
+  matchRecommendedProviderIconKeys,
+  PROVIDER_BRAND_ASSETS,
+  PROVIDER_ICON_CATALOG,
+  resolveProviderIconAsset,
+} from "./providerBrandAssets";
 import { type ProviderTemplate, PROVIDER_TEMPLATES } from "./providerTemplates";
 import { SidebarItem } from "./SidebarItem";
 
@@ -83,83 +91,32 @@ const getProviderMeta = (providerId: string) => {
   }
 };
 
-const LOBE_PROVIDER_MAP: Record<string, string> = {
-  anthropic: "anthropic",
-  apple_intelligence: "apple",
-  baichuan: "baichuan",
-  bailian: "bailian",
-  deepseek: "deepseek",
-  doubao: "doubao",
-  fireworks: "fireworks",
-  gemini: "gemini",
-  gitee: "giteeai",
-  gitee_free: "giteeai",
-  groq: "groq",
-  iflow: "inference",
-  lmstudio: "lmstudio",
-  longcat: "longcat",
-  minimax: "minimax",
-  moonshot: "moonshot",
-  ollama: "ollama",
-  openai: "openai",
-  openrouter: "openrouter",
-  perplexity: "perplexity",
-  ppio: "ppio",
-  qwen: "qwen",
-  siliconflow: "siliconcloud",
-  stepfun: "stepfun",
-  together: "togetherai",
-  vllm: "vllm",
-  xai: "xai",
-  xingchen: "spark",
-  xinference: "xinference",
-  zai: "zai",
-  zhipu: "zhipu",
-};
-
-const getLobeProviderKey = (providerId: string, baseUrl: string) => {
-  if (LOBE_PROVIDER_MAP[providerId]) {
-    return LOBE_PROVIDER_MAP[providerId];
-  }
-
-  const normalized = `${providerId} ${baseUrl}`.toLowerCase();
-
-  if (normalized.includes("siliconflow")) return "siliconcloud";
-  if (normalized.includes("together")) return "togetherai";
-  if (normalized.includes("gitee")) return "giteeai";
-  if (normalized.includes("moonshot") || normalized.includes("kimi")) {
-    return "moonshot";
-  }
-  if (normalized.includes("dashscope") || normalized.includes("qwen")) {
-    return "qwen";
-  }
-  if (normalized.includes("doubao") || normalized.includes("volces")) {
-    return "doubao";
-  }
-  if (normalized.includes("stepfun")) return "stepfun";
-  if (normalized.includes("perplexity")) return "perplexity";
-  if (normalized.includes("gemini") || normalized.includes("googleapis")) {
-    return "gemini";
-  }
-
-  return null;
-};
-
 const ProviderAvatar: React.FC<{
   providerId: string;
   baseUrl: string;
   large?: boolean;
-}> = ({ providerId, baseUrl, large = false }) => {
+  refreshToken?: number;
+  overrideValue?: string | null;
+}> = ({
+  providerId,
+  baseUrl,
+  large = false,
+  refreshToken = 0,
+  overrideValue = null,
+}) => {
   const staticAssetUrl = PROVIDER_BRAND_ASSETS[providerId] ?? null;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(staticAssetUrl);
   const Glyph = getProviderGlyph(providerId, baseUrl);
-  const lobeProviderKey = getLobeProviderKey(providerId, baseUrl);
   const meta = getProviderMeta(providerId);
   const frameClass = large ? "h-10 w-10 rounded-xl" : "h-6 w-6 rounded-md";
 
   useEffect(() => {
-    if (lobeProviderKey || staticAssetUrl) {
-      setAvatarUrl(staticAssetUrl);
+    const catalogKey = overrideValue?.startsWith("catalog:")
+      ? overrideValue.slice(8)
+      : null;
+
+    if (catalogKey) {
+      setAvatarUrl(resolveProviderIconAsset(catalogKey));
       return;
     }
 
@@ -167,7 +124,7 @@ const ProviderAvatar: React.FC<{
 
     const trimmed = baseUrl.trim();
     if (!trimmed || trimmed.startsWith("apple-intelligence://")) {
-      setAvatarUrl(null);
+      setAvatarUrl(staticAssetUrl ?? null);
       return;
     }
 
@@ -176,37 +133,27 @@ const ProviderAvatar: React.FC<{
     })
       .then((filePath) => {
         if (cancelled) return;
-        setAvatarUrl(filePath ? convertFileSrc(filePath, "asset") : null);
+        setAvatarUrl(
+          filePath
+            ? convertFileSrc(filePath, "asset")
+            : (staticAssetUrl ?? null),
+        );
       })
       .catch(() => {
         if (!cancelled) {
-          setAvatarUrl(null);
+          setAvatarUrl(staticAssetUrl ?? null);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [providerId, baseUrl, lobeProviderKey, staticAssetUrl]);
-
-  if (lobeProviderKey) {
-    return (
-      <Box
-        className={`inline-flex shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
-      >
-        <ProviderIcon
-          provider={lobeProviderKey}
-          type="color"
-          size={large ? 22 : 14}
-        />
-      </Box>
-    );
-  }
+  }, [providerId, baseUrl, staticAssetUrl, refreshToken, overrideValue]);
 
   if (avatarUrl) {
     return (
       <Box
-        className={`inline-flex shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
+        className={`inline-flex! shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
       >
         <img
           src={avatarUrl}
@@ -221,7 +168,7 @@ const ProviderAvatar: React.FC<{
   if (Glyph) {
     return (
       <Box
-        className={`inline-flex shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
+        className={`inline-flex! shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
       >
         <Glyph
           size={large ? 18 : 14}
@@ -255,6 +202,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     addCustomProvider,
     removeCachedModel,
     isUpdating,
+    refreshSettings,
   } = useSettings();
 
   const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
@@ -262,6 +210,10 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [avatarRefreshToken, setAvatarRefreshToken] = useState(0);
+  const [avatarUrlInput, setAvatarUrlInput] = useState("");
+  const [avatarSearch, setAvatarSearch] = useState("");
 
   const selectedProviderLabel = state.selectedProvider?.label ?? "";
   const providerModels = useMemo<CachedModel[]>(() => {
@@ -294,6 +246,51 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     state.providers,
     state.selectedProviderId,
   ]);
+
+  const selectedProviderAvatarOverride =
+    settings?.post_process_provider_avatar_overrides?.[
+      state.selectedProviderId
+    ] ?? null;
+
+  const recommendedAvatarKeys = useMemo(() => {
+    const matched = matchRecommendedProviderIconKeys({
+      providerId: state.selectedProviderId,
+      label: state.selectedProvider?.label ?? "",
+      baseUrl: state.selectedProvider?.base_url ?? "",
+    });
+    return matched.length > 0
+      ? matched
+      : PROVIDER_ICON_CATALOG.slice(0, 6).map((entry) => entry.key);
+  }, [
+    state.selectedProvider?.base_url,
+    state.selectedProvider?.label,
+    state.selectedProviderId,
+  ]);
+
+  const filteredIconCatalog = useMemo(() => {
+    const query = avatarSearch.trim().toLowerCase();
+    if (!query) return PROVIDER_ICON_CATALOG;
+
+    return PROVIDER_ICON_CATALOG.filter((entry) => {
+      return (
+        entry.label.toLowerCase().includes(query) ||
+        entry.key.toLowerCase().includes(query) ||
+        entry.keywords.some((keyword) => keyword.toLowerCase().includes(query))
+      );
+    });
+  }, [avatarSearch]);
+
+  const orderedIconCatalog = useMemo(() => {
+    const recommendedSet = new Set(recommendedAvatarKeys);
+    return [...filteredIconCatalog].sort((a, b) => {
+      const aRecommended = recommendedSet.has(a.key) ? 1 : 0;
+      const bRecommended = recommendedSet.has(b.key) ? 1 : 0;
+      if (aRecommended !== bRecommended) {
+        return bRecommended - aRecommended;
+      }
+      return a.label.localeCompare(b.label);
+    });
+  }, [filteredIconCatalog, recommendedAvatarKeys]);
 
   const groupedTemplates = useMemo(() => {
     return PROVIDER_TEMPLATES.reduce<Record<string, ProviderTemplate[]>>(
@@ -354,6 +351,87 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     });
     setShowTemplatePicker(false);
     await state.handleProviderSelect(provider.id);
+  };
+
+  const refreshProviderAvatar = () => {
+    setAvatarRefreshToken((value) => value + 1);
+  };
+
+  const syncProviderAvatarState = async () => {
+    await refreshSettings();
+    refreshProviderAvatar();
+  };
+
+  const handleApplyCatalogAvatar = async (iconKey: string) => {
+    if (!state.selectedProviderId) return;
+
+    await invoke("set_provider_avatar_icon_key", {
+      providerId: state.selectedProviderId,
+      iconKey,
+    });
+    await syncProviderAvatarState();
+    toast.success("Provider icon updated");
+  };
+
+  const handleSelectProviderAvatar = async () => {
+    if (!state.selectedProviderId) return;
+
+    const selected = await open({
+      multiple: false,
+      filters: [
+        {
+          name: "Images",
+          extensions: ["png", "jpg", "jpeg", "webp", "svg", "ico"],
+        },
+      ],
+    });
+
+    if (!selected || Array.isArray(selected)) return;
+
+    await invoke("set_provider_avatar_from_path", {
+      providerId: state.selectedProviderId,
+      sourcePath: selected,
+    });
+    await syncProviderAvatarState();
+    toast.success("Provider icon updated");
+  };
+
+  const handleApplyProviderAvatarUrl = async () => {
+    if (!state.selectedProviderId || !avatarUrlInput.trim()) return;
+
+    await invoke("set_provider_avatar_from_url", {
+      providerId: state.selectedProviderId,
+      imageUrl: avatarUrlInput.trim(),
+    });
+    setAvatarUrlInput("");
+    await syncProviderAvatarState();
+    toast.success("Provider icon updated");
+  };
+
+  const handleRefetchProviderAvatar = async () => {
+    if (!state.selectedProviderId) return;
+
+    const result = await invoke<string | null>("refresh_provider_avatar", {
+      providerId: state.selectedProviderId,
+    });
+    await syncProviderAvatarState();
+
+    if (result) {
+      toast.success("Provider icon refreshed");
+      return;
+    }
+
+    toast.warning("No site icon found for this provider");
+  };
+
+  const handleResetProviderAvatar = async () => {
+    if (!state.selectedProviderId) return;
+
+    await invoke("reset_provider_avatar", {
+      providerId: state.selectedProviderId,
+    });
+    await syncProviderAvatarState();
+    toast.success("Provider icon reset");
   };
 
   const sortedOptions = useMemo(() => {
@@ -439,6 +517,13 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                                         providerId={template.id}
                                         baseUrl={template.baseUrl}
                                         large
+                                        refreshToken={avatarRefreshToken}
+                                        overrideValue={
+                                          settings
+                                            ?.post_process_provider_avatar_overrides?.[
+                                            template.id
+                                          ] ?? null
+                                        }
                                       />
                                       <Flex
                                         direction="column"
@@ -497,6 +582,12 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                         (provider) => provider.id === option.value,
                       )?.base_url ?? ""
                     }
+                    refreshToken={avatarRefreshToken}
+                    overrideValue={
+                      settings?.post_process_provider_avatar_overrides?.[
+                        option.value
+                      ] ?? null
+                    }
                   />
                 }
               />
@@ -510,11 +601,152 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           <Box className="pt-6 px-8 pb-2 shrink-0">
             <Flex justify="between" align="center" width="100%">
               <Flex align="center" gap="3" className="min-w-0 flex-1">
-                <ProviderAvatar
-                  providerId={state.selectedProviderId}
-                  baseUrl={state.selectedProvider?.base_url ?? ""}
-                  large
-                />
+                <Dialog.Root
+                  open={showAvatarPicker}
+                  onOpenChange={setShowAvatarPicker}
+                >
+                  <Dialog.Trigger>
+                    <button
+                      type="button"
+                      className="cursor-pointer rounded-2xl transition-transform hover:scale-[1.02]"
+                      title="Change provider icon"
+                    >
+                      <ProviderAvatar
+                        providerId={state.selectedProviderId}
+                        baseUrl={state.selectedProvider?.base_url ?? ""}
+                        large
+                        refreshToken={avatarRefreshToken}
+                        overrideValue={selectedProviderAvatarOverride}
+                      />
+                    </button>
+                  </Dialog.Trigger>
+                  <Dialog.Content maxWidth="760px" className="max-h-[82vh]">
+                    <Dialog.Title>Change Provider Icon</Dialog.Title>
+                    <Box className="mt-3 space-y-4">
+                      <Flex
+                        align="center"
+                        justify="between"
+                        gap="4"
+                        className="rounded-xl border border-(--gray-a4) bg-(--gray-a2) px-3 py-2.5"
+                      >
+                        <Flex align="center" gap="3" className="min-w-0">
+                          <ProviderAvatar
+                            providerId={state.selectedProviderId}
+                            baseUrl={state.selectedProvider?.base_url ?? ""}
+                            large
+                            refreshToken={avatarRefreshToken}
+                            overrideValue={selectedProviderAvatarOverride}
+                          />
+                          <Box className="min-w-0">
+                            <Text size="2" weight="medium" className="truncate">
+                              {state.selectedProvider?.label ?? "Provider"}
+                            </Text>
+                            <Text size="1" color="gray" className="truncate">
+                              {getTemplateHost(
+                                state.selectedProvider?.base_url ?? "",
+                              )}
+                            </Text>
+                          </Box>
+                        </Flex>
+                        <Box className="w-[220px] max-w-full">
+                          <TextField.Root
+                            value={avatarSearch}
+                            onChange={(e) => setAvatarSearch(e.target.value)}
+                            placeholder="Search icons"
+                          >
+                            <TextField.Slot side="left">
+                              <IconSearch size={14} />
+                            </TextField.Slot>
+                          </TextField.Root>
+                        </Box>
+                      </Flex>
+
+                      <Box>
+                        <Text size="1" weight="bold" color="gray">
+                          Icons
+                        </Text>
+                        <ScrollArea
+                          scrollbars="vertical"
+                          className="mt-2 max-h-[260px] -mr-5"
+                        >
+                          <Box className="flex! flex-wrap gap-5! pr-5">
+                            {orderedIconCatalog.map((entry) => {
+                              return (
+                                <Button
+                                  variant="outline"
+                                  key={entry.key}
+                                  onClick={() =>
+                                    void handleApplyCatalogAvatar(entry.key)
+                                  }
+                                >
+                                  <img
+                                    src={entry.asset}
+                                    alt=""
+                                    className="h-7 w-7 shrink-0 object-contain"
+                                  />
+                                </Button>
+                              );
+                            })}
+                          </Box>
+                        </ScrollArea>
+                      </Box>
+
+                      <Box className="rounded-xl border border-(--gray-a4) bg-(--gray-a2) px-3 py-3">
+                        <Text size="1" weight="bold" color="gray">
+                          Custom Source
+                        </Text>
+                        <Flex direction="column" gap="2.5" className="mt-2.5">
+                          <Flex gap="2" align="center">
+                            <TextField.Root
+                              value={avatarUrlInput}
+                              onChange={(e) =>
+                                setAvatarUrlInput(e.target.value)
+                              }
+                              placeholder="https://example.com/logo.png"
+                              className="flex-1"
+                            />
+                            <Button
+                              variant="soft"
+                              onClick={() =>
+                                void handleApplyProviderAvatarUrl()
+                              }
+                              disabled={!avatarUrlInput.trim()}
+                            >
+                              Apply
+                            </Button>
+                          </Flex>
+
+                          <Flex gap="2" wrap="wrap">
+                            <Button
+                              variant="soft"
+                              color="gray"
+                              onClick={() => void handleSelectProviderAvatar()}
+                            >
+                              <IconUpload size={14} />
+                              Upload
+                            </Button>
+                            <Button
+                              variant="soft"
+                              color="gray"
+                              onClick={() => void handleRefetchProviderAvatar()}
+                            >
+                              <IconRefresh size={14} />
+                              Refetch
+                            </Button>
+                            <Button
+                              variant="soft"
+                              color="gray"
+                              onClick={() => void handleResetProviderAvatar()}
+                            >
+                              <IconX size={14} />
+                              Reset
+                            </Button>
+                          </Flex>
+                        </Flex>
+                      </Box>
+                    </Box>
+                  </Dialog.Content>
+                </Dialog.Root>
                 <Box className="min-w-0 flex-1">
                   <TextField.Root
                     value={editingName}

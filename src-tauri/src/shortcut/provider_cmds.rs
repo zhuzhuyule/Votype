@@ -30,8 +30,18 @@ fn provider_avatar_prefix(provider_id: &str) -> String {
     format!("{}_avatar_", sanitized)
 }
 
-fn cleanup_provider_avatar_files(dir: &Path, provider_id: &str) -> Result<(), String> {
-    let prefix = provider_avatar_prefix(provider_id);
+fn provider_avatar_override_prefix(provider_id: &str) -> String {
+    let sanitized: String = provider_id
+        .chars()
+        .map(|c| match c {
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' => c,
+            _ => '_',
+        })
+        .collect();
+    format!("{}_override_", sanitized)
+}
+
+fn cleanup_provider_avatar_files_with_prefix(dir: &Path, prefix: &str) -> Result<(), String> {
     let entries =
         fs::read_dir(dir).map_err(|e| format!("Failed to read avatar cache directory: {}", e))?;
     for entry in entries {
@@ -44,6 +54,16 @@ fn cleanup_provider_avatar_files(dir: &Path, provider_id: &str) -> Result<(), St
         }
     }
     Ok(())
+}
+
+fn cleanup_provider_avatar_files(dir: &Path, provider_id: &str) -> Result<(), String> {
+    cleanup_provider_avatar_files_with_prefix(dir, &provider_avatar_prefix(provider_id))?;
+    cleanup_provider_avatar_files_with_prefix(dir, &provider_avatar_override_prefix(provider_id))?;
+    Ok(())
+}
+
+fn cleanup_provider_fetched_avatar_files(dir: &Path, provider_id: &str) -> Result<(), String> {
+    cleanup_provider_avatar_files_with_prefix(dir, &provider_avatar_prefix(provider_id))
 }
 
 fn avatar_extension_from_content_type(content_type: &str) -> &'static str {
@@ -61,9 +81,35 @@ fn avatar_extension_from_content_type(content_type: &str) -> &'static str {
     }
 }
 
+fn avatar_extension_from_path(path: &Path) -> &'static str {
+    let ext = path
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default()
+        .trim()
+        .to_ascii_lowercase();
+
+    match ext.as_str() {
+        "svg" => "svg",
+        "png" => "png",
+        "jpg" | "jpeg" => "jpg",
+        "webp" => "webp",
+        "ico" => "ico",
+        _ => "png",
+    }
+}
+
 fn avatar_file_path(dir: &Path, provider_id: &str, origin: &str, ext: &str) -> PathBuf {
     let stem = avatar_file_stem(provider_id, origin);
     dir.join(format!("{}.{}", stem, ext))
+}
+
+fn avatar_override_file_path(dir: &Path, provider_id: &str, ext: &str) -> PathBuf {
+    dir.join(format!(
+        "{}manual.{}",
+        provider_avatar_override_prefix(provider_id),
+        ext
+    ))
 }
 
 fn avatar_file_stem(provider_id: &str, origin: &str) -> String {
@@ -71,6 +117,19 @@ fn avatar_file_stem(provider_id: &str, origin: &str) -> String {
     hasher.update(origin.as_bytes());
     let hash = format!("{:x}", hasher.finalize());
     format!("{}{}", provider_avatar_prefix(provider_id), &hash[..16])
+}
+
+fn override_avatar_path(dir: &Path, provider_id: &str) -> Option<PathBuf> {
+    let prefix = provider_avatar_override_prefix(provider_id);
+    let entries = fs::read_dir(dir).ok()?;
+    for entry in entries.flatten() {
+        let file_name = entry.file_name();
+        let file_name = file_name.to_string_lossy();
+        if file_name.starts_with(&prefix) {
+            return Some(entry.path());
+        }
+    }
+    None
 }
 
 fn known_provider_avatar_origin(provider_id: &str) -> Option<&'static str> {
@@ -124,6 +183,71 @@ fn avatar_origin_candidates(provider_id: &str, parsed: &reqwest::Url) -> Vec<Str
     candidates
 }
 
+fn clear_provider_avatar_override_setting(
+    settings: &mut settings::AppSettings,
+    provider_id: &str,
+) -> bool {
+    settings
+        .post_process_provider_avatar_overrides
+        .remove(provider_id)
+        .is_some()
+}
+
+fn set_provider_avatar_override_setting(
+    settings: &mut settings::AppSettings,
+    provider_id: &str,
+    value: String,
+) {
+    settings
+        .post_process_provider_avatar_overrides
+        .insert(provider_id.to_string(), value);
+}
+
+async fn download_avatar_to_path(
+    target_path: &Path,
+    url: &str,
+    default_content_type: &str,
+) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create avatar HTTP client: {}", e))?;
+
+    let response = client
+        .get(url)
+        .header(reqwest::header::USER_AGENT, "Votype/0.6")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch provider avatar: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Failed to fetch provider avatar: HTTP {}",
+            response.status()
+        ));
+    }
+
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or(default_content_type);
+    let ext = avatar_extension_from_content_type(content_type);
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read provider avatar response: {}", e))?;
+
+    if bytes.is_empty() {
+        return Err("Downloaded provider avatar is empty".to_string());
+    }
+
+    let actual_target = target_path.with_extension(ext);
+    fs::write(&actual_target, &bytes)
+        .map_err(|e| format!("Failed to write provider avatar cache: {}", e))?;
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn get_provider_avatar_path(
@@ -137,6 +261,11 @@ pub async fn get_provider_avatar_path(
         .find(|p| p.id == provider_id)
         .ok_or("Provider not found")?;
 
+    let dir = provider_avatar_dir(&app)?;
+    if let Some(override_path) = override_avatar_path(&dir, &provider_id) {
+        return Ok(Some(override_path.to_string_lossy().to_string()));
+    }
+
     let trimmed = provider.base_url.trim();
     if trimmed.is_empty() || trimmed.starts_with("apple-intelligence://") {
         return Ok(None);
@@ -149,7 +278,6 @@ pub async fn get_provider_avatar_path(
         return Ok(None);
     }
 
-    let dir = provider_avatar_dir(&app)?;
     for origin in &origins {
         let expected_stem = avatar_file_stem(&provider_id, origin);
         if let Ok(entries) = fs::read_dir(&dir) {
@@ -163,7 +291,7 @@ pub async fn get_provider_avatar_path(
         }
     }
 
-    cleanup_provider_avatar_files(&dir, &provider_id)?;
+    cleanup_provider_fetched_avatar_files(&dir, &provider_id)?;
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(8))
@@ -205,6 +333,103 @@ pub async fn get_provider_avatar_path(
     }
 
     Ok(None)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_provider_avatar_from_path(
+    app: AppHandle,
+    provider_id: String,
+    source_path: String,
+) -> Result<String, String> {
+    let source = PathBuf::from(&source_path);
+    if !source.exists() {
+        return Err("Selected image file does not exist".to_string());
+    }
+
+    let dir = provider_avatar_dir(&app)?;
+    cleanup_provider_avatar_files(&dir, &provider_id)?;
+    let mut settings = settings::get_settings(&app);
+    clear_provider_avatar_override_setting(&mut settings, &provider_id);
+    settings::write_settings(&app, settings);
+
+    let ext = avatar_extension_from_path(&source);
+    let target_path = avatar_override_file_path(&dir, &provider_id, ext);
+
+    fs::copy(&source, &target_path)
+        .map_err(|e| format!("Failed to copy provider avatar: {}", e))?;
+
+    Ok(target_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn reset_provider_avatar(app: AppHandle, provider_id: String) -> Result<(), String> {
+    let dir = provider_avatar_dir(&app)?;
+    cleanup_provider_avatar_files(&dir, &provider_id)?;
+    let mut settings = settings::get_settings(&app);
+    clear_provider_avatar_override_setting(&mut settings, &provider_id);
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_provider_avatar_icon_key(
+    app: AppHandle,
+    provider_id: String,
+    icon_key: String,
+) -> Result<(), String> {
+    let dir = provider_avatar_dir(&app)?;
+    cleanup_provider_avatar_files(&dir, &provider_id)?;
+
+    let mut settings = settings::get_settings(&app);
+    set_provider_avatar_override_setting(
+        &mut settings,
+        &provider_id,
+        format!("catalog:{}", icon_key),
+    );
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn set_provider_avatar_from_url(
+    app: AppHandle,
+    provider_id: String,
+    image_url: String,
+) -> Result<String, String> {
+    let parsed =
+        reqwest::Url::parse(&image_url).map_err(|e| format!("Invalid image URL: {}", e))?;
+
+    let dir = provider_avatar_dir(&app)?;
+    cleanup_provider_avatar_files(&dir, &provider_id)?;
+
+    let mut settings = settings::get_settings(&app);
+    clear_provider_avatar_override_setting(&mut settings, &provider_id);
+    settings::write_settings(&app, settings);
+
+    let target_path = avatar_override_file_path(&dir, &provider_id, "png");
+    download_avatar_to_path(&target_path, parsed.as_ref(), "image/png").await?;
+
+    override_avatar_path(&dir, &provider_id)
+        .map(|path| path.to_string_lossy().to_string())
+        .ok_or("Failed to resolve saved provider avatar".to_string())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn refresh_provider_avatar(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<Option<String>, String> {
+    let dir = provider_avatar_dir(&app)?;
+    cleanup_provider_avatar_files(&dir, &provider_id)?;
+    let mut settings = settings::get_settings(&app);
+    clear_provider_avatar_override_setting(&mut settings, &provider_id);
+    settings::write_settings(&app, settings);
+    get_provider_avatar_path(app, provider_id).await
 }
 
 #[tauri::command]
@@ -286,7 +511,7 @@ pub fn update_custom_provider(
     if let Some(b) = base_url {
         provider.base_url = crate::utils::normalize_base_url(&b);
         let avatar_dir = provider_avatar_dir(&app)?;
-        cleanup_provider_avatar_files(&avatar_dir, &provider_id)?;
+        cleanup_provider_fetched_avatar_files(&avatar_dir, &provider_id)?;
     }
     if let Some(m) = models_endpoint {
         provider.models_endpoint = Some(m);
@@ -327,6 +552,9 @@ pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(),
     // Clean up api keys and model selections for the deleted provider
     settings.post_process_api_keys.remove(&provider_id);
     settings.post_process_models.remove(&provider_id);
+    settings
+        .post_process_provider_avatar_overrides
+        .remove(&provider_id);
 
     settings::write_settings(&app, settings);
 

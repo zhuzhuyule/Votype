@@ -63,6 +63,15 @@ pub fn infer_hotword_category(target: String) -> String {
 }
 
 #[tauri::command]
+pub fn adjust_hotword_use_count(app: AppHandle, id: i64, delta: i64) -> Result<i64, String> {
+    let hm = app.state::<Arc<HistoryManager>>();
+    let manager = HotwordManager::new(hm.db_path.clone());
+    manager
+        .adjust_use_count(id, delta)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn increment_hotword_false_positive(app: AppHandle, id: i64) -> Result<(), String> {
     let hm = app.state::<Arc<HistoryManager>>();
     let manager = HotwordManager::new(hm.db_path.clone());
