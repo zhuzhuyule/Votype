@@ -312,7 +312,12 @@
     "realtimeModelLabel": "Realtime Model",
     "searchPlaceholder": "搜索模型…",
     "userAddedModel": "用户添加的模型",
-    "welcome": "欢迎使用 Votype"
+    "welcome": "欢迎使用 Votype",
+    "asrFallback": {
+      "add": "＋ 备用",
+      "label": "备用",
+      "remove": "移除备用"
+    }
   },
   "onboarding": {
     "accessibility": {

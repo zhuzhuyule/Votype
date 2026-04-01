@@ -274,7 +274,12 @@
     "realtimeModelLabel": "Realtime Model",
     "searchPlaceholder": "Search models…",
     "userAddedModel": "User-added model",
-    "welcome": "Welcome to Votype"
+    "welcome": "Welcome to Votype",
+    "asrFallback": {
+      "add": "+ Backup",
+      "label": "Backup",
+      "remove": "Remove backup"
+    }
   },
   "onboarding": {
     "accessibility": {

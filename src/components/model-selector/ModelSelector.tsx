@@ -58,8 +58,13 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   const [extractingModels, setExtractingModels] = useState<Set<string>>(
     new Set(),
   );
-  const { settings, selectAsrModel, toggleOnlineAsr, updateSetting } =
-    useSettings();
+  const {
+    settings,
+    selectAsrModel,
+    toggleOnlineAsr,
+    updateSetting,
+    updateModelChain,
+  } = useSettings();
 
   const cachedModels = settings?.cached_models || [];
   const providerNameMap = useMemo(() => {
@@ -507,6 +512,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             }
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
+            asrChain={settings?.selected_asr_model ?? null}
+            onAsrChainUpdate={(chain) =>
+              updateModelChain("selected_asr_model", chain)
+            }
             realtimeModels={realtimeModelsForQuickSelector}
             selectedRealtimeModelId={
               settings?.post_process_secondary_model_id ?? null
