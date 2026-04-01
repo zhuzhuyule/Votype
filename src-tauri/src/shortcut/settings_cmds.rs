@@ -134,7 +134,11 @@ pub fn toggle_online_asr(app: AppHandle, enabled: bool) -> Result<(), String> {
 #[specta::specta]
 pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.selected_asr_model_id = model_id;
+    settings.selected_asr_model = model_id.map(|id| crate::fallback::ModelChain {
+        primary_id: id,
+        fallback_id: None,
+        strategy: crate::fallback::ModelChainStrategy::default(),
+    });
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -143,7 +147,11 @@ pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), 
 #[specta::specta]
 pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.selected_prompt_model_id = model_id;
+    settings.selected_prompt_model = model_id.map(|id| crate::fallback::ModelChain {
+        primary_id: id,
+        fallback_id: None,
+        strategy: crate::fallback::ModelChainStrategy::default(),
+    });
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -751,7 +759,11 @@ pub fn change_post_process_intent_model_id_setting(
     model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.post_process_intent_model_id = model_id;
+    settings.post_process_intent_model = model_id.map(|id| crate::fallback::ModelChain {
+        primary_id: id,
+        fallback_id: None,
+        strategy: crate::fallback::ModelChainStrategy::default(),
+    });
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -785,7 +797,11 @@ pub fn change_length_routing_short_model_setting(
     model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.length_routing_short_model_id = model_id;
+    settings.length_routing_short_model = model_id.map(|id| crate::fallback::ModelChain {
+        primary_id: id,
+        fallback_id: None,
+        strategy: crate::fallback::ModelChainStrategy::default(),
+    });
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -797,7 +813,32 @@ pub fn change_length_routing_long_model_setting(
     model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.length_routing_long_model_id = model_id;
+    settings.length_routing_long_model = model_id.map(|id| crate::fallback::ModelChain {
+        primary_id: id,
+        fallback_id: None,
+        strategy: crate::fallback::ModelChainStrategy::default(),
+    });
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+// Group: Model Chain Settings
+#[tauri::command]
+#[specta::specta]
+pub fn update_model_chain(
+    app: AppHandle,
+    field: String,
+    chain: Option<crate::fallback::ModelChain>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    match field.as_str() {
+        "selected_asr_model" => settings.selected_asr_model = chain,
+        "selected_prompt_model" => settings.selected_prompt_model = chain,
+        "post_process_intent_model" => settings.post_process_intent_model = chain,
+        "length_routing_short_model" => settings.length_routing_short_model = chain,
+        "length_routing_long_model" => settings.length_routing_long_model = chain,
+        _ => return Err(format!("Unknown model chain field: {}", field)),
+    }
     settings::write_settings(&app, settings);
     Ok(())
 }

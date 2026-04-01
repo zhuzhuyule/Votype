@@ -46,7 +46,7 @@ pub async fn unified_post_process(
 
     let char_count = transcription.chars().count() as u32;
     let smart_routing_enabled =
-        settings.length_routing_enabled && settings.post_process_intent_model_id.is_some();
+        settings.length_routing_enabled && settings.post_process_intent_model.is_some();
     let is_short_text = char_count <= settings.length_routing_threshold;
 
     // ═══════════════════════════════════════════════════════════════
@@ -238,8 +238,8 @@ pub async fn unified_post_process(
 
         // Build a temporary settings override for lightweight model
         let mut lite_settings = settings.clone();
-        if let Some(ref short_model_id) = settings.length_routing_short_model_id {
-            lite_settings.selected_prompt_model_id = Some(short_model_id.clone());
+        if let Some(ref short_model) = settings.length_routing_short_model {
+            lite_settings.selected_prompt_model = Some(short_model.clone());
         }
         // Disable hotwords if intent says not needed
         if !needs_hotword {
@@ -300,10 +300,10 @@ pub async fn unified_post_process(
             ))
             .build();
 
-        let cached_model_id = lite_prompt
-            .model_id
-            .as_deref()
-            .or(lite_settings.selected_prompt_model_id.as_deref());
+        let cached_model_id = lite_prompt.model_id.as_deref().or(lite_settings
+            .selected_prompt_model
+            .as_ref()
+            .map(|c| c.primary_id.as_str()));
 
         let lite_start = std::time::Instant::now();
         let (result, err, error_message, api_token_count) =
@@ -472,14 +472,14 @@ pub async fn unified_post_process(
         let mut s = settings.clone();
         s.post_process_hotword_injection_enabled = false;
         if target_len <= settings.length_routing_threshold {
-            if let Some(ref short_model_id) = settings.length_routing_short_model_id {
+            if let Some(ref short_model) = settings.length_routing_short_model {
                 if log_routing {
                     info!(
                         "[UnifiedPipeline] Rewrite: target_len={}, using lite model, hotwords disabled",
                         target_len
                     );
                 }
-                s.selected_prompt_model_id = Some(short_model_id.clone());
+                s.selected_prompt_model = Some(short_model.clone());
             }
         } else if log_routing {
             info!(
@@ -723,10 +723,10 @@ async fn execute_votype_rewrite_prompt(
     );
     let user_message =
         build_rewrite_user_message(target_text, input_text, &term_reference, language);
-    let cached_model_id = prompt
-        .model_id
-        .as_deref()
-        .or(settings.selected_prompt_model_id.as_deref());
+    let cached_model_id = prompt.model_id.as_deref().or(settings
+        .selected_prompt_model
+        .as_ref()
+        .map(|c| c.primary_id.as_str()));
 
     let rewrite_start = std::time::Instant::now();
     let (result, err, error_message, api_token_count) =
@@ -956,7 +956,7 @@ pub async fn maybe_post_process_transcription(
 
         // Layer 1: Action routing for short text (only when intent model is configured)
         if char_count <= settings.length_routing_threshold
-            && settings.post_process_intent_model_id.is_some()
+            && settings.post_process_intent_model.is_some()
         {
             let fallback_provider = match settings.active_post_process_provider() {
                 Some(p) => p,
@@ -1045,22 +1045,22 @@ pub async fn maybe_post_process_transcription(
     // Single model / Length routing / Multi-model
     // ═══════════════════════════════════════════════════════════════════════
 
-    // Length routing: override selected_prompt_model_id based on text length
+    // Length routing: override selected_prompt_model based on text length
     let settings = if settings.length_routing_enabled && !settings.multi_model_post_process_enabled
     {
         let char_count = transcription.chars().count() as u32;
-        let routed_model_id = if char_count <= settings.length_routing_threshold {
-            settings.length_routing_short_model_id.clone()
+        let routed_model = if char_count <= settings.length_routing_threshold {
+            settings.length_routing_short_model.clone()
         } else {
-            settings.length_routing_long_model_id.clone()
+            settings.length_routing_long_model.clone()
         };
-        if routed_model_id.is_some() {
+        if routed_model.is_some() {
             let mut s = settings.clone();
-            s.selected_prompt_model_id = routed_model_id;
+            s.selected_prompt_model = routed_model;
             if log_routing {
                 info!(
                     "[PostProcess] Length routing: {} chars → model {:?}",
-                    char_count, s.selected_prompt_model_id
+                    char_count, s.selected_prompt_model
                 );
             }
             Cow::Owned(s)
@@ -1232,12 +1232,12 @@ pub async fn maybe_post_process_transcription(
             review_document_text.as_deref(),
         ) {
             // Only clear prompt's model_id when unified_post_process has overridden
-            // selected_prompt_model_id (lite model for short text). For full model path,
+            // selected_prompt_model (lite model for short text). For full model path,
             // keep the prompt's own model_id so it can resolve normally.
             let mut rewrite_prompt_adjusted = rewrite_prompt.clone();
             let target_len = target_text.chars().count() as u32;
             if target_len <= settings.length_routing_threshold
-                && settings.length_routing_short_model_id.is_some()
+                && settings.length_routing_short_model.is_some()
             {
                 rewrite_prompt_adjusted.model_id = None;
             }
@@ -1834,10 +1834,10 @@ pub async fn maybe_post_process_transcription(
         }
         let built = builder.build();
 
-        let cached_model_id = prompt
-            .model_id
-            .as_deref()
-            .or(settings.selected_prompt_model_id.as_deref());
+        let cached_model_id = prompt.model_id.as_deref().or(settings
+            .selected_prompt_model
+            .as_ref()
+            .map(|c| c.primary_id.as_str()));
 
         // Resolve preset parameters
         let presets_config = app_handle

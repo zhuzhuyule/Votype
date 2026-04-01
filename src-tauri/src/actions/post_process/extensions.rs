@@ -352,8 +352,9 @@ pub async fn multi_post_process_transcription(
             })
             .or_else(|| {
                 settings
-                    .selected_prompt_model_id
-                    .clone()
+                    .selected_prompt_model
+                    .as_ref()
+                    .map(|c| c.primary_id.clone())
                     .filter(|id| items.iter().any(|item| item.id == *id))
             })
     } else {

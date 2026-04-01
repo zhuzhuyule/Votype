@@ -488,8 +488,9 @@ impl ShortcutAction for TranscribeAction {
                 // even if the pipeline is aborted during transcription/post-processing.
                 let asr_model_for_presave = if settings.online_asr_enabled {
                     settings
-                        .selected_asr_model_id
-                        .clone()
+                        .selected_asr_model
+                        .as_ref()
+                        .map(|c| c.primary_id.clone())
                         .unwrap_or_else(|| "online".to_string())
                 } else {
                     settings.selected_model.clone()
@@ -554,8 +555,9 @@ impl ShortcutAction for TranscribeAction {
                     use crate::online_asr::OnlineAsrClient;
 
                     let online_model_id = settings
-                        .selected_asr_model_id
-                        .clone()
+                        .selected_asr_model
+                        .as_ref()
+                        .map(|c| c.primary_id.clone())
                         .unwrap_or_else(|| "online".to_string());
 
                     let cached_model = settings
@@ -674,7 +676,11 @@ impl ShortcutAction for TranscribeAction {
                         .iter()
                         .find(|m| {
                             m.model_type == crate::settings::ModelType::Asr
-                                && Some(&m.id) == settings.selected_asr_model_id.as_ref()
+                                && settings
+                                    .selected_asr_model
+                                    .as_ref()
+                                    .map(|c| c.primary_id.as_str())
+                                    == Some(m.id.as_str())
                         })
                         .cloned();
 
@@ -956,8 +962,9 @@ impl ShortcutAction for TranscribeAction {
 
                     let asr_model = if settings.online_asr_enabled {
                         settings
-                            .selected_asr_model_id
-                            .clone()
+                            .selected_asr_model
+                            .as_ref()
+                            .map(|c| c.primary_id.clone())
                             .unwrap_or_else(|| "online".to_string())
                     } else {
                         settings.selected_model.clone()
@@ -1748,8 +1755,9 @@ impl ShortcutAction for TranscribeAction {
                     // Audio was already saved during pre-save so users can retry later.
                     let asr_model = if settings.online_asr_enabled {
                         settings
-                            .selected_asr_model_id
-                            .clone()
+                            .selected_asr_model
+                            .as_ref()
+                            .map(|c| c.primary_id.clone())
                             .unwrap_or_else(|| "online".to_string())
                     } else {
                         settings.selected_model.clone()

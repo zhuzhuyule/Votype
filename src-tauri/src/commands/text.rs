@@ -213,7 +213,11 @@ pub async fn translate_review_text(
     };
 
     let (provider, model) = (|| -> Result<_, String> {
-        let intent_model_id = match &settings.post_process_intent_model_id {
+        let intent_model_id = match settings
+            .post_process_intent_model
+            .as_ref()
+            .map(|c| &c.primary_id)
+        {
             Some(id) => id,
             None => return resolve_standard(),
         };

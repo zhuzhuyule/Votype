@@ -222,8 +222,9 @@ pub async fn retranscribe_history_entry(
     let settings = get_settings(&app);
     let model_id = if settings.online_asr_enabled {
         settings
-            .selected_asr_model_id
-            .clone()
+            .selected_asr_model
+            .as_ref()
+            .map(|c| c.primary_id.clone())
             .unwrap_or_else(|| "online".to_string())
     } else {
         settings.selected_model.clone()

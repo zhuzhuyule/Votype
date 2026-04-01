@@ -155,10 +155,10 @@ pub async fn post_process_text_with_prompt(
         ))
         .build();
 
-    let cached_model_id = prompt
-        .model_id
-        .as_deref()
-        .or(settings.selected_prompt_model_id.as_deref());
+    let cached_model_id = prompt.model_id.as_deref().or(settings
+        .selected_prompt_model
+        .as_ref()
+        .map(|c| c.primary_id.as_str()));
 
     // Resolve preset parameters
     let presets_config =

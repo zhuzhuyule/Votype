@@ -1,7 +1,12 @@
 use serde::{Deserialize, Serialize};
+use specta::Type;
+use std::future::Future;
+use std::time::Duration;
+
+const STAGGERED_DELAY_MS: u64 = 2000;
 
 /// Strategy for how fallback models are invoked.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ModelChainStrategy {
     /// Try primary first, then fallback on failure.
@@ -22,7 +27,7 @@ impl Default for ModelChainStrategy {
 ///
 /// Serializes as an object. Deserializes from either a plain string (legacy
 /// format where settings stored bare model IDs) or a full object.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
 pub struct ModelChain {
     pub primary_id: String,
     pub fallback_id: Option<String>,
@@ -103,6 +108,262 @@ pub struct FallbackResult<R> {
     pub primary_error: Option<String>,
 }
 
+/// Execute a model chain with fallback behavior based on the configured strategy.
+///
+/// The `execute_fn` receives an owned model ID and returns a future that produces
+/// a `Result<T, String>`. When no fallback is configured, the primary model is
+/// executed directly and the result is returned as-is.
+pub async fn execute_with_fallback<T, F, Fut>(
+    chain: &ModelChain,
+    execute_fn: F,
+) -> FallbackResult<Result<T, String>>
+where
+    F: Fn(String) -> Fut,
+    Fut: Future<Output = Result<T, String>> + Send + 'static,
+    T: Send + 'static,
+{
+    let primary_id = chain.primary_id.clone();
+
+    // No fallback configured — just run primary.
+    let fallback_id = match &chain.fallback_id {
+        Some(id) => id.clone(),
+        None => {
+            let result = execute_fn(primary_id.clone()).await;
+            return FallbackResult {
+                result,
+                actual_model_id: primary_id,
+                is_fallback: false,
+                primary_error: None,
+            };
+        }
+    };
+
+    match chain.strategy {
+        ModelChainStrategy::Serial => execute_serial(primary_id, fallback_id, execute_fn).await,
+        ModelChainStrategy::Race => execute_race(primary_id, fallback_id, execute_fn).await,
+        ModelChainStrategy::Staggered => {
+            execute_staggered(primary_id, fallback_id, execute_fn).await
+        }
+    }
+}
+
+async fn execute_serial<T, F, Fut>(
+    primary_id: String,
+    fallback_id: String,
+    execute_fn: F,
+) -> FallbackResult<Result<T, String>>
+where
+    F: Fn(String) -> Fut,
+    Fut: Future<Output = Result<T, String>> + Send + 'static,
+    T: Send + 'static,
+{
+    let primary_result = execute_fn(primary_id.clone()).await;
+    match primary_result {
+        Ok(_) => FallbackResult {
+            result: primary_result,
+            actual_model_id: primary_id,
+            is_fallback: false,
+            primary_error: None,
+        },
+        Err(ref e) => {
+            let primary_err = e.clone();
+            log::warn!(
+                "Primary model '{}' failed: {}. Trying fallback '{}'",
+                primary_id,
+                primary_err,
+                fallback_id
+            );
+            let fallback_result = execute_fn(fallback_id.clone()).await;
+            FallbackResult {
+                result: fallback_result,
+                actual_model_id: fallback_id,
+                is_fallback: true,
+                primary_error: Some(primary_err),
+            }
+        }
+    }
+}
+
+async fn execute_race<T, F, Fut>(
+    primary_id: String,
+    fallback_id: String,
+    execute_fn: F,
+) -> FallbackResult<Result<T, String>>
+where
+    F: Fn(String) -> Fut,
+    Fut: Future<Output = Result<T, String>> + Send + 'static,
+    T: Send + 'static,
+{
+    log::info!("Racing models '{}' and '{}'", primary_id, fallback_id);
+
+    let mut primary_handle = tokio::spawn(execute_fn(primary_id.clone()));
+    let mut fallback_handle = tokio::spawn(execute_fn(fallback_id.clone()));
+
+    // Wait for the first to finish.
+    let first_is_primary = tokio::select! {
+        _ = &mut primary_handle => true,
+        _ = &mut fallback_handle => false,
+    };
+
+    if first_is_primary {
+        let primary_result = primary_handle.await.expect("primary task panicked");
+        if primary_result.is_ok() {
+            return FallbackResult {
+                result: primary_result,
+                actual_model_id: primary_id,
+                is_fallback: false,
+                primary_error: None,
+            };
+        }
+        let primary_err = primary_result.err().unwrap();
+        log::warn!(
+            "Primary model '{}' failed in race: {}. Waiting for fallback.",
+            primary_id,
+            primary_err
+        );
+        let fallback_result = fallback_handle.await.expect("fallback task panicked");
+        FallbackResult {
+            result: fallback_result,
+            actual_model_id: fallback_id,
+            is_fallback: true,
+            primary_error: Some(primary_err),
+        }
+    } else {
+        let fallback_result = fallback_handle.await.expect("fallback task panicked");
+        if fallback_result.is_ok() {
+            log::info!("Fallback model '{}' won the race", fallback_id);
+            return FallbackResult {
+                result: fallback_result,
+                actual_model_id: fallback_id,
+                is_fallback: true,
+                primary_error: None,
+            };
+        }
+        let fallback_err = fallback_result.err().unwrap();
+        log::warn!(
+            "Fallback model '{}' failed in race: {}. Waiting for primary.",
+            fallback_id,
+            fallback_err
+        );
+        let primary_result = primary_handle.await.expect("primary task panicked");
+        FallbackResult {
+            result: primary_result,
+            actual_model_id: primary_id,
+            is_fallback: false,
+            primary_error: None,
+        }
+    }
+}
+
+async fn execute_staggered<T, F, Fut>(
+    primary_id: String,
+    fallback_id: String,
+    execute_fn: F,
+) -> FallbackResult<Result<T, String>>
+where
+    F: Fn(String) -> Fut,
+    Fut: Future<Output = Result<T, String>> + Send + 'static,
+    T: Send + 'static,
+{
+    let mut primary_handle = tokio::spawn(execute_fn(primary_id.clone()));
+
+    // Wait for primary to finish OR the stagger delay to elapse.
+    let primary_finished_early = tokio::select! {
+        _ = &mut primary_handle => true,
+        _ = tokio::time::sleep(Duration::from_millis(STAGGERED_DELAY_MS)) => false,
+    };
+
+    if primary_finished_early {
+        let primary_result = primary_handle.await.expect("primary task panicked");
+        if primary_result.is_ok() {
+            return FallbackResult {
+                result: primary_result,
+                actual_model_id: primary_id,
+                is_fallback: false,
+                primary_error: None,
+            };
+        }
+        // Primary failed before delay — start fallback directly.
+        let primary_err = primary_result.err().unwrap();
+        log::warn!(
+            "Primary model '{}' failed before stagger delay: {}. Starting fallback '{}'",
+            primary_id,
+            primary_err,
+            fallback_id
+        );
+        let fallback_result = execute_fn(fallback_id.clone()).await;
+        return FallbackResult {
+            result: fallback_result,
+            actual_model_id: fallback_id,
+            is_fallback: true,
+            primary_error: Some(primary_err),
+        };
+    }
+
+    // Stagger delay elapsed — also start fallback and race both.
+    log::info!(
+        "Primary model '{}' not done after {}ms, starting fallback '{}'",
+        primary_id,
+        STAGGERED_DELAY_MS,
+        fallback_id
+    );
+    let mut fallback_handle = tokio::spawn(execute_fn(fallback_id.clone()));
+
+    let first_is_primary = tokio::select! {
+        _ = &mut primary_handle => true,
+        _ = &mut fallback_handle => false,
+    };
+
+    if first_is_primary {
+        let primary_result = primary_handle.await.expect("primary task panicked");
+        if primary_result.is_ok() {
+            return FallbackResult {
+                result: primary_result,
+                actual_model_id: primary_id,
+                is_fallback: false,
+                primary_error: None,
+            };
+        }
+        let primary_err = primary_result.err().unwrap();
+        log::warn!(
+            "Primary model '{}' failed in staggered race: {}. Waiting for fallback.",
+            primary_id,
+            primary_err
+        );
+        let fallback_result = fallback_handle.await.expect("fallback task panicked");
+        FallbackResult {
+            result: fallback_result,
+            actual_model_id: fallback_id,
+            is_fallback: true,
+            primary_error: Some(primary_err),
+        }
+    } else {
+        let fallback_result = fallback_handle.await.expect("fallback task panicked");
+        if fallback_result.is_ok() {
+            log::info!("Fallback model '{}' won the staggered race", fallback_id);
+            return FallbackResult {
+                result: fallback_result,
+                actual_model_id: fallback_id,
+                is_fallback: true,
+                primary_error: None,
+            };
+        }
+        let fallback_err = fallback_result.err().unwrap();
+        log::warn!(
+            "Fallback model '{}' failed in staggered race: {}. Waiting for primary.",
+            fallback_id,
+            fallback_err
+        );
+        let primary_result = primary_handle.await.expect("primary task panicked");
+        FallbackResult {
+            result: primary_result,
+            actual_model_id: primary_id,
+            is_fallback: false,
+            primary_error: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +434,110 @@ mod tests {
             strategy: ModelChainStrategy::Serial,
         };
         assert_eq!(chain.all_ids(), vec!["a"]);
+    }
+
+    // --- execute_with_fallback tests ---
+
+    #[tokio::test]
+    async fn serial_primary_succeeds() {
+        let chain = ModelChain {
+            primary_id: "primary".into(),
+            fallback_id: Some("fallback".into()),
+            strategy: ModelChainStrategy::Serial,
+        };
+        let result = execute_with_fallback(&chain, |model_id| async move {
+            if model_id == "primary" {
+                Ok("primary_ok".to_string())
+            } else {
+                panic!("fallback should not be called");
+            }
+        })
+        .await;
+
+        assert_eq!(result.result.unwrap(), "primary_ok");
+        assert_eq!(result.actual_model_id, "primary");
+        assert!(!result.is_fallback);
+        assert!(result.primary_error.is_none());
+    }
+
+    #[tokio::test]
+    async fn serial_primary_fails_fallback_succeeds() {
+        let chain = ModelChain {
+            primary_id: "primary".into(),
+            fallback_id: Some("fallback".into()),
+            strategy: ModelChainStrategy::Serial,
+        };
+        let result = execute_with_fallback(&chain, |model_id| async move {
+            if model_id == "primary" {
+                Err("primary_error".to_string())
+            } else {
+                Ok("fallback_ok".to_string())
+            }
+        })
+        .await;
+
+        assert_eq!(result.result.unwrap(), "fallback_ok");
+        assert_eq!(result.actual_model_id, "fallback");
+        assert!(result.is_fallback);
+        assert_eq!(result.primary_error.as_deref(), Some("primary_error"));
+    }
+
+    #[tokio::test]
+    async fn serial_both_fail() {
+        let chain = ModelChain {
+            primary_id: "primary".into(),
+            fallback_id: Some("fallback".into()),
+            strategy: ModelChainStrategy::Serial,
+        };
+        let result = execute_with_fallback(&chain, |model_id| async move {
+            Err::<String, _>(format!("{}_error", model_id))
+        })
+        .await;
+
+        assert_eq!(result.result.unwrap_err(), "fallback_error");
+        assert_eq!(result.actual_model_id, "fallback");
+        assert!(result.is_fallback);
+        assert_eq!(result.primary_error.as_deref(), Some("primary_error"));
+    }
+
+    #[tokio::test]
+    async fn serial_no_fallback_primary_fails() {
+        let chain = ModelChain {
+            primary_id: "primary".into(),
+            fallback_id: None,
+            strategy: ModelChainStrategy::Serial,
+        };
+        let result = execute_with_fallback(&chain, |_model_id| async move {
+            Err::<String, _>("primary_error".to_string())
+        })
+        .await;
+
+        assert_eq!(result.result.unwrap_err(), "primary_error");
+        assert_eq!(result.actual_model_id, "primary");
+        assert!(!result.is_fallback);
+        assert!(result.primary_error.is_none());
+    }
+
+    #[tokio::test]
+    async fn race_fastest_wins() {
+        let chain = ModelChain {
+            primary_id: "slow_primary".into(),
+            fallback_id: Some("fast_fallback".into()),
+            strategy: ModelChainStrategy::Race,
+        };
+        let result = execute_with_fallback(&chain, |model_id| async move {
+            if model_id == "slow_primary" {
+                tokio::time::sleep(Duration::from_secs(5)).await;
+                Ok("slow_result".to_string())
+            } else {
+                // Fast fallback returns immediately.
+                Ok("fast_result".to_string())
+            }
+        })
+        .await;
+
+        assert_eq!(result.result.unwrap(), "fast_result");
+        assert_eq!(result.actual_model_id, "fast_fallback");
+        assert!(result.is_fallback);
     }
 }

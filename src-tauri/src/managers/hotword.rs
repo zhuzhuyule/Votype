@@ -1377,8 +1377,12 @@ impl HotwordManager {
 
         // Resolve provider and model via CachedModel (same as main pipeline)
         let (provider, api_key, model) = {
-            // Try selected_prompt_model_id first (it's a CachedModel.id UUID)
-            if let Some(cm_id) = &settings.selected_prompt_model_id {
+            // Try selected_prompt_model first (it's a CachedModel.id UUID)
+            if let Some(cm_id) = settings
+                .selected_prompt_model
+                .as_ref()
+                .map(|c| &c.primary_id)
+            {
                 if let Some(cm) = settings.get_cached_model(cm_id) {
                     let prov = settings
                         .post_process_providers
@@ -1534,7 +1538,10 @@ impl HotwordManager {
         let prompt_role = crate::actions::post_process::resolve_prompt_message_role(
             &settings,
             &provider.id,
-            settings.selected_prompt_model_id.as_deref(),
+            settings
+                .selected_prompt_model
+                .as_ref()
+                .map(|c| c.primary_id.as_str()),
             &model,
         );
         if let Some(msg) =

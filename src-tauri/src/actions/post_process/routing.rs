@@ -468,10 +468,10 @@ pub(super) async fn execute_default_polish<'a>(
         ))
         .build();
 
-    let cached_model_id = default_prompt
-        .model_id
-        .as_deref()
-        .or(settings.selected_prompt_model_id.as_deref());
+    let cached_model_id = default_prompt.model_id.as_deref().or(settings
+        .selected_prompt_model
+        .as_ref()
+        .map(|c| c.primary_id.as_str()));
 
     // Resolve preset parameters
     let presets_config =
@@ -587,9 +587,9 @@ pub(super) fn resolve_effective_model<'a>(
     };
 
     log::debug!(
-        "[ResolveModel] prompt.model_id={:?} selected_prompt_model_id={:?} fallback_provider={}",
+        "[ResolveModel] prompt.model_id={:?} selected_prompt_model={:?} fallback_provider={}",
         prompt.model_id,
-        settings.selected_prompt_model_id,
+        settings.selected_prompt_model,
         fallback_provider.id
     );
 
@@ -607,13 +607,16 @@ pub(super) fn resolve_effective_model<'a>(
 
     // 2. Global selected model
     if let Some(res) = check_cached_model(
-        settings.selected_prompt_model_id.as_ref(),
-        "selected_prompt_model_id",
+        settings
+            .selected_prompt_model
+            .as_ref()
+            .map(|c| &c.primary_id),
+        "selected_prompt_model",
         true,
     ) {
         if !res.1.trim().is_empty() {
             log::debug!(
-                "[ResolveModel] Resolved via selected_prompt_model_id → provider={} model={}",
+                "[ResolveModel] Resolved via selected_prompt_model → provider={} model={}",
                 res.0.id,
                 res.1
             );
@@ -659,9 +662,9 @@ pub(super) fn resolve_effective_model<'a>(
     }
 
     log::warn!(
-        "[ResolveModel] No model found! prompt.model_id={:?} selected_prompt_model_id={:?} fallback_provider={} cached_models_count={} multi_model_ids={}",
+        "[ResolveModel] No model found! prompt.model_id={:?} selected_prompt_model={:?} fallback_provider={} cached_models_count={} multi_model_ids={}",
         prompt.model_id,
-        settings.selected_prompt_model_id,
+        settings.selected_prompt_model,
         fallback_provider.id,
         settings.cached_models.len(),
         total
@@ -674,7 +677,11 @@ pub(crate) fn resolve_intent_routing_model<'a>(
     fallback_provider: &'a PostProcessProvider,
     fallback_prompt: &LLMPrompt,
 ) -> Option<(&'a PostProcessProvider, String, String)> {
-    if let Some(intent_model_id) = settings.post_process_intent_model_id.as_ref() {
+    if let Some(intent_model_id) = settings
+        .post_process_intent_model
+        .as_ref()
+        .map(|c| &c.primary_id)
+    {
         if let Some(cached_model) = settings
             .cached_models
             .iter()
@@ -778,7 +785,7 @@ pub(super) async fn execute_smart_polish<'a>(
     let start = std::time::Instant::now();
     let char_count = transcription.chars().count() as u32;
     let smart_routing_enabled =
-        settings.length_routing_enabled && settings.post_process_intent_model_id.is_some();
+        settings.length_routing_enabled && settings.post_process_intent_model.is_some();
     let is_short_text = char_count <= settings.length_routing_threshold;
 
     // If smart routing is enabled and text is short, run classification first
@@ -948,8 +955,8 @@ async fn execute_smart_polish_lite<'a>(
 ) -> Option<super::SmartPolishResult> {
     // Build temporary settings with lightweight model override
     let mut lite_settings = settings.clone();
-    if let Some(ref short_model_id) = settings.length_routing_short_model_id {
-        lite_settings.selected_prompt_model_id = Some(short_model_id.clone());
+    if let Some(ref short_model) = settings.length_routing_short_model {
+        lite_settings.selected_prompt_model = Some(short_model.clone());
     }
     if !needs_hotword {
         lite_settings.post_process_hotword_injection_enabled = false;
@@ -999,10 +1006,10 @@ async fn execute_smart_polish_lite<'a>(
         ))
         .build();
 
-    let cached_model_id = lite_prompt
-        .model_id
-        .as_deref()
-        .or(lite_settings.selected_prompt_model_id.as_deref());
+    let cached_model_id = lite_prompt.model_id.as_deref().or(lite_settings
+        .selected_prompt_model
+        .as_ref()
+        .map(|c| c.primary_id.as_str()));
 
     let lite_start = std::time::Instant::now();
     let (result, _err, _error_message, api_token_count) =

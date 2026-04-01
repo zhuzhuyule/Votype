@@ -120,8 +120,9 @@ pub async fn generate_summary_ai_analysis(
         .filter(|m| !m.is_empty())
         .or_else(|| {
             app_settings
-                .selected_prompt_model_id
+                .selected_prompt_model
                 .as_ref()
+                .map(|c| &c.primary_id)
                 .and_then(|id| {
                     app_settings
                         .cached_models

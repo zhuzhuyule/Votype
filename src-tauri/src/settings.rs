@@ -9,6 +9,8 @@ use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
 use tauri_plugin_store::StoreExt;
 
+use crate::fallback::ModelChain;
+
 static SETTINGS_VERSION: AtomicU64 = AtomicU64::new(0);
 static CACHED_SETTINGS: Mutex<Option<(u64, AppSettings)>> = Mutex::new(None);
 
@@ -833,8 +835,8 @@ pub struct AppSettings {
     pub custom_filler_words: Option<Vec<String>>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
-    #[serde(default)]
-    pub post_process_intent_model_id: Option<String>,
+    #[serde(default, alias = "post_process_intent_model_id")]
+    pub post_process_intent_model: Option<ModelChain>,
     /// Enable multi-model parallel post-processing
     #[serde(default)]
     pub multi_model_post_process_enabled: bool,
@@ -857,10 +859,10 @@ pub struct AppSettings {
     pub cached_models: Vec<CachedModel>,
     #[serde(default)]
     pub online_asr_enabled: bool,
-    #[serde(default)]
-    pub selected_asr_model_id: Option<String>,
-    #[serde(default)]
-    pub selected_prompt_model_id: Option<String>,
+    #[serde(default, alias = "selected_asr_model_id")]
+    pub selected_asr_model: Option<ModelChain>,
+    #[serde(default, alias = "selected_prompt_model_id")]
+    pub selected_prompt_model: Option<ModelChain>,
     #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default = "default_audio_input_auto_enhance")]
@@ -920,10 +922,10 @@ pub struct AppSettings {
     pub length_routing_enabled: bool,
     #[serde(default = "default_length_routing_threshold")]
     pub length_routing_threshold: u32,
-    #[serde(default)]
-    pub length_routing_short_model_id: Option<String>,
-    #[serde(default)]
-    pub length_routing_long_model_id: Option<String>,
+    #[serde(default, alias = "length_routing_short_model_id")]
+    pub length_routing_short_model: Option<ModelChain>,
+    #[serde(default, alias = "length_routing_long_model_id")]
+    pub length_routing_long_model: Option<ModelChain>,
     /// Smart routing: pre-process layer that handles history reuse and action routing.
     /// Activated when length_routing_enabled (smart model mode) is on.
     /// This field is kept for potential future independent control but currently
@@ -1594,7 +1596,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_prompts: default_post_process_prompts(),
         builtin_prompt_resource_hashes: HashMap::new(),
         post_process_selected_prompt_id: None,
-        post_process_intent_model_id: None,
+        post_process_intent_model: None,
         multi_model_post_process_enabled: false,
         multi_model_post_process_items: Vec::new(),
         multi_model_selected_ids: Vec::new(),
@@ -1603,8 +1605,8 @@ pub fn get_default_settings() -> AppSettings {
         multi_model_manual_pick_counts: HashMap::new(),
         cached_models: Vec::new(),
         online_asr_enabled: false,
-        selected_asr_model_id: None,
-        selected_prompt_model_id: None,
+        selected_asr_model: None,
+        selected_prompt_model: None,
         mute_while_recording: false,
         audio_input_auto_enhance: default_audio_input_auto_enhance(),
         mic_enhance_preferences: HashMap::new(),
@@ -1634,8 +1636,8 @@ pub fn get_default_settings() -> AppSettings {
         external_script_path: None,
         length_routing_enabled: false,
         length_routing_threshold: default_length_routing_threshold(),
-        length_routing_short_model_id: None,
-        length_routing_long_model_id: None,
+        length_routing_short_model: None,
+        length_routing_long_model: None,
         smart_routing_enabled: true,
         lazy_stream_close: false,
         whisper_accelerator: WhisperAcceleratorSetting::default(),
@@ -1684,13 +1686,14 @@ impl AppSettings {
     /// Resolve the effective model ID string for a given provider.
     ///
     /// Resolution order:
-    /// 1. `selected_prompt_model_id` → look up in `cached_models` (must match provider)
+    /// 1. `selected_prompt_model` → look up in `cached_models` (must match provider)
     /// 2. `post_process_models` legacy map
     ///
     /// Returns `None` if no non-empty model can be found.
     pub fn resolve_model_for_provider(&self, provider_id: &str) -> Option<String> {
-        // Try selected_prompt_model_id via cached_models first
-        if let Some(ref cm_id) = self.selected_prompt_model_id {
+        // Try selected_prompt_model via cached_models first
+        if let Some(ref chain) = self.selected_prompt_model {
+            let cm_id = &chain.primary_id;
             if let Some(cm) = self.cached_models.iter().find(|m| m.id == *cm_id) {
                 if cm.provider_id == provider_id {
                     let model_id = cm.model_id.trim().to_string();
@@ -1974,12 +1977,32 @@ pub fn cleanup_stale_model_references(settings: &mut AppSettings) -> bool {
             }
         };
     }
-    clear_if_stale!(&mut settings.selected_prompt_model_id);
-    clear_if_stale!(&mut settings.selected_asr_model_id);
-    clear_if_stale!(&mut settings.post_process_intent_model_id);
+
+    // Option<ModelChain> fields — clear if primary is stale, strip fallback if stale
+    macro_rules! clear_chain_if_stale {
+        ($field:expr) => {
+            if let Some(ref mut chain) = $field {
+                if !valid_ids.contains(chain.primary_id.as_str()) {
+                    $field = None;
+                    changed = true;
+                } else if chain
+                    .fallback_id
+                    .as_ref()
+                    .is_some_and(|fid| !valid_ids.contains(fid.as_str()))
+                {
+                    chain.fallback_id = None;
+                    changed = true;
+                }
+            }
+        };
+    }
+
+    clear_chain_if_stale!(settings.selected_prompt_model);
+    clear_chain_if_stale!(settings.selected_asr_model);
+    clear_chain_if_stale!(settings.post_process_intent_model);
     clear_if_stale!(&mut settings.post_process_secondary_model_id);
-    clear_if_stale!(&mut settings.length_routing_short_model_id);
-    clear_if_stale!(&mut settings.length_routing_long_model_id);
+    clear_chain_if_stale!(settings.length_routing_short_model);
+    clear_chain_if_stale!(settings.length_routing_long_model);
     clear_if_stale!(&mut settings.multi_model_preferred_id);
 
     // Vec<String> — multi_model_selected_ids

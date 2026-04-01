@@ -348,10 +348,11 @@ pub struct ReviewModelOptionsResponse {
 pub fn get_review_model_options(app: AppHandle) -> ReviewModelOptionsResponse {
     let settings = settings::get_settings(&app);
 
-    // Resolve default model: selected_prompt_model_id takes priority
+    // Resolve default model: selected_prompt_model takes priority
     let default_model_id = settings
-        .selected_prompt_model_id
+        .selected_prompt_model
         .as_ref()
+        .map(|c| &c.primary_id)
         .filter(|id| !id.trim().is_empty())
         .and_then(|id| {
             settings
