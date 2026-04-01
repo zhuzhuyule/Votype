@@ -546,17 +546,29 @@ pub(super) fn resolve_effective_model<'a>(
     fallback_provider: &'a PostProcessProvider,
     prompt: &LLMPrompt,
 ) -> Option<(&'a PostProcessProvider, String)> {
+    // Check if a model ID exists in cached_models and its provider is available.
+    // `warn_on_miss`: true for primary config entries (real config issues),
+    // false for fallback iteration (expected misses during search).
     let check_cached_model = |model_id_opt: Option<&String>,
-                              source: &str|
+                              source: &str,
+                              warn_on_miss: bool|
      -> Option<(&'a PostProcessProvider, String)> {
         let id_str = model_id_opt.filter(|id| !id.trim().is_empty())?;
         let cached = settings.cached_models.iter().find(|m| m.id == *id_str);
         if cached.is_none() {
-            log::warn!(
-                "[ResolveModel] {} id={} not found in cached_models",
-                source,
-                id_str
-            );
+            if warn_on_miss {
+                log::warn!(
+                    "[ResolveModel] {} id={} not found in cached_models",
+                    source,
+                    id_str
+                );
+            } else {
+                log::debug!(
+                    "[ResolveModel] {} id={} not found in cached_models",
+                    source,
+                    id_str
+                );
+            }
             return None;
         }
         let cached = cached.unwrap();
@@ -581,7 +593,8 @@ pub(super) fn resolve_effective_model<'a>(
         fallback_provider.id
     );
 
-    if let Some(res) = check_cached_model(prompt.model_id.as_ref(), "prompt.model_id") {
+    // 1. Prompt-specific model
+    if let Some(res) = check_cached_model(prompt.model_id.as_ref(), "prompt.model_id", true) {
         if !res.1.trim().is_empty() {
             log::debug!(
                 "[ResolveModel] Resolved via prompt.model_id → provider={} model={}",
@@ -592,9 +605,11 @@ pub(super) fn resolve_effective_model<'a>(
         }
     }
 
+    // 2. Global selected model
     if let Some(res) = check_cached_model(
         settings.selected_prompt_model_id.as_ref(),
         "selected_prompt_model_id",
+        true,
     ) {
         if !res.1.trim().is_empty() {
             log::debug!(
@@ -606,6 +621,7 @@ pub(super) fn resolve_effective_model<'a>(
         }
     }
 
+    // 3. Fallback provider's configured model
     if let Some(m) = settings.post_process_models.get(&fallback_provider.id) {
         if !m.trim().is_empty() {
             log::debug!(
@@ -617,27 +633,38 @@ pub(super) fn resolve_effective_model<'a>(
         }
     }
 
-    // Last resort: pick the first valid model from multi-model selection.
-    // This handles cases where single-model settings are stale but multi-model is configured.
+    // 4. Last resort: pick the first valid model from multi-model selection.
+    // Uses debug-level logging for misses since iterating through the list is expected.
+    let total = settings.multi_model_selected_ids.len();
+    let mut skipped = 0usize;
     for id in &settings.multi_model_selected_ids {
-        if let Some(res) = check_cached_model(Some(id), "multi_model_fallback") {
+        if let Some(res) = check_cached_model(Some(id), "multi_model_fallback", false) {
             if !res.1.trim().is_empty() {
-                log::info!(
-                    "[ResolveModel] Resolved via multi_model_fallback → provider={} model={}",
-                    res.0.id,
-                    res.1
-                );
+                if skipped > 0 {
+                    log::warn!(
+                        "[ResolveModel] Primary model config is stale — resolved via multi_model_fallback (skipped {}/{} stale IDs) → provider={} model={}",
+                        skipped, total, res.0.id, res.1
+                    );
+                } else {
+                    log::info!(
+                        "[ResolveModel] Resolved via multi_model_fallback → provider={} model={}",
+                        res.0.id,
+                        res.1
+                    );
+                }
                 return Some(res);
             }
         }
+        skipped += 1;
     }
 
     log::warn!(
-        "[ResolveModel] No model found! prompt.model_id={:?} selected_prompt_model_id={:?} fallback_provider={} cached_models_count={}",
+        "[ResolveModel] No model found! prompt.model_id={:?} selected_prompt_model_id={:?} fallback_provider={} cached_models_count={} multi_model_ids={}",
         prompt.model_id,
         settings.selected_prompt_model_id,
         fallback_provider.id,
-        settings.cached_models.len()
+        settings.cached_models.len(),
+        total
     );
     None
 }
