@@ -1,5 +1,5 @@
-import { Box, Flex, Popover, Text } from "@radix-ui/themes";
-import { IconX } from "@tabler/icons-react";
+import { Flex, Popover, Text, Tooltip } from "@radix-ui/themes";
+import { IconShieldPlus, IconX } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelChain, ModelChainStrategy } from "../../lib/types";
@@ -12,12 +12,6 @@ interface AsrFallbackSelectorProps {
 }
 
 const STRATEGIES: ModelChainStrategy[] = ["serial", "staggered", "race"];
-
-const STRATEGY_LABELS: Record<ModelChainStrategy, string> = {
-  serial: "settings.postProcess.modelChain.serial",
-  staggered: "settings.postProcess.modelChain.staggered",
-  race: "settings.postProcess.modelChain.race",
-};
 
 export const AsrFallbackSelector: React.FC<AsrFallbackSelectorProps> = ({
   chain,
@@ -46,174 +40,120 @@ export const AsrFallbackSelector: React.FC<AsrFallbackSelectorProps> = ({
   const handleClearFallback = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!chain) return;
-    onUpdate({
-      ...chain,
-      fallback_id: null,
-    });
+    onUpdate({ ...chain, fallback_id: null });
   };
 
   const handleStrategyChange = (s: ModelChainStrategy) => {
     if (!chain) return;
-    onUpdate({
-      ...chain,
-      strategy: s,
-    });
+    onUpdate({ ...chain, strategy: s });
   };
 
-  // Fallback is set — show solid box
-  if (fallbackModel) {
-    return (
-      <Box className="px-3 py-1.5">
-        <Popover.Root open={open} onOpenChange={setOpen}>
-          <Popover.Trigger>
+  const strategyLabel = t(`settings.postProcessing.modelChain.${strategy}`);
+
+  // Icon button that opens a popover
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger>
+        <Tooltip
+          content={
+            fallbackModel
+              ? `${t("modelSelector.asrFallback.label")}: ${fallbackModel.name} · ${strategyLabel}`
+              : t("modelSelector.asrFallback.add")
+          }
+        >
+          <button
+            type="button"
+            className={`relative p-1 rounded transition-colors cursor-pointer ${
+              fallbackModel
+                ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                : "text-[var(--gray-9)] hover:text-[var(--gray-11)] hover:bg-[var(--gray-a3)]"
+            }`}
+          >
+            <IconShieldPlus size={15} stroke={1.5} />
+            {fallbackModel && (
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
+            )}
+          </button>
+        </Tooltip>
+      </Popover.Trigger>
+
+      <Popover.Content
+        side="top"
+        align="start"
+        sideOffset={8}
+        style={{ padding: 0, minWidth: 220, maxWidth: 280 }}
+      >
+        {/* Header */}
+        <Flex
+          align="center"
+          justify="between"
+          className="px-3 py-2 border-b border-[var(--gray-a4)]"
+        >
+          <Text size="2" weight="medium">
+            {t("modelSelector.asrFallback.label")}
+          </Text>
+          {fallbackModel && (
+            <button
+              onClick={handleClearFallback}
+              className="p-0.5 rounded hover:bg-[var(--gray-a3)] transition-colors text-[var(--gray-9)]"
+              aria-label={t("modelSelector.asrFallback.remove")}
+            >
+              <IconX size={14} />
+            </button>
+          )}
+        </Flex>
+
+        {/* Model list */}
+        <Flex direction="column" className="py-1">
+          {asrModels.map((model) => (
             <Flex
+              key={model.id}
               align="center"
               gap="2"
-              className="rounded-md bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-2 py-1 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors"
+              className={`px-3 py-1.5 cursor-pointer transition-colors ${
+                model.id === fallbackId
+                  ? "bg-amber-50 dark:bg-amber-950/20"
+                  : "hover:bg-[var(--gray-a2)]"
+              }`}
+              onClick={() => handleSelectFallback(model.id)}
             >
-              <Text size="1" className="text-amber-700 dark:text-amber-400">
-                {t("modelSelector.asrFallback.label")}:
+              <Text size="1" weight="medium" className="truncate flex-1">
+                {model.name}
               </Text>
               <Text
                 size="1"
-                className="text-amber-800 dark:text-amber-300 font-medium truncate"
-                style={{ maxWidth: 140 }}
+                className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 font-medium border border-blue-100 dark:border-blue-900 flex-shrink-0"
               >
-                {fallbackModel.name}
+                {model.providerLabel}
               </Text>
-              <Text
-                size="1"
-                className="text-[10px] px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 font-medium"
-              >
-                {t(STRATEGY_LABELS[strategy])}
-              </Text>
-              <button
-                onClick={handleClearFallback}
-                className="ml-auto p-0.5 rounded hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors text-amber-500 dark:text-amber-500"
-                aria-label={t("modelSelector.asrFallback.remove")}
-              >
-                <IconX className="w-3 h-3" />
-              </button>
             </Flex>
-          </Popover.Trigger>
-          <Popover.Content
-            side="top"
-            align="start"
-            sideOffset={4}
-            style={{ padding: 0, minWidth: 200 }}
-          >
-            <Box className="py-1">
-              {asrModels.map((model) => (
-                <Flex
-                  key={model.id}
-                  align="center"
-                  gap="2"
-                  className={`px-3 py-1.5 cursor-pointer transition-colors ${
-                    model.id === fallbackId
-                      ? "bg-amber-50 dark:bg-amber-950/20"
-                      : "hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
-                  onClick={() => handleSelectFallback(model.id)}
-                >
-                  <Text size="1" className="font-medium truncate">
-                    {model.name}
-                  </Text>
-                  <Text
-                    size="1"
-                    className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium border border-blue-100 flex-shrink-0"
-                  >
-                    {model.providerLabel}
-                  </Text>
-                </Flex>
-              ))}
-            </Box>
-            <Box className="border-t border-gray-100 dark:border-gray-800 px-3 py-2">
-              <Flex gap="1">
-                {STRATEGIES.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => handleStrategyChange(s)}
-                    className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
-                      strategy === s
-                        ? "bg-amber-500 text-white"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                    }`}
-                  >
-                    {t(STRATEGY_LABELS[s])}
-                  </button>
-                ))}
-              </Flex>
-            </Box>
-          </Popover.Content>
-        </Popover.Root>
-      </Box>
-    );
-  }
-
-  // No fallback — show dashed "add" button
-  return (
-    <Box className="px-3 py-1.5">
-      <Popover.Root open={open} onOpenChange={setOpen}>
-        <Popover.Trigger>
-          <Flex
-            align="center"
-            justify="center"
-            className="rounded-md border-dashed border-2 border-gray-300 dark:border-gray-600 px-2 py-1 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-          >
-            <Text size="1" className="text-xs text-muted-foreground">
-              {t("modelSelector.asrFallback.add")}
+          ))}
+          {asrModels.length === 0 && (
+            <Text size="1" color="gray" className="px-3 py-2 text-center">
+              {t("settings.postProcessing.modelChain.noModel")}
             </Text>
-          </Flex>
-        </Popover.Trigger>
-        <Popover.Content
-          side="top"
-          align="start"
-          sideOffset={4}
-          style={{ padding: 0, minWidth: 200 }}
-        >
-          <Box className="py-1">
-            {asrModels.map((model) => (
-              <Flex
-                key={model.id}
-                align="center"
-                gap="2"
-                className="px-3 py-1.5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                onClick={() => handleSelectFallback(model.id)}
+          )}
+        </Flex>
+
+        {/* Strategy pills — only when fallback is set */}
+        {fallbackId && (
+          <Flex gap="1" className="px-3 py-2 border-t border-[var(--gray-a4)]">
+            {STRATEGIES.map((s) => (
+              <button
+                key={s}
+                onClick={() => handleStrategyChange(s)}
+                className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
+                  strategy === s
+                    ? "bg-amber-500 text-white"
+                    : "bg-[var(--gray-a3)] text-[var(--gray-11)] hover:bg-[var(--gray-a4)]"
+                }`}
               >
-                <Text size="1" className="font-medium truncate">
-                  {model.name}
-                </Text>
-                <Text
-                  size="1"
-                  className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium border border-blue-100 flex-shrink-0"
-                >
-                  {model.providerLabel}
-                </Text>
-              </Flex>
+                {t(`settings.postProcessing.modelChain.${s}`)}
+              </button>
             ))}
-          </Box>
-          <Box className="border-t border-gray-100 dark:border-gray-800 px-3 py-2">
-            <Flex gap="1">
-              {STRATEGIES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    if (!chain) return;
-                    onUpdate({ ...chain, strategy: s });
-                  }}
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-colors ${
-                    strategy === s
-                      ? "bg-amber-500 text-white"
-                      : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-                  }`}
-                >
-                  {t(STRATEGY_LABELS[s])}
-                </button>
-              ))}
-            </Flex>
-          </Box>
-        </Popover.Content>
-      </Popover.Root>
-    </Box>
+          </Flex>
+        )}
+      </Popover.Content>
+    </Popover.Root>
   );
 };

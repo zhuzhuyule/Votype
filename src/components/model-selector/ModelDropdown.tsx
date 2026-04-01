@@ -11,12 +11,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ModelInfo } from "../../lib/types";
 import { getTranslatedModelName } from "../../lib/utils/modelTranslation";
-import type { ModelChain } from "../../lib/types";
 import { RECOMMENDED_MODEL_IDS } from "../settings/asr-models/constants";
 import { getModeKey } from "../settings/asr-models/utils";
 import { ProgressBar } from "../shared";
 import { ModelTags } from "../ui/ModelTags";
-import { AsrFallbackSelector } from "./AsrFallbackSelector";
 import { ModelGroupHeader } from "./ModelGroupHeader";
 import { ModelListItem } from "./ModelListItem";
 
@@ -41,8 +39,6 @@ interface ModelDropdownProps {
   selectedAsrModelId: string | null;
   onAsrModelSelect: (modelId: string, opts?: { keepOpen?: boolean }) => void;
   onlineEnabled: boolean;
-  asrChain: ModelChain | null;
-  onAsrChainUpdate: (chain: ModelChain | null) => void;
   realtimeModels: ModelInfo[];
   selectedRealtimeModelId: string | null;
   realtimeEnabled: boolean;
@@ -59,8 +55,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
   selectedAsrModelId,
   onAsrModelSelect,
   onlineEnabled,
-  asrChain,
-  onAsrChainUpdate,
   realtimeModels,
   selectedRealtimeModelId,
   realtimeEnabled,
@@ -389,16 +383,6 @@ const ModelDropdown: React.FC<ModelDropdownProps> = ({
                     );
                   })}
                 </Box>
-
-                {onlineEnabled && asrModels.length >= 2 && (
-                  <AsrFallbackSelector
-                    chain={asrChain}
-                    onUpdate={onAsrChainUpdate}
-                    asrModels={asrModels.filter(
-                      (m) => m.id !== asrChain?.primary_id,
-                    )}
-                  />
-                )}
               </Box>
             )}
 

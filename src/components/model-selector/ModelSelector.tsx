@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { ModelInfo } from "../../lib/types";
+import { AsrFallbackSelector } from "./AsrFallbackSelector";
 import DownloadProgressDisplay from "./DownloadProgressDisplay";
 import ModelDropdown from "./ModelDropdown";
 import ModelStatusButton from "./ModelStatusButton";
@@ -498,6 +499,17 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           }
         />
 
+        {/* ASR Fallback icon — shown when online ASR enabled and 2+ online models */}
+        {settings?.online_asr_enabled && asrModels.length >= 2 && (
+          <AsrFallbackSelector
+            chain={settings?.selected_asr_model ?? null}
+            onUpdate={(chain) => updateModelChain("selected_asr_model", chain)}
+            asrModels={asrModels.filter(
+              (m) => m.id !== settings?.selected_asr_model?.primary_id,
+            )}
+          />
+        )}
+
         {/* Model Dropdown */}
         {showModelDropdown && (
           <ModelDropdown
@@ -512,10 +524,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             }
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
-            asrChain={settings?.selected_asr_model ?? null}
-            onAsrChainUpdate={(chain) =>
-              updateModelChain("selected_asr_model", chain)
-            }
             realtimeModels={realtimeModelsForQuickSelector}
             selectedRealtimeModelId={
               settings?.post_process_secondary_model_id ?? null
