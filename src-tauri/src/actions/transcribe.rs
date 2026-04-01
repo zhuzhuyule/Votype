@@ -124,7 +124,7 @@ fn count_sentence_markers(text: &str) -> usize {
     }
 }
 
-fn compute_change_percent(source: &str, target: &str) -> i8 {
+pub(crate) fn compute_change_percent(source: &str, target: &str) -> i8 {
     let source_tokens = tokenize_diff_words(source);
     let target_tokens = tokenize_diff_words(target);
     let source_len = source_tokens.len();

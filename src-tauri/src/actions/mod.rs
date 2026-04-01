@@ -7,6 +7,8 @@ use tauri::AppHandle;
 pub mod post_process;
 mod transcribe;
 
+pub(crate) use transcribe::compute_change_percent;
+
 // Shortcut Action Trait
 // Shortcut Action Mode
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

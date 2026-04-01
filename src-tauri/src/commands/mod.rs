@@ -469,95 +469,149 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
             }
         }
     } else {
-        // User rejected - use cached polish result if available, otherwise execute default polish
-        log::info!("[SkillConfirmation] User rejected skill, using default polish");
+        // User rejected skill — fall back to normal polish flow,
+        // respecting app review policy (Always → review window, Never → direct paste).
+        log::info!("[SkillConfirmation] User rejected skill, falling back to normal polish flow");
 
-        // Check if we have a cached polish result from parallel request
-        if let Some(cached_result) = pending.polish_result {
+        // Determine the final polish text
+        let final_text = if let Some(cached_result) = pending.polish_result {
             log::info!(
                 "[SkillConfirmation] Using cached polish result (len: {})",
                 cached_result.len()
             );
-
-            // Save polish result to history
-            if let Some(history_id) = pending.history_id {
-                use crate::managers::history::HistoryManager;
-                use std::sync::Arc;
-
-                if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
-                    // Get polish prompt info for history: priority override_prompt_id > selected_prompt > first
-                    let polish_prompt_id = pending
-                        .override_prompt_id
-                        .as_deref()
-                        .or(settings.post_process_selected_prompt_id.as_deref());
-
-                    let polish_prompt = settings
-                        .post_process_prompts
-                        .iter()
-                        .find(|p| polish_prompt_id == Some(p.id.as_str()))
-                        .or_else(|| settings.post_process_prompts.first());
-
-                    if let Some(prompt) = polish_prompt {
-                        let _ = hm
-                            .update_transcription_post_processing(
-                                history_id,
-                                cached_result.clone(),
-                                prompt.instructions.clone(),
-                                prompt.name.clone(),
-                                Some(prompt.id.clone()),
-                                settings
-                                    .resolve_model_for_provider(&settings.post_process_provider_id),
-                                None,
-                                Some(1),
-                            )
-                            .await;
-                        log::info!(
-                            "[SkillConfirmation] Saved polish result to history entry {}",
-                            history_id
-                        );
-                    }
-                }
-            }
-
-            crate::clipboard::paste(cached_result, app)?;
+            cached_result
         } else {
             // Fallback: execute default polish (should not happen with parallel requests)
             log::warn!("[SkillConfirmation] No cached polish result, executing default polish");
-            let (
-                result,
-                _model,
-                _prompt_id,
-                _err,
-                _error_message,
-                _token_count,
-                _call_count,
-                _,
-                _,
-                _,
-            ) = crate::actions::post_process::maybe_post_process_transcription(
-                &app,
-                &settings,
-                &transcription,
-                None,
-                false,
-                pending.override_prompt_id, // Use the stored override prompt
-                pending.app_name,
-                pending.window_title,
-                None,
-                None,
-                pending.history_id,
-                false, // Not skill_mode
-                false,
-                None, // Ignore selected text for polish
-                None,
-                false, // skip_smart_routing
-            )
-            .await;
-
-            // Paste result if available
-            if let Some(text) = result {
-                crate::clipboard::paste(text, app)?;
+            let (result, _, _, _, _, _, _, _, _, _) =
+                crate::actions::post_process::maybe_post_process_transcription(
+                    &app,
+                    &settings,
+                    &transcription,
+                    None,
+                    false,
+                    pending.override_prompt_id.clone(),
+                    pending.app_name.clone(),
+                    pending.window_title.clone(),
+                    None,
+                    None,
+                    pending.history_id,
+                    false,
+                    false,
+                    None,
+                    None,
+                    true, // skip_smart_routing: already done in parallel
+                )
+                .await;
+            match result {
+                Some(text) => text,
+                None => transcription.clone(),
             }
+        };
+
+        // Save polish result to history
+        if let Some(history_id) = pending.history_id {
+            use crate::managers::history::HistoryManager;
+            use std::sync::Arc;
+
+            if let Some(hm) = app_for_cleanup.try_state::<Arc<HistoryManager>>() {
+                let polish_prompt_id = pending
+                    .override_prompt_id
+                    .as_deref()
+                    .or(settings.post_process_selected_prompt_id.as_deref());
+                let polish_prompt = settings
+                    .post_process_prompts
+                    .iter()
+                    .find(|p| polish_prompt_id == Some(p.id.as_str()))
+                    .or_else(|| settings.post_process_prompts.first());
+
+                if let Some(prompt) = polish_prompt {
+                    let _ = hm
+                        .update_transcription_post_processing(
+                            history_id,
+                            final_text.clone(),
+                            prompt.instructions.clone(),
+                            prompt.name.clone(),
+                            Some(prompt.id.clone()),
+                            settings.resolve_model_for_provider(&settings.post_process_provider_id),
+                            None,
+                            Some(1),
+                        )
+                        .await;
+                }
+            }
+        }
+
+        // Resolve app review policy to decide: review window or direct paste
+        let app_policy = pending
+            .app_name
+            .as_ref()
+            .and_then(|app_name| {
+                let profile_id = settings
+                    .app_to_profile
+                    .iter()
+                    .find(|(k, _)| k.eq_ignore_ascii_case(app_name))
+                    .map(|(_, v)| v);
+                let profile =
+                    profile_id.and_then(|pid| settings.app_profiles.iter().find(|p| &p.id == pid));
+
+                if let Some(p) = profile {
+                    // Check title rules for more specific policy
+                    if let Some(ref title) = pending.window_title {
+                        let matched_rule = p
+                            .rules
+                            .iter()
+                            .filter(|rule| match rule.match_type {
+                                crate::settings::TitleMatchType::Text => {
+                                    title.to_lowercase().contains(&rule.pattern.to_lowercase())
+                                }
+                                crate::settings::TitleMatchType::Regex => {
+                                    regex::Regex::new(&rule.pattern)
+                                        .map(|re| re.is_match(title))
+                                        .unwrap_or(false)
+                                }
+                            })
+                            .max_by_key(|r| r.pattern.chars().count());
+
+                        if let Some(rule) = matched_rule {
+                            return Some(rule.policy);
+                        }
+                    }
+                    Some(p.policy)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(crate::settings::AppReviewPolicy::Auto);
+
+        let change_percent = crate::actions::compute_change_percent(&transcription, &final_text);
+
+        let should_review = match app_policy {
+            crate::settings::AppReviewPolicy::Never => false,
+            crate::settings::AppReviewPolicy::Always => true,
+            crate::settings::AppReviewPolicy::Auto => true, // Default: show review
+        };
+
+        log::info!(
+            "[SkillConfirmation] Reject fallback: app_policy={:?}, change_percent={}, should_review={}",
+            app_policy, change_percent, should_review
+        );
+
+        if should_review {
+            crate::review_window::show_review_window(
+                &app_for_cleanup,
+                transcription,
+                final_text,
+                change_percent,
+                pending.history_id,
+                None,
+                crate::settings::SkillOutputMode::Polish,
+                None,
+                None,
+                None,
+            );
+        } else {
+            crate::clipboard::paste(final_text, app)?;
         }
     }
 
