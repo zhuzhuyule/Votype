@@ -556,6 +556,9 @@ pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(),
         .post_process_provider_avatar_overrides
         .remove(&provider_id);
 
+    // Clean up stale model references left by removed cached models
+    settings::cleanup_stale_model_references(&mut settings);
+
     settings::write_settings(&app, settings);
 
     let avatar_dir = provider_avatar_dir(&app)?;

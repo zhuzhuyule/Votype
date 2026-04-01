@@ -1929,6 +1929,11 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
         }
     }
 
+    // Clean up stale model references (historical data from previous deletions)
+    if cleanup_stale_model_references(&mut settings) {
+        store_set_settings(&store, &settings);
+    }
+
     // Merge external skills from ~/.votype/skills/
     merge_external_skills(app, &mut settings);
 
@@ -1945,6 +1950,82 @@ pub fn get_settings(app: &AppHandle) -> AppSettings {
     }
 
     settings
+}
+
+/// Remove stale model references from all settings fields.
+/// Returns `true` if any field was modified.
+pub fn cleanup_stale_model_references(settings: &mut AppSettings) -> bool {
+    let valid_ids: std::collections::HashSet<&str> = settings
+        .cached_models
+        .iter()
+        .map(|m| m.id.as_str())
+        .collect();
+    let mut changed = false;
+
+    // Option<String> fields that reference a cached_model id
+    macro_rules! clear_if_stale {
+        ($field:expr) => {
+            if $field
+                .as_ref()
+                .is_some_and(|id| !valid_ids.contains(id.as_str()))
+            {
+                *$field = None;
+                changed = true;
+            }
+        };
+    }
+    clear_if_stale!(&mut settings.selected_prompt_model_id);
+    clear_if_stale!(&mut settings.selected_asr_model_id);
+    clear_if_stale!(&mut settings.post_process_intent_model_id);
+    clear_if_stale!(&mut settings.post_process_secondary_model_id);
+    clear_if_stale!(&mut settings.length_routing_short_model_id);
+    clear_if_stale!(&mut settings.length_routing_long_model_id);
+    clear_if_stale!(&mut settings.multi_model_preferred_id);
+
+    // Vec<String> — multi_model_selected_ids
+    let before = settings.multi_model_selected_ids.len();
+    settings
+        .multi_model_selected_ids
+        .retain(|id| valid_ids.contains(id.as_str()));
+    if settings.multi_model_selected_ids.len() != before {
+        changed = true;
+        // Auto-disable multi-model if fewer than 2 remain
+        if settings.multi_model_selected_ids.len() < 2 {
+            settings.multi_model_post_process_enabled = false;
+        }
+    }
+
+    // HashMap<String, u32> — multi_model_manual_pick_counts
+    let before = settings.multi_model_manual_pick_counts.len();
+    settings
+        .multi_model_manual_pick_counts
+        .retain(|id, _| valid_ids.contains(id.as_str()));
+    if settings.multi_model_manual_pick_counts.len() != before {
+        changed = true;
+    }
+
+    // Vec<MultiModelPostProcessItem> — multi_model_post_process_items
+    let before = settings.multi_model_post_process_items.len();
+    settings
+        .multi_model_post_process_items
+        .retain(|item| valid_ids.contains(item.model_id.as_str()));
+    if settings.multi_model_post_process_items.len() != before {
+        changed = true;
+    }
+
+    // Per-skill model_id in post_process_prompts
+    for prompt in &mut settings.post_process_prompts {
+        if prompt
+            .model_id
+            .as_ref()
+            .is_some_and(|id| !valid_ids.contains(id.as_str()))
+        {
+            prompt.model_id = None;
+            changed = true;
+        }
+    }
+
+    changed
 }
 
 fn merge_external_skills(app: &AppHandle, settings: &mut AppSettings) {

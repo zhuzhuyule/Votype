@@ -635,6 +635,7 @@ pub fn toggle_cached_model_thinking(
 pub fn remove_cached_model(app: AppHandle, id: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.cached_models.retain(|m| m.id != id);
+    settings::cleanup_stale_model_references(&mut settings);
     settings::write_settings(&app, settings);
     Ok(())
 }
