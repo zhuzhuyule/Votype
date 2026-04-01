@@ -1549,6 +1549,7 @@ impl ShortcutAction for TranscribeAction {
                                                     duration_ms: metrics_duration_ms.unwrap_or(0) as i64,
                                                     tokens_per_sec: metrics_tokens_per_sec,
                                                     error: if err { error_message.clone() } else { None },
+                                                    is_fallback: false,
                                                 }) {
                                                     log::error!("[LlmMetrics] Failed to log single model call: {}", e);
                                                 }

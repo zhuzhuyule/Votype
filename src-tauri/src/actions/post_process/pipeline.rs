@@ -133,6 +133,7 @@ pub async fn unified_post_process(
                     duration_ms: d.duration_ms as i64,
                     tokens_per_sec,
                     error: None,
+                    is_fallback: false,
                 }) {
                     log::error!("[LlmMetrics] Failed to log intent call: {}", e);
                 }

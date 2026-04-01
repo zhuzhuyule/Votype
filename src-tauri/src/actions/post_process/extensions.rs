@@ -322,6 +322,7 @@ pub async fn multi_post_process_transcription(
                         duration_ms: elapsed as i64,
                         tokens_per_sec: output_speed,
                         error: result_struct.error.clone(),
+                        is_fallback: false,
                     }) {
                         log::error!("[LlmMetrics] Failed to log multi-model call: {}", e);
                     }

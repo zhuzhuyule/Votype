@@ -54,6 +54,7 @@ pub struct LlmCallRecord {
     pub duration_ms: i64,
     pub tokens_per_sec: Option<f64>,
     pub error: Option<String>,
+    pub is_fallback: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,8 +93,8 @@ impl LlmMetricsManager {
         let conn = self.get_connection()?;
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
-            "INSERT INTO llm_call_log (history_id, model_id, provider, call_type, input_tokens, output_tokens, total_tokens, token_estimate, duration_ms, tokens_per_sec, error, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO llm_call_log (history_id, model_id, provider, call_type, input_tokens, output_tokens, total_tokens, token_estimate, duration_ms, tokens_per_sec, error, is_fallback, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 record.history_id,
                 record.model_id,
@@ -106,6 +107,7 @@ impl LlmMetricsManager {
                 record.duration_ms,
                 record.tokens_per_sec,
                 record.error,
+                record.is_fallback,
                 now,
             ],
         )?;

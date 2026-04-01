@@ -349,6 +349,8 @@ static MIGRATIONS: &[M] = &[
          FROM transcription_history
          WHERE token_count > 0 AND post_process_model IS NOT NULL;"
     ),
+    // Migration 35: Add is_fallback column to llm_call_log for tracking fallback usage
+    M::up("ALTER TABLE llm_call_log ADD COLUMN is_fallback INTEGER NOT NULL DEFAULT 0;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
