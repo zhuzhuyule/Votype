@@ -9,6 +9,7 @@ mod cli;
 mod clipboard;
 mod commands;
 pub mod error;
+pub mod fallback;
 mod helpers;
 mod input;
 mod llm_client;
