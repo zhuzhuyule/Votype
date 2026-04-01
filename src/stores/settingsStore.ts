@@ -5,6 +5,7 @@ import type { BindingResponse } from "../lib/types";
 import {
   AudioDevice,
   CachedModel,
+  ModelChain,
   ModelType,
   MultiModelPostProcessItem,
   PostProcessProvider,
@@ -97,6 +98,7 @@ interface SettingsStore {
     item: MultiModelPostProcessItem,
   ) => Promise<void>;
   removeMultiModelPostProcessItem: (itemId: string) => Promise<void>;
+  updateModelChain: (field: string, chain: ModelChain | null) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -138,8 +140,8 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   append_trailing_space: false,
   cached_models: [],
   online_asr_enabled: false,
-  selected_asr_model_id: null,
-  selected_prompt_model_id: null,
+  selected_asr_model: null,
+  selected_prompt_model: null,
   punctuation_enabled: false,
   punctuation_model: "punct-zh-en-ct-transformer-2024-04-12-int8",
   favorite_transcription_models: [],
@@ -149,7 +151,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   post_process_use_secondary_output: false,
   post_process_use_local_candidate_when_online_asr: false,
   post_process_secondary_model_id: null,
-  post_process_intent_model_id: null,
+  post_process_intent_model: null,
   app_review_policies: {},
   expert_mode: false,
 };
@@ -269,9 +271,10 @@ const settingUpdaters: {
     invoke("change_post_process_secondary_model_id_setting", {
       modelId: value,
     }),
-  post_process_intent_model_id: (value) =>
-    invoke("change_post_process_intent_model_id_setting", {
-      modelId: value,
+  post_process_intent_model: (value) =>
+    invoke("update_model_chain", {
+      field: "post_process_intent_model",
+      chain: value,
     }),
   multi_model_post_process_enabled: (value) =>
     invoke("change_multi_model_post_process_enabled_setting", {
@@ -320,10 +323,16 @@ const settingUpdaters: {
     invoke("change_length_routing_enabled_setting", { enabled: value }),
   length_routing_threshold: (value) =>
     invoke("change_length_routing_threshold_setting", { threshold: value }),
-  length_routing_short_model_id: (value) =>
-    invoke("change_length_routing_short_model_setting", { modelId: value }),
-  length_routing_long_model_id: (value) =>
-    invoke("change_length_routing_long_model_setting", { modelId: value }),
+  length_routing_short_model: (value) =>
+    invoke("update_model_chain", {
+      field: "length_routing_short_model",
+      chain: value,
+    }),
+  length_routing_long_model: (value) =>
+    invoke("update_model_chain", {
+      field: "length_routing_long_model",
+      chain: value,
+    }),
 };
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -898,6 +907,17 @@ export const useSettingsStore = create<SettingsStore>()(
         console.error("Failed to remove multi-model item:", error);
       } finally {
         setUpdating(updateKey, false);
+      }
+    },
+
+    updateModelChain: async (field: string, chain: ModelChain | null) => {
+      const { setUpdating, refreshSettings } = get();
+      setUpdating(field, true);
+      try {
+        await invoke("update_model_chain", { field, chain });
+        await refreshSettings();
+      } finally {
+        setUpdating(field, false);
       }
     },
 

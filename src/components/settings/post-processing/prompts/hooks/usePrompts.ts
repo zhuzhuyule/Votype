@@ -157,7 +157,7 @@ export const usePrompts = (
   // Text models for dropdown
   const cachedModels = settings?.cached_models || [];
   const textModels = useMemo(() => {
-    const globalDefaultId = settings?.selected_prompt_model_id;
+    const globalDefaultId = settings?.selected_prompt_model?.primary_id;
     const globalDefaultModel = globalDefaultId
       ? cachedModels.find((m) => m.id === globalDefaultId)
       : null;
@@ -183,7 +183,7 @@ export const usePrompts = (
   }, [
     cachedModels,
     settings?.post_process_providers,
-    settings?.selected_prompt_model_id,
+    settings?.selected_prompt_model?.primary_id,
     t,
   ]);
 

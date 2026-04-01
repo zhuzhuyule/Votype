@@ -88,9 +88,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
       cachedModels.find(
         (model) =>
           model.model_type === "asr" &&
-          model.id === settings?.selected_asr_model_id,
+          model.id === settings?.selected_asr_model?.primary_id,
       ) ?? null,
-    [cachedModels, settings?.selected_asr_model_id],
+    [cachedModels, settings?.selected_asr_model?.primary_id],
   );
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -432,11 +432,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   };
 
   const modeLabel =
-    settings?.online_asr_enabled && settings?.selected_asr_model_id
+    settings?.online_asr_enabled && settings?.selected_asr_model?.primary_id
       ? t("modelSelector.online")
       : t("modelSelector.local");
   const modeLabelColor =
-    settings?.online_asr_enabled && settings?.selected_asr_model_id
+    settings?.online_asr_enabled && settings?.selected_asr_model?.primary_id
       ? "text-blue-700 bg-blue-50 border border-blue-200"
       : "text-emerald-600 bg-emerald-50 border border-emerald-200";
 
@@ -488,7 +488,8 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           modeLabel={modeLabel}
           modeLabelColor={modeLabelColor}
           isOnlineModel={
-            settings?.online_asr_enabled && !!settings?.selected_asr_model_id
+            settings?.online_asr_enabled &&
+            !!settings?.selected_asr_model?.primary_id
           }
         />
 
@@ -501,7 +502,9 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             onModelSelect={handleModelSelect}
             onModelDownload={handleModelDownload}
             asrModels={asrModels}
-            selectedAsrModelId={settings?.selected_asr_model_id || null}
+            selectedAsrModelId={
+              settings?.selected_asr_model?.primary_id || null
+            }
             onAsrModelSelect={handleAsrModelSelect}
             onlineEnabled={settings?.online_asr_enabled || false}
             realtimeModels={realtimeModelsForQuickSelector}

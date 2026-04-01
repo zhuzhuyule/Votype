@@ -23,7 +23,8 @@ export const PromoteModelSelection: React.FC = () => {
       : `${model.model_id} (${model.provider_id})`,
   }));
 
-  const selectedModelId = settings?.selected_prompt_model_id ?? undefined;
+  const selectedModelId =
+    settings?.selected_prompt_model?.primary_id ?? undefined;
 
   const handleSelect = (value: string) => {
     void selectPromptModel(value);

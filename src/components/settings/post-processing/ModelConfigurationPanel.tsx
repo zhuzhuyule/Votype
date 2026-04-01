@@ -138,7 +138,7 @@ const renderModelSection = ({
                   );
                   const isSelected =
                     allowSelection &&
-                    settings?.selected_prompt_model_id === model.id;
+                    settings?.selected_prompt_model?.primary_id === model.id;
 
                   return (
                     <Flex

@@ -27,8 +27,8 @@ export const TextModelModeSettings: React.FC = () => {
   const modelMode: ModelMode = multiModelEnabled ? "multi" : "single";
 
   const threshold = settings?.length_routing_threshold ?? 100;
-  const shortModelId = settings?.length_routing_short_model_id ?? null;
-  const defaultModelId = settings?.selected_prompt_model_id ?? null;
+  const shortModelId = settings?.length_routing_short_model?.primary_id ?? null;
+  const defaultModelId = settings?.selected_prompt_model?.primary_id ?? null;
   const multiModelSelectedIds = useMemo(
     () => settings?.multi_model_selected_ids ?? [],
     [settings?.multi_model_selected_ids],
@@ -92,8 +92,14 @@ export const TextModelModeSettings: React.FC = () => {
   const handleShortModelChange = useCallback(
     async (value: string) => {
       await updateSetting(
-        "length_routing_short_model_id",
-        value === "__none__" ? null : value,
+        "length_routing_short_model",
+        value === "__none__"
+          ? null
+          : {
+              primary_id: value,
+              fallback_id: null,
+              strategy: "serial" as const,
+            },
       );
     },
     [updateSetting],

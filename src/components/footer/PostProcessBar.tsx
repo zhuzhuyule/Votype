@@ -68,7 +68,7 @@ export const PostProcessBar: React.FC = () => {
   const modelMode: ModelMode = multiModelEnabled ? "multi" : "single";
 
   // Single mode
-  const selectedModelId = settings?.selected_prompt_model_id ?? "";
+  const selectedModelId = settings?.selected_prompt_model?.primary_id ?? "";
   const selectedModel = textModels.find((m) => m.id === selectedModelId);
   const selectedModelLabel = selectedModel
     ? selectedModel.custom_label || selectedModel.model_id

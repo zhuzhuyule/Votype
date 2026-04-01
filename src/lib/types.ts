@@ -185,6 +185,16 @@ export const PostProcessProviderSchema = z.object({
 
 export type PostProcessProvider = z.infer<typeof PostProcessProviderSchema>;
 
+export const ModelChainStrategySchema = z.enum(["serial", "staggered", "race"]);
+export type ModelChainStrategy = z.infer<typeof ModelChainStrategySchema>;
+
+export const ModelChainSchema = z.object({
+  primary_id: z.string(),
+  fallback_id: z.string().nullable().optional().default(null),
+  strategy: ModelChainStrategySchema.optional().default("serial"),
+});
+export type ModelChain = z.infer<typeof ModelChainSchema>;
+
 export const SettingsSchema = z.object({
   bindings: ShortcutBindingsMapSchema,
   activation_mode: z
@@ -248,7 +258,9 @@ export const SettingsSchema = z.object({
     .default({}),
   post_process_prompts: z.array(LLMPromptSchema).optional().default([]),
   post_process_selected_prompt_id: z.string().nullable().optional(),
-  post_process_intent_model_id: z.string().nullable().optional().default(null),
+  post_process_intent_model: ModelChainSchema.nullable()
+    .optional()
+    .default(null),
   multi_model_post_process_enabled: z.boolean().optional().default(false),
   multi_model_post_process_items: z
     .array(MultiModelPostProcessItemSchema)
@@ -263,8 +275,8 @@ export const SettingsSchema = z.object({
   multi_model_manual_pick_counts: z.record(z.number()).optional().default({}),
   cached_models: z.array(CachedModelSchema).optional().default([]),
   online_asr_enabled: z.boolean().optional().default(false),
-  selected_asr_model_id: z.string().nullable().optional(),
-  selected_prompt_model_id: z.string().nullable().optional(),
+  selected_asr_model: ModelChainSchema.nullable().optional().default(null),
+  selected_prompt_model: ModelChainSchema.nullable().optional().default(null),
   mute_while_recording: z.boolean().optional().default(false),
   audio_input_auto_enhance: z.boolean().optional().default(true),
   mic_enhance_preferences: z.record(z.boolean()).optional().default({}),
@@ -296,8 +308,12 @@ export const SettingsSchema = z.object({
   show_tray_icon: z.boolean().optional().default(true),
   length_routing_enabled: z.boolean().optional().default(false),
   length_routing_threshold: z.number().min(10).max(500).optional().default(100),
-  length_routing_short_model_id: z.string().nullable().optional().default(null),
-  length_routing_long_model_id: z.string().nullable().optional().default(null),
+  length_routing_short_model: ModelChainSchema.nullable()
+    .optional()
+    .default(null),
+  length_routing_long_model: ModelChainSchema.nullable()
+    .optional()
+    .default(null),
 });
 
 export const BindingResponseSchema = z.object({

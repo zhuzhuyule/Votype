@@ -32,12 +32,14 @@ export const IntentModelSelection: React.FC = () => {
   ];
 
   const selectedValue =
-    settings?.post_process_intent_model_id ?? DEFAULT_OPTION_VALUE;
+    settings?.post_process_intent_model?.primary_id ?? DEFAULT_OPTION_VALUE;
 
   const handleSelect = (value: string) => {
     void updateSetting(
-      "post_process_intent_model_id",
-      value === DEFAULT_OPTION_VALUE ? null : value,
+      "post_process_intent_model",
+      value === DEFAULT_OPTION_VALUE
+        ? null
+        : { primary_id: value, fallback_id: null, strategy: "serial" as const },
     );
   };
 
@@ -57,7 +59,7 @@ export const IntentModelSelection: React.FC = () => {
           placeholder={t("settings.postProcessing.intentModel.placeholder")}
           disabled={
             !settings?.post_process_enabled ||
-            isUpdating("post_process_intent_model_id")
+            isUpdating("post_process_intent_model")
           }
           enableFilter={true}
         />

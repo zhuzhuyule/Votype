@@ -49,9 +49,9 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   const multiModelEnabled = settings?.multi_model_post_process_enabled ?? false;
   const modelMode: ModelMode = multiModelEnabled ? "multi" : "single";
   const threshold = settings?.length_routing_threshold ?? 100;
-  const shortModelId = settings?.length_routing_short_model_id ?? null;
-  const defaultModelId = settings?.selected_prompt_model_id ?? null;
-  const intentModelId = settings?.post_process_intent_model_id ?? null;
+  const shortModelId = settings?.length_routing_short_model?.primary_id ?? null;
+  const defaultModelId = settings?.selected_prompt_model?.primary_id ?? null;
+  const intentModelId = settings?.post_process_intent_model?.primary_id ?? null;
   const multiModelSelectedIds = useMemo(
     () => settings?.multi_model_selected_ids ?? [],
     [settings?.multi_model_selected_ids],
@@ -597,8 +597,14 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
               shortModelId,
               (v) =>
                 updateSetting(
-                  "length_routing_short_model_id",
-                  v === "__none__" ? null : v,
+                  "length_routing_short_model",
+                  v === "__none__"
+                    ? null
+                    : {
+                        primary_id: v,
+                        fallback_id: null,
+                        strategy: "serial" as const,
+                      },
                 ),
               t(
                 "settings.postProcessing.lengthRouting.useDefault",
@@ -683,8 +689,14 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                 intentModelId,
                 (v) =>
                   updateSetting(
-                    "post_process_intent_model_id",
-                    v === "__none__" ? null : v,
+                    "post_process_intent_model",
+                    v === "__none__"
+                      ? null
+                      : {
+                          primary_id: v,
+                          fallback_id: null,
+                          strategy: "serial" as const,
+                        },
                   ),
                 t(
                   "settings.postProcessing.intentModel.defaultOption",
