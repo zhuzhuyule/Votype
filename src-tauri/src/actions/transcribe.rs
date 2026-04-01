@@ -702,10 +702,90 @@ impl ShortcutAction for TranscribeAction {
                         {
                             Ok(join_result) => {
                                 // Online finished within timeout
-                                let primary = match join_result {
+                                let mut primary = match join_result {
                                     Ok(res) => res,
                                     Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
                                 };
+
+                                // If primary failed, try fallback online model before falling back to local
+                                if primary.is_err() {
+                                    if let Some(fallback_id) = settings
+                                        .selected_asr_model
+                                        .as_ref()
+                                        .and_then(|c| c.fallback_id.as_ref())
+                                    {
+                                        log::warn!("[ASR] Primary online model failed, trying fallback: {}", fallback_id);
+
+                                        let fallback_cached = settings
+                                            .cached_models
+                                            .iter()
+                                            .find(|m| {
+                                                m.model_type == crate::settings::ModelType::Asr
+                                                    && m.id == *fallback_id
+                                            })
+                                            .cloned();
+
+                                        if let Some(fallback_model) = fallback_cached {
+                                            let fb_provider = settings
+                                                .post_process_providers
+                                                .iter()
+                                                .find(|p| p.id == fallback_model.provider_id)
+                                                .cloned();
+                                            let fb_api_key = settings
+                                                .post_process_api_keys
+                                                .get(&fallback_model.provider_id)
+                                                .cloned();
+                                            let fb_remote_id = fallback_model.model_id.clone();
+                                            let fb_samples = samples.clone();
+                                            let fb_language = settings.selected_language.clone();
+
+                                            let fallback_handle = tokio::task::spawn_blocking(
+                                                move || -> anyhow::Result<String> {
+                                                    let provider =
+                                                        fb_provider.ok_or_else(|| {
+                                                            anyhow::anyhow!(
+                                                                "Fallback ASR provider not found"
+                                                            )
+                                                        })?;
+                                                    let client = OnlineAsrClient::new(
+                                                        16000,
+                                                        std::time::Duration::from_secs(120),
+                                                    );
+                                                    let lang = if fb_language == "auto" {
+                                                        None
+                                                    } else {
+                                                        Some(fb_language.as_str())
+                                                    };
+                                                    client.transcribe(
+                                                        &provider,
+                                                        fb_api_key,
+                                                        &fb_remote_id,
+                                                        lang,
+                                                        &fb_samples,
+                                                    )
+                                                },
+                                            );
+
+                                            match fallback_handle.await {
+                                                Ok(Ok(text)) => {
+                                                    log::info!(
+                                                        "[ASR] Fallback online model succeeded"
+                                                    );
+                                                    primary = Ok(text);
+                                                }
+                                                Ok(Err(e)) => log::warn!(
+                                                    "[ASR] Fallback online model also failed: {}",
+                                                    e
+                                                ),
+                                                Err(e) => log::warn!(
+                                                    "[ASR] Fallback task panicked: {}",
+                                                    e
+                                                ),
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // Still await secondary (it's likely done or almost done)
                                 let secondary = match secondary_handle.await {
                                     Ok(res) => res,
@@ -751,10 +831,90 @@ impl ShortcutAction for TranscribeAction {
                             .await
                         {
                             Ok(join_result) => {
-                                let primary = match join_result {
+                                let mut primary = match join_result {
                                     Ok(res) => res,
                                     Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
                                 };
+
+                                // If primary failed, try fallback online model
+                                if primary.is_err() {
+                                    if let Some(fallback_id) = settings
+                                        .selected_asr_model
+                                        .as_ref()
+                                        .and_then(|c| c.fallback_id.as_ref())
+                                    {
+                                        log::warn!("[ASR] Primary online model failed, trying fallback: {}", fallback_id);
+
+                                        let fallback_cached = settings
+                                            .cached_models
+                                            .iter()
+                                            .find(|m| {
+                                                m.model_type == crate::settings::ModelType::Asr
+                                                    && m.id == *fallback_id
+                                            })
+                                            .cloned();
+
+                                        if let Some(fallback_model) = fallback_cached {
+                                            let fb_provider = settings
+                                                .post_process_providers
+                                                .iter()
+                                                .find(|p| p.id == fallback_model.provider_id)
+                                                .cloned();
+                                            let fb_api_key = settings
+                                                .post_process_api_keys
+                                                .get(&fallback_model.provider_id)
+                                                .cloned();
+                                            let fb_remote_id = fallback_model.model_id.clone();
+                                            let fb_samples = samples.clone();
+                                            let fb_language = settings.selected_language.clone();
+
+                                            let fallback_handle = tokio::task::spawn_blocking(
+                                                move || -> anyhow::Result<String> {
+                                                    let provider =
+                                                        fb_provider.ok_or_else(|| {
+                                                            anyhow::anyhow!(
+                                                                "Fallback ASR provider not found"
+                                                            )
+                                                        })?;
+                                                    let client = OnlineAsrClient::new(
+                                                        16000,
+                                                        std::time::Duration::from_secs(120),
+                                                    );
+                                                    let lang = if fb_language == "auto" {
+                                                        None
+                                                    } else {
+                                                        Some(fb_language.as_str())
+                                                    };
+                                                    client.transcribe(
+                                                        &provider,
+                                                        fb_api_key,
+                                                        &fb_remote_id,
+                                                        lang,
+                                                        &fb_samples,
+                                                    )
+                                                },
+                                            );
+
+                                            match fallback_handle.await {
+                                                Ok(Ok(text)) => {
+                                                    log::info!(
+                                                        "[ASR] Fallback online model succeeded"
+                                                    );
+                                                    primary = Ok(text);
+                                                }
+                                                Ok(Err(e)) => log::warn!(
+                                                    "[ASR] Fallback online model also failed: {}",
+                                                    e
+                                                ),
+                                                Err(e) => log::warn!(
+                                                    "[ASR] Fallback task panicked: {}",
+                                                    e
+                                                ),
+                                            }
+                                        }
+                                    }
+                                }
+
                                 (primary, None)
                             }
                             Err(_elapsed) => {
