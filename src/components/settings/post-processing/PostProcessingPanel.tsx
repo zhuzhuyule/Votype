@@ -18,7 +18,7 @@ import {
   IconStar,
   IconStarFilled,
 } from "@tabler/icons-react";
-import { Dropdown } from "../../ui/Dropdown";
+import { ModelChainSelector } from "../../ui/ModelChainSelector";
 import { TooltipIcon } from "../../ui/TooltipIcon";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -40,6 +40,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   const {
     settings,
     updateSetting,
+    updateModelChain,
     selectPromptModel,
     isUpdating,
     toggleMultiModelSelection,
@@ -80,38 +81,6 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
       return `${name} (${provider})`;
     },
     [providerMap],
-  );
-
-  const buildModelOptions = useCallback(
-    (placeholder?: string) => {
-      const options: { value: string; label: string }[] = [];
-      if (placeholder) {
-        options.push({ value: "__none__", label: placeholder });
-      }
-      for (const model of textModels) {
-        options.push({ value: model.id, label: getModelLabel(model) });
-      }
-      return options;
-    },
-    [textModels, getModelLabel],
-  );
-
-  const renderModelSelect = useCallback(
-    (
-      value: string | null,
-      onChange: (value: string) => void,
-      placeholder?: string,
-    ) => (
-      <Dropdown
-        selectedValue={value ?? "__none__"}
-        options={buildModelOptions(placeholder)}
-        onSelect={onChange}
-        placeholder={placeholder}
-        enableFilter={true}
-        style={{ maxWidth: 220 }}
-      />
-    ),
-    [buildModelOptions],
   );
 
   const handleToggle = useCallback(
@@ -247,18 +216,14 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                 "Default model",
               )}
             </Text>
-            <Box style={{ minWidth: 160 }}>
-              {renderModelSelect(
-                defaultModelId,
-                (v) => {
-                  if (v && v !== "__none__") selectPromptModel(v);
-                },
-                t(
-                  "settings.postProcessing.textModelMode.noModelSelected",
-                  "No model selected",
-                ),
-              )}
-            </Box>
+            <ModelChainSelector
+              chain={settings?.selected_prompt_model ?? null}
+              onChange={(chain) =>
+                updateModelChain("selected_prompt_model", chain)
+              }
+              modelFilter={(m) => m.model_type === "text"}
+              defaultStrategy="staggered"
+            />
           </Flex>
         )}
 
@@ -592,26 +557,14 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
               )}
             />
           </Flex>
-          <Box style={{ minWidth: 160 }}>
-            {renderModelSelect(
-              shortModelId,
-              (v) =>
-                updateSetting(
-                  "length_routing_short_model",
-                  v === "__none__"
-                    ? null
-                    : {
-                        primary_id: v,
-                        fallback_id: null,
-                        strategy: "serial" as const,
-                      },
-                ),
-              t(
-                "settings.postProcessing.lengthRouting.useDefault",
-                "Use default",
-              ),
-            )}
-          </Box>
+          <ModelChainSelector
+            chain={settings?.length_routing_short_model ?? null}
+            onChange={(chain) =>
+              updateModelChain("length_routing_short_model", chain)
+            }
+            modelFilter={(m) => m.model_type === "text"}
+            defaultStrategy="serial"
+          />
         </Flex>
       </Flex>
     </Box>
@@ -684,26 +637,14 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                 )}
               />
             </Flex>
-            <Box style={{ minWidth: 180 }}>
-              {renderModelSelect(
-                intentModelId,
-                (v) =>
-                  updateSetting(
-                    "post_process_intent_model",
-                    v === "__none__"
-                      ? null
-                      : {
-                          primary_id: v,
-                          fallback_id: null,
-                          strategy: "serial" as const,
-                        },
-                  ),
-                t(
-                  "settings.postProcessing.intentModel.defaultOption",
-                  "Use default",
-                ),
-              )}
-            </Box>
+            <ModelChainSelector
+              chain={settings?.post_process_intent_model ?? null}
+              onChange={(chain) =>
+                updateModelChain("post_process_intent_model", chain)
+              }
+              modelFilter={(m) => m.model_type === "text"}
+              defaultStrategy="serial"
+            />
           </Flex>
 
           {/* Row 4: Auto-injection settings */}

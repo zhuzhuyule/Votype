@@ -7,7 +7,7 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
-import { IconChevronDown } from "@tabler/icons-react";
+import { IconSelector } from "@tabler/icons-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -133,31 +133,54 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
     [fallbackId, primaryId],
   );
 
-  // Trigger button text
-  const triggerLabel = primaryModel
-    ? getModelName(primaryModel)
-    : t("settings.postProcessing.modelChain.noModel");
-
   return (
     <>
-      {/* Trigger button — styled like existing Dropdown */}
-      <button
-        type="button"
-        onClick={handleOpen}
-        disabled={disabled}
-        className={`flex items-center justify-between min-h-[32px] w-full min-w-[200px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-2 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? "" : "cursor-pointer"}`}
+      {/* Trigger — button style, click to open dialog */}
+      <Flex
+        direction="column"
+        gap="1"
+        align="end"
+        className={disabled ? "opacity-50" : ""}
       >
-        <span className="flex items-center gap-2 truncate">
-          <span className="truncate">{triggerLabel}</span>
-          {fallbackModel && (
-            <span className="text-[11px] text-[var(--amber-9)] flex-shrink-0">
-              {t("modelSelector.asrFallback.label")}（
-              {getModelName(fallbackModel)}）
-            </span>
-          )}
-        </span>
-        <IconChevronDown className="w-3.5 h-3.5 text-[var(--gray-9)] flex-shrink-0 ml-2" />
-      </button>
+        {/* Primary model button */}
+        <button
+          type="button"
+          onClick={handleOpen}
+          disabled={disabled}
+          className={`inline-flex items-center gap-1 rounded-[var(--radius-2)] px-2 py-1 text-sm font-medium text-[var(--gray-12)] transition hover:bg-[var(--gray-a3)] active:bg-[var(--gray-a4)] disabled:cursor-not-allowed ${disabled ? "" : "cursor-pointer"}`}
+        >
+          <span className="truncate max-w-[180px]">
+            {primaryModel
+              ? getModelName(primaryModel)
+              : t("settings.postProcessing.modelChain.noModel")}
+          </span>
+          <IconSelector className="w-3 h-3 text-[var(--gray-9)] flex-shrink-0" />
+        </button>
+
+        {/* Fallback badge — show strategy mode when set, [备] when not */}
+        {fallbackModel ? (
+          <button
+            type="button"
+            onClick={handleOpen}
+            disabled={disabled}
+            title={`${t("modelSelector.asrFallback.label")}: ${getModelName(fallbackModel)}`}
+            className="px-1 py-px rounded-sm bg-[var(--amber-a3)] text-[var(--amber-11)] text-[10px] font-medium cursor-pointer hover:bg-[var(--amber-a4)] transition disabled:cursor-not-allowed"
+          >
+            {t(
+              `settings.postProcessing.modelChain.${chain?.strategy ?? "serial"}`,
+            )}
+          </button>
+        ) : primaryModel ? (
+          <button
+            type="button"
+            onClick={handleOpen}
+            disabled={disabled}
+            className="px-1 py-px rounded-sm border border-dashed border-[var(--gray-a6)] text-[var(--gray-9)] text-[10px] cursor-pointer hover:border-[var(--gray-a8)] hover:text-[var(--gray-11)] transition disabled:cursor-not-allowed"
+          >
+            {t("modelSelector.asrFallback.label")}
+          </button>
+        ) : null}
+      </Flex>
 
       {/* Dialog — manually controlled, not via Dialog.Trigger */}
       <Dialog.Root

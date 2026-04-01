@@ -548,6 +548,14 @@ async changePostProcessIntentModelIdSetting(modelId: string | null) : Promise<Re
     else return { status: "error", error: e  as any };
 }
 },
+async updateModelChain(field: string, chain: ModelChain | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_model_chain", { field, chain }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeLengthRoutingEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_length_routing_enabled_setting", { enabled }) };
@@ -1066,6 +1074,29 @@ export type ImplementationChangeResult = { success: boolean; reset_bindings: str
 export type InferenceResult = { content: string | null; reasoning_content: string | null }
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 export type KeyboardImplementation = "tauri" | "handy_keys"
+/**
+ * A model selection with optional fallback.
+ * 
+ * Serializes as an object. Deserializes from either a plain string (legacy
+ * format where settings stored bare model IDs) or a full object.
+ */
+export type ModelChain = { primary_id: string; fallback_id: string | null; strategy?: ModelChainStrategy }
+/**
+ * Strategy for how fallback models are invoked.
+ */
+export type ModelChainStrategy = 
+/**
+ * Try primary first, then fallback on failure.
+ */
+"serial" | 
+/**
+ * Start primary, launch fallback after a delay if primary hasn't responded.
+ */
+"staggered" | 
+/**
+ * Launch all models concurrently, take first success.
+ */
+"race"
 export type ModelType = "text" | "asr" | "other"
 /**
  * Multi-model post-process configuration item

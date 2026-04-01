@@ -1,3 +1,4 @@
+import { Flex } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -486,29 +487,33 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     <>
       {/* Model Status and Switcher */}
       <div className="relative" ref={dropdownRef}>
-        <ModelStatusButton
-          status={modelStatus}
-          displayText={getModelDisplayText()}
-          isDropdownOpen={showModelDropdown}
-          onClick={() => setShowModelDropdown(!showModelDropdown)}
-          modeLabel={modeLabel}
-          modeLabelColor={modeLabelColor}
-          isOnlineModel={
-            settings?.online_asr_enabled &&
-            !!settings?.selected_asr_model?.primary_id
-          }
-        />
-
-        {/* ASR Fallback icon — shown when online ASR enabled and 2+ online models */}
-        {settings?.online_asr_enabled && asrModels.length >= 2 && (
-          <AsrFallbackSelector
-            chain={settings?.selected_asr_model ?? null}
-            onUpdate={(chain) => updateModelChain("selected_asr_model", chain)}
-            asrModels={asrModels.filter(
-              (m) => m.id !== settings?.selected_asr_model?.primary_id,
-            )}
+        <Flex align="center" gap="3">
+          <ModelStatusButton
+            status={modelStatus}
+            displayText={getModelDisplayText()}
+            isDropdownOpen={showModelDropdown}
+            onClick={() => setShowModelDropdown(!showModelDropdown)}
+            modeLabel={modeLabel}
+            modeLabelColor={modeLabelColor}
+            isOnlineModel={
+              settings?.online_asr_enabled &&
+              !!settings?.selected_asr_model?.primary_id
+            }
           />
-        )}
+
+          {/* ASR Fallback badge — shown when online ASR enabled and 2+ online models */}
+          {settings?.online_asr_enabled && asrModels.length >= 2 && (
+            <AsrFallbackSelector
+              chain={settings?.selected_asr_model ?? null}
+              onUpdate={(chain) =>
+                updateModelChain("selected_asr_model", chain)
+              }
+              asrModels={asrModels.filter(
+                (m) => m.id !== settings?.selected_asr_model?.primary_id,
+              )}
+            />
+          )}
+        </Flex>
 
         {/* Model Dropdown */}
         {showModelDropdown && (

@@ -1,5 +1,4 @@
 import { Flex, Popover, Text } from "@radix-ui/themes";
-import { IconX } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelChain, ModelChainStrategy } from "../../lib/types";
@@ -36,51 +35,30 @@ export const AsrFallbackSelector: React.FC<AsrFallbackSelectorProps> = ({
     setOpen(false);
   };
 
-  const handleClearFallback = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!chain) return;
-    onUpdate({ ...chain, fallback_id: null });
-  };
-
   const handleStrategyChange = (s: ModelChainStrategy) => {
     if (!chain) return;
     onUpdate({ ...chain, strategy: s });
   };
-
-  const triggerContent = fallbackModel ? (
-    // 已选备用：显示 "备用（模型名）" + 清除按钮
-    <Flex align="center" gap="1">
-      <Text size="1" className="text-amber-600 dark:text-amber-400">
-        {t("modelSelector.asrFallback.label")}（{fallbackModel.name}）
-      </Text>
-      <button
-        onClick={handleClearFallback}
-        className="p-0.5 rounded hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors text-amber-500"
-        aria-label={t("modelSelector.asrFallback.remove")}
-      >
-        <IconX size={12} />
-      </button>
-    </Flex>
-  ) : (
-    // 未选备用：虚线框 "备用"
-    <Text size="1" className="text-[var(--gray-9)]">
-      {t("modelSelector.asrFallback.label")}
-    </Text>
-  );
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger>
         <button
           type="button"
-          className={`rounded-md px-2 py-0.5 text-xs transition-colors cursor-pointer ${
+          title={
             fallbackModel
-              ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30"
-              : "border border-dashed border-[var(--gray-a7)] hover:border-[var(--gray-a9)] hover:bg-[var(--gray-a2)]"
+              ? `${t("modelSelector.asrFallback.label")}: ${fallbackModel.name}`
+              : t("modelSelector.asrFallback.add")
+          }
+          className={`rounded px-1 py-px text-[10px] font-medium transition-colors cursor-pointer ${
+            fallbackModel
+              ? "bg-[var(--amber-a3)] text-[var(--amber-11)] hover:bg-[var(--amber-a4)]"
+              : "border border-dashed border-[var(--gray-a6)] text-[var(--gray-9)] hover:border-[var(--gray-a8)] hover:text-[var(--gray-11)]"
           }`}
         >
-          {triggerContent}
+          {fallbackModel
+            ? t(`settings.postProcessing.modelChain.${strategy}`)
+            : t("modelSelector.asrFallback.label")}
         </button>
       </Popover.Trigger>
 

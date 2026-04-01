@@ -551,28 +551,21 @@ impl ShortcutAction for TranscribeAction {
                     anyhow::Result<String>,
                     Option<String>,
                 ) = if settings.online_asr_enabled {
-                    // --- Online ASR primary ---
+                    // --- Online ASR with fallback chain support ---
                     use crate::online_asr::OnlineAsrClient;
 
-                    let online_model_id = settings
-                        .selected_asr_model
-                        .as_ref()
-                        .map(|c| c.primary_id.clone())
-                        .unwrap_or_else(|| "online".to_string());
-
-                    let cached_model = settings
-                        .cached_models
-                        .iter()
-                        .find(|m| {
+                    // Helper: spawn an online ASR task for a given cached_model_id
+                    let spawn_asr_task = |cached_model_id: &str,
+                                          settings: &crate::settings::AppSettings,
+                                          audio_samples: Vec<f32>,
+                                          lang: String|
+                     -> Option<
+                        tokio::task::JoinHandle<anyhow::Result<String>>,
+                    > {
+                        let cached = settings.cached_models.iter().find(|m| {
                             m.model_type == crate::settings::ModelType::Asr
-                                && m.id == online_model_id
-                        })
-                        .cloned();
-
-                    let samples_for_online = samples.clone();
-                    let language = settings.selected_language.clone();
-
-                    let primary_handle = if let Some(cached) = cached_model {
+                                && m.id == cached_model_id
+                        })?;
                         let provider_info = settings
                             .post_process_providers
                             .iter()
@@ -583,31 +576,171 @@ impl ShortcutAction for TranscribeAction {
                             .get(&cached.provider_id)
                             .cloned();
                         let remote_model_id = cached.model_id.clone();
+                        let model_name = cached.name.clone();
 
-                        tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
-                            let provider = provider_info
-                                .ok_or_else(|| anyhow::anyhow!("Online ASR provider not found"))?;
-                            let client =
-                                OnlineAsrClient::new(16000, std::time::Duration::from_secs(120));
-                            let lang = if language == "auto" {
-                                None
-                            } else {
-                                Some(language.as_str())
-                            };
-                            client.transcribe(
-                                &provider,
-                                api_key,
-                                &remote_model_id,
-                                lang,
-                                &samples_for_online,
-                            )
-                        })
+                        Some(tokio::task::spawn_blocking(
+                            move || -> anyhow::Result<String> {
+                                let provider = provider_info.ok_or_else(|| {
+                                    anyhow::anyhow!(
+                                        "ASR provider not found for model {}",
+                                        model_name
+                                    )
+                                })?;
+                                let client = OnlineAsrClient::new(
+                                    16000,
+                                    std::time::Duration::from_secs(120),
+                                );
+                                let l = if lang == "auto" {
+                                    None
+                                } else {
+                                    Some(lang.as_str())
+                                };
+                                client.transcribe(
+                                    &provider,
+                                    api_key,
+                                    &remote_model_id,
+                                    l,
+                                    &audio_samples,
+                                )
+                            },
+                        ))
+                    };
+
+                    let chain = settings.selected_asr_model.clone();
+                    let primary_model_id = chain
+                        .as_ref()
+                        .map(|c| c.primary_id.clone())
+                        .unwrap_or_else(|| "online".to_string());
+                    let fallback_model_id = chain.as_ref().and_then(|c| c.fallback_id.clone());
+                    let strategy = chain
+                        .as_ref()
+                        .map(|c| c.strategy.clone())
+                        .unwrap_or(crate::fallback::ModelChainStrategy::Serial);
+
+                    let language = settings.selected_language.clone();
+
+                    // Spawn primary ASR task
+                    let primary_handle = if let Some(h) = spawn_asr_task(
+                        &primary_model_id,
+                        &settings,
+                        samples.clone(),
+                        language.clone(),
+                    ) {
+                        h
                     } else {
                         // No cached model found, fall back to local
                         let tm_fallback = Arc::clone(&tm);
+                        let samples_for_local = samples.clone();
                         tokio::task::spawn_blocking(move || {
-                            tm_fallback.transcribe(samples_for_online)
+                            tm_fallback.transcribe(samples_for_local)
                         })
+                    };
+
+                    // Apply fallback strategy: resolve primary_handle into a single result
+                    // When race/staggered is used, fallback is already handled — skip downstream serial fallback
+                    let mut fallback_already_handled = false;
+                    let primary_handle = if let Some(ref fb_id) = fallback_model_id {
+                        match strategy {
+                            crate::fallback::ModelChainStrategy::Race => {
+                                // Race: spawn fallback immediately, select first success
+                                log::info!("[ASR] Race mode: {} vs {}", primary_model_id, fb_id);
+                                fallback_already_handled = true;
+                                if let Some(fallback_handle) = spawn_asr_task(
+                                    fb_id,
+                                    &settings,
+                                    samples.clone(),
+                                    language.clone(),
+                                ) {
+                                    let primary_id_log = primary_model_id.clone();
+                                    let fb_id_log = fb_id.clone();
+                                    tokio::spawn(async move {
+                                        let mut p = primary_handle;
+                                        let mut f = fallback_handle;
+                                        // select! consumes the winning branch — use result directly
+                                        tokio::select! {
+                                            p_res = &mut p => {
+                                                let res = p_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
+                                                if res.is_ok() {
+                                                    log::info!("[ASR] Race winner: primary ({})", primary_id_log);
+                                                    return res;
+                                                }
+                                                log::warn!("[ASR] Race: primary failed, waiting for fallback");
+                                                f.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                            }
+                                            f_res = &mut f => {
+                                                let res = f_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
+                                                if res.is_ok() {
+                                                    log::info!("[ASR] Race winner: fallback ({})", fb_id_log);
+                                                    return res;
+                                                }
+                                                log::warn!("[ASR] Race: fallback failed, waiting for primary");
+                                                p.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                            }
+                                        }
+                                    })
+                                } else {
+                                    primary_handle
+                                }
+                            }
+                            crate::fallback::ModelChainStrategy::Staggered => {
+                                // Staggered: wait 2s for primary, then also start fallback
+                                log::info!(
+                                    "[ASR] Staggered mode: {} (2s delay before {})",
+                                    primary_model_id,
+                                    fb_id
+                                );
+                                fallback_already_handled = true;
+                                let fb_id_owned = fb_id.clone();
+                                let settings_clone = settings.clone();
+                                let samples_clone = samples.clone();
+                                let language_clone = language.clone();
+                                let primary_id_log = primary_model_id.clone();
+                                tokio::spawn(async move {
+                                    let mut p = primary_handle;
+                                    // Wait for primary or stagger delay
+                                    tokio::select! {
+                                        p_res = &mut p => {
+                                            let res = p_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
+                                            if res.is_ok() {
+                                                return res;
+                                            }
+                                            // Primary failed fast, start fallback
+                                            log::warn!("[ASR] Staggered: primary failed fast, starting fallback");
+                                            if let Some(fh) = spawn_asr_task(&fb_id_owned, &settings_clone, samples_clone, language_clone) {
+                                                return fh.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
+                                            }
+                                            res
+                                        }
+                                        _ = tokio::time::sleep(Duration::from_millis(crate::fallback::STAGGERED_DELAY_MS)) => {
+                                            // Delay elapsed, start fallback and race
+                                            log::info!("[ASR] Staggered: primary {} slow, starting fallback {}", primary_id_log, fb_id_owned);
+                                            if let Some(mut f) = spawn_asr_task(&fb_id_owned, &settings_clone, samples_clone, language_clone) {
+                                                tokio::select! {
+                                                    p_res = &mut p => {
+                                                        let res = p_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
+                                                        if res.is_ok() { return res; }
+                                                        f.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                                    }
+                                                    f_res = &mut f => {
+                                                        let res = f_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
+                                                        if res.is_ok() { return res; }
+                                                        p.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                                    }
+                                                }
+                                            } else {
+                                                p.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                            }
+                                        }
+                                    }
+                                })
+                            }
+                            crate::fallback::ModelChainStrategy::Serial => {
+                                // Serial: handled later in timeout paths (existing inline fallback)
+                                primary_handle
+                            }
+                        }
+                    } else {
+                        primary_handle
                     };
 
                     // --- Optional secondary local candidate ---
@@ -707,8 +840,8 @@ impl ShortcutAction for TranscribeAction {
                                     Err(e) => Err(anyhow::anyhow!("Online ASR task failed: {}", e)),
                                 };
 
-                                // If primary failed, try fallback online model before falling back to local
-                                if primary.is_err() {
+                                // If primary failed and fallback not already handled (race/staggered), try serial fallback
+                                if primary.is_err() && !fallback_already_handled {
                                     if let Some(fallback_id) = settings
                                         .selected_asr_model
                                         .as_ref()

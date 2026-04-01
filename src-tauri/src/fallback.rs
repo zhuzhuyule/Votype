@@ -3,7 +3,7 @@ use specta::Type;
 use std::future::Future;
 use std::time::Duration;
 
-const STAGGERED_DELAY_MS: u64 = 2000;
+pub const STAGGERED_DELAY_MS: u64 = 2000;
 
 /// Strategy for how fallback models are invoked.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -199,58 +199,55 @@ where
     let mut primary_handle = tokio::spawn(execute_fn(primary_id.clone()));
     let mut fallback_handle = tokio::spawn(execute_fn(fallback_id.clone()));
 
-    // Wait for the first to finish.
-    let first_is_primary = tokio::select! {
-        _ = &mut primary_handle => true,
-        _ = &mut fallback_handle => false,
-    };
-
-    if first_is_primary {
-        let primary_result = primary_handle.await.expect("primary task panicked");
-        if primary_result.is_ok() {
-            return FallbackResult {
+    tokio::select! {
+        p_res = &mut primary_handle => {
+            let primary_result = p_res.expect("primary task panicked");
+            if primary_result.is_ok() {
+                return FallbackResult {
+                    result: primary_result,
+                    actual_model_id: primary_id,
+                    is_fallback: false,
+                    primary_error: None,
+                };
+            }
+            let primary_err = primary_result.err().unwrap();
+            log::warn!(
+                "Primary model '{}' failed in race: {}. Waiting for fallback.",
+                primary_id,
+                primary_err
+            );
+            let fallback_result = fallback_handle.await.expect("fallback task panicked");
+            FallbackResult {
+                result: fallback_result,
+                actual_model_id: fallback_id,
+                is_fallback: true,
+                primary_error: Some(primary_err),
+            }
+        }
+        f_res = &mut fallback_handle => {
+            let fallback_result = f_res.expect("fallback task panicked");
+            if fallback_result.is_ok() {
+                log::info!("Fallback model '{}' won the race", fallback_id);
+                return FallbackResult {
+                    result: fallback_result,
+                    actual_model_id: fallback_id,
+                    is_fallback: true,
+                    primary_error: None,
+                };
+            }
+            let fallback_err = fallback_result.err().unwrap();
+            log::warn!(
+                "Fallback model '{}' failed in race: {}. Waiting for primary.",
+                fallback_id,
+                fallback_err
+            );
+            let primary_result = primary_handle.await.expect("primary task panicked");
+            FallbackResult {
                 result: primary_result,
                 actual_model_id: primary_id,
                 is_fallback: false,
                 primary_error: None,
-            };
-        }
-        let primary_err = primary_result.err().unwrap();
-        log::warn!(
-            "Primary model '{}' failed in race: {}. Waiting for fallback.",
-            primary_id,
-            primary_err
-        );
-        let fallback_result = fallback_handle.await.expect("fallback task panicked");
-        FallbackResult {
-            result: fallback_result,
-            actual_model_id: fallback_id,
-            is_fallback: true,
-            primary_error: Some(primary_err),
-        }
-    } else {
-        let fallback_result = fallback_handle.await.expect("fallback task panicked");
-        if fallback_result.is_ok() {
-            log::info!("Fallback model '{}' won the race", fallback_id);
-            return FallbackResult {
-                result: fallback_result,
-                actual_model_id: fallback_id,
-                is_fallback: true,
-                primary_error: None,
-            };
-        }
-        let fallback_err = fallback_result.err().unwrap();
-        log::warn!(
-            "Fallback model '{}' failed in race: {}. Waiting for primary.",
-            fallback_id,
-            fallback_err
-        );
-        let primary_result = primary_handle.await.expect("primary task panicked");
-        FallbackResult {
-            result: primary_result,
-            actual_model_id: primary_id,
-            is_fallback: false,
-            primary_error: None,
+            }
         }
     }
 }
@@ -268,98 +265,94 @@ where
     let mut primary_handle = tokio::spawn(execute_fn(primary_id.clone()));
 
     // Wait for primary to finish OR the stagger delay to elapse.
-    let primary_finished_early = tokio::select! {
-        _ = &mut primary_handle => true,
-        _ = tokio::time::sleep(Duration::from_millis(STAGGERED_DELAY_MS)) => false,
-    };
-
-    if primary_finished_early {
-        let primary_result = primary_handle.await.expect("primary task panicked");
-        if primary_result.is_ok() {
-            return FallbackResult {
-                result: primary_result,
-                actual_model_id: primary_id,
-                is_fallback: false,
-                primary_error: None,
-            };
-        }
-        // Primary failed before delay — start fallback directly.
-        let primary_err = primary_result.err().unwrap();
-        log::warn!(
-            "Primary model '{}' failed before stagger delay: {}. Starting fallback '{}'",
-            primary_id,
-            primary_err,
-            fallback_id
-        );
-        let fallback_result = execute_fn(fallback_id.clone()).await;
-        return FallbackResult {
-            result: fallback_result,
-            actual_model_id: fallback_id,
-            is_fallback: true,
-            primary_error: Some(primary_err),
-        };
-    }
-
-    // Stagger delay elapsed — also start fallback and race both.
-    log::info!(
-        "Primary model '{}' not done after {}ms, starting fallback '{}'",
-        primary_id,
-        STAGGERED_DELAY_MS,
-        fallback_id
-    );
-    let mut fallback_handle = tokio::spawn(execute_fn(fallback_id.clone()));
-
-    let first_is_primary = tokio::select! {
-        _ = &mut primary_handle => true,
-        _ = &mut fallback_handle => false,
-    };
-
-    if first_is_primary {
-        let primary_result = primary_handle.await.expect("primary task panicked");
-        if primary_result.is_ok() {
-            return FallbackResult {
-                result: primary_result,
-                actual_model_id: primary_id,
-                is_fallback: false,
-                primary_error: None,
-            };
-        }
-        let primary_err = primary_result.err().unwrap();
-        log::warn!(
-            "Primary model '{}' failed in staggered race: {}. Waiting for fallback.",
-            primary_id,
-            primary_err
-        );
-        let fallback_result = fallback_handle.await.expect("fallback task panicked");
-        FallbackResult {
-            result: fallback_result,
-            actual_model_id: fallback_id,
-            is_fallback: true,
-            primary_error: Some(primary_err),
-        }
-    } else {
-        let fallback_result = fallback_handle.await.expect("fallback task panicked");
-        if fallback_result.is_ok() {
-            log::info!("Fallback model '{}' won the staggered race", fallback_id);
-            return FallbackResult {
+    tokio::select! {
+        p_res = &mut primary_handle => {
+            let primary_result = p_res.expect("primary task panicked");
+            if primary_result.is_ok() {
+                return FallbackResult {
+                    result: primary_result,
+                    actual_model_id: primary_id,
+                    is_fallback: false,
+                    primary_error: None,
+                };
+            }
+            // Primary failed before delay — start fallback directly.
+            let primary_err = primary_result.err().unwrap();
+            log::warn!(
+                "Primary model '{}' failed before stagger delay: {}. Starting fallback '{}'",
+                primary_id,
+                primary_err,
+                fallback_id
+            );
+            let fallback_result = execute_fn(fallback_id.clone()).await;
+            FallbackResult {
                 result: fallback_result,
                 actual_model_id: fallback_id,
                 is_fallback: true,
-                primary_error: None,
-            };
+                primary_error: Some(primary_err),
+            }
         }
-        let fallback_err = fallback_result.err().unwrap();
-        log::warn!(
-            "Fallback model '{}' failed in staggered race: {}. Waiting for primary.",
-            fallback_id,
-            fallback_err
-        );
-        let primary_result = primary_handle.await.expect("primary task panicked");
-        FallbackResult {
-            result: primary_result,
-            actual_model_id: primary_id,
-            is_fallback: false,
-            primary_error: None,
+        _ = tokio::time::sleep(Duration::from_millis(STAGGERED_DELAY_MS)) => {
+            // Stagger delay elapsed — also start fallback and race both.
+            log::info!(
+                "Primary model '{}' not done after {}ms, starting fallback '{}'",
+                primary_id,
+                STAGGERED_DELAY_MS,
+                fallback_id
+            );
+            let mut fallback_handle = tokio::spawn(execute_fn(fallback_id.clone()));
+
+            tokio::select! {
+                p_res = &mut primary_handle => {
+                    let primary_result = p_res.expect("primary task panicked");
+                    if primary_result.is_ok() {
+                        return FallbackResult {
+                            result: primary_result,
+                            actual_model_id: primary_id,
+                            is_fallback: false,
+                            primary_error: None,
+                        };
+                    }
+                    let primary_err = primary_result.err().unwrap();
+                    log::warn!(
+                        "Primary model '{}' failed in staggered race: {}. Waiting for fallback.",
+                        primary_id,
+                        primary_err
+                    );
+                    let fallback_result = fallback_handle.await.expect("fallback task panicked");
+                    FallbackResult {
+                        result: fallback_result,
+                        actual_model_id: fallback_id,
+                        is_fallback: true,
+                        primary_error: Some(primary_err),
+                    }
+                }
+                f_res = &mut fallback_handle => {
+                    let fallback_result = f_res.expect("fallback task panicked");
+                    if fallback_result.is_ok() {
+                        log::info!("Fallback model '{}' won the staggered race", fallback_id);
+                        return FallbackResult {
+                            result: fallback_result,
+                            actual_model_id: fallback_id,
+                            is_fallback: true,
+                            primary_error: None,
+                        };
+                    }
+                    let fallback_err = fallback_result.err().unwrap();
+                    log::warn!(
+                        "Fallback model '{}' failed in staggered race: {}. Waiting for primary.",
+                        fallback_id,
+                        fallback_err
+                    );
+                    let primary_result = primary_handle.await.expect("primary task panicked");
+                    FallbackResult {
+                        result: primary_result,
+                        actual_model_id: primary_id,
+                        is_fallback: false,
+                        primary_error: None,
+                    }
+                }
+            }
         }
     }
 }
