@@ -7,6 +7,7 @@ import {
   Text,
   Tooltip,
 } from "@radix-ui/themes";
+import { IconChevronDown } from "@tabler/icons-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -150,30 +151,27 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
       <Dialog.Trigger>
         <button
           type="button"
-          onClick={() => setOpen(true)}
           disabled={disabled}
-          className={`flex flex-col items-start w-full min-h-[32px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-2 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? "" : "cursor-pointer"}`}
+          className={`flex items-center justify-between min-h-[32px] w-full min-w-[200px] rounded-[var(--radius-2)] bg-[var(--color-surface)] border border-[var(--gray-a7)] px-3 py-2 text-sm text-[var(--gray-12)] transition hover:border-[var(--gray-a8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-8)] disabled:opacity-50 disabled:cursor-not-allowed ${disabled ? "" : "cursor-pointer"}`}
         >
-          {label && (
-            <span className="text-xs text-[var(--gray-9)] mb-0.5">{label}</span>
-          )}
-          {primaryModel ? (
-            <>
-              <span className="text-sm font-medium">
-                {getModelName(primaryModel)}
+          <span className="flex items-center gap-2 truncate">
+            {primaryModel ? (
+              <>
+                <span className="truncate">{getModelName(primaryModel)}</span>
+                {fallbackModel && (
+                  <span className="text-[11px] text-[var(--amber-9)] flex-shrink-0">
+                    {t("modelSelector.asrFallback.label")}（
+                    {getModelName(fallbackModel)}）
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="text-[var(--gray-9)]">
+                {t("settings.postProcessing.modelChain.noModel")}
               </span>
-              {fallbackModel && (
-                <span className="text-xs text-[var(--gray-9)] mt-0.5">
-                  <span className="text-[var(--amber-9)]">○</span>{" "}
-                  {getModelName(fallbackModel)} · {strategyLabel}
-                </span>
-              )}
-            </>
-          ) : (
-            <span className="text-sm text-[var(--gray-9)]">
-              {t("settings.postProcessing.modelChain.noModel")}
-            </span>
-          )}
+            )}
+          </span>
+          <IconChevronDown className="w-3.5 h-3.5 text-[var(--gray-9)] flex-shrink-0 ml-2" />
         </button>
       </Dialog.Trigger>
 
