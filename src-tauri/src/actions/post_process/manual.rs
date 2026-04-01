@@ -193,7 +193,7 @@ pub async fn post_process_text_with_prompt(
         None
     };
 
-    let (result, err, error_message, _token_count) =
+    let (mut result, mut err, mut error_message, _token_count) =
         super::core::execute_llm_request_with_messages(
             app_handle,
             settings,
@@ -203,13 +203,50 @@ pub async fn post_process_text_with_prompt(
             &built.system_messages,
             built.user_message.as_deref(),
             None,
-            app_name,
-            window_title,
+            app_name.clone(),
+            window_title.clone(),
             None,
             None,
             merged_extra_params.as_ref(),
         )
         .await;
+
+    // Fallback: if primary model failed and a fallback is configured, retry with fallback model
+    if err {
+        let fallback_chain = settings.selected_prompt_model.as_ref();
+        if let Some(fallback_id) = fallback_chain.and_then(|c| c.fallback_id.as_ref()) {
+            log::warn!(
+                "[ManualPostProcess] Primary model '{}' failed, trying fallback '{}'",
+                model,
+                fallback_id
+            );
+            if let Some((fb_provider, fb_model)) =
+                super::routing::resolve_cached_model_to_provider_owned(settings, fallback_id)
+            {
+                let fb_cached_model_id = Some(fallback_id.as_str());
+                let (fb_result, fb_err, fb_error_message, _fb_token_count) =
+                    super::core::execute_llm_request_with_messages(
+                        app_handle,
+                        settings,
+                        &fb_provider,
+                        &fb_model,
+                        fb_cached_model_id,
+                        &built.system_messages,
+                        built.user_message.as_deref(),
+                        None,
+                        app_name,
+                        window_title,
+                        None,
+                        None,
+                        merged_extra_params.as_ref(),
+                    )
+                    .await;
+                result = fb_result;
+                err = fb_err;
+                error_message = fb_error_message;
+            }
+        }
+    }
 
     if let Some(res) = &result {
         info!(

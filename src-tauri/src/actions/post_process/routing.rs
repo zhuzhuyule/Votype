@@ -17,6 +17,25 @@ pub enum SmartAction {
     FullPolish,
 }
 
+/// Resolve a cached_model_id to an owned (PostProcessProvider, remote_model_id) pair.
+///
+/// Used by fallback closures that need owned data for `Send + 'static` futures.
+pub(super) fn resolve_cached_model_to_provider_owned(
+    settings: &AppSettings,
+    cached_model_id: &str,
+) -> Option<(PostProcessProvider, String)> {
+    let cached = settings
+        .cached_models
+        .iter()
+        .find(|m| m.id == cached_model_id)?;
+    let provider = settings.post_process_provider(&cached.provider_id)?;
+    let model_id = cached.model_id.trim().to_string();
+    if model_id.is_empty() {
+        return None;
+    }
+    Some((provider.clone(), model_id))
+}
+
 /// Execute smart action routing using the intent model.
 /// Returns an IntentDecision, or None on failure (caller should fallback to full polish).
 pub(super) async fn execute_smart_action_routing(
@@ -30,10 +49,6 @@ pub(super) async fn execute_smart_action_routing(
     let (provider, model, _api_key) =
         resolve_intent_routing_model(settings, fallback_provider, default_prompt)?;
 
-    // Capture model/provider info before the LLM call
-    let captured_provider_id = provider.id.clone();
-    let captured_model_id = model.clone();
-
     // Load the smart routing prompt
     let prompt_manager = app_handle.state::<Arc<PromptManager>>();
     let system_prompt = prompt_manager
@@ -43,23 +58,92 @@ pub(super) async fn execute_smart_action_routing(
         });
 
     let start = std::time::Instant::now();
-    let (result, _err, _error_msg, token_count) = super::core::execute_llm_request(
-        app_handle,
-        settings,
-        provider,
-        &model,
-        None,
-        &system_prompt,
-        Some(transcription),
-        None,
-        None,
-        None,
-        None,
-    )
-    .await;
-    let duration_ms = start.elapsed().as_millis() as u64;
 
-    let response_text = result?;
+    // Use execute_with_fallback when the intent model chain has a fallback
+    let intent_chain = settings.post_process_intent_model.as_ref();
+    let has_fallback = intent_chain.and_then(|c| c.fallback_id.as_ref()).is_some();
+
+    let (response_text, actual_model_id, actual_provider_id) = if has_fallback {
+        let chain = intent_chain.unwrap();
+        let app = app_handle.clone();
+        let s = settings.clone();
+        let sys_prompt = system_prompt.clone();
+        let text = transcription.to_string();
+
+        let fb_result = crate::fallback::execute_with_fallback(chain, |model_id| {
+            let app = app.clone();
+            let s = s.clone();
+            let sys_prompt = sys_prompt.clone();
+            let text = text.clone();
+            async move {
+                let (prov, remote_model) = resolve_cached_model_to_provider_owned(&s, &model_id)
+                    .ok_or_else(|| format!("Model {} not found or invalid", model_id))?;
+                let (result, err, error_msg, _) = super::core::execute_llm_request(
+                    &app,
+                    &s,
+                    &prov,
+                    &remote_model,
+                    None,
+                    &sys_prompt,
+                    Some(&text),
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .await;
+                if err {
+                    Err(error_msg.unwrap_or_else(|| "LLM error".into()))
+                } else {
+                    result.ok_or_else(|| "Empty result".into())
+                }
+            }
+        })
+        .await;
+
+        if fb_result.is_fallback {
+            info!(
+                "[SmartRouting] Used fallback model '{}' (primary error: {:?})",
+                fb_result.actual_model_id, fb_result.primary_error
+            );
+        }
+
+        let actual_id = fb_result.actual_model_id.clone();
+        let prov_id = resolve_cached_model_to_provider_owned(settings, &actual_id)
+            .map(|(p, _)| p.id)
+            .unwrap_or_else(|| provider.id.clone());
+
+        match fb_result.result {
+            Ok(text) => (text, actual_id, prov_id),
+            Err(_) => return None,
+        }
+    } else {
+        // No fallback — use the original direct path
+        let captured_provider_id = provider.id.clone();
+        let captured_model_id = model.clone();
+
+        let (result, _err, _error_msg, _token_count) = super::core::execute_llm_request(
+            app_handle,
+            settings,
+            provider,
+            &model,
+            None,
+            &system_prompt,
+            Some(transcription),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
+
+        match result {
+            Some(text) => (text, captured_model_id, captured_provider_id),
+            None => return None,
+        }
+    };
+
+    let duration_ms = start.elapsed().as_millis() as u64;
 
     // Parse JSON response — try direct parse, then extract JSON from possible markdown wrapper
     let parsed: serde_json::Value = serde_json::from_str(&response_text)
@@ -94,6 +178,9 @@ pub(super) async fn execute_smart_action_routing(
         _ => SmartAction::FullPolish,
     };
 
+    // token_count not available from fallback path; use None for now
+    let token_count: Option<i64> = None;
+
     info!(
         "[SmartRouting] Action={} needs_hotword={} language={:?} tokens={:?} input_len={}",
         action_str,
@@ -108,8 +195,8 @@ pub(super) async fn execute_smart_action_routing(
         needs_hotword,
         language,
         token_count,
-        model_id: captured_model_id,
-        provider_id: captured_provider_id,
+        model_id: actual_model_id,
+        provider_id: actual_provider_id,
         duration_ms,
     })
 }

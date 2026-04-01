@@ -1895,25 +1895,92 @@ pub async fn maybe_post_process_transcription(
             merged_extra_params.as_ref(),
         );
 
-        let (result, err, error_message, api_token_count) = match tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            llm_future,
-        )
-        .await
-        {
-            Ok(llm_result) => llm_result,
-            Err(_) => {
-                log::warn!(
+        let (mut result, mut err, mut error_message, mut api_token_count) =
+            match tokio::time::timeout(std::time::Duration::from_secs(10), llm_future).await {
+                Ok(llm_result) => llm_result,
+                Err(_) => {
+                    log::warn!(
                     "[PostProcess] Single-model LLM request timed out (>10s), returning original transcription"
                 );
-                (
-                    Some(current_input_content.clone()),
-                    false,
-                    Some("LLM request timed out".to_string()),
-                    None,
-                )
+                    (
+                        Some(current_input_content.clone()),
+                        false,
+                        Some("LLM request timed out".to_string()),
+                        None,
+                    )
+                }
+            };
+
+        // Fallback: if primary model failed and a fallback is configured, retry with fallback model
+        let mut used_fallback = false;
+        if err {
+            let fallback_chain = prompt
+                .model_id
+                .as_ref()
+                .and_then(|id| {
+                    // Check if this prompt's model has a chain with fallback
+                    // Prompt-level model IDs don't have chains; fall through to selected_prompt_model
+                    let _ = id;
+                    None::<&crate::fallback::ModelChain>
+                })
+                .or(settings.selected_prompt_model.as_ref());
+
+            if let Some(fallback_id) = fallback_chain.and_then(|c| c.fallback_id.as_ref()) {
+                log::warn!(
+                    "[PostProcess] Primary model '{}' failed, trying fallback '{}'",
+                    captured_model_id,
+                    fallback_id
+                );
+                if let Some((fb_provider, fb_model)) =
+                    super::routing::resolve_cached_model_to_provider_owned(settings, fallback_id)
+                {
+                    let fb_cached_model_id = Some(fallback_id.as_str());
+                    let fb_future = super::core::execute_llm_request_with_messages(
+                        app_handle,
+                        settings,
+                        &fb_provider,
+                        &fb_model,
+                        fb_cached_model_id,
+                        &built.system_messages,
+                        built.user_message.as_deref(),
+                        None,
+                        app_name.clone(),
+                        window_title.clone(),
+                        match_pattern.clone(),
+                        match_type,
+                        merged_extra_params.as_ref(),
+                    );
+
+                    let fb_result =
+                        match tokio::time::timeout(std::time::Duration::from_secs(10), fb_future)
+                            .await
+                        {
+                            Ok(r) => r,
+                            Err(_) => {
+                                log::warn!(
+                                    "[PostProcess] Fallback model '{}' also timed out",
+                                    fallback_id
+                                );
+                                (
+                                    Some(current_input_content.clone()),
+                                    false,
+                                    Some("Fallback LLM request timed out".to_string()),
+                                    None,
+                                )
+                            }
+                        };
+
+                    // Destructure: (Option<String>, bool, Option<String>, Option<i64>)
+                    result = fb_result.0;
+                    err = fb_result.1;
+                    error_message = fb_result.2;
+                    api_token_count = fb_result.3;
+                    used_fallback = true;
+                }
             }
-        };
+        }
+
+        let _ = used_fallback;
         let polish_duration_ms = polish_start.elapsed().as_millis() as u64;
 
         let prompt_text = format!(
