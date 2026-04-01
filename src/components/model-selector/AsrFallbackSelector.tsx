@@ -1,5 +1,5 @@
-import { Flex, Popover, Text, Tooltip } from "@radix-ui/themes";
-import { IconShieldPlus, IconX } from "@tabler/icons-react";
+import { Flex, Popover, Text } from "@radix-ui/themes";
+import { IconX } from "@tabler/icons-react";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ModelChain, ModelChainStrategy } from "../../lib/types";
@@ -7,7 +7,6 @@ import type { ModelChain, ModelChainStrategy } from "../../lib/types";
 interface AsrFallbackSelectorProps {
   chain: ModelChain | null;
   onUpdate: (chain: ModelChain | null) => void;
-  /** Available ASR models (should already exclude the primary model) */
   asrModels: Array<{ id: string; name: string; providerLabel: string }>;
 }
 
@@ -38,6 +37,7 @@ export const AsrFallbackSelector: React.FC<AsrFallbackSelectorProps> = ({
   };
 
   const handleClearFallback = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (!chain) return;
     onUpdate({ ...chain, fallback_id: null });
@@ -48,33 +48,40 @@ export const AsrFallbackSelector: React.FC<AsrFallbackSelectorProps> = ({
     onUpdate({ ...chain, strategy: s });
   };
 
-  const strategyLabel = t(`settings.postProcessing.modelChain.${strategy}`);
+  const triggerContent = fallbackModel ? (
+    // 已选备用：显示 "备用（模型名）" + 清除按钮
+    <Flex align="center" gap="1">
+      <Text size="1" className="text-amber-600 dark:text-amber-400">
+        {t("modelSelector.asrFallback.label")}（{fallbackModel.name}）
+      </Text>
+      <button
+        onClick={handleClearFallback}
+        className="p-0.5 rounded hover:bg-amber-200 dark:hover:bg-amber-800 transition-colors text-amber-500"
+        aria-label={t("modelSelector.asrFallback.remove")}
+      >
+        <IconX size={12} />
+      </button>
+    </Flex>
+  ) : (
+    // 未选备用：虚线框 "备用"
+    <Text size="1" className="text-[var(--gray-9)]">
+      {t("modelSelector.asrFallback.label")}
+    </Text>
+  );
 
-  // Icon button that opens a popover
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger>
-        <Tooltip
-          content={
+        <button
+          type="button"
+          className={`rounded-md px-2 py-0.5 text-xs transition-colors cursor-pointer ${
             fallbackModel
-              ? `${t("modelSelector.asrFallback.label")}: ${fallbackModel.name} · ${strategyLabel}`
-              : t("modelSelector.asrFallback.add")
-          }
+              ? "bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/30"
+              : "border border-dashed border-[var(--gray-a7)] hover:border-[var(--gray-a9)] hover:bg-[var(--gray-a2)]"
+          }`}
         >
-          <button
-            type="button"
-            className={`relative p-1 rounded transition-colors cursor-pointer ${
-              fallbackModel
-                ? "text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                : "text-[var(--gray-9)] hover:text-[var(--gray-11)] hover:bg-[var(--gray-a3)]"
-            }`}
-          >
-            <IconShieldPlus size={15} stroke={1.5} />
-            {fallbackModel && (
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
-            )}
-          </button>
-        </Tooltip>
+          {triggerContent}
+        </button>
       </Popover.Trigger>
 
       <Popover.Content
@@ -83,26 +90,6 @@ export const AsrFallbackSelector: React.FC<AsrFallbackSelectorProps> = ({
         sideOffset={8}
         style={{ padding: 0, minWidth: 220, maxWidth: 280 }}
       >
-        {/* Header */}
-        <Flex
-          align="center"
-          justify="between"
-          className="px-3 py-2 border-b border-[var(--gray-a4)]"
-        >
-          <Text size="2" weight="medium">
-            {t("modelSelector.asrFallback.label")}
-          </Text>
-          {fallbackModel && (
-            <button
-              onClick={handleClearFallback}
-              className="p-0.5 rounded hover:bg-[var(--gray-a3)] transition-colors text-[var(--gray-9)]"
-              aria-label={t("modelSelector.asrFallback.remove")}
-            >
-              <IconX size={14} />
-            </button>
-          )}
-        </Flex>
-
         {/* Model list */}
         <Flex direction="column" className="py-1">
           {asrModels.map((model) => (
