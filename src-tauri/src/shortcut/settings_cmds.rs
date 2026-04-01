@@ -134,11 +134,18 @@ pub fn toggle_online_asr(app: AppHandle, enabled: bool) -> Result<(), String> {
 #[specta::specta]
 pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.selected_asr_model = model_id.map(|id| crate::fallback::ModelChain {
-        primary_id: id,
-        fallback_id: None,
-        strategy: crate::fallback::ModelChainStrategy::default(),
-    });
+    settings.selected_asr_model = match model_id {
+        Some(id) => {
+            // Preserve existing fallback_id and strategy when switching primary
+            let existing = settings.selected_asr_model.as_ref();
+            Some(crate::fallback::ModelChain {
+                primary_id: id,
+                fallback_id: existing.and_then(|c| c.fallback_id.clone()),
+                strategy: existing.map(|c| c.strategy.clone()).unwrap_or_default(),
+            })
+        }
+        None => None,
+    };
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -147,11 +154,17 @@ pub fn select_asr_model(app: AppHandle, model_id: Option<String>) -> Result<(), 
 #[specta::specta]
 pub fn select_post_process_model(app: AppHandle, model_id: Option<String>) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.selected_prompt_model = model_id.map(|id| crate::fallback::ModelChain {
-        primary_id: id,
-        fallback_id: None,
-        strategy: crate::fallback::ModelChainStrategy::default(),
-    });
+    settings.selected_prompt_model = match model_id {
+        Some(id) => {
+            let existing = settings.selected_prompt_model.as_ref();
+            Some(crate::fallback::ModelChain {
+                primary_id: id,
+                fallback_id: existing.and_then(|c| c.fallback_id.clone()),
+                strategy: existing.map(|c| c.strategy.clone()).unwrap_or_default(),
+            })
+        }
+        None => None,
+    };
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -759,11 +772,17 @@ pub fn change_post_process_intent_model_id_setting(
     model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.post_process_intent_model = model_id.map(|id| crate::fallback::ModelChain {
-        primary_id: id,
-        fallback_id: None,
-        strategy: crate::fallback::ModelChainStrategy::default(),
-    });
+    settings.post_process_intent_model = match model_id {
+        Some(id) => {
+            let existing = settings.post_process_intent_model.as_ref();
+            Some(crate::fallback::ModelChain {
+                primary_id: id,
+                fallback_id: existing.and_then(|c| c.fallback_id.clone()),
+                strategy: existing.map(|c| c.strategy.clone()).unwrap_or_default(),
+            })
+        }
+        None => None,
+    };
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -797,11 +816,17 @@ pub fn change_length_routing_short_model_setting(
     model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.length_routing_short_model = model_id.map(|id| crate::fallback::ModelChain {
-        primary_id: id,
-        fallback_id: None,
-        strategy: crate::fallback::ModelChainStrategy::default(),
-    });
+    settings.length_routing_short_model = match model_id {
+        Some(id) => {
+            let existing = settings.length_routing_short_model.as_ref();
+            Some(crate::fallback::ModelChain {
+                primary_id: id,
+                fallback_id: existing.and_then(|c| c.fallback_id.clone()),
+                strategy: existing.map(|c| c.strategy.clone()).unwrap_or_default(),
+            })
+        }
+        None => None,
+    };
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -813,11 +838,17 @@ pub fn change_length_routing_long_model_setting(
     model_id: Option<String>,
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
-    settings.length_routing_long_model = model_id.map(|id| crate::fallback::ModelChain {
-        primary_id: id,
-        fallback_id: None,
-        strategy: crate::fallback::ModelChainStrategy::default(),
-    });
+    settings.length_routing_long_model = match model_id {
+        Some(id) => {
+            let existing = settings.length_routing_long_model.as_ref();
+            Some(crate::fallback::ModelChain {
+                primary_id: id,
+                fallback_id: existing.and_then(|c| c.fallback_id.clone()),
+                strategy: existing.map(|c| c.strategy.clone()).unwrap_or_default(),
+            })
+        }
+        None => None,
+    };
     settings::write_settings(&app, settings);
     Ok(())
 }
