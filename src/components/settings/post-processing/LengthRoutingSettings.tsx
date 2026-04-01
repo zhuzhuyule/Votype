@@ -2,7 +2,6 @@ import {
   Badge,
   Box,
   Flex,
-  Select,
   Switch,
   Text,
   TextField,
@@ -12,6 +11,7 @@ import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel } from "../../../lib/types";
+import { ModelChainSelector } from "../../ui/ModelChainSelector";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { ActionWrapper } from "../../ui";
 
@@ -19,7 +19,7 @@ type ModelMode = "single" | "multi";
 
 export const TextModelModeSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, updateSetting, selectPromptModel, isUpdating } =
+  const { settings, updateSetting, updateModelChain, isUpdating } =
     useSettings();
 
   const smartRoutingEnabled = settings?.length_routing_enabled ?? false;
@@ -27,8 +27,6 @@ export const TextModelModeSettings: React.FC = () => {
   const modelMode: ModelMode = multiModelEnabled ? "multi" : "single";
 
   const threshold = settings?.length_routing_threshold ?? 100;
-  const shortModelId = settings?.length_routing_short_model?.primary_id ?? null;
-  const defaultModelId = settings?.selected_prompt_model?.primary_id ?? null;
   const multiModelSelectedIds = useMemo(
     () => settings?.multi_model_selected_ids ?? [],
     [settings?.multi_model_selected_ids],
@@ -41,14 +39,6 @@ export const TextModelModeSettings: React.FC = () => {
       (settings?.cached_models ?? []).filter((m) => m.model_type === "text"),
     [settings?.cached_models],
   );
-
-  const providerMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    settings?.post_process_providers?.forEach((p) => {
-      map[p.id] = p.label;
-    });
-    return map;
-  }, [settings?.post_process_providers]);
 
   const handleSmartRoutingToggle = useCallback(
     async (checked: boolean) => {
@@ -70,15 +60,6 @@ export const TextModelModeSettings: React.FC = () => {
     [modelMode, updateSetting],
   );
 
-  const handleDefaultModelChange = useCallback(
-    async (value: string) => {
-      if (value && value !== "__none__") {
-        await selectPromptModel(value);
-      }
-    },
-    [selectPromptModel],
-  );
-
   const handleThresholdChange = useCallback(
     async (value: string) => {
       const num = parseInt(value, 10);
@@ -87,48 +68,6 @@ export const TextModelModeSettings: React.FC = () => {
       }
     },
     [updateSetting],
-  );
-
-  const handleShortModelChange = useCallback(
-    async (value: string) => {
-      await updateSetting(
-        "length_routing_short_model",
-        value === "__none__"
-          ? null
-          : {
-              primary_id: value,
-              fallback_id: null,
-              strategy: "serial" as const,
-            },
-      );
-    },
-    [updateSetting],
-  );
-
-  const getModelLabel = (model: CachedModel) => {
-    const provider = providerMap[model.provider_id] ?? model.provider_id;
-    const name = model.custom_label || model.model_id;
-    return `${name} (${provider})`;
-  };
-
-  const renderModelSelect = (
-    value: string | null,
-    onChange: (value: string) => void,
-    placeholder?: string,
-  ) => (
-    <Select.Root value={value ?? "__none__"} onValueChange={onChange}>
-      <Select.Trigger style={{ width: "100%" }} />
-      <Select.Content>
-        {placeholder && (
-          <Select.Item value="__none__">{placeholder}</Select.Item>
-        )}
-        {textModels.map((model) => (
-          <Select.Item key={model.id} value={model.id}>
-            {getModelLabel(model)}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
   );
 
   const modelModes: { value: ModelMode; label: string }[] = [
@@ -239,14 +178,15 @@ export const TextModelModeSettings: React.FC = () => {
                   max={9999}
                 />
                 <Box style={{ minWidth: 160 }}>
-                  {renderModelSelect(
-                    shortModelId,
-                    handleShortModelChange,
-                    t(
-                      "settings.postProcessing.lengthRouting.useDefault",
-                      "Use default",
-                    ),
-                  )}
+                  <ModelChainSelector
+                    chain={settings?.length_routing_short_model ?? null}
+                    onChange={(chain) =>
+                      updateModelChain("length_routing_short_model", chain)
+                    }
+                    modelFilter={(m) => m.model_type === "text"}
+                    defaultStrategy="serial"
+                    disabled={!settings?.length_routing_enabled}
+                  />
                 </Box>
               </>
             )}
@@ -273,14 +213,15 @@ export const TextModelModeSettings: React.FC = () => {
               {modelModePills}
               {modelMode === "single" && (
                 <Box style={{ minWidth: 180 }}>
-                  {renderModelSelect(
-                    defaultModelId,
-                    handleDefaultModelChange,
-                    t(
-                      "settings.postProcessing.textModelMode.noModelSelected",
-                      "No model selected",
-                    ),
-                  )}
+                  <ModelChainSelector
+                    chain={settings?.length_routing_long_model ?? null}
+                    onChange={(chain) =>
+                      updateModelChain("length_routing_long_model", chain)
+                    }
+                    modelFilter={(m) => m.model_type === "text"}
+                    defaultStrategy="staggered"
+                    disabled={!settings?.length_routing_enabled}
+                  />
                 </Box>
               )}
             </Flex>

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   AudioDevice,
   CachedModel,
+  ModelChain,
   ModelType,
   PostProcessProvider,
   Settings,
@@ -85,6 +86,7 @@ interface UseSettingsReturn {
     providerId: string,
     modelId: string,
   ) => Promise<{ content?: string; reasoning_content?: string }>;
+  updateModelChain: (field: string, chain: ModelChain | null) => Promise<void>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
@@ -133,5 +135,6 @@ export const useSettings = (): UseSettingsReturn => {
     removeCustomProvider: store.removeCustomProvider,
     toggleMultiModelSelection: store.toggleMultiModelSelection,
     testPostProcessInference: store.testPostProcessInference,
+    updateModelChain: store.updateModelChain,
   };
 };

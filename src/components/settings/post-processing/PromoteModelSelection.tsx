@@ -1,34 +1,13 @@
-import { Text } from "@radix-ui/themes";
-import React, { useMemo } from "react";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { ActionWrapper } from "../../ui";
-import { Dropdown } from "../../ui/Dropdown";
+import { ModelChainSelector } from "../../ui/ModelChainSelector";
 import { SettingContainer } from "../../ui/SettingContainer";
 
 export const PromoteModelSelection: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, selectPromptModel, isUpdating } = useSettings();
-
-  const cachedModels = settings?.cached_models || [];
-  const textModels = useMemo(
-    () => cachedModels.filter((model) => model.model_type === "text"),
-    [cachedModels],
-  );
-
-  const options = textModels.map((model) => ({
-    value: model.id,
-    label: model.custom_label
-      ? `${model.custom_label} (${model.model_id})`
-      : `${model.model_id} (${model.provider_id})`,
-  }));
-
-  const selectedModelId =
-    settings?.selected_prompt_model?.primary_id ?? undefined;
-
-  const handleSelect = (value: string) => {
-    void selectPromptModel(value);
-  };
+  const { settings, updateModelChain } = useSettings();
 
   return (
     <SettingContainer
@@ -39,26 +18,13 @@ export const PromoteModelSelection: React.FC = () => {
       disabled={!settings?.post_process_enabled}
     >
       <ActionWrapper>
-        <Dropdown
-          selectedValue={selectedModelId}
-          options={options}
-          onSelect={handleSelect}
-          placeholder={
-            options.length === 0
-              ? t("settings.postProcessing.api.model.placeholderNoOptions")
-              : t("settings.postProcessing.api.model.placeholderWithOptions")
-          }
-          disabled={
-            !settings?.post_process_enabled ||
-            options.length === 0 ||
-            isUpdating("select_post_process_model")
-          }
+        <ModelChainSelector
+          chain={settings?.selected_prompt_model ?? null}
+          onChange={(chain) => updateModelChain("selected_prompt_model", chain)}
+          modelFilter={(m) => m.model_type === "text"}
+          defaultStrategy="staggered"
+          disabled={!settings?.post_process_enabled}
         />
-        {options.length === 0 && (
-          <Text size="1" color="gray">
-            {t("settings.postProcessing.models.empty.description")}
-          </Text>
-        )}
       </ActionWrapper>
     </SettingContainer>
   );
