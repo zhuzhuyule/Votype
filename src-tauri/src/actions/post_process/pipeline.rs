@@ -1137,6 +1137,16 @@ pub async fn maybe_post_process_transcription(
             default_prompt,
             override_prompt_id.as_deref(),
         );
+    // When content is replaced by selected text (input_source="select"),
+    // the original transcription becomes the instruction telling the skill what to do.
+    // In confirm_skill path, the instruction arrives via streaming_transcription.
+    let mut instruction_text: Option<String> = if skill_mode {
+        streaming_transcription
+            .filter(|s| !s.trim().is_empty() && s.trim() != transcription.trim())
+            .map(|s| s.to_string())
+    } else {
+        None
+    };
 
     // Notify UI immediately about the specific prompt being used if it's an override (app/rule specific)
     if let (Some(p), true) = (&initial_prompt_opt, override_prompt_id.is_some()) {
@@ -1299,7 +1309,10 @@ pub async fn maybe_post_process_transcription(
                             _ => "output",
                         };
                         initial_content = match effective_input_source {
-                            "select" => effective_selected_text.clone().unwrap_or_default(),
+                            "select" => {
+                                instruction_text = Some(transcription.to_string());
+                                effective_selected_text.clone().unwrap_or_default()
+                            }
                             "extract" => route_response
                                 .extracted_content
                                 .clone()
@@ -1814,6 +1827,11 @@ pub async fn maybe_post_process_transcription(
                 settings,
             ));
         builder = builder.raw_transcription(transcription_original);
+        // When content was replaced (e.g. selected text as input via input_source="select"),
+        // pass the original speech as instruction so the skill knows what to do.
+        if let Some(ref instr) = instruction_text {
+            builder = builder.instruction(Some(instr));
+        }
         let built = builder.build();
 
         let cached_model_id = prompt

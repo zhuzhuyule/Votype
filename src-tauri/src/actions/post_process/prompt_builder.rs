@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum FieldTag {
+    Instruction,
     SelectedText,
     PersonNames,
     ProductNames,
@@ -18,6 +19,7 @@ enum FieldTag {
 impl FieldTag {
     fn description(self) -> &'static str {
         match self {
+            FieldTag::Instruction => "instruction: user's spoken command — when present, execute this instruction on input-text instead of the default processing task",
             FieldTag::InputText => "input-text: the primary text to process",
             FieldTag::AsrReference => "asr-reference: auxiliary reference for error correction and disambiguation only",
             FieldTag::PersonNames => "person-names: hotword reference - person names",
@@ -31,6 +33,7 @@ impl FieldTag {
 
     fn placeholder(self) -> &'static str {
         match self {
+            FieldTag::Instruction => "{{instruction}}",
             FieldTag::SelectedText => "{{selected-text}}",
             FieldTag::PersonNames => "{{person-names}}",
             FieldTag::ProductNames => "{{product-names}}",
@@ -57,8 +60,16 @@ fn build_input_protocol_note(fields: &[FieldTag]) -> String {
         field_lines.join("\n")
     ));
 
+    let has_instruction = fields.iter().any(|f| *f == FieldTag::Instruction);
+
     let mut rules = Vec::new();
     rules.push("- Always treat input-text as the sole primary input".to_string());
+    if has_instruction {
+        rules.push(
+            "- When instruction is present, execute that instruction on input-text instead of the default processing task. The instruction is the user's spoken command."
+                .to_string(),
+        );
+    }
     rules.push(
         "- Only make minimal necessary corrections when there are obvious recognition errors, typos, segmentation errors, punctuation errors, or term misrecognitions"
             .to_string(),
@@ -151,6 +162,9 @@ pub struct PromptBuilder<'a> {
     raw_transcription: Option<&'a str>,
     streaming_transcription: Option<&'a str>,
     selected_text: Option<&'a str>,
+    /// User's spoken instruction (e.g. "解释一下") — when present, tells the skill
+    /// what to do with input-text instead of the default processing task.
+    instruction: Option<&'a str>,
     app_name: Option<&'a str>,
     window_title: Option<&'a str>,
     history_entries: Vec<String>,
@@ -178,6 +192,7 @@ fn sanitize_history_entry(entry: &str) -> Option<String> {
                 && !trimmed.starts_with("[domain-terms]")
                 && !trimmed.starts_with("[product-names]")
                 && !trimmed.starts_with("[person-names]")
+                && !trimmed.starts_with("[instruction]")
                 && !trimmed.starts_with("[selected-text]")
                 && !trimmed.starts_with("[history-hints]")
                 && !trimmed.contains("${")
@@ -278,6 +293,7 @@ impl<'a> PromptBuilder<'a> {
             raw_transcription: None,
             streaming_transcription: None,
             selected_text: None,
+            instruction: None,
             app_name: None,
             window_title: None,
             history_entries: Vec::new(),
@@ -302,6 +318,11 @@ impl<'a> PromptBuilder<'a> {
 
     pub fn selected_text(mut self, text: Option<&'a str>) -> Self {
         self.selected_text = text.filter(|s| !s.is_empty());
+        self
+    }
+
+    pub fn instruction(mut self, text: Option<&'a str>) -> Self {
+        self.instruction = text.filter(|s| !s.is_empty());
         self
     }
 
@@ -433,6 +454,9 @@ impl<'a> PromptBuilder<'a> {
             .unwrap_or_default();
 
         let mut present_fields = Vec::new();
+        if self.instruction.is_some() {
+            present_fields.push(FieldTag::Instruction);
+        }
         if self.selected_text.is_some() {
             present_fields.push(FieldTag::SelectedText);
         }
@@ -466,6 +490,11 @@ impl<'a> PromptBuilder<'a> {
 
         for field in &explicit_field_references {
             let replacement = match field {
+                FieldTag::Instruction => self
+                    .instruction
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string),
                 FieldTag::SelectedText => self
                     .selected_text
                     .map(str::trim)
@@ -522,6 +551,13 @@ impl<'a> PromptBuilder<'a> {
         }
 
         let mut sections: Vec<String> = Vec::new();
+        if self.instruction.is_some() && !explicit_field_references.contains(&FieldTag::Instruction)
+        {
+            let text = self.instruction.unwrap();
+            if let Some(block) = render_text_block("instruction", text) {
+                sections.push(block);
+            }
+        }
         if self.selected_text.is_some()
             && !explicit_field_references.contains(&FieldTag::SelectedText)
         {
