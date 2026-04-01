@@ -1073,6 +1073,21 @@
         "fastModelHint": "A lightweight or fast model for short text. Saves tokens and reduces latency for simple content.",
         "modelSelection": "Model"
       },
+      "modelChain": {
+        "primary": "Primary",
+        "fallback": "Fallback",
+        "leftClickHint": "Left-click to select primary model",
+        "rightClickHint": "Right-click to select fallback model",
+        "strategy": "Strategy",
+        "serial": "Serial",
+        "staggered": "Staggered",
+        "race": "Race",
+        "serialHint": "Try fallback after primary fails",
+        "staggeredHint": "Start fallback when primary is slow",
+        "raceHint": "Call both, use fastest",
+        "noModel": "No model selected",
+        "selectModel": "Select model"
+      },
       "disabledNotice": "Post processing is currently disabled. Enable it to configure.",
       "fusion": {
         "enabled": {

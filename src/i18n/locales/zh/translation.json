@@ -1328,6 +1328,21 @@
         "fastModelHint": "用于短文本的轻量或快速模型，节省 Token 消耗并降低延迟",
         "modelSelection": "模型"
       },
+      "modelChain": {
+        "primary": "主模型",
+        "fallback": "备选",
+        "leftClickHint": "左键选择主模型",
+        "rightClickHint": "右键选择备选模型",
+        "strategy": "策略",
+        "serial": "串行",
+        "staggered": "延迟",
+        "race": "竞速",
+        "serialHint": "主模型失败后再调备选",
+        "staggeredHint": "主模型慢时自动启动备选",
+        "raceHint": "同时调用，取最快",
+        "noModel": "未选择模型",
+        "selectModel": "选择模型"
+      },
       "title": "后期处理"
     },
     "shortcuts": {
