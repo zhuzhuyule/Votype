@@ -554,11 +554,26 @@ impl ShortcutAction for TranscribeAction {
                     // --- Online ASR with fallback chain support ---
                     use crate::online_asr::OnlineAsrClient;
 
-                    // Helper: spawn an online ASR task for a given cached_model_id
+                    // Grab metrics manager for per-call ASR logging
+                    let asr_metrics: Option<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>> =
+                        ah.try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+                            .map(|m| (*m).clone());
+                    let asr_history_id = presave_history_id;
+                    let asr_audio_duration_ms = duration_ms;
+
+                    // Helper: spawn an online ASR task for a given cached_model_id.
+                    // Each task self-logs its metrics (timing, chars, error) so that
+                    // every participant in Race/Staggered/Serial is individually recorded.
                     let spawn_asr_task = |cached_model_id: &str,
                                           settings: &crate::settings::AppSettings,
                                           audio_samples: Vec<f32>,
-                                          lang: String|
+                                          lang: String,
+                                          is_fallback: bool,
+                                          metrics: Option<
+                        std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>,
+                    >,
+                                          history_id: Option<i64>,
+                                          audio_ms: i64|
                      -> Option<
                         tokio::task::JoinHandle<anyhow::Result<String>>,
                     > {
@@ -577,6 +592,8 @@ impl ShortcutAction for TranscribeAction {
                             .cloned();
                         let remote_model_id = cached.model_id.clone();
                         let model_name = cached.name.clone();
+                        let provider_id_for_log = cached.provider_id.clone();
+                        let cached_id_for_log = cached_model_id.to_string();
 
                         Some(tokio::task::spawn_blocking(
                             move || -> anyhow::Result<String> {
@@ -595,13 +612,47 @@ impl ShortcutAction for TranscribeAction {
                                 } else {
                                     Some(lang.as_str())
                                 };
-                                client.transcribe(
+
+                                let start = std::time::Instant::now();
+                                let result = client.transcribe(
                                     &provider,
                                     api_key,
                                     &remote_model_id,
                                     l,
                                     &audio_samples,
-                                )
+                                );
+                                let elapsed_ms = start.elapsed().as_millis() as i64;
+
+                                // Log this individual ASR call
+                                if let Some(ref metrics) = metrics {
+                                    let (out_chars, err_msg) = match &result {
+                                        Ok(text) => (text.chars().count() as i64, None),
+                                        Err(e) => (0i64, Some(e.to_string())),
+                                    };
+                                    let speed = if elapsed_ms > 0 && out_chars > 0 {
+                                        Some(out_chars as f64 / elapsed_ms as f64 * 1000.0)
+                                    } else {
+                                        None
+                                    };
+                                    let _ = metrics.log_call(
+                                        &crate::managers::llm_metrics::LlmCallRecord {
+                                            history_id,
+                                            model_id: cached_id_for_log,
+                                            provider: provider_id_for_log,
+                                            call_type: "asr".to_string(),
+                                            input_tokens: None,
+                                            output_tokens: None,
+                                            total_tokens: None,
+                                            token_estimate: Some(audio_ms as f64),
+                                            duration_ms: elapsed_ms,
+                                            tokens_per_sec: speed,
+                                            error: err_msg,
+                                            is_fallback,
+                                        },
+                                    );
+                                }
+
+                                result
                             },
                         ))
                     };
@@ -625,6 +676,10 @@ impl ShortcutAction for TranscribeAction {
                         &settings,
                         samples.clone(),
                         language.clone(),
+                        false,
+                        asr_metrics.clone(),
+                        asr_history_id,
+                        asr_audio_duration_ms,
                     ) {
                         h
                     } else {
@@ -650,6 +705,10 @@ impl ShortcutAction for TranscribeAction {
                                     &settings,
                                     samples.clone(),
                                     language.clone(),
+                                    true,
+                                    asr_metrics.clone(),
+                                    asr_history_id,
+                                    asr_audio_duration_ms,
                                 ) {
                                     let primary_id_log = primary_model_id.clone();
                                     let fb_id_log = fb_id.clone();
@@ -695,6 +754,9 @@ impl ShortcutAction for TranscribeAction {
                                 let samples_clone = samples.clone();
                                 let language_clone = language.clone();
                                 let primary_id_log = primary_model_id.clone();
+                                let stg_metrics = asr_metrics.clone();
+                                let stg_history_id = asr_history_id;
+                                let stg_audio_ms = asr_audio_duration_ms;
                                 tokio::spawn(async move {
                                     let mut p = primary_handle;
                                     // Wait for primary or stagger delay
@@ -706,7 +768,7 @@ impl ShortcutAction for TranscribeAction {
                                             }
                                             // Primary failed fast, start fallback
                                             log::warn!("[ASR] Staggered: primary failed fast, starting fallback");
-                                            if let Some(fh) = spawn_asr_task(&fb_id_owned, &settings_clone, samples_clone, language_clone) {
+                                            if let Some(fh) = spawn_asr_task(&fb_id_owned, &settings_clone, samples_clone, language_clone, true, stg_metrics, stg_history_id, stg_audio_ms) {
                                                 return fh.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
                                             }
                                             res
@@ -714,7 +776,7 @@ impl ShortcutAction for TranscribeAction {
                                         _ = tokio::time::sleep(Duration::from_millis(crate::fallback::STAGGERED_DELAY_MS)) => {
                                             // Delay elapsed, start fallback and race
                                             log::info!("[ASR] Staggered: primary {} slow, starting fallback {}", primary_id_log, fb_id_owned);
-                                            if let Some(mut f) = spawn_asr_task(&fb_id_owned, &settings_clone, samples_clone, language_clone) {
+                                            if let Some(mut f) = spawn_asr_task(&fb_id_owned, &settings_clone, samples_clone, language_clone, true, stg_metrics, stg_history_id, stg_audio_ms) {
                                                 tokio::select! {
                                                     p_res = &mut p => {
                                                         let res = p_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
@@ -869,8 +931,13 @@ impl ShortcutAction for TranscribeAction {
                                                 .get(&fallback_model.provider_id)
                                                 .cloned();
                                             let fb_remote_id = fallback_model.model_id.clone();
+                                            let fb_provider_id = fallback_model.provider_id.clone();
+                                            let fb_cached_id = fallback_id.clone();
                                             let fb_samples = samples.clone();
                                             let fb_language = settings.selected_language.clone();
+                                            let fb_metrics = asr_metrics.clone();
+                                            let fb_history_id = asr_history_id;
+                                            let fb_audio_ms = asr_audio_duration_ms;
 
                                             let fallback_handle = tokio::task::spawn_blocking(
                                                 move || -> anyhow::Result<String> {
@@ -889,13 +956,49 @@ impl ShortcutAction for TranscribeAction {
                                                     } else {
                                                         Some(fb_language.as_str())
                                                     };
-                                                    client.transcribe(
+                                                    let start = std::time::Instant::now();
+                                                    let result = client.transcribe(
                                                         &provider,
                                                         fb_api_key,
                                                         &fb_remote_id,
                                                         lang,
                                                         &fb_samples,
-                                                    )
+                                                    );
+                                                    let elapsed_ms =
+                                                        start.elapsed().as_millis() as i64;
+                                                    if let Some(ref metrics) = fb_metrics {
+                                                        let (out_chars, err_msg) = match &result {
+                                                            Ok(text) => {
+                                                                (text.chars().count() as i64, None)
+                                                            }
+                                                            Err(e) => (0i64, Some(e.to_string())),
+                                                        };
+                                                        let speed =
+                                                            if elapsed_ms > 0 && out_chars > 0 {
+                                                                Some(
+                                                                    out_chars as f64
+                                                                        / elapsed_ms as f64
+                                                                        * 1000.0,
+                                                                )
+                                                            } else {
+                                                                None
+                                                            };
+                                                        let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                                                            history_id: fb_history_id,
+                                                            model_id: fb_cached_id,
+                                                            provider: fb_provider_id,
+                                                            call_type: "asr".to_string(),
+                                                            input_tokens: None,
+                                                            output_tokens: None,
+                                                            total_tokens: None,
+                                                            token_estimate: Some(fb_audio_ms as f64),
+                                                            duration_ms: elapsed_ms,
+                                                            tokens_per_sec: speed,
+                                                            error: err_msg,
+                                                            is_fallback: true,
+                                                        });
+                                                    }
+                                                    result
                                                 },
                                             );
 
@@ -998,8 +1101,13 @@ impl ShortcutAction for TranscribeAction {
                                                 .get(&fallback_model.provider_id)
                                                 .cloned();
                                             let fb_remote_id = fallback_model.model_id.clone();
+                                            let fb_provider_id = fallback_model.provider_id.clone();
+                                            let fb_cached_id = fallback_id.clone();
                                             let fb_samples = samples.clone();
                                             let fb_language = settings.selected_language.clone();
+                                            let fb_metrics = asr_metrics.clone();
+                                            let fb_history_id = asr_history_id;
+                                            let fb_audio_ms = asr_audio_duration_ms;
 
                                             let fallback_handle = tokio::task::spawn_blocking(
                                                 move || -> anyhow::Result<String> {
@@ -1018,13 +1126,49 @@ impl ShortcutAction for TranscribeAction {
                                                     } else {
                                                         Some(fb_language.as_str())
                                                     };
-                                                    client.transcribe(
+                                                    let start = std::time::Instant::now();
+                                                    let result = client.transcribe(
                                                         &provider,
                                                         fb_api_key,
                                                         &fb_remote_id,
                                                         lang,
                                                         &fb_samples,
-                                                    )
+                                                    );
+                                                    let elapsed_ms =
+                                                        start.elapsed().as_millis() as i64;
+                                                    if let Some(ref metrics) = fb_metrics {
+                                                        let (out_chars, err_msg) = match &result {
+                                                            Ok(text) => {
+                                                                (text.chars().count() as i64, None)
+                                                            }
+                                                            Err(e) => (0i64, Some(e.to_string())),
+                                                        };
+                                                        let speed =
+                                                            if elapsed_ms > 0 && out_chars > 0 {
+                                                                Some(
+                                                                    out_chars as f64
+                                                                        / elapsed_ms as f64
+                                                                        * 1000.0,
+                                                                )
+                                                            } else {
+                                                                None
+                                                            };
+                                                        let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                                                            history_id: fb_history_id,
+                                                            model_id: fb_cached_id,
+                                                            provider: fb_provider_id,
+                                                            call_type: "asr".to_string(),
+                                                            input_tokens: None,
+                                                            output_tokens: None,
+                                                            total_tokens: None,
+                                                            token_estimate: Some(fb_audio_ms as f64),
+                                                            duration_ms: elapsed_ms,
+                                                            tokens_per_sec: speed,
+                                                            error: err_msg,
+                                                            is_fallback: true,
+                                                        });
+                                                    }
+                                                    result
                                                 },
                                             );
 
@@ -1079,32 +1223,40 @@ impl ShortcutAction for TranscribeAction {
                                             None,
                                         )
                                     }
-                                    Ok(channel_result) => match channel_result {
-                                        Ok(action) => match action.as_str() {
-                                            "continue" | "retry" => {
-                                                log::info!(
-                                                    "[ASR] User chose to {} online ASR",
-                                                    action
-                                                );
-                                                // Re-send the online ASR request (original handle was consumed by timeout)
-                                                if let Some(cached) =
-                                                    cached_model_for_retry.as_ref()
-                                                {
-                                                    let provider_info = settings
-                                                        .post_process_providers
-                                                        .iter()
-                                                        .find(|p| p.id == cached.provider_id)
-                                                        .cloned();
-                                                    let api_key = settings
-                                                        .post_process_api_keys
-                                                        .get(&cached.provider_id)
-                                                        .cloned();
-                                                    let remote_model_id = cached.model_id.clone();
-                                                    let language =
-                                                        settings.selected_language.clone();
-                                                    let samples_retry = samples.clone();
+                                    Ok(channel_result) => {
+                                        match channel_result {
+                                            Ok(action) => match action.as_str() {
+                                                "continue" | "retry" => {
+                                                    log::info!(
+                                                        "[ASR] User chose to {} online ASR",
+                                                        action
+                                                    );
+                                                    // Re-send the online ASR request (original handle was consumed by timeout)
+                                                    if let Some(cached) =
+                                                        cached_model_for_retry.as_ref()
+                                                    {
+                                                        let provider_info = settings
+                                                            .post_process_providers
+                                                            .iter()
+                                                            .find(|p| p.id == cached.provider_id)
+                                                            .cloned();
+                                                        let api_key = settings
+                                                            .post_process_api_keys
+                                                            .get(&cached.provider_id)
+                                                            .cloned();
+                                                        let remote_model_id =
+                                                            cached.model_id.clone();
+                                                        let retry_provider_id =
+                                                            cached.provider_id.clone();
+                                                        let retry_cached_id = cached.id.clone();
+                                                        let language =
+                                                            settings.selected_language.clone();
+                                                        let samples_retry = samples.clone();
+                                                        let retry_metrics = asr_metrics.clone();
+                                                        let retry_history_id = asr_history_id;
+                                                        let retry_audio_ms = asr_audio_duration_ms;
 
-                                                    let retry_handle = tokio::task::spawn_blocking(
+                                                        let retry_handle = tokio::task::spawn_blocking(
                                                         move || -> anyhow::Result<String> {
                                                             let provider = provider_info
                                                                 .ok_or_else(|| {
@@ -1121,56 +1273,83 @@ impl ShortcutAction for TranscribeAction {
                                                             } else {
                                                                 Some(language.as_str())
                                                             };
-                                                            client.transcribe(
+                                                            let start = std::time::Instant::now();
+                                                            let result = client.transcribe(
                                                                 &provider,
                                                                 api_key,
                                                                 &remote_model_id,
                                                                 lang,
                                                                 &samples_retry,
-                                                            )
+                                                            );
+                                                            let elapsed_ms = start.elapsed().as_millis() as i64;
+                                                            if let Some(ref metrics) = retry_metrics {
+                                                                let (out_chars, err_msg) = match &result {
+                                                                    Ok(text) => (text.chars().count() as i64, None),
+                                                                    Err(e) => (0i64, Some(e.to_string())),
+                                                                };
+                                                                let speed = if elapsed_ms > 0 && out_chars > 0 {
+                                                                    Some(out_chars as f64 / elapsed_ms as f64 * 1000.0)
+                                                                } else { None };
+                                                                let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                                                                    history_id: retry_history_id,
+                                                                    model_id: retry_cached_id,
+                                                                    provider: retry_provider_id,
+                                                                    call_type: "asr".to_string(),
+                                                                    input_tokens: None,
+                                                                    output_tokens: None,
+                                                                    total_tokens: None,
+                                                                    token_estimate: Some(retry_audio_ms as f64),
+                                                                    duration_ms: elapsed_ms,
+                                                                    tokens_per_sec: speed,
+                                                                    error: err_msg,
+                                                                    is_fallback: false,
+                                                                });
+                                                            }
+                                                            result
                                                         },
                                                     );
-                                                    let primary = match retry_handle.await {
-                                                        Ok(res) => res,
-                                                        Err(e) => Err(anyhow::anyhow!(
-                                                            "Online ASR {} failed: {}",
-                                                            action,
-                                                            e
-                                                        )),
-                                                    };
-                                                    (primary, None)
-                                                } else {
+                                                        let primary = match retry_handle.await {
+                                                            Ok(res) => res,
+                                                            Err(e) => Err(anyhow::anyhow!(
+                                                                "Online ASR {} failed: {}",
+                                                                action,
+                                                                e
+                                                            )),
+                                                        };
+                                                        (primary, None)
+                                                    } else {
+                                                        (
+                                                            Err(anyhow::anyhow!(
+                                                                "No cached model for retry"
+                                                            )),
+                                                            None,
+                                                        )
+                                                    }
+                                                }
+                                                _ => {
+                                                    // "cancel" or unknown
+                                                    log::info!("[ASR] User cancelled online ASR");
                                                     (
                                                         Err(anyhow::anyhow!(
-                                                            "No cached model for retry"
+                                                            "User cancelled online ASR"
                                                         )),
                                                         None,
                                                     )
                                                 }
-                                            }
-                                            _ => {
-                                                // "cancel" or unknown
-                                                log::info!("[ASR] User cancelled online ASR");
+                                            },
+                                            Err(_) => {
+                                                log::warn!(
+                                            "[ASR] Timeout response channel dropped, cancelling"
+                                        );
                                                 (
                                                     Err(anyhow::anyhow!(
-                                                        "User cancelled online ASR"
+                                                        "ASR timeout response channel dropped"
                                                     )),
                                                     None,
                                                 )
                                             }
-                                        },
-                                        Err(_) => {
-                                            log::warn!(
-                                            "[ASR] Timeout response channel dropped, cancelling"
-                                        );
-                                            (
-                                                Err(anyhow::anyhow!(
-                                                    "ASR timeout response channel dropped"
-                                                )),
-                                                None,
-                                            )
                                         }
-                                    },
+                                    }
                                 }
                             }
                         }
@@ -1243,6 +1422,44 @@ impl ShortcutAction for TranscribeAction {
                     .clone()
                     .or_else(|| incremental_result.clone())
                     .filter(|t| !t.trim().is_empty());
+
+                // Log ASR call metrics for local ASR only
+                // (online ASR calls are self-logged inside spawn_asr_task / inline fallback)
+                if !settings.online_asr_enabled {
+                    let output_chars = primary_text
+                        .as_ref()
+                        .map(|t| t.chars().count() as i64)
+                        .unwrap_or(0);
+                    let chars_per_sec = if transcription_ms > 0 && output_chars > 0 {
+                        Some(output_chars as f64 / transcription_ms as f64 * 1000.0)
+                    } else {
+                        None
+                    };
+
+                    if let Some(metrics) = ah
+                        .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>(
+                        )
+                    {
+                        if let Err(e) = metrics.log_call(
+                            &crate::managers::llm_metrics::LlmCallRecord {
+                                history_id: presave_history_id,
+                                model_id: settings.selected_model.clone(),
+                                provider: "local".to_string(),
+                                call_type: "asr".to_string(),
+                                input_tokens: None,
+                                output_tokens: None,
+                                total_tokens: None,
+                                token_estimate: Some(duration_ms as f64),
+                                duration_ms: transcription_ms,
+                                tokens_per_sec: chars_per_sec,
+                                error: primary_error.clone(),
+                                is_fallback: false,
+                            },
+                        ) {
+                            log::error!("[LlmMetrics] Failed to log ASR call: {}", e);
+                        }
+                    }
+                }
 
                 if let Some(transcription) = primary_text.clone() {
                     debug!(

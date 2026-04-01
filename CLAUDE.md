@@ -148,6 +148,14 @@ Two display modes based on candidate count:
 - **Custom Card:** Use `import { Card } from "@/components/ui/Card"` or relative path imports.
 - **SettingsGroup:** Used for settings page group containers, includes border and shadow effects.
 
+## Spec Writing Rules
+
+- **Template:** All new feature specs must follow `docs/SPEC_TEMPLATE.md`.
+- **Location:** `docs/specs/{date}-{feature-name}.spec.md`
+- **Required Sections:** Intent, Constraints, Decisions, Boundaries (allow/forbid files), Acceptance Scenarios.
+- **Acceptance Scenarios:** Must cover happy path, error path, and edge cases using Given/When/Then format.
+- **Deviation Log:** After implementation, append an "Implementation Deviations" table recording actual vs planned differences.
+
 ## Git Commit Rules
 
 - **Language:** English.
