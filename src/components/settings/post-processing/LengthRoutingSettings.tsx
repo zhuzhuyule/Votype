@@ -11,7 +11,8 @@ import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel } from "../../../lib/types";
-import { ModelChainSelector } from "../../ui/ModelChainSelector";
+import { Dropdown } from "../../ui/Dropdown";
+import { ModelFallbackBadge } from "../../ui/ModelFallbackBadge";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { ActionWrapper } from "../../ui";
 
@@ -177,17 +178,45 @@ export const TextModelModeSettings: React.FC = () => {
                   min={1}
                   max={9999}
                 />
-                <Box style={{ minWidth: 160 }}>
-                  <ModelChainSelector
+                <Flex align="center" gap="2">
+                  <Box style={{ minWidth: 160 }}>
+                    <Dropdown
+                      selectedValue={
+                        settings?.length_routing_short_model?.primary_id ?? ""
+                      }
+                      options={textModels.map((m) => ({
+                        value: m.id,
+                        label: m.custom_label
+                          ? `${m.custom_label} (${m.model_id})`
+                          : `${m.model_id} (${m.provider_id})`,
+                      }))}
+                      onSelect={(value) =>
+                        updateModelChain("length_routing_short_model", {
+                          primary_id: value,
+                          fallback_id:
+                            settings?.length_routing_short_model?.fallback_id ??
+                            null,
+                          strategy:
+                            settings?.length_routing_short_model?.strategy ??
+                            "serial",
+                        })
+                      }
+                      disabled={!settings?.length_routing_enabled}
+                      enableFilter
+                    />
+                  </Box>
+                  <ModelFallbackBadge
                     chain={settings?.length_routing_short_model ?? null}
-                    onChange={(chain) =>
-                      updateModelChain("length_routing_short_model", chain)
+                    onChange={(c) =>
+                      updateModelChain("length_routing_short_model", c)
                     }
                     modelFilter={(m) => m.model_type === "text"}
-                    defaultStrategy="serial"
-                    disabled={!settings?.length_routing_enabled}
+                    disabled={
+                      !settings?.length_routing_enabled ||
+                      !settings?.length_routing_short_model?.primary_id
+                    }
                   />
-                </Box>
+                </Flex>
               </>
             )}
           </Flex>
@@ -212,17 +241,45 @@ export const TextModelModeSettings: React.FC = () => {
             <Flex align="center" gap="3">
               {modelModePills}
               {modelMode === "single" && (
-                <Box style={{ minWidth: 180 }}>
-                  <ModelChainSelector
-                    chain={settings?.length_routing_long_model ?? null}
-                    onChange={(chain) =>
-                      updateModelChain("length_routing_long_model", chain)
+                <Flex align="center" gap="2">
+                  <Box style={{ minWidth: 180 }}>
+                    <Dropdown
+                      selectedValue={
+                        settings?.selected_prompt_model?.primary_id ?? ""
+                      }
+                      options={textModels.map((m) => ({
+                        value: m.id,
+                        label: m.custom_label
+                          ? `${m.custom_label} (${m.model_id})`
+                          : `${m.model_id} (${m.provider_id})`,
+                      }))}
+                      onSelect={(value) =>
+                        updateModelChain("selected_prompt_model", {
+                          primary_id: value,
+                          fallback_id:
+                            settings?.selected_prompt_model?.fallback_id ??
+                            null,
+                          strategy:
+                            settings?.selected_prompt_model?.strategy ??
+                            "staggered",
+                        })
+                      }
+                      disabled={!settings?.post_process_enabled}
+                      enableFilter
+                    />
+                  </Box>
+                  <ModelFallbackBadge
+                    chain={settings?.selected_prompt_model ?? null}
+                    onChange={(c) =>
+                      updateModelChain("selected_prompt_model", c)
                     }
                     modelFilter={(m) => m.model_type === "text"}
-                    defaultStrategy="staggered"
-                    disabled={!settings?.length_routing_enabled}
+                    disabled={
+                      !settings?.post_process_enabled ||
+                      !settings?.selected_prompt_model?.primary_id
+                    }
                   />
-                </Box>
+                </Flex>
               )}
             </Flex>
             {modelMode === "multi" && (
