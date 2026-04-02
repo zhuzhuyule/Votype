@@ -180,6 +180,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         history_manager.db_path.clone(),
     ));
     app_handle.manage(llm_metrics_manager);
+    app_handle.manage(std::sync::Arc::new(
+        crate::managers::pipeline_log::PipelineLogManager::new(db_path.clone()),
+    ));
     let hotword_manager = Arc::new(managers::HotwordManager::new(db_path.clone()));
     app_handle.manage(hotword_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));

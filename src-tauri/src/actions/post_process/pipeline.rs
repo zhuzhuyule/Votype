@@ -218,6 +218,16 @@ pub async fn unified_post_process(
         }
     }
 
+    // Record intent decision into the pipeline decision accumulator
+    if let Some(ref d) = intent_decision {
+        decision.intent_action = Some(format!("{:?}", d.action));
+        decision.intent_needs_hotword = Some(d.needs_hotword);
+        decision.intent_language = d.language.clone();
+        decision.intent_model_id = Some(d.model_id.clone());
+        decision.intent_provider_id = Some(d.provider_id.clone());
+        decision.intent_elapsed_ms = Some(d.duration_ms);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // Step 3 + 4: Model Selection and Execution
     // ═══════════════════════════════════════════════════════════════
@@ -271,6 +281,10 @@ pub async fn unified_post_process(
             p.instructions = lite_instructions;
             p
         } else {
+            decision.result_type = "Skipped".to_string();
+            decision.bypass_reason = Some("prompt_not_found".to_string());
+            decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+            log_pipeline_decision(app_handle, &decision);
             return super::PipelineResult::Skipped;
         };
 
@@ -282,7 +296,13 @@ pub async fn unified_post_process(
 
         let fallback_provider = match lite_settings.active_post_process_provider() {
             Some(p) => p,
-            None => return super::PipelineResult::Skipped,
+            None => {
+                decision.result_type = "Skipped".to_string();
+                decision.bypass_reason = Some("no_provider".to_string());
+                decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+                log_pipeline_decision(app_handle, &decision);
+                return super::PipelineResult::Skipped;
+            }
         };
 
         // For non-fallback: resolve model early
@@ -293,7 +313,13 @@ pub async fn unified_post_process(
                 &lite_prompt,
             ) {
                 Some(r) => Some(r),
-                None => return super::PipelineResult::Skipped,
+                None => {
+                    decision.result_type = "Skipped".to_string();
+                    decision.bypass_reason = Some("model_not_found".to_string());
+                    decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+                    log_pipeline_decision(app_handle, &decision);
+                    return super::PipelineResult::Skipped;
+                }
             }
         } else {
             None
@@ -503,6 +529,14 @@ pub async fn unified_post_process(
         if let (Some(ref text), Some(ref an)) = (&result, &lite_app_name_for_context) {
             super::recent_context::push(text, an);
         }
+        decision.model_selection = Some("lite".to_string());
+        decision.selected_model_id = Some(result_model.clone());
+        decision.result_type = "SingleModel".to_string();
+        decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+        if err {
+            decision.error_detail = error_message.clone();
+        }
+        log_pipeline_decision(app_handle, &decision);
         return super::PipelineResult::SingleModel {
             text: result,
             model: Some(result_model.clone()),
@@ -556,6 +590,11 @@ pub async fn unified_post_process(
                 );
             }
 
+            decision.model_selection = Some("multi".to_string());
+            decision.is_multi_model = true;
+            decision.result_type = "MultiModel".to_string();
+            decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+            log_pipeline_decision(app_handle, &decision);
             return super::PipelineResult::MultiModel {
                 multi_items,
                 intent_token_count: intent_tokens,
@@ -643,6 +682,9 @@ pub async fn unified_post_process(
 
     // Check for pending skill confirmation
     if model.as_deref() == Some("__PENDING_SKILL_CONFIRMATION__") {
+        decision.result_type = "PendingSkillConfirmation".to_string();
+        decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+        log_pipeline_decision(app_handle, &decision);
         return super::PipelineResult::PendingSkillConfirmation;
     }
 
@@ -658,6 +700,13 @@ pub async fn unified_post_process(
         super::recent_context::push(t, an);
     }
 
+    decision.model_selection = Some("full".to_string());
+    decision.result_type = "SingleModel".to_string();
+    decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+    if err {
+        decision.error_detail = error_message.clone();
+    }
+    log_pipeline_decision(app_handle, &decision);
     super::PipelineResult::SingleModel {
         text,
         model,
@@ -2237,6 +2286,17 @@ pub(super) fn has_repetition_pattern(text: &str) -> bool {
     }
 
     false
+}
+
+fn log_pipeline_decision(
+    app_handle: &AppHandle,
+    record: &crate::managers::pipeline_log::PipelineDecisionRecord,
+) {
+    if let Some(manager) = app_handle
+        .try_state::<std::sync::Arc<crate::managers::pipeline_log::PipelineLogManager>>()
+    {
+        manager.log_decision(record);
+    }
 }
 
 #[cfg(test)]
