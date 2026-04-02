@@ -260,7 +260,8 @@ pub async fn ai_generate_skill(
         .unwrap_or("")
         .to_string();
 
-    let client = create_client(&provider, api_key).map_err(|e| e.to_string())?;
+    let effective_proxy = crate::settings::resolve_proxy(&settings, &provider);
+    let client = create_client(&provider, api_key, effective_proxy.as_deref()).map_err(|e| e.to_string())?;
 
     // Get model ID
     let model_id = settings

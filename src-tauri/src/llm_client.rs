@@ -9,6 +9,7 @@ use specta::Type;
 pub fn create_client(
     provider: &PostProcessProvider,
     api_key: String,
+    proxy_url: Option<&str>,
 ) -> Result<Client<OpenAIConfig>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let config = OpenAIConfig::new()
@@ -21,11 +22,11 @@ pub fn create_client(
         headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
     }
 
-    let http_client = reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let http_client = crate::http_client::build_http_client(
+        proxy_url,
+        std::time::Duration::from_secs(30),
+        headers,
+    )?;
 
     let client = Client::with_config(config).with_http_client(http_client);
 
@@ -36,6 +37,7 @@ pub fn create_client(
 pub async fn fetch_models(
     provider: &PostProcessProvider,
     api_key: String,
+    proxy_url: Option<&str>,
 ) -> Result<Vec<String>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let endpoint = provider.models_endpoint.as_deref().unwrap_or("/models");
@@ -66,10 +68,11 @@ pub async fn fetch_models(
         }
     }
 
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let client = crate::http_client::build_http_client(
+        proxy_url,
+        std::time::Duration::from_secs(30),
+        headers,
+    )?;
 
     let response = client.get(&url).send().await.map_err(|e| {
         warn!("[FetchModels] Request failed: {}", e);
@@ -173,8 +176,9 @@ pub async fn send_chat_completion(
     api_key: String,
     model: &str,
     prompt: String,
+    proxy_url: Option<&str>,
 ) -> Result<InferenceResult, String> {
-    send_chat_completion_with_params(provider, api_key, model, prompt, None, None).await
+    send_chat_completion_with_params(provider, api_key, model, prompt, None, None, proxy_url).await
 }
 
 pub async fn send_chat_completion_with_params(
@@ -184,6 +188,7 @@ pub async fn send_chat_completion_with_params(
     prompt: String,
     extra_params: Option<&std::collections::HashMap<String, serde_json::Value>>,
     extra_headers: Option<&std::collections::HashMap<String, String>>,
+    proxy_url: Option<&str>,
 ) -> Result<InferenceResult, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
@@ -243,11 +248,11 @@ pub async fn send_chat_completion_with_params(
     });
     let timeout_secs = if is_thinking { 120 } else { 30 };
 
-    let client = reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
-        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+    let client = crate::http_client::build_http_client(
+        proxy_url,
+        std::time::Duration::from_secs(timeout_secs),
+        headers,
+    )?;
 
     let mut body = serde_json::json!({
         "model": model,

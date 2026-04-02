@@ -192,7 +192,7 @@ pub async fn generate_summary_ai_analysis(
                         provider: settings::PostProcessProvider,
                         api_key: String,
                         model: String| async move {
-            let client = llm_client::create_client(&provider, api_key)?;
+            let client = llm_client::create_client(&provider, api_key, None)?;
             let user_msg = ChatCompletionRequestUserMessageArgs::default()
                 .content(prompt)
                 .build()

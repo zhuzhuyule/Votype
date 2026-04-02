@@ -245,7 +245,7 @@ async fn fetch_models_manual(
     provider: &PostProcessProvider,
     api_key: String,
 ) -> Result<Vec<String>, String> {
-    crate::llm_client::fetch_models(provider, api_key).await
+    crate::llm_client::fetch_models(provider, api_key, None).await
 }
 
 fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementation) {

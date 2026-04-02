@@ -1,6 +1,6 @@
 use crate::settings::PostProcessProvider;
 use anyhow::{anyhow, Context, Result};
-use reqwest::blocking::{multipart, Client};
+use reqwest::blocking::multipart;
 use serde::Serialize;
 use std::io::Cursor;
 use std::time::Duration;
@@ -49,10 +49,11 @@ impl OnlineAsrClient {
             language,
             wav_bytes.len()
         );
-        let client = Client::builder()
-            .timeout(self.timeout)
-            .build()
-            .context("failed to build HTTP client")?;
+        let client = crate::http_client::build_blocking_http_client(
+            None,
+            self.timeout,
+        ).map_err(|e| anyhow::anyhow!(e))
+         .context("failed to build HTTP client")?;
 
         let mut form = multipart::Form::new()
             .part(

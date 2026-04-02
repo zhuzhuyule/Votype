@@ -453,7 +453,8 @@ async fn execute_llm_request_inner(
         None => (0, String::new()),
     };
 
-    let _client = match crate::llm_client::create_client(provider, api_key.clone()) {
+    let effective_proxy_for_client = crate::settings::resolve_proxy(settings, provider);
+    let _client = match crate::llm_client::create_client(provider, api_key.clone(), effective_proxy_for_client.as_deref()) {
         Ok(client) => client,
         Err(e) => {
             return Err(LlmError::ClientInit {
@@ -693,10 +694,12 @@ async fn execute_llm_request_inner(
             log::debug!("[LLM] Header {}: {}", name, value);
         }
     }
-    let http_client = reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(std::time::Duration::from_secs(60)) // Increase timeout for Thinking models
-        .build();
+    let effective_proxy = crate::settings::resolve_proxy(settings, provider);
+    let http_client = crate::http_client::build_http_client(
+        effective_proxy.as_deref(),
+        std::time::Duration::from_secs(60),
+        headers,
+    );
 
     match http_client {
         Ok(client) => {

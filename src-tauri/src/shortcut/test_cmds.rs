@@ -51,6 +51,7 @@ pub async fn test_post_process_model_inference(
         };
     let merged_ref = merged_extra_params.as_ref();
 
+    let effective_proxy = crate::settings::resolve_proxy(&settings, provider);
     let result = crate::llm_client::send_chat_completion_with_params(
         provider,
         api_key,
@@ -58,6 +59,7 @@ pub async fn test_post_process_model_inference(
         "你是啥模型？".to_string(),
         merged_ref,
         extra_headers,
+        effective_proxy.as_deref(),
     )
     .await?;
 

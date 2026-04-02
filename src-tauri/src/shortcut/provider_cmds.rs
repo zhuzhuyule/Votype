@@ -208,10 +208,11 @@ async fn download_avatar_to_path(
     url: &str,
     default_content_type: &str,
 ) -> Result<(), String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("Failed to create avatar HTTP client: {}", e))?;
+    let client = crate::http_client::build_http_client(
+        None,
+        std::time::Duration::from_secs(10),
+        reqwest::header::HeaderMap::new(),
+    )?;
 
     let response = client
         .get(url)
@@ -293,10 +294,11 @@ pub async fn get_provider_avatar_path(
 
     cleanup_provider_fetched_avatar_files(&dir, &provider_id)?;
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(8))
-        .build()
-        .map_err(|e| format!("Failed to create avatar HTTP client: {}", e))?;
+    let client = crate::http_client::build_http_client(
+        None,
+        std::time::Duration::from_secs(8),
+        reqwest::header::HeaderMap::new(),
+    )?;
 
     for origin in origins {
         let favicon_url = format!("{}/favicon.ico", origin.trim_end_matches('/'));

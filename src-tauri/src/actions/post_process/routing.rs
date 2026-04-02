@@ -359,7 +359,9 @@ pub(super) async fn perform_skill_routing(
     transcription: &str,
     selected_text: Option<&str>,
 ) -> Option<SkillRoutingResult> {
-    let client = match crate::llm_client::create_client(provider, api_key) {
+    let settings = crate::settings::get_settings(_app_handle);
+    let effective_proxy = crate::settings::resolve_proxy(&settings, provider);
+    let client = match crate::llm_client::create_client(provider, api_key, effective_proxy.as_deref()) {
         Ok(c) => c,
         Err(e) => {
             log::warn!("[SkillRouter] Failed to create LLM client: {:?}", e);

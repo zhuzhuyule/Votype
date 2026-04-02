@@ -857,11 +857,12 @@ async fn execute_single_model_post_process(
     let is_thinking_model = cached_model.map(|m| m.is_thinking_model).unwrap_or(false);
     let timeout_secs = if is_thinking_model { 120 } else { 60 };
 
-    let http_client = match reqwest::Client::builder()
-        .default_headers(headers)
-        .timeout(std::time::Duration::from_secs(timeout_secs))
-        .build()
-    {
+    let effective_proxy = crate::settings::resolve_proxy(settings, &provider);
+    let http_client = match crate::http_client::build_http_client(
+        effective_proxy.as_deref(),
+        std::time::Duration::from_secs(timeout_secs),
+        headers,
+    ) {
         Ok(c) => c,
         Err(e) => {
             error!("[MultiModel] Failed to create HTTP client: {:?}", e);
