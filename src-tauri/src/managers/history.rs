@@ -351,6 +351,44 @@ static MIGRATIONS: &[M] = &[
     ),
     // Migration 35: Add is_fallback column to llm_call_log for tracking fallback usage
     M::up("ALTER TABLE llm_call_log ADD COLUMN is_fallback INTEGER NOT NULL DEFAULT 0;"),
+    // Migration 36: Add speed_count to llm_call_stats for accurate speed averaging
+    // (speed_count tracks calls with tokens_per_sec, separate from total_calls which includes errors)
+    M::up("ALTER TABLE llm_call_stats ADD COLUMN speed_count INTEGER NOT NULL DEFAULT 0;
+           UPDATE llm_call_stats SET speed_count = total_calls;"),
+    // Migration 37: Backfill llm_call_stats from existing llm_call_log for write-time aggregation.
+    // After this, llm_call_stats is the single source of truth for all-time aggregates.
+    M::up(
+        "INSERT INTO llm_call_stats (model_id, provider, call_type, avg_speed, speed_count, avg_tokens, total_tokens, total_calls, total_errors, last_updated)
+         SELECT model_id, provider, call_type,
+           COALESCE(AVG(CASE WHEN tokens_per_sec IS NOT NULL THEN tokens_per_sec END), 0),
+           COUNT(CASE WHEN tokens_per_sec IS NOT NULL THEN 1 END),
+           COALESCE(AVG(total_tokens), 0),
+           COALESCE(SUM(total_tokens), 0),
+           COUNT(*),
+           SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END),
+           datetime('now')
+         FROM llm_call_log
+         GROUP BY model_id, provider, call_type
+         ON CONFLICT(model_id, provider, call_type) DO UPDATE SET
+           avg_speed = CASE
+             WHEN excluded.speed_count > 0 AND llm_call_stats.speed_count > 0 THEN
+               (llm_call_stats.avg_speed * llm_call_stats.speed_count + excluded.avg_speed * excluded.speed_count)
+               / (llm_call_stats.speed_count + excluded.speed_count)
+             WHEN excluded.speed_count > 0 THEN excluded.avg_speed
+             ELSE llm_call_stats.avg_speed
+           END,
+           speed_count = llm_call_stats.speed_count + excluded.speed_count,
+           avg_tokens = CASE
+             WHEN (llm_call_stats.total_calls + excluded.total_calls) > 0 THEN
+               (llm_call_stats.avg_tokens * llm_call_stats.total_calls + excluded.avg_tokens * excluded.total_calls)
+               / (llm_call_stats.total_calls + excluded.total_calls)
+             ELSE 0
+           END,
+           total_tokens = llm_call_stats.total_tokens + excluded.total_tokens,
+           total_calls = llm_call_stats.total_calls + excluded.total_calls,
+           total_errors = llm_call_stats.total_errors + excluded.total_errors,
+           last_updated = datetime('now');"
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

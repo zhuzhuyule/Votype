@@ -962,6 +962,7 @@
           },
           "fields": {
             "apiKey": "API 密钥",
+            "getApiKey": "获取 API Key",
             "baseUrl": "基础 URL",
             "baseUrlHint": "兼容 OpenAI 的基础 URL。使用 '#' 后缀可禁用自动补全 /v1。",
             "actualUrlPreview": "实际调用 URL 预览",
@@ -1124,8 +1125,16 @@
           "title": "选择模型",
           "usageTypeTitle": "用途类型"
         },
+        "searchPlaceholder": "搜索模型...",
         "filter": {
           "all": "全部"
+        },
+        "sort": {
+          "provider": "服务商",
+          "name": "名称",
+          "calls": "调用",
+          "speed": "速率",
+          "group": "按服务商分组"
         },
         "stats": {
           "asr": "ASR: {{count}}",
@@ -1138,7 +1147,16 @@
         },
         "title": "模型",
         "setAsDefault": "设为默认",
-        "invalidJson": "无效的 JSON 格式"
+        "invalidJson": "无效的 JSON 格式",
+        "empty": {
+          "description": "添加模型以开始使用",
+          "title": "暂无模型",
+          "noMatch": "没有匹配的模型"
+        }
+      },
+      "providerModels": {
+        "totalCalls": "次调用",
+        "avgSpeed": "tokens/sec"
       },
       "prompts": {
         "activeSet": "已设为默认提示词",

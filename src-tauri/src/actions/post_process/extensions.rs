@@ -347,6 +347,29 @@ pub async fn multi_post_process_transcription(
     let total = items.len();
 
     let strategy = settings.multi_model_strategy.as_str();
+
+    // For manual strategy, pre-select the preferred/favorite model
+    if strategy == "manual" {
+        auto_selected_id = settings
+            .multi_model_preferred_id
+            .clone()
+            .filter(|id| items.iter().any(|item| &item.id == id))
+            .or_else(|| {
+                settings
+                    .multi_model_manual_pick_counts
+                    .iter()
+                    .filter(|(id, _)| items.iter().any(|item| &item.id == *id))
+                    .max_by_key(|(_, count)| *count)
+                    .map(|(id, _)| id.clone())
+            });
+        if let Some(ref id) = auto_selected_id {
+            info!("[MultiModel] Manual mode pre-selected favorite: {}", id);
+            let _ = _app_handle.emit(
+                "multi-post-process-auto-selected",
+                serde_json::json!({ "id": id }),
+            );
+        }
+    }
     let preferred_model_id = if strategy == "lazy" {
         settings
             .multi_model_preferred_id

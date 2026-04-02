@@ -4,6 +4,8 @@ export type ProviderTemplate = {
   baseUrl: string;
   category: string;
   modelsEndpoint?: string;
+  websiteUrl?: string;
+  signupUrl?: string;
 };
 
 export const RECOMMENDED_PROVIDER_TEMPLATE_IDS = [
@@ -21,6 +23,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.openai.com/v1",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://platform.openai.com",
+    signupUrl: "https://platform.openai.com/signup",
   },
   {
     id: "custom",
@@ -35,6 +39,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://openrouter.ai/api/v1",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://openrouter.ai",
+    signupUrl: "https://openrouter.ai/keys",
   },
   {
     id: "groq",
@@ -42,6 +48,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.groq.com/openai/v1",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://groq.com",
+    signupUrl: "https://console.groq.com/keys",
   },
   {
     id: "xai",
@@ -49,6 +57,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.x.ai/v1",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://x.ai",
+    signupUrl: "https://console.x.ai",
   },
   {
     id: "anthropic",
@@ -56,6 +66,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.anthropic.com/v1",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.anthropic.com",
+    signupUrl: "https://console.anthropic.com",
   },
   {
     id: "gemini",
@@ -63,6 +75,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://ai.google.dev",
+    signupUrl: "https://aistudio.google.com/apikey",
   },
   {
     id: "deepseek",
@@ -70,6 +84,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.deepseek.com/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.deepseek.com",
+    signupUrl: "https://platform.deepseek.com/sign_up",
   },
   {
     id: "together",
@@ -77,6 +93,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.together.xyz/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.together.ai",
+    signupUrl: "https://api.together.ai/signin",
   },
   {
     id: "fireworks",
@@ -84,6 +102,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.fireworks.ai/inference/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://fireworks.ai",
+    signupUrl: "https://fireworks.ai/login",
   },
   {
     id: "siliconflow",
@@ -91,6 +111,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.siliconflow.com/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://siliconflow.cn",
+    signupUrl: "https://cloud.siliconflow.cn/account/ak",
   },
   {
     id: "zai",
@@ -98,6 +120,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.z.ai/api/paas/v4",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://z.ai",
+    signupUrl: "https://z.ai",
   },
   {
     id: "gitee",
@@ -105,6 +129,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://ai.gitee.com/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://ai.gitee.com",
+    signupUrl: "https://ai.gitee.com/dashboard/settings/tokens",
   },
   {
     id: "minimax",
@@ -112,6 +138,9 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.minimaxi.com/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.minimaxi.com",
+    signupUrl:
+      "https://platform.minimaxi.com/user-center/basic-information/interface-key",
   },
   {
     id: "moonshot",
@@ -119,6 +148,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.moonshot.cn/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.moonshot.cn",
+    signupUrl: "https://platform.moonshot.cn/console/api-keys",
   },
   {
     id: "perplexity",
@@ -126,6 +157,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.perplexity.ai",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.perplexity.ai",
+    signupUrl: "https://docs.perplexity.ai/guides/getting-started",
   },
   {
     id: "qwen",
@@ -133,6 +166,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://help.aliyun.com/zh/model-studio",
+    signupUrl: "https://bailian.console.aliyun.com/#/api-key",
   },
   {
     id: "stepfun",
@@ -140,6 +175,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.stepfun.com/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.stepfun.com",
+    signupUrl: "https://platform.stepfun.com/interface-key",
   },
   {
     id: "doubao",
@@ -147,6 +184,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.volcengine.com/product/doubao",
+    signupUrl: "https://console.volcengine.com/ark",
   },
   {
     id: "baichuan",
@@ -154,6 +193,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.baichuan-ai.com/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://www.baichuan-ai.com",
+    signupUrl: "https://platform.baichuan-ai.com/console/apikey",
   },
   {
     id: "ollama",
@@ -161,6 +202,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "http://localhost:11434/v1",
     category: "Local",
     modelsEndpoint: "/models",
+    websiteUrl: "https://ollama.com",
   },
   {
     id: "lmstudio",
@@ -168,6 +210,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "http://localhost:1234/v1",
     category: "Local",
     modelsEndpoint: "/models",
+    websiteUrl: "https://lmstudio.ai",
   },
   {
     id: "localai",
@@ -175,6 +218,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "http://localhost:8080/v1",
     category: "Local",
     modelsEndpoint: "/models",
+    websiteUrl: "https://localai.io",
   },
   {
     id: "vllm",
@@ -182,6 +226,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "http://localhost:8000/v1",
     category: "Local",
     modelsEndpoint: "/models",
+    websiteUrl: "https://docs.vllm.ai",
   },
   {
     id: "xinference",
@@ -189,6 +234,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "http://localhost:9997/v1",
     category: "Local",
     modelsEndpoint: "/models",
+    websiteUrl: "https://inference.readthedocs.io",
   },
   {
     id: "omlx",
@@ -196,6 +242,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "http://localhost:8000/v1",
     category: "Local",
     modelsEndpoint: "/models",
+    websiteUrl: "https://github.com/nickam/omlx",
   },
   {
     id: "xingchen",
@@ -203,6 +250,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://maas.xfyun.cn/v1",
     category: "Official",
     modelsEndpoint: "/models",
+    websiteUrl: "https://training.xfyun.cn",
+    signupUrl: "https://maas.xfyun.cn",
   },
   {
     id: "zhipu",
@@ -210,6 +259,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://open.bigmodel.cn/api/paas/v4",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://open.bigmodel.cn",
+    signupUrl: "https://open.bigmodel.cn/usercenter/apikeys",
   },
   {
     id: "longcat",
@@ -217,6 +268,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.longcat.ai/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
+    websiteUrl: "https://longcat.ai",
+    signupUrl: "https://longcat.ai",
   },
   {
     id: "apple_intelligence",

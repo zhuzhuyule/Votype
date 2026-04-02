@@ -101,6 +101,7 @@ interface ReviewData {
 interface ReviewWindowProps {
   initialData: ReviewData;
   multiCandidates?: MultiModelCandidate[];
+  autoSelectedId?: string | null;
   onClose: () => void;
 }
 
@@ -211,20 +212,43 @@ const CodeBlockComponent = ({
 const ReviewWindow: React.FC<ReviewWindowProps> = ({
   initialData,
   multiCandidates,
+  autoSelectedId,
   onClose,
 }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
-    multiCandidates && multiCandidates.length > 0
-      ? multiCandidates[0].id
-      : null,
+    autoSelectedId && multiCandidates?.some((c) => c.id === autoSelectedId)
+      ? autoSelectedId
+      : multiCandidates && multiCandidates.length > 0
+        ? multiCandidates[0].id
+        : null,
   );
   const selectedCandidateIdRef = useRef(selectedCandidateId);
   useEffect(() => {
     selectedCandidateIdRef.current = selectedCandidateId;
   }, [selectedCandidateId]);
+
+  // Auto-select candidate when backend picks one (race/lazy mode)
+  useEffect(() => {
+    if (!multiCandidates) return;
+    let unlisten: (() => void) | null = null;
+    listen<{ id: string }>("multi-post-process-auto-selected", (event) => {
+      setSelectedCandidateId((prev) => {
+        // Only auto-select if user hasn't manually picked a different candidate
+        const initialId = multiCandidates[0]?.id;
+        if (prev !== null && prev !== initialId) return prev;
+        return event.payload.id;
+      });
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => {
+      if (unlisten) unlisten();
+    };
+  }, [!!multiCandidates]);
+
   const [editingCandidateId, setEditingCandidateId] = useState<string | null>(
     null,
   );

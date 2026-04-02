@@ -924,6 +924,7 @@
           },
           "fields": {
             "apiKey": "API Key",
+            "getApiKey": "Get API Key",
             "baseUrl": "Base URL",
             "baseUrlHint": "OpenAI compatible mode, usually ends with /v1. Use '#' suffix to bypass /v1 auto-append.",
             "actualUrlPreview": "Actual API URL Preview",
@@ -1155,8 +1156,16 @@
           "manualLabel": "Manual Label",
           "selectLabel": "Select Label"
         },
+        "searchPlaceholder": "Search models...",
         "filter": {
           "all": "All"
+        },
+        "sort": {
+          "provider": "Provider",
+          "name": "Name",
+          "calls": "Calls",
+          "speed": "Speed",
+          "group": "Group by provider"
         },
         "stats": {
           "asr": "ASR: {{count}}",
@@ -1169,7 +1178,16 @@
         },
         "title": "Models",
         "setAsDefault": "Set as Default",
-        "invalidJson": "Invalid JSON format"
+        "invalidJson": "Invalid JSON format",
+        "empty": {
+          "description": "Add a model to get started.",
+          "title": "No models configured",
+          "noMatch": "No models match your search."
+        }
+      },
+      "providerModels": {
+        "totalCalls": "calls",
+        "avgSpeed": "tokens/sec"
       },
       "prompts": {
         "activeSet": "Set as default prompt",

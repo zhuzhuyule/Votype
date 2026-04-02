@@ -43,6 +43,7 @@ pub(super) async fn execute_smart_action_routing(
     settings: &AppSettings,
     fallback_provider: &PostProcessProvider,
     transcription: &str,
+    history_id: Option<i64>,
 ) -> Option<super::IntentDecision> {
     // Resolve intent model
     let default_prompt = settings.post_process_prompts.first()?;
@@ -63,6 +64,12 @@ pub(super) async fn execute_smart_action_routing(
     let intent_chain = settings.post_process_intent_model.as_ref();
     let has_fallback = intent_chain.and_then(|c| c.fallback_id.as_ref()).is_some();
 
+    // Capture metrics manager for per-participant logging
+    let intent_metrics = app_handle
+        .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+        .map(|m| (*m).clone());
+    let intent_history_id = history_id;
+
     let (response_text, actual_model_id, actual_provider_id) = if has_fallback {
         let chain = intent_chain.unwrap();
         let app = app_handle.clone();
@@ -75,10 +82,22 @@ pub(super) async fn execute_smart_action_routing(
             let s = s.clone();
             let sys_prompt = sys_prompt.clone();
             let text = text.clone();
+            let metrics = intent_metrics.clone();
+            let hist_id = intent_history_id;
             async move {
                 let (prov, remote_model) = resolve_cached_model_to_provider_owned(&s, &model_id)
                     .ok_or_else(|| format!("Model {} not found or invalid", model_id))?;
-                let (result, err, error_msg, _) = super::core::execute_llm_request(
+                // Resolve the API model_id and provider_id for logging
+                let log_model_id = s
+                    .cached_models
+                    .iter()
+                    .find(|m| m.id == model_id)
+                    .map(|m| m.model_id.clone())
+                    .unwrap_or_else(|| model_id.clone());
+                let log_provider_id = prov.id.clone();
+
+                let call_start = std::time::Instant::now();
+                let (result, err, error_msg, token_count) = super::core::execute_llm_request(
                     &app,
                     &s,
                     &prov,
@@ -92,6 +111,32 @@ pub(super) async fn execute_smart_action_routing(
                     None,
                 )
                 .await;
+                let elapsed_ms = call_start.elapsed().as_millis() as i64;
+
+                // Self-log metrics for this participant
+                if let Some(ref m) = metrics {
+                    let token_est = token_count.map(|t| t as f64);
+                    let speed = match (token_est, elapsed_ms) {
+                        (Some(est), dur) if dur > 0 => Some(est / dur as f64 * 1000.0),
+                        _ => None,
+                    };
+                    let err_msg = if err { error_msg.clone() } else { None };
+                    let _ = m.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                        history_id: hist_id,
+                        model_id: log_model_id,
+                        provider: log_provider_id,
+                        call_type: "intent".to_string(),
+                        input_tokens: None,
+                        output_tokens: None,
+                        total_tokens: token_count,
+                        token_estimate: token_est,
+                        duration_ms: elapsed_ms,
+                        tokens_per_sec: speed,
+                        error: err_msg,
+                        is_fallback: false, // set correctly below after race resolves
+                    });
+                }
+
                 if err {
                     Err(error_msg.unwrap_or_else(|| "LLM error".into()))
                 } else {
@@ -122,7 +167,8 @@ pub(super) async fn execute_smart_action_routing(
         let captured_provider_id = provider.id.clone();
         let captured_model_id = model.clone();
 
-        let (result, _err, _error_msg, _token_count) = super::core::execute_llm_request(
+        let call_start = std::time::Instant::now();
+        let (result, err, error_msg, token_count) = super::core::execute_llm_request(
             app_handle,
             settings,
             provider,
@@ -136,6 +182,31 @@ pub(super) async fn execute_smart_action_routing(
             None,
         )
         .await;
+        let elapsed_ms = call_start.elapsed().as_millis() as i64;
+
+        // Log metrics for direct (non-fallback) intent call
+        if let Some(ref m) = intent_metrics {
+            let token_est = token_count.map(|t| t as f64);
+            let speed = match (token_est, elapsed_ms) {
+                (Some(est), dur) if dur > 0 => Some(est / dur as f64 * 1000.0),
+                _ => None,
+            };
+            let err_msg = if err { error_msg.clone() } else { None };
+            let _ = m.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                history_id: intent_history_id,
+                model_id: captured_model_id.clone(),
+                provider: captured_provider_id.clone(),
+                call_type: "intent".to_string(),
+                input_tokens: None,
+                output_tokens: None,
+                total_tokens: token_count,
+                token_estimate: token_est,
+                duration_ms: elapsed_ms,
+                tokens_per_sec: speed,
+                error: err_msg,
+                is_fallback: false,
+            });
+        }
 
         match result {
             Some(text) => (text, captured_model_id, captured_provider_id),
@@ -427,6 +498,8 @@ pub(super) struct DefaultPolishResult {
     pub model_id: String,
     pub provider_id: String,
     pub duration_ms: u64,
+    /// When true, metrics were self-logged per participant (fallback chain).
+    pub metrics_self_logged: bool,
 }
 
 /// Execute default polish request for parallel processing.
@@ -442,8 +515,23 @@ pub(super) async fn execute_default_polish<'a>(
     window_title: Option<String>,
     history_id: Option<i64>,
 ) -> Option<DefaultPolishResult> {
-    let (actual_provider, model) =
-        resolve_effective_model(settings, fallback_provider, default_prompt)?;
+    // Check for fallback chain (only when no prompt-specific model)
+    let polish_chain = if default_prompt.model_id.is_none() {
+        settings.selected_prompt_model.as_ref()
+    } else {
+        None
+    };
+    let has_fallback = polish_chain.and_then(|c| c.fallback_id.as_ref()).is_some();
+
+    // For non-fallback: resolve model early (fail fast)
+    let single_resolved = if !has_fallback {
+        match resolve_effective_model(settings, fallback_provider, default_prompt) {
+            Some(r) => Some(r),
+            None => return None,
+        }
+    } else {
+        None
+    };
 
     let hotword_injection = if settings.post_process_hotword_injection_enabled {
         if let Some(hm) =
@@ -555,77 +643,222 @@ pub(super) async fn execute_default_polish<'a>(
         ))
         .build();
 
-    let cached_model_id = default_prompt.model_id.as_deref().or(settings
-        .selected_prompt_model
-        .as_ref()
-        .map(|c| c.primary_id.as_str()));
+    // --- Phase 3: Execute ---
+    if has_fallback {
+        // Fallback chain: each participant resolves model + presets, executes, and self-logs
+        let chain = polish_chain.unwrap();
+        let app = app_handle.clone();
+        let s = settings.clone();
+        let sys_msgs = built.system_messages.clone();
+        let user_msg = built.user_message.clone();
+        let an = app_name;
+        let wt = window_title;
+        let metrics = app_handle
+            .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+            .map(|m| (*m).clone());
+        let presets_config = app_handle
+            .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>()
+            .map(|c| (*c).clone());
+        let prompt_preset = default_prompt.param_preset.clone();
+        let hist_id = history_id;
 
-    // Resolve preset parameters
-    let presets_config =
-        app_handle.try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
-    let merged_extra_params = if let Some(config) = presets_config {
-        let cached_model = cached_model_id
-            .and_then(|id| settings.cached_models.iter().find(|m| m.id == id))
-            .or_else(|| {
-                settings
+        let fb_result = crate::fallback::execute_with_fallback(chain, |cached_model_id| {
+            let app = app.clone();
+            let s = s.clone();
+            let sys_msgs = sys_msgs.clone();
+            let user_msg = user_msg.clone();
+            let an = an.clone();
+            let wt = wt.clone();
+            let metrics = metrics.clone();
+            let presets_config = presets_config.clone();
+            let prompt_preset = prompt_preset.clone();
+            async move {
+                let cached = s
                     .cached_models
                     .iter()
-                    .find(|m| m.model_id == model && m.provider_id == actual_provider.id)
-            });
+                    .find(|m| m.id == cached_model_id)
+                    .ok_or_else(|| format!("Model {} not found", cached_model_id))?;
+                let provider = s
+                    .post_process_provider(&cached.provider_id)
+                    .ok_or_else(|| format!("Provider {} not found", cached.provider_id))?;
+                let model = cached.model_id.clone();
+                let log_model_id = cached.model_id.clone();
+                let log_provider_id = provider.id.clone();
 
-        let preset_params = crate::managers::model_preset::resolve_preset_params(
-            default_prompt.param_preset.as_deref(),
-            cached_model.and_then(|m| m.model_family.as_deref()),
-            &model,
-            &config,
-        );
+                // Resolve presets for this model
+                let merged_extra_params = if let Some(ref config) = presets_config {
+                    let preset_params = crate::managers::model_preset::resolve_preset_params(
+                        prompt_preset.as_deref(),
+                        cached.model_family.as_deref(),
+                        &model,
+                        config,
+                    );
+                    if preset_params.is_empty() {
+                        None
+                    } else {
+                        Some(crate::managers::model_preset::merge_params(
+                            preset_params,
+                            cached.extra_params.as_ref(),
+                        ))
+                    }
+                } else {
+                    None
+                };
 
-        if preset_params.is_empty() {
-            None
-        } else {
-            let merged = crate::managers::model_preset::merge_params(
-                preset_params,
-                cached_model.and_then(|m| m.extra_params.as_ref()),
-            );
-            Some(merged)
-        }
-    } else {
-        None
-    };
+                let call_start = std::time::Instant::now();
+                let (result, err, error_msg, token_count) =
+                    super::core::execute_llm_request_with_messages(
+                        &app,
+                        &s,
+                        provider,
+                        &model,
+                        Some(&cached_model_id),
+                        &sys_msgs,
+                        user_msg.as_deref(),
+                        None,
+                        an,
+                        wt,
+                        None,
+                        None,
+                        merged_extra_params.as_ref(),
+                    )
+                    .await;
+                let elapsed_ms = call_start.elapsed().as_millis() as u64;
 
-    let polish_start = std::time::Instant::now();
-    let (result, _err, _error_message, api_token_count) =
-        super::core::execute_llm_request_with_messages(
-            app_handle,
-            settings,
-            actual_provider,
-            &model,
-            cached_model_id,
-            &built.system_messages,
-            built.user_message.as_deref(),
-            None,
-            app_name,
-            window_title,
-            None,
-            None,
-            merged_extra_params.as_ref(),
-        )
+                // Self-log metrics for this participant
+                if let Some(ref m) = metrics {
+                    let tokens_per_sec = match (&result, elapsed_ms) {
+                        (Some(ref t), d) if d > 0 => {
+                            let est = super::extensions::estimate_tokens(t);
+                            Some(est / d as f64 * 1000.0)
+                        }
+                        _ => None,
+                    };
+                    let _ = m.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                        history_id: hist_id,
+                        model_id: log_model_id.clone(),
+                        provider: log_provider_id.clone(),
+                        call_type: "single_polish".to_string(),
+                        input_tokens: None,
+                        output_tokens: None,
+                        total_tokens: token_count,
+                        token_estimate: None,
+                        duration_ms: elapsed_ms as i64,
+                        tokens_per_sec,
+                        error: if err { error_msg.clone() } else { None },
+                        is_fallback: false,
+                    });
+                }
+
+                if err {
+                    Err(error_msg.unwrap_or_else(|| "LLM error".into()))
+                } else {
+                    result
+                        .map(|text| DefaultPolishResult {
+                            text,
+                            token_count,
+                            model_id: log_model_id,
+                            provider_id: log_provider_id,
+                            duration_ms: elapsed_ms,
+                            metrics_self_logged: true,
+                        })
+                        .ok_or_else(|| "Empty result".into())
+                }
+            }
+        })
         .await;
 
-    if let Some(ref text) = result {
-        info!(
-            "[ParallelPolish] Default polish completed, result length: {}",
-            text.len()
-        );
+        if fb_result.is_fallback {
+            info!(
+                "[DefaultPolish] Used fallback model '{}' (primary error: {:?})",
+                fb_result.actual_model_id, fb_result.primary_error
+            );
+        }
+
+        match fb_result.result {
+            Ok(result) => Some(result),
+            Err(e) => {
+                log::warn!("[DefaultPolish] Fallback chain failed: {}", e);
+                None
+            }
+        }
+    } else {
+        // --- Single model path (existing behavior) ---
+        let (actual_provider, model) = single_resolved.unwrap();
+
+        let cached_model_id = default_prompt.model_id.as_deref().or(settings
+            .selected_prompt_model
+            .as_ref()
+            .map(|c| c.primary_id.as_str()));
+
+        // Resolve preset parameters
+        let presets_config = app_handle
+            .try_state::<std::sync::Arc<crate::managers::model_preset::ModelPresetsConfig>>();
+        let merged_extra_params = if let Some(config) = presets_config {
+            let cached_model = cached_model_id
+                .and_then(|id| settings.cached_models.iter().find(|m| m.id == id))
+                .or_else(|| {
+                    settings
+                        .cached_models
+                        .iter()
+                        .find(|m| m.model_id == model && m.provider_id == actual_provider.id)
+                });
+
+            let preset_params = crate::managers::model_preset::resolve_preset_params(
+                default_prompt.param_preset.as_deref(),
+                cached_model.and_then(|m| m.model_family.as_deref()),
+                &model,
+                &config,
+            );
+
+            if preset_params.is_empty() {
+                None
+            } else {
+                let merged = crate::managers::model_preset::merge_params(
+                    preset_params,
+                    cached_model.and_then(|m| m.extra_params.as_ref()),
+                );
+                Some(merged)
+            }
+        } else {
+            None
+        };
+
+        let polish_start = std::time::Instant::now();
+        let (result, _err, _error_message, api_token_count) =
+            super::core::execute_llm_request_with_messages(
+                app_handle,
+                settings,
+                actual_provider,
+                &model,
+                cached_model_id,
+                &built.system_messages,
+                built.user_message.as_deref(),
+                None,
+                app_name,
+                window_title,
+                None,
+                None,
+                merged_extra_params.as_ref(),
+            )
+            .await;
+
+        if let Some(ref text) = result {
+            info!(
+                "[ParallelPolish] Default polish completed, result length: {}",
+                text.len()
+            );
+        }
+        let polish_duration = polish_start.elapsed().as_millis() as u64;
+        result.map(|text| DefaultPolishResult {
+            text,
+            token_count: api_token_count,
+            model_id: model.clone(),
+            provider_id: actual_provider.id.clone(),
+            duration_ms: polish_duration,
+            metrics_self_logged: false,
+        })
     }
-    let polish_duration = polish_start.elapsed().as_millis() as u64;
-    result.map(|text| DefaultPolishResult {
-        text,
-        token_count: api_token_count,
-        model_id: model.clone(),
-        provider_id: actual_provider.id.clone(),
-        duration_ms: polish_duration,
-    })
 }
 
 pub(super) fn resolve_effective_model<'a>(
@@ -877,9 +1110,14 @@ pub(super) async fn execute_smart_polish<'a>(
 
     // If smart routing is enabled and text is short, run classification first
     if smart_routing_enabled && is_short_text {
-        let decision =
-            execute_smart_action_routing(app_handle, settings, fallback_provider, transcription)
-                .await;
+        let decision = execute_smart_action_routing(
+            app_handle,
+            settings,
+            fallback_provider,
+            transcription,
+            history_id,
+        )
+        .await;
 
         match decision {
             Some(d) => {

@@ -1,472 +1,420 @@
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useMemo, useState } from "react";
 import { EditModelDialog } from "./dialogs/EditModelDialog";
-import { useSettingsStore } from "../../../stores/settingsStore";
 
 import {
   AlertDialog,
-  Badge,
   Box,
   Button,
-  Checkbox,
-  Dialog,
   Flex,
   Grid,
   IconButton,
-  Switch,
+  SegmentedControl,
   Text,
-  TextArea,
   TextField,
   Tooltip,
 } from "@radix-ui/themes";
 import {
+  IconActivity,
   IconBrain,
-  IconCircleCheckFilled,
   IconEdit,
+  IconFlame,
+  IconLayoutList,
   IconPlayerPlay,
+  IconSearch,
   IconTag,
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import {
+  useModelSpeedStats,
+  type ModelSpeedStats,
+} from "../../../hooks/useModelSpeedStats";
 import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel, ModelType } from "../../../lib/types";
 
-// Helper to render a section of models
-const renderModelSection = ({
-  type,
-  allModels,
-  providerMap,
-  preferredProviderId,
-  settings,
-  isUpdating,
-  handleRemove,
-  t,
-  refreshSettings,
-  allowSelection,
-  contentStyle = "",
-  hideIfEmpty = true,
-  multiModelSelectedIds,
-  onToggleMultiModel,
-  onEditModel,
-}: {
-  type: ModelType;
-  allModels: CachedModel[];
-  providerMap: Record<string, string>;
-  preferredProviderId?: string;
-  settings: any;
-  isUpdating: (id: string) => boolean;
-  handleRemove: (id: string) => void;
-  t: any;
-  refreshSettings: () => Promise<void>;
-  allowSelection: boolean;
-  headerStyle?: string;
-  contentStyle?: string;
-  hideIfEmpty?: boolean;
-  multiModelSelectedIds?: Set<string>;
-  onToggleMultiModel?: (id: string, selected: boolean) => void;
-  onEditModel?: (model: CachedModel) => void;
-}) => {
-  const models = allModels.filter(
-    (m) => m.model_type === type && providerMap[m.provider_id] !== undefined,
-  );
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-  if (hideIfEmpty && models.length === 0) {
-    return (
+function formatSpeed(speed: number): string {
+  if (speed >= 1000) return `${(speed / 1000).toFixed(1)}k`;
+  if (speed >= 100) return Math.round(speed).toString();
+  if (speed >= 10) return speed.toFixed(1);
+  return speed.toFixed(2);
+}
+
+function formatCalls(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toString();
+}
+
+function getModelStats(
+  modelId: string,
+  providerId: string,
+  stats: ModelSpeedStats[],
+): { totalCalls: number; avgSpeed: number } | null {
+  const matched = stats.filter(
+    (s) => s.model_id === modelId && s.provider === providerId,
+  );
+  if (matched.length === 0) return null;
+  const totalCalls = matched.reduce((sum, s) => sum + s.total_calls, 0);
+  const weightedSpeed = matched.reduce(
+    (sum, s) => sum + s.avg_speed * s.total_calls,
+    0,
+  );
+  return {
+    totalCalls,
+    avgSpeed: totalCalls > 0 ? weightedSpeed / totalCalls : 0,
+  };
+}
+
+type SortKey = "name" | "calls" | "speed" | "provider";
+
+// ─── Model Card ─────────────────────────────────────────────────────────────
+
+const ModelCard: React.FC<{
+  model: CachedModel;
+  onEditModel: (model: CachedModel) => void;
+  handleRemove: (id: string) => void;
+  isRemoving: boolean;
+  providerName: string;
+  showProvider: boolean;
+  stats: { totalCalls: number; avgSpeed: number } | null;
+  t: any;
+}> = ({
+  model,
+  onEditModel,
+  handleRemove,
+  isRemoving,
+  providerName,
+  showProvider,
+  stats,
+  t,
+}) => {
+  return (
+    <Box className="group/card relative rounded-[var(--radius-3)] border border-(--gray-a4) bg-(--color-panel-solid) hover:border-(--gray-a6) hover:shadow-[0_1px_6px_rgba(0,0,0,0.04)] transition-all duration-100 overflow-hidden">
+      <Flex direction="column" gap="1.5" className="px-3 py-2.5">
+        {/* Row 1: model name + icons */}
+        <Flex align="center" gap="1.5" className="min-w-0">
+          {model.custom_label ? (
+            <Tooltip content={model.model_id} delayDuration={200}>
+              <Flex align="center" gap="1" className="min-w-0">
+                <Text size="2" weight="medium" className="truncate">
+                  {model.custom_label}
+                </Text>
+                <IconTag size={11} className="text-amber-500/70 shrink-0" />
+              </Flex>
+            </Tooltip>
+          ) : (
+            <Text size="2" weight="medium" className="truncate">
+              {model.model_id}
+            </Text>
+          )}
+          {model.is_thinking_model && (
+            <Tooltip content="Thinking model" delayDuration={200}>
+              <IconBrain size={12} className="text-purple-500/80 shrink-0" />
+            </Tooltip>
+          )}
+        </Flex>
+
+        {/* Row 2: provider + stats */}
+        <Flex align="center" justify="between">
+          {showProvider ? (
+            <Text size="1" className="text-(--gray-8) truncate">
+              {providerName}
+            </Text>
+          ) : (
+            <Box />
+          )}
+
+          {stats && stats.totalCalls > 0 ? (
+            <Flex align="center" gap="2.5" className="shrink-0">
+              <Tooltip
+                content={`${stats.totalCalls.toLocaleString()} ${t("settings.postProcessing.providerModels.totalCalls", "calls")}`}
+                delayDuration={300}
+              >
+                <Flex align="center" gap="0.5">
+                  <IconActivity
+                    size={10}
+                    strokeWidth={2.5}
+                    className="text-(--gray-8)"
+                  />
+                  <Text size="1" className="text-(--gray-9) tabular-nums">
+                    {formatCalls(stats.totalCalls)}
+                  </Text>
+                </Flex>
+              </Tooltip>
+              {stats.avgSpeed > 0 && (
+                <Tooltip
+                  content={`${stats.avgSpeed.toFixed(1)} ${t("settings.postProcessing.providerModels.avgSpeed", "tokens/sec")}`}
+                  delayDuration={300}
+                >
+                  <Flex align="center" gap="0.5">
+                    <IconFlame
+                      size={10}
+                      strokeWidth={2.5}
+                      className="text-amber-500/50"
+                    />
+                    <Text size="1" className="text-(--gray-9) tabular-nums">
+                      {formatSpeed(stats.avgSpeed)}
+                      <span className="opacity-40 ml-0.5">t/s</span>
+                    </Text>
+                  </Flex>
+                </Tooltip>
+              )}
+            </Flex>
+          ) : (
+            <Text size="1" className="text-(--gray-7) shrink-0">
+              --
+            </Text>
+          )}
+        </Flex>
+      </Flex>
+
+      {/* Hover overlay: actions */}
       <Flex
         align="center"
         justify="center"
-        p="4"
-        className="bg-gray-50/50 rounded-lg border border-dashed border-gray-200"
+        gap="1"
+        className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-100 bg-(--color-panel-solid)/80 backdrop-blur-[2px]"
       >
-        <Text size="1" color="gray" className="opacity-70">
-          {t("settings.postProcessing.models.empty.description")}
-        </Text>
-      </Flex>
-    );
-  }
+        <IconButton
+          size="1"
+          variant="soft"
+          color="green"
+          onClick={async (e) => {
+            e.stopPropagation();
+            const toastId = toast.loading(
+              t("settings.postProcessing.api.providers.api.testing"),
+            );
+            try {
+              const isAsrModel = model.model_type === "asr";
+              const result = isAsrModel
+                ? await invoke<string>("test_asr_model_inference", {
+                    modelId: model.model_id,
+                  })
+                : await invoke<any>("test_post_process_model_inference", {
+                    providerId: model.provider_id,
+                    modelId: model.model_id,
+                    cachedModelId: model.id,
+                    input: "OK",
+                  });
 
-  // Group models by provider
-  const groupedModels: Record<string, CachedModel[]> = {};
-  models.forEach((model) => {
-    const providerKey = model.provider_id;
-    if (!groupedModels[providerKey]) {
-      groupedModels[providerKey] = [];
-    }
-    groupedModels[providerKey].push(model);
-  });
+              const resultObj = isAsrModel
+                ? ({ content: result as string } as const)
+                : (result as { content: string; reasoning_content?: string });
 
-  const orderedGroups = Object.entries(groupedModels).sort(
-    ([left], [right]) => {
-      if (left === preferredProviderId) return -1;
-      if (right === preferredProviderId) return 1;
-      return (providerMap[left] ?? left).localeCompare(
-        providerMap[right] ?? right,
-      );
-    },
-  );
+              const mainContent = resultObj.content || "";
+              const hasThinking =
+                ("reasoning_content" in resultObj &&
+                  !!resultObj.reasoning_content) ||
+                mainContent.includes("<think>");
 
-  return (
-    <Flex direction="column" className="h-full">
-      <Box className={`space-y-4 flex-1 ${contentStyle}`}>
-        {orderedGroups.map(([providerId, providerModels], index) => {
-          const isPreferred = providerId === preferredProviderId;
-          return (
-            <Box
-              key={providerId}
-              className={`${
-                index > 0
-                  ? "mt-4 pt-4 border-t border-gray-100 dark:border-white/10"
-                  : ""
-              } ${isPreferred ? "rounded-lg bg-(--accent-a2) px-2 py-2 -mx-2 ring-1 ring-(--accent-a4)" : ""}`}
+              toast.dismiss(toastId);
+              const modelLabel =
+                model.custom_label?.trim() ||
+                model.name?.trim() ||
+                model.model_id;
+              const msg = t(
+                "settings.postProcessing.api.providers.api.testSuccess",
+                {
+                  result: hasThinking
+                    ? `[Thinking] ${mainContent}`
+                    : mainContent,
+                },
+              );
+              toast.success(`${msg} (${modelLabel})`, {
+                duration: 5000,
+                closeButton: true,
+              });
+            } catch (error) {
+              toast.dismiss(toastId);
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+              toast.error(
+                t("settings.postProcessing.api.providers.testFailed", {
+                  error: errorMessage,
+                }),
+                {
+                  duration: Infinity,
+                  closeButton: true,
+                  style: { color: "red" },
+                },
+              );
+            }
+          }}
+          title={t("settings.postProcessing.api.providers.testConnection")}
+        >
+          <IconPlayerPlay size={14} />
+        </IconButton>
+
+        <IconButton
+          size="1"
+          variant="soft"
+          color="gray"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditModel(model);
+          }}
+          title={t("common.edit", "Edit")}
+        >
+          <IconEdit size={14} />
+        </IconButton>
+
+        <AlertDialog.Root>
+          <AlertDialog.Trigger>
+            <IconButton
+              size="1"
+              variant="soft"
+              color="red"
+              onClick={(e) => e.stopPropagation()}
+              disabled={isRemoving}
+              title={t("common.delete")}
             >
-              {/* Provider Header */}
-              <Text
-                size="2"
-                weight="bold"
-                className="block uppercase tracking-wider text-gray-600 dark:text-gray-300"
-                style={{ paddingLeft: 8, marginBottom: 6 }}
-              >
-                {providerMap[providerId] ?? providerId}
-              </Text>
-
-              {/* Models grid for this provider */}
-              <Grid columns="2" gap="1">
-                {providerModels.map((model, index) => {
-                  const isRemoving = isUpdating(
-                    `cached_model_remove:${model.id}`,
-                  );
-                  const isSelected =
-                    allowSelection &&
-                    settings?.selected_prompt_model?.primary_id === model.id;
-
-                  return (
-                    <Flex
-                      key={model.id}
-                      align="center"
-                      justify="between"
-                      className={`
-                      relative py-2.5 transition-colors cursor-pointer group rounded-md min-w-0
-                      ${isSelected ? "bg-indigo-50/50 dark:bg-indigo-500/20" : "hover:bg-gray-100/50 dark:hover:bg-white/5"}
-                    `}
-                      style={{ paddingLeft: 8, paddingRight: 8 }}
-                      onClick={async () => {
-                        if (allowSelection && !isRemoving) {
-                          try {
-                            await invoke("select_post_process_model", {
-                              modelId: model.id,
-                            });
-                            await refreshSettings();
-                          } catch (e) {
-                            console.error(e);
-                          }
-                        }
-                      }}
-                    >
-                      <Flex align="center" gap="2" className="flex-1 min-w-0">
-                        {/* Multi-model checkbox for text models */}
-                        {type === "text" &&
-                          multiModelSelectedIds &&
-                          onToggleMultiModel && (
-                            <Checkbox
-                              checked={multiModelSelectedIds.has(model.id)}
-                              onCheckedChange={(checked) => {
-                                onToggleMultiModel(model.id, !!checked);
-                              }}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          )}
-                        {model.custom_label ? (
-                          <Tooltip content={model.model_id} delayDuration={300}>
-                            <Flex align="center" gap="1" className="min-w-0">
-                              <Text
-                                size="2"
-                                weight={isSelected ? "bold" : "medium"}
-                                className="text-gray-900 dark:text-gray-200 truncate block"
-                              >
-                                {model.custom_label}
-                              </Text>
-                              <IconTag
-                                size={13}
-                                className="text-amber-500 shrink-0"
-                              />
-                            </Flex>
-                          </Tooltip>
-                        ) : (
-                          <Text
-                            size="2"
-                            weight={isSelected ? "bold" : "medium"}
-                            className="text-gray-900 dark:text-gray-200 truncate block"
-                          >
-                            {model.model_id}
-                          </Text>
-                        )}
-                        {isSelected && (
-                          <Badge
-                            size="1"
-                            variant="solid"
-                            className="bg-(--accent-a3) text-(--accent-11) uppercase font-bold tracking-wider rounded shrink-0"
-                          >
-                            {t("common.default", "默认")}
-                          </Badge>
-                        )}
-                        {model.is_thinking_model && (
-                          <IconBrain
-                            size={14}
-                            className="text-purple-500 shrink-0"
-                          />
-                        )}
-                      </Flex>
-                      {/* Actions - Visible on Hover */}
-                      <Flex
-                        gap="1"
-                        align="center"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 invisible group-hover:visible bg-inherit rounded-md px-1 py-0.5"
-                      >
-                        {allowSelection && !isSelected && (
-                          <IconButton
-                            size="1"
-                            variant="ghost"
-                            color="gray"
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (!isRemoving) {
-                                try {
-                                  await invoke("select_post_process_model", {
-                                    modelId: model.id,
-                                  });
-                                  await refreshSettings();
-                                } catch (e) {
-                                  console.error(e);
-                                }
-                              }
-                            }}
-                            title={t(
-                              "settings.postProcessing.models.setAsDefault",
-                              "Set as Default",
-                            )}
-                          >
-                            <IconCircleCheckFilled size={14} />
-                          </IconButton>
-                        )}
-                        <IconButton
-                          size="1"
-                          variant="ghost"
-                          color="green"
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            const toastId = toast.loading(
-                              t(
-                                "settings.postProcessing.api.providers.api.testing",
-                              ),
-                            );
-                            try {
-                              // Choose the appropriate test command based on model type
-                              const isAsrModel = model.model_type === "asr";
-                              const result = isAsrModel
-                                ? await invoke<string>(
-                                    "test_asr_model_inference",
-                                    {
-                                      modelId: model.model_id,
-                                    },
-                                  )
-                                : await invoke<any>(
-                                    "test_post_process_model_inference",
-                                    {
-                                      providerId: model.provider_id,
-                                      modelId: model.model_id,
-                                      cachedModelId: model.id,
-                                      input: "OK", // Simple input for text models
-                                    },
-                                  );
-
-                              const resultObj = isAsrModel
-                                ? ({ content: result as string } as const)
-                                : (result as {
-                                    content: string;
-                                    reasoning_content?: string;
-                                  });
-
-                              const mainContent = resultObj.content || "";
-                              const hasThinking =
-                                ("reasoning_content" in resultObj &&
-                                  !!resultObj.reasoning_content) ||
-                                mainContent.includes("<think>");
-
-                              toast.dismiss(toastId);
-
-                              const modelLabel =
-                                model.custom_label?.trim() ||
-                                model.name?.trim() ||
-                                model.model_id;
-
-                              const successMessage = t(
-                                "settings.postProcessing.api.providers.api.testSuccess",
-                                {
-                                  result: hasThinking
-                                    ? `[Thinking] ${mainContent}`
-                                    : mainContent,
-                                },
-                              );
-
-                              toast.success(
-                                `${successMessage} (${modelLabel})`,
-                                {
-                                  duration: 5000,
-                                  closeButton: true,
-                                },
-                              );
-                            } catch (error) {
-                              toast.dismiss(toastId);
-                              let errorMessage = String(error);
-                              // Simple normalization if it's an object/error instance
-                              if (error instanceof Error)
-                                errorMessage = error.message;
-
-                              toast.error(
-                                t(
-                                  "settings.postProcessing.api.providers.testFailed",
-                                  {
-                                    error: errorMessage,
-                                  },
-                                ),
-                                {
-                                  duration: Infinity,
-                                  closeButton: true,
-                                  style: { color: "red" },
-                                },
-                              );
-                            }
-                          }}
-                          title={t(
-                            "settings.postProcessing.api.providers.testConnection",
-                          )}
-                        >
-                          <IconPlayerPlay size={14} />
-                        </IconButton>
-
-                        {onEditModel && (
-                          <IconButton
-                            size="1"
-                            variant="ghost"
-                            color="gray"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditModel(model);
-                            }}
-                            title={t("common.edit", "Edit")}
-                          >
-                            <IconEdit size={14} />
-                          </IconButton>
-                        )}
-
-                        <AlertDialog.Root>
-                          <AlertDialog.Trigger>
-                            <IconButton
-                              size="1"
-                              variant="ghost"
-                              color="red"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                              }}
-                              disabled={!!isRemoving}
-                              title={t("common.delete")}
-                            >
-                              <IconTrash size={14} />
-                            </IconButton>
-                          </AlertDialog.Trigger>
-                          <AlertDialog.Content
-                            maxWidth="450px"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <AlertDialog.Title>
-                              {t(
-                                "settings.postProcessing.models.deleteConfirm.title",
-                              )}
-                            </AlertDialog.Title>
-                            <AlertDialog.Description size="2">
-                              {t(
-                                "settings.postProcessing.models.deleteConfirm.description",
-                              )}
-                            </AlertDialog.Description>
-                            <Flex gap="3" mt="4" justify="end">
-                              <AlertDialog.Cancel>
-                                <Button variant="soft" color="gray">
-                                  {t("common.cancel")}
-                                </Button>
-                              </AlertDialog.Cancel>
-                              <AlertDialog.Action>
-                                <Button
-                                  variant="solid"
-                                  color="red"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Just in case
-                                    handleRemove(model.id);
-                                  }}
-                                >
-                                  {t("common.delete")}
-                                </Button>
-                              </AlertDialog.Action>
-                            </Flex>
-                          </AlertDialog.Content>
-                        </AlertDialog.Root>
-                      </Flex>
-                    </Flex>
-                  );
-                })}
-              </Grid>
-            </Box>
-          );
-        })}
-      </Box>
-    </Flex>
+              <IconTrash size={14} />
+            </IconButton>
+          </AlertDialog.Trigger>
+          <AlertDialog.Content
+            maxWidth="450px"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <AlertDialog.Title>
+              {t("settings.postProcessing.models.deleteConfirm.title")}
+            </AlertDialog.Title>
+            <AlertDialog.Description size="2">
+              {t("settings.postProcessing.models.deleteConfirm.description")}
+            </AlertDialog.Description>
+            <Flex gap="3" mt="4" justify="end">
+              <AlertDialog.Cancel>
+                <Button variant="soft" color="gray">
+                  {t("common.cancel")}
+                </Button>
+              </AlertDialog.Cancel>
+              <AlertDialog.Action>
+                <Button
+                  variant="solid"
+                  color="red"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemove(model.id);
+                  }}
+                >
+                  {t("common.delete")}
+                </Button>
+              </AlertDialog.Action>
+            </Flex>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
+      </Flex>
+    </Box>
   );
 };
 
+// ─── Panel ──────────────────────────────────────────────────────────────────
+
 export interface ModelListPanelProps {
   targetType: ModelType | ModelType[];
-  allowSelection?: boolean;
-  showMultiModelCheckboxes?: boolean;
-  activeFilter?: ModelType;
-  preferredProviderId?: string;
+  /** null = show all, string = filter by this provider */
+  providerFilter: string | null;
+  onProviderFilterChange: (providerId: string | null) => void;
 }
 
 export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   targetType,
-  allowSelection: allowSelectionProp,
-  showMultiModelCheckboxes: showMultiModelCheckboxesProp,
-  activeFilter,
-  preferredProviderId,
+  providerFilter,
+  onProviderFilterChange,
 }) => {
   const { settings, removeCachedModel, isUpdating, refreshSettings } =
     useSettings();
-  const { toggleMultiModelSelection } = useSettingsStore();
-
-  // Edit model dialog state
+  const { stats: speedStats } = useModelSpeedStats();
   const [editingModel, setEditingModel] = useState<CachedModel | null>(null);
-
+  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [typeFilter, setTypeFilter] = useState<"all" | ModelType>("all");
+  const [query, setQuery] = useState("");
   const { t } = useTranslation();
+
   const cachedModels = settings?.cached_models ?? [];
-
-  const multiModelSelectedIds = useMemo(
-    () => new Set(settings?.multi_model_selected_ids ?? []),
-    [settings?.multi_model_selected_ids],
-  );
-
-  const handleToggleMultiModel = useCallback(
-    async (id: string, selected: boolean) => {
-      await toggleMultiModelSelection(id, selected);
-    },
-    [toggleMultiModelSelection],
+  const allTypes = useMemo(
+    () => (Array.isArray(targetType) ? targetType : [targetType]),
+    [targetType],
   );
 
   const providerNameMap = useMemo(() => {
     const map: Record<string, string> = {};
-    settings?.post_process_providers.forEach((provider) => {
-      map[provider.id] = provider.label;
+    settings?.post_process_providers.forEach((p) => {
+      map[p.id] = p.label;
     });
     return map;
   }, [settings?.post_process_providers]);
+
+  // Filter + sort
+  const filteredModels = useMemo(() => {
+    const lowerQuery = query.toLowerCase().trim();
+
+    // Determine active types
+    let activeTypes: ModelType[];
+    if (typeFilter === "all") {
+      activeTypes = allTypes;
+    } else if (typeFilter === "asr") {
+      activeTypes = allTypes.filter((t) => t === "asr" || t === "other");
+    } else {
+      activeTypes = allTypes.filter((t) => t === typeFilter);
+    }
+
+    let models = cachedModels.filter((m) => {
+      if (!activeTypes.includes(m.model_type)) return false;
+      if (!providerNameMap[m.provider_id]) return false;
+      if (providerFilter && m.provider_id !== providerFilter) return false;
+      if (lowerQuery) {
+        const target =
+          `${m.model_id} ${m.custom_label ?? ""} ${m.name}`.toLowerCase();
+        if (!target.includes(lowerQuery)) return false;
+      }
+      return true;
+    });
+
+    models = [...models].sort((a, b) => {
+      switch (sortKey) {
+        case "name": {
+          const nameA = (a.custom_label || a.model_id).toLowerCase();
+          const nameB = (b.custom_label || b.model_id).toLowerCase();
+          return nameA.localeCompare(nameB);
+        }
+        case "calls": {
+          const sa = getModelStats(a.model_id, a.provider_id, speedStats);
+          const sb = getModelStats(b.model_id, b.provider_id, speedStats);
+          return (sb?.totalCalls ?? 0) - (sa?.totalCalls ?? 0);
+        }
+        case "speed": {
+          const sa = getModelStats(a.model_id, a.provider_id, speedStats);
+          const sb = getModelStats(b.model_id, b.provider_id, speedStats);
+          return (sb?.avgSpeed ?? 0) - (sa?.avgSpeed ?? 0);
+        }
+        case "provider": {
+          const provCmp = (providerNameMap[a.provider_id] ?? "").localeCompare(
+            providerNameMap[b.provider_id] ?? "",
+          );
+          if (provCmp !== 0) return provCmp;
+          return (a.custom_label || a.model_id).localeCompare(
+            b.custom_label || b.model_id,
+          );
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return models;
+  }, [
+    cachedModels,
+    allTypes,
+    typeFilter,
+    providerNameMap,
+    providerFilter,
+    query,
+    sortKey,
+    speedStats,
+  ]);
 
   const handleRemoveModel = useCallback(
     async (modelId: string) => {
@@ -475,56 +423,195 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
     [removeCachedModel],
   );
 
-  const typesToRender = Array.isArray(targetType) ? targetType : [targetType];
+  const isShowingAll = !providerFilter;
+  const [grouped, setGrouped] = useState(true);
 
-  const filteredTypes = useMemo(() => {
-    if (!activeFilter) {
-      return typesToRender;
-    }
-    if (activeFilter === "asr") {
-      return typesToRender.filter((t) => t === "asr" || t === "other");
-    }
-    return typesToRender.filter((t) => t === activeFilter);
-  }, [activeFilter, typesToRender]);
+  // Group models by provider
+  const groupedModels = useMemo(() => {
+    if (!isShowingAll || !grouped) return null;
+    const groups: Record<string, CachedModel[]> = {};
+    filteredModels.forEach((m) => {
+      if (!groups[m.provider_id]) groups[m.provider_id] = [];
+      groups[m.provider_id].push(m);
+    });
+    return Object.entries(groups).sort(([a], [b]) =>
+      (providerNameMap[a] ?? a).localeCompare(providerNameMap[b] ?? b),
+    );
+  }, [isShowingAll, grouped, filteredModels, providerNameMap]);
 
-  const renderModelsForFilter = () =>
-    filteredTypes.map((type) => (
-      <Box key={type} className="mb-4 last:mb-0">
-        {renderModelSection({
-          type,
-          allModels: cachedModels,
-          providerMap: providerNameMap,
-          preferredProviderId,
-          settings,
-          isUpdating,
-          handleRemove: handleRemoveModel,
-          t,
-          refreshSettings,
-          allowSelection:
-            allowSelectionProp !== undefined
-              ? allowSelectionProp
-              : type === "text",
-          hideIfEmpty: false,
-          multiModelSelectedIds:
-            type === "text" &&
-            (showMultiModelCheckboxesProp ??
-              settings?.multi_model_post_process_enabled)
-              ? multiModelSelectedIds
-              : undefined,
-          onToggleMultiModel:
-            type === "text" &&
-            (showMultiModelCheckboxesProp ??
-              settings?.multi_model_post_process_enabled)
-              ? handleToggleMultiModel
-              : undefined,
-          onEditModel: setEditingModel,
-        })}
-      </Box>
-    ));
+  // In flat "all" mode, show provider name on each card
+  const showProviderOnCard = isShowingAll && !grouped;
 
   return (
     <Box>
-      {renderModelsForFilter()}
+      {/* Toolbar: search + type filter + group toggle + sort */}
+      <Flex gap="2" align="center" wrap="wrap" className="mb-3">
+        <Box className="w-[200px] min-w-[140px]">
+          <TextField.Root
+            size="2"
+            placeholder={t(
+              "settings.postProcessing.models.searchPlaceholder",
+              "Search...",
+            )}
+            value={query}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setQuery(e.target.value)
+            }
+          >
+            <TextField.Slot>
+              <IconSearch size={14} className="text-(--gray-9)" />
+            </TextField.Slot>
+          </TextField.Root>
+        </Box>
+
+        <SegmentedControl.Root
+          size="1"
+          value={typeFilter}
+          onValueChange={(v) => setTypeFilter(v as "all" | ModelType)}
+        >
+          <SegmentedControl.Item value="all">
+            {t("settings.postProcessing.models.filter.all", "All")}
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="text">
+            {t("settings.postProcessing.models.modelTypes.text.label")}
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="asr">
+            {t("settings.postProcessing.models.modelTypes.asr.label")}
+          </SegmentedControl.Item>
+        </SegmentedControl.Root>
+
+        {/* Group toggle — only in "all" mode */}
+        {isShowingAll && (
+          <Tooltip
+            content={t(
+              "settings.postProcessing.models.sort.group",
+              "Group by provider",
+            )}
+            delayDuration={200}
+          >
+            <IconButton
+              size="1"
+              variant={grouped ? "solid" : "soft"}
+              color={grouped ? "indigo" : "gray"}
+              onClick={() => setGrouped(!grouped)}
+            >
+              <IconLayoutList size={14} />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        <Box className="flex-1" />
+
+        <SegmentedControl.Root
+          size="1"
+          value={sortKey}
+          onValueChange={(v) => setSortKey(v as SortKey)}
+        >
+          <SegmentedControl.Item value="name">
+            {t("settings.postProcessing.models.sort.name", "Name")}
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="calls">
+            {t("settings.postProcessing.models.sort.calls", "Calls")}
+          </SegmentedControl.Item>
+          <SegmentedControl.Item value="speed">
+            {t("settings.postProcessing.models.sort.speed", "Speed")}
+          </SegmentedControl.Item>
+          {/* Provider sort — useful in flat all mode */}
+          {isShowingAll && !grouped && (
+            <SegmentedControl.Item value="provider">
+              {t("settings.postProcessing.models.sort.provider", "Provider")}
+            </SegmentedControl.Item>
+          )}
+        </SegmentedControl.Root>
+      </Flex>
+
+      {/* Model content */}
+      {filteredModels.length > 0 ? (
+        groupedModels ? (
+          // Grouped mode
+          <Flex direction="column" gap="4">
+            {groupedModels.map(([providerId, models]) => (
+              <Box key={providerId}>
+                <Flex align="center" gap="2" className="mb-2 px-0.5">
+                  <Text
+                    size="1"
+                    weight="bold"
+                    className="uppercase tracking-widest text-(--gray-9)"
+                  >
+                    {providerNameMap[providerId] ?? providerId}
+                  </Text>
+                  <Text size="1" className="text-(--gray-8) tabular-nums">
+                    {models.length}
+                  </Text>
+                </Flex>
+                <Grid columns={{ initial: "2", sm: "3" }} gap="2">
+                  {models.map((model) => (
+                    <ModelCard
+                      key={model.id}
+                      model={model}
+                      onEditModel={setEditingModel}
+                      handleRemove={handleRemoveModel}
+                      isRemoving={
+                        !!isUpdating(`cached_model_remove:${model.id}`)
+                      }
+                      providerName={
+                        providerNameMap[model.provider_id] ?? model.provider_id
+                      }
+                      showProvider={false}
+                      stats={getModelStats(
+                        model.model_id,
+                        model.provider_id,
+                        speedStats,
+                      )}
+                      t={t}
+                    />
+                  ))}
+                </Grid>
+              </Box>
+            ))}
+          </Flex>
+        ) : (
+          // Flat mode
+          <Grid columns={{ initial: "2", sm: "3" }} gap="2">
+            {filteredModels.map((model) => (
+              <ModelCard
+                key={model.id}
+                model={model}
+                onEditModel={setEditingModel}
+                handleRemove={handleRemoveModel}
+                isRemoving={!!isUpdating(`cached_model_remove:${model.id}`)}
+                providerName={
+                  providerNameMap[model.provider_id] ?? model.provider_id
+                }
+                showProvider={showProviderOnCard}
+                stats={getModelStats(
+                  model.model_id,
+                  model.provider_id,
+                  speedStats,
+                )}
+                t={t}
+              />
+            ))}
+          </Grid>
+        )
+      ) : (
+        <Flex
+          align="center"
+          justify="center"
+          py="8"
+          className="rounded-[var(--radius-4)] border border-dashed border-(--gray-a5)"
+        >
+          <Text size="2" className="text-(--gray-8)">
+            {query
+              ? t(
+                  "settings.postProcessing.models.empty.noMatch",
+                  "No models match your search.",
+                )
+              : t("settings.postProcessing.models.empty.description")}
+          </Text>
+        </Flex>
+      )}
+
       {editingModel && (
         <EditModelDialog
           model={editingModel}

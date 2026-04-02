@@ -38,6 +38,7 @@ interface MultiCandidateData {
   output_mode?: "polish" | "chat";
   skill_name?: string;
   prompt_id?: string | null;
+  auto_selected_id?: string | null;
 }
 
 interface ReviewHidePayload {
@@ -200,6 +201,7 @@ const ReviewApp: React.FC = () => {
                 prompt_id: multiCandidateData.prompt_id,
               }}
               multiCandidates={multiCandidateData.candidates}
+              autoSelectedId={multiCandidateData.auto_selected_id}
               onClose={() => setMultiCandidateData(null)}
             />
           ) : reviewData ? (

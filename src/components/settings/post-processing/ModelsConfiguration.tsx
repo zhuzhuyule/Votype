@@ -1,9 +1,9 @@
-import { Flex, SegmentedControl } from "@radix-ui/themes";
-import React, { useState } from "react";
+import { Box, Button, Flex, Text } from "@radix-ui/themes";
+import { IconList } from "@tabler/icons-react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSettings } from "../../../hooks/useSettings";
-import type { ModelType } from "../../../lib/types";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ApiSettings } from "./ApiSettings";
@@ -17,7 +17,40 @@ export const ModelsConfiguration: React.FC = () => {
   const { settings } = useSettings();
 
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ModelType>("text");
+
+  // Provider filter: null = all, string = specific provider
+  const [providerFilter, setProviderFilter] = useState<string | null>(
+    providerState.selectedProviderId || null,
+  );
+
+  // Sync with provider sidebar clicks
+  useEffect(() => {
+    if (providerState.selectedProviderId) {
+      setProviderFilter(providerState.selectedProviderId);
+    }
+  }, [providerState.selectedProviderId]);
+
+  // Provider name map
+  const providerNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    settings?.post_process_providers.forEach((p) => {
+      map[p.id] = p.label;
+    });
+    return map;
+  }, [settings?.post_process_providers]);
+
+  // Count models for current provider filter
+  const filteredCount = useMemo(() => {
+    if (!providerFilter) return settings?.cached_models?.length ?? 0;
+    return (settings?.cached_models ?? []).filter(
+      (m) => m.provider_id === providerFilter,
+    ).length;
+  }, [settings?.cached_models, providerFilter]);
+
+  const isShowingAll = providerFilter === null;
+  const activeProviderLabel = providerFilter
+    ? (providerNameMap[providerFilter] ?? providerFilter)
+    : null;
 
   return (
     <Flex direction="column" gap="6" className="max-w-5xl w-full mx-auto">
@@ -28,31 +61,48 @@ export const ModelsConfiguration: React.FC = () => {
         onOpenAddModel={() => setIsModelPickerOpen(true)}
       />
 
-      {/* 2. Unified Models Panel */}
+      {/* 2. Models Panel */}
       <SettingsGroup
         title={
-          <Flex align="center" gap="3">
+          <Flex align="center" gap="2">
             <span>{t("settings.postProcessing.models.title")}</span>
-            <SegmentedControl.Root
-              value={activeFilter}
-              onValueChange={(v) => setActiveFilter(v as ModelType)}
-              size="2"
+
+            {/* "All" button */}
+            <Button
+              size="1"
+              variant={isShowingAll ? "solid" : "soft"}
+              color={isShowingAll ? "indigo" : "gray"}
+              onClick={() => setProviderFilter(null)}
+              className="ml-1"
             >
-              <SegmentedControl.Item value="text" className="mx-10">
-                {t("settings.postProcessing.models.modelTypes.text.label")}
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="asr">
-                {t("settings.postProcessing.models.modelTypes.asr.label")}
-              </SegmentedControl.Item>
-            </SegmentedControl.Root>
+              <IconList size={13} />
+              {t("settings.postProcessing.models.filter.all", "All")}
+            </Button>
+
+            {/* Provider indicator when filtered */}
+            {activeProviderLabel && (
+              <>
+                <Text size="2" className="text-(--gray-7)">
+                  /
+                </Text>
+                <Flex align="center" gap="1.5">
+                  <Box className="w-1.5 h-1.5 rounded-full bg-(--accent-9)" />
+                  <Text size="2" weight="medium" className="text-(--accent-11)">
+                    {activeProviderLabel}
+                  </Text>
+                  <Text size="1" className="text-(--gray-8) tabular-nums">
+                    {filteredCount}
+                  </Text>
+                </Flex>
+              </>
+            )}
           </Flex>
         }
       >
         <ModelListPanel
           targetType={["text", "asr", "other"]}
-          allowSelection={false}
-          activeFilter={activeFilter}
-          preferredProviderId={providerState.selectedProviderId}
+          providerFilter={providerFilter}
+          onProviderFilterChange={setProviderFilter}
         />
       </SettingsGroup>
 

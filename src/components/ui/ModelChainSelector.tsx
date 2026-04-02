@@ -15,7 +15,15 @@ import type {
   ModelChain,
   ModelChainStrategy,
 } from "../../lib/types";
+import { useModelSpeedStats } from "../../hooks/useModelSpeedStats";
 import { useSettingsStore } from "../../stores/settingsStore";
+
+function formatSpeed(speed: number): string {
+  if (speed >= 1000) return `${(speed / 1000).toFixed(1)}k`;
+  if (speed >= 100) return Math.round(speed).toString();
+  if (speed >= 10) return speed.toFixed(1);
+  return speed.toFixed(2);
+}
 
 export interface ModelChainSelectorProps {
   chain: ModelChain | null;
@@ -37,6 +45,7 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
 }) => {
   const { t } = useTranslation();
   const settings = useSettingsStore((s) => s.settings);
+  const { getAggregatedStats } = useModelSpeedStats();
 
   const [open, setOpen] = useState(false);
   const [primaryId, setPrimaryId] = useState<string | null>(null);
@@ -283,6 +292,26 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
                                 ? "Thinking"
                                 : "Standard"}
                             </Text>
+                            {(() => {
+                              const s = getAggregatedStats(
+                                model.model_id,
+                                model.provider_id,
+                              );
+                              if (!s || s.totalCalls === 0) return null;
+                              return (
+                                <Text
+                                  size="1"
+                                  color="gray"
+                                  className="tabular-nums"
+                                  mt="0.5"
+                                >
+                                  {s.totalCalls.toLocaleString()}{" "}
+                                  {t("common.calls", "次")}
+                                  {s.avgSpeed > 0 &&
+                                    ` · ${formatSpeed(s.avgSpeed)} t/s`}
+                                </Text>
+                              );
+                            })()}
                           </Flex>
                         );
                       })}
