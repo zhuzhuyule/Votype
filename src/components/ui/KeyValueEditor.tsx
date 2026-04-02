@@ -195,40 +195,43 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
     [entries, commit],
   );
 
-  // Empty state: dashed placeholder with add button + quick actions
+  // Empty state: dashed box IS the button
   if (entries.length === 0) {
     return (
-      <Flex
-        align="center"
-        justify="center"
-        gap="2"
-        py="3"
-        style={{
-          border: "1px dashed var(--gray-7)",
-          borderRadius: "var(--radius-2)",
-        }}
-      >
-        <Button
-          size="1"
-          variant="outline"
-          color="gray"
+      <Flex direction="column" gap="2">
+        <Flex
+          align="center"
+          justify="center"
+          gap="1"
+          py="2"
           onClick={addEntry}
+          style={{
+            border: "1px dashed var(--gray-7)",
+            borderRadius: "var(--radius-2)",
+            cursor: "pointer",
+            fontSize: "var(--font-size-1)",
+            color: "var(--gray-9)",
+          }}
         >
           <IconPlus size={12} />
           {addLabel || "添加参数"}
-        </Button>
-        {quickActions?.map((action, i) => (
-          <Button
-            key={i}
-            size="1"
-            variant="soft"
-            color={action.color || "blue"}
-            onClick={() => mergeEntries(action.getEntries())}
-          >
-            {action.icon}
-            {action.label}
-          </Button>
-        ))}
+        </Flex>
+        {quickActions && quickActions.length > 0 && (
+          <Flex gap="2" wrap="wrap" align="center">
+            {quickActions.map((action, i) => (
+              <Button
+                key={i}
+                size="1"
+                variant="soft"
+                color={action.color || "blue"}
+                onClick={() => mergeEntries(action.getEntries())}
+              >
+                {action.icon}
+                {action.label}
+              </Button>
+            ))}
+          </Flex>
+        )}
       </Flex>
     );
   }
