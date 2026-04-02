@@ -1,4 +1,4 @@
-use crate::managers::hotword::{HotwordEntry, HotwordInjection};
+use crate::managers::hotword::{CorrectionPair, HotwordEntry, HotwordInjection};
 use crate::settings::{LLMPrompt, SkillOutputMode};
 use log::debug;
 use std::collections::BTreeSet;
@@ -13,6 +13,7 @@ enum FieldTag {
     Hotwords,
     HistoryHints,
     AsrReference,
+    AsrCorrections,
     InputText,
 }
 
@@ -22,6 +23,7 @@ impl FieldTag {
             FieldTag::Instruction => "instruction: user's spoken command — when present, execute this instruction on input-text instead of the default processing task",
             FieldTag::InputText => "input-text: the primary text to process",
             FieldTag::AsrReference => "asr-reference: auxiliary reference for error correction and disambiguation only",
+            FieldTag::AsrCorrections => "asr-corrections: known ASR misrecognition patterns with confidence ratings (★★★ = very likely ASR error, always replace; ★★ = likely; ★ = possible). When input-text contains a word matching the left side, strongly prefer replacing it with the right side",
             FieldTag::PersonNames => "person-names: hotword reference - person names",
             FieldTag::ProductNames => "product-names: hotword reference - product, brand, or organization names",
             FieldTag::DomainTerms => "domain-terms: hotword reference - domain terminology, abbreviations, or technical terms",
@@ -41,6 +43,7 @@ impl FieldTag {
             FieldTag::Hotwords => "{{hotwords}}",
             FieldTag::HistoryHints => "{{history-hints}}",
             FieldTag::AsrReference => "{{asr-reference}}",
+            FieldTag::AsrCorrections => "{{asr-corrections}}",
             FieldTag::InputText => "{{input-text}}",
         }
     }
@@ -83,6 +86,11 @@ fn build_input_protocol_note(fields: &[FieldTag]) -> String {
         );
         rules.push(
             "- Other fields are for error correction and disambiguation only; they must not override the original meaning of input-text or add new information".to_string(),
+        );
+    }
+    if fields.iter().any(|f| *f == FieldTag::AsrCorrections) {
+        rules.push(
+            "- asr-corrections lists known ASR misrecognition patterns with confidence ratings (★★★ = very likely, ★★ = likely, ★ = possible); when input-text contains a word matching the left side, strongly prefer replacing it with the right side".to_string(),
         );
     }
 
@@ -195,6 +203,7 @@ fn sanitize_history_entry(entry: &str) -> Option<String> {
                 && !trimmed.starts_with("[instruction]")
                 && !trimmed.starts_with("[selected-text]")
                 && !trimmed.starts_with("[history-hints]")
+                && !trimmed.starts_with("[asr-corrections]")
                 && !trimmed.contains("${")
         })
         .collect::<Vec<_>>()
@@ -261,6 +270,50 @@ fn render_history_hints_block(entries: &[String]) -> Option<String> {
 
 fn render_asr_reference_block(items: &[String]) -> Option<String> {
     render_list_block("asr-reference", items)
+}
+
+fn render_correction_block(pairs: &[CorrectionPair], input_text: &str) -> Option<String> {
+    if pairs.is_empty() {
+        return None;
+    }
+    let input_lower = input_text.to_lowercase();
+    let relevant: Vec<&CorrectionPair> = pairs
+        .iter()
+        .filter(|p| input_lower.contains(&p.original.to_lowercase()))
+        .collect();
+    if relevant.is_empty() {
+        return None;
+    }
+    let lines: Vec<String> = relevant
+        .iter()
+        .map(|p| {
+            let stars = "★".repeat(p.stars as usize);
+            format!("- {} → {} {}", p.original, p.target, stars)
+        })
+        .collect();
+    Some(format!("[asr-corrections]\n{}", lines.join("\n")))
+}
+
+fn render_plain_corrections(pairs: &[CorrectionPair], input_text: &str) -> Option<String> {
+    if pairs.is_empty() {
+        return None;
+    }
+    let input_lower = input_text.to_lowercase();
+    let relevant: Vec<&CorrectionPair> = pairs
+        .iter()
+        .filter(|p| input_lower.contains(&p.original.to_lowercase()))
+        .collect();
+    if relevant.is_empty() {
+        return None;
+    }
+    let lines: Vec<String> = relevant
+        .iter()
+        .map(|p| {
+            let stars = "★".repeat(p.stars as usize);
+            format!("- {} → {} {}", p.original, p.target, stars)
+        })
+        .collect();
+    Some(lines.join("\n"))
 }
 
 fn render_plain_list(items: &[String]) -> Option<String> {
@@ -452,6 +505,10 @@ impl<'a> PromptBuilder<'a> {
             .as_ref()
             .map(|h| h.hotwords.clone())
             .unwrap_or_default();
+        let correction_pairs = hotword_injection
+            .as_ref()
+            .map(|h| h.correction_pairs.clone())
+            .unwrap_or_default();
 
         let mut present_fields = Vec::new();
         if self.instruction.is_some() {
@@ -477,6 +534,9 @@ impl<'a> PromptBuilder<'a> {
         }
         if !asr_reference_items.is_empty() {
             present_fields.push(FieldTag::AsrReference);
+        }
+        if !correction_pairs.is_empty() {
+            present_fields.push(FieldTag::AsrCorrections);
         }
         if !transcription.is_empty() {
             present_fields.push(FieldTag::InputText);
@@ -506,6 +566,9 @@ impl<'a> PromptBuilder<'a> {
                 FieldTag::Hotwords => render_plain_hotword_values(&hotwords),
                 FieldTag::HistoryHints => render_plain_list(&history_hint_items),
                 FieldTag::AsrReference => render_plain_list(&asr_reference_items),
+                FieldTag::AsrCorrections => {
+                    render_plain_corrections(&correction_pairs, &transcription)
+                }
                 FieldTag::InputText => Some(transcription.clone()),
             }
             .unwrap_or_default();
@@ -605,6 +668,11 @@ impl<'a> PromptBuilder<'a> {
         }
         if !explicit_field_references.contains(&FieldTag::AsrReference) {
             if let Some(block) = render_asr_reference_block(&asr_reference_items) {
+                sections.push(block);
+            }
+        }
+        if !explicit_field_references.contains(&FieldTag::AsrCorrections) {
+            if let Some(block) = render_correction_block(&correction_pairs, &transcription) {
                 sections.push(block);
             }
         }
@@ -770,6 +838,7 @@ mod tests {
                         aliases: vec![],
                     },
                 ],
+                correction_pairs: vec![],
             }))
             .build();
 
@@ -803,6 +872,7 @@ mod tests {
                     target: "Ghost Type".to_string(),
                     aliases: vec!["ghosttype".to_string()],
                 }],
+                correction_pairs: vec![],
             }))
             .build();
 
@@ -905,6 +975,7 @@ mod tests {
                         aliases: vec![],
                     },
                 ],
+                correction_pairs: vec![],
             }))
             .build();
 
@@ -986,6 +1057,7 @@ mod tests {
                     aliases: vec![],
                 }],
                 hotwords: vec![],
+                correction_pairs: vec![],
             }))
             .build();
 
@@ -1029,6 +1101,7 @@ mod tests {
                     target: "Ghost".to_string(),
                     aliases: vec![],
                 }],
+                correction_pairs: vec![],
             }))
             .history_entries(vec!["entry".to_string()])
             .raw_transcription("raw")
@@ -1078,6 +1151,7 @@ mod tests {
                 }],
                 domain_terms: vec![],
                 hotwords: vec![],
+                correction_pairs: vec![],
             }))
             .build();
 

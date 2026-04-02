@@ -108,37 +108,11 @@ pub async fn unified_post_process(
             settings,
             fallback_provider,
             transcription,
+            history_id,
         )
         .await;
 
-        // Log intent LLM call to metrics (before match, since PassThrough returns early)
-        if let Some(ref d) = decision {
-            if let Some(metrics) = app_handle
-                .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
-            {
-                let token_estimate = d.token_count.map(|t| t as f64);
-                let tokens_per_sec = match (token_estimate, d.duration_ms) {
-                    (Some(est), dur) if dur > 0 => Some(est / dur as f64 * 1000.0),
-                    _ => None,
-                };
-                if let Err(e) = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
-                    history_id,
-                    model_id: d.model_id.clone(),
-                    provider: d.provider_id.clone(),
-                    call_type: "intent".to_string(),
-                    input_tokens: None,
-                    output_tokens: None,
-                    total_tokens: d.token_count,
-                    token_estimate,
-                    duration_ms: d.duration_ms as i64,
-                    tokens_per_sec,
-                    error: None,
-                    is_fallback: false,
-                }) {
-                    log::error!("[LlmMetrics] Failed to log intent call: {}", e);
-                }
-            }
-        }
+        // Intent metrics are now self-logged inside routing.rs (each race participant logs independently)
 
         match &decision {
             Some(d) if d.action == super::routing::SmartAction::PassThrough => {
@@ -969,6 +943,7 @@ pub async fn maybe_post_process_transcription(
                 settings,
                 fallback_provider,
                 transcription,
+                history_id,
             )
             .await;
 
@@ -2117,7 +2092,7 @@ pub(super) fn has_repetition_pattern(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::build_rewrite_user_message;
+    use super::{build_rewrite_user_message, has_repetition_pattern};
 
     #[test]
     fn test_has_repetition_pattern() {
@@ -2142,6 +2117,7 @@ mod tests {
             "当前文稿",
             "口述指令",
             "[热词 reference]\n术语缩写类热词：ASR、JSON",
+            None,
         );
 
         assert!(message.contains("[current_document]"));

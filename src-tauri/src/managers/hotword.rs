@@ -2061,6 +2061,7 @@ mod tests {
                 target: "悬浮窗".to_string(),
                 aliases: vec![],
             }],
+            correction_pairs: vec![],
         });
 
         assert!(summary.contains("人名类热词：Matt、Nate"));
