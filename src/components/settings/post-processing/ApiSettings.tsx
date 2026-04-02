@@ -7,6 +7,7 @@ import {
   Grid,
   IconButton,
   ScrollArea,
+  Switch,
   Text,
   TextField,
 } from "@radix-ui/themes";
@@ -34,11 +35,12 @@ import {
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
+import type { KeyEntry } from "../../../lib/types";
 import { Card } from "../../ui/Card";
 import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import {
@@ -213,13 +215,203 @@ const ProviderAvatar: React.FC<{
   );
 };
 
+/** Multi-key list for a single provider. */
+const ApiKeyList: React.FC<{
+  providerId: string;
+  onKeysChanged?: () => void;
+}> = ({ providerId, onKeysChanged }) => {
+  const { getPostProcessApiKeys, setPostProcessApiKeys } = useSettings();
+  const [keys, setKeys] = useState<KeyEntry[]>([]);
+  const [showKeys, setShowKeys] = useState<Record<number, boolean>>({});
+  const loadedProviderRef = useRef<string | null>(null);
+
+  // Load keys from backend when provider changes
+  useEffect(() => {
+    if (!providerId) return;
+    let cancelled = false;
+    loadedProviderRef.current = providerId;
+    getPostProcessApiKeys(providerId)
+      .then((loaded) => {
+        if (!cancelled && loadedProviderRef.current === providerId) {
+          setKeys(loaded ?? []);
+          setShowKeys({});
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setKeys([]);
+      });
+    return () => { cancelled = true; };
+  }, [providerId, getPostProcessApiKeys]);
+
+  const persist = useCallback(
+    async (updated: KeyEntry[]) => {
+      setKeys(updated);
+      await setPostProcessApiKeys(providerId, updated);
+      onKeysChanged?.();
+    },
+    [providerId, setPostProcessApiKeys, onKeysChanged],
+  );
+
+  const handleAddKey = useCallback(() => {
+    const updated = [...keys, { key: "", enabled: true, label: null }];
+    setKeys(updated);
+  }, [keys]);
+
+  const handleKeyChange = useCallback(
+    (index: number, value: string) => {
+      const updated = keys.map((k, i) => (i === index ? { ...k, key: value } : k));
+      setKeys(updated);
+    },
+    [keys],
+  );
+
+  const handleKeyBlur = useCallback(
+    (index: number) => {
+      // Persist on blur, remove empty entries that are not the only one
+      const filtered = keys.filter((k, i) => i === index || k.key.trim() !== "" || keys.length === 1);
+      void persist(filtered);
+    },
+    [keys, persist],
+  );
+
+  const handleLabelChange = useCallback(
+    (index: number, value: string) => {
+      const updated = keys.map((k, i) =>
+        i === index ? { ...k, label: value || null } : k,
+      );
+      setKeys(updated);
+    },
+    [keys],
+  );
+
+  const handleLabelBlur = useCallback(() => {
+    void persist(keys);
+  }, [keys, persist]);
+
+  const handleToggle = useCallback(
+    (index: number) => {
+      const updated = keys.map((k, i) =>
+        i === index ? { ...k, enabled: !k.enabled } : k,
+      );
+      void persist(updated);
+    },
+    [keys, persist],
+  );
+
+  const handleDelete = useCallback(
+    (index: number) => {
+      const updated = keys.filter((_, i) => i !== index);
+      void persist(updated);
+    },
+    [keys, persist],
+  );
+
+  const toggleShowKey = useCallback((index: number) => {
+    setShowKeys((prev) => ({ ...prev, [index]: !prev[index] }));
+  }, []);
+
+  // When no keys exist, show a single empty input
+  if (keys.length === 0) {
+    return (
+      <Flex direction="column" gap="2">
+        <Flex align="center" gap="2">
+          <TextField.Root
+            type="password"
+            placeholder="sk-..."
+            className="flex-1"
+            onBlur={(e) => {
+              const val = e.target.value.trim();
+              if (val) {
+                void persist([{ key: val, enabled: true, label: null }]);
+              }
+            }}
+          />
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="gray"
+            onClick={handleAddKey}
+            type="button"
+          >
+            <IconPlus size={14} />
+          </IconButton>
+        </Flex>
+      </Flex>
+    );
+  }
+
+  return (
+    <Flex direction="column" gap="2">
+      {keys.map((entry, index) => (
+        <Flex key={index} align="center" gap="2">
+          <TextField.Root
+            type={showKeys[index] ? "text" : "password"}
+            value={entry.key}
+            onChange={(e) => handleKeyChange(index, e.target.value)}
+            onBlur={() => handleKeyBlur(index)}
+            placeholder="sk-..."
+            className="flex-1"
+          >
+            <TextField.Slot side="right">
+              <IconButton
+                size="1"
+                variant="ghost"
+                onClick={() => toggleShowKey(index)}
+                type="button"
+                color="gray"
+              >
+                {showKeys[index] ? (
+                  <IconEyeOff height={14} width={14} />
+                ) : (
+                  <IconEye height={14} width={14} />
+                )}
+              </IconButton>
+            </TextField.Slot>
+          </TextField.Root>
+          <TextField.Root
+            value={entry.label ?? ""}
+            onChange={(e) => handleLabelChange(index, e.target.value)}
+            onBlur={handleLabelBlur}
+            placeholder="Label"
+            className="w-24"
+          />
+          <Switch
+            size="1"
+            checked={entry.enabled}
+            onCheckedChange={() => handleToggle(index)}
+          />
+          <IconButton
+            size="1"
+            variant="ghost"
+            color="red"
+            onClick={() => handleDelete(index)}
+            type="button"
+          >
+            <IconTrash size={14} />
+          </IconButton>
+        </Flex>
+      ))}
+      <Flex>
+        <Button
+          variant="ghost"
+          size="1"
+          onClick={handleAddKey}
+          type="button"
+        >
+          <IconPlus size={14} />
+          Add Key
+        </Button>
+      </Flex>
+    </Flex>
+  );
+};
+
 export const ApiSettings: React.FC<ApiSettingsProps> = ({
   isFetchingModels,
   providerState: state,
   onOpenAddModel,
 }) => {
   const { t } = useTranslation();
-  const [showApiKey, setShowApiKey] = useState(false);
   const {
     settings,
     updateCustomProvider,
@@ -229,7 +421,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   } = useSettings();
 
   const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
-  const [localApiKey, setLocalApiKey] = useState(state.apiKey);
   const [editingBaseUrl, setEditingBaseUrl] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -246,7 +437,10 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
       if (!provider.builtin) return true;
       if (provider.id === state.selectedProviderId) return true;
 
-      const hasApiKey = !!state.apiKeys?.[provider.id]?.trim();
+      const apiKeysVal = state.apiKeys?.[provider.id];
+      const hasApiKey = Array.isArray(apiKeysVal)
+        ? apiKeysVal.some((e: any) => e.enabled && e.key?.trim())
+        : typeof apiKeysVal === 'string' ? !!apiKeysVal.trim() : false;
       const hasModel = !!settings?.post_process_models?.[provider.id]?.trim();
       const hasCachedModel = (settings?.cached_models ?? []).some(
         (model) => model.provider_id === provider.id,
@@ -371,7 +565,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   // Update local state when provider changes
   useEffect(() => {
     setLocalBaseUrl(state.baseUrl);
-    setLocalApiKey(state.apiKey);
     setEditingBaseUrl(false);
 
     const option = state.providerOptions.find(
@@ -382,7 +575,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     }
   }, [
     state.baseUrl,
-    state.apiKey,
     state.selectedProviderId,
     state.providerOptions,
   ]);
@@ -1047,118 +1239,101 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 );
               })()}
 
-              {/* API Key */}
+              {/* API Keys */}
               <Text
                 size="2"
                 weight="medium"
                 color="gray"
-                className="text-right select-none"
+                className="text-right select-none pt-1"
               >
                 {t(
                   "settings.postProcessing.api.providers.fields.apiKey",
                 )}
                 :
               </Text>
-              <Flex align="center" gap="3" className="min-w-0">
-                <TextField.Root
-                  type={showApiKey ? "text" : "password"}
-                  value={localApiKey}
-                  onChange={(e) => setLocalApiKey(e.target.value)}
-                  onBlur={() => state.handleApiKeyChange(localApiKey)}
-                  placeholder="sk-..."
-                  className="flex-1"
-                >
-                  <TextField.Slot side="right">
-                    <IconButton
-                      size="1"
-                      variant="ghost"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      type="button"
-                      color="gray"
-                    >
-                      {showApiKey ? (
-                        <IconEyeOff height={14} width={14} />
-                      ) : (
-                        <IconEye height={14} width={14} />
-                      )}
-                    </IconButton>
-                  </TextField.Slot>
-                </TextField.Root>
-                <Button
-                  variant="solid"
-                  size="1"
-                  className="shrink-0"
-                  onClick={async () => {
-                    await state.handleApiKeyChange(localApiKey);
-
-                    if (state.model) {
-                      const res = await state.testInference(state.model);
-                      state.setLastInferenceResult(res);
-                      const { result, error, hasThinking } = res;
-                      if (!error) {
-                        const displayResult = hasThinking
-                          ? `[Thinking] ${result}`
-                          : result;
-                        toast.success(
-                          t(
-                            "settings.postProcessing.api.providers.api.testSuccess",
-                            { result: displayResult },
-                          ),
-                        );
-                      } else {
-                        toast.error(
-                          t(
-                            "settings.postProcessing.api.providers.api.testFailed",
-                            { error },
-                          ),
-                        );
-                      }
-                    } else {
-                      const error = await state.testConnection();
-                      if (!error) {
-                        toast.success(
-                          t(
-                            "settings.postProcessing.api.providers.api.testSuccess",
-                            { result: "OK" },
-                          ),
-                        );
-                      } else {
-                        toast.error(
-                          t(
-                            "settings.postProcessing.api.providers.api.testFailed",
-                            { error },
-                          ),
-                        );
-                      }
-                    }
+              <Flex direction="column" gap="2" className="min-w-0">
+                <ApiKeyList
+                  providerId={state.selectedProviderId}
+                  onKeysChanged={() => {
+                    // Clear cached models when keys change
+                    void state.handleRefreshModels();
                   }}
-                  disabled={isFetchingModels}
-                >
-                  {isFetchingModels ? (
-                    t("common.loading")
-                  ) : (
-                    <>
-                      <IconPlugConnected size={14} />
-                      {t(
-                        "settings.postProcessing.api.providers.api.testConnection",
-                      )}
-                    </>
-                  )}
-                </Button>
-                {state.lastInferenceResult && (
-                  <Badge
-                    color={
-                      state.lastInferenceResult.error ? "red" : "green"
-                    }
-                    variant="soft"
+                />
+                <Flex align="center" gap="3">
+                  <Button
+                    variant="solid"
                     size="1"
                     className="shrink-0"
+                    onClick={async () => {
+                      if (state.model) {
+                        const res = await state.testInference(state.model);
+                        state.setLastInferenceResult(res);
+                        const { result, error, hasThinking } = res;
+                        if (!error) {
+                          const displayResult = hasThinking
+                            ? `[Thinking] ${result}`
+                            : result;
+                          toast.success(
+                            t(
+                              "settings.postProcessing.api.providers.api.testSuccess",
+                              { result: displayResult },
+                            ),
+                          );
+                        } else {
+                          toast.error(
+                            t(
+                              "settings.postProcessing.api.providers.api.testFailed",
+                              { error },
+                            ),
+                          );
+                        }
+                      } else {
+                        const error = await state.testConnection();
+                        if (!error) {
+                          toast.success(
+                            t(
+                              "settings.postProcessing.api.providers.api.testSuccess",
+                              { result: "OK" },
+                            ),
+                          );
+                        } else {
+                          toast.error(
+                            t(
+                              "settings.postProcessing.api.providers.api.testFailed",
+                              { error },
+                            ),
+                          );
+                        }
+                      }
+                    }}
+                    disabled={isFetchingModels}
                   >
-                    {state.lastInferenceResult.error
-                      ? "Failure"
-                      : "Success"}
-                  </Badge>
-                )}
+                    {isFetchingModels ? (
+                      t("common.loading")
+                    ) : (
+                      <>
+                        <IconPlugConnected size={14} />
+                        {t(
+                          "settings.postProcessing.api.providers.api.testConnection",
+                        )}
+                      </>
+                    )}
+                  </Button>
+                  {state.lastInferenceResult && (
+                    <Badge
+                      color={
+                        state.lastInferenceResult.error ? "red" : "green"
+                      }
+                      variant="soft"
+                      size="1"
+                      className="shrink-0"
+                    >
+                      {state.lastInferenceResult.error
+                        ? "Failure"
+                        : "Success"}
+                    </Badge>
+                  )}
+                </Flex>
               </Flex>
             </Grid>
 

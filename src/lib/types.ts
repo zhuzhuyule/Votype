@@ -168,6 +168,14 @@ export type MultiModelPostProcessItem = z.infer<
   typeof MultiModelPostProcessItemSchema
 >;
 
+export const KeyEntrySchema = z.object({
+  key: z.string(),
+  enabled: z.boolean().default(true),
+  label: z.string().nullable().optional(),
+});
+
+export type KeyEntry = z.infer<typeof KeyEntrySchema>;
+
 export const PostProcessProviderSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -181,6 +189,10 @@ export const PostProcessProviderSchema = z.object({
     .enum(["openai_compatible", "anthropic"])
     .optional()
     .default("openai_compatible"),
+  proxy_override: z
+    .enum(["follow_global", "force_enabled", "force_disabled"])
+    .optional()
+    .default("follow_global"),
 });
 
 export type PostProcessProvider = z.infer<typeof PostProcessProviderSchema>;
@@ -250,7 +262,7 @@ export const SettingsSchema = z.object({
     .array(PostProcessProviderSchema)
     .optional()
     .default([]),
-  post_process_api_keys: z.record(z.string()).optional().default({}),
+  post_process_api_keys: z.record(z.array(KeyEntrySchema)).optional().default({}),
   post_process_models: z.record(z.string()).optional().default({}),
   post_process_provider_avatar_overrides: z
     .record(z.string())
@@ -261,6 +273,8 @@ export const SettingsSchema = z.object({
   post_process_intent_model: ModelChainSchema.nullable()
     .optional()
     .default(null),
+  proxy_url: z.string().nullable().optional().default(null),
+  proxy_global_enabled: z.boolean().optional().default(false),
   multi_model_post_process_enabled: z.boolean().optional().default(false),
   multi_model_post_process_items: z
     .array(MultiModelPostProcessItemSchema)

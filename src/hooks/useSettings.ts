@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   AudioDevice,
   CachedModel,
+  KeyEntry,
   ModelChain,
   ModelType,
   PostProcessProvider,
@@ -87,6 +88,10 @@ interface UseSettingsReturn {
     modelId: string,
   ) => Promise<{ content?: string; reasoning_content?: string }>;
   updateModelChain: (field: string, chain: ModelChain | null) => Promise<void>;
+  getPostProcessApiKeys: (providerId: string) => Promise<KeyEntry[]>;
+  setPostProcessApiKeys: (providerId: string, keys: KeyEntry[]) => Promise<void>;
+  setProxySettings: (url: string | null, globalEnabled: boolean) => Promise<void>;
+  setProviderProxyOverride: (providerId: string, proxyOverride: string) => Promise<void>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
@@ -136,5 +141,9 @@ export const useSettings = (): UseSettingsReturn => {
     toggleMultiModelSelection: store.toggleMultiModelSelection,
     testPostProcessInference: store.testPostProcessInference,
     updateModelChain: store.updateModelChain,
+    getPostProcessApiKeys: store.getPostProcessApiKeys,
+    setPostProcessApiKeys: store.setPostProcessApiKeys,
+    setProxySettings: store.setProxySettings,
+    setProviderProxyOverride: store.setProviderProxyOverride,
   };
 };

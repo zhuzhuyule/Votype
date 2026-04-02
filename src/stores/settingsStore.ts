@@ -5,6 +5,7 @@ import type { BindingResponse } from "../lib/types";
 import {
   AudioDevice,
   CachedModel,
+  KeyEntry,
   ModelChain,
   ModelType,
   MultiModelPostProcessItem,
@@ -99,6 +100,10 @@ interface SettingsStore {
   ) => Promise<void>;
   removeMultiModelPostProcessItem: (itemId: string) => Promise<void>;
   updateModelChain: (field: string, chain: ModelChain | null) => Promise<void>;
+  getPostProcessApiKeys: (providerId: string) => Promise<KeyEntry[]>;
+  setPostProcessApiKeys: (providerId: string, keys: KeyEntry[]) => Promise<void>;
+  setProxySettings: (url: string | null, globalEnabled: boolean) => Promise<void>;
+  setProviderProxyOverride: (providerId: string, proxyOverride: string) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -919,6 +924,32 @@ export const useSettingsStore = create<SettingsStore>()(
       } finally {
         setUpdating(field, false);
       }
+    },
+
+    getPostProcessApiKeys: async (providerId) => {
+      const keys: KeyEntry[] = await invoke("get_post_process_api_keys", { providerId });
+      return keys;
+    },
+
+    setPostProcessApiKeys: async (providerId, keys) => {
+      await invoke("set_post_process_api_keys", { providerId, keys });
+      set((state) => ({
+        postProcessModelOptions: {
+          ...state.postProcessModelOptions,
+          [providerId]: [],
+        },
+      }));
+      await get().refreshSettings();
+    },
+
+    setProxySettings: async (url, globalEnabled) => {
+      await invoke("set_proxy_settings", { url, globalEnabled });
+      await get().refreshSettings();
+    },
+
+    setProviderProxyOverride: async (providerId, proxyOverride) => {
+      await invoke("set_provider_proxy_override", { providerId, proxyOverride });
+      await get().refreshSettings();
     },
 
     addCachedModel: async (model) => {

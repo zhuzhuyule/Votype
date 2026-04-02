@@ -16,7 +16,7 @@ export type PostProcessProviderState = {
   handleBaseUrlChange: (value: string) => Promise<void>;
   isBaseUrlUpdating: boolean;
   apiKey: string;
-  apiKeys: Record<string, string>;
+  apiKeys: Record<string, any>;
   handleApiKeyChange: (value: string) => Promise<void>;
   isApiKeyUpdating: boolean;
   modelsEndpoint: string;
@@ -101,7 +101,10 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
-  const apiKey = settings?.post_process_api_keys?.[viewingProviderId] ?? "";
+  const apiKeyEntries = settings?.post_process_api_keys?.[viewingProviderId] ?? [];
+  const apiKey = (Array.isArray(apiKeyEntries)
+    ? apiKeyEntries.find((e: any) => e.enabled && e.key)?.key
+    : typeof apiKeyEntries === 'string' ? apiKeyEntries : '') ?? "";
   const model = settings?.post_process_models?.[viewingProviderId] ?? "";
   const modelsEndpoint = selectedProvider?.models_endpoint ?? "";
 
