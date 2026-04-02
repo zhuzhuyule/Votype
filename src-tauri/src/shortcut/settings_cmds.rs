@@ -85,7 +85,7 @@ pub fn change_post_process_api_key_setting(
     let mut settings = settings::get_settings(&app);
     super::validate_provider_exists(&settings, &provider_id)?;
     settings.post_process_api_keys.insert(
-        provider_id,
+        provider_id.clone(),
         vec![crate::settings::KeyEntry {
             key: api_key,
             enabled: true,
@@ -93,6 +93,9 @@ pub fn change_post_process_api_key_setting(
         }],
     );
     settings::write_settings(&app, settings);
+    if let Some(selector) = app.try_state::<crate::key_selector::KeySelector>() {
+        selector.reset(&provider_id);
+    }
     Ok(())
 }
 
@@ -1166,4 +1169,76 @@ pub fn change_whisper_gpu_device(app: AppHandle, device: i32) -> Result<(), Stri
 #[specta::specta]
 pub fn get_available_accelerators() -> crate::managers::transcription::AvailableAccelerators {
     crate::managers::transcription::get_available_accelerators()
+}
+
+// Group: Multi-Key Management
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_post_process_api_keys(
+    app: AppHandle,
+    provider_id: String,
+    keys: Vec<crate::settings::KeyEntry>,
+) -> Result<(), String> {
+    let mut settings = crate::settings::get_settings(&app);
+    super::validate_provider_exists(&settings, &provider_id)?;
+    settings
+        .post_process_api_keys
+        .insert(provider_id.clone(), keys);
+    crate::settings::write_settings(&app, settings);
+    if let Some(selector) = app.try_state::<crate::key_selector::KeySelector>() {
+        selector.reset(&provider_id);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn get_post_process_api_keys(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<Vec<crate::settings::KeyEntry>, String> {
+    let settings = crate::settings::get_settings(&app);
+    Ok(settings
+        .post_process_api_keys
+        .get(&provider_id)
+        .cloned()
+        .unwrap_or_default())
+}
+
+// Group: Proxy Settings
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_proxy_settings(
+    app: AppHandle,
+    url: Option<String>,
+    global_enabled: bool,
+) -> Result<(), String> {
+    let mut settings = crate::settings::get_settings(&app);
+    settings.proxy_url = url;
+    settings.proxy_global_enabled = global_enabled;
+    crate::settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_provider_proxy_override(
+    app: AppHandle,
+    provider_id: String,
+    proxy_override: crate::settings::ProxyOverride,
+) -> Result<(), String> {
+    let mut settings = crate::settings::get_settings(&app);
+    if let Some(provider) = settings
+        .post_process_providers
+        .iter_mut()
+        .find(|p| p.id == provider_id)
+    {
+        provider.proxy_override = proxy_override;
+        crate::settings::write_settings(&app, settings);
+        Ok(())
+    } else {
+        Err(format!("Provider not found: {}", provider_id))
+    }
 }
