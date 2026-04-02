@@ -35,7 +35,13 @@ import {
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -54,6 +60,7 @@ import {
   PROVIDER_TEMPLATES,
   RECOMMENDED_PROVIDER_TEMPLATE_IDS,
 } from "./providerTemplates";
+import { AdvancedSettings } from "./AdvancedSettings";
 import { SidebarItem } from "./SidebarItem";
 
 const getProviderGlyph = (
@@ -240,7 +247,9 @@ const ApiKeyList: React.FC<{
       .catch(() => {
         if (!cancelled) setKeys([]);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [providerId, getPostProcessApiKeys]);
 
   const persist = useCallback(
@@ -259,7 +268,9 @@ const ApiKeyList: React.FC<{
 
   const handleKeyChange = useCallback(
     (index: number, value: string) => {
-      const updated = keys.map((k, i) => (i === index ? { ...k, key: value } : k));
+      const updated = keys.map((k, i) =>
+        i === index ? { ...k, key: value } : k,
+      );
       setKeys(updated);
     },
     [keys],
@@ -268,7 +279,9 @@ const ApiKeyList: React.FC<{
   const handleKeyBlur = useCallback(
     (index: number) => {
       // Persist on blur, remove empty entries that are not the only one
-      const filtered = keys.filter((k, i) => i === index || k.key.trim() !== "" || keys.length === 1);
+      const filtered = keys.filter(
+        (k, i) => i === index || k.key.trim() !== "" || keys.length === 1,
+      );
       void persist(filtered);
     },
     [keys, persist],
@@ -392,12 +405,7 @@ const ApiKeyList: React.FC<{
         </Flex>
       ))}
       <Flex>
-        <Button
-          variant="ghost"
-          size="1"
-          onClick={handleAddKey}
-          type="button"
-        >
+        <Button variant="ghost" size="1" onClick={handleAddKey} type="button">
           <IconPlus size={14} />
           Add Key
         </Button>
@@ -418,6 +426,8 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     removeCustomProvider,
     addCustomProvider,
     refreshSettings,
+    setProxySettings,
+    setProviderProxyOverride,
   } = useSettings();
 
   const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
@@ -440,7 +450,9 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
       const apiKeysVal = state.apiKeys?.[provider.id];
       const hasApiKey = Array.isArray(apiKeysVal)
         ? apiKeysVal.some((e: any) => e.enabled && e.key?.trim())
-        : typeof apiKeysVal === 'string' ? !!apiKeysVal.trim() : false;
+        : typeof apiKeysVal === "string"
+          ? !!apiKeysVal.trim()
+          : false;
       const hasModel = !!settings?.post_process_models?.[provider.id]?.trim();
       const hasCachedModel = (settings?.cached_models ?? []).some(
         (model) => model.provider_id === provider.id,
@@ -526,9 +538,21 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     );
 
     return [
-      { key: "recommended", label: t("settings.postProcessing.api.providers.group.recommended"), templates: recommended },
-      { key: "cloud", label: t("settings.postProcessing.api.providers.group.cloud"), templates: cloud },
-      { key: "local", label: t("settings.postProcessing.api.providers.group.local"), templates: local },
+      {
+        key: "recommended",
+        label: t("settings.postProcessing.api.providers.group.recommended"),
+        templates: recommended,
+      },
+      {
+        key: "cloud",
+        label: t("settings.postProcessing.api.providers.group.cloud"),
+        templates: cloud,
+      },
+      {
+        key: "local",
+        label: t("settings.postProcessing.api.providers.group.local"),
+        templates: local,
+      },
     ].filter((g) => g.templates.length > 0);
   }, [t]);
 
@@ -573,11 +597,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     if (option) {
       setEditingName(option.label as string);
     }
-  }, [
-    state.baseUrl,
-    state.selectedProviderId,
-    state.providerOptions,
-  ]);
+  }, [state.baseUrl, state.selectedProviderId, state.providerOptions]);
 
   const handleNameBlur = async () => {
     if (editingName.trim() && editingName !== selectedProviderLabel) {
@@ -732,96 +752,91 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   >
                     <Flex direction="column" gap="4" className="pr-2 py-1">
                       {groupedTemplates.map((group) => (
-                          <Box key={group.key}>
-                            <Text
-                              size="1"
-                              weight="bold"
-                              className="mb-1! block text-gray-500"
-                            >
-                              {group.label}
-                            </Text>
-                            <Grid
-                              columns={{ initial: "2", sm: "3", lg: "4" }}
-                              gap="2"
-                            >
-                              {group.templates.map((template) => (
-                                <button
-                                  key={template.id}
-                                  type="button"
-                                  onClick={() =>
-                                    void handleAddProvider(template)
-                                  }
-                                  className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
-                                >
-                                  <Flex align="center" gap="3">
+                        <Box key={group.key}>
+                          <Text
+                            size="1"
+                            weight="bold"
+                            className="mb-1! block text-gray-500"
+                          >
+                            {group.label}
+                          </Text>
+                          <Grid
+                            columns={{ initial: "2", sm: "3", lg: "4" }}
+                            gap="2"
+                          >
+                            {group.templates.map((template) => (
+                              <button
+                                key={template.id}
+                                type="button"
+                                onClick={() => void handleAddProvider(template)}
+                                className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
+                              >
+                                <Flex align="center" gap="3">
+                                  <Flex
+                                    align="center"
+                                    gap="3"
+                                    className="min-w-0"
+                                  >
+                                    <ProviderAvatar
+                                      providerId={template.id}
+                                      baseUrl={template.baseUrl}
+                                      large
+                                      refreshToken={avatarRefreshToken}
+                                      overrideValue={
+                                        settings
+                                          ?.post_process_provider_avatar_overrides?.[
+                                          template.id
+                                        ] ?? null
+                                      }
+                                    />
                                     <Flex
-                                      align="center"
-                                      gap="3"
-                                      className="min-w-0"
+                                      direction="column"
+                                      justify="between"
+                                      className="min-w-0 flex-1"
+                                      style={{ minHeight: 40 }}
                                     >
-                                      <ProviderAvatar
-                                        providerId={template.id}
-                                        baseUrl={template.baseUrl}
-                                        large
-                                        refreshToken={avatarRefreshToken}
-                                        overrideValue={
-                                          settings
-                                            ?.post_process_provider_avatar_overrides?.[
-                                            template.id
-                                          ] ?? null
-                                        }
-                                      />
+                                      <Text
+                                        size="2"
+                                        weight="medium"
+                                        className="block truncate text-(--gray-12)"
+                                        title={template.label}
+                                      >
+                                        {template.label}
+                                      </Text>
                                       <Flex
-                                        direction="column"
-                                        justify="between"
-                                        className="min-w-0 flex-1"
-                                        style={{ minHeight: 40 }}
+                                        align="center"
+                                        gap="1"
+                                        className="min-w-0"
                                       >
                                         <Text
-                                          size="2"
-                                          weight="medium"
-                                          className="block truncate text-(--gray-12)"
-                                          title={template.label}
-                                        >
-                                          {template.label}
-                                        </Text>
-                                        <Flex
-                                          align="center"
-                                          gap="1"
-                                          className="min-w-0"
-                                        >
-                                          <Text
-                                            size="1"
-                                            color="gray"
-                                            className="block truncate leading-[1.2]"
-                                            title={getTemplateHost(
-                                              template.baseUrl,
-                                            )}
-                                          >
-                                            {getTemplateHost(template.baseUrl)}
-                                          </Text>
-                                          {template.signupUrl && (
-                                            <IconExternalLink
-                                              size={12}
-                                              className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                void openUrl(
-                                                  template.signupUrl!,
-                                                );
-                                              }}
-                                            />
+                                          size="1"
+                                          color="gray"
+                                          className="block truncate leading-[1.2]"
+                                          title={getTemplateHost(
+                                            template.baseUrl,
                                           )}
-                                        </Flex>
+                                        >
+                                          {getTemplateHost(template.baseUrl)}
+                                        </Text>
+                                        {template.signupUrl && (
+                                          <IconExternalLink
+                                            size={12}
+                                            className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              void openUrl(template.signupUrl!);
+                                            }}
+                                          />
+                                        )}
                                       </Flex>
                                     </Flex>
                                   </Flex>
-                                </button>
-                              ))}
-                            </Grid>
-                          </Box>
-                        ),
-                      )}
+                                </Flex>
+                              </button>
+                            ))}
+                          </Grid>
+                        </Box>
+                      ))}
                     </Flex>
                   </ScrollArea>
                 </Box>
@@ -1119,12 +1134,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           {/* Form Fields - Scrollable */}
           <Box className="px-8 py-4 flex-1 overflow-y-auto">
             {/* Grid: label right-aligned | value left-aligned */}
-            <Grid
-              columns="auto 1fr"
-              gapX="4"
-              gapY="3"
-              align="center"
-            >
+            <Grid columns="auto 1fr" gapX="4" gapY="3" align="center">
               {/* Base URL */}
               <Text
                 size="2"
@@ -1132,10 +1142,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 color="gray"
                 className="text-right select-none"
               >
-                {t(
-                  "settings.postProcessing.api.providers.fields.baseUrl",
-                )}
-                :
+                {t("settings.postProcessing.api.providers.fields.baseUrl")}:
               </Text>
               {(() => {
                 const tpl = matchProviderTemplate(
@@ -1143,8 +1150,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   state.selectedProvider?.base_url,
                 );
                 const defaultUrl = tpl?.baseUrl ?? "";
-                const isChanged =
-                  defaultUrl && localBaseUrl !== defaultUrl;
+                const isChanged = defaultUrl && localBaseUrl !== defaultUrl;
 
                 const saveBaseUrl = () => {
                   state.handleBaseUrlChange(localBaseUrl);
@@ -1246,10 +1252,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 color="gray"
                 className="text-right select-none pt-1"
               >
-                {t(
-                  "settings.postProcessing.api.providers.fields.apiKey",
-                )}
-                :
+                {t("settings.postProcessing.api.providers.fields.apiKey")}:
               </Text>
               <Flex direction="column" gap="2" className="min-w-0">
                 <ApiKeyList
@@ -1321,16 +1324,12 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   </Button>
                   {state.lastInferenceResult && (
                     <Badge
-                      color={
-                        state.lastInferenceResult.error ? "red" : "green"
-                      }
+                      color={state.lastInferenceResult.error ? "red" : "green"}
                       variant="soft"
                       size="1"
                       className="shrink-0"
                     >
-                      {state.lastInferenceResult.error
-                        ? "Failure"
-                        : "Success"}
+                      {state.lastInferenceResult.error ? "Failure" : "Success"}
                     </Badge>
                   )}
                 </Flex>
@@ -1347,6 +1346,32 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 <IconPlus size={14} />
                 {t("settings.postProcessing.models.selectModel.addButton")}
               </Button>
+            </Box>
+
+            {/* Advanced Settings (models endpoint + proxy) */}
+            <Box className="mt-4">
+              <AdvancedSettings
+                modelsEndpoint={state.modelsEndpoint || ""}
+                onModelsEndpointChange={state.handleModelsEndpointChange}
+                providerId={state.selectedProviderId}
+                proxyUrl={settings?.proxy_url ?? ""}
+                proxyGlobalEnabled={settings?.proxy_global_enabled ?? false}
+                onProxyUrlChange={(url) =>
+                  setProxySettings(
+                    url || null,
+                    settings?.proxy_global_enabled ?? false,
+                  )
+                }
+                onProxyGlobalEnabledChange={(enabled) =>
+                  setProxySettings(settings?.proxy_url ?? null, enabled)
+                }
+                proxyOverride={
+                  state.selectedProvider?.proxy_override ?? "follow_global"
+                }
+                onProxyOverrideChange={(value) =>
+                  setProviderProxyOverride(state.selectedProviderId, value)
+                }
+              />
             </Box>
           </Box>
         </Flex>
