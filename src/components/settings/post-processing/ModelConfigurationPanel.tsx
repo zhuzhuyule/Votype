@@ -209,11 +209,15 @@ const ModelCard: React.FC<{
                     total_tokens?: number;
                   });
 
-              const mainContent = resultObj.content || "";
+              // Strip <think>...</think> tags from content
+              const rawContent = resultObj.content || "";
+              const mainContent = rawContent
+                .replace(/<think>[\s\S]*?<\/think>/g, "")
+                .trim();
               const hasThinking =
                 ("reasoning_content" in resultObj &&
                   !!resultObj.reasoning_content) ||
-                mainContent.includes("<think>");
+                rawContent.includes("<think>");
 
               toast.dismiss(toastId);
               const modelLabel =

@@ -348,6 +348,19 @@ pub async fn send_chat_completion_with_params(
         .and_then(|u| u.get("total_tokens"))
         .and_then(|v| v.as_i64());
 
+    // Strip <think>...</think> tags from content if present
+    let content = content.map(|c| {
+        let mut text = c;
+        while let Some(start) = text.find("<think>") {
+            if let Some(end) = text[start..].find("</think>") {
+                text.replace_range(start..start + end + 8, "");
+            } else {
+                break;
+            }
+        }
+        text.trim().to_string()
+    });
+
     let result = InferenceResult {
         content,
         reasoning_content,

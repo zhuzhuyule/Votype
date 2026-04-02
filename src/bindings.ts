@@ -1071,7 +1071,7 @@ extra_params?: Partial<{ [key in string]: JsonValue }> | null;
 extra_headers?: Partial<{ [key in string]: string }> | null }
 export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number }
 export type ImplementationChangeResult = { success: boolean; reset_bindings: string[] }
-export type InferenceResult = { content: string | null; reasoning_content: string | null }
+export type InferenceResult = { content: string | null; reasoning_content: string | null; duration_ms: number | null; total_tokens: number | null }
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
 export type KeyboardImplementation = "tauri" | "handy_keys"
 /**

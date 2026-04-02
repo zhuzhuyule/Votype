@@ -974,6 +974,11 @@
             "v1AutoAppended": "已自动追加 /v1",
             "v1MissingWarning": "URL 可能缺少版本路径（如 /v1）"
           },
+          "group": {
+            "recommended": "推荐",
+            "cloud": "云端提供商",
+            "local": "本地提供商"
+          },
           "resetUrl": "重置 URL",
           "testConnection": "测试连接",
           "testFailed": "连接失败: {{error}}",

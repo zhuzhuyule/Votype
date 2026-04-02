@@ -238,24 +238,36 @@ pub async fn unified_post_process(
             return super::PipelineResult::Skipped;
         };
 
-        // Resolve model for lite prompt
+        // Check for fallback chain on the lite model
+        let lite_chain = lite_settings.selected_prompt_model.as_ref();
+        let has_lite_fallback = lite_chain
+            .and_then(|c| c.fallback_id.as_ref())
+            .is_some();
+
         let fallback_provider = match lite_settings.active_post_process_provider() {
             Some(p) => p,
             None => return super::PipelineResult::Skipped,
         };
 
-        let (actual_provider, model) = match super::routing::resolve_effective_model(
-            &lite_settings,
-            fallback_provider,
-            &lite_prompt,
-        ) {
-            Some((p, m)) => (p, m),
-            None => return super::PipelineResult::Skipped,
+        // For non-fallback: resolve model early
+        let single_resolved = if !has_lite_fallback {
+            match super::routing::resolve_effective_model(
+                &lite_settings,
+                fallback_provider,
+                &lite_prompt,
+            ) {
+                Some(r) => Some(r),
+                None => return super::PipelineResult::Skipped,
+            }
+        } else {
+            None
         };
 
         if show_overlay {
             show_llm_processing_overlay(app_handle);
         }
+
+        let lite_start = std::time::Instant::now();
 
         // Build prompt (minimal — no history context for lite, hotword only if needed)
         let hotword_injection =
@@ -275,31 +287,163 @@ pub async fn unified_post_process(
             ))
             .build();
 
-        let cached_model_id = lite_prompt.model_id.as_deref().or(lite_settings
-            .selected_prompt_model
-            .as_ref()
-            .map(|c| c.primary_id.as_str()));
+        // Execute with or without fallback chain
+        let (result, err, error_message, api_token_count, result_model, result_provider, metrics_logged) =
+            if has_lite_fallback {
+                let chain = lite_chain.unwrap();
+                let app = app_handle.clone();
+                let s = lite_settings.clone();
+                let sys_msgs = built.system_messages.clone();
+                let user_msg = built.user_message.clone();
+                let an = app_name;
+                let wt = window_title;
+                let metrics = app_handle
+                    .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+                    .map(|m| (*m).clone());
+                let hist_id = history_id;
 
-        let lite_start = std::time::Instant::now();
-        let (result, err, error_message, api_token_count) =
-            super::core::execute_llm_request_with_messages(
-                app_handle,
-                &lite_settings,
-                actual_provider,
-                &model,
-                cached_model_id,
-                &built.system_messages,
-                built.user_message.as_deref(),
-                None,
-                app_name,
-                window_title,
-                None,
-                None,
-                None,
-            )
-            .await;
+                let fb_result =
+                    crate::fallback::execute_with_fallback(chain, |cached_model_id| {
+                        let app = app.clone();
+                        let s = s.clone();
+                        let sys_msgs = sys_msgs.clone();
+                        let user_msg = user_msg.clone();
+                        let an = an.clone();
+                        let wt = wt.clone();
+                        let metrics = metrics.clone();
+                        async move {
+                            let cached = s
+                                .cached_models
+                                .iter()
+                                .find(|m| m.id == cached_model_id)
+                                .ok_or_else(|| {
+                                    format!("Model {} not found", cached_model_id)
+                                })?;
+                            let provider = s
+                                .post_process_provider(&cached.provider_id)
+                                .ok_or_else(|| {
+                                    format!("Provider {} not found", cached.provider_id)
+                                })?;
+                            let model = cached.model_id.clone();
+                            let log_model_id = cached.model_id.clone();
+                            let log_provider_id = provider.id.clone();
+
+                            let call_start = std::time::Instant::now();
+                            let (result, err, error_msg, token_count) =
+                                super::core::execute_llm_request_with_messages(
+                                    &app,
+                                    &s,
+                                    provider,
+                                    &model,
+                                    Some(&cached_model_id),
+                                    &sys_msgs,
+                                    user_msg.as_deref(),
+                                    None,
+                                    an,
+                                    wt,
+                                    None,
+                                    None,
+                                    None,
+                                )
+                                .await;
+                            let elapsed_ms = call_start.elapsed().as_millis() as u64;
+
+                            // Self-log metrics
+                            if let Some(ref m) = metrics {
+                                let tokens_per_sec = match (&result, elapsed_ms) {
+                                    (Some(ref t), d) if d > 0 => {
+                                        let est = super::extensions::estimate_tokens(t);
+                                        Some(est / d as f64 * 1000.0)
+                                    }
+                                    _ => None,
+                                };
+                                let _ = m.log_call(
+                                    &crate::managers::llm_metrics::LlmCallRecord {
+                                        history_id: hist_id,
+                                        model_id: log_model_id.clone(),
+                                        provider: log_provider_id.clone(),
+                                        call_type: "single_polish".to_string(),
+                                        input_tokens: None,
+                                        output_tokens: None,
+                                        total_tokens: token_count,
+                                        token_estimate: None,
+                                        duration_ms: elapsed_ms as i64,
+                                        tokens_per_sec,
+                                        error: if err {
+                                            error_msg.clone()
+                                        } else {
+                                            None
+                                        },
+                                        is_fallback: false,
+                                    },
+                                );
+                            }
+
+                            if err {
+                                Err(error_msg.unwrap_or_else(|| "LLM error".into()))
+                            } else {
+                                result
+                                    .map(|text| {
+                                        (text, token_count, log_model_id, log_provider_id)
+                                    })
+                                    .ok_or_else(|| "Empty result".into())
+                            }
+                        }
+                    })
+                    .await;
+
+                if fb_result.is_fallback {
+                    info!(
+                        "[UnifiedPipeline] LitePolish used fallback model '{}'",
+                        fb_result.actual_model_id
+                    );
+                }
+
+                match fb_result.result {
+                    Ok((text, tc, mid, pid)) => {
+                        (Some(text), false, None, tc, mid, pid, true)
+                    }
+                    Err(e) => {
+                        log::warn!("[UnifiedPipeline] LitePolish fallback chain failed: {}", e);
+                        (None, true, Some(e), None, String::new(), String::new(), true)
+                    }
+                }
+            } else {
+                let (actual_provider, model) = single_resolved.unwrap();
+                let cached_model_id = lite_prompt.model_id.as_deref().or(lite_settings
+                    .selected_prompt_model
+                    .as_ref()
+                    .map(|c| c.primary_id.as_str()));
+
+                let (result, err, error_message, api_token_count) =
+                    super::core::execute_llm_request_with_messages(
+                        app_handle,
+                        &lite_settings,
+                        actual_provider,
+                        &model,
+                        cached_model_id,
+                        &built.system_messages,
+                        built.user_message.as_deref(),
+                        None,
+                        app_name,
+                        window_title,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
+                (
+                    result,
+                    err,
+                    error_message,
+                    api_token_count,
+                    model.clone(),
+                    actual_provider.id.clone(),
+                    false,
+                )
+            };
+
         let lite_duration_ms = lite_start.elapsed().as_millis() as u64;
-
         let total_tokens = sum_tokens(intent_tokens, api_token_count);
         let total_calls = Some(if intent_tokens.is_some() { 2 } else { 1 });
 
@@ -313,14 +457,14 @@ pub async fn unified_post_process(
 
         return super::PipelineResult::SingleModel {
             text: result,
-            model: Some(model.clone()),
+            model: Some(result_model.clone()),
             prompt_id: Some(lite_prompt.id.clone()),
             token_count: total_tokens,
             llm_call_count: total_calls,
             error: err,
             error_message,
-            metrics_model_id: Some(model),
-            metrics_provider_id: Some(actual_provider.id.clone()),
+            metrics_model_id: if metrics_logged { None } else { Some(result_model) },
+            metrics_provider_id: if metrics_logged { None } else { Some(result_provider) },
             metrics_duration_ms: Some(lite_duration_ms),
             metrics_tokens_per_sec: lite_tokens_per_sec,
         };

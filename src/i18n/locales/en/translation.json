@@ -936,6 +936,11 @@
             "v1AutoAppended": "/v1 was automatically appended",
             "v1MissingWarning": "URL may be missing version path (e.g. /v1)"
           },
+          "group": {
+            "recommended": "Recommended",
+            "cloud": "Cloud Providers",
+            "local": "Local Providers"
+          },
           "resetUrl": "Reset URL",
           "testConnection": "Test Connection",
           "testFailed": "Connection failed: {{error}}",

@@ -12,6 +12,7 @@ import {
 } from "@radix-ui/themes";
 import {
   IconCpu,
+  IconExternalLink,
   IconEye,
   IconEyeOff,
   IconHexagonLetterA,
@@ -29,6 +30,7 @@ import {
 } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -43,7 +45,11 @@ import {
   PROVIDER_ICON_CATALOG,
   resolveProviderIconAsset,
 } from "./providerBrandAssets";
-import { type ProviderTemplate, PROVIDER_TEMPLATES } from "./providerTemplates";
+import {
+  type ProviderTemplate,
+  PROVIDER_TEMPLATES,
+  RECOMMENDED_PROVIDER_TEMPLATE_IDS,
+} from "./providerTemplates";
 import { SidebarItem } from "./SidebarItem";
 
 const getProviderGlyph = (
@@ -299,17 +305,35 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   }, [filteredIconCatalog, recommendedAvatarKeys]);
 
   const groupedTemplates = useMemo(() => {
-    return PROVIDER_TEMPLATES.reduce<Record<string, ProviderTemplate[]>>(
-      (groups, template) => {
-        if (!groups[template.category]) {
-          groups[template.category] = [];
-        }
-        groups[template.category].push(template);
-        return groups;
-      },
-      {},
+    const recommendedSet = new Set<string>(RECOMMENDED_PROVIDER_TEMPLATE_IDS);
+    const recommendedOrder = new Map<string, number>(
+      RECOMMENDED_PROVIDER_TEMPLATE_IDS.map((id, index) => [id, index]),
     );
-  }, []);
+
+    const templates = PROVIDER_TEMPLATES.filter((t) => t.id !== "custom");
+
+    const recommended = templates
+      .filter((t) => recommendedSet.has(t.id))
+      .sort(
+        (a, b) =>
+          (recommendedOrder.get(a.id) ?? Infinity) -
+          (recommendedOrder.get(b.id) ?? Infinity),
+      );
+
+    const local = templates.filter(
+      (t) => !recommendedSet.has(t.id) && t.category === "Local",
+    );
+
+    const cloud = templates.filter(
+      (t) => !recommendedSet.has(t.id) && t.category !== "Local",
+    );
+
+    return [
+      { key: "recommended", label: t("settings.postProcessing.api.providers.group.recommended"), templates: recommended },
+      { key: "cloud", label: t("settings.postProcessing.api.providers.group.cloud"), templates: cloud },
+      { key: "local", label: t("settings.postProcessing.api.providers.group.local"), templates: local },
+    ].filter((g) => g.templates.length > 0);
+  }, [t]);
 
   const getTemplateHost = (baseUrl: string) => {
     if (!baseUrl.trim()) return "Custom endpoint";
@@ -317,6 +341,27 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
       return new URL(baseUrl).host;
     } catch {
       return baseUrl;
+    }
+  };
+
+  const matchProviderTemplate = (
+    providerId: string,
+    baseUrl?: string,
+  ): ProviderTemplate | undefined => {
+    const byId = PROVIDER_TEMPLATES.find((p) => p.id === providerId);
+    if (byId) return byId;
+    if (!baseUrl) return undefined;
+    try {
+      const host = new URL(baseUrl).host;
+      return PROVIDER_TEMPLATES.find((p) => {
+        try {
+          return new URL(p.baseUrl).host === host;
+        } catch {
+          return false;
+        }
+      });
+    } catch {
+      return undefined;
     }
   };
 
@@ -455,7 +500,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
         {/* Sidebar */}
         <Flex
           direction="column"
-          className="h-full border-r border-gray-100 dark:border-gray-800"
+          className="h-full overflow-hidden border-r border-gray-100 dark:border-gray-800"
         >
           <Flex
             align="center"
@@ -490,21 +535,20 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     className="h-[400px] overflow-auto pr-4"
                   >
                     <Flex direction="column" gap="4" className="pr-2 py-1">
-                      {Object.entries(groupedTemplates).map(
-                        ([category, templates]) => (
-                          <Box key={category}>
+                      {groupedTemplates.map((group) => (
+                          <Box key={group.key}>
                             <Text
                               size="1"
                               weight="bold"
-                              className="mb-1! block  text-gray-500"
+                              className="mb-1! block text-gray-500"
                             >
-                              {category}
+                              {group.label}
                             </Text>
                             <Grid
                               columns={{ initial: "2", sm: "3", lg: "4" }}
                               gap="2"
                             >
-                              {templates.map((template) => (
+                              {group.templates.map((template) => (
                                 <button
                                   key={template.id}
                                   type="button"
@@ -545,16 +589,34 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                                         >
                                           {template.label}
                                         </Text>
-                                        <Text
-                                          size="1"
-                                          color="gray"
-                                          className="block truncate leading-[1.2]"
-                                          title={getTemplateHost(
-                                            template.baseUrl,
-                                          )}
+                                        <Flex
+                                          align="center"
+                                          gap="1"
+                                          className="min-w-0"
                                         >
-                                          {getTemplateHost(template.baseUrl)}
-                                        </Text>
+                                          <Text
+                                            size="1"
+                                            color="gray"
+                                            className="block truncate leading-[1.2]"
+                                            title={getTemplateHost(
+                                              template.baseUrl,
+                                            )}
+                                          >
+                                            {getTemplateHost(template.baseUrl)}
+                                          </Text>
+                                          {template.signupUrl && (
+                                            <IconExternalLink
+                                              size={12}
+                                              className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                void openUrl(
+                                                  template.signupUrl!,
+                                                );
+                                              }}
+                                            />
+                                          )}
+                                        </Flex>
                                       </Flex>
                                     </Flex>
                                   </Flex>
@@ -570,35 +632,41 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               </Dialog.Content>
             </Dialog.Root>
           </Flex>
-          <Box className="flex-1 overflow-y-auto px-2 space-y-0.5">
-            {sortedOptions.map((option) => (
-              <SidebarItem
-                key={option.value}
-                option={option}
-                isSelected={state.selectedProviderId === option.value}
-                isVerified={state.verifiedProviderIds.has(option.value)}
-                onClick={() => state.handleProviderSelect(option.value)}
-                onActivate={() => state.activateProvider(option.value)}
-                t={t}
-                iconNode={
-                  <ProviderAvatar
-                    providerId={option.value}
-                    baseUrl={
-                      state.providers.find(
-                        (provider) => provider.id === option.value,
-                      )?.base_url ?? ""
-                    }
-                    refreshToken={avatarRefreshToken}
-                    overrideValue={
-                      settings?.post_process_provider_avatar_overrides?.[
-                        option.value
-                      ] ?? null
-                    }
-                  />
-                }
-              />
-            ))}
-          </Box>
+          <ScrollArea
+            scrollbars="vertical"
+            type="hover"
+            className="flex-1 min-h-0"
+          >
+            <Box className="px-2 space-y-0.5">
+              {sortedOptions.map((option) => (
+                <SidebarItem
+                  key={option.value}
+                  option={option}
+                  isSelected={state.selectedProviderId === option.value}
+                  isVerified={state.verifiedProviderIds.has(option.value)}
+                  onClick={() => state.handleProviderSelect(option.value)}
+                  onActivate={() => state.activateProvider(option.value)}
+                  t={t}
+                  iconNode={
+                    <ProviderAvatar
+                      providerId={option.value}
+                      baseUrl={
+                        state.providers.find(
+                          (provider) => provider.id === option.value,
+                        )?.base_url ?? ""
+                      }
+                      refreshToken={avatarRefreshToken}
+                      overrideValue={
+                        settings?.post_process_provider_avatar_overrides?.[
+                          option.value
+                        ] ?? null
+                      }
+                    />
+                  }
+                />
+              ))}
+            </Box>
+          </ScrollArea>
         </Flex>
 
         {/* Content Area */}
@@ -837,9 +905,16 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           <Box className="px-8 py-4 flex-1 overflow-y-auto space-y-8">
             {/* Base URL */}
             <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("settings.postProcessing.api.providers.fields.baseUrl")}
-              </Text>
+              <Flex align="baseline" gap="2">
+                <Text size="2" weight="medium" color="gray" className="shrink-0">
+                  {t("settings.postProcessing.api.providers.fields.baseUrl")}
+                </Text>
+                <Text size="1" color="gray" className="opacity-50">
+                  {t(
+                    "settings.postProcessing.api.providers.fields.baseUrlHint",
+                  )}
+                </Text>
+              </Flex>
               <TextField.Root
                 value={localBaseUrl}
                 onChange={(e) => setLocalBaseUrl(e.target.value)}
@@ -875,17 +950,35 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   </Text>
                 </Box>
               )}
-              <Text size="1" color="gray" className="opacity-70">
-                {t("settings.postProcessing.api.providers.fields.baseUrlHint")}
-              </Text>
             </Flex>
 
             {/* API Key */}
             <Flex direction="column" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                {t("settings.postProcessing.api.providers.fields.apiKey")}
-              </Text>
-              <Flex gap="2">
+              <Flex align="baseline" gap="2">
+                <Text size="2" weight="medium" color="gray" className="shrink-0">
+                  {t("settings.postProcessing.api.providers.fields.apiKey")}
+                </Text>
+                {(() => {
+                  const tpl = matchProviderTemplate(
+                    state.selectedProviderId,
+                    state.selectedProvider?.base_url,
+                  );
+                  if (!tpl?.signupUrl) return null;
+                  return (
+                    <Text
+                      size="1"
+                      className="inline-flex cursor-pointer items-center gap-0.5 text-(--accent-11) hover:underline"
+                      onClick={() => openUrl(tpl.signupUrl!)}
+                    >
+                      {t(
+                        "settings.postProcessing.api.providers.fields.getApiKey",
+                      )}
+                      <IconExternalLink size={12} />
+                    </Text>
+                  );
+                })()}
+              </Flex>
+              <Flex align="center" gap="2">
                 <TextField.Root
                   type={showApiKey ? "text" : "password"}
                   value={localApiKey}
