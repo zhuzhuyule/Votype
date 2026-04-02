@@ -45,8 +45,8 @@ The application adopts a hybrid architecture:
   - `src/review/`: Review/confidence window (separate Tauri webview)
 - `src-tauri/`: Rust backend
   - `src-tauri/src/actions/`: Core actions (transcribe, post_process/)
-  - `src-tauri/src/actions/post_process/`: Unified pipeline (pipeline.rs, routing.rs, extensions.rs, core.rs)
-  - `src-tauri/src/managers/`: Business logic managers (history, model, transcription, hotword, prompt, etc.)
+  - `src-tauri/src/actions/post_process/`: Unified pipeline (pipeline.rs, routing.rs, extensions.rs, core.rs, recent_context.rs, prompt_builder.rs, reference_resolver.rs)
+  - `src-tauri/src/managers/`: Business logic managers (history, model, transcription, hotword, prompt, llm_metrics, pipeline_log, etc.)
   - `src-tauri/src/shortcut/`: Shortcut handlers and review commands
   - `src-tauri/src/review_window.rs`: Review window lifecycle and state
   - `src-tauri/resources/prompts/`: AI prompt templates (loaded at runtime)
@@ -98,8 +98,20 @@ Step 4: Execute polish
 
 **Key types:**
 
-- `PipelineResult` enum: Skipped, Cached, PassThrough, SingleModel, MultiModelAutoPick, MultiModelManual, PendingSkillConfirmation
-- `IntentDecision`: action + needs_hotword + language + token_count
+- `PipelineResult` enum: Skipped, Cached, PassThrough, SingleModel, MultiModel, PendingSkillConfirmation
+- `IntentDecision`: action + needs_hotword + language + token_count + model_id + provider_id + duration_ms
+
+**Context enrichment (injected into user message by PromptBuilder):**
+
+- `[session-context]`: Recent transcriptions from the same app (5-min window, 500-char budget, managed by `recent_context.rs`)
+- `{{scenario-hint}}`: App-category-aware tone guidance (CodeEditor → preserve terms, IM → keep casual, Email → formal)
+- `[asr-corrections]`: Known ASR error → correction pairs from hotword system
+
+**Observability:**
+
+- `pipeline_decisions` table: One row per pipeline run with step timing, routing decisions, error types (written by `PipelineLogManager`)
+- `llm_call_log` table: Per-LLM-call metrics (model, provider, tokens, speed, error, is_fallback)
+- `review_action` / `review_edit_distance` / `review_selected_candidate`: User feedback from review window
 
 ## Review Window
 
@@ -167,8 +179,41 @@ Two display modes based on candidate count:
 
 - **External Files:** All AI prompts must be stored in external files at `src-tauri/resources/prompts/*.md`, NOT hardcoded in Rust code.
 - **Runtime Loading:** Prompts are loaded at runtime using `PromptManager`, which first checks the user's data directory for customizations, then falls back to built-in resources.
-- **Template Variables:** Use `${variable_name}` syntax for dynamic values in prompts.
+- **Template Variables:** Use `{{variable_name}}` syntax for dynamic values in prompts. Available variables: `{{prompt}}`, `{{app-name}}`, `{{app-category}}`, `{{window-title}}`, `{{time}}`, `{{scenario-hint}}`.
 - **User Customization:** Users can override built-in prompts by placing modified files in their app data directory.
+
+## LLM Execution Layer
+
+### API Surface (core.rs)
+
+Four public entry points exist — use the right one:
+
+| Function | Returns | Use When |
+|----------|---------|----------|
+| `execute_llm_request` | Legacy tuple | Simple single-prompt calls (existing code) |
+| `execute_llm_request_with_messages` | Legacy tuple | Multi-message calls (existing code) |
+| `execute_llm_request_typed` | `LlmResult` | New code, caller handles errors |
+| `execute_llm_request_with_retry` | `LlmResult` | New code, automatic retry for transient failures |
+
+**For new code, prefer `execute_llm_request_with_retry`.** It handles Network errors, 429 rate limits, and 5xx server errors with up to 2 retries (budget ≤1.5s). Legacy wrappers delegate to the same `execute_llm_request_inner` internally.
+
+### Error Types (LlmError)
+
+| Variant | Error Code | Retryable |
+|---------|-----------|-----------|
+| `ClientInit` | `llm_init_failed` | No |
+| `Network` | `llm_network_error` | Yes (0ms + 500ms) |
+| `ApiError { 429 }` | `llm_rate_limited` | Yes (1000ms) |
+| `ApiError { 401/403 }` | `llm_auth_failed` | No |
+| `ApiError { 5xx }` | `llm_api_error` | Yes (0ms + 500ms) |
+| `ParseError` | `llm_parse_error` | No |
+
+### Known Limitation: extensions.rs
+
+`execute_single_model_post_process` in `extensions.rs` has its **own HTTP implementation** that does NOT call `core.rs` functions. This means:
+- `LlmError` types are not used in multi-model execution
+- `execute_llm_request_with_retry` does not apply to multi-model candidates
+- Unifying this is tracked as future work
 
 ## Critical Runtime Rules
 
