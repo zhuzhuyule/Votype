@@ -187,7 +187,16 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Content maxWidth="540px">
         <Dialog.Title>
-          {t("common.edit", "Edit")} - {model.model_id}
+          <Flex align="center" gap="2">
+            {t("common.edit", "Edit")} - {model.model_id}
+            {thinking && (
+              <IconBrain
+                size={16}
+                style={{ color: "var(--blue-9)" }}
+                title="Thinking 已启用"
+              />
+            )}
+          </Flex>
         </Dialog.Title>
 
         <Flex direction="column" gap="4" mt="3">
@@ -208,25 +217,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 
           {/* Model Family */}
           <Flex direction="column" gap="1">
-            <Flex align="center" gap="2">
-              <Text size="2" weight="medium" color="gray">
-                模型系列
-              </Text>
-              {supportsThinking && (
-                <IconBrain
-                  size={15}
-                  style={{
-                    color: thinking
-                      ? "var(--blue-9)"
-                      : "var(--gray-8)",
-                    cursor: "pointer",
-                    opacity: thinking ? 1 : 0.5,
-                  }}
-                  onClick={() => handleThinkingToggle(!thinking)}
-                  title={thinking ? "Thinking 已启用" : "Thinking 已禁用"}
-                />
-              )}
-            </Flex>
+            <Text size="2" weight="medium" color="gray">
+              模型系列
+            </Text>
             <Select.Root
               value={modelFamily || "__unknown__"}
               onValueChange={(v) =>
