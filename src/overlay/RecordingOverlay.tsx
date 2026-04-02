@@ -12,7 +12,7 @@ import { ASR_ONLINE_TIMEOUT } from "../lib/events";
 import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
-export type OverlayState = "recording" | "transcribing" | "llm";
+export type OverlayState = "recording" | "transcribing" | "llm" | "rewrite";
 
 type OverlayErrorEvent = { code?: string; message?: string };
 
@@ -82,6 +82,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const { t } = useTranslation();
   // isVisible is implicitly true if we are mounted
   const [state, setState] = useState<OverlayState>(initialState);
+  const [rewriteCount, setRewriteCount] = useState<number>(1);
   const [levels, setLevels] = useState<number[]>(EMPTY_LEVELS.slice(0, 9));
   const [waveform, setWaveform] = useState<number[]>(EMPTY_WAVEFORM);
   const [accentColor, setAccentColor] = useState<string>(getAccentColor);
@@ -311,7 +312,28 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       unlisteners.push(unlistenPostProcessStatus);
 
       const unlistenStateUpdate = await listen("show-overlay", (event) => {
-        const overlayState = event.payload as OverlayState;
+        // Payload can be a plain string (for most states) or an object
+        // { state: "rewrite", rewrite_count: N } for voice rewrite.
+        let overlayState: OverlayState;
+        if (
+          event.payload !== null &&
+          typeof event.payload === "object" &&
+          "state" in (event.payload as object)
+        ) {
+          const richPayload = event.payload as {
+            state: OverlayState;
+            rewrite_count?: number;
+          };
+          overlayState = richPayload.state;
+          if (
+            overlayState === "rewrite" &&
+            richPayload.rewrite_count !== undefined
+          ) {
+            setRewriteCount(richPayload.rewrite_count);
+          }
+        } else {
+          overlayState = event.payload as OverlayState;
+        }
         setState(overlayState);
         // Reset buffer if restarting recording
         if (overlayState === "recording") {
@@ -546,6 +568,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     recording: t("overlay.status.recording"),
     transcribing: t("overlay.status.transcribing"),
     llm: t("overlay.status.llm"),
+    rewrite: t("overlay.status.rewrite", { count: rewriteCount }),
   };
 
   const realtimeDisplayText =

@@ -106,6 +106,7 @@ struct RewriteConversation {
 }
 
 static REWRITE_SESSION_COUNTER: AtomicU64 = AtomicU64::new(0);
+static REWRITE_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 static REWRITE_CONVERSATION: Lazy<Mutex<RewriteConversation>> = Lazy::new(|| {
     Mutex::new(RewriteConversation {
         session_id: 0,
@@ -396,6 +397,7 @@ pub fn show_review_window(
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     reset_rewrite_conversation();
+    reset_rewrite_count();
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
     ensure_app_active_for_review(app_handle, had_visible_windows);
@@ -649,6 +651,16 @@ fn reset_rewrite_conversation() {
     }
 }
 
+/// Increment the rewrite count for the current review session and return the new value.
+pub fn increment_rewrite_count() -> u32 {
+    REWRITE_COUNT.fetch_add(1, Ordering::SeqCst) + 1
+}
+
+/// Reset the rewrite count (called when a new review session starts).
+fn reset_rewrite_count() {
+    REWRITE_COUNT.store(0, Ordering::SeqCst);
+}
+
 /// Shows the review window with multiple model candidates for selection
 pub fn show_review_window_with_candidates(
     app_handle: &AppHandle,
@@ -662,6 +674,7 @@ pub fn show_review_window_with_candidates(
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     reset_rewrite_conversation();
+    reset_rewrite_count();
     let had_visible_windows = record_hidden_windows(app_handle);
     #[cfg(target_os = "macos")]
     ensure_app_active_for_review(app_handle, had_visible_windows);

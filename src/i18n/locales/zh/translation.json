@@ -430,7 +430,8 @@
       "llm": "后处理中…",
       "recording": "录音中…",
       "transcribing": "转录中…",
-      "review": "审阅中…"
+      "review": "审阅中…",
+      "rewrite": "第{{count}}次修改"
     },
     "timeout": {
       "title": "在线识别超时",

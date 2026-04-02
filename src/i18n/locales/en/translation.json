@@ -392,7 +392,8 @@
       "llm": "Post Processing...",
       "recording": "Recording...",
       "transcribing": "Transcribing...",
-      "review": "Review..."
+      "review": "Review...",
+      "rewrite": "Rewrite #{{count}}"
     },
     "timeout": {
       "title": "Online transcription timed out",
