@@ -49,6 +49,15 @@ pub async fn unified_post_process(
         settings.length_routing_enabled && settings.post_process_intent_model.is_some();
     let is_short_text = char_count <= settings.length_routing_threshold;
 
+    let pipeline_start = std::time::Instant::now();
+    let mut decision = crate::managers::pipeline_log::PipelineDecisionRecord {
+        input_length: char_count,
+        app_name: app_name.clone(),
+        smart_routing_enabled,
+        history_id,
+        ..Default::default()
+    };
+
     // ═══════════════════════════════════════════════════════════════
     // Step 1 + 2: Smart Routing (only for short text with smart mode on)
     // Skip smart routing for ReviewRewrite mode (voice instruction on selected text)
@@ -83,6 +92,10 @@ pub async fn unified_post_process(
                     if let Some(ref an) = app_name {
                         super::recent_context::push(&cached_text, an);
                     }
+                    decision.history_hit = true;
+                    decision.result_type = "Cached".to_string();
+                    decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+                    log_pipeline_decision(app_handle, &decision);
                     return super::PipelineResult::Cached {
                         text: cached_text,
                         model: cached_model,
@@ -103,10 +116,16 @@ pub async fn unified_post_process(
         // Step 2: Intent analysis
         let fallback_provider = match settings.active_post_process_provider() {
             Some(p) => p,
-            None => return super::PipelineResult::Skipped,
+            None => {
+                decision.result_type = "Skipped".to_string();
+                decision.bypass_reason = Some("no_provider".to_string());
+                decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+                log_pipeline_decision(app_handle, &decision);
+                return super::PipelineResult::Skipped;
+            }
         };
 
-        let decision = super::routing::execute_smart_action_routing(
+        let routing_decision = super::routing::execute_smart_action_routing(
             app_handle,
             settings,
             fallback_provider,
@@ -117,7 +136,7 @@ pub async fn unified_post_process(
 
         // Intent metrics are now self-logged inside routing.rs (each race participant logs independently)
 
-        match &decision {
+        match &routing_decision {
             Some(d) if d.action == super::routing::SmartAction::PassThrough => {
                 // Override PassThrough to LitePolish if text contains repetition patterns
                 // (e.g. stuttering, filler sounds like "啊啊", "嗯嗯", or ABAB patterns)
@@ -131,6 +150,8 @@ pub async fn unified_post_process(
                     // Fall through to LitePolish handling below
                     let mut upgraded = d.clone();
                     upgraded.action = super::routing::SmartAction::LitePolish;
+                    decision.intent_overridden = true;
+                    decision.intent_override_reason = Some("repetition_pattern".to_string());
                     intent_decision = Some(upgraded);
                 } else {
                     if log_routing {
@@ -142,6 +163,15 @@ pub async fn unified_post_process(
                     if let Some(ref an) = app_name {
                         super::recent_context::push(transcription, an);
                     }
+                    decision.result_type = "PassThrough".to_string();
+                    decision.intent_action = Some("PassThrough".to_string());
+                    decision.intent_needs_hotword = Some(d.needs_hotword);
+                    decision.intent_language = d.language.clone();
+                    decision.intent_model_id = Some(d.model_id.clone());
+                    decision.intent_provider_id = Some(d.provider_id.clone());
+                    decision.intent_elapsed_ms = Some(d.duration_ms);
+                    decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
+                    log_pipeline_decision(app_handle, &decision);
                     return super::PipelineResult::PassThrough {
                         text: transcription.to_string(),
                         intent_token_count: d.token_count,
@@ -167,7 +197,7 @@ pub async fn unified_post_process(
 
         // Only set from original decision if we didn't already upgrade it
         if intent_decision.is_none() {
-            intent_decision = decision;
+            intent_decision = routing_decision;
         }
     } else if log_routing {
         if is_rewrite_mode {

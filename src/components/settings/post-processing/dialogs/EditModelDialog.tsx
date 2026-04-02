@@ -13,7 +13,11 @@ import {
 import { IconBrain, IconPlus } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CachedModel } from "../../../../lib/types";
-import { KeyValueEditor, type QuickAction } from "../../../ui/KeyValueEditor";
+import {
+  KeyValueEditor,
+  type KeyValueEditorHandle,
+  type QuickAction,
+} from "../../../ui/KeyValueEditor";
 
 export interface EditModelDialogProps {
   model: CachedModel;
@@ -36,8 +40,8 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   >(model.extra_headers || {});
   const [thinking, setThinking] = React.useState(model.is_thinking_model);
   const [saving, setSaving] = React.useState(false);
-  const bodyEditorRef = React.useRef<{ addEntry: () => void }>(null);
-  const headersEditorRef = React.useRef<{ addEntry: () => void }>(null);
+  const bodyEditorRef = React.useRef<KeyValueEditorHandle>(null);
+  const headersEditorRef = React.useRef<KeyValueEditorHandle>(null);
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
   );
@@ -53,7 +57,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     React.useState<Record<string, unknown> | null>(null);
   const [supportsThinking, setSupportsThinking] = React.useState(false);
 
-  // Fetch thinking configs — re-run when model family changes (different families have different params)
   const effectiveLabel = model.custom_label || label || "";
   React.useEffect(() => {
     const aliases = {
@@ -85,14 +88,12 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     });
   }, [model.model_id, model.provider_id, model.name, effectiveLabel, modelFamily]);
 
-  // Load model families on mount
   React.useEffect(() => {
     invoke<[string, string][]>("get_model_families")
       .then((families) => setModelFamilies(families))
       .catch(() => setModelFamilies([]));
   }, []);
 
-  // Load preset params hint when family changes
   React.useEffect(() => {
     if (!modelFamily) {
       setPresetParamsHint("");
@@ -152,7 +153,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     }
   };
 
-  // Build quick actions for Body params
   const bodyQuickActions = React.useMemo<QuickAction[]>(() => {
     const actions: QuickAction[] = [];
     if (supportsThinking) {
@@ -245,7 +245,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             </Text>
           )}
 
-          {/* Extra Params (Body) */}
+          {/* Body 参数 */}
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text size="2" weight="medium" color="gray">
@@ -264,52 +264,16 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 </Tooltip>
               )}
             </Flex>
-            {hasBodyParams ? (
-              <KeyValueEditor
-                value={extraParams}
-                onChange={setExtraParams}
-                quickActions={bodyQuickActions}
-                hideAddButton
-                addRef={bodyEditorRef}
-              />
-            ) : (
-              <Flex direction="column" gap="2">
-                <Flex gap="2" wrap="wrap" align="center">
-                  <Tooltip content="添加参数">
-                    <IconButton
-                      size="1"
-                      variant="outline"
-                      color="gray"
-                      onClick={() => {
-                        // Initialize editor with one empty entry
-                        setExtraParams({ "": "" });
-                        setTimeout(() => bodyEditorRef.current?.addEntry(), 0);
-                      }}
-                    >
-                      <IconPlus size={12} />
-                    </IconButton>
-                  </Tooltip>
-                  {bodyQuickActions.map((action, i) => (
-                    <Button
-                      key={i}
-                      size="1"
-                      variant="soft"
-                      color={action.color || "blue"}
-                      onClick={() => {
-                        const entries = action.getEntries();
-                        setExtraParams((prev) => ({ ...prev, ...entries }));
-                      }}
-                    >
-                      {action.icon}
-                      {action.label}
-                    </Button>
-                  ))}
-                </Flex>
-              </Flex>
-            )}
+            <KeyValueEditor
+              value={extraParams}
+              onChange={setExtraParams}
+              quickActions={bodyQuickActions}
+              addTooltip="添加参数"
+              addRef={bodyEditorRef}
+            />
           </Flex>
 
-          {/* Extra Headers */}
+          {/* Headers */}
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text size="2" weight="medium" color="gray">
@@ -328,25 +292,12 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 </Tooltip>
               )}
             </Flex>
-            {hasHeaders ? (
-              <KeyValueEditor
-                value={extraHeaders}
-                onChange={setExtraHeaders}
-                hideAddButton
-                addRef={headersEditorRef}
-              />
-            ) : (
-              <Tooltip content="添加 Header">
-                <IconButton
-                  size="1"
-                  variant="outline"
-                  color="gray"
-                  onClick={() => setExtraHeaders({ "": "" })}
-                >
-                  <IconPlus size={12} />
-                </IconButton>
-              </Tooltip>
-            )}
+            <KeyValueEditor
+              value={extraHeaders}
+              onChange={setExtraHeaders}
+              addTooltip="添加 Header"
+              addRef={headersEditorRef}
+            />
           </Flex>
 
           <Flex justify="end" gap="3" mt="2">

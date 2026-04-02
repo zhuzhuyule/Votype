@@ -6,6 +6,7 @@ import {
   Select,
   TextArea,
   TextField,
+  Tooltip,
 } from "@radix-ui/themes";
 import { IconPlus, IconX } from "@tabler/icons-react";
 
@@ -25,20 +26,24 @@ export interface QuickAction {
   color?: "gray" | "blue" | "green" | "red" | "orange";
 }
 
+export interface KeyValueEditorHandle {
+  addEntry: () => void;
+}
+
 interface KeyValueEditorProps {
   /** Current entries as a flat JSON object */
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
-  placeholder?: string;
-  /** Quick-insert action buttons shown in the footer row */
+  /** Label shown in the dashed empty-state placeholder */
+  emptyLabel?: string;
+  /** Tooltip for the add button */
+  addTooltip?: string;
+  /** Quick-insert action buttons */
   quickActions?: QuickAction[];
-  /** If true, hide the built-in add button (caller renders their own) */
-  hideAddButton?: boolean;
   /** Ref to expose addEntry for external trigger */
-  addRef?: React.Ref<{ addEntry: () => void }>;
+  addRef?: React.Ref<KeyValueEditorHandle>;
 }
 
-/** Try to auto-fix loose JSON: single quotes → double quotes, trailing commas */
 function tryFixJson(input: string): string {
   let s = input.trim();
   s = s.replace(/'/g, '"');
@@ -111,9 +116,9 @@ const TYPE_LABELS: Record<ValueType, string> = {
 export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   value,
   onChange,
-  placeholder,
+  emptyLabel,
+  addTooltip,
   quickActions,
-  hideAddButton,
   addRef,
 }) => {
   const [entries, setEntries] = React.useState<KVEntry[]>(() =>
@@ -129,17 +134,20 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   );
 
   const addEntry = useCallback(() => {
-    commitChanges([...entries, { key: "", value: "", type: "text" }]);
-  }, [entries, commitChanges]);
+    const newEntries = [...entries, { key: "", value: "", type: "text" as ValueType }];
+    setEntries(newEntries);
+    // Don't commit yet — empty key would be filtered. Let user fill it in.
+  }, [entries]);
 
-  // Expose addEntry to parent via ref
   useImperativeHandle(addRef, () => ({ addEntry }), [addEntry]);
 
   const removeEntry = useCallback(
     (index: number) => {
-      commitChanges(entries.filter((_, i) => i !== index));
+      const newEntries = entries.filter((_, i) => i !== index);
+      setEntries(newEntries);
+      onChange(entriesToObject(newEntries));
     },
-    [entries, commitChanges],
+    [entries, onChange],
   );
 
   const updateEntry = useCallback(
@@ -147,7 +155,6 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
       const updated = entries.map((e, i) => {
         if (i !== index) return e;
         const newEntry = { ...e, ...field };
-        // Auto-detect type when value changes and type wasn't explicitly set
         if (field.value !== undefined && !field.type) {
           const v = field.value.trim();
           if (v === "true" || v === "false") newEntry.type = "bool";
@@ -156,36 +163,79 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
         }
         return newEntry;
       });
-      commitChanges(updated);
+      setEntries(updated);
+      onChange(entriesToObject(updated));
     },
-    [entries, commitChanges],
+    [entries, onChange],
   );
 
   const mergeEntries = useCallback(
     (newObj: Record<string, unknown>) => {
-      const newEntries = objectToEntries(newObj);
-      // Merge: replace existing keys, append new ones
+      const newKVs = objectToEntries(newObj);
       const result = [...entries];
-      for (const ne of newEntries) {
-        const idx = result.findIndex(
-          (e) => e.key.trim() === ne.key.trim(),
-        );
+      for (const ne of newKVs) {
+        const idx = result.findIndex((e) => e.key.trim() === ne.key.trim());
         if (idx >= 0) {
           result[idx] = ne;
         } else {
           result.push(ne);
         }
       }
-      commitChanges(result);
+      setEntries(result);
+      onChange(entriesToObject(result));
     },
-    [entries, commitChanges],
+    [entries, onChange],
   );
 
+  const isEmpty = entries.length === 0;
+
+  // Empty state: dashed placeholder
+  if (isEmpty) {
+    return (
+      <Flex
+        direction="column"
+        align="center"
+        justify="center"
+        gap="2"
+        py="3"
+        style={{
+          border: "1px dashed var(--gray-7)",
+          borderRadius: "var(--radius-2)",
+        }}
+      >
+        <Flex gap="2" wrap="wrap" align="center" justify="center">
+          <Tooltip content={addTooltip || "添加参数"}>
+            <IconButton
+              size="1"
+              variant="outline"
+              color="gray"
+              onClick={addEntry}
+            >
+              <IconPlus size={12} />
+            </IconButton>
+          </Tooltip>
+          {quickActions?.map((action, i) => (
+            <Button
+              key={i}
+              size="1"
+              variant="soft"
+              color={action.color || "blue"}
+              onClick={() => mergeEntries(action.getEntries())}
+            >
+              {action.icon}
+              {action.label}
+            </Button>
+          ))}
+        </Flex>
+      </Flex>
+    );
+  }
+
+  // Has entries
   return (
     <Flex direction="column" gap="2">
       {entries.map((entry, i) => (
         <Flex key={i} gap="2" align="start">
-          {/* Key */}
           <TextField.Root
             size="1"
             value={entry.key}
@@ -194,7 +244,6 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
             className="font-mono text-xs flex-shrink-0"
             style={{ width: 130 }}
           />
-          {/* Type selector (middle) */}
           <Select.Root
             size="1"
             value={entry.type}
@@ -216,7 +265,6 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
               ))}
             </Select.Content>
           </Select.Root>
-          {/* Value (type-dependent) */}
           {entry.type === "bool" ? (
             <Flex align="center" className="flex-1" style={{ minHeight: 28 }}>
               <Select.Root
@@ -251,7 +299,6 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
               type={entry.type === "number" ? "number" : "text"}
             />
           )}
-          {/* Remove */}
           <IconButton
             size="1"
             variant="ghost"
@@ -263,33 +310,22 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           </IconButton>
         </Flex>
       ))}
-      {/* Footer: quick actions (add button hidden when hideAddButton) */}
-      {(!hideAddButton || (quickActions && quickActions.length > 0)) && (
-      <Flex gap="2" wrap="wrap" align="center">
-        {!hideAddButton && (
-        <Button
-          size="1"
-          variant="soft"
-          color="gray"
-          onClick={addEntry}
-        >
-          <IconPlus size={12} />
-          {placeholder || "添加参数"}
-        </Button>
-        )}
-        {quickActions?.map((action, i) => (
-          <Button
-            key={i}
-            size="1"
-            variant="soft"
-            color={action.color || "blue"}
-            onClick={() => mergeEntries(action.getEntries())}
-          >
-            {action.icon}
-            {action.label}
-          </Button>
-        ))}
-      </Flex>
+      {/* Quick actions only (add is in the label row via addRef) */}
+      {quickActions && quickActions.length > 0 && (
+        <Flex gap="2" wrap="wrap" align="center">
+          {quickActions.map((action, i) => (
+            <Button
+              key={i}
+              size="1"
+              variant="soft"
+              color={action.color || "blue"}
+              onClick={() => mergeEntries(action.getEntries())}
+            >
+              {action.icon}
+              {action.label}
+            </Button>
+          ))}
+        </Flex>
       )}
     </Flex>
   );
