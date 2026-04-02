@@ -12,6 +12,7 @@ pub mod error;
 pub mod fallback;
 mod helpers;
 mod input;
+mod key_selector;
 mod llm_client;
 mod managers;
 mod online_asr;
@@ -191,6 +192,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         app_data_dir.clone(),
     ));
     app_handle.manage(free_models_cache.clone());
+    app_handle.manage(key_selector::KeySelector::new());
     let presets_config = crate::managers::model_preset::load_model_presets(app_handle)
         .unwrap_or_else(|e| {
             log::warn!("Failed to load model presets: {}. Using empty config.", e);
