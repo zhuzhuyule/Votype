@@ -203,7 +203,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           align="center"
           justify="center"
           gap="1"
-          py="2"
+          py="1"
           onClick={addEntry}
           style={{
             border: "1px dashed var(--gray-7)",
