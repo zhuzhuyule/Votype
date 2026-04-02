@@ -37,7 +37,19 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const [extraHeaders, setExtraHeaders] = React.useState<
     Record<string, unknown>
   >(model.extra_headers || {});
-  const [thinking, setThinking] = React.useState(model.is_thinking_model);
+  // Derive thinking state from extraParams content, not a separate flag
+  const thinking = React.useMemo(() => {
+    const p = extraParams;
+    // {"thinking": {"type": "enabled"}}
+    if (p.thinking && typeof p.thinking === "object" && (p.thinking as any).type === "enabled") return true;
+    // {"chat_template_kwargs": {"enable_thinking": true}}
+    if (p.chat_template_kwargs && typeof p.chat_template_kwargs === "object" && (p.chat_template_kwargs as any).enable_thinking === true) return true;
+    // {"enable_thinking": true}
+    if (p.enable_thinking === true) return true;
+    // {"reasoning_effort": "high"}
+    if (p.reasoning_effort === "high") return true;
+    return false;
+  }, [extraParams]);
   const [saving, setSaving] = React.useState(false);
   const bodyEditorRef = React.useRef<KeyValueEditorHandle>(null);
   const headersEditorRef = React.useRef<KeyValueEditorHandle>(null);
@@ -127,13 +139,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
       .catch(() => setPresetParamsHint(""));
   }, [modelFamily]);
 
-  const handleThinkingToggle = async (enabled: boolean) => {
-    setThinking(enabled);
-    const params = enabled ? thinkingEnableParams : thinkingDisableParams;
-    if (params) {
-      setExtraParams((prev) => ({ ...prev, ...params }));
-    }
-  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -250,7 +255,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 variant="soft"
                 color="blue"
                 onClick={() => {
-                  setThinking(true);
                   const params = thinkingEnableParams || { thinking: { type: "enabled" } };
                   setExtraParams((prev) => ({ ...prev, ...params }));
                 }}
@@ -263,7 +267,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 variant="soft"
                 color="orange"
                 onClick={() => {
-                  setThinking(false);
                   const params = thinkingDisableParams || { thinking: { type: "disabled" } };
                   setExtraParams((prev) => ({ ...prev, ...params }));
                 }}
