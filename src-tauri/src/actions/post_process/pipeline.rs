@@ -351,78 +351,24 @@ pub async fn unified_post_process(
     if use_multi_model {
         let multi_items = settings.build_multi_model_items_from_selection();
         if !multi_items.is_empty() {
-            let strategy = &settings.multi_model_strategy;
-            let auto_pick = strategy == "race" || strategy == "lazy";
+            let strategy = settings.multi_model_strategy.clone();
             let effective_prompt_id = override_prompt_id
                 .clone()
                 .or(settings.post_process_selected_prompt_id.clone());
 
             if log_routing {
                 info!(
-                    "[UnifiedPipeline] Step 3: FullPolish → multi-model ({} models, strategy={}, auto_pick={})",
+                    "[UnifiedPipeline] Step 3: FullPolish → multi-model ({} models, strategy={})",
                     multi_items.len(),
-                    strategy,
-                    auto_pick
+                    strategy
                 );
             }
 
-            if !auto_pick {
-                // Manual mode: return immediately so caller can show review window
-                // before any results arrive. Caller will invoke multi_post_process_transcription.
-                return super::PipelineResult::MultiModelManual {
-                    multi_items,
-                    intent_token_count: intent_tokens,
-                    prompt_id: effective_prompt_id,
-                };
-            }
-
-            // Auto-pick mode: await all results, pick best
-            if show_overlay {
-                show_llm_processing_overlay(app_handle);
-                app_handle
-                    .emit("post-process-status", "正在多模型润色中...")
-                    .ok();
-            }
-
-            let candidates = super::extensions::multi_post_process_transcription(
-                app_handle,
-                settings,
-                transcription,
-                streaming_transcription,
-                history_id,
-                app_name,
-                window_title,
-                override_prompt_id.clone(),
-            )
-            .await;
-
-            let total_tokens: Option<i64> = {
-                let mut sum: i64 = intent_tokens.unwrap_or(0);
-                sum += candidates.iter().filter_map(|r| r.token_count).sum::<i64>();
-                if sum > 0 {
-                    Some(sum)
-                } else {
-                    None
-                }
-            };
-            let call_count: Option<i64> = {
-                let mut count = candidates.len() as i64;
-                if intent_tokens.is_some() {
-                    count += 1;
-                }
-                if count > 0 {
-                    Some(count)
-                } else {
-                    None
-                }
-            };
-
-            return super::PipelineResult::MultiModelAutoPick {
-                candidates,
+            return super::PipelineResult::MultiModel {
                 multi_items,
-                total_token_count: total_tokens,
-                llm_call_count: call_count,
+                intent_token_count: intent_tokens,
                 prompt_id: effective_prompt_id,
+                strategy,
             };
         }
     }

@@ -593,7 +593,7 @@ impl ShortcutAction for TranscribeAction {
                         let remote_model_id = cached.model_id.clone();
                         let model_name = cached.name.clone();
                         let provider_id_for_log = cached.provider_id.clone();
-                        let cached_id_for_log = cached_model_id.to_string();
+                        let cached_id_for_log = cached.model_id.clone();
 
                         Some(tokio::task::spawn_blocking(
                             move || -> anyhow::Result<String> {
@@ -932,7 +932,7 @@ impl ShortcutAction for TranscribeAction {
                                                 .cloned();
                                             let fb_remote_id = fallback_model.model_id.clone();
                                             let fb_provider_id = fallback_model.provider_id.clone();
-                                            let fb_cached_id = fallback_id.clone();
+                                            let fb_cached_id = fallback_model.model_id.clone();
                                             let fb_samples = samples.clone();
                                             let fb_language = settings.selected_language.clone();
                                             let fb_metrics = asr_metrics.clone();
@@ -1102,7 +1102,7 @@ impl ShortcutAction for TranscribeAction {
                                                 .cloned();
                                             let fb_remote_id = fallback_model.model_id.clone();
                                             let fb_provider_id = fallback_model.provider_id.clone();
-                                            let fb_cached_id = fallback_id.clone();
+                                            let fb_cached_id = fallback_model.model_id.clone();
                                             let fb_samples = samples.clone();
                                             let fb_language = settings.selected_language.clone();
                                             let fb_metrics = asr_metrics.clone();
@@ -1248,7 +1248,8 @@ impl ShortcutAction for TranscribeAction {
                                                             cached.model_id.clone();
                                                         let retry_provider_id =
                                                             cached.provider_id.clone();
-                                                        let retry_cached_id = cached.id.clone();
+                                                        let retry_cached_id =
+                                                            cached.model_id.clone();
                                                         let language =
                                                             settings.selected_language.clone();
                                                         let samples_retry = samples.clone();
@@ -1713,9 +1714,10 @@ impl ShortcutAction for TranscribeAction {
                                         return;
                                     }
 
-                                    crate::actions::post_process::PipelineResult::MultiModelManual {
+                                    crate::actions::post_process::PipelineResult::MultiModel {
                                         multi_items,
                                         prompt_id: effective_prompt_id,
+                                        strategy: _,
                                         ..
                                     } => {
                                         // Manual mode: show review window immediately with loading candidates,
@@ -1823,33 +1825,6 @@ impl ShortcutAction for TranscribeAction {
                                             }
                                         }
                                         return;
-                                    }
-
-                                    crate::actions::post_process::PipelineResult::MultiModelAutoPick {
-                                        candidates,
-                                        multi_items,
-                                        prompt_id: effective_prompt_id,
-                                        ..
-                                    } => {
-                                        // Auto-pick: select best result
-                                        let best_result = candidates.iter().find(|r| r.ready && r.error.is_none());
-                                        if let Some(best) = best_result {
-                                            let model_name = multi_items
-                                                .iter()
-                                                .find(|item| item.id == best.id)
-                                                .map(|item| item.model_id.clone())
-                                                .unwrap_or_else(|| best.label.clone());
-
-                                            final_text = best.text.clone();
-                                            used_model = Some(model_name);
-                                            if effective_prompt_id.is_some() {
-                                                post_process_prompt_id = effective_prompt_id;
-                                            }
-                                        } else {
-                                            // All candidates failed — use original text
-                                            info!("[UnifiedPipeline] All multi-model candidates failed, using original transcription");
-                                            error_shown = true;
-                                        }
                                     }
 
                                     crate::actions::post_process::PipelineResult::SingleModel {

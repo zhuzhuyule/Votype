@@ -173,25 +173,16 @@ pub enum PipelineResult {
         metrics_tokens_per_sec: Option<f64>,
     },
 
-    /// Multi-model auto-pick: all results ready, caller picks best (race/lazy strategy)
-    MultiModelAutoPick {
-        candidates: Vec<MultiModelPostProcessResult>,
-        /// The multi-model item configs used (needed for label lookup)
-        multi_items: Vec<crate::settings::MultiModelPostProcessItem>,
-        total_token_count: Option<i64>,
-        llm_call_count: Option<i64>,
-        /// Prompt ID used for all candidates
-        prompt_id: Option<String>,
-    },
-
-    /// Multi-model manual: caller should show review window immediately, then start streaming.
-    /// Pipeline returns before results are ready so the window can open instantly.
-    MultiModelManual {
-        /// The multi-model item configs (needed to build loading candidates and call multi_post_process)
+    /// Multi-model: caller shows review window and starts streaming.
+    /// All strategies (manual/race/lazy) use this variant.
+    MultiModel {
+        /// The multi-model item configs
         multi_items: Vec<crate::settings::MultiModelPostProcessItem>,
         intent_token_count: Option<i64>,
         /// Prompt ID used for all candidates
         prompt_id: Option<String>,
+        /// "manual", "race", or "lazy"
+        strategy: String,
     },
 
     /// Skill confirmation is pending — UI waiting for user input
