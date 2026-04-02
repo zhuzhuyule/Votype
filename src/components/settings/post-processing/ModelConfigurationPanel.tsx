@@ -20,6 +20,8 @@ import {
   IconEdit,
   IconFlame,
   IconLayoutList,
+  IconMessageChatbot,
+  IconMicrophone,
   IconPlayerPlay,
   IconSearch,
   IconTag,
@@ -91,83 +93,100 @@ const ModelCard: React.FC<{
   stats,
   t,
 }) => {
+  const isAsr = model.model_type === "asr";
+
   return (
-    <Box className="group/card relative rounded-[var(--radius-3)] border border-(--gray-a4) bg-(--color-panel-solid) hover:border-(--gray-a6) hover:shadow-[0_1px_6px_rgba(0,0,0,0.04)] transition-all duration-100 overflow-hidden">
-      <Flex direction="column" gap="1.5" className="px-3 py-2.5">
-        {/* Row 1: model name + icons */}
-        <Flex align="center" gap="1.5" className="min-w-0">
-          {model.custom_label ? (
-            <Tooltip content={model.model_id} delayDuration={200}>
-              <Flex align="center" gap="1" className="min-w-0">
-                <Text size="2" weight="medium" className="truncate">
-                  {model.custom_label}
-                </Text>
-                <IconTag size={11} className="text-amber-500/70 shrink-0" />
-              </Flex>
-            </Tooltip>
+    <Box className="group/card relative rounded-[var(--radius-3)] border border-(--gray-a4) bg-(--color-panel-solid) hover:border-(--gray-a6) hover:shadow-[0_1px_6px_rgba(0,0,0,0.06)] transition-all duration-100 overflow-hidden">
+      <Flex gap="2.5" align="center" className="px-3 py-2.5">
+        {/* Type icon */}
+        <Flex
+          align="center"
+          justify="center"
+          className="shrink-0 rounded-[var(--radius-2)]"
+          style={{
+            width: 28,
+            height: 28,
+            background: isAsr
+              ? "var(--teal-a3)"
+              : "var(--blue-a3)",
+          }}
+        >
+          {isAsr ? (
+            <IconMicrophone size={14} className="text-teal-600 dark:text-teal-400" />
           ) : (
-            <Text size="2" weight="medium" className="truncate">
-              {model.model_id}
-            </Text>
-          )}
-          {model.is_thinking_model && (
-            <Tooltip content="Thinking model" delayDuration={200}>
-              <IconBrain size={12} className="text-purple-500/80 shrink-0" />
-            </Tooltip>
+            <IconMessageChatbot size={14} className="text-blue-600 dark:text-blue-400" />
           )}
         </Flex>
 
-        {/* Row 2: provider + stats */}
-        <Flex align="center" justify="between">
-          {showProvider ? (
-            <Text size="1" className="text-(--gray-8) truncate">
-              {providerName}
-            </Text>
-          ) : (
-            <Box />
-          )}
-
-          {stats && stats.totalCalls > 0 ? (
-            <Flex align="center" gap="2.5" className="shrink-0">
-              <Tooltip
-                content={`${stats.totalCalls.toLocaleString()} ${t("settings.postProcessing.providerModels.totalCalls", "calls")}`}
-                delayDuration={300}
-              >
-                <Flex align="center" gap="0.5">
-                  <IconActivity
-                    size={10}
-                    strokeWidth={2.5}
-                    className="text-(--gray-8)"
-                  />
-                  <Text size="1" className="text-(--gray-9) tabular-nums">
-                    {formatCalls(stats.totalCalls)}
+        {/* Content */}
+        <Flex direction="column" gap="0.5" className="min-w-0 flex-1">
+          {/* Row 1: model name + badges */}
+          <Flex align="center" gap="1.5" className="min-w-0">
+            {model.custom_label ? (
+              <Tooltip content={model.model_id} delayDuration={200}>
+                <Flex align="center" gap="1" className="min-w-0">
+                  <Text size="2" weight="medium" className="truncate leading-tight">
+                    {model.custom_label}
                   </Text>
+                  <IconTag size={10} className="text-amber-500/70 shrink-0" />
                 </Flex>
               </Tooltip>
-              {stats.avgSpeed > 0 && (
+            ) : (
+              <Text size="2" weight="medium" className="truncate leading-tight">
+                {model.model_id}
+              </Text>
+            )}
+            {model.is_thinking_model && (
+              <Tooltip content="Thinking" delayDuration={200}>
+                <IconBrain size={12} className="text-purple-500/80 shrink-0" />
+              </Tooltip>
+            )}
+          </Flex>
+
+          {/* Row 2: provider + stats */}
+          <Flex align="center" justify="between">
+            {showProvider ? (
+              <Text size="1" className="text-(--gray-8) truncate">
+                {providerName}
+              </Text>
+            ) : (
+              <Box />
+            )}
+
+            {stats && stats.totalCalls > 0 ? (
+              <Flex align="center" gap="2" className="shrink-0">
                 <Tooltip
-                  content={`${stats.avgSpeed.toFixed(1)} ${t("settings.postProcessing.providerModels.avgSpeed", "tokens/sec")}`}
+                  content={`${stats.totalCalls.toLocaleString()} ${t("settings.postProcessing.providerModels.totalCalls", "calls")}`}
                   delayDuration={300}
                 >
                   <Flex align="center" gap="0.5">
-                    <IconFlame
-                      size={10}
-                      strokeWidth={2.5}
-                      className="text-amber-500/50"
-                    />
+                    <IconActivity size={10} strokeWidth={2.5} className="text-(--gray-8)" />
                     <Text size="1" className="text-(--gray-9) tabular-nums">
-                      {formatSpeed(stats.avgSpeed)}
-                      <span className="opacity-40 ml-0.5">t/s</span>
+                      {formatCalls(stats.totalCalls)}
                     </Text>
                   </Flex>
                 </Tooltip>
-              )}
-            </Flex>
-          ) : (
-            <Text size="1" className="text-(--gray-7) shrink-0">
-              --
-            </Text>
-          )}
+                {stats.avgSpeed > 0 && (
+                  <Tooltip
+                    content={`${stats.avgSpeed.toFixed(1)} ${t("settings.postProcessing.providerModels.avgSpeed", "tokens/sec")}`}
+                    delayDuration={300}
+                  >
+                    <Flex align="center" gap="0.5">
+                      <IconFlame size={10} strokeWidth={2.5} className="text-amber-500/50" />
+                      <Text size="1" className="text-(--gray-9) tabular-nums">
+                        {formatSpeed(stats.avgSpeed)}
+                        <span className="opacity-40 ml-0.5">t/s</span>
+                      </Text>
+                    </Flex>
+                  </Tooltip>
+                )}
+              </Flex>
+            ) : (
+              <Text size="1" className="text-(--gray-7) shrink-0">
+                --
+              </Text>
+            )}
+          </Flex>
         </Flex>
       </Flex>
 

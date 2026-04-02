@@ -841,6 +841,25 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     className="max-w-sm font-medium"
                   />
                 </Box>
+                {(() => {
+                  const tpl = matchProviderTemplate(
+                    state.selectedProviderId,
+                    state.selectedProvider?.base_url,
+                  );
+                  if (!tpl?.signupUrl) return null;
+                  return (
+                    <Text
+                      size="1"
+                      className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 text-(--accent-11) hover:underline"
+                      onClick={() => openUrl(tpl.signupUrl!)}
+                    >
+                      {t(
+                        "settings.postProcessing.api.providers.fields.getApiKey",
+                      )}
+                      <IconExternalLink size={12} />
+                    </Text>
+                  );
+                })()}
               </Flex>
               <Flex align="center" gap="2">
                 <Dialog.Root
@@ -1065,86 +1084,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     </IconButton>
                   </TextField.Slot>
                 </TextField.Root>
-                {(() => {
-                  const tpl = matchProviderTemplate(
-                    state.selectedProviderId,
-                    state.selectedProvider?.base_url,
-                  );
-                  if (!tpl?.signupUrl) return null;
-                  return (
-                    <Text
-                      size="1"
-                      className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 text-(--accent-11) hover:underline"
-                      onClick={() => openUrl(tpl.signupUrl!)}
-                    >
-                      {t(
-                        "settings.postProcessing.api.providers.fields.getApiKey",
-                      )}
-                      <IconExternalLink size={12} />
-                    </Text>
-                  );
-                })()}
-              </Flex>
-
-              {/* Models Endpoint */}
-              <Text
-                size="2"
-                weight="medium"
-                color="gray"
-                className="text-right select-none"
-              >
-                {t(
-                  "settings.postProcessing.api.providers.fields.modelsEndpoint",
-                )}
-                :
-              </Text>
-              <TextField.Root
-                value={state.modelsEndpoint}
-                onChange={(e) =>
-                  state.handleModelsEndpointChange(e.target.value)
-                }
-                placeholder={t(
-                  "settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder",
-                )}
-                size="2"
-              />
-
-              {/* Test Connection */}
-              <Box />
-              <Flex align="center" gap="3">
                 <Button
                   variant="solid"
+                  size="1"
+                  className="shrink-0"
                   onClick={async () => {
-                    let normalizedUrl = localBaseUrl.trim();
-                    const isRawMode = normalizedUrl.endsWith("#");
-                    if (isRawMode) {
-                      normalizedUrl = normalizedUrl
-                        .slice(0, -1)
-                        .replace(/\/+$/, "");
-                    } else {
-                      normalizedUrl = normalizedUrl.replace(/\/+$/, "");
-                    }
-
-                    const isSpecialProtocol =
-                      normalizedUrl.startsWith("apple-intelligence://") ||
-                      normalizedUrl.startsWith("ollama://");
-                    const hasVersionPath = /\/v\d+$/.test(normalizedUrl);
-
-                    if (
-                      normalizedUrl &&
-                      !isSpecialProtocol &&
-                      !isRawMode &&
-                      !hasVersionPath
-                    ) {
-                      toast.warning(
-                        t(
-                          "settings.postProcessing.api.providers.fields.v1MissingWarning",
-                        ),
-                        { duration: 5000 },
-                      );
-                    }
-
-                    await state.handleBaseUrlChange(normalizedUrl);
                     await state.handleApiKeyChange(localApiKey);
 
                     if (state.model) {
@@ -1208,6 +1152,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     }
                     variant="soft"
                     size="1"
+                    className="shrink-0"
                   >
                     {state.lastInferenceResult.error
                       ? "Failure"

@@ -5,6 +5,7 @@ import {
   Dialog,
   Flex,
   Grid,
+  SegmentedControl,
   Select,
   Switch,
   Tabs,
@@ -425,26 +426,19 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
 
             <Tabs.Content value="select">
               <Box className="space-y-4">
-                {/* Source toggle: Built-in vs Official */}
-                <Flex align="center" justify="between" className="px-1">
-                  <Flex direction="column" gap="0.5">
-                    <Text size="2" weight="medium">
-                      {useOfficialModels
-                        ? t("settings.postProcessing.models.selectModel.sourceOfficial", "Official Model List")
-                        : t("settings.postProcessing.models.selectModel.sourceBuiltin", "Built-in Free Models")}
-                    </Text>
-                    <Text size="1" color="gray">
-                      {useOfficialModels
-                        ? t("settings.postProcessing.models.selectModel.sourceOfficialHint", "Fetched from provider API")
-                        : t("settings.postProcessing.models.selectModel.sourceBuiltinHint", "Curated free models, no API call needed")}
-                    </Text>
-                  </Flex>
-                  <Switch
-                    size="1"
-                    checked={useOfficialModels}
-                    onCheckedChange={setUseOfficialModels}
-                  />
-                </Flex>
+                {/* Source toggle */}
+                <SegmentedControl.Root
+                  size="1"
+                  value={useOfficialModels ? "api" : "free"}
+                  onValueChange={(v) => setUseOfficialModels(v === "api")}
+                >
+                  <SegmentedControl.Item value="free">
+                    {t("settings.postProcessing.models.selectModel.sourceBuiltin", "Free")}
+                  </SegmentedControl.Item>
+                  <SegmentedControl.Item value="api">
+                    {t("settings.postProcessing.models.selectModel.sourceOfficial", "API")}
+                  </SegmentedControl.Item>
+                </SegmentedControl.Root>
 
                 <Box>
                   <Text size="2" mb="2" weight="medium" color="gray">
