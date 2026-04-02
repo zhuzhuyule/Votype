@@ -35,7 +35,6 @@ import {
   IconChevronDown,
   IconDeviceFloppy,
   IconFolder,
-  IconLanguage,
   IconLock,
   IconLockOpen,
   IconMicrophone,
@@ -74,10 +73,6 @@ const PromptsConfiguration: React.FC = () => {
   const [pendingTabId, setPendingTabId] = useState<string | null>(null);
   const [showAutoGenerate, setShowAutoGenerate] = useState(false);
   const [builtinSkills, setBuiltinSkills] = useState<LLMPrompt[]>([]);
-  const [viewMode, setViewMode] = useState<
-    "original" | "english" | "bilingual"
-  >("original");
-  const [isTranslating, setIsTranslating] = useState(false);
   const isGenerating = isDescriptionGenerating || isInstructionGenerating;
 
   // All skills from ~/.votype/skills/ (unified source)
@@ -133,8 +128,6 @@ const PromptsConfiguration: React.FC = () => {
     setDraftOutputMode,
     draftLocked,
     setDraftLocked,
-    draftContentEn,
-    setDraftContentEn,
   } = usePrompts(fileSkills, async (skillId: string) => {
     // After saving an external skill, refresh the list
     await refreshSkills();
@@ -802,108 +795,13 @@ const PromptsConfiguration: React.FC = () => {
 
                     {/* Instructions Section */}
                     <Box>
-                      {/* Bilingual toolbar */}
-                      <Flex gap="2" align="center" mb="2">
-                        <SegmentedControl.Root
-                          value={viewMode}
-                          onValueChange={(v: string) =>
-                            setViewMode(
-                              v as "original" | "english" | "bilingual",
-                            )
-                          }
-                          size="1"
-                        >
-                          <SegmentedControl.Item value="original">
-                            中文
-                          </SegmentedControl.Item>
-                          <SegmentedControl.Item value="english">
-                            English
-                          </SegmentedControl.Item>
-                          <SegmentedControl.Item value="bilingual">
-                            双语
-                          </SegmentedControl.Item>
-                        </SegmentedControl.Root>
-
-                        <Button
-                          size="1"
-                          variant="soft"
-                          onClick={async () => {
-                            setIsTranslating(true);
-                            try {
-                              const result = await invoke<string>(
-                                "translate_skill_instructions",
-                                { instructions: draftContent },
-                              );
-                              setDraftContentEn(result);
-                              setViewMode("english");
-                            } catch (e) {
-                              console.error("Translation failed:", e);
-                              toast.error(String(e) || "Translation failed");
-                            } finally {
-                              setIsTranslating(false);
-                            }
-                          }}
-                          disabled={isTranslating || !draftContent?.trim()}
-                          className="cursor-pointer"
-                        >
-                          <IconLanguage size={14} />
-                          {isTranslating ? "翻译中..." : "翻译为英文"}
-                        </Button>
-                      </Flex>
-
-                      {/* Conditional editor rendering based on viewMode */}
-                      {viewMode === "bilingual" ? (
-                        <Flex gap="3">
-                          <Box style={{ flex: 1 }}>
-                            <Text
-                              size="1"
-                              weight="medium"
-                              mb="1"
-                              style={{ display: "block" }}
-                            >
-                              中文
-                            </Text>
-                            <PromptEditor
-                              t={t}
-                              draftContent={draftContent}
-                              setDraftContent={setDraftContent}
-                              onAiLoadingChange={setIsInstructionGenerating}
-                              skillId={viewingPrompt?.id}
-                            />
-                          </Box>
-                          <Box style={{ flex: 1 }}>
-                            <Text
-                              size="1"
-                              weight="medium"
-                              mb="1"
-                              style={{ display: "block" }}
-                            >
-                              English
-                            </Text>
-                            <PromptEditor
-                              t={t}
-                              draftContent={draftContentEn}
-                              setDraftContent={setDraftContentEn}
-                              skillId={viewingPrompt?.id}
-                            />
-                          </Box>
-                        </Flex>
-                      ) : viewMode === "english" ? (
-                        <PromptEditor
-                          t={t}
-                          draftContent={draftContentEn}
-                          setDraftContent={setDraftContentEn}
-                          skillId={viewingPrompt?.id}
-                        />
-                      ) : (
-                        <PromptEditor
+                      <PromptEditor
                           t={t}
                           draftContent={draftContent}
                           setDraftContent={setDraftContent}
                           onAiLoadingChange={setIsInstructionGenerating}
                           skillId={viewingPrompt?.id}
                         />
-                      )}
                     </Box>
 
                     {/* Scene References Section */}

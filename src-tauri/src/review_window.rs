@@ -77,6 +77,8 @@ static HIDDEN_WINDOWS_BEFORE_REVIEW: Lazy<Mutex<HashSet<String>>> =
     Lazy::new(|| Mutex::new(HashSet::new()));
 static PENDING_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
+static PENDING_MULTI_CANDIDATE_PAYLOAD: Lazy<Mutex<Option<ReviewWindowMultiCandidatePayload>>> =
+    Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_PAYLOAD: Lazy<Mutex<Option<ReviewWindowPayload>>> =
     Lazy::new(|| Mutex::new(None));
 static LAST_REVIEW_HISTORY_ID: Lazy<Mutex<Option<i64>>> = Lazy::new(|| Mutex::new(None));
@@ -336,8 +338,16 @@ fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height
     }
 }
 
-/// Creates the review window and keeps it hidden by default
-pub fn create_review_window(app_handle: &AppHandle) {
+/// Creates a fresh review window (hidden). Returns true on success.
+fn ensure_review_window(app_handle: &AppHandle) -> bool {
+    // Already exists – nothing to do
+    if app_handle.get_webview_window("review_window").is_some() {
+        return true;
+    }
+
+    // Reset ready flag so we wait for the new webview to initialise
+    REVIEW_WINDOW_READY.store(false, Ordering::SeqCst);
+
     match tauri::WebviewWindowBuilder::new(
         app_handle,
         "review_window",
@@ -360,26 +370,25 @@ pub fn create_review_window(app_handle: &AppHandle) {
     .focused(true)
     .build()
     {
-        Ok(window) => {
-            // Center the window on the primary monitor
-            if let Some(monitor) = window.primary_monitor().ok().flatten() {
-                let screen_size = monitor.size();
-                let scale = monitor.scale_factor();
-                let x = (screen_size.width as f64 / scale - REVIEW_WINDOW_WIDTH) / 2.0;
-                let y = (screen_size.height as f64 / scale - REVIEW_WINDOW_HEIGHT) / 2.0;
-                let _ =
-                    window.set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
-            }
-            debug!("Review window created successfully (hidden)");
-
-            // Warm up the window to avoid focus stealing on first show.
-            let _ = window.show();
-            let _ = window.hide();
+        Ok(_window) => {
+            debug!("Review window created on demand");
+            true
         }
         Err(e) => {
             error!("Failed to create review window: {}", e);
+            false
         }
     }
+}
+
+/// Destroys the review window webview to free memory (~80 MB).
+fn destroy_review_window(app_handle: &AppHandle) {
+    if let Some(window) = app_handle.get_webview_window("review_window") {
+        let _ = window.hide();
+        let _ = window.destroy();
+        debug!("Review window destroyed");
+    }
+    REVIEW_WINDOW_READY.store(false, Ordering::SeqCst);
 }
 
 /// Shows the review window with the provided data
@@ -395,7 +404,6 @@ pub fn show_review_window(
     prompt_id: Option<String>,
     model_id: Option<String>,
 ) {
-    REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     reset_rewrite_conversation();
     reset_rewrite_count();
     let had_visible_windows = record_hidden_windows(app_handle);
@@ -430,9 +438,16 @@ pub fn show_review_window(
         model_id,
     };
 
+    // Store payload and mark active BEFORE creating the window.
+    // This way review_window_ready() can replay the payload once JS loads.
     {
         let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
         *pending = Some(payload.clone());
+    }
+    {
+        // Clear any pending multi-candidate payload
+        let mut mc = PENDING_MULTI_CANDIDATE_PAYLOAD.lock().unwrap();
+        *mc = None;
     }
     {
         let mut last_payload = LAST_REVIEW_PAYLOAD.lock().unwrap();
@@ -441,6 +456,11 @@ pub fn show_review_window(
     {
         let mut last_id = LAST_REVIEW_HISTORY_ID.lock().unwrap();
         *last_id = history_id;
+    }
+    REVIEW_WINDOW_ACTIVE.store(true, Ordering::SeqCst);
+
+    if !ensure_review_window(app_handle) {
+        return;
     }
 
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
@@ -452,8 +472,7 @@ pub fn show_review_window(
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
         position_window_near_cursor(&review_window, width, height);
 
-        // Emit event to frontend to start rendering content
-        // The actual show() will be called when frontend reports content ready
+        // If JS is already loaded, emit immediately; otherwise review_window_ready() will replay
         if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
             let _ = emit_review_payload(app_handle, payload);
         }
@@ -462,17 +481,18 @@ pub fn show_review_window(
     }
 }
 
-/// Hides the review window
+/// Hides and destroys the review window to free memory
 #[allow(dead_code)]
-pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
-    if let Some(review_window) = app_handle.get_webview_window("review_window") {
-        let _ = review_window.emit("review-window-hide", ReviewWindowHidePayload { history_id });
-        let _ = review_window.hide();
-    }
+pub fn hide_review_window(app_handle: &AppHandle, _history_id: Option<i64>) {
+    destroy_review_window(app_handle);
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     {
         let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
         *pending = None;
+    }
+    {
+        let mut mc = PENDING_MULTI_CANDIDATE_PAYLOAD.lock().unwrap();
+        *mc = None;
     }
     {
         let mut last_payload = LAST_REVIEW_PAYLOAD.lock().unwrap();
@@ -491,15 +511,38 @@ pub fn review_window_ready(app: AppHandle) -> Result<(), String> {
     REVIEW_WINDOW_READY.store(true, Ordering::SeqCst);
     log::info!("review_window_ready received");
 
-    if REVIEW_WINDOW_ACTIVE.load(Ordering::SeqCst) {
-        if let Some(payload) = LAST_REVIEW_PAYLOAD.lock().unwrap().clone() {
-            log::info!(
-                "review_window_ready replaying payload: history_id={:?}, change_percent={}",
-                payload.history_id,
-                payload.change_percent
-            );
-            let _ = emit_review_payload(&app, payload);
+    if !REVIEW_WINDOW_ACTIVE.load(Ordering::SeqCst) {
+        return Ok(());
+    }
+
+    // Replay pending multi-candidate payload (takes priority if set)
+    let mc_payload = PENDING_MULTI_CANDIDATE_PAYLOAD.lock().unwrap().take();
+    if let Some(payload) = mc_payload {
+        log::info!(
+            "review_window_ready replaying multi-candidate payload: history_id={:?}, {} candidates",
+            payload.history_id,
+            payload.candidates.len()
+        );
+        if let Some(review_window) = app.get_webview_window("review_window") {
+            let _ = review_window.emit("review-window-multi-candidate", &payload);
+            // Multi-candidate mode shows window immediately (no content_ready handshake)
+            let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
+            let _ = review_window.show();
+            let _ = review_window.set_focus();
+            schedule_focus_review_window(app.clone(), focus_token);
         }
+        return Ok(());
+    }
+
+    // Replay pending single-model payload
+    let payload = PENDING_REVIEW_PAYLOAD.lock().unwrap().take();
+    if let Some(payload) = payload {
+        log::info!(
+            "review_window_ready replaying payload: history_id={:?}, change_percent={}",
+            payload.history_id,
+            payload.change_percent
+        );
+        let _ = emit_review_payload(&app, payload);
     }
 
     Ok(())
@@ -672,7 +715,6 @@ pub fn show_review_window_with_candidates(
     prompt_id: Option<String>,
     auto_selected_id: Option<String>,
 ) {
-    REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     reset_rewrite_conversation();
     reset_rewrite_count();
     let had_visible_windows = record_hidden_windows(app_handle);
@@ -702,6 +744,26 @@ pub fn show_review_window_with_candidates(
         auto_selected_id,
     };
 
+    // Store payload and mark active BEFORE creating window
+    {
+        let mut mc = PENDING_MULTI_CANDIDATE_PAYLOAD.lock().unwrap();
+        *mc = Some(payload.clone());
+    }
+    {
+        // Clear any pending single-model payload
+        let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
+        *pending = None;
+    }
+    {
+        let mut last_payload = LAST_REVIEW_PAYLOAD.lock().unwrap();
+        *last_payload = None;
+    }
+    REVIEW_WINDOW_ACTIVE.store(true, Ordering::SeqCst);
+
+    if !ensure_review_window(app_handle) {
+        return;
+    }
+
     if let Some(review_window) = app_handle.get_webview_window("review_window") {
         debug!("Found review_window, emitting multi-candidate event...");
         let (screen_w, screen_h) = get_screen_logical_size(&review_window);
@@ -719,20 +781,17 @@ pub fn show_review_window_with_candidates(
         let _ = review_window.set_size(tauri::Size::Logical(tauri::LogicalSize { width, height }));
         position_window_near_cursor(&review_window, width, height);
 
-        // Emit the multi-candidate event
-        let emit_result = review_window.emit("review-window-multi-candidate", payload);
-        debug!("review_window.emit() result: {:?}", emit_result);
+        // If JS is already loaded, emit and show immediately; otherwise review_window_ready() will replay
+        if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
+            let emit_result = review_window.emit("review-window-multi-candidate", &payload);
+            debug!("review_window.emit() multi-candidate result: {:?}", emit_result);
 
-        if emit_result.is_ok() {
-            REVIEW_WINDOW_ACTIVE.store(true, Ordering::SeqCst);
+            let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
+            let _ = review_window.show();
+            let _ = review_window.set_focus();
+            schedule_focus_review_window(app_handle.clone(), focus_token);
         }
 
-        let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
-        let show_result = review_window.show();
-        debug!("review_window.show() result: {:?}", show_result);
-        let focus_result = review_window.set_focus();
-        debug!("review_window.set_focus() result: {:?}", focus_result);
-        schedule_focus_review_window(app_handle.clone(), focus_token);
         schedule_hide_windows(app_handle.clone());
     }
 }

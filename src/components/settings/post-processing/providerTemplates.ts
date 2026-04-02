@@ -247,11 +247,11 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
   {
     id: "xingchen",
     label: "讯飞星辰",
-    baseUrl: "https://maas.xfyun.cn/v1",
+    baseUrl: "https://maas-api.cn-huabei-1.xf-yun.com/v2",
     category: "Official",
     modelsEndpoint: "/models",
     websiteUrl: "https://maas.xfyun.cn",
-    signupUrl: "https://maas.xfyun.cn/packageSubscription",
+    signupUrl: "https://maas.xfyun.cn/modelService",
   },
   {
     id: "zhipu",
@@ -265,11 +265,11 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
   {
     id: "longcat",
     label: "LongCat",
-    baseUrl: "https://api.longcat.ai/v1",
+    baseUrl: "https://api.longcat.chat/openai",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
     websiteUrl: "https://longcat.chat",
-    signupUrl: "https://longcat.chat/platform/",
+    signupUrl: "https://longcat.chat/platform/api_keys",
   },
   {
     id: "apple_intelligence",

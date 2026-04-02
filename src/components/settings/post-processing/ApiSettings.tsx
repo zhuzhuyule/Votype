@@ -11,17 +11,20 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
+  IconCheck,
   IconCpu,
   IconExternalLink,
   IconEye,
   IconEyeOff,
   IconHexagonLetterA,
   IconLayoutGrid,
+  IconPencil,
   IconPlug,
   IconPlugConnected,
   IconPlus,
   IconRefresh,
   IconRobot,
+  IconRotate,
   IconSearch,
   IconServer,
   IconTrash,
@@ -228,6 +231,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
   const [localApiKey, setLocalApiKey] = useState(state.apiKey);
+  const [editingBaseUrl, setEditingBaseUrl] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
@@ -369,6 +373,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   useEffect(() => {
     setLocalBaseUrl(state.baseUrl);
     setLocalApiKey(state.apiKey);
+    setEditingBaseUrl(false);
 
     const option = state.providerOptions.find(
       (p) => p.value === state.selectedProviderId,
@@ -904,53 +909,133 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           {/* Form Fields - Scrollable */}
           <Box className="px-8 py-4 flex-1 overflow-y-auto space-y-8">
             {/* Base URL */}
-            <Flex direction="column" gap="2">
-              <Flex align="baseline" gap="2">
-                <Text size="2" weight="medium" color="gray" className="shrink-0">
-                  {t("settings.postProcessing.api.providers.fields.baseUrl")}
-                </Text>
-                <Text size="1" color="gray" className="opacity-50">
-                  {t(
-                    "settings.postProcessing.api.providers.fields.baseUrlHint",
+            {(() => {
+              const tpl = matchProviderTemplate(
+                state.selectedProviderId,
+                state.selectedProvider?.base_url,
+              );
+              const defaultUrl = tpl?.baseUrl ?? "";
+              const isChanged = defaultUrl && localBaseUrl !== defaultUrl;
+
+              const saveBaseUrl = () => {
+                state.handleBaseUrlChange(localBaseUrl);
+                setEditingBaseUrl(false);
+              };
+              const cancelBaseUrl = () => {
+                setLocalBaseUrl(state.baseUrl);
+                setEditingBaseUrl(false);
+              };
+              const resetBaseUrl = () => {
+                setLocalBaseUrl(defaultUrl);
+                state.handleBaseUrlChange(defaultUrl);
+                setEditingBaseUrl(false);
+              };
+
+              return (
+                <Flex align="center" gap="2" className="min-h-8">
+                  <Text
+                    size="2"
+                    weight="medium"
+                    color="gray"
+                    className="shrink-0"
+                  >
+                    {t(
+                      "settings.postProcessing.api.providers.fields.baseUrl",
+                    )}
+                  </Text>
+                  {editingBaseUrl ? (
+                    <>
+                      <TextField.Root
+                        value={localBaseUrl}
+                        onChange={(e) => setLocalBaseUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveBaseUrl();
+                          else if (e.key === "Escape") cancelBaseUrl();
+                        }}
+                        placeholder="https://api.openai.com/v1"
+                        size="1"
+                        className="flex-1"
+                        autoFocus
+                      />
+                      <Flex gap="1" className="shrink-0">
+                        <IconButton
+                          size="1"
+                          variant="ghost"
+                          color="green"
+                          onClick={saveBaseUrl}
+                          className="cursor-pointer"
+                        >
+                          <IconCheck size={14} />
+                        </IconButton>
+                        <IconButton
+                          size="1"
+                          variant="ghost"
+                          color="gray"
+                          onClick={cancelBaseUrl}
+                          className="cursor-pointer"
+                        >
+                          <IconX size={14} />
+                        </IconButton>
+                        {isChanged && (
+                          <IconButton
+                            size="1"
+                            variant="ghost"
+                            color="orange"
+                            onClick={resetBaseUrl}
+                            title={t(
+                              "settings.postProcessing.api.providers.resetUrl",
+                            )}
+                            className="cursor-pointer"
+                          >
+                            <IconRotate size={14} />
+                          </IconButton>
+                        )}
+                      </Flex>
+                    </>
+                  ) : (
+                    <>
+                      <Text
+                        size="1"
+                        className="flex-1 min-w-0 cursor-pointer truncate rounded px-1 leading-8 text-(--gray-11) hover:bg-(--gray-a3)"
+                        title={localBaseUrl || "Click to set"}
+                        onClick={() => setEditingBaseUrl(true)}
+                      >
+                        {localBaseUrl || (
+                          <span className="opacity-40">
+                            https://api.openai.com/v1
+                          </span>
+                        )}
+                      </Text>
+                      <Flex gap="1" className="shrink-0">
+                        <IconButton
+                          size="1"
+                          variant="ghost"
+                          color="gray"
+                          onClick={() => setEditingBaseUrl(true)}
+                          className="cursor-pointer"
+                        >
+                          <IconPencil size={14} />
+                        </IconButton>
+                        {isChanged && (
+                          <IconButton
+                            size="1"
+                            variant="ghost"
+                            color="orange"
+                            onClick={resetBaseUrl}
+                            title={t(
+                              "settings.postProcessing.api.providers.resetUrl",
+                            )}
+                            className="cursor-pointer"
+                          >
+                            <IconRotate size={14} />
+                          </IconButton>
+                        )}
+                      </Flex>
+                    </>
                   )}
-                </Text>
-              </Flex>
-              <TextField.Root
-                value={localBaseUrl}
-                onChange={(e) => setLocalBaseUrl(e.target.value)}
-                onBlur={() => state.handleBaseUrlChange(localBaseUrl)}
-                placeholder="https://api.openai.com/v1"
-                className="w-full"
-              />
-              {localBaseUrl.trim() && (
-                <Box className="rounded-[var(--radius-2)] bg-(--gray-a2) border border-(--gray-a4) px-3 py-2 font-mono text-xs leading-relaxed overflow-x-auto">
-                  <Text size="1" className="text-(--gray-9) select-none">
-                    POST{" "}
-                  </Text>
-                  <Text size="1" className="text-(--accent-11) break-all">
-                    {(() => {
-                      let url = localBaseUrl.trim();
-                      let normalized = "";
-                      if (url.endsWith("#")) {
-                        normalized = url.slice(0, -1).replace(/\/+$/, "");
-                      } else {
-                        const isSpecial =
-                          url.startsWith("apple-intelligence://") ||
-                          url.startsWith("ollama://");
-                        const base = url.replace(/\/+$/, "");
-                        const hasVersion = /\/v\d+$/.test(base);
-                        if (isSpecial || hasVersion) {
-                          normalized = base;
-                        } else {
-                          normalized = base + "/v1";
-                        }
-                      }
-                      return `${normalized}/chat/completions`;
-                    })()}
-                  </Text>
-                </Box>
-              )}
-            </Flex>
+                </Flex>
+              );
+            })()}
 
             {/* API Key */}
             <Flex direction="column" gap="2">

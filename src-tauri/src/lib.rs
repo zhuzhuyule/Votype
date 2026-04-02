@@ -334,8 +334,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
 
-    // Create the review window (hidden by default)
-    review_window::create_review_window(app_handle);
+    // Review window is created lazily on first use (saves ~80MB idle memory)
 }
 
 fn ensure_runtime_dirs(app_handle: &AppHandle) {

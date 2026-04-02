@@ -717,15 +717,43 @@ impl ShortcutAction for TranscribeAction {
                                 ) {
                                     let primary_id_log = primary_model_id.clone();
                                     let fb_id_log = fb_id.clone();
+                                    let audio_secs = samples.len() as f64 / 16000.0;
                                     tokio::spawn(async move {
                                         let mut p = primary_handle;
                                         let mut f = fallback_handle;
-                                        // select! consumes the winning branch — use result directly
+
+                                        // Quality gate: for long audio (>15s), expect at least ~2 chars/sec.
+                                        // If the race winner returns suspiciously short text, wait for the
+                                        // other model and pick the longer result.
+                                        let min_expected_chars = if audio_secs > 15.0 {
+                                            (audio_secs * 2.0) as usize
+                                        } else {
+                                            0
+                                        };
+
                                         tokio::select! {
                                             p_res = &mut p => {
                                                 let res = p_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
-                                                if res.is_ok() {
-                                                    log::info!("[ASR] Race winner: primary ({})", primary_id_log);
+                                                if let Ok(ref text) = res {
+                                                    let char_count = text.chars().count();
+                                                    if min_expected_chars == 0 || char_count >= min_expected_chars {
+                                                        log::info!("[ASR] Race winner: primary ({}, {} chars)", primary_id_log, char_count);
+                                                        return res;
+                                                    }
+                                                    log::warn!(
+                                                        "[ASR] Race: primary ({}) text too short ({} chars < {} min for {:.0}s audio), waiting for fallback",
+                                                        primary_id_log, char_count, min_expected_chars, audio_secs
+                                                    );
+                                                    if let Ok(Ok(fb_text)) = f.await {
+                                                        if fb_text.chars().count() > char_count {
+                                                            log::info!(
+                                                                "[ASR] Race: fallback ({}) longer ({} > {} chars), using fallback",
+                                                                fb_id_log, fb_text.chars().count(), char_count
+                                                            );
+                                                            return Ok(fb_text);
+                                                        }
+                                                    }
+                                                    log::info!("[ASR] Race: fallback unavailable or shorter, using primary ({})", primary_id_log);
                                                     return res;
                                                 }
                                                 log::warn!("[ASR] Race: primary failed, waiting for fallback");
@@ -733,8 +761,26 @@ impl ShortcutAction for TranscribeAction {
                                             }
                                             f_res = &mut f => {
                                                 let res = f_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
-                                                if res.is_ok() {
-                                                    log::info!("[ASR] Race winner: fallback ({})", fb_id_log);
+                                                if let Ok(ref text) = res {
+                                                    let char_count = text.chars().count();
+                                                    if min_expected_chars == 0 || char_count >= min_expected_chars {
+                                                        log::info!("[ASR] Race winner: fallback ({}, {} chars)", fb_id_log, char_count);
+                                                        return res;
+                                                    }
+                                                    log::warn!(
+                                                        "[ASR] Race: fallback ({}) text too short ({} chars < {} min for {:.0}s audio), waiting for primary",
+                                                        fb_id_log, char_count, min_expected_chars, audio_secs
+                                                    );
+                                                    if let Ok(Ok(p_text)) = p.await {
+                                                        if p_text.chars().count() > char_count {
+                                                            log::info!(
+                                                                "[ASR] Race: primary ({}) longer ({} > {} chars), using primary",
+                                                                primary_id_log, p_text.chars().count(), char_count
+                                                            );
+                                                            return Ok(p_text);
+                                                        }
+                                                    }
+                                                    log::info!("[ASR] Race: primary unavailable or shorter, using fallback ({})", fb_id_log);
                                                     return res;
                                                 }
                                                 log::warn!("[ASR] Race: fallback failed, waiting for primary");
@@ -759,11 +805,20 @@ impl ShortcutAction for TranscribeAction {
                                 let samples_clone = samples.clone();
                                 let language_clone = language.clone();
                                 let primary_id_log = primary_model_id.clone();
+                                let stg_fb_id_log = fb_id.clone();
                                 let stg_metrics = asr_metrics.clone();
                                 let stg_history_id = asr_history_id;
                                 let stg_audio_ms = asr_audio_duration_ms;
+                                let stg_audio_secs = samples.len() as f64 / 16000.0;
                                 tokio::spawn(async move {
                                     let mut p = primary_handle;
+
+                                    let min_expected_chars = if stg_audio_secs > 15.0 {
+                                        (stg_audio_secs * 2.0) as usize
+                                    } else {
+                                        0
+                                    };
+
                                     // Wait for primary or stagger delay
                                     tokio::select! {
                                         p_res = &mut p => {
@@ -785,12 +840,38 @@ impl ShortcutAction for TranscribeAction {
                                                 tokio::select! {
                                                     p_res = &mut p => {
                                                         let res = p_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
-                                                        if res.is_ok() { return res; }
+                                                        if let Ok(ref text) = res {
+                                                            let cc = text.chars().count();
+                                                            if min_expected_chars == 0 || cc >= min_expected_chars {
+                                                                return res;
+                                                            }
+                                                            log::warn!("[ASR] Staggered: primary text too short ({} < {}), waiting for fallback", cc, min_expected_chars);
+                                                            if let Ok(Ok(fb_text)) = f.await {
+                                                                if fb_text.chars().count() > cc {
+                                                                    log::info!("[ASR] Staggered: using fallback ({} > {} chars)", fb_text.chars().count(), cc);
+                                                                    return Ok(fb_text);
+                                                                }
+                                                            }
+                                                            return res;
+                                                        }
                                                         f.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
                                                     }
                                                     f_res = &mut f => {
                                                         let res = f_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
-                                                        if res.is_ok() { return res; }
+                                                        if let Ok(ref text) = res {
+                                                            let cc = text.chars().count();
+                                                            if min_expected_chars == 0 || cc >= min_expected_chars {
+                                                                return res;
+                                                            }
+                                                            log::warn!("[ASR] Staggered: fallback ({}) text too short ({} < {}), waiting for primary", stg_fb_id_log, cc, min_expected_chars);
+                                                            if let Ok(Ok(p_text)) = p.await {
+                                                                if p_text.chars().count() > cc {
+                                                                    log::info!("[ASR] Staggered: using primary ({} > {} chars)", p_text.chars().count(), cc);
+                                                                    return Ok(p_text);
+                                                                }
+                                                            }
+                                                            return res;
+                                                        }
                                                         p.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
                                                     }
                                                 }

@@ -48,7 +48,7 @@
       "files": {},
       "frameworks": [],
       "hardenedRuntime": true,
-      "minimumSystemVersion": "10.13",
+      "minimumSystemVersion": "10.15",
       "signingIdentity": "-"
     },
     "resources": ["resources/**/*"],

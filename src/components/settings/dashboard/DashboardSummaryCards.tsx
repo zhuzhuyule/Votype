@@ -470,7 +470,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
         </Heading>
         <Text size="2" className="opacity-60">
           {t("dashboard.summary.llm.calls", {
-            count: formatCompactNumber(summary.llmCalls),
+            count: summary.llmCalls,
           })}
         </Text>
       </PremiumCard>

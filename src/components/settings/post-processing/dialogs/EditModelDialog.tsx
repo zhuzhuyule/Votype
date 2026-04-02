@@ -16,7 +16,6 @@ import type { CachedModel } from "../../../../lib/types";
 import {
   KeyValueEditor,
   type KeyValueEditorHandle,
-  type QuickAction,
 } from "../../../ui/KeyValueEditor";
 
 export interface EditModelDialogProps {
@@ -166,35 +165,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     }
   };
 
-  const bodyQuickActions = React.useMemo<QuickAction[]>(() => {
-    const actions: QuickAction[] = [];
-    if (supportsThinking) {
-      if (thinkingEnableParams) {
-        actions.push({
-          label: "启用思考",
-          icon: <IconBrain size={12} />,
-          color: "blue",
-          getEntries: () => {
-            setThinking(true);
-            return thinkingEnableParams;
-          },
-        });
-      }
-      if (thinkingDisableParams) {
-        actions.push({
-          label: "禁用思考",
-          icon: <IconBrain size={12} />,
-          color: "orange",
-          getEntries: () => {
-            setThinking(false);
-            return thinkingDisableParams;
-          },
-        });
-      }
-    }
-    return actions;
-  }, [supportsThinking, thinkingEnableParams, thinkingDisableParams]);
-
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Content maxWidth="540px">
@@ -257,7 +227,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 
           {/* Body 参数 */}
           <Flex direction="column" gap="1">
-            <Flex align="center" gap="2">
+            <Flex align="center" gap="2" wrap="wrap">
               <Text size="2" weight="medium" color="gray">
                 Body 参数
               </Text>
@@ -274,13 +244,40 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                   </IconButton>
                 </Tooltip>
               )}
+              {supportsThinking && thinkingEnableParams && (
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="blue"
+                  onClick={() => {
+                    setThinking(true);
+                    setExtraParams((prev) => ({ ...prev, ...thinkingEnableParams }));
+                  }}
+                >
+                  <IconBrain size={12} />
+                  启用思考
+                </Button>
+              )}
+              {supportsThinking && thinkingDisableParams && (
+                <Button
+                  size="1"
+                  variant="soft"
+                  color="orange"
+                  onClick={() => {
+                    setThinking(false);
+                    setExtraParams((prev) => ({ ...prev, ...thinkingDisableParams }));
+                  }}
+                >
+                  <IconBrain size={12} />
+                  禁用思考
+                </Button>
+              )}
             </Flex>
             <KeyValueEditor
               value={extraParams}
               onChange={setExtraParams}
               addLabel="添加 Body 参数"
               addTooltip="添加参数"
-              quickActions={bodyQuickActions}
               addRef={bodyEditorRef}
               onEntryCountChange={setBodyEntryCount}
             />

@@ -119,7 +119,6 @@ export const ActivationMode: React.FC<ActivationModeProps> = React.memo(() => {
               <SegmentedControl.Item
                 key={option.value}
                 value={option.value}
-                disabled={isUpdating("activation_mode")}
               >
                 {t(option.labelKey)}
               </SegmentedControl.Item>
