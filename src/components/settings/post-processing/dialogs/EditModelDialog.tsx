@@ -42,6 +42,12 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const [saving, setSaving] = React.useState(false);
   const bodyEditorRef = React.useRef<KeyValueEditorHandle>(null);
   const headersEditorRef = React.useRef<KeyValueEditorHandle>(null);
+  const [bodyEntryCount, setBodyEntryCount] = React.useState(
+    Object.keys(model.extra_params || {}).length,
+  );
+  const [headerEntryCount, setHeaderEntryCount] = React.useState(
+    Object.keys(model.extra_headers || {}).length,
+  );
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
   );
@@ -50,7 +56,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   >([]);
   const [presetParamsHint, setPresetParamsHint] = React.useState<string>("");
 
-  // Thinking config cache
   const [thinkingEnableParams, setThinkingEnableParams] =
     React.useState<Record<string, unknown> | null>(null);
   const [thinkingDisableParams, setThinkingDisableParams] =
@@ -182,9 +187,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     return actions;
   }, [supportsThinking, thinkingEnableParams, thinkingDisableParams]);
 
-  const hasBodyParams = Object.keys(extraParams).length > 0;
-  const hasHeaders = Object.keys(extraHeaders).length > 0;
-
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Content maxWidth="540px">
@@ -251,7 +253,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
               <Text size="2" weight="medium" color="gray">
                 Body 参数
               </Text>
-              {hasBodyParams && (
+              {bodyEntryCount > 0 && (
                 <Tooltip content="添加参数">
                   <IconButton
                     size="1"
@@ -267,9 +269,11 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             <KeyValueEditor
               value={extraParams}
               onChange={setExtraParams}
-              quickActions={bodyQuickActions}
+              addLabel="添加 Body 参数"
               addTooltip="添加参数"
+              quickActions={bodyQuickActions}
               addRef={bodyEditorRef}
+              onEntryCountChange={setBodyEntryCount}
             />
           </Flex>
 
@@ -279,7 +283,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
               <Text size="2" weight="medium" color="gray">
                 Headers
               </Text>
-              {hasHeaders && (
+              {headerEntryCount > 0 && (
                 <Tooltip content="添加 Header">
                   <IconButton
                     size="1"
@@ -295,8 +299,10 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             <KeyValueEditor
               value={extraHeaders}
               onChange={setExtraHeaders}
+              addLabel="添加 Header"
               addTooltip="添加 Header"
               addRef={headersEditorRef}
+              onEntryCountChange={setHeaderEntryCount}
             />
           </Flex>
 

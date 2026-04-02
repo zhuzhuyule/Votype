@@ -21,7 +21,6 @@ interface KVEntry {
 export interface QuickAction {
   label: string;
   icon?: React.ReactNode;
-  /** Returns entries to merge into the current list (key collision → replace) */
   getEntries: () => Record<string, unknown>;
   color?: "gray" | "blue" | "green" | "red" | "orange";
 }
@@ -31,17 +30,16 @@ export interface KeyValueEditorHandle {
 }
 
 interface KeyValueEditorProps {
-  /** Current entries as a flat JSON object */
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
-  /** Label shown in the dashed empty-state placeholder */
-  emptyLabel?: string;
+  /** Label for the empty-state add button, e.g. "添加 Body 参数" */
+  addLabel?: string;
   /** Tooltip for the add button */
   addTooltip?: string;
-  /** Quick-insert action buttons */
   quickActions?: QuickAction[];
-  /** Ref to expose addEntry for external trigger */
   addRef?: React.Ref<KeyValueEditorHandle>;
+  /** Called when entry count changes (so parent can show/hide inline [+]) */
+  onEntryCountChange?: (count: number) => void;
 }
 
 function tryFixJson(input: string): string {
@@ -116,38 +114,49 @@ const TYPE_LABELS: Record<ValueType, string> = {
 export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   value,
   onChange,
-  emptyLabel,
+  addLabel,
   addTooltip,
   quickActions,
   addRef,
+  onEntryCountChange,
 }) => {
   const [entries, setEntries] = React.useState<KVEntry[]>(() =>
     Object.keys(value).length > 0 ? objectToEntries(value) : [],
   );
 
-  const commitChanges = useCallback(
+  const setEntriesAndNotify = useCallback(
     (newEntries: KVEntry[]) => {
       setEntries(newEntries);
+      onEntryCountChange?.(newEntries.length);
+    },
+    [onEntryCountChange],
+  );
+
+  const commit = useCallback(
+    (newEntries: KVEntry[]) => {
+      setEntriesAndNotify(newEntries);
       onChange(entriesToObject(newEntries));
     },
-    [onChange],
+    [onChange, setEntriesAndNotify],
   );
 
   const addEntry = useCallback(() => {
-    const newEntries = [...entries, { key: "", value: "", type: "text" as ValueType }];
-    setEntries(newEntries);
-    // Don't commit yet — empty key would be filtered. Let user fill it in.
-  }, [entries]);
+    const newEntries = [
+      ...entries,
+      { key: "", value: "", type: "text" as ValueType },
+    ];
+    // Only setEntries (don't commit) — empty key would be filtered out
+    setEntriesAndNotify(newEntries);
+  }, [entries, setEntriesAndNotify]);
 
   useImperativeHandle(addRef, () => ({ addEntry }), [addEntry]);
 
   const removeEntry = useCallback(
     (index: number) => {
       const newEntries = entries.filter((_, i) => i !== index);
-      setEntries(newEntries);
-      onChange(entriesToObject(newEntries));
+      commit(newEntries);
     },
-    [entries, onChange],
+    [entries, commit],
   );
 
   const updateEntry = useCallback(
@@ -159,14 +168,14 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           const v = field.value.trim();
           if (v === "true" || v === "false") newEntry.type = "bool";
           else if (/^-?\d+(\.\d+)?$/.test(v)) newEntry.type = "number";
-          else if (v.startsWith("{") || v.startsWith("[")) newEntry.type = "json";
+          else if (v.startsWith("{") || v.startsWith("["))
+            newEntry.type = "json";
         }
         return newEntry;
       });
-      setEntries(updated);
-      onChange(entriesToObject(updated));
+      commit(updated);
     },
-    [entries, onChange],
+    [entries, commit],
   );
 
   const mergeEntries = useCallback(
@@ -181,19 +190,15 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           result.push(ne);
         }
       }
-      setEntries(result);
-      onChange(entriesToObject(result));
+      commit(result);
     },
-    [entries, onChange],
+    [entries, commit],
   );
 
-  const isEmpty = entries.length === 0;
-
-  // Empty state: dashed placeholder
-  if (isEmpty) {
+  // Empty state: dashed placeholder with add button + quick actions
+  if (entries.length === 0) {
     return (
       <Flex
-        direction="column"
         align="center"
         justify="center"
         gap="2"
@@ -203,44 +208,40 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           borderRadius: "var(--radius-2)",
         }}
       >
-        <Flex gap="2" wrap="wrap" align="center" justify="center">
-          <Tooltip content={addTooltip || "添加参数"}>
-            <IconButton
-              size="1"
-              variant="outline"
-              color="gray"
-              onClick={addEntry}
-            >
-              <IconPlus size={12} />
-            </IconButton>
-          </Tooltip>
-          {quickActions?.map((action, i) => (
-            <Button
-              key={i}
-              size="1"
-              variant="soft"
-              color={action.color || "blue"}
-              onClick={() => mergeEntries(action.getEntries())}
-            >
-              {action.icon}
-              {action.label}
-            </Button>
-          ))}
-        </Flex>
+        <Button
+          size="1"
+          variant="outline"
+          color="gray"
+          onClick={addEntry}
+        >
+          <IconPlus size={12} />
+          {addLabel || "添加参数"}
+        </Button>
+        {quickActions?.map((action, i) => (
+          <Button
+            key={i}
+            size="1"
+            variant="soft"
+            color={action.color || "blue"}
+            onClick={() => mergeEntries(action.getEntries())}
+          >
+            {action.icon}
+            {action.label}
+          </Button>
+        ))}
       </Flex>
     );
   }
 
-  // Has entries
   return (
     <Flex direction="column" gap="2">
       {entries.map((entry, i) => (
-        <Flex key={i} gap="2" align="start">
+        <Flex key={i} gap="2" align={entry.type === "json" ? "start" : "center"}>
           <TextField.Root
             size="1"
             value={entry.key}
             onChange={(e) => updateEntry(i, { key: e.target.value })}
-            placeholder="key"
+            placeholder="Key"
             className="font-mono text-xs flex-shrink-0"
             style={{ width: 130 }}
           />
@@ -266,25 +267,23 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
             </Select.Content>
           </Select.Root>
           {entry.type === "bool" ? (
-            <Flex align="center" className="flex-1" style={{ minHeight: 28 }}>
-              <Select.Root
-                size="1"
-                value={entry.value === "true" ? "true" : "false"}
-                onValueChange={(v) => updateEntry(i, { value: v })}
-              >
-                <Select.Trigger className="flex-1" />
-                <Select.Content>
-                  <Select.Item value="true">true</Select.Item>
-                  <Select.Item value="false">false</Select.Item>
-                </Select.Content>
-              </Select.Root>
-            </Flex>
+            <Select.Root
+              size="1"
+              value={entry.value === "true" ? "true" : "false"}
+              onValueChange={(v) => updateEntry(i, { value: v })}
+            >
+              <Select.Trigger className="flex-1" />
+              <Select.Content>
+                <Select.Item value="true">true</Select.Item>
+                <Select.Item value="false">false</Select.Item>
+              </Select.Content>
+            </Select.Root>
           ) : entry.type === "json" ? (
             <TextArea
               size="1"
               value={entry.value}
               onChange={(e) => updateEntry(i, { value: e.target.value })}
-              placeholder='{"key": "value"}'
+              placeholder="Value"
               className="font-mono text-xs flex-1"
               rows={2}
               style={{ resize: "vertical", minHeight: 48 }}
@@ -294,23 +293,24 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
               size="1"
               value={entry.value}
               onChange={(e) => updateEntry(i, { value: e.target.value })}
-              placeholder="value"
+              placeholder="Value"
               className="font-mono text-xs flex-1"
               type={entry.type === "number" ? "number" : "text"}
             />
           )}
-          <IconButton
-            size="1"
-            variant="ghost"
-            color="gray"
-            onClick={() => removeEntry(i)}
-            style={{ flexShrink: 0 }}
-          >
-            <IconX size={14} />
-          </IconButton>
+          <Tooltip content="删除">
+            <IconButton
+              size="1"
+              variant="ghost"
+              color="gray"
+              onClick={() => removeEntry(i)}
+              style={{ flexShrink: 0 }}
+            >
+              <IconX size={14} />
+            </IconButton>
+          </Tooltip>
         </Flex>
       ))}
-      {/* Quick actions only (add is in the label row via addRef) */}
       {quickActions && quickActions.length > 0 && (
         <Flex gap="2" wrap="wrap" align="center">
           {quickActions.map((action, i) => (
