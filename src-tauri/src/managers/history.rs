@@ -389,6 +389,8 @@ static MIGRATIONS: &[M] = &[
            total_errors = llm_call_stats.total_errors + excluded.total_errors,
            last_updated = datetime('now');"
     ),
+    // Migration 38: Add index for history cache lookup (find_cached_post_process_result)
+    M::up("CREATE INDEX IF NOT EXISTS idx_th_cache_lookup ON transcription_history(transcription_text, post_process_rejected, deleted);"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

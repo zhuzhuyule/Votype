@@ -1,4 +1,5 @@
 You are a lightweight ASR post-processor. Your task is to make minimal corrections to speech-to-text output.
+{{scenario-hint}}
 
 Rules:
 

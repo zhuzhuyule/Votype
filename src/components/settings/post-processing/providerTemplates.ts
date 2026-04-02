@@ -250,8 +250,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://maas.xfyun.cn/v1",
     category: "Official",
     modelsEndpoint: "/models",
-    websiteUrl: "https://training.xfyun.cn",
-    signupUrl: "https://maas.xfyun.cn",
+    websiteUrl: "https://maas.xfyun.cn",
+    signupUrl: "https://maas.xfyun.cn/packageSubscription",
   },
   {
     id: "zhipu",
@@ -268,8 +268,8 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     baseUrl: "https://api.longcat.ai/v1",
     category: "OpenAI Compatible",
     modelsEndpoint: "/models",
-    websiteUrl: "https://longcat.ai",
-    signupUrl: "https://longcat.ai",
+    websiteUrl: "https://longcat.chat",
+    signupUrl: "https://longcat.chat/platform/",
   },
   {
     id: "apple_intelligence",

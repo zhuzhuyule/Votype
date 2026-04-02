@@ -161,6 +161,26 @@ fn strip_leading_decorative_markers(text: &str) -> String {
     cleaned.trim_start().to_string()
 }
 
+/// Return a scenario-specific hint for the LLM based on the app category.
+/// Used via the `{{scenario-hint}}` template variable.
+fn scenario_hint_for_category(category: &str) -> &'static str {
+    match category {
+        "CodeEditor" | "Terminal" => {
+            "当前为代码/终端环境：保留技术术语、变量名、命令和代码片段原样，只修正自然语言部分的语法和表达。"
+        }
+        "InstantMessaging" => {
+            "当前为即时通讯环境：保持口语化风格，不要过度正式化，简洁为主。"
+        }
+        "Email" => {
+            "当前为邮件环境：使用正式书面语，注意礼貌用语和结构完整性。"
+        }
+        "Notes" => {
+            "当前为笔记/文档环境：注重条理性和可读性，保留结构化格式。"
+        }
+        _ => "",
+    }
+}
+
 /// Unified prompt builder that consolidates variable processing logic
 /// from pipeline.rs, manual.rs, extensions.rs, and routing.rs.
 pub struct PromptBuilder<'a> {
@@ -465,6 +485,13 @@ impl<'a> PromptBuilder<'a> {
             let now = chrono::Local::now();
             skill_prompt =
                 skill_prompt.replace("{{time}}", &now.format("%Y-%m-%d %H:%M:%S").to_string());
+        }
+        if skill_prompt.contains("{{scenario-hint}}") {
+            let hint = self
+                .app_name
+                .map(|name| scenario_hint_for_category(crate::app_category::from_app_name(name)))
+                .unwrap_or("");
+            skill_prompt = skill_prompt.replace("{{scenario-hint}}", hint);
         }
 
         // --- Phase 3.5: Inject resolved references ---

@@ -968,7 +968,7 @@
             "baseUrlHint": "兼容 OpenAI 的基础 URL。使用 '#' 后缀可禁用自动补全 /v1。",
             "actualUrlPreview": "实际调用 URL 预览",
             "modelsEndpoint": "模型接口路径",
-            "modelsEndpointPlaceholder": "/models",
+            "modelsEndpointPlaceholder": "/models 或完整 URL",
             "name": "提供商名称",
             "namePlaceholder": "我的提供商",
             "v1AutoAppended": "已自动追加 /v1",

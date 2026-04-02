@@ -39,7 +39,9 @@ pub async fn fetch_models(
 ) -> Result<Vec<String>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let endpoint = provider.models_endpoint.as_deref().unwrap_or("/models");
-    let url = if endpoint.starts_with('/') {
+    let url = if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
+        endpoint.to_string()
+    } else if endpoint.starts_with('/') {
         format!("{}{}", base_url, endpoint)
     } else {
         format!("{}/{}", base_url, endpoint)

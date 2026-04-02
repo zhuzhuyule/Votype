@@ -1149,6 +1149,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
             <AdvancedSettings
               modelsEndpoint={state.modelsEndpoint}
               onModelsEndpointChange={state.handleModelsEndpointChange}
+              providerId={state.selectedProviderId}
             />
 
             {/* Add Model */}

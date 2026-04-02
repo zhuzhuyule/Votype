@@ -930,7 +930,7 @@
             "baseUrlHint": "OpenAI compatible mode, usually ends with /v1. Use '#' suffix to bypass /v1 auto-append.",
             "actualUrlPreview": "Actual API URL Preview",
             "modelsEndpoint": "Models Endpoint",
-            "modelsEndpointPlaceholder": "/models",
+            "modelsEndpointPlaceholder": "/models or https://...",
             "name": "Provider Name",
             "namePlaceholder": "My Provider",
             "v1AutoAppended": "/v1 was automatically appended",

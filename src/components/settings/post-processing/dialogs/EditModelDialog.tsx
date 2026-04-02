@@ -9,9 +9,10 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
+import { IconBrain } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CachedModel } from "../../../../lib/types";
-import { KeyValueEditor } from "../../../ui/KeyValueEditor";
+import { KeyValueEditor, type QuickAction } from "../../../ui/KeyValueEditor";
 
 export interface EditModelDialogProps {
   model: CachedModel;
@@ -26,32 +27,64 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const [label, setLabel] = React.useState(model.custom_label || "");
-  const [extraParams, setExtraParams] = React.useState<Record<string, unknown>>(
-    model.extra_params || {},
-  );
-  const [extraHeaders, setExtraHeaders] = React.useState<Record<string, unknown>>(
-    model.extra_headers || {},
-  );
+  const [extraParams, setExtraParams] = React.useState<
+    Record<string, unknown>
+  >(model.extra_params || {});
+  const [extraHeaders, setExtraHeaders] = React.useState<
+    Record<string, unknown>
+  >(model.extra_headers || {});
   const [thinking, setThinking] = React.useState(model.is_thinking_model);
   const [saving, setSaving] = React.useState(false);
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
   );
-  const [modelFamilies, setModelFamilies] = React.useState<[string, string][]>(
-    [],
-  );
+  const [modelFamilies, setModelFamilies] = React.useState<
+    [string, string][]
+  >([]);
   const [presetParamsHint, setPresetParamsHint] = React.useState<string>("");
 
-  // Auto-detect thinking support
+  // Thinking config cache (enable/disable params for this model)
+  const [thinkingEnableParams, setThinkingEnableParams] =
+    React.useState<Record<string, unknown> | null>(null);
+  const [thinkingDisableParams, setThinkingDisableParams] =
+    React.useState<Record<string, unknown> | null>(null);
+
+  // Auto-detect thinking support and cache both enable/disable configs
   const [supportsThinking, setSupportsThinking] = React.useState(false);
   React.useEffect(() => {
-    invoke<string | null>("get_thinking_config", {
+    const aliases = {
       modelId: model.model_id,
       providerId: model.provider_id,
-      enabled: true,
       modelName: model.name || null,
       customLabel: model.custom_label || label || null,
-    }).then((config) => setSupportsThinking(config !== null));
+    };
+    // Fetch enable config
+    invoke<string | null>("get_thinking_config", {
+      ...aliases,
+      enabled: true,
+    }).then((config) => {
+      setSupportsThinking(config !== null);
+      if (config) {
+        try {
+          setThinkingEnableParams(JSON.parse(config));
+        } catch {
+          setThinkingEnableParams(null);
+        }
+      }
+    });
+    // Fetch disable config
+    invoke<string | null>("get_thinking_config", {
+      ...aliases,
+      enabled: false,
+    }).then((config) => {
+      if (config) {
+        try {
+          setThinkingDisableParams(JSON.parse(config));
+        } catch {
+          setThinkingDisableParams(null);
+        }
+      }
+    });
   }, [model.model_id, model.provider_id, model.name, model.custom_label, label]);
 
   // Load model families on mount
@@ -73,31 +106,20 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     })
       .then((params) => {
         const entries = Object.entries(params);
-        if (entries.length === 0) {
-          setPresetParamsHint("");
-        } else {
-          setPresetParamsHint(entries.map(([k, v]) => `${k}: ${v}`).join(" | "));
-        }
+        setPresetParamsHint(
+          entries.length > 0
+            ? entries.map(([k, v]) => `${k}: ${v}`).join(" | ")
+            : "",
+        );
       })
       .catch(() => setPresetParamsHint(""));
   }, [modelFamily]);
 
   const handleThinkingToggle = async (enabled: boolean) => {
     setThinking(enabled);
-    try {
-      const config = await invoke<string | null>("get_thinking_config", {
-        modelId: model.model_id,
-        providerId: model.provider_id,
-        enabled,
-        modelName: model.name || null,
-        customLabel: model.custom_label || label || null,
-      });
-      if (config) {
-        const thinkingParams = JSON.parse(config);
-        setExtraParams((prev) => ({ ...prev, ...thinkingParams }));
-      }
-    } catch {
-      // Ignore
+    const params = enabled ? thinkingEnableParams : thinkingDisableParams;
+    if (params) {
+      setExtraParams((prev) => ({ ...prev, ...params }));
     }
   };
 
@@ -132,9 +154,39 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     }
   };
 
+  // Build quick actions for Body params
+  const bodyQuickActions = React.useMemo<QuickAction[]>(() => {
+    const actions: QuickAction[] = [];
+    if (supportsThinking) {
+      if (thinkingEnableParams) {
+        actions.push({
+          label: "启用思考",
+          icon: <IconBrain size={12} />,
+          color: "blue",
+          getEntries: () => {
+            setThinking(true);
+            return thinkingEnableParams;
+          },
+        });
+      }
+      if (thinkingDisableParams) {
+        actions.push({
+          label: "禁用思考",
+          icon: <IconBrain size={12} />,
+          color: "orange",
+          getEntries: () => {
+            setThinking(false);
+            return thinkingDisableParams;
+          },
+        });
+      }
+    }
+    return actions;
+  }, [supportsThinking, thinkingEnableParams, thinkingDisableParams]);
+
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content maxWidth="520px">
+      <Dialog.Content maxWidth="540px">
         <Dialog.Title>
           {t("common.edit", "Edit")} - {model.model_id}
         </Dialog.Title>
@@ -186,7 +238,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 <Switch
                   size="1"
                   checked={thinking}
-                  onCheckedChange={(checked) => handleThinkingToggle(!!checked)}
+                  onCheckedChange={(checked) =>
+                    handleThinkingToggle(!!checked)
+                  }
                 />
               </Flex>
             )}
@@ -202,7 +256,11 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             <Text size="2" weight="medium" color="gray">
               Body 参数
             </Text>
-            <KeyValueEditor value={extraParams} onChange={setExtraParams} />
+            <KeyValueEditor
+              value={extraParams}
+              onChange={setExtraParams}
+              quickActions={bodyQuickActions}
+            />
             <Text size="1" color="gray" mt="1" as="div">
               手动设置的参数将覆盖预设值
             </Text>
@@ -216,7 +274,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             <KeyValueEditor
               value={extraHeaders}
               onChange={setExtraHeaders}
-              placeholder="Add header"
+              placeholder="添加 Header"
             />
           </Flex>
 

@@ -17,19 +17,27 @@ interface KVEntry {
   type: ValueType;
 }
 
+export interface QuickAction {
+  label: string;
+  icon?: React.ReactNode;
+  /** Returns entries to merge into the current list (key collision → replace) */
+  getEntries: () => Record<string, unknown>;
+  color?: "gray" | "blue" | "green" | "red" | "orange";
+}
+
 interface KeyValueEditorProps {
   /** Current entries as a flat JSON object */
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
   placeholder?: string;
+  /** Quick-insert action buttons shown in the header row */
+  quickActions?: QuickAction[];
 }
 
-/** Try to auto-fix loose JSON: single quotes → double quotes, trailing commas, unquoted keys */
+/** Try to auto-fix loose JSON: single quotes → double quotes, trailing commas */
 function tryFixJson(input: string): string {
   let s = input.trim();
-  // Single quotes → double quotes (naive but useful)
   s = s.replace(/'/g, '"');
-  // Trailing commas before } or ]
   s = s.replace(/,\s*([}\]])/g, "$1");
   return s;
 }
@@ -56,7 +64,7 @@ function parseValue(raw: string, type: ValueType): unknown {
         try {
           return JSON.parse(tryFixJson(raw));
         } catch {
-          return raw; // fallback to string
+          return raw;
         }
       }
     }
@@ -89,16 +97,23 @@ function entriesToObject(entries: KVEntry[]): Record<string, unknown> {
   return result;
 }
 
+const TYPE_LABELS: Record<ValueType, string> = {
+  text: "Text",
+  number: "Num",
+  bool: "Bool",
+  json: "JSON",
+};
+
 export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   value,
   onChange,
   placeholder,
+  quickActions,
 }) => {
   const [entries, setEntries] = React.useState<KVEntry[]>(() =>
     Object.keys(value).length > 0 ? objectToEntries(value) : [],
   );
 
-  // Sync entries back to parent
   const commitChanges = useCallback(
     (newEntries: KVEntry[]) => {
       setEntries(newEntries);
@@ -137,18 +152,62 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
     [entries, commitChanges],
   );
 
+  const mergeEntries = useCallback(
+    (newObj: Record<string, unknown>) => {
+      const newEntries = objectToEntries(newObj);
+      // Merge: replace existing keys, append new ones
+      const result = [...entries];
+      for (const ne of newEntries) {
+        const idx = result.findIndex(
+          (e) => e.key.trim() === ne.key.trim(),
+        );
+        if (idx >= 0) {
+          result[idx] = ne;
+        } else {
+          result.push(ne);
+        }
+      }
+      commitChanges(result);
+    },
+    [entries, commitChanges],
+  );
+
   return (
     <Flex direction="column" gap="2">
       {entries.map((entry, i) => (
         <Flex key={i} gap="2" align="start">
+          {/* Key */}
           <TextField.Root
             size="1"
             value={entry.key}
             onChange={(e) => updateEntry(i, { key: e.target.value })}
             placeholder="key"
             className="font-mono text-xs flex-shrink-0"
-            style={{ width: 140 }}
+            style={{ width: 130 }}
           />
+          {/* Type selector (middle) */}
+          <Select.Root
+            size="1"
+            value={entry.type}
+            onValueChange={(v) => {
+              const newType = v as ValueType;
+              let newValue = entry.value;
+              if (newType === "bool") newValue = "false";
+              else if (newType === "number" && isNaN(Number(entry.value)))
+                newValue = "0";
+              updateEntry(i, { type: newType, value: newValue });
+            }}
+          >
+            <Select.Trigger style={{ width: 68, flexShrink: 0 }} />
+            <Select.Content>
+              {(Object.keys(TYPE_LABELS) as ValueType[]).map((t) => (
+                <Select.Item key={t} value={t}>
+                  {TYPE_LABELS[t]}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+          {/* Value (type-dependent) */}
           {entry.type === "bool" ? (
             <Flex align="center" className="flex-1" style={{ minHeight: 28 }}>
               <Select.Root
@@ -171,6 +230,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
               placeholder='{"key": "value"}'
               className="font-mono text-xs flex-1"
               rows={2}
+              style={{ resize: "vertical", minHeight: 48 }}
             />
           ) : (
             <TextField.Root
@@ -182,41 +242,42 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
               type={entry.type === "number" ? "number" : "text"}
             />
           )}
-          <Select.Root
-            size="1"
-            value={entry.type}
-            onValueChange={(v) => {
-              const newType = v as ValueType;
-              // Convert value when type changes
-              let newValue = entry.value;
-              if (newType === "bool") newValue = "false";
-              else if (newType === "number" && isNaN(Number(entry.value)))
-                newValue = "0";
-              updateEntry(i, { type: newType, value: newValue });
-            }}
-          >
-            <Select.Trigger style={{ width: 70, flexShrink: 0 }} />
-            <Select.Content>
-              <Select.Item value="text">text</Select.Item>
-              <Select.Item value="number">num</Select.Item>
-              <Select.Item value="bool">bool</Select.Item>
-              <Select.Item value="json">json</Select.Item>
-            </Select.Content>
-          </Select.Root>
+          {/* Remove */}
           <IconButton
             size="1"
             variant="ghost"
             color="gray"
             onClick={() => removeEntry(i)}
+            style={{ flexShrink: 0 }}
           >
             <IconX size={14} />
           </IconButton>
         </Flex>
       ))}
-      <Button size="1" variant="soft" onClick={addEntry} className="self-start">
-        <IconPlus size={12} />
-        {placeholder || "Add parameter"}
-      </Button>
+      {/* Footer: Add button + quick actions */}
+      <Flex gap="2" wrap="wrap" align="center">
+        <Button
+          size="1"
+          variant="soft"
+          color="gray"
+          onClick={addEntry}
+        >
+          <IconPlus size={12} />
+          {placeholder || "添加参数"}
+        </Button>
+        {quickActions?.map((action, i) => (
+          <Button
+            key={i}
+            size="1"
+            variant="soft"
+            color={action.color || "blue"}
+            onClick={() => mergeEntries(action.getEntries())}
+          >
+            {action.icon}
+            {action.label}
+          </Button>
+        ))}
+      </Flex>
     </Flex>
   );
 };
