@@ -15,7 +15,10 @@ pub(crate) use core::{
     build_instruction_message, build_user_message, execute_llm_request, resolve_prompt_message_role,
 };
 #[allow(unused_imports)]
-pub(crate) use core::{llm_result_to_legacy, LlmError, LlmResponse, LlmResult};
+pub(crate) use core::{
+    execute_llm_request_typed, execute_llm_request_with_retry, llm_result_to_legacy, LlmError,
+    LlmResponse, LlmResult,
+};
 pub use extensions::{maybe_convert_chinese_variant, multi_post_process_transcription};
 pub use manual::post_process_text_with_prompt;
 pub use pipeline::maybe_post_process_transcription;

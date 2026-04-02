@@ -903,3 +903,62 @@ pub async fn execute_llm_request_typed(
     )
     .await
 }
+
+const MAX_RETRIES: u32 = 2;
+
+/// Execute with automatic retry for transient failures.
+/// Total retry budget ≤ 1.5s to keep voice input responsive.
+#[allow(dead_code)]
+pub async fn execute_llm_request_with_retry(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    cached_model_id: Option<&str>,
+    system_prompts: &[String],
+    user_message: Option<&str>,
+    conversation_history: Option<&[crate::review_window::RewriteMessage]>,
+    override_extra_params: Option<&HashMap<String, serde_json::Value>>,
+) -> LlmResult {
+    let mut last_error: Option<LlmError> = None;
+
+    for attempt in 0..=MAX_RETRIES {
+        let result = execute_llm_request_inner(
+            app_handle,
+            settings,
+            provider,
+            model,
+            cached_model_id,
+            system_prompts,
+            user_message,
+            conversation_history,
+            None,
+            None,
+            None,
+            None,
+            override_extra_params,
+        )
+        .await;
+
+        match result {
+            Ok(resp) => return Ok(resp),
+            Err(e) if e.is_retryable() && attempt < MAX_RETRIES => {
+                let delay = e.retry_delay_ms(attempt);
+                log::warn!(
+                    "[LLM] Retryable error on attempt {}/{}: {} (delay={}ms)",
+                    attempt + 1,
+                    MAX_RETRIES + 1,
+                    e,
+                    delay,
+                );
+                if delay > 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+                }
+                last_error = Some(e);
+            }
+            Err(e) => return Err(e),
+        }
+    }
+
+    Err(last_error.expect("retry loop must set last_error"))
+}
