@@ -202,6 +202,8 @@ pub struct PromptBuilder<'a> {
     resolved_references: Option<String>,
     /// UI language code (e.g. "zh", "en") for output language constraint.
     app_language: Option<&'a str>,
+    /// Recent transcription context from the same app (session window).
+    session_context: Vec<String>,
 }
 
 fn sanitize_history_entry(entry: &str) -> Option<String> {
@@ -276,6 +278,21 @@ fn render_term_block(tag: &str, items: &[HotwordEntry]) -> Option<String> {
         .join("、");
 
     Some(format!("[{}] {}", tag, content))
+}
+
+fn render_session_context_block(entries: &[String]) -> Option<String> {
+    if entries.is_empty() {
+        return None;
+    }
+    let items: Vec<String> = entries
+        .iter()
+        .enumerate()
+        .map(|(i, s)| format!("{}. {}", i + 1, s))
+        .collect();
+    Some(format!(
+        "[session-context]\n(以下为同一应用内最近的输入，仅供理解当前语境参考)\n{}",
+        items.join("\n")
+    ))
 }
 
 fn render_history_hints_block(entries: &[String]) -> Option<String> {
@@ -374,6 +391,7 @@ impl<'a> PromptBuilder<'a> {
             injection_policy: InjectionPolicy::default(),
             resolved_references: None,
             app_language: None,
+            session_context: Vec::new(),
         }
     }
 
@@ -433,6 +451,11 @@ impl<'a> PromptBuilder<'a> {
         if !lang.is_empty() {
             self.app_language = Some(lang);
         }
+        self
+    }
+
+    pub fn session_context(mut self, entries: Vec<String>) -> Self {
+        self.session_context = entries;
         self
     }
 
@@ -687,6 +710,9 @@ impl<'a> PromptBuilder<'a> {
             }
         } else {
             debug!("[PromptBuilder] No hotword injection provided");
+        }
+        if let Some(block) = render_session_context_block(&self.session_context) {
+            sections.push(block);
         }
         if !explicit_field_references.contains(&FieldTag::HistoryHints) {
             if let Some(block) = render_history_hints_block(&history_entries) {

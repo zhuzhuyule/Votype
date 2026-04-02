@@ -5,7 +5,6 @@ import {
   Dialog,
   Flex,
   Select,
-  Switch,
   Text,
   TextField,
 } from "@radix-ui/themes";
@@ -207,43 +206,43 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             />
           </Flex>
 
-          {/* Model Family + Thinking in a row */}
-          <Flex gap="4" align="end">
-            <Flex direction="column" gap="1" className="flex-1">
+          {/* Model Family */}
+          <Flex direction="column" gap="1">
+            <Flex align="center" gap="2">
               <Text size="2" weight="medium" color="gray">
                 模型系列
               </Text>
-              <Select.Root
-                value={modelFamily || "__unknown__"}
-                onValueChange={(v) =>
-                  setModelFamily(v === "__unknown__" ? "" : v)
-                }
-              >
-                <Select.Trigger className="w-full" />
-                <Select.Content>
-                  <Select.Item value="__unknown__">未知</Select.Item>
-                  {modelFamilies.map(([id, displayName]) => (
-                    <Select.Item key={id} value={id}>
-                      {displayName}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-            </Flex>
-            {supportsThinking && (
-              <Flex align="center" gap="2" style={{ paddingBottom: 2 }}>
-                <Text size="2" color="gray">
-                  Thinking
-                </Text>
-                <Switch
-                  size="1"
-                  checked={thinking}
-                  onCheckedChange={(checked) =>
-                    handleThinkingToggle(!!checked)
-                  }
+              {supportsThinking && (
+                <IconBrain
+                  size={15}
+                  style={{
+                    color: thinking
+                      ? "var(--blue-9)"
+                      : "var(--gray-8)",
+                    cursor: "pointer",
+                    opacity: thinking ? 1 : 0.5,
+                  }}
+                  onClick={() => handleThinkingToggle(!thinking)}
+                  title={thinking ? "Thinking 已启用" : "Thinking 已禁用"}
                 />
-              </Flex>
-            )}
+              )}
+            </Flex>
+            <Select.Root
+              value={modelFamily || "__unknown__"}
+              onValueChange={(v) =>
+                setModelFamily(v === "__unknown__" ? "" : v)
+              }
+            >
+              <Select.Trigger className="w-full" />
+              <Select.Content>
+                <Select.Item value="__unknown__">未知</Select.Item>
+                {modelFamilies.map(([id, displayName]) => (
+                  <Select.Item key={id} value={id}>
+                    {displayName}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
           </Flex>
           {presetParamsHint && (
             <Text size="1" color="gray" mt="-2" as="div">

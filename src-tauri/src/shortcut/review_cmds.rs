@@ -47,11 +47,11 @@ pub fn confirm_reviewed_transcription(
             .map(|cm| cm.model_id.clone())
     });
 
-    if let Some(cached_model_id) = cached_model_id_for_stats {
+    if let Some(ref cached_model_id) = cached_model_id_for_stats {
         let mut settings = settings::get_settings(&app);
         let entry = settings
             .multi_model_manual_pick_counts
-            .entry(cached_model_id)
+            .entry(cached_model_id.clone())
             .or_insert(0);
         *entry += 1;
         settings::write_settings(&app, settings);
@@ -61,6 +61,7 @@ pub fn confirm_reviewed_transcription(
     if let Some(hid) = history_id {
         let app_for_history = app.clone();
         let text_for_history = text.clone();
+        let selected_candidate = cached_model_id_for_stats.clone();
         tauri::async_runtime::spawn(async move {
             if let Some(hm) = app_for_history
                 .try_state::<std::sync::Arc<crate::managers::history::HistoryManager>>()
@@ -80,6 +81,12 @@ pub fn confirm_reviewed_transcription(
                 if let Some(model_name) = model_id {
                     if let Err(e) = hm.update_post_process_model(hid, &model_name) {
                         log::error!("Failed to update model in history: {}", e);
+                    }
+                }
+                // Record which candidate was selected (multi-model)
+                if let Some(ref candidate_id) = selected_candidate {
+                    if let Err(e) = hm.update_review_selected_candidate(hid, candidate_id) {
+                        log::error!("Failed to update review_selected_candidate: {}", e);
                     }
                 }
             }

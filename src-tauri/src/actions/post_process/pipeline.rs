@@ -80,6 +80,9 @@ pub async fn unified_post_process(
                             cached_text.chars().count()
                         );
                     }
+                    if let Some(ref an) = app_name {
+                        super::recent_context::push(&cached_text, an);
+                    }
                     return super::PipelineResult::Cached {
                         text: cached_text,
                         model: cached_model,
@@ -135,6 +138,9 @@ pub async fn unified_post_process(
                             "[UnifiedPipeline] Step 2: PassThrough ({} chars)",
                             char_count
                         );
+                    }
+                    if let Some(ref an) = app_name {
+                        super::recent_context::push(transcription, an);
                     }
                     return super::PipelineResult::PassThrough {
                         text: transcription.to_string(),
@@ -277,15 +283,24 @@ pub async fn unified_post_process(
                 None
             };
 
+        let session_ctx = app_name
+            .as_deref()
+            .map(super::recent_context::get_for_app)
+            .unwrap_or_default();
+
         let built = super::prompt_builder::PromptBuilder::new(&lite_prompt, transcription)
             .app_name(app_name.as_deref())
             .window_title(window_title.as_deref())
             .hotword_injection(hotword_injection)
+            .session_context(session_ctx)
             .app_language(&lite_settings.app_language)
             .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
                 &lite_settings,
             ))
             .build();
+
+        // Save app_name for session context push (before ownership moves into closures)
+        let lite_app_name_for_context = app_name.clone();
 
         // Execute with or without fallback chain
         let (result, err, error_message, api_token_count, result_model, result_provider, metrics_logged) =
@@ -455,6 +470,9 @@ pub async fn unified_post_process(
             _ => None,
         };
 
+        if let (Some(ref text), Some(ref an)) = (&result, &lite_app_name_for_context) {
+            super::recent_context::push(text, an);
+        }
         return super::PipelineResult::SingleModel {
             text: result,
             model: Some(result_model.clone()),
@@ -560,6 +578,7 @@ pub async fn unified_post_process(
     }
 
     let settings_ref = overridden_settings.as_ref().unwrap_or(settings);
+    let app_name_for_context = app_name.clone();
 
     let (
         text,
@@ -604,6 +623,10 @@ pub async fn unified_post_process(
         }
         _ => None,
     };
+
+    if let (Some(ref t), Some(ref an)) = (&text, &app_name_for_context) {
+        super::recent_context::push(t, an);
+    }
 
     super::PipelineResult::SingleModel {
         text,
@@ -1880,6 +1903,11 @@ pub async fn maybe_post_process_transcription(
         };
 
         // Use PromptBuilder for unified variable processing
+        let session_ctx = app_name
+            .as_deref()
+            .map(super::recent_context::get_for_app)
+            .unwrap_or_default();
+
         let mut builder = super::prompt_builder::PromptBuilder::new(&prompt, transcription_content)
             .streaming_transcription(streaming_transcription)
             .selected_text(selected_text.as_deref())
@@ -1888,6 +1916,7 @@ pub async fn maybe_post_process_transcription(
             .history_entries(history_entries)
             .hotword_injection(hotword_injection)
             .resolved_references(refs_content)
+            .session_context(session_ctx)
             .app_language(&settings.app_language)
             .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
                 settings,

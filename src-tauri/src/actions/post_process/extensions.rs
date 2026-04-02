@@ -671,11 +671,17 @@ async fn execute_single_model_post_process(
     };
 
     // Use PromptBuilder for unified variable processing
+    let session_ctx = app_name
+        .map(super::recent_context::get_for_app)
+        .unwrap_or_default();
+
     let built = super::prompt_builder::PromptBuilder::new(prompt, transcription)
         .streaming_transcription(streaming_transcription)
+        .app_name(app_name)
         .history_entries(history_entries)
         .hotword_injection(hotword_injection)
         .resolved_references(refs_content)
+        .session_context(session_ctx)
         .app_language(&settings.app_language)
         .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
             settings,

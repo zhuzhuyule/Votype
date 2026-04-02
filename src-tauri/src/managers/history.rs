@@ -391,6 +391,10 @@ static MIGRATIONS: &[M] = &[
     ),
     // Migration 38: Add index for history cache lookup (find_cached_post_process_result)
     M::up("CREATE INDEX IF NOT EXISTS idx_th_cache_lookup ON transcription_history(transcription_text, post_process_rejected, deleted);"),
+    // Migration 39: Add review feedback fields for quality tracking
+    M::up("ALTER TABLE transcription_history ADD COLUMN review_action TEXT;
+           ALTER TABLE transcription_history ADD COLUMN review_edit_distance INTEGER;
+           ALTER TABLE transcription_history ADD COLUMN review_selected_candidate TEXT;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -976,6 +980,11 @@ impl HistoryManager {
             )
             .ok();
 
+        // Push confirmed text into session context for consecutive input awareness
+        if let Some(ref an) = app_name {
+            crate::actions::post_process::recent_context::push(&post_processed_text, an);
+        }
+
         // Get the old corrected_char_count to calculate delta for global stats
         let old_corrected_char_count: i64 = conn
             .query_row(
@@ -1047,12 +1056,29 @@ impl HistoryManager {
             }
         }
 
+        // Compute review feedback
+        let review_action = if learn_from_edit { "edit_accept" } else { "accept" };
+        let review_edit_distance: Option<i64> = if learn_from_edit {
+            original_text_opt.as_ref().map(|orig| {
+                // Simple character-level edit distance approximation:
+                // count differing characters at aligned positions + length difference
+                let a: Vec<char> = orig.chars().collect();
+                let b: Vec<char> = post_processed_text.chars().collect();
+                let mismatches = a.iter().zip(b.iter()).filter(|(x, y)| x != y).count();
+                (mismatches + a.len().abs_diff(b.len())) as i64
+            })
+        } else {
+            None
+        };
+
         conn.execute(
-            "UPDATE transcription_history SET 
-                post_processed_text = ?1, 
-                corrected_char_count = ?2 
+            "UPDATE transcription_history SET
+                post_processed_text = ?1,
+                corrected_char_count = ?2,
+                review_action = ?4,
+                review_edit_distance = ?5
              WHERE id = ?3",
-            params![post_processed_text, corrected_char_count, id],
+            params![post_processed_text, corrected_char_count, id, review_action, review_edit_distance],
         )?;
 
         let _ = corrected_char_count - old_corrected_char_count;
@@ -1908,13 +1934,22 @@ impl HistoryManager {
     pub async fn reject_post_process_result(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
         conn.execute(
-            "UPDATE transcription_history SET post_process_rejected = 1 WHERE id = ?1",
+            "UPDATE transcription_history SET post_process_rejected = 1, review_action = 'reject' WHERE id = ?1",
             params![id],
         )?;
         info!("Marked post-process result as rejected for entry {}", id);
         if let Err(e) = self.app_handle.emit("history-updated", ()) {
             error!("Failed to emit history-updated event: {}", e);
         }
+        Ok(())
+    }
+
+    pub fn update_review_selected_candidate(&self, id: i64, candidate_id: &str) -> Result<()> {
+        let conn = self.get_connection()?;
+        conn.execute(
+            "UPDATE transcription_history SET review_selected_candidate = ?1 WHERE id = ?2",
+            params![candidate_id, id],
+        )?;
         Ok(())
     }
 
