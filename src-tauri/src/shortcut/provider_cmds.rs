@@ -446,9 +446,9 @@ pub async fn fetch_post_process_models(
         .ok_or("Provider not found")?;
     let api_key = settings
         .post_process_api_keys
-        .get(&provider_id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&provider_id)
+        .unwrap_or("")
+        .to_string();
 
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]

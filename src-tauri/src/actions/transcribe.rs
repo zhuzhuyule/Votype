@@ -593,8 +593,8 @@ impl ShortcutAction for TranscribeAction {
                             .cloned();
                         let api_key = settings
                             .post_process_api_keys
-                            .get(&cached.provider_id)
-                            .cloned();
+                            .first_key(&cached.provider_id)
+                            .map(|s| s.to_string());
                         let remote_model_id = cached.model_id.clone();
                         let model_name = cached.name.clone();
                         let provider_id_for_log = cached.provider_id.clone();
@@ -1014,8 +1014,8 @@ impl ShortcutAction for TranscribeAction {
                                                 .cloned();
                                             let fb_api_key = settings
                                                 .post_process_api_keys
-                                                .get(&fallback_model.provider_id)
-                                                .cloned();
+                                                .first_key(&fallback_model.provider_id)
+                                                .map(|s| s.to_string());
                                             let fb_remote_id = fallback_model.model_id.clone();
                                             let fb_provider_id = fallback_model.provider_id.clone();
                                             let fb_cached_id = fallback_model.model_id.clone();
@@ -1184,8 +1184,8 @@ impl ShortcutAction for TranscribeAction {
                                                 .cloned();
                                             let fb_api_key = settings
                                                 .post_process_api_keys
-                                                .get(&fallback_model.provider_id)
-                                                .cloned();
+                                                .first_key(&fallback_model.provider_id)
+                                                .map(|s| s.to_string());
                                             let fb_remote_id = fallback_model.model_id.clone();
                                             let fb_provider_id = fallback_model.provider_id.clone();
                                             let fb_cached_id = fallback_model.model_id.clone();
@@ -1328,8 +1328,8 @@ impl ShortcutAction for TranscribeAction {
                                                             .cloned();
                                                         let api_key = settings
                                                             .post_process_api_keys
-                                                            .get(&cached.provider_id)
-                                                            .cloned();
+                                                            .first_key(&cached.provider_id)
+                                                            .map(|s| s.to_string());
                                                         let remote_model_id =
                                                             cached.model_id.clone();
                                                         let retry_provider_id =

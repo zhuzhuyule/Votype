@@ -651,9 +651,9 @@ async fn execute_single_model_post_process(
     // Get API key
     let api_key = settings
         .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&provider.id)
+        .unwrap_or("")
+        .to_string();
 
     // Resolve convention-based references
     let app_category = app_name

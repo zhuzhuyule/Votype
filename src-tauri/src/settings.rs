@@ -677,33 +677,106 @@ impl<'de> serde::Deserialize<'de> for ActivationMode {
     }
 }
 
-/// A `HashMap<String, String>` wrapper that redacts values in `Debug` output
-/// to prevent API keys from leaking into log files.
+/// A single API key entry with metadata
 #[derive(Clone, Serialize, Deserialize, Type)]
-#[serde(transparent)]
-pub struct SecretMap(pub HashMap<String, String>);
+pub struct KeyEntry {
+    pub key: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub label: Option<String>,
+}
 
-impl fmt::Debug for SecretMap {
+/// A map of provider_id → list of API key entries.
+/// Backward-compatible: deserializes from old `HashMap<String, String>` format.
+#[derive(Clone, Serialize, Type)]
+#[serde(transparent)]
+pub struct SecretKeyRing(pub HashMap<String, Vec<KeyEntry>>);
+
+impl fmt::Debug for SecretKeyRing {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let redacted: HashMap<&String, &str> = self
+        let redacted: HashMap<&String, usize> = self
             .0
             .iter()
-            .map(|(k, v)| (k, if v.is_empty() { "" } else { "[REDACTED]" }))
+            .map(|(k, v)| (k, v.iter().filter(|e| !e.key.is_empty()).count()))
             .collect();
-        redacted.fmt(f)
+        write!(f, "SecretKeyRing({:?})", redacted)
     }
 }
 
-impl std::ops::Deref for SecretMap {
-    type Target = HashMap<String, String>;
+impl std::ops::Deref for SecretKeyRing {
+    type Target = HashMap<String, Vec<KeyEntry>>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl std::ops::DerefMut for SecretMap {
+impl std::ops::DerefMut for SecretKeyRing {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl<'de> Deserialize<'de> for SecretKeyRing {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de;
+        let value = serde_json::Value::deserialize(deserializer)?;
+        match value {
+            serde_json::Value::Object(map) => {
+                let mut result = HashMap::new();
+                for (key, val) in map {
+                    match val {
+                        serde_json::Value::String(s) => {
+                            if s.is_empty() {
+                                result.insert(key, Vec::new());
+                            } else {
+                                result.insert(
+                                    key,
+                                    vec![KeyEntry {
+                                        key: s,
+                                        enabled: true,
+                                        label: None,
+                                    }],
+                                );
+                            }
+                        }
+                        serde_json::Value::Array(_) => {
+                            let entries: Vec<KeyEntry> =
+                                serde_json::from_value(val).map_err(de::Error::custom)?;
+                            result.insert(key, entries);
+                        }
+                        _ => {
+                            result.insert(key, Vec::new());
+                        }
+                    }
+                }
+                Ok(SecretKeyRing(result))
+            }
+            _ => Ok(SecretKeyRing(HashMap::new())),
+        }
+    }
+}
+
+impl SecretKeyRing {
+    pub fn first_key(&self, provider_id: &str) -> Option<&str> {
+        self.0
+            .get(provider_id)
+            .and_then(|keys| keys.iter().find(|k| k.enabled && !k.key.is_empty()))
+            .map(|k| k.key.as_str())
+    }
+    #[allow(dead_code)] // Used by upcoming KeySelector (Task 2)
+    pub fn enabled_keys(&self, provider_id: &str) -> Vec<&KeyEntry> {
+        self.0
+            .get(provider_id)
+            .map(|keys| {
+                keys.iter()
+                    .filter(|k| k.enabled && !k.key.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -820,7 +893,7 @@ pub struct AppSettings {
     #[serde(default = "default_post_process_providers")]
     pub post_process_providers: Vec<PostProcessProvider>,
     #[serde(default = "default_post_process_api_keys")]
-    pub post_process_api_keys: SecretMap,
+    pub post_process_api_keys: SecretKeyRing,
     #[serde(default = "default_post_process_models")]
     pub post_process_models: HashMap<String, String>,
     #[serde(default = "default_post_process_provider_avatar_overrides")]
@@ -1150,12 +1223,12 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
     providers
 }
 
-fn default_post_process_api_keys() -> SecretMap {
+fn default_post_process_api_keys() -> SecretKeyRing {
     let mut map = HashMap::new();
     for provider in default_post_process_providers() {
-        map.insert(provider.id, String::new());
+        map.insert(provider.id, Vec::new());
     }
-    SecretMap(map)
+    SecretKeyRing(map)
 }
 
 fn default_model_for_provider(provider_id: &str) -> String {
@@ -1251,7 +1324,7 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
         if provider_exists && !settings.post_process_api_keys.contains_key(&provider.id) {
             settings
                 .post_process_api_keys
-                .insert(provider.id.clone(), String::new());
+                .insert(provider.id.clone(), Vec::new());
             changed = true;
         }
 

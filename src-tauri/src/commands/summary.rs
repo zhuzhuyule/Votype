@@ -111,9 +111,9 @@ pub async fn generate_summary_ai_analysis(
     // Get API key for the provider
     let api_key = app_settings
         .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&provider.id)
+        .unwrap_or("")
+        .to_string();
 
     // Get the model to use: user-selected > settings default > provider default
     let model = selected_model

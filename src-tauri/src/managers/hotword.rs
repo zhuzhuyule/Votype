@@ -1438,9 +1438,9 @@ impl HotwordManager {
                     if let Some(p) = prov {
                         let key = settings
                             .post_process_api_keys
-                            .get(&p.id)
-                            .cloned()
-                            .unwrap_or_default();
+                            .first_key(&p.id)
+                            .unwrap_or("")
+                            .to_string();
                         (p.clone(), key, cm.model_id.clone())
                     } else {
                         info!(
@@ -1467,9 +1467,9 @@ impl HotwordManager {
                 };
                 let key = settings
                     .post_process_api_keys
-                    .get(&prov.id)
-                    .cloned()
-                    .unwrap_or_default();
+                    .first_key(&prov.id)
+                    .unwrap_or("")
+                    .to_string();
                 let mdl = settings
                     .post_process_models
                     .get(&prov.id)

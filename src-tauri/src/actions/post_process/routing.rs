@@ -1013,9 +1013,9 @@ pub(crate) fn resolve_intent_routing_model<'a>(
                     if !model_id.is_empty() {
                         let api_key = settings
                             .post_process_api_keys
-                            .get(&provider.id)
-                            .cloned()
-                            .unwrap_or_default();
+                            .first_key(&provider.id)
+                            .unwrap_or("")
+                            .to_string();
                         return Some((provider, model_id, api_key));
                     }
                 } else {
@@ -1042,9 +1042,9 @@ pub(crate) fn resolve_intent_routing_model<'a>(
         resolve_effective_model(settings, fallback_provider, fallback_prompt)?;
     let api_key = settings
         .post_process_api_keys
-        .get(&actual_provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&actual_provider.id)
+        .unwrap_or("")
+        .to_string();
     Some((actual_provider, model, api_key))
 }
 

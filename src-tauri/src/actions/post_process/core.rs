@@ -443,9 +443,9 @@ async fn execute_llm_request_inner(
 
     let api_key = settings
         .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&provider.id)
+        .unwrap_or("")
+        .to_string();
 
     let _client = match crate::llm_client::create_client(provider, api_key.clone()) {
         Ok(client) => client,

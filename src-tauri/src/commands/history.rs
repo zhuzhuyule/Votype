@@ -256,7 +256,10 @@ pub async fn retranscribe_history_entry(
             .ok_or_else(|| format!("Provider not found: {}", provider))?
             .clone();
 
-        let api_key = settings.post_process_api_keys.get(&provider).cloned();
+        let api_key = settings
+            .post_process_api_keys
+            .first_key(&provider)
+            .map(|s| s.to_string());
 
         let language = settings.selected_language.clone();
 

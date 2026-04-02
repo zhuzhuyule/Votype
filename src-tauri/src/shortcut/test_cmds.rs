@@ -19,9 +19,9 @@ pub async fn test_post_process_model_inference(
         .ok_or("Provider not found")?;
     let api_key = settings
         .post_process_api_keys
-        .get(&provider_id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&provider_id)
+        .unwrap_or("")
+        .to_string();
 
     // Look up CachedModel to get extra_params
     let cached_model = cached_model_id

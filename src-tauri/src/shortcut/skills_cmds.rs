@@ -256,9 +256,9 @@ pub async fn ai_generate_skill(
 
     let api_key = settings
         .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+        .first_key(&provider.id)
+        .unwrap_or("")
+        .to_string();
 
     let client = create_client(&provider, api_key).map_err(|e| e.to_string())?;
 
