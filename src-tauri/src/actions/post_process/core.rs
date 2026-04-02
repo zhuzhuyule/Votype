@@ -467,7 +467,23 @@ pub async fn execute_llm_request_with_messages(
         }
     }
 
-    // Merge extra params if provided
+    // Auto-inject thinking params based on is_thinking_model flag (lower priority than user extra_params)
+    if let Some(cm) = cached_model {
+        if let Some(thinking_params) = crate::settings::thinking_extra_params_with_aliases(
+            &cm.model_id,
+            &cm.provider_id,
+            cm.is_thinking_model,
+            &[cm.custom_label.as_deref().unwrap_or("")],
+        ) {
+            if let Some(obj) = body.as_object_mut() {
+                for (k, v) in &thinking_params {
+                    obj.insert(k.clone(), v.clone());
+                }
+            }
+        }
+    }
+
+    // Merge extra params if provided (user params override auto-injected thinking params)
     if let Some(extras) = extra_params {
         if let Some(obj) = body.as_object_mut() {
             for (k, v) in extras {

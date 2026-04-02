@@ -30,12 +30,33 @@ pub async fn test_post_process_model_inference(
     let extra_params = cached_model.and_then(|m| m.extra_params.as_ref());
     let extra_headers = cached_model.and_then(|m| m.extra_headers.as_ref());
 
+    // Auto-inject thinking params based on is_thinking_model flag
+    let thinking_params = cached_model.and_then(|cm| {
+        crate::settings::thinking_extra_params_with_aliases(
+            &cm.model_id,
+            &cm.provider_id,
+            cm.is_thinking_model,
+            &[cm.custom_label.as_deref().unwrap_or("")],
+        )
+    });
+    let merged_extra_params: Option<std::collections::HashMap<String, serde_json::Value>> =
+        match (thinking_params, extra_params.cloned()) {
+            (Some(mut tp), Some(up)) => {
+                tp.extend(up);
+                Some(tp)
+            }
+            (Some(tp), None) => Some(tp),
+            (None, Some(up)) => Some(up),
+            (None, None) => None,
+        };
+    let merged_ref = merged_extra_params.as_ref();
+
     let result = crate::llm_client::send_chat_completion_with_params(
         provider,
         api_key,
         &model_id,
         "你是啥模型？".to_string(),
-        extra_params,
+        merged_ref,
         extra_headers,
     )
     .await?;
