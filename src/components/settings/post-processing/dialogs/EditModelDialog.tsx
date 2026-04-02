@@ -7,11 +7,11 @@ import {
   Select,
   Switch,
   Text,
-  TextArea,
   TextField,
 } from "@radix-ui/themes";
 import { useTranslation } from "react-i18next";
 import type { CachedModel } from "../../../../lib/types";
+import { KeyValueEditor } from "../../../ui/KeyValueEditor";
 
 export interface EditModelDialogProps {
   model: CachedModel;
@@ -26,14 +26,13 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const [label, setLabel] = React.useState(model.custom_label || "");
-  const [extraParams, setExtraParams] = React.useState(
-    model.extra_params ? JSON.stringify(model.extra_params, null, 2) : "",
+  const [extraParams, setExtraParams] = React.useState<Record<string, unknown>>(
+    model.extra_params || {},
   );
-  const [extraHeaders, setExtraHeaders] = React.useState(
-    model.extra_headers ? JSON.stringify(model.extra_headers, null, 2) : "",
+  const [extraHeaders, setExtraHeaders] = React.useState<Record<string, unknown>>(
+    model.extra_headers || {},
   );
   const [thinking, setThinking] = React.useState(model.is_thinking_model);
-  const [role, setRole] = React.useState(model.prompt_message_role || "system");
   const [saving, setSaving] = React.useState(false);
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
@@ -53,25 +52,13 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
       modelName: model.name || null,
       customLabel: model.custom_label || label || null,
     }).then((config) => setSupportsThinking(config !== null));
-  }, [
-    model.model_id,
-    model.provider_id,
-    model.name,
-    model.custom_label,
-    label,
-  ]);
+  }, [model.model_id, model.provider_id, model.name, model.custom_label, label]);
 
   // Load model families on mount
   React.useEffect(() => {
     invoke<[string, string][]>("get_model_families")
-      .then((families) => {
-        console.log("[EditModelDialog] model families loaded:", families);
-        setModelFamilies(families);
-      })
-      .catch((e) => {
-        console.error("[EditModelDialog] get_model_families failed:", e);
-        setModelFamilies([]);
-      });
+      .then((families) => setModelFamilies(families))
+      .catch(() => setModelFamilies([]));
   }, []);
 
   // Load preset params hint when family changes
@@ -89,9 +76,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
         if (entries.length === 0) {
           setPresetParamsHint("");
         } else {
-          setPresetParamsHint(
-            entries.map(([k, v]) => `${k}: ${v}`).join(" | "),
-          );
+          setPresetParamsHint(entries.map(([k, v]) => `${k}: ${v}`).join(" | "));
         }
       })
       .catch(() => setPresetParamsHint(""));
@@ -108,12 +93,8 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
         customLabel: model.custom_label || label || null,
       });
       if (config) {
-        // Merge with existing params
-        const existing = extraParams.trim() ? JSON.parse(extraParams) : {};
         const thinkingParams = JSON.parse(config);
-        setExtraParams(
-          JSON.stringify({ ...existing, ...thinkingParams }, null, 2),
-        );
+        setExtraParams((prev) => ({ ...prev, ...thinkingParams }));
       }
     } catch {
       // Ignore
@@ -123,13 +104,21 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const handleSave = async () => {
     setSaving(true);
     try {
+      const paramsStr =
+        Object.keys(extraParams).length > 0
+          ? JSON.stringify(extraParams)
+          : null;
+      const headersStr =
+        Object.keys(extraHeaders).length > 0
+          ? JSON.stringify(extraHeaders)
+          : null;
       await invoke("update_cached_model", {
         id: model.id,
         customLabel: label,
-        extraParams: extraParams.trim() || null,
-        extraHeaders: extraHeaders.trim() || null,
+        extraParams: paramsStr,
+        extraHeaders: headersStr,
         isThinkingModel: thinking,
-        promptMessageRole: role,
+        promptMessageRole: model.prompt_message_role || "system",
       });
       await invoke("update_cached_model_family", {
         id: model.id,
@@ -145,7 +134,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content maxWidth="450px">
+      <Dialog.Content maxWidth="520px">
         <Dialog.Title>
           {t("common.edit", "Edit")} - {model.model_id}
         </Dialog.Title>
@@ -166,106 +155,68 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             />
           </Flex>
 
-          {/* Developer Mode */}
-          <Flex align="center" justify="between">
-            <Text size="2" weight="medium" color="gray">
-              {t(
-                "settings.postProcessing.models.promptMessageRole.label",
-                "Developer mode",
-              )}
-            </Text>
-            <Switch
-              size="1"
-              checked={role === "developer"}
-              onCheckedChange={(checked) =>
-                setRole(checked ? "developer" : "system")
-              }
-            />
-          </Flex>
-
-          {/* Thinking Mode */}
-          {supportsThinking && (
-            <Flex align="center" justify="between">
+          {/* Model Family + Thinking in a row */}
+          <Flex gap="4" align="end">
+            <Flex direction="column" gap="1" className="flex-1">
               <Text size="2" weight="medium" color="gray">
-                {t(
-                  "settings.postProcessing.models.thinkingMode.label",
-                  "Thinking",
-                )}
+                模型系列
               </Text>
-              <Switch
-                size="1"
-                checked={thinking}
-                onCheckedChange={(checked) => handleThinkingToggle(!!checked)}
-              />
+              <Select.Root
+                value={modelFamily || "__unknown__"}
+                onValueChange={(v) =>
+                  setModelFamily(v === "__unknown__" ? "" : v)
+                }
+              >
+                <Select.Trigger className="w-full" />
+                <Select.Content>
+                  <Select.Item value="__unknown__">未知</Select.Item>
+                  {modelFamilies.map(([id, displayName]) => (
+                    <Select.Item key={id} value={id}>
+                      {displayName}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
             </Flex>
-          )}
-
-          {/* Model Family */}
-          <Flex direction="column" gap="1">
-            <Text size="2" weight="medium" color="gray">
-              模型系列
-            </Text>
-            <Select.Root
-              value={modelFamily || "__unknown__"}
-              onValueChange={(v) =>
-                setModelFamily(v === "__unknown__" ? "" : v)
-              }
-            >
-              <Select.Trigger className="w-full" />
-              <Select.Content>
-                <Select.Item value="__unknown__">未知</Select.Item>
-                {modelFamilies.map(([id, displayName]) => (
-                  <Select.Item key={id} value={id}>
-                    {displayName}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-            {presetParamsHint && (
-              <Text size="1" color="gray" mt="1" as="div">
-                {presetParamsHint}
-              </Text>
+            {supportsThinking && (
+              <Flex align="center" gap="2" style={{ paddingBottom: 2 }}>
+                <Text size="2" color="gray">
+                  Thinking
+                </Text>
+                <Switch
+                  size="1"
+                  checked={thinking}
+                  onCheckedChange={(checked) => handleThinkingToggle(!!checked)}
+                />
+              </Flex>
             )}
           </Flex>
+          {presetParamsHint && (
+            <Text size="1" color="gray" mt="-2" as="div">
+              预设参数: {presetParamsHint}
+            </Text>
+          )}
 
-          {/* Extra Params (Body) */}
+          {/* Extra Params (Body) - Key-Value Editor */}
           <Flex direction="column" gap="1">
-            <Flex justify="between" align="baseline">
-              <Text size="2" weight="medium" color="gray">
-                Body
-              </Text>
-              <Text size="1" color="gray">
-                JSON
-              </Text>
-            </Flex>
-            <TextArea
-              value={extraParams}
-              onChange={(e) => setExtraParams(e.target.value)}
-              placeholder='e.g. {"chat_template_kwargs": {"enable_thinking": false}}'
-              className="font-mono text-xs bg-(--gray-2)"
-              rows={3}
-            />
+            <Text size="2" weight="medium" color="gray">
+              Body 参数
+            </Text>
+            <KeyValueEditor value={extraParams} onChange={setExtraParams} />
             <Text size="1" color="gray" mt="1" as="div">
               手动设置的参数将覆盖预设值
             </Text>
           </Flex>
 
-          {/* Extra Headers */}
+          {/* Extra Headers - Key-Value Editor */}
           <Flex direction="column" gap="1">
-            <Flex justify="between" align="baseline">
-              <Text size="2" weight="medium" color="gray">
-                Headers
-              </Text>
-              <Text size="1" color="gray">
-                JSON
-              </Text>
-            </Flex>
-            <TextArea
+            <Text size="2" weight="medium" color="gray">
+              Headers
+            </Text>
+            <KeyValueEditor
               value={extraHeaders}
-              onChange={(e) => setExtraHeaders(e.target.value)}
-              placeholder='e.g. {"X-Custom-Auth": "token"}'
-              className="font-mono text-xs bg-(--gray-2)"
-              rows={2}
+              onChange={setExtraHeaders}
+              placeholder="Add header"
             />
           </Flex>
 
