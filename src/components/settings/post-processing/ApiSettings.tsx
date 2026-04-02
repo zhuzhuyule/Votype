@@ -932,7 +932,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               };
 
               return (
-                <Flex align="center" gap="2" className="min-h-8">
+                <Flex align="center" gap="3" className="h-8">
                   <Text
                     size="2"
                     weight="medium"
@@ -943,96 +943,79 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       "settings.postProcessing.api.providers.fields.baseUrl",
                     )}
                   </Text>
-                  {editingBaseUrl ? (
-                    <>
-                      <TextField.Root
-                        value={localBaseUrl}
-                        onChange={(e) => setLocalBaseUrl(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") saveBaseUrl();
-                          else if (e.key === "Escape") cancelBaseUrl();
-                        }}
-                        placeholder="https://api.openai.com/v1"
-                        size="1"
-                        className="flex-1"
-                        autoFocus
-                      />
-                      <Flex gap="1" className="shrink-0">
+                  <input
+                    ref={(el) => {
+                      if (el && editingBaseUrl) el.focus();
+                    }}
+                    value={localBaseUrl}
+                    readOnly={!editingBaseUrl}
+                    onChange={(e) => setLocalBaseUrl(e.target.value)}
+                    onClick={() => {
+                      if (!editingBaseUrl) setEditingBaseUrl(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (!editingBaseUrl) return;
+                      if (e.key === "Enter") saveBaseUrl();
+                      else if (e.key === "Escape") cancelBaseUrl();
+                    }}
+                    onBlur={() => {
+                      if (editingBaseUrl) saveBaseUrl();
+                    }}
+                    placeholder="https://api.openai.com/v1"
+                    className={`flex-1 min-w-0 h-full rounded bg-transparent px-1 text-sm outline-none border transition-colors ${
+                      editingBaseUrl
+                        ? "border-(--accent-a6) text-(--gray-12) cursor-text"
+                        : "border-transparent text-(--gray-11) cursor-pointer hover:bg-(--gray-a3)"
+                    }`}
+                  />
+                  <Flex gap="3" className="shrink-0">
+                    {editingBaseUrl ? (
+                      <>
                         <IconButton
-                          size="1"
+                          size="2"
                           variant="ghost"
                           color="green"
                           onClick={saveBaseUrl}
                           className="cursor-pointer"
                         >
-                          <IconCheck size={14} />
+                          <IconCheck size={16} />
                         </IconButton>
                         <IconButton
-                          size="1"
+                          size="2"
                           variant="ghost"
                           color="gray"
                           onClick={cancelBaseUrl}
                           className="cursor-pointer"
                         >
-                          <IconX size={14} />
+                          <IconX size={16} />
                         </IconButton>
-                        {isChanged && (
-                          <IconButton
-                            size="1"
-                            variant="ghost"
-                            color="orange"
-                            onClick={resetBaseUrl}
-                            title={t(
-                              "settings.postProcessing.api.providers.resetUrl",
-                            )}
-                            className="cursor-pointer"
-                          >
-                            <IconRotate size={14} />
-                          </IconButton>
-                        )}
-                      </Flex>
-                    </>
-                  ) : (
-                    <>
-                      <Text
-                        size="1"
-                        className="flex-1 min-w-0 cursor-pointer truncate rounded px-1 leading-8 text-(--gray-11) hover:bg-(--gray-a3)"
-                        title={localBaseUrl || "Click to set"}
+                      </>
+                    ) : (
+                      <IconButton
+                        size="2"
+                        variant="ghost"
+                        color="gray"
                         onClick={() => setEditingBaseUrl(true)}
+                        className="cursor-pointer"
                       >
-                        {localBaseUrl || (
-                          <span className="opacity-40">
-                            https://api.openai.com/v1
-                          </span>
+                        <IconPencil size={16} />
+                      </IconButton>
+                    )}
+                    {isChanged && (
+                      <IconButton
+                        size="2"
+                        variant="ghost"
+                        color="orange"
+                        onClick={resetBaseUrl}
+                        title={t(
+                          "settings.postProcessing.api.providers.resetUrl",
                         )}
-                      </Text>
-                      <Flex gap="1" className="shrink-0">
-                        <IconButton
-                          size="1"
-                          variant="ghost"
-                          color="gray"
-                          onClick={() => setEditingBaseUrl(true)}
-                          className="cursor-pointer"
-                        >
-                          <IconPencil size={14} />
-                        </IconButton>
-                        {isChanged && (
-                          <IconButton
-                            size="1"
-                            variant="ghost"
-                            color="orange"
-                            onClick={resetBaseUrl}
-                            title={t(
-                              "settings.postProcessing.api.providers.resetUrl",
-                            )}
-                            className="cursor-pointer"
-                          >
-                            <IconRotate size={14} />
-                          </IconButton>
-                        )}
-                      </Flex>
-                    </>
-                  )}
+                        className="cursor-pointer"
+                      >
+                        <IconRotate size={16} />
+                      </IconButton>
+                    )}
+                  </Flex>
                 </Flex>
               );
             })()}

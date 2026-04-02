@@ -244,34 +244,32 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                   </IconButton>
                 </Tooltip>
               )}
-              {supportsThinking && thinkingEnableParams && (
-                <Button
-                  size="1"
-                  variant="soft"
-                  color="blue"
-                  onClick={() => {
-                    setThinking(true);
-                    setExtraParams((prev) => ({ ...prev, ...thinkingEnableParams }));
-                  }}
-                >
-                  <IconBrain size={12} />
-                  启用思考
-                </Button>
-              )}
-              {supportsThinking && thinkingDisableParams && (
-                <Button
-                  size="1"
-                  variant="soft"
-                  color="orange"
-                  onClick={() => {
-                    setThinking(false);
-                    setExtraParams((prev) => ({ ...prev, ...thinkingDisableParams }));
-                  }}
-                >
-                  <IconBrain size={12} />
-                  禁用思考
-                </Button>
-              )}
+              <Button
+                size="1"
+                variant="soft"
+                color="blue"
+                onClick={() => {
+                  setThinking(true);
+                  const params = thinkingEnableParams || { thinking: { type: "enabled" } };
+                  setExtraParams((prev) => ({ ...prev, ...params }));
+                }}
+              >
+                <IconBrain size={12} />
+                启用思考
+              </Button>
+              <Button
+                size="1"
+                variant="soft"
+                color="orange"
+                onClick={() => {
+                  setThinking(false);
+                  const params = thinkingDisableParams || { thinking: { type: "disabled" } };
+                  setExtraParams((prev) => ({ ...prev, ...params }));
+                }}
+              >
+                <IconBrain size={12} />
+                禁用思考
+              </Button>
             </Flex>
             <KeyValueEditor
               value={extraParams}

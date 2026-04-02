@@ -14,4 +14,6 @@ pub mod summary;
 pub mod transcription;
 pub mod vocabulary;
 
+pub mod free_models;
+
 pub use hotword::HotwordManager;

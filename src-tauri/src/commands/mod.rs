@@ -1,6 +1,7 @@
 pub mod audio;
 #[allow(dead_code)]
 pub mod daily_vocabulary;
+pub mod free_models;
 pub mod history;
 pub mod hotword;
 pub mod models;
