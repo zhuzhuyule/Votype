@@ -1200,4 +1200,79 @@ mod tests {
         );
         assert!(!sys.contains("Output MUST be in English"));
     }
+
+    #[test]
+    fn test_render_correction_block_filters_by_input() {
+        let pairs = vec![
+            CorrectionPair {
+                original: "scale".to_string(),
+                target: "skill".to_string(),
+                stars: 3,
+            },
+            CorrectionPair {
+                original: "cloud code".to_string(),
+                target: "Claude Code".to_string(),
+                stars: 3,
+            },
+            CorrectionPair {
+                original: "brolet".to_string(),
+                target: "blocklet".to_string(),
+                stars: 2,
+            },
+        ];
+        let result = render_correction_block(&pairs, "上次那个 scale 我又忘记了");
+        assert!(result.is_some());
+        let block = result.unwrap();
+        assert!(block.contains("[asr-corrections]"));
+        assert!(block.contains("scale → skill ★★★"));
+        assert!(!block.contains("cloud code"));
+        assert!(!block.contains("brolet"));
+    }
+
+    #[test]
+    fn test_render_correction_block_returns_none_when_no_match() {
+        let pairs = vec![CorrectionPair {
+            original: "scale".to_string(),
+            target: "skill".to_string(),
+            stars: 3,
+        }];
+        let result = render_correction_block(&pairs, "今天天气不错");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_build_with_correction_pairs_in_injection() {
+        let prompt = make_prompt("# Expert\nProcess input.");
+
+        let built = PromptBuilder::new(&prompt, "上次那个 scale 我又忘记了")
+            .hotword_injection(Some(HotwordInjection {
+                person_names: vec![],
+                product_names: vec![],
+                domain_terms: vec![HotwordEntry {
+                    target: "skill".to_string(),
+                    aliases: vec![],
+                }],
+                hotwords: vec![],
+                correction_pairs: vec![
+                    CorrectionPair {
+                        original: "scale".to_string(),
+                        target: "skill".to_string(),
+                        stars: 3,
+                    },
+                    CorrectionPair {
+                        original: "brolet".to_string(),
+                        target: "blocklet".to_string(),
+                        stars: 2,
+                    },
+                ],
+            }))
+            .build();
+
+        let input = built.user_message.unwrap();
+        assert!(input.contains("[asr-corrections]"));
+        assert!(input.contains("scale → skill ★★★"));
+        assert!(!input.contains("brolet"));
+        assert!(input.contains("[domain-terms] skill"));
+        assert!(input.contains("[input-text]"));
+    }
 }
