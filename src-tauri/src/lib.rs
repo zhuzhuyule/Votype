@@ -11,6 +11,7 @@ mod commands;
 pub mod error;
 pub mod fallback;
 mod helpers;
+pub mod http_client;
 mod input;
 mod key_selector;
 mod llm_client;
