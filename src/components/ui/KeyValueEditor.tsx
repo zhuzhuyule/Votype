@@ -1,4 +1,3 @@
-import React, { useCallback, useImperativeHandle } from "react";
 import {
   Button,
   Flex,
@@ -10,6 +9,7 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { IconPlus, IconX } from "@tabler/icons-react";
+import React, { useCallback, useImperativeHandle } from "react";
 
 type ValueType = "text" | "number" | "bool" | "json";
 
@@ -196,43 +196,41 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
     [entries, commit],
   );
 
-  // Empty state: dashed box IS the button
+  // Empty state: dashed box with all actions inside
   if (entries.length === 0) {
     return (
-      <Flex direction="column" gap="2">
+      <Flex
+        align="center"
+        justify="center"
+        gap="2"
+        py="3px"
+        style={{
+          border: "1px dashed var(--gray-7)",
+          borderRadius: "var(--radius-2)",
+          fontSize: "var(--font-size-1)",
+        }}
+      >
         <Flex
           align="center"
-          justify="center"
           gap="1"
-          py="1"
           onClick={addEntry}
-          style={{
-            border: "1px dashed var(--gray-7)",
-            borderRadius: "var(--radius-2)",
-            cursor: "pointer",
-            fontSize: "var(--font-size-1)",
-            color: "var(--gray-9)",
-          }}
+          style={{ cursor: "pointer", color: "var(--gray-9)" }}
         >
           <IconPlus size={12} />
           {addLabel || "添加参数"}
         </Flex>
-        {quickActions && quickActions.length > 0 && (
-          <Flex gap="2" wrap="wrap" align="center">
-            {quickActions.map((action, i) => (
-              <Button
-                key={i}
-                size="1"
-                variant="soft"
-                color={action.color || "blue"}
-                onClick={() => mergeEntries(action.getEntries())}
-              >
-                {action.icon}
-                {action.label}
-              </Button>
-            ))}
-          </Flex>
-        )}
+        {quickActions?.map((action, i) => (
+          <Button
+            key={i}
+            size="1"
+            variant="soft"
+            color={action.color || "blue"}
+            onClick={() => mergeEntries(action.getEntries())}
+          >
+            {action.icon}
+            {action.label}
+          </Button>
+        ))}
       </Flex>
     );
   }
@@ -240,7 +238,11 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   return (
     <Flex direction="column" gap="2">
       {entries.map((entry, i) => (
-        <Flex key={i} gap="2" align={entry.type === "json" ? "start" : "center"}>
+        <Flex
+          key={i}
+          gap="2"
+          align={entry.type === "json" ? "start" : "center"}
+        >
           <TextField.Root
             size="1"
             value={entry.key}

@@ -1,5 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
-import React from "react";
 import {
   Button,
   Dialog,
@@ -11,6 +9,8 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { IconBrain, IconPlus } from "@tabler/icons-react";
+import { invoke } from "@tauri-apps/api/core";
+import React from "react";
 import { useTranslation } from "react-i18next";
 import type { CachedModel } from "../../../../lib/types";
 import {
@@ -32,9 +32,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 }) => {
   const { t } = useTranslation();
   const [label, setLabel] = React.useState(model.custom_label || "");
-  const [extraParams, setExtraParams] = React.useState<
-    Record<string, unknown>
-  >(model.extra_params || {});
+  const [extraParams, setExtraParams] = React.useState<Record<string, unknown>>(
+    model.extra_params || {},
+  );
   const [extraHeaders, setExtraHeaders] = React.useState<
     Record<string, unknown>
   >(model.extra_headers || {});
@@ -51,13 +51,15 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
   );
-  const [modelFamilies, setModelFamilies] = React.useState<
-    [string, string][]
-  >([]);
+  const [modelFamilies, setModelFamilies] = React.useState<[string, string][]>(
+    [],
+  );
   const [presetParamsHint, setPresetParamsHint] = React.useState<string>("");
 
-  const [thinkingEnableParams, setThinkingEnableParams] =
-    React.useState<Record<string, unknown> | null>(null);
+  const [thinkingEnableParams, setThinkingEnableParams] = React.useState<Record<
+    string,
+    unknown
+  > | null>(null);
   const [thinkingDisableParams, setThinkingDisableParams] =
     React.useState<Record<string, unknown> | null>(null);
   const [supportsThinking, setSupportsThinking] = React.useState(false);
@@ -91,7 +93,13 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
         setThinkingDisableParams(null);
       }
     });
-  }, [model.model_id, model.provider_id, model.name, effectiveLabel, modelFamily]);
+  }, [
+    model.model_id,
+    model.provider_id,
+    model.name,
+    effectiveLabel,
+    modelFamily,
+  ]);
 
   React.useEffect(() => {
     invoke<[string, string][]>("get_model_families")
@@ -258,6 +266,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                   <IconButton
                     size="1"
                     variant="outline"
+                    className="h-5! w-5!"
                     color="gray"
                     onClick={() => bodyEditorRef.current?.addEntry()}
                   >
@@ -289,6 +298,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                     size="1"
                     variant="outline"
                     color="gray"
+                    className="h-5! w-5!"
                     onClick={() => headersEditorRef.current?.addEntry()}
                   >
                     <IconPlus size={12} />
