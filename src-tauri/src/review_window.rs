@@ -59,6 +59,8 @@ pub struct ReviewWindowMultiCandidatePayload {
     pub skill_name: Option<String>,
     /// The prompt_id that was actually used for this transcription (may be overridden by app rules)
     pub prompt_id: Option<String>,
+    /// ID of the candidate that should be pre-selected (strategy-dependent).
+    pub auto_selected_id: Option<String>,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -656,6 +658,7 @@ pub fn show_review_window_with_candidates(
     output_mode: PromptOutputMode,
     skill_name: Option<String>,
     prompt_id: Option<String>,
+    auto_selected_id: Option<String>,
 ) {
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     reset_rewrite_conversation();
@@ -683,6 +686,7 @@ pub fn show_review_window_with_candidates(
         output_mode,
         skill_name,
         prompt_id,
+        auto_selected_id,
     };
 
     if let Some(review_window) = app_handle.get_webview_window("review_window") {

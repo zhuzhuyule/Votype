@@ -1778,13 +1778,14 @@ impl ShortcutAction for TranscribeAction {
                                             output_mode,
                                             None,
                                             effective_prompt_id.clone(),
+                                            None,
                                         );
                                         utils::hide_recording_overlay(&ah_clone);
                                         change_tray_icon(&ah_clone, TrayIconState::Idle);
 
                                         // Now start multi-model processing (emits progress events for live UI updates)
                                         info!("[MultiModel] Starting streaming multi-model post-processing ({} models)", multi_items.len());
-                                        let results =
+                                        let collected =
                                             crate::actions::post_process::multi_post_process_transcription(
                                                 &ah_clone,
                                                 &settings_clone,
@@ -1802,7 +1803,7 @@ impl ShortcutAction for TranscribeAction {
                                             .await;
 
                                         // Save best result to history
-                                        if let Some(best) = results.iter().find(|r| r.ready && r.error.is_none()) {
+                                        if let Some(best) = collected.results.iter().find(|r| r.ready && r.error.is_none()) {
                                             let model_name = multi_items
                                                 .iter()
                                                 .find(|item| item.id == best.id)

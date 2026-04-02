@@ -48,12 +48,15 @@ pub async fn multi_post_process_transcription(
     app_name: Option<String>,
     window_title: Option<String>,
     override_prompt_id: Option<String>,
-) -> Vec<super::MultiModelPostProcessResult> {
+) -> super::MultiModelCollectedResults {
     // Check if multi-model post-processing is enabled
 
     if !settings.multi_model_post_process_enabled {
         info!("[MultiModel] Multi-model post-processing is disabled");
-        return Vec::new();
+        return super::MultiModelCollectedResults {
+            results: Vec::new(),
+            auto_selected_id: None,
+        };
     }
 
     // Prefer checkbox-based selection; fall back to legacy items
@@ -86,7 +89,10 @@ pub async fn multi_post_process_transcription(
     items = items_owned.iter().collect();
     if items.is_empty() {
         info!("[MultiModel] No enabled multi-model items configured");
-        return Vec::new();
+        return super::MultiModelCollectedResults {
+            results: Vec::new(),
+            auto_selected_id: None,
+        };
     }
 
     info!(
@@ -161,7 +167,10 @@ pub async fn multi_post_process_transcription(
 
     if resolved_prompts.is_empty() {
         error!("[MultiModel] No prompts could be resolved, aborting");
-        return Vec::new();
+        return super::MultiModelCollectedResults {
+            results: Vec::new(),
+            auto_selected_id: None,
+        };
     }
 
     let resolved_prompts = Arc::new(resolved_prompts);
@@ -334,6 +343,7 @@ pub async fn multi_post_process_transcription(
         .collect();
 
     let mut all_results: Vec<super::MultiModelPostProcessResult> = Vec::new();
+    let mut auto_selected_id: Option<String> = None;
     let total = items.len();
 
     let strategy = settings.multi_model_strategy.as_str();
@@ -376,13 +386,24 @@ pub async fn multi_post_process_transcription(
                         .and_then(|id| find_ready_result(&all_results, id))
                     {
                         info!("[MultiModel] Lazy mode selected preferred model at timeout: {}", preferred.id);
-                        emit_multi_complete(_app_handle, total, all_results.len(), vec![preferred.clone()]);
-                        return vec![preferred.clone()];
-                    }
-                    if let Some(best) = find_latest_ready_result(&all_results) {
+                        if auto_selected_id.is_none() {
+                            auto_selected_id = Some(preferred.id.clone());
+                            let _ = _app_handle.emit(
+                                "multi-post-process-auto-selected",
+                                serde_json::json!({ "id": preferred.id }),
+                            );
+                        }
+                        // Continue collecting remaining results
+                    } else if let Some(best) = find_latest_ready_result(&all_results) {
                         info!("[MultiModel] Lazy mode selected latest ready result at timeout: {}", best.id);
-                        emit_multi_complete(_app_handle, total, all_results.len(), vec![best.clone()]);
-                        return vec![best.clone()];
+                        if auto_selected_id.is_none() {
+                            auto_selected_id = Some(best.id.clone());
+                            let _ = _app_handle.emit(
+                                "multi-post-process-auto-selected",
+                                serde_json::json!({ "id": best.id }),
+                            );
+                        }
+                        // Continue collecting remaining results
                     }
                     continue;
                 }
@@ -420,13 +441,21 @@ pub async fn multi_post_process_transcription(
             },
         );
 
-        if strategy == "race" && result.ready && result.error.is_none() {
+        if strategy == "race"
+            && auto_selected_id.is_none()
+            && result.ready
+            && result.error.is_none()
+        {
             info!(
-                "[MultiModel] Race mode winner: id={}, completed={}/{}",
+                "[MultiModel] Race mode auto-selected: id={}, completed={}/{}",
                 result.id, completed, total
             );
-            emit_multi_complete(_app_handle, total, completed, vec![result.clone()]);
-            return vec![result];
+            auto_selected_id = Some(result.id.clone());
+            let _ = _app_handle.emit(
+                "multi-post-process-auto-selected",
+                serde_json::json!({ "id": result.id }),
+            );
+            // Continue collecting remaining results (don't return early)
         }
 
         if strategy == "lazy" {
@@ -437,29 +466,47 @@ pub async fn multi_post_process_transcription(
                             "[MultiModel] Lazy mode preferred model arrived within timeout: {}",
                             result.id
                         );
-                        emit_multi_complete(_app_handle, total, completed, vec![result.clone()]);
-                        return vec![result];
+                        if auto_selected_id.is_none() {
+                            auto_selected_id = Some(result.id.clone());
+                            let _ = _app_handle.emit(
+                                "multi-post-process-auto-selected",
+                                serde_json::json!({ "id": result.id }),
+                            );
+                        }
+                        // Continue collecting remaining results
                     }
                 }
             } else if result.ready && result.error.is_none() {
-                info!(
-                    "[MultiModel] Lazy mode selected first result after timeout: {}",
-                    result.id
-                );
-                emit_multi_complete(_app_handle, total, completed, vec![result.clone()]);
-                return vec![result];
-            } else if let Some(best) = find_latest_ready_result(&all_results) {
-                info!(
-                    "[MultiModel] Lazy mode selected latest ready result after timeout progress: {}",
-                    best.id
-                );
-                emit_multi_complete(_app_handle, total, completed, vec![best.clone()]);
-                return vec![best];
+                if auto_selected_id.is_none() {
+                    info!(
+                        "[MultiModel] Lazy mode selected first result after timeout: {}",
+                        result.id
+                    );
+                    auto_selected_id = Some(result.id.clone());
+                    let _ = _app_handle.emit(
+                        "multi-post-process-auto-selected",
+                        serde_json::json!({ "id": result.id }),
+                    );
+                }
+                // Continue collecting remaining results
+            } else if auto_selected_id.is_none() {
+                if let Some(best) = find_latest_ready_result(&all_results) {
+                    info!(
+                        "[MultiModel] Lazy mode selected latest ready result after timeout progress: {}",
+                        best.id
+                    );
+                    auto_selected_id = Some(best.id.clone());
+                    let _ = _app_handle.emit(
+                        "multi-post-process-auto-selected",
+                        serde_json::json!({ "id": best.id }),
+                    );
+                    // Continue collecting remaining results
+                }
             }
         }
     }
 
-    if strategy == "lazy" {
+    if strategy == "lazy" && auto_selected_id.is_none() {
         if let Some(preferred) = preferred_model_id
             .as_ref()
             .and_then(|id| find_ready_result(&all_results, id))
@@ -468,38 +515,31 @@ pub async fn multi_post_process_transcription(
                 "[MultiModel] Lazy mode selected preferred model at completion: {}",
                 preferred.id
             );
-            emit_multi_complete(
-                _app_handle,
-                total,
-                all_results.len(),
-                vec![preferred.clone()],
+            auto_selected_id = Some(preferred.id.clone());
+            let _ = _app_handle.emit(
+                "multi-post-process-auto-selected",
+                serde_json::json!({ "id": preferred.id }),
             );
-            return vec![preferred.clone()];
-        }
-        if let Some(best) = find_latest_ready_result(&all_results) {
+        } else if let Some(best) = find_latest_ready_result(&all_results) {
             info!(
                 "[MultiModel] Lazy mode selected latest ready result at completion: {}",
                 best.id
             );
-            emit_multi_complete(_app_handle, total, all_results.len(), vec![best.clone()]);
-            return vec![best];
+            auto_selected_id = Some(best.id.clone());
+            let _ = _app_handle.emit(
+                "multi-post-process-auto-selected",
+                serde_json::json!({ "id": best.id }),
+            );
         }
     }
 
     info!("[MultiModel] All {} models completed", total);
 
-    // Emit complete event
-    let _ = _app_handle.emit(
-        "multi-post-process-complete",
-        super::MultiModelProgressEvent {
-            total,
-            completed: total,
-            results: all_results.clone(),
-            done: true,
-        },
-    );
-
-    all_results
+    emit_multi_complete(_app_handle, total, all_results.len(), all_results.clone());
+    super::MultiModelCollectedResults {
+        results: all_results,
+        auto_selected_id,
+    }
 }
 
 fn find_ready_result<'a>(

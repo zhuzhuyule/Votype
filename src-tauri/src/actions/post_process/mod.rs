@@ -56,6 +56,14 @@ pub struct SkillRouteResponse {
     pub extracted_content: Option<String>,
 }
 
+/// Collected results from multi-model post-processing with auto-selection info.
+#[allow(dead_code)]
+pub struct MultiModelCollectedResults {
+    pub results: Vec<MultiModelPostProcessResult>,
+    /// The ID of the result that would be auto-selected by the strategy
+    pub auto_selected_id: Option<String>,
+}
+
 /// Result from a single model in multi-model post-processing
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
