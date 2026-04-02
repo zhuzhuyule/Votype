@@ -24,6 +24,7 @@ interface DashboardTrends {
   durationMs: number;
   charCount: number;
   llmCalls: number;
+  totalTokens: number;
 }
 
 interface DashboardSummaryCardsProps {
@@ -459,7 +460,7 @@ export const DashboardSummaryCards: React.FC<DashboardSummaryCardsProps> = ({
           >
             {t("dashboard.summary.llm.title")}
           </Text>
-          {trends && <TrendIndicator value={trends.llmCalls} />}
+          {trends && <TrendIndicator value={trends.totalTokens} />}
         </Flex>
         <Heading size="7" weight="bold" className="tracking-tight tabular-nums">
           {formatCompactNumber(summary.totalTokens)}{" "}
