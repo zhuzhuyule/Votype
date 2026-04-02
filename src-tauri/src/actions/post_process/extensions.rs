@@ -648,12 +648,17 @@ async fn execute_single_model_post_process(
         }
     };
 
-    // Get API key
-    let api_key = settings
+    // Get API key via rotation
+    let key_selector = _app_handle.state::<crate::key_selector::KeySelector>();
+    let keys = settings
         .post_process_api_keys
-        .first_key(&provider.id)
-        .unwrap_or("")
-        .to_string();
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+    let (key_index, api_key) = match key_selector.next_key(&provider.id, &keys) {
+        Some((idx, key)) => (idx, key.to_string()),
+        None => (0, String::new()),
+    };
 
     // Resolve convention-based references
     let app_category = app_name
@@ -874,6 +879,9 @@ async fn execute_single_model_post_process(
 
     if !resp.status().is_success() {
         let status = resp.status();
+        if matches!(status.as_u16(), 429 | 401 | 403) {
+            key_selector.mark_error(&provider.id, key_index, status.as_u16());
+        }
         let error_text = resp.text().await.unwrap_or_default();
         error!("[MultiModel] API error ({}): {}", status, error_text);
         return (
