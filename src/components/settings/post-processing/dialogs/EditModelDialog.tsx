@@ -8,7 +8,7 @@ import {
   Text,
   TextField,
 } from "@radix-ui/themes";
-import { IconBrain } from "@tabler/icons-react";
+import { IconBrain, IconPlus } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { CachedModel } from "../../../../lib/types";
 import { KeyValueEditor, type QuickAction } from "../../../ui/KeyValueEditor";
@@ -34,6 +34,8 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   >(model.extra_headers || {});
   const [thinking, setThinking] = React.useState(model.is_thinking_model);
   const [saving, setSaving] = React.useState(false);
+  const bodyEditorRef = React.useRef<{ addEntry: () => void }>(null);
+  const headersEditorRef = React.useRef<{ addEntry: () => void }>(null);
   const [modelFamily, setModelFamily] = React.useState<string>(
     model.model_family || "",
   );
@@ -245,13 +247,22 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 
           {/* Extra Params (Body) - Key-Value Editor */}
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium" color="gray">
-              Body 参数
-            </Text>
+            <Flex align="center" gap="2">
+              <Text size="2" weight="medium" color="gray">
+                Body 参数
+              </Text>
+              <IconPlus
+                size={14}
+                style={{ color: "var(--gray-9)", cursor: "pointer" }}
+                onClick={() => bodyEditorRef.current?.addEntry()}
+              />
+            </Flex>
             <KeyValueEditor
               value={extraParams}
               onChange={setExtraParams}
               quickActions={bodyQuickActions}
+              hideAddButton
+              addRef={bodyEditorRef}
             />
             <Text size="1" color="gray" mt="1" as="div">
               手动设置的参数将覆盖预设值
@@ -260,13 +271,21 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
 
           {/* Extra Headers - Key-Value Editor */}
           <Flex direction="column" gap="1">
-            <Text size="2" weight="medium" color="gray">
-              Headers
-            </Text>
+            <Flex align="center" gap="2">
+              <Text size="2" weight="medium" color="gray">
+                Headers
+              </Text>
+              <IconPlus
+                size={14}
+                style={{ color: "var(--gray-9)", cursor: "pointer" }}
+                onClick={() => headersEditorRef.current?.addEntry()}
+              />
+            </Flex>
             <KeyValueEditor
               value={extraHeaders}
               onChange={setExtraHeaders}
-              placeholder="添加 Header"
+              hideAddButton
+              addRef={headersEditorRef}
             />
           </Flex>
 

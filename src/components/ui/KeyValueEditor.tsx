@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useImperativeHandle } from "react";
 import {
   Button,
   Flex,
@@ -30,8 +30,12 @@ interface KeyValueEditorProps {
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
   placeholder?: string;
-  /** Quick-insert action buttons shown in the header row */
+  /** Quick-insert action buttons shown in the footer row */
   quickActions?: QuickAction[];
+  /** If true, hide the built-in add button (caller renders their own) */
+  hideAddButton?: boolean;
+  /** Ref to expose addEntry for external trigger */
+  addRef?: React.Ref<{ addEntry: () => void }>;
 }
 
 /** Try to auto-fix loose JSON: single quotes → double quotes, trailing commas */
@@ -109,6 +113,8 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   onChange,
   placeholder,
   quickActions,
+  hideAddButton,
+  addRef,
 }) => {
   const [entries, setEntries] = React.useState<KVEntry[]>(() =>
     Object.keys(value).length > 0 ? objectToEntries(value) : [],
@@ -125,6 +131,9 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   const addEntry = useCallback(() => {
     commitChanges([...entries, { key: "", value: "", type: "text" }]);
   }, [entries, commitChanges]);
+
+  // Expose addEntry to parent via ref
+  useImperativeHandle(addRef, () => ({ addEntry }), [addEntry]);
 
   const removeEntry = useCallback(
     (index: number) => {
@@ -254,8 +263,10 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           </IconButton>
         </Flex>
       ))}
-      {/* Footer: Add button + quick actions */}
+      {/* Footer: quick actions (add button hidden when hideAddButton) */}
+      {(!hideAddButton || (quickActions && quickActions.length > 0)) && (
       <Flex gap="2" wrap="wrap" align="center">
+        {!hideAddButton && (
         <Button
           size="1"
           variant="soft"
@@ -265,6 +276,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           <IconPlus size={12} />
           {placeholder || "添加参数"}
         </Button>
+        )}
         {quickActions?.map((action, i) => (
           <Button
             key={i}
@@ -278,6 +290,7 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
           </Button>
         ))}
       </Flex>
+      )}
     </Flex>
   );
 };
