@@ -6,6 +6,7 @@ pub mod hotword;
 pub mod llm_metrics;
 pub mod model;
 pub mod model_preset;
+pub mod pipeline_log;
 pub mod post_processing;
 pub mod prompt;
 pub mod skill;

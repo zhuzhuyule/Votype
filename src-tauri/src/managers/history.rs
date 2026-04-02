@@ -395,6 +395,37 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN review_action TEXT;
            ALTER TABLE transcription_history ADD COLUMN review_edit_distance INTEGER;
            ALTER TABLE transcription_history ADD COLUMN review_selected_candidate TEXT;"),
+    // Migration 40: Pipeline decision log for routing observability
+    M::up(
+        "CREATE TABLE IF NOT EXISTS pipeline_decisions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            history_id INTEGER,
+            timestamp TEXT NOT NULL,
+            input_length INTEGER NOT NULL,
+            history_hit INTEGER NOT NULL DEFAULT 0,
+            history_elapsed_ms INTEGER,
+            intent_action TEXT,
+            intent_needs_hotword INTEGER,
+            intent_language TEXT,
+            intent_model_id TEXT,
+            intent_provider_id TEXT,
+            intent_elapsed_ms INTEGER,
+            intent_overridden INTEGER DEFAULT 0,
+            intent_override_reason TEXT,
+            model_selection TEXT,
+            selected_model_id TEXT,
+            is_multi_model INTEGER DEFAULT 0,
+            result_type TEXT NOT NULL,
+            total_elapsed_ms INTEGER NOT NULL,
+            error_type TEXT,
+            error_detail TEXT,
+            app_name TEXT,
+            smart_routing_enabled INTEGER,
+            bypass_reason TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_pd_history ON pipeline_decisions(history_id);
+        CREATE INDEX IF NOT EXISTS idx_pd_timestamp ON pipeline_decisions(timestamp);"
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
