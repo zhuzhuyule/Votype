@@ -227,6 +227,18 @@ pub struct PostProcessProvider {
     /// e.g. {"X-Custom-Auth": "token123"}
     #[serde(default)]
     pub custom_headers: Option<HashMap<String, String>>,
+    /// Per-provider proxy override: follow global, force on, or force off
+    #[serde(default)]
+    pub proxy_override: ProxyOverride,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyOverride {
+    #[default]
+    FollowGlobal,
+    ForceEnabled,
+    ForceDisabled,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -890,6 +902,12 @@ pub struct AppSettings {
     pub post_process_secondary_model_id: Option<String>,
     #[serde(default = "default_post_process_provider_id")]
     pub post_process_provider_id: String,
+    /// Global proxy URL (e.g. "http://127.0.0.1:7890", "socks5://...")
+    #[serde(default)]
+    pub proxy_url: Option<String>,
+    /// Whether proxy is enabled globally by default
+    #[serde(default)]
+    pub proxy_global_enabled: bool,
     #[serde(default = "default_post_process_providers")]
     pub post_process_providers: Vec<PostProcessProvider>,
     #[serde(default = "default_post_process_api_keys")]
@@ -1136,6 +1154,7 @@ fn builtin_post_process_provider(
         models_endpoint: models_endpoint.map(str::to_string),
         supports_structured_output,
         custom_headers: None,
+        proxy_override: ProxyOverride::default(),
     }
 }
 
@@ -1175,6 +1194,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
             custom_headers: None,
+            proxy_override: ProxyOverride::default(),
         },
         builtin_post_process_provider(
             "iflow",
@@ -1217,6 +1237,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             models_endpoint: None,
             supports_structured_output: false,
             custom_headers: None,
+            proxy_override: ProxyOverride::default(),
         });
     }
 
@@ -1662,6 +1683,8 @@ pub fn get_default_settings() -> AppSettings {
             default_post_process_use_local_candidate_when_online_asr(),
         post_process_secondary_model_id: None,
         post_process_provider_id: default_post_process_provider_id(),
+        proxy_url: None,
+        proxy_global_enabled: false,
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
@@ -2184,6 +2207,23 @@ pub fn get_history_limit(app: &AppHandle) -> usize {
 pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeriod {
     let settings = get_settings(app);
     settings.recording_retention_period
+}
+
+/// Resolve effective proxy URL for a provider based on global and per-provider settings.
+pub fn resolve_proxy(settings: &AppSettings, provider: &PostProcessProvider) -> Option<String> {
+    let proxy_url = settings.proxy_url.as_deref().filter(|u| !u.is_empty())?;
+
+    let use_proxy = match provider.proxy_override {
+        ProxyOverride::ForceEnabled => true,
+        ProxyOverride::ForceDisabled => false,
+        ProxyOverride::FollowGlobal => settings.proxy_global_enabled,
+    };
+
+    if use_proxy {
+        Some(proxy_url.to_string())
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
