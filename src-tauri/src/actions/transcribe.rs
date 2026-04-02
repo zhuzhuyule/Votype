@@ -1717,11 +1717,10 @@ impl ShortcutAction for TranscribeAction {
                                     crate::actions::post_process::PipelineResult::MultiModel {
                                         multi_items,
                                         prompt_id: effective_prompt_id,
-                                        strategy: _,
+                                        strategy,
                                         ..
                                     } => {
-                                        // Manual mode: show review window immediately with loading candidates,
-                                        // then start multi-model processing (results stream via events).
+                                        // Determine output mode
                                         let output_mode = if let Some(ref pid) = effective_prompt_id {
                                             settings_clone
                                                 .post_process_prompts
@@ -1740,7 +1739,25 @@ impl ShortcutAction for TranscribeAction {
                                             crate::settings::PromptOutputMode::default()
                                         };
 
-                                        // Build loading candidates (not ready yet)
+                                        // Determine if review window should be shown
+                                        let should_review = if matches!(
+                                            votype_mode,
+                                            VotypeInputMode::MainPolishInput
+                                                | VotypeInputMode::MainSelectedEdit
+                                                | VotypeInputMode::ReviewRewrite
+                                        ) {
+                                            false
+                                        } else if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
+                                            false
+                                        } else if strategy == "manual" {
+                                            true // Manual always shows review
+                                        } else if app_policy == crate::settings::AppReviewPolicy::Never {
+                                            false
+                                        } else {
+                                            true
+                                        };
+
+                                        // Build loading candidates
                                         let loading_candidates: Vec<crate::review_window::MultiModelCandidate> =
                                             multi_items
                                                 .iter()
@@ -1766,25 +1783,29 @@ impl ShortcutAction for TranscribeAction {
                                                 })
                                                 .collect();
 
-                                        // Show review window immediately
-                                        crate::review_window::set_last_active_window(
-                                            active_window_snapshot_for_review.clone(),
-                                        );
-                                        crate::review_window::show_review_window_with_candidates(
-                                            &ah_clone,
-                                            transcription_clone.clone(),
-                                            loading_candidates,
-                                            history_id,
-                                            output_mode,
-                                            None,
-                                            effective_prompt_id.clone(),
-                                            None,
-                                        );
+                                        if should_review {
+                                            crate::review_window::set_last_active_window(
+                                                active_window_snapshot_for_review.clone(),
+                                            );
+                                            crate::review_window::show_review_window_with_candidates(
+                                                &ah_clone,
+                                                transcription_clone.clone(),
+                                                loading_candidates,
+                                                history_id,
+                                                output_mode,
+                                                None,
+                                                effective_prompt_id.clone(),
+                                                None, // auto_selected_id comes via event later
+                                            );
+                                        }
                                         utils::hide_recording_overlay(&ah_clone);
                                         change_tray_icon(&ah_clone, TrayIconState::Idle);
 
-                                        // Now start multi-model processing (emits progress events for live UI updates)
-                                        info!("[MultiModel] Starting streaming multi-model post-processing ({} models)", multi_items.len());
+                                        // Start multi-model processing (streams results via events)
+                                        info!(
+                                            "[MultiModel] Starting multi-model post-processing ({} models, strategy={})",
+                                            multi_items.len(), strategy
+                                        );
                                         let collected =
                                             crate::actions::post_process::multi_post_process_transcription(
                                                 &ah_clone,
@@ -1823,6 +1844,39 @@ impl ShortcutAction for TranscribeAction {
                                                 {
                                                     error!("Failed to save multi-model result to history: {}", e);
                                                 }
+                                            }
+                                        }
+
+                                        // If not showing review: auto-confirm by pasting the auto-selected result
+                                        if !should_review {
+                                            let auto_id = collected.auto_selected_id.as_deref();
+                                            let auto_result = auto_id
+                                                .and_then(|id| collected.results.iter().find(|r| r.id == id))
+                                                .or_else(|| collected.results.iter().find(|r| r.ready && r.error.is_none()));
+
+                                            if let Some(result) = auto_result {
+                                                let paste_text = result.text.clone();
+                                                info!(
+                                                    "[MultiModel] Auto-confirm: pasting result from {} (strategy={})",
+                                                    result.label, strategy
+                                                );
+
+                                                // Check if a new recording started during processing
+                                                if rm_clone.get_current_transcription_id() != current_transcription_id {
+                                                    info!("New recording started during multi-model processing; skipping paste.");
+                                                    return;
+                                                }
+
+                                                let ah_inner = ah_clone.clone();
+                                                ah_clone
+                                                    .run_on_main_thread(move || {
+                                                        if let Err(e) = utils::paste(paste_text, ah_inner) {
+                                                            error!("Failed to paste multi-model result: {}", e);
+                                                        }
+                                                    })
+                                                    .unwrap_or_else(|e| {
+                                                        error!("Failed to run paste on main thread: {:?}", e)
+                                                    });
                                             }
                                         }
                                         return;
