@@ -79,7 +79,7 @@ export const SidebarItem: React.FC<SidebarItemProps> = ({
       {isSelected && (
         <Box className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-(--accent-9)" />
       )}
-      <Flex align="start" gap="2" className="flex-1 min-w-0">
+      <Flex align="center" gap="2" className="flex-1 min-w-0">
         {/* Drag handle - only visible when sortable */}
         {sortable && (
           <Box

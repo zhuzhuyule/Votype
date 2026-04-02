@@ -11,8 +11,6 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
-  IconBolt,
-  IconBrain,
   IconCpu,
   IconEye,
   IconEyeOff,
@@ -27,7 +25,6 @@ import {
   IconServer,
   IconTrash,
   IconUpload,
-  IconWorld,
   IconX,
 } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
@@ -37,7 +34,6 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
-import type { CachedModel } from "../../../lib/types";
 import { Card } from "../../ui/Card";
 import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { AdvancedSettings } from "./AdvancedSettings";
@@ -108,7 +104,9 @@ const ProviderAvatar: React.FC<{
   const [avatarUrl, setAvatarUrl] = useState<string | null>(staticAssetUrl);
   const Glyph = getProviderGlyph(providerId, baseUrl);
   const meta = getProviderMeta(providerId);
-  const frameClass = large ? "h-10 w-10 rounded-xl" : "h-6 w-6 rounded-md";
+  const frameClass = large
+    ? "h-10 w-10 rounded-xl"
+    : "h-7 w-7 rounded-lg bg-(--gray-a3) p-0.5";
 
   useEffect(() => {
     const catalogKey = overrideValue?.startsWith("catalog:")
@@ -151,14 +149,25 @@ const ProviderAvatar: React.FC<{
   }, [providerId, baseUrl, staticAssetUrl, refreshToken, overrideValue]);
 
   if (avatarUrl) {
-    return (
+    return large ? (
       <Box
         className={`inline-flex! shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
       >
         <img
           src={avatarUrl}
           alt=""
-          className={`block shrink-0 object-contain ${large ? "h-6 w-6" : "h-4 w-4"}`}
+          className="block shrink-0 h- w-6 object-contain"
+          onError={() => setAvatarUrl(null)}
+        />
+      </Box>
+    ) : (
+      <Box
+        className={`inline-flex! shrink-0 items-center justify-center ${frameClass}`}
+      >
+        <img
+          src={avatarUrl}
+          alt=""
+          className="block shrink-0 h-full w-full object-contain"
           onError={() => setAvatarUrl(null)}
         />
       </Box>
@@ -166,22 +175,30 @@ const ProviderAvatar: React.FC<{
   }
 
   if (Glyph) {
-    return (
+    return large ? (
       <Box
         className={`inline-flex! shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
       >
-        <Glyph
-          size={large ? 18 : 14}
-          className="block opacity-90"
-          strokeWidth={1.5}
-        />
+        <Glyph size={18} className="block opacity-90" strokeWidth={1.5} />
+      </Box>
+    ) : (
+      <Box
+        className={`inline-flex! shrink-0 items-center justify-center ${frameClass}`}
+      >
+        <Glyph size={16} className="block opacity-90" strokeWidth={1.5} />
       </Box>
     );
   }
 
-  return (
+  return large ? (
     <Box
-      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold ${frameClass} ${meta.tone} ${large ? "text-base" : "text-[10px]"}`}
+      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold text-base ${frameClass} ${meta.tone}`}
+    >
+      {meta.label}
+    </Box>
+  ) : (
+    <Box
+      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold text-xs ${frameClass}`}
     >
       {meta.label}
     </Box>
@@ -200,8 +217,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     updateCustomProvider,
     removeCustomProvider,
     addCustomProvider,
-    removeCachedModel,
-    isUpdating,
     refreshSettings,
   } = useSettings();
 
@@ -216,15 +231,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [avatarSearch, setAvatarSearch] = useState("");
 
   const selectedProviderLabel = state.selectedProvider?.label ?? "";
-  const providerModels = useMemo<CachedModel[]>(() => {
-    return (settings?.cached_models ?? [])
-      .filter((model) => model.provider_id === state.selectedProviderId)
-      .sort((a, b) => {
-        const left = a.custom_label || a.model_id;
-        const right = b.custom_label || b.model_id;
-        return left.localeCompare(right);
-      });
-  }, [settings?.cached_models, state.selectedProviderId]);
 
   const visibleProviders = useMemo(() => {
     return state.providers.filter((provider) => {
@@ -762,28 +768,9 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     )}
                     className="max-w-sm font-medium"
                   />
-                  <Flex align="center" gap="2" mt="2">
-                    <Badge variant="soft" color="gray" size="1">
-                      {state.selectedProvider?.builtin
-                        ? t("settings.postProcessing.api.provider.builtin")
-                        : "Custom"}
-                    </Badge>
-                    <Text size="1" color="gray">
-                      {providerModels.length} model
-                      {providerModels.length === 1 ? "" : "s"}
-                    </Text>
-                  </Flex>
                 </Box>
               </Flex>
               <Flex align="center" gap="2">
-                <Button
-                  variant="soft"
-                  onClick={onOpenAddModel}
-                  disabled={!state.selectedProviderId}
-                >
-                  <IconPlus size={14} />
-                  {t("settings.postProcessing.models.selectModel.addButton")}
-                </Button>
                 <Dialog.Root
                   open={showDeleteConfirm}
                   onOpenChange={setShowDeleteConfirm}
@@ -861,20 +848,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 className="w-full"
               />
               {localBaseUrl.trim() && (
-                <Flex
-                  direction="column"
-                  gap="1"
-                  className="bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700/50"
-                >
-                  <Text size="1" color="gray" weight="medium">
-                    {t(
-                      "settings.postProcessing.api.providers.fields.actualUrlPreview",
-                    )}
+                <Box className="rounded-[var(--radius-2)] bg-(--gray-a2) border border-(--gray-a4) px-3 py-2 font-mono text-xs leading-relaxed overflow-x-auto">
+                  <Text size="1" className="text-(--gray-9) select-none">
+                    POST{" "}
                   </Text>
-                  <Text
-                    size="1"
-                    className="break-all font-mono opacity-80 text-(--accent-11)"
-                  >
+                  <Text size="1" className="text-(--accent-11) break-all">
                     {(() => {
                       let url = localBaseUrl.trim();
                       let normalized = "";
@@ -886,7 +864,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                           url.startsWith("ollama://");
                         const base = url.replace(/\/+$/, "");
                         const hasVersion = /\/v\d+$/.test(base);
-
                         if (isSpecial || hasVersion) {
                           normalized = base;
                         } else {
@@ -896,7 +873,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       return `${normalized}/chat/completions`;
                     })()}
                   </Text>
-                </Flex>
+                </Box>
               )}
               <Text size="1" color="gray" className="opacity-70">
                 {t("settings.postProcessing.api.providers.fields.baseUrlHint")}
@@ -1075,106 +1052,21 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               )}
             </Flex>
 
-            <Flex direction="column" gap="3">
-              <Flex align="center" justify="between">
-                <Text size="2" weight="medium" color="gray">
-                  Added Models
-                </Text>
-                {providerModels.length > 0 && (
-                  <Badge variant="soft" color="gray">
-                    {providerModels.length}
-                  </Badge>
-                )}
-              </Flex>
-              {providerModels.length === 0 ? (
-                <Card className="border border-dashed border-(--gray-a5) bg-(--gray-a2) p-4">
-                  <Flex align="center" justify="between" gap="4">
-                    <Flex direction="column" gap="1">
-                      <Text size="2" weight="medium">
-                        No models added yet
-                      </Text>
-                      <Text size="1" color="gray">
-                        Add a model from this provider to start using it faster.
-                      </Text>
-                    </Flex>
-                    <Button variant="soft" onClick={onOpenAddModel}>
-                      <IconPlus size={14} />
-                      Add Model
-                    </Button>
-                  </Flex>
-                </Card>
-              ) : (
-                <Flex direction="column" gap="2">
-                  {providerModels.map((model) => (
-                    <Card
-                      key={model.id}
-                      className="border border-(--gray-a4) bg-(--gray-a2) p-3"
-                    >
-                      <Flex align="center" justify="between" gap="3">
-                        <Flex align="center" gap="2" className="min-w-0">
-                          {model.model_type === "text" ? (
-                            <IconBolt
-                              size={15}
-                              className="text-(--accent-10) shrink-0"
-                            />
-                          ) : model.model_type === "asr" ? (
-                            <IconCpu
-                              size={15}
-                              className="text-sky-600 shrink-0"
-                            />
-                          ) : (
-                            <IconWorld
-                              size={15}
-                              className="text-violet-600 shrink-0"
-                            />
-                          )}
-                          <Box className="min-w-0">
-                            <Text size="2" weight="medium" className="truncate">
-                              {model.custom_label || model.model_id}
-                            </Text>
-                            <Flex align="center" gap="2" mt="1">
-                              {model.custom_label && (
-                                <Text
-                                  size="1"
-                                  color="gray"
-                                  className="truncate"
-                                >
-                                  {model.model_id}
-                                </Text>
-                              )}
-                              {model.is_thinking_model && (
-                                <Badge size="1" color="amber" variant="soft">
-                                  <IconBrain size={12} />
-                                  Thinking
-                                </Badge>
-                              )}
-                            </Flex>
-                          </Box>
-                        </Flex>
-                        <IconButton
-                          size="1"
-                          variant="ghost"
-                          color="red"
-                          disabled={isUpdating(
-                            `cached_model_remove:${model.id}`,
-                          )}
-                          onClick={() => void removeCachedModel(model.id)}
-                          title={t("common.delete")}
-                        >
-                          <IconX size={14} />
-                        </IconButton>
-                      </Flex>
-                    </Card>
-                  ))}
-                </Flex>
-              )}
-            </Flex>
-
             {/* Advanced Settings */}
             <AdvancedSettings
               modelsEndpoint={state.modelsEndpoint}
               onModelsEndpointChange={state.handleModelsEndpointChange}
             />
+
+            {/* Add Model */}
+            <Button
+              variant="soft"
+              onClick={onOpenAddModel}
+              disabled={!state.selectedProviderId}
+            >
+              <IconPlus size={14} />
+              {t("settings.postProcessing.models.selectModel.addButton")}
+            </Button>
           </Box>
         </Flex>
       </Grid>
