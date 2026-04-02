@@ -4,9 +4,11 @@ import {
   Button,
   Dialog,
   Flex,
+  IconButton,
   Select,
   Text,
   TextField,
+  Tooltip,
 } from "@radix-ui/themes";
 import { IconBrain, IconPlus } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -44,49 +46,44 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   >([]);
   const [presetParamsHint, setPresetParamsHint] = React.useState<string>("");
 
-  // Thinking config cache (enable/disable params for this model)
+  // Thinking config cache
   const [thinkingEnableParams, setThinkingEnableParams] =
     React.useState<Record<string, unknown> | null>(null);
   const [thinkingDisableParams, setThinkingDisableParams] =
     React.useState<Record<string, unknown> | null>(null);
-
-  // Auto-detect thinking support and cache both enable/disable configs
   const [supportsThinking, setSupportsThinking] = React.useState(false);
+
+  // Fetch thinking configs — re-run when model family changes (different families have different params)
+  const effectiveLabel = model.custom_label || label || "";
   React.useEffect(() => {
     const aliases = {
       modelId: model.model_id,
       providerId: model.provider_id,
       modelName: model.name || null,
-      customLabel: model.custom_label || label || null,
+      customLabel: effectiveLabel || null,
     };
-    // Fetch enable config
     invoke<string | null>("get_thinking_config", {
       ...aliases,
       enabled: true,
     }).then((config) => {
       setSupportsThinking(config !== null);
-      if (config) {
-        try {
-          setThinkingEnableParams(JSON.parse(config));
-        } catch {
-          setThinkingEnableParams(null);
-        }
+      try {
+        setThinkingEnableParams(config ? JSON.parse(config) : null);
+      } catch {
+        setThinkingEnableParams(null);
       }
     });
-    // Fetch disable config
     invoke<string | null>("get_thinking_config", {
       ...aliases,
       enabled: false,
     }).then((config) => {
-      if (config) {
-        try {
-          setThinkingDisableParams(JSON.parse(config));
-        } catch {
-          setThinkingDisableParams(null);
-        }
+      try {
+        setThinkingDisableParams(config ? JSON.parse(config) : null);
+      } catch {
+        setThinkingDisableParams(null);
       }
     });
-  }, [model.model_id, model.provider_id, model.name, model.custom_label, label]);
+  }, [model.model_id, model.provider_id, model.name, effectiveLabel, modelFamily]);
 
   // Load model families on mount
   React.useEffect(() => {
@@ -185,6 +182,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
     return actions;
   }, [supportsThinking, thinkingEnableParams, thinkingDisableParams]);
 
+  const hasBodyParams = Object.keys(extraParams).length > 0;
+  const hasHeaders = Object.keys(extraHeaders).length > 0;
+
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Content maxWidth="540px">
@@ -245,48 +245,108 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
             </Text>
           )}
 
-          {/* Extra Params (Body) - Key-Value Editor */}
+          {/* Extra Params (Body) */}
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text size="2" weight="medium" color="gray">
                 Body 参数
               </Text>
-              <IconPlus
-                size={14}
-                style={{ color: "var(--gray-9)", cursor: "pointer" }}
-                onClick={() => bodyEditorRef.current?.addEntry()}
-              />
+              {hasBodyParams && (
+                <Tooltip content="添加参数">
+                  <IconButton
+                    size="1"
+                    variant="outline"
+                    color="gray"
+                    onClick={() => bodyEditorRef.current?.addEntry()}
+                  >
+                    <IconPlus size={12} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Flex>
-            <KeyValueEditor
-              value={extraParams}
-              onChange={setExtraParams}
-              quickActions={bodyQuickActions}
-              hideAddButton
-              addRef={bodyEditorRef}
-            />
-            <Text size="1" color="gray" mt="1" as="div">
-              手动设置的参数将覆盖预设值
-            </Text>
+            {hasBodyParams ? (
+              <KeyValueEditor
+                value={extraParams}
+                onChange={setExtraParams}
+                quickActions={bodyQuickActions}
+                hideAddButton
+                addRef={bodyEditorRef}
+              />
+            ) : (
+              <Flex direction="column" gap="2">
+                <Flex gap="2" wrap="wrap" align="center">
+                  <Tooltip content="添加参数">
+                    <IconButton
+                      size="1"
+                      variant="outline"
+                      color="gray"
+                      onClick={() => {
+                        // Initialize editor with one empty entry
+                        setExtraParams({ "": "" });
+                        setTimeout(() => bodyEditorRef.current?.addEntry(), 0);
+                      }}
+                    >
+                      <IconPlus size={12} />
+                    </IconButton>
+                  </Tooltip>
+                  {bodyQuickActions.map((action, i) => (
+                    <Button
+                      key={i}
+                      size="1"
+                      variant="soft"
+                      color={action.color || "blue"}
+                      onClick={() => {
+                        const entries = action.getEntries();
+                        setExtraParams((prev) => ({ ...prev, ...entries }));
+                      }}
+                    >
+                      {action.icon}
+                      {action.label}
+                    </Button>
+                  ))}
+                </Flex>
+              </Flex>
+            )}
           </Flex>
 
-          {/* Extra Headers - Key-Value Editor */}
+          {/* Extra Headers */}
           <Flex direction="column" gap="1">
             <Flex align="center" gap="2">
               <Text size="2" weight="medium" color="gray">
                 Headers
               </Text>
-              <IconPlus
-                size={14}
-                style={{ color: "var(--gray-9)", cursor: "pointer" }}
-                onClick={() => headersEditorRef.current?.addEntry()}
-              />
+              {hasHeaders && (
+                <Tooltip content="添加 Header">
+                  <IconButton
+                    size="1"
+                    variant="outline"
+                    color="gray"
+                    onClick={() => headersEditorRef.current?.addEntry()}
+                  >
+                    <IconPlus size={12} />
+                  </IconButton>
+                </Tooltip>
+              )}
             </Flex>
-            <KeyValueEditor
-              value={extraHeaders}
-              onChange={setExtraHeaders}
-              hideAddButton
-              addRef={headersEditorRef}
-            />
+            {hasHeaders ? (
+              <KeyValueEditor
+                value={extraHeaders}
+                onChange={setExtraHeaders}
+                hideAddButton
+                addRef={headersEditorRef}
+              />
+            ) : (
+              <Tooltip content="添加 Header">
+                <IconButton
+                  size="1"
+                  variant="outline"
+                  color="gray"
+                  onClick={() => setExtraHeaders({ "": "" })}
+                >
+                  <IconPlus size={12} />
+                </IconButton>
+              </Tooltip>
+            )}
           </Flex>
 
           <Flex justify="end" gap="3" mt="2">
