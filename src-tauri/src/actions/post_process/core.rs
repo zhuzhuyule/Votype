@@ -15,6 +15,132 @@ use tauri::{AppHandle, Emitter};
 /// Field name for structured output JSON schema
 const TRANSCRIPTION_FIELD: &str = "transcription";
 
+/// Structured error type for LLM API calls.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum LlmError {
+    /// reqwest client creation failed
+    ClientInit {
+        provider: String,
+        model: String,
+        detail: String,
+    },
+    /// Network-level failure (DNS, connection, timeout)
+    Network {
+        provider: String,
+        model: String,
+        url: String,
+        detail: String,
+    },
+    /// HTTP response with non-2xx status
+    ApiError {
+        provider: String,
+        model: String,
+        status: u16,
+        body: String,
+    },
+    /// Response body could not be parsed
+    ParseError {
+        provider: String,
+        model: String,
+        detail: String,
+    },
+    /// Apple Intelligence specific error
+    AppleIntelligence {
+        detail: String,
+    },
+}
+
+#[allow(dead_code)]
+impl LlmError {
+    /// Whether this error is worth retrying
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            LlmError::Network { .. } => true,
+            LlmError::ApiError { status, .. } => *status == 429 || *status >= 500,
+            _ => false,
+        }
+    }
+
+    /// Suggested retry delay in ms for a given attempt (0-indexed)
+    pub fn retry_delay_ms(&self, attempt: u32) -> u64 {
+        match self {
+            LlmError::ApiError { status: 429, .. } => 1000,
+            LlmError::Network { .. } if attempt == 0 => 0,
+            LlmError::Network { .. } => 500,
+            LlmError::ApiError { status, .. } if *status >= 500 && attempt == 0 => 0,
+            LlmError::ApiError { .. } => 500,
+            _ => 0,
+        }
+    }
+
+    /// Error code for overlay-error event
+    pub fn error_code(&self) -> &'static str {
+        match self {
+            LlmError::ClientInit { .. } => "llm_init_failed",
+            LlmError::Network { .. } => "llm_network_error",
+            LlmError::ApiError { status: 429, .. } => "llm_rate_limited",
+            LlmError::ApiError { status, .. } if *status == 401 || *status == 403 => {
+                "llm_auth_failed"
+            }
+            LlmError::ApiError { .. } => "llm_api_error",
+            LlmError::ParseError { .. } => "llm_parse_error",
+            LlmError::AppleIntelligence { .. } => "apple_intelligence_failed",
+        }
+    }
+
+    /// Human-readable error message
+    pub fn message(&self) -> String {
+        match self {
+            LlmError::ClientInit { provider, model, detail, .. } => {
+                format!("LLM 客户端初始化失败 provider={provider} model={model}: {detail}")
+            }
+            LlmError::Network { provider, model, url, detail } => {
+                format!("LLM 网络请求失败 provider={provider} model={model} url={url}: {detail}")
+            }
+            LlmError::ApiError { provider, model, status, body } => {
+                format!("LLM 请求失败 provider={provider} model={model} status={status}: {body}")
+            }
+            LlmError::ParseError { provider, model, detail } => {
+                format!("LLM 响应解析失败 provider={provider} model={model}: {detail}")
+            }
+            LlmError::AppleIntelligence { detail } => {
+                format!("Apple Intelligence 请求失败: {detail}")
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for LlmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.message())
+    }
+}
+
+/// Successful LLM response
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct LlmResponse {
+    pub text: String,
+    pub token_count: Option<i64>,
+}
+
+/// Result type for LLM calls
+#[allow(dead_code)]
+pub type LlmResult = Result<LlmResponse, LlmError>;
+
+/// Bridge: convert LlmResult back to the legacy 4-tuple.
+/// Use during incremental migration — remove once all callers are migrated.
+#[allow(dead_code)]
+pub fn llm_result_to_legacy(
+    result: LlmResult,
+) -> (Option<String>, bool, Option<String>, Option<i64>) {
+    match result {
+        Ok(resp) => (Some(resp.text), false, None, resp.token_count),
+        Err(e) => (None, true, Some(e.message()), None),
+    }
+}
+
 pub(crate) fn preview_multiline(label: &str, content: &str) {
     log::info!(
         "[LLM] {} (len={}):\n{}",
