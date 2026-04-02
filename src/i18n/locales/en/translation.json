@@ -1168,7 +1168,11 @@
           "customLabel": "Custom Label",
           "extraParams": "Extra Parameters",
           "manualLabel": "Manual Label",
-          "selectLabel": "Select Label"
+          "selectLabel": "Select Label",
+          "sourceBuiltin": "Built-in Free Models",
+          "sourceOfficial": "Official Model List",
+          "sourceBuiltinHint": "Curated free models, no API call needed",
+          "sourceOfficialHint": "Full list from provider API"
         },
         "searchPlaceholder": "Search models...",
         "filter": {

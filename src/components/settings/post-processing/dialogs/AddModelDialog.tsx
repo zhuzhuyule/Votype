@@ -87,6 +87,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   const [developerMode, setDeveloperMode] = useState(false);
   const [freeModels, setFreeModels] = useState<{ id: string; name: string; capabilities: string; provider: string; vendor: string }[]>([]);
   const [freeModelsLoading, setFreeModelsLoading] = useState(false);
+  const [useOfficialModels, setUseOfficialModels] = useState(false);
   const [modelFamily, setModelFamily] = useState<string | undefined>();
   const [modelFamilies, setModelFamilies] = useState<[string, string][]>([]);
   const [autoDetectedFamily, setAutoDetectedFamily] = useState<
@@ -139,6 +140,41 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     });
   }, [providerState.modelOptions, cachedModels]);
 
+  // Built-in free models as dropdown options
+  const builtinModelOptions = useMemo(() => {
+    return freeModels
+      .filter((m) => m.capabilities === "文本生成" || m.capabilities === "speech2text" || m.capabilities === "多模态")
+      .map((m) => {
+        const existing = cachedModels.filter((cm) => cm.model_id === m.id);
+        if (existing.length === 0) {
+          return {
+            value: m.id,
+            label: `${m.name}`,
+            searchValue: `${m.id} ${m.name} ${m.vendor}`,
+          };
+        }
+        return {
+          value: m.id,
+          label: (
+            <Flex align="center" gap="2" style={{ width: "100%", overflow: "hidden" }}>
+              <Text truncate style={{ flexShrink: 0 }}>{m.name}</Text>
+              <Flex gap="1" wrap="wrap" style={{ overflow: "hidden" }}>
+                {existing.map((cm) => (
+                  <Badge key={cm.id} color="gray" variant="soft" radius="full">
+                    {cm.custom_label || "Added"}
+                  </Badge>
+                ))}
+              </Flex>
+            </Flex>
+          ),
+          searchValue: `${m.id} ${m.name} ${m.vendor}`,
+        };
+      });
+  }, [freeModels, cachedModels]);
+
+  // The active model options depend on the toggle
+  const activeModelOptions = useOfficialModels ? availableModels : builtinModelOptions;
+
   const localizedModelTypeOptions = useMemo(
     () =>
       MODEL_TYPE_ORDER.map((modelType) => ({
@@ -149,12 +185,8 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     [t],
   );
 
-  // Dialog Effects
+  // Load free models on dialog open (always, for built-in mode)
   useEffect(() => {
-    if (open && !isFetchingModels) {
-      providerState.handleRefreshModels();
-    }
-    // Also load free models
     if (open) {
       setFreeModelsLoading(true);
       const workerProvider = PROVIDER_TO_WORKER[providerState.selectedProviderId] ?? null;
@@ -170,6 +202,13 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
         .finally(() => setFreeModelsLoading(false));
     }
   }, [open, providerState.selectedProviderId]);
+
+  // Only fetch from provider API when official mode is enabled
+  useEffect(() => {
+    if (open && useOfficialModels && !isFetchingModels) {
+      providerState.handleRefreshModels();
+    }
+  }, [open, useOfficialModels]);
 
   useEffect(() => {
     if (pendingModelType !== "other") setCustomTypeLabel("");
@@ -241,8 +280,8 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     if (isManualModelEntry) return;
 
     if (!pendingModelId) {
-      if (availableModels.length > 0 && !pendingModelId) {
-        setPendingModelId(availableModels[0].value);
+      if (activeModelOptions.length > 0 && !pendingModelId) {
+        setPendingModelId(activeModelOptions[0].value);
       }
       return;
     }
@@ -274,7 +313,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     } else {
       setCustomTypeLabel(""); // Reset if new
     }
-  }, [pendingModelId, isManualModelEntry, cachedModels, availableModels]);
+  }, [pendingModelId, isManualModelEntry, cachedModels, activeModelOptions]);
 
   const handleAddModel = async () => {
     if (!pendingModelId || !providerState.selectedProviderId) return;
@@ -367,22 +406,14 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
             onValueChange={(val) => {
               setIsManualModelEntry(val === "custom");
               if (val === "select")
-                setPendingModelId(availableModels[0]?.value || null);
-              else if (val === "free")
-                setPendingModelId(null);
+                setPendingModelId(activeModelOptions[0]?.value || null);
               else setPendingModelId("");
             }}
           >
-            <Tabs.List className="w-full grid grid-cols-3 mb-4">
+            <Tabs.List className="w-full grid grid-cols-2 mb-4">
               <Tabs.Trigger value="select">
                 {t(
                   "settings.postProcessing.models.selectModel.segmented.selectModel",
-                )}
-              </Tabs.Trigger>
-              <Tabs.Trigger value="free">
-                {t(
-                  "settings.postProcessing.models.selectModel.segmented.freeModels",
-                  "Free",
                 )}
               </Tabs.Trigger>
               <Tabs.Trigger value="custom">
@@ -394,6 +425,27 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
 
             <Tabs.Content value="select">
               <Box className="space-y-4">
+                {/* Source toggle: Built-in vs Official */}
+                <Flex align="center" justify="between" className="px-1">
+                  <Flex direction="column" gap="0.5">
+                    <Text size="2" weight="medium">
+                      {useOfficialModels
+                        ? t("settings.postProcessing.models.selectModel.sourceOfficial", "Official Model List")
+                        : t("settings.postProcessing.models.selectModel.sourceBuiltin", "Built-in Free Models")}
+                    </Text>
+                    <Text size="1" color="gray">
+                      {useOfficialModels
+                        ? t("settings.postProcessing.models.selectModel.sourceOfficialHint", "Fetched from provider API")
+                        : t("settings.postProcessing.models.selectModel.sourceBuiltinHint", "Curated free models, no API call needed")}
+                    </Text>
+                  </Flex>
+                  <Switch
+                    size="1"
+                    checked={useOfficialModels}
+                    onCheckedChange={setUseOfficialModels}
+                  />
+                </Flex>
+
                 <Box>
                   <Text size="2" mb="2" weight="medium" color="gray">
                     {t(
@@ -402,7 +454,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                     )}
                   </Text>
                   <Dropdown
-                    options={availableModels}
+                    options={activeModelOptions}
                     selectedValue={pendingModelId || undefined}
                     onSelect={setPendingModelId}
                     placeholder={
@@ -418,64 +470,6 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                     enableFilter={true}
                   />
                 </Box>
-              </Box>
-            </Tabs.Content>
-
-            <Tabs.Content value="free">
-              <Box className="space-y-2 max-h-[280px] overflow-y-auto">
-                {freeModelsLoading ? (
-                  <Text size="2" color="gray">{t("common.loading")}</Text>
-                ) : freeModels.length === 0 ? (
-                  <Text size="2" color="gray">
-                    {t("settings.postProcessing.models.selectModel.noFreeModels", "No free models available for this provider.")}
-                  </Text>
-                ) : (
-                  freeModels
-                    .filter((m) => m.capabilities === "文本生成" || m.capabilities === "speech2text" || m.capabilities === "多模态")
-                    .map((m) => {
-                      const alreadyAdded = configuredIds.has(m.id);
-                      return (
-                        <Flex
-                          key={m.id}
-                          align="center"
-                          justify="between"
-                          className={`px-3 py-2 rounded-[var(--radius-2)] border border-(--gray-a4) ${
-                            alreadyAdded ? "opacity-50" : "hover:border-(--accent-a6) hover:bg-(--accent-a2) cursor-pointer"
-                          }`}
-                          onClick={() => {
-                            if (!alreadyAdded) {
-                              setPendingModelId(m.id);
-                              // Auto-detect type from capabilities
-                              if (m.capabilities === "speech2text") {
-                                setPendingModelType("asr");
-                              } else {
-                                setPendingModelType("text");
-                              }
-                              setIsManualModelEntry(false);
-                            }
-                          }}
-                        >
-                          <Flex direction="column" gap="0.5" className="min-w-0">
-                            <Text size="2" weight="medium" className="truncate">{m.name}</Text>
-                            <Flex align="center" gap="2">
-                              <Text size="1" className="text-(--gray-8)">{m.capabilities}</Text>
-                              {m.vendor && m.vendor !== m.provider && (
-                                <Text size="1" className="text-(--gray-7)">{m.vendor}</Text>
-                              )}
-                            </Flex>
-                          </Flex>
-                          <Flex align="center" gap="2" className="shrink-0">
-                            <Badge variant="soft" color="green" size="1">Free</Badge>
-                            {alreadyAdded && (
-                              <Badge variant="soft" color="gray" size="1">
-                                {t("settings.postProcessing.models.selectModel.alreadyAdded", "Added")}
-                              </Badge>
-                            )}
-                          </Flex>
-                        </Flex>
-                      );
-                    })
-                )}
               </Box>
             </Tabs.Content>
 

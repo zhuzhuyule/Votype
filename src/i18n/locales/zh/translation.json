@@ -1136,6 +1136,10 @@
           "noFreeModels": "该服务商暂无免费模型",
           "alreadyAdded": "已添加",
           "selectLabel": "可用模型",
+          "sourceBuiltin": "内置免费模型",
+          "sourceOfficial": "官方模型列表",
+          "sourceBuiltinHint": "已整理的免费模型，无需请求 API",
+          "sourceOfficialHint": "从服务商 API 获取完整列表",
           "title": "选择模型",
           "usageTypeTitle": "用途类型"
         },

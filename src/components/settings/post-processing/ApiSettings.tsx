@@ -41,7 +41,6 @@ import { toast } from "sonner";
 import { useSettings } from "../../../hooks/useSettings";
 import { Card } from "../../ui/Card";
 import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
-import { AdvancedSettings } from "./AdvancedSettings";
 import {
   matchRecommendedProviderIconKeys,
   PROVIDER_BRAND_ASSETS,
@@ -907,146 +906,141 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           </Box>
 
           {/* Form Fields - Scrollable */}
-          <Box className="px-8 py-4 flex-1 overflow-y-auto space-y-8">
-            {/* Base URL */}
-            {(() => {
-              const tpl = matchProviderTemplate(
-                state.selectedProviderId,
-                state.selectedProvider?.base_url,
-              );
-              const defaultUrl = tpl?.baseUrl ?? "";
-              const isChanged = defaultUrl && localBaseUrl !== defaultUrl;
+          <Box className="px-8 py-4 flex-1 overflow-y-auto">
+            {/* Grid: label right-aligned | value left-aligned */}
+            <Grid
+              columns="auto 1fr"
+              gapX="4"
+              gapY="3"
+              align="center"
+            >
+              {/* Base URL */}
+              <Text
+                size="2"
+                weight="medium"
+                color="gray"
+                className="text-right select-none"
+              >
+                {t(
+                  "settings.postProcessing.api.providers.fields.baseUrl",
+                )}
+                :
+              </Text>
+              {(() => {
+                const tpl = matchProviderTemplate(
+                  state.selectedProviderId,
+                  state.selectedProvider?.base_url,
+                );
+                const defaultUrl = tpl?.baseUrl ?? "";
+                const isChanged =
+                  defaultUrl && localBaseUrl !== defaultUrl;
 
-              const saveBaseUrl = () => {
-                state.handleBaseUrlChange(localBaseUrl);
-                setEditingBaseUrl(false);
-              };
-              const cancelBaseUrl = () => {
-                setLocalBaseUrl(state.baseUrl);
-                setEditingBaseUrl(false);
-              };
-              const resetBaseUrl = () => {
-                setLocalBaseUrl(defaultUrl);
-                state.handleBaseUrlChange(defaultUrl);
-                setEditingBaseUrl(false);
-              };
+                const saveBaseUrl = () => {
+                  state.handleBaseUrlChange(localBaseUrl);
+                  setEditingBaseUrl(false);
+                };
+                const cancelBaseUrl = () => {
+                  setLocalBaseUrl(state.baseUrl);
+                  setEditingBaseUrl(false);
+                };
+                const resetBaseUrl = () => {
+                  setLocalBaseUrl(defaultUrl);
+                  state.handleBaseUrlChange(defaultUrl);
+                  setEditingBaseUrl(false);
+                };
 
-              return (
-                <Flex align="center" gap="3" className="h-8">
-                  <Text
-                    size="2"
-                    weight="medium"
-                    color="gray"
-                    className="shrink-0"
-                  >
-                    {t(
-                      "settings.postProcessing.api.providers.fields.baseUrl",
-                    )}
-                  </Text>
-                  <input
-                    ref={(el) => {
-                      if (el && editingBaseUrl) el.focus();
-                    }}
-                    value={localBaseUrl}
-                    readOnly={!editingBaseUrl}
-                    onChange={(e) => setLocalBaseUrl(e.target.value)}
-                    onClick={() => {
-                      if (!editingBaseUrl) setEditingBaseUrl(true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (!editingBaseUrl) return;
-                      if (e.key === "Enter") saveBaseUrl();
-                      else if (e.key === "Escape") cancelBaseUrl();
-                    }}
-                    onBlur={() => {
-                      if (editingBaseUrl) saveBaseUrl();
-                    }}
-                    placeholder="https://api.openai.com/v1"
-                    className={`flex-1 min-w-0 h-full rounded bg-transparent px-1 text-sm outline-none border transition-colors ${
-                      editingBaseUrl
-                        ? "border-(--accent-a6) text-(--gray-12) cursor-text"
-                        : "border-transparent text-(--gray-11) cursor-pointer hover:bg-(--gray-a3)"
-                    }`}
-                  />
-                  <Flex gap="3" className="shrink-0">
-                    {editingBaseUrl ? (
-                      <>
-                        <IconButton
-                          size="2"
-                          variant="ghost"
-                          color="green"
-                          onClick={saveBaseUrl}
-                          className="cursor-pointer"
-                        >
-                          <IconCheck size={16} />
-                        </IconButton>
+                return (
+                  <Flex align="center" gap="3" className="h-8 min-w-0">
+                    <input
+                      ref={(el) => {
+                        if (el && editingBaseUrl) el.focus();
+                      }}
+                      value={localBaseUrl}
+                      readOnly={!editingBaseUrl}
+                      onChange={(e) => setLocalBaseUrl(e.target.value)}
+                      onClick={() => {
+                        if (!editingBaseUrl) setEditingBaseUrl(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!editingBaseUrl) return;
+                        if (e.key === "Enter") saveBaseUrl();
+                        else if (e.key === "Escape") cancelBaseUrl();
+                      }}
+                      onBlur={() => {
+                        if (editingBaseUrl) saveBaseUrl();
+                      }}
+                      placeholder="https://api.openai.com/v1"
+                      className={`flex-1 min-w-0 h-full rounded bg-transparent px-1 text-sm outline-none border transition-colors ${
+                        editingBaseUrl
+                          ? "border-(--accent-a6) text-(--gray-12) cursor-text"
+                          : "border-transparent text-(--gray-11) cursor-pointer hover:bg-(--gray-a3)"
+                      }`}
+                    />
+                    <Flex gap="3" className="shrink-0">
+                      {editingBaseUrl ? (
+                        <>
+                          <IconButton
+                            size="2"
+                            variant="ghost"
+                            color="green"
+                            onClick={saveBaseUrl}
+                            className="cursor-pointer"
+                          >
+                            <IconCheck size={16} />
+                          </IconButton>
+                          <IconButton
+                            size="2"
+                            variant="ghost"
+                            color="gray"
+                            onClick={cancelBaseUrl}
+                            className="cursor-pointer"
+                          >
+                            <IconX size={16} />
+                          </IconButton>
+                        </>
+                      ) : (
                         <IconButton
                           size="2"
                           variant="ghost"
                           color="gray"
-                          onClick={cancelBaseUrl}
+                          onClick={() => setEditingBaseUrl(true)}
                           className="cursor-pointer"
                         >
-                          <IconX size={16} />
+                          <IconPencil size={16} />
                         </IconButton>
-                      </>
-                    ) : (
-                      <IconButton
-                        size="2"
-                        variant="ghost"
-                        color="gray"
-                        onClick={() => setEditingBaseUrl(true)}
-                        className="cursor-pointer"
-                      >
-                        <IconPencil size={16} />
-                      </IconButton>
-                    )}
-                    {isChanged && (
-                      <IconButton
-                        size="2"
-                        variant="ghost"
-                        color="orange"
-                        onClick={resetBaseUrl}
-                        title={t(
-                          "settings.postProcessing.api.providers.resetUrl",
-                        )}
-                        className="cursor-pointer"
-                      >
-                        <IconRotate size={16} />
-                      </IconButton>
-                    )}
-                  </Flex>
-                </Flex>
-              );
-            })()}
-
-            {/* API Key */}
-            <Flex direction="column" gap="2">
-              <Flex align="baseline" gap="2">
-                <Text size="2" weight="medium" color="gray" className="shrink-0">
-                  {t("settings.postProcessing.api.providers.fields.apiKey")}
-                </Text>
-                {(() => {
-                  const tpl = matchProviderTemplate(
-                    state.selectedProviderId,
-                    state.selectedProvider?.base_url,
-                  );
-                  if (!tpl?.signupUrl) return null;
-                  return (
-                    <Text
-                      size="1"
-                      className="inline-flex cursor-pointer items-center gap-0.5 text-(--accent-11) hover:underline"
-                      onClick={() => openUrl(tpl.signupUrl!)}
-                    >
-                      {t(
-                        "settings.postProcessing.api.providers.fields.getApiKey",
                       )}
-                      <IconExternalLink size={12} />
-                    </Text>
-                  );
-                })()}
-              </Flex>
-              <Flex align="center" gap="2">
+                      {isChanged && (
+                        <IconButton
+                          size="2"
+                          variant="ghost"
+                          color="orange"
+                          onClick={resetBaseUrl}
+                          title={t(
+                            "settings.postProcessing.api.providers.resetUrl",
+                          )}
+                          className="cursor-pointer"
+                        >
+                          <IconRotate size={16} />
+                        </IconButton>
+                      )}
+                    </Flex>
+                  </Flex>
+                );
+              })()}
+
+              {/* API Key */}
+              <Text
+                size="2"
+                weight="medium"
+                color="gray"
+                className="text-right select-none"
+              >
+                {t(
+                  "settings.postProcessing.api.providers.fields.apiKey",
+                )}
+                :
+              </Text>
+              <Flex align="center" gap="3" className="min-w-0">
                 <TextField.Root
                   type={showApiKey ? "text" : "password"}
                   value={localApiKey}
@@ -1071,19 +1065,57 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     </IconButton>
                   </TextField.Slot>
                 </TextField.Root>
+                {(() => {
+                  const tpl = matchProviderTemplate(
+                    state.selectedProviderId,
+                    state.selectedProvider?.base_url,
+                  );
+                  if (!tpl?.signupUrl) return null;
+                  return (
+                    <Text
+                      size="1"
+                      className="inline-flex shrink-0 cursor-pointer items-center gap-0.5 text-(--accent-11) hover:underline"
+                      onClick={() => openUrl(tpl.signupUrl!)}
+                    >
+                      {t(
+                        "settings.postProcessing.api.providers.fields.getApiKey",
+                      )}
+                      <IconExternalLink size={12} />
+                    </Text>
+                  );
+                })()}
+              </Flex>
+
+              {/* Models Endpoint */}
+              <Text
+                size="2"
+                weight="medium"
+                color="gray"
+                className="text-right select-none"
+              >
+                {t(
+                  "settings.postProcessing.api.providers.fields.modelsEndpoint",
+                )}
+                :
+              </Text>
+              <TextField.Root
+                value={state.modelsEndpoint}
+                onChange={(e) =>
+                  state.handleModelsEndpointChange(e.target.value)
+                }
+                placeholder={t(
+                  "settings.postProcessing.api.providers.fields.modelsEndpointPlaceholder",
+                )}
+                size="2"
+              />
+
+              {/* Test Connection */}
+              <Box />
+              <Flex align="center" gap="3">
                 <Button
                   variant="solid"
                   onClick={async () => {
-                    // 允许空 API Key
-                    // if (!localApiKey) {
-                    //   toast.error("API Key is required");
-                    //   return;
-                    // }
-
-                    // 规范化 URL（仅去除尾部斜杠）
                     let normalizedUrl = localBaseUrl.trim();
-
-                    // 如果以 # 结尾，视为强制原始模式，移除 # 并跳过 v1 警告
                     const isRawMode = normalizedUrl.endsWith("#");
                     if (isRawMode) {
                       normalizedUrl = normalizedUrl
@@ -1093,13 +1125,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       normalizedUrl = normalizedUrl.replace(/\/+$/, "");
                     }
 
-                    // 智能检测是否缺少版本路径
                     const isSpecialProtocol =
                       normalizedUrl.startsWith("apple-intelligence://") ||
                       normalizedUrl.startsWith("ollama://");
                     const hasVersionPath = /\/v\d+$/.test(normalizedUrl);
 
-                    // 如果不是特殊协议、不是原始模式且缺少版本路径，显示警告提示
                     if (
                       normalizedUrl &&
                       !isSpecialProtocol &&
@@ -1135,9 +1165,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                         toast.error(
                           t(
                             "settings.postProcessing.api.providers.api.testFailed",
-                            {
-                              error,
-                            },
+                            { error },
                           ),
                         );
                       }
@@ -1154,9 +1182,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                         toast.error(
                           t(
                             "settings.postProcessing.api.providers.api.testFailed",
-                            {
-                              error,
-                            },
+                            { error },
                           ),
                         );
                       }
@@ -1175,60 +1201,33 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     </>
                   )}
                 </Button>
+                {state.lastInferenceResult && (
+                  <Badge
+                    color={
+                      state.lastInferenceResult.error ? "red" : "green"
+                    }
+                    variant="soft"
+                    size="1"
+                  >
+                    {state.lastInferenceResult.error
+                      ? "Failure"
+                      : "Success"}
+                  </Badge>
+                )}
               </Flex>
+            </Grid>
 
-              {state.lastInferenceResult && (
-                <Card className="p-4 bg-[var(--gray-2)] border-[1px] border-[var(--gray-5)] mt-2">
-                  <Flex direction="column" gap="2">
-                    <Flex align="center" gap="2">
-                      <Badge
-                        color={
-                          state.lastInferenceResult.error ? "red" : "green"
-                        }
-                        variant="soft"
-                        size="1"
-                      >
-                        {state.lastInferenceResult.error
-                          ? "Failure"
-                          : "Success"}
-                      </Badge>
-                      {state.lastInferenceResult.hasThinking && (
-                        <Badge color="amber" variant="surface" size="1">
-                          🧠 Thinking Model
-                        </Badge>
-                      )}
-                    </Flex>
-                    <Text
-                      size="1"
-                      color={
-                        state.lastInferenceResult.error ? "red" : undefined
-                      }
-                      className="whitespace-pre-wrap font-mono break-all opacity-80"
-                    >
-                      {state.lastInferenceResult.error ||
-                        state.lastInferenceResult.result}
-                    </Text>
-                  </Flex>
-                </Card>
-              )}
-            </Flex>
-
-            {/* Advanced Settings */}
-            <AdvancedSettings
-              modelsEndpoint={state.modelsEndpoint}
-              onModelsEndpointChange={state.handleModelsEndpointChange}
-              providerId={state.selectedProviderId}
-            />
-
-            {/* Add Model */}
-            <Button
-              variant="soft"
-              onClick={onOpenAddModel}
-              disabled={!state.selectedProviderId}
-            >
-              <IconPlus size={14} />
-              {t("settings.postProcessing.models.selectModel.addButton")}
-            </Button>
+            {/* Add Model - outside grid */}
+            <Box className="mt-6">
+              <Button
+                variant="soft"
+                onClick={onOpenAddModel}
+                disabled={!state.selectedProviderId}
+              >
+                <IconPlus size={14} />
+                {t("settings.postProcessing.models.selectModel.addButton")}
+              </Button>
+            </Box>
           </Box>
         </Flex>
       </Grid>

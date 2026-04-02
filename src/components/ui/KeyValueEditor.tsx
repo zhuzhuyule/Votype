@@ -121,9 +121,22 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   addRef,
   onEntryCountChange,
 }) => {
-  const [entries, setEntries] = React.useState<KVEntry[]>(() =>
+  const [entries, setEntriesRaw] = React.useState<KVEntry[]>(() =>
     Object.keys(value).length > 0 ? objectToEntries(value) : [],
   );
+
+  // Sync from parent when value changes externally (e.g. quick-insert buttons)
+  const prevValueRef = React.useRef(value);
+  React.useEffect(() => {
+    if (prevValueRef.current !== value) {
+      prevValueRef.current = value;
+      const newEntries = Object.keys(value).length > 0 ? objectToEntries(value) : [];
+      setEntriesRaw(newEntries);
+      onEntryCountChange?.(newEntries.length);
+    }
+  }, [value, onEntryCountChange]);
+
+  const setEntries = setEntriesRaw;
 
   const setEntriesAndNotify = useCallback(
     (newEntries: KVEntry[]) => {
