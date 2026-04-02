@@ -1130,8 +1130,11 @@
           "placeholderEmpty": "暂无可用模型",
           "segmented": {
             "customModel": "自定义",
-            "selectModel": "选择"
+            "selectModel": "选择",
+            "freeModels": "免费"
           },
+          "noFreeModels": "该服务商暂无免费模型",
+          "alreadyAdded": "已添加",
           "selectLabel": "可用模型",
           "title": "选择模型",
           "usageTypeTitle": "用途类型"

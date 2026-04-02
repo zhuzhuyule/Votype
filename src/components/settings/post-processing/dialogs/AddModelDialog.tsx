@@ -47,6 +47,12 @@ const MODEL_TYPE_INFO: Record<
 
 const MODEL_TYPE_ORDER: ModelType[] = ["text", "asr", "other"];
 
+// Map our provider IDs to the worker API's provider field
+const PROVIDER_TO_WORKER: Record<string, string> = {
+  gitee: "gitee",
+  xingchen: "xunfei",
+};
+
 const buildCacheId = (modelId: string, providerId: string) => {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
@@ -79,6 +85,8 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   const [thinkingEnabled, setThinkingEnabled] = useState(false);
   const [supportsThinking, setSupportsThinking] = useState(false);
   const [developerMode, setDeveloperMode] = useState(false);
+  const [freeModels, setFreeModels] = useState<{ id: string; name: string; capabilities: string; provider: string; vendor: string }[]>([]);
+  const [freeModelsLoading, setFreeModelsLoading] = useState(false);
   const [modelFamily, setModelFamily] = useState<string | undefined>();
   const [modelFamilies, setModelFamilies] = useState<[string, string][]>([]);
   const [autoDetectedFamily, setAutoDetectedFamily] = useState<
@@ -146,7 +154,22 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     if (open && !isFetchingModels) {
       providerState.handleRefreshModels();
     }
-  }, [open]);
+    // Also load free models
+    if (open) {
+      setFreeModelsLoading(true);
+      const workerProvider = PROVIDER_TO_WORKER[providerState.selectedProviderId] ?? null;
+      invoke<{ id: string; name: string; capabilities: string; provider: string; vendor: string }[]>(
+        "get_free_models",
+        { provider: workerProvider },
+      )
+        .then((models) => setFreeModels(models))
+        .catch((e) => {
+          console.error("[AddModelDialog] get_free_models failed:", e);
+          setFreeModels([]);
+        })
+        .finally(() => setFreeModelsLoading(false));
+    }
+  }, [open, providerState.selectedProviderId]);
 
   useEffect(() => {
     if (pendingModelType !== "other") setCustomTypeLabel("");
@@ -345,13 +368,21 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
               setIsManualModelEntry(val === "custom");
               if (val === "select")
                 setPendingModelId(availableModels[0]?.value || null);
+              else if (val === "free")
+                setPendingModelId(null);
               else setPendingModelId("");
             }}
           >
-            <Tabs.List className="w-full grid grid-cols-2 mb-4">
+            <Tabs.List className="w-full grid grid-cols-3 mb-4">
               <Tabs.Trigger value="select">
                 {t(
                   "settings.postProcessing.models.selectModel.segmented.selectModel",
+                )}
+              </Tabs.Trigger>
+              <Tabs.Trigger value="free">
+                {t(
+                  "settings.postProcessing.models.selectModel.segmented.freeModels",
+                  "Free",
                 )}
               </Tabs.Trigger>
               <Tabs.Trigger value="custom">
@@ -387,6 +418,64 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                     enableFilter={true}
                   />
                 </Box>
+              </Box>
+            </Tabs.Content>
+
+            <Tabs.Content value="free">
+              <Box className="space-y-2 max-h-[280px] overflow-y-auto">
+                {freeModelsLoading ? (
+                  <Text size="2" color="gray">{t("common.loading")}</Text>
+                ) : freeModels.length === 0 ? (
+                  <Text size="2" color="gray">
+                    {t("settings.postProcessing.models.selectModel.noFreeModels", "No free models available for this provider.")}
+                  </Text>
+                ) : (
+                  freeModels
+                    .filter((m) => m.capabilities === "文本生成" || m.capabilities === "speech2text" || m.capabilities === "多模态")
+                    .map((m) => {
+                      const alreadyAdded = configuredIds.has(m.id);
+                      return (
+                        <Flex
+                          key={m.id}
+                          align="center"
+                          justify="between"
+                          className={`px-3 py-2 rounded-[var(--radius-2)] border border-(--gray-a4) ${
+                            alreadyAdded ? "opacity-50" : "hover:border-(--accent-a6) hover:bg-(--accent-a2) cursor-pointer"
+                          }`}
+                          onClick={() => {
+                            if (!alreadyAdded) {
+                              setPendingModelId(m.id);
+                              // Auto-detect type from capabilities
+                              if (m.capabilities === "speech2text") {
+                                setPendingModelType("asr");
+                              } else {
+                                setPendingModelType("text");
+                              }
+                              setIsManualModelEntry(false);
+                            }
+                          }}
+                        >
+                          <Flex direction="column" gap="0.5" className="min-w-0">
+                            <Text size="2" weight="medium" className="truncate">{m.name}</Text>
+                            <Flex align="center" gap="2">
+                              <Text size="1" className="text-(--gray-8)">{m.capabilities}</Text>
+                              {m.vendor && m.vendor !== m.provider && (
+                                <Text size="1" className="text-(--gray-7)">{m.vendor}</Text>
+                              )}
+                            </Flex>
+                          </Flex>
+                          <Flex align="center" gap="2" className="shrink-0">
+                            <Badge variant="soft" color="green" size="1">Free</Badge>
+                            {alreadyAdded && (
+                              <Badge variant="soft" color="gray" size="1">
+                                {t("settings.postProcessing.models.selectModel.alreadyAdded", "Added")}
+                              </Badge>
+                            )}
+                          </Flex>
+                        </Flex>
+                      );
+                    })
+                )}
               </Box>
             </Tabs.Content>
 

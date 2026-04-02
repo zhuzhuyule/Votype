@@ -610,11 +610,16 @@ pub fn get_thinking_config(
     enabled: bool,
     model_name: Option<String>,
     custom_label: Option<String>,
+    model_family: Option<String>,
 ) -> Option<String> {
-    let aliases: Vec<&str> = [model_name.as_deref(), custom_label.as_deref()]
-        .into_iter()
-        .flatten()
-        .collect();
+    let aliases: Vec<&str> = [
+        model_name.as_deref(),
+        custom_label.as_deref(),
+        model_family.as_deref(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
     settings::thinking_extra_params_with_aliases(&model_id, &provider_id, enabled, &aliases)
         .and_then(|params| serde_json::to_string_pretty(&params).ok())
 }

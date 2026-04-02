@@ -16,7 +16,18 @@ const OverlayApp: React.FC = () => {
   useEffect(() => {
     // Keep the overlay app mounted so the first recording event cannot be missed.
     const unlistenShow = listen("show-overlay", (event) => {
-      const state = event.payload as OverlayState;
+      // Payload can be a plain string ("recording", "transcribing", "llm")
+      // or an object { state: "rewrite", rewrite_count: N }.
+      let state: OverlayState;
+      if (
+        event.payload !== null &&
+        typeof event.payload === "object" &&
+        "state" in (event.payload as object)
+      ) {
+        state = (event.payload as { state: OverlayState }).state;
+      } else {
+        state = event.payload as OverlayState;
+      }
       setInitialState(state);
     });
 

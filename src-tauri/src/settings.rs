@@ -390,8 +390,8 @@ pub fn thinking_extra_params_with_aliases(
         return Some(m);
     }
 
-    // GLM 4.6 / 4.7 / Z1
-    if matches("glm") && (matches("4.6") || matches("4.7") || matches("z1")) {
+    // GLM series (all GLM models support thinking toggle)
+    if matches("glm") {
         let mut m = HashMap::new();
         m.insert(
             "thinking".to_string(),

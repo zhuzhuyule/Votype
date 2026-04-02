@@ -187,6 +187,10 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(hotword_manager.clone());
     let prompt_manager = Arc::new(managers::prompt::PromptManager::new(app_handle));
     app_handle.manage(prompt_manager.clone());
+    let free_models_cache = Arc::new(crate::managers::free_models::FreeModelsCache::new(
+        app_data_dir.clone(),
+    ));
+    app_handle.manage(free_models_cache.clone());
     let presets_config = crate::managers::model_preset::load_model_presets(app_handle)
         .unwrap_or_else(|e| {
             log::warn!("Failed to load model presets: {}. Using empty config.", e);
@@ -240,6 +244,16 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     )));
     app_handle.manage(Mutex::new(PendingSkillConfirmation::default()));
     app_handle.manage(AsrTimeoutResponseSender::default());
+
+    // Refresh free models cache in background
+    {
+        let cache = free_models_cache.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = cache.ensure_loaded().await {
+                log::warn!("[FreeModels] Background refresh failed: {}", e);
+            }
+        });
+    }
 
     // Initialize the TranscriptionCoordinator before shortcuts so shortcut
     // handlers can find it in state when processing transcribe actions.
@@ -912,6 +926,8 @@ pub fn run() {
             commands::summary::delete_summary_ai_history_entry,
             commands::summary::generate_summary_ai_analysis,
             commands::summary::export_summary,
+            commands::free_models::get_free_models,
+            commands::free_models::refresh_free_models_cache,
             commands::text::optimize_text_with_llm,
             commands::text::generate_skill_description,
             commands::text::generate_skill_metadata,

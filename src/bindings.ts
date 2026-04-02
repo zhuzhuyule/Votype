@@ -457,8 +457,8 @@ async updateCachedModel(id: string, customLabel: string | null, extraParams: str
     else return { status: "error", error: e  as any };
 }
 },
-async getThinkingConfig(modelId: string, providerId: string, enabled: boolean, modelName: string | null, customLabel: string | null) : Promise<string | null> {
-    return await TAURI_INVOKE("get_thinking_config", { modelId, providerId, enabled, modelName, customLabel });
+async getThinkingConfig(modelId: string, providerId: string, enabled: boolean, modelName: string | null, customLabel: string | null, modelFamily: string | null) : Promise<string | null> {
+    return await TAURI_INVOKE("get_thinking_config", { modelId, providerId, enabled, modelName, customLabel, modelFamily });
 },
 async toggleCachedModelThinking(id: string, enabled: boolean) : Promise<Result<null, string>> {
     try {

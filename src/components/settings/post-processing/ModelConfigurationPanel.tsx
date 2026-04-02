@@ -1,9 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { EditModelDialog } from "./dialogs/EditModelDialog";
 
 import {
   AlertDialog,
+  Badge,
   Box,
   Button,
   Flex,
@@ -19,8 +20,10 @@ import {
   IconBrain,
   IconEdit,
   IconFlame,
+  IconGift,
   IconLayoutList,
   IconPlayerPlay,
+  IconPlus,
   IconSearch,
   IconTag,
   IconTrash,
@@ -69,6 +72,20 @@ function getModelStats(
 }
 
 type SortKey = "name" | "calls" | "speed" | "provider";
+
+interface FreeModel {
+  id: string;
+  name: string;
+  capabilities: string;
+  price: number;
+  provider: string;
+  vendor: string;
+}
+
+const PROVIDER_TO_WORKER: Record<string, string> = {
+  gitee: "gitee",
+  xingchen: "xunfei",
+};
 
 // ─── Model Card ─────────────────────────────────────────────────────────────
 
@@ -351,13 +368,16 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   providerFilter,
   onProviderFilterChange,
 }) => {
-  const { settings, removeCachedModel, isUpdating, refreshSettings } =
+  const { settings, removeCachedModel, addCachedModel, isUpdating, refreshSettings } =
     useSettings();
   const { stats: speedStats } = useModelSpeedStats();
   const [editingModel, setEditingModel] = useState<CachedModel | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [typeFilter, setTypeFilter] = useState<"all" | ModelType>("all");
   const [query, setQuery] = useState("");
+  const [showFree, setShowFree] = useState(false);
+  const [freeModels, setFreeModels] = useState<FreeModel[]>([]);
+  const [freeLoaded, setFreeLoaded] = useState(false);
   const { t } = useTranslation();
 
   const cachedModels = settings?.cached_models ?? [];
@@ -373,6 +393,23 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
     });
     return map;
   }, [settings?.post_process_providers]);
+
+  // Load free models from local cache (one-time)
+  useEffect(() => {
+    if (freeLoaded) return;
+    const workerProvider = providerFilter ? (PROVIDER_TO_WORKER[providerFilter] ?? null) : null;
+    invoke<FreeModel[]>("get_free_models", { provider: workerProvider })
+      .then((models) => {
+        setFreeModels(models);
+        setFreeLoaded(true);
+      })
+      .catch((e) => console.error("[ModelListPanel] get_free_models failed:", e));
+  }, [providerFilter, freeLoaded]);
+
+  // Reset when provider changes
+  useEffect(() => {
+    setFreeLoaded(false);
+  }, [providerFilter]);
 
   // Filter + sort
   const filteredModels = useMemo(() => {
@@ -443,11 +480,66 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
     speedStats,
   ]);
 
+  // Filter free models by type and search
+  const filteredFreeModels = useMemo(() => {
+    if (!showFree) return [];
+    const lowerQuery = query.toLowerCase().trim();
+
+    // Map capabilities to our types
+    const capToType = (cap: string): ModelType => {
+      if (cap === "speech2text") return "asr";
+      if (cap === "文本生成" || cap === "多模态") return "text";
+      return "other";
+    };
+
+    return freeModels.filter((m) => {
+      const mType = capToType(m.capabilities);
+      // Type filter
+      if (typeFilter !== "all") {
+        if (typeFilter === "asr") {
+          if (mType !== "asr" && mType !== "other") return false;
+        } else if (mType !== typeFilter) return false;
+      } else {
+        // In "all" mode, still only show text/asr/multimodal
+        if (mType === "other") return false;
+      }
+      // Search
+      if (lowerQuery) {
+        const target = `${m.id} ${m.name} ${m.vendor}`.toLowerCase();
+        if (!target.includes(lowerQuery)) return false;
+      }
+      return true;
+    });
+  }, [showFree, freeModels, typeFilter, query]);
+
+  const configuredModelIds = useMemo(
+    () => new Set(cachedModels.map((m) => m.model_id)),
+    [cachedModels],
+  );
+
   const handleRemoveModel = useCallback(
     async (modelId: string) => {
       await removeCachedModel(modelId);
     },
     [removeCachedModel],
+  );
+
+  const handleAddFreeModel = useCallback(
+    async (model: FreeModel) => {
+      if (!providerFilter) return;
+      const modelType: ModelType = model.capabilities === "speech2text" ? "asr" : "text";
+      await addCachedModel({
+        id: crypto.randomUUID?.() ?? `${providerFilter}-${model.id}-${Date.now()}`,
+        name: model.name,
+        model_type: modelType,
+        provider_id: providerFilter,
+        model_id: model.id,
+        added_at: new Date().toISOString(),
+        is_thinking_model: false,
+        prompt_message_role: "system",
+      });
+    },
+    [providerFilter, addCachedModel],
   );
 
   const isShowingAll = !providerFilter;
@@ -507,6 +599,21 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
           </SegmentedControl.Item>
         </SegmentedControl.Root>
 
+        {/* Free models toggle */}
+        <Tooltip
+          content={t("settings.postProcessing.models.freeToggle", "Free models")}
+          delayDuration={200}
+        >
+          <IconButton
+            size="1"
+            variant={showFree ? "solid" : "soft"}
+            color={showFree ? "green" : "gray"}
+            onClick={() => setShowFree(!showFree)}
+          >
+            <IconGift size={14} />
+          </IconButton>
+        </Tooltip>
+
         {/* Group toggle — only in "all" mode */}
         {isShowingAll && (
           <Tooltip
@@ -553,7 +660,69 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
       </Flex>
 
       {/* Model content */}
-      {filteredModels.length > 0 ? (
+      {showFree ? (
+        // Free models view
+        filteredFreeModels.length > 0 ? (
+          <Grid columns={{ initial: "2", sm: "3" }} gap="2">
+            {filteredFreeModels.map((model) => {
+              const alreadyAdded = configuredModelIds.has(model.id);
+              return (
+                <Box
+                  key={model.id}
+                  className={`group/card relative rounded-[var(--radius-3)] border overflow-hidden transition-all duration-100 ${
+                    alreadyAdded
+                      ? "border-(--gray-a3) opacity-50"
+                      : "border-(--gray-a4) bg-(--color-panel-solid) hover:border-green-500/40 hover:shadow-[0_1px_6px_rgba(0,0,0,0.04)] cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (!alreadyAdded && providerFilter) {
+                      handleAddFreeModel(model);
+                    }
+                  }}
+                >
+                  <Flex direction="column" gap="1.5" className="px-3 py-2.5">
+                    <Flex align="center" gap="1.5" className="min-w-0">
+                      <Text size="2" weight="medium" className="truncate">{model.name}</Text>
+                      <Badge variant="soft" color="green" size="1" className="shrink-0">Free</Badge>
+                      {alreadyAdded && (
+                        <Badge variant="soft" color="gray" size="1" className="shrink-0">
+                          {t("settings.postProcessing.models.selectModel.alreadyAdded", "Added")}
+                        </Badge>
+                      )}
+                    </Flex>
+                    <Flex align="center" justify="between">
+                      <Text size="1" className="text-(--gray-8)">{model.capabilities}</Text>
+                      {model.vendor && model.vendor !== model.provider && (
+                        <Text size="1" className="text-(--gray-7)">{model.vendor}</Text>
+                      )}
+                    </Flex>
+                  </Flex>
+                  {/* Hover: add button */}
+                  {!alreadyAdded && (
+                    <Flex
+                      align="center"
+                      justify="center"
+                      className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-100 bg-(--color-panel-solid)/80 backdrop-blur-[2px]"
+                    >
+                      <IconButton size="2" variant="soft" color="green">
+                        <IconPlus size={16} />
+                      </IconButton>
+                    </Flex>
+                  )}
+                </Box>
+              );
+            })}
+          </Grid>
+        ) : (
+          <Flex align="center" justify="center" py="8" className="rounded-[var(--radius-4)] border border-dashed border-(--gray-a5)">
+            <Text size="2" className="text-(--gray-8)">
+              {providerFilter
+                ? t("settings.postProcessing.models.selectModel.noFreeModels", "No free models available for this provider.")
+                : t("settings.postProcessing.models.freeNeedProvider", "Select a provider to view free models.")}
+            </Text>
+          </Flex>
+        )
+      ) : filteredModels.length > 0 ? (
         groupedModels ? (
           // Grouped mode
           <Flex direction="column" gap="4">

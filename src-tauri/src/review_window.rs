@@ -189,8 +189,7 @@ fn record_hidden_windows(app_handle: &AppHandle) -> bool {
     hidden.clear();
     let mut any_visible = false;
     for (label, window) in app_handle.webview_windows() {
-        // Skip review_window (self) and recording_overlay (has its own show/hide lifecycle)
-        if label == "review_window" || label == "recording_overlay" {
+        if label == "review_window" {
             continue;
         }
         let is_visible = window.is_visible().unwrap_or(false);

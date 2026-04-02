@@ -1157,8 +1157,11 @@
           "placeholderEmpty": "No models available",
           "segmented": {
             "customModel": "Custom",
-            "selectModel": "Select"
+            "selectModel": "Select",
+            "freeModels": "Free"
           },
+          "noFreeModels": "No free models available for this provider.",
+          "alreadyAdded": "Added",
           "title": "Select Model",
           "usageTypeTitle": "Usage Type",
           "advancedOptions": "Advanced Options",

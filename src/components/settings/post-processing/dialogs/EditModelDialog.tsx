@@ -70,6 +70,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
       providerId: model.provider_id,
       modelName: model.name || null,
       customLabel: effectiveLabel || null,
+      modelFamily: modelFamily || null,
     };
     invoke<string | null>("get_thinking_config", {
       ...aliases,
