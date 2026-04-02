@@ -348,29 +348,7 @@ pub async fn multi_post_process_transcription(
 
     let strategy = settings.multi_model_strategy.as_str();
 
-    // For manual strategy, pre-select the preferred/favorite model
-    if strategy == "manual" {
-        auto_selected_id = settings
-            .multi_model_preferred_id
-            .clone()
-            .filter(|id| items.iter().any(|item| &item.id == id))
-            .or_else(|| {
-                settings
-                    .multi_model_manual_pick_counts
-                    .iter()
-                    .filter(|(id, _)| items.iter().any(|item| &item.id == *id))
-                    .max_by_key(|(_, count)| *count)
-                    .map(|(id, _)| id.clone())
-            });
-        if let Some(ref id) = auto_selected_id {
-            info!("[MultiModel] Manual mode pre-selected favorite: {}", id);
-            let _ = _app_handle.emit(
-                "multi-post-process-auto-selected",
-                serde_json::json!({ "id": id }),
-            );
-        }
-    }
-    let preferred_model_id = if strategy == "lazy" {
+    let preferred_model_id = if strategy == "lazy" || strategy == "manual" {
         settings
             .multi_model_preferred_id
             .clone()
@@ -481,6 +459,23 @@ pub async fn multi_post_process_transcription(
             // Continue collecting remaining results (don't return early)
         }
 
+        // Manual mode: auto-select when the favorite model's result arrives
+        if strategy == "manual" && auto_selected_id.is_none() {
+            if let Some(ref preferred_id) = preferred_model_id {
+                if result.ready && result.error.is_none() && &result.id == preferred_id {
+                    info!(
+                        "[MultiModel] Manual mode favorite arrived: {}",
+                        result.id
+                    );
+                    auto_selected_id = Some(result.id.clone());
+                    let _ = _app_handle.emit(
+                        "multi-post-process-auto-selected",
+                        serde_json::json!({ "id": result.id }),
+                    );
+                }
+            }
+        }
+
         if strategy == "lazy" {
             if !timeout_elapsed {
                 if let Some(preferred_id) = preferred_model_id.as_ref() {
@@ -552,6 +547,21 @@ pub async fn multi_post_process_transcription(
             let _ = _app_handle.emit(
                 "multi-post-process-auto-selected",
                 serde_json::json!({ "id": best.id }),
+            );
+        }
+    }
+
+    // Manual mode fallback: if favorite never completed successfully, select first ready result
+    if strategy == "manual" && auto_selected_id.is_none() {
+        if let Some(first_ready) = all_results.iter().find(|r| r.ready && r.error.is_none()) {
+            info!(
+                "[MultiModel] Manual mode fallback: favorite unavailable, selecting {}",
+                first_ready.id
+            );
+            auto_selected_id = Some(first_ready.id.clone());
+            let _ = _app_handle.emit(
+                "multi-post-process-auto-selected",
+                serde_json::json!({ "id": first_ready.id }),
             );
         }
     }

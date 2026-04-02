@@ -6,7 +6,7 @@ use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::overlay::{show_recording_overlay, show_transcribing_overlay};
+use crate::overlay::{show_recording_overlay, show_rewrite_overlay, show_transcribing_overlay};
 use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -342,7 +342,12 @@ impl ShortcutAction for TranscribeAction {
         );
 
         change_tray_icon(app, TrayIconState::Transcribing);
-        show_transcribing_overlay(app);
+        if shortcut_str == "review-window-local" {
+            let rewrite_count = crate::review_window::increment_rewrite_count();
+            show_rewrite_overlay(app, rewrite_count);
+        } else {
+            show_transcribing_overlay(app);
+        }
 
         // Drop the speech frame sender so the realtime worker exits
         // before the final transcription grabs the engine.
@@ -1758,7 +1763,7 @@ impl ShortcutAction for TranscribeAction {
                                         };
 
                                         // Build loading candidates
-                                        let loading_candidates: Vec<crate::review_window::MultiModelCandidate> =
+                                        let mut loading_candidates: Vec<crate::review_window::MultiModelCandidate> =
                                             multi_items
                                                 .iter()
                                                 .map(|item| {
@@ -1782,6 +1787,30 @@ impl ShortcutAction for TranscribeAction {
                                                     }
                                                 })
                                                 .collect();
+
+                                        // For manual strategy, reorder to put the favorite model first
+                                        if strategy == "manual" {
+                                            let favorite_id: Option<String> = settings_clone
+                                                .multi_model_preferred_id
+                                                .clone()
+                                                .filter(|id| multi_items.iter().any(|item| &item.id == id))
+                                                .or_else(|| {
+                                                    settings_clone
+                                                        .multi_model_manual_pick_counts
+                                                        .iter()
+                                                        .filter(|(id, _)| multi_items.iter().any(|item| &item.id == *id))
+                                                        .max_by_key(|(_, count)| *count)
+                                                        .map(|(id, _)| id.clone())
+                                                });
+                                            if let Some(ref fav_id) = favorite_id {
+                                                if let Some(pos) = loading_candidates.iter().position(|c| &c.id == fav_id) {
+                                                    if pos > 0 {
+                                                        let fav = loading_candidates.remove(pos);
+                                                        loading_candidates.insert(0, fav);
+                                                    }
+                                                }
+                                            }
+                                        }
 
                                         if should_review {
                                             crate::review_window::set_last_active_window(
