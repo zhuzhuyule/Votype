@@ -161,6 +161,8 @@ struct ChatMessageResponse {
 pub struct InferenceResult {
     pub content: Option<String>,
     pub reasoning_content: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub total_tokens: Option<i64>,
 }
 
 #[allow(dead_code)]
@@ -341,9 +343,16 @@ pub async fn send_chat_completion_with_params(
         serde_json::to_string_pretty(&raw_response).unwrap_or_else(|_| body_text.clone())
     );
 
+    let usage = raw_response.get("usage");
+    let total_tokens = usage
+        .and_then(|u| u.get("total_tokens"))
+        .and_then(|v| v.as_i64());
+
     let result = InferenceResult {
         content,
         reasoning_content,
+        duration_ms: Some(elapsed.as_millis() as i64),
+        total_tokens,
     };
 
     Ok(result)

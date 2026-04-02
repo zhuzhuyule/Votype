@@ -202,7 +202,12 @@ const ModelCard: React.FC<{
 
               const resultObj = isAsrModel
                 ? ({ content: result as string } as const)
-                : (result as { content: string; reasoning_content?: string });
+                : (result as {
+                    content: string;
+                    reasoning_content?: string;
+                    duration_ms?: number;
+                    total_tokens?: number;
+                  });
 
               const mainContent = resultObj.content || "";
               const hasThinking =
@@ -215,6 +220,21 @@ const ModelCard: React.FC<{
                 model.custom_label?.trim() ||
                 model.name?.trim() ||
                 model.model_id;
+
+              // Build stats suffix for non-ASR models
+              const statsStr = !isAsrModel
+                ? [
+                    "duration_ms" in resultObj &&
+                      resultObj.duration_ms != null &&
+                      `${(resultObj.duration_ms / 1000).toFixed(1)}s`,
+                    "total_tokens" in resultObj &&
+                      resultObj.total_tokens != null &&
+                      `${resultObj.total_tokens} tokens`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "";
+
               const msg = t(
                 "settings.postProcessing.api.providers.api.testSuccess",
                 {
@@ -223,10 +243,13 @@ const ModelCard: React.FC<{
                     : mainContent,
                 },
               );
-              toast.success(`${msg} (${modelLabel})`, {
-                duration: 5000,
-                closeButton: true,
-              });
+              toast.success(
+                `${msg} (${modelLabel})${statsStr ? ` · ${statsStr}` : ""}`,
+                {
+                  duration: 5000,
+                  closeButton: true,
+                },
+              );
             } catch (error) {
               toast.dismiss(toastId);
               const errorMessage =

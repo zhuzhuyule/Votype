@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::settings;
 
@@ -39,6 +39,34 @@ pub async fn test_post_process_model_inference(
         extra_headers,
     )
     .await?;
+
+    // Log to metrics
+    if let Some(metrics) = app.try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>() {
+        let duration_ms = result.duration_ms.unwrap_or(0);
+        let tokens_per_sec = match (result.total_tokens, result.duration_ms) {
+            (Some(tokens), Some(ms)) if ms > 0 => Some(tokens as f64 / ms as f64 * 1000.0),
+            _ => None,
+        };
+        if let Err(e) = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+            history_id: None,
+            model_id: model_id.clone(),
+            provider: provider_id.clone(),
+            call_type: "test".to_string(),
+            input_tokens: None,
+            output_tokens: None,
+            total_tokens: result.total_tokens,
+            token_estimate: None,
+            duration_ms,
+            tokens_per_sec,
+            error: None,
+            is_fallback: false,
+        }) {
+            log::warn!("Failed to log test inference metrics: {}", e);
+        }
+    }
+
+    // Emit event so frontend can refresh stats
+    let _ = app.emit("llm-metrics-updated", ());
 
     Ok(result)
 }
