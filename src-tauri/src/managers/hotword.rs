@@ -100,6 +100,18 @@ pub struct HotwordInjection {
     pub product_names: Vec<HotwordEntry>,
     pub domain_terms: Vec<HotwordEntry>,
     pub hotwords: Vec<HotwordEntry>,
+    pub correction_pairs: Vec<CorrectionPair>,
+}
+
+/// A confirmed ASR misrecognition → correction mapping with confidence score.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CorrectionPair {
+    /// The misrecognized form (e.g. "scale")
+    pub original: String,
+    /// The correct form (e.g. "skill")
+    pub target: String,
+    /// Star rating: 1 = low, 2 = medium, 3 = high confidence
+    pub stars: u8,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -928,6 +940,17 @@ impl HotwordManager {
         }
     }
 
+    /// Compute star rating for a correction pair based on usage evidence.
+    fn correction_star_rating(use_count: i64, user_override: bool) -> u8 {
+        if user_override || use_count >= 5 {
+            3
+        } else if use_count >= 2 {
+            2
+        } else {
+            1
+        }
+    }
+
     fn build_injection_from_ranked(&self, ranked: &[RankedHotword]) -> HotwordInjection {
         let mut injection = HotwordInjection::default();
         let mut seen_person = HashMap::new();
@@ -971,6 +994,30 @@ impl HotwordManager {
                 }
             }
         }
+
+        // Collect correction pairs from hotwords that have originals
+        for ranked_hotword in ranked {
+            let hw = &ranked_hotword.hotword;
+            if hw.originals.is_empty() || hw.status != "active" {
+                continue;
+            }
+            let stars = Self::correction_star_rating(hw.use_count, hw.user_override);
+            for orig in &hw.originals {
+                injection.correction_pairs.push(CorrectionPair {
+                    original: orig.clone(),
+                    target: hw.target.clone(),
+                    stars,
+                });
+            }
+        }
+        // Sort by stars descending, then alphabetically for stability
+        injection.correction_pairs.sort_by(|a, b| {
+            b.stars
+                .cmp(&a.stars)
+                .then_with(|| a.original.cmp(&b.original))
+        });
+        // Cap at 15 pairs
+        injection.correction_pairs.truncate(15);
 
         injection
     }
