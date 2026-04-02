@@ -8,7 +8,7 @@ use async_openai::types::{
     ChatCompletionRequestMessage, ChatCompletionRequestSystemMessageArgs,
     ChatCompletionRequestUserMessageArgs,
 };
-use log::{error, info};
+use log::info;
 use std::collections::HashMap;
 use tauri::{AppHandle, Emitter};
 
@@ -139,6 +139,16 @@ pub fn llm_result_to_legacy(
         Ok(resp) => (Some(resp.text), false, None, resp.token_count),
         Err(e) => (None, true, Some(e.message()), None),
     }
+}
+
+fn emit_llm_error(app_handle: &AppHandle, error: &LlmError) {
+    let _ = app_handle.emit(
+        "overlay-error",
+        serde_json::json!({
+            "code": error.error_code(),
+            "message": error.message(),
+        }),
+    );
 }
 
 pub(crate) fn preview_multiline(label: &str, content: &str) {
@@ -378,8 +388,8 @@ pub async fn execute_llm_request(
     .await
 }
 
-pub async fn execute_llm_request_with_messages(
-    app_handle: &AppHandle,
+async fn execute_llm_request_inner(
+    _app_handle: &AppHandle,
     settings: &AppSettings,
     provider: &PostProcessProvider,
     model: &str,
@@ -392,21 +402,14 @@ pub async fn execute_llm_request_with_messages(
     _match_pattern: Option<String>,
     _match_type: Option<crate::settings::TitleMatchType>,
     override_extra_params: Option<&HashMap<String, serde_json::Value>>,
-) -> (Option<String>, bool, Option<String>, Option<i64>) {
+) -> LlmResult {
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
             if !apple_intelligence::check_apple_intelligence_availability() {
-                let _ = app_handle.emit(
-                    "overlay-error",
-                    serde_json::json!({ "code": "apple_intelligence_unavailable" }),
-                );
-                return (
-                    None,
-                    true,
-                    Some("Apple Intelligence 不可用".to_string()),
-                    None,
-                );
+                return Err(LlmError::AppleIntelligence {
+                    detail: "Apple Intelligence 不可用".to_string(),
+                });
             }
 
             // Combine messages for Apple Intelligence
@@ -422,27 +425,20 @@ pub async fn execute_llm_request_with_messages(
 
             let token_limit = model.trim().parse::<i32>().unwrap_or(0);
             return match apple_intelligence::process_text(&final_prompt, token_limit) {
-                Ok(result) => (Some(result), false, None, None),
-                Err(err) => {
-                    error!("Apple Intelligence failed: {}", err);
-                    let _ = app_handle.emit(
-                        "overlay-error",
-                        serde_json::json!({
-                            "code": "apple_intelligence_failed",
-                            "message": format!("Apple Intelligence 请求失败: {}", err),
-                        }),
-                    );
-                    (
-                        None,
-                        true,
-                        Some(format!("Apple Intelligence 请求失败: {}", err)),
-                        None,
-                    )
-                }
+                Ok(result) => Ok(LlmResponse {
+                    text: result,
+                    token_count: None,
+                }),
+                Err(err) => Err(LlmError::AppleIntelligence {
+                    detail: format!("{}", err),
+                }),
             };
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-        return (None, false, None, None);
+        return Ok(LlmResponse {
+            text: String::new(),
+            token_count: None,
+        });
     }
 
     let api_key = settings
@@ -454,32 +450,11 @@ pub async fn execute_llm_request_with_messages(
     let _client = match crate::llm_client::create_client(provider, api_key.clone()) {
         Ok(client) => client,
         Err(e) => {
-            error!("Failed to create LLM client: {}", e);
-            let _ = app_handle.emit(
-                "overlay-error",
-                serde_json::json!({
-                    "code": "llm_init_failed",
-                    "message": format!(
-                        "LLM 客户端初始化失败 provider={} model={} url={}: {}",
-                        provider.id,
-                        model,
-                        provider.base_url.trim_end_matches('/'),
-                        e
-                    ),
-                }),
-            );
-            return (
-                None,
-                true,
-                Some(format!(
-                    "LLM 客户端初始化失败 provider={} model={} url={}: {}",
-                    provider.id,
-                    model,
-                    provider.base_url.trim_end_matches('/'),
-                    e
-                )),
-                None,
-            );
+            return Err(LlmError::ClientInit {
+                provider: provider.id.clone(),
+                model: model.to_string(),
+                detail: format!("{}", e),
+            });
         }
     };
 
@@ -518,7 +493,10 @@ pub async fn execute_llm_request_with_messages(
     }
 
     if messages.is_empty() {
-        return (None, false, None, None);
+        return Ok(LlmResponse {
+            text: String::new(),
+            token_count: None,
+        });
     }
 
     if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
@@ -814,73 +792,114 @@ pub async fn execute_llm_request_with_messages(
                                     .get("usage")
                                     .and_then(|u| u.get("total_tokens"))
                                     .and_then(|t| t.as_i64());
-                                return (Some(text), false, None, token_count);
+                                return Ok(LlmResponse { text, token_count });
                             }
                             Err(e) => {
-                                error!("Failed to parse LLM JSON response: {:?}", e);
-                                let detail = format!(
-                                    "LLM 响应解析失败 provider={} model={} url={}: {:?}",
-                                    provider.id, model, url, e
-                                );
-                                let _ = app_handle.emit(
-                                    "overlay-error",
-                                    serde_json::json!({
-                                        "code": "llm_request_failed",
-                                        "message": detail,
-                                    }),
-                                );
-                                return (None, true, Some(detail), None);
+                                return Err(LlmError::ParseError {
+                                    provider: provider.id.clone(),
+                                    model: model.to_string(),
+                                    detail: format!("{:?}", e),
+                                });
                             }
                         }
                     } else {
                         let status = resp.status();
                         let error_text = resp.text().await.unwrap_or_default();
-                        error!("LLM request failed with status {}: {}", status, error_text);
-                        let detail = format!(
-                            "LLM 请求失败 provider={} model={} url={} status={}: {}",
-                            provider.id, model, url, status, error_text
-                        );
-                        let _ = app_handle.emit(
-                            "overlay-error",
-                            serde_json::json!({
-                                "code": "llm_request_failed",
-                                "message": detail,
-                            }),
-                        );
-                        return (None, true, Some(detail), None);
+                        return Err(LlmError::ApiError {
+                            provider: provider.id.clone(),
+                            model: model.to_string(),
+                            status: status.as_u16(),
+                            body: error_text,
+                        });
                     }
                 }
                 Err(err) => {
-                    error!("LLM request network error: {:?}", err);
-                    let detail = format!(
-                        "LLM 网络请求失败 provider={} model={} url={}: {:?}",
-                        provider.id, model, url, err
-                    );
-                    let _ = app_handle.emit(
-                        "overlay-error",
-                        serde_json::json!({
-                            "code": "llm_request_failed",
-                            "message": detail,
-                        }),
-                    );
-                    return (None, true, Some(detail), None);
+                    return Err(LlmError::Network {
+                        provider: provider.id.clone(),
+                        model: model.to_string(),
+                        url: url.clone(),
+                        detail: format!("{:?}", err),
+                    });
                 }
             }
         }
         Err(e) => {
-            error!("Failed to create HTTP client: {}", e);
-            let detail = format!(
-                "HTTP 客户端创建失败 provider={} model={} url={}: {}",
-                provider.id, model, url, e
-            );
-            let _ = app_handle.emit(
-                "overlay-error",
-                serde_json::json!({
-                    "code": "llm_request_failed",
-                    "message": detail,
-                }),
-            );
-            return (None, true, Some(detail), None);
+            return Err(LlmError::ClientInit {
+                provider: provider.id.clone(),
+                model: model.to_string(),
+                detail: format!("{}", e),
+            });
         }
     }
+}
+
+pub async fn execute_llm_request_with_messages(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    cached_model_id: Option<&str>,
+    system_prompts: &[String],
+    user_message: Option<&str>,
+    conversation_history: Option<&[crate::review_window::RewriteMessage]>,
+    _app_name: Option<String>,
+    _window_title: Option<String>,
+    _match_pattern: Option<String>,
+    _match_type: Option<crate::settings::TitleMatchType>,
+    override_extra_params: Option<&HashMap<String, serde_json::Value>>,
+) -> (Option<String>, bool, Option<String>, Option<i64>) {
+    let result = execute_llm_request_inner(
+        app_handle,
+        settings,
+        provider,
+        model,
+        cached_model_id,
+        system_prompts,
+        user_message,
+        conversation_history,
+        _app_name,
+        _window_title,
+        _match_pattern,
+        _match_type,
+        override_extra_params,
+    )
+    .await;
+
+    if let Err(ref e) = result {
+        log::error!("LLM request failed: {}", e);
+        emit_llm_error(app_handle, e);
+    }
+
+    llm_result_to_legacy(result)
+}
+
+/// Typed entry point — returns LlmResult. Caller handles errors.
+#[allow(dead_code)]
+pub async fn execute_llm_request_typed(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    cached_model_id: Option<&str>,
+    system_prompts: &[String],
+    user_message: Option<&str>,
+    conversation_history: Option<&[crate::review_window::RewriteMessage]>,
+    override_extra_params: Option<&HashMap<String, serde_json::Value>>,
+) -> LlmResult {
+    execute_llm_request_inner(
+        app_handle,
+        settings,
+        provider,
+        model,
+        cached_model_id,
+        system_prompts,
+        user_message,
+        conversation_history,
+        None,
+        None,
+        None,
+        None,
+        override_extra_params,
+    )
+    .await
 }
