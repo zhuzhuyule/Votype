@@ -4,6 +4,7 @@ import {
   Flex,
   IconButton,
   Select,
+  Switch,
   TextArea,
   TextField,
   Tooltip,
@@ -270,17 +271,15 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
             </Select.Content>
           </Select.Root>
           {entry.type === "bool" ? (
-            <Select.Root
-              size="1"
-              value={entry.value === "true" ? "true" : "false"}
-              onValueChange={(v) => updateEntry(i, { value: v })}
-            >
-              <Select.Trigger className="flex-1" />
-              <Select.Content>
-                <Select.Item value="true">true</Select.Item>
-                <Select.Item value="false">false</Select.Item>
-              </Select.Content>
-            </Select.Root>
+            <Flex align="center" className="flex-1">
+              <Switch
+                size="1"
+                checked={entry.value === "true"}
+                onCheckedChange={(checked) =>
+                  updateEntry(i, { value: checked ? "true" : "false" })
+                }
+              />
+            </Flex>
           ) : entry.type === "json" ? (
             <TextArea
               size="1"
