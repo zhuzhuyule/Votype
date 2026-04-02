@@ -381,6 +381,11 @@
       "appleIntelligenceUnavailable": "Apple Intelligence Unavailable.",
       "llmInitFailed": "LLM Initialization Failed. Check keys/URL.",
       "llmRequestFailed": "LLM Request Failed. Check network/API.",
+      "llmNetworkError": "Network error, retrying...",
+      "llmRateLimited": "Rate limited, please wait",
+      "llmAuthFailed": "Invalid API key, check settings",
+      "llmApiError": "API service error",
+      "llmParseError": "Failed to parse model response",
       "transcriptionFailedSaved": "Transcription failed (saved)"
     },
     "skillConfirmation": {

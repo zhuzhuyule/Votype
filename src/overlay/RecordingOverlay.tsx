@@ -176,6 +176,11 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                 "overlay.error.transcriptionFailedSaved",
               llm_init_failed: "overlay.error.llmInitFailed",
               llm_request_failed: "overlay.error.llmRequestFailed",
+              llm_network_error: "overlay.error.llmNetworkError",
+              llm_rate_limited: "overlay.error.llmRateLimited",
+              llm_auth_failed: "overlay.error.llmAuthFailed",
+              llm_api_error: "overlay.error.llmApiError",
+              llm_parse_error: "overlay.error.llmParseError",
               apple_intelligence_unavailable:
                 "overlay.error.appleIntelligenceUnavailable",
               apple_intelligence_failed:
