@@ -10,7 +10,7 @@ import {
   IconLayoutDashboard,
   IconSchool,
   IconSettings,
-  IconTextSpellcheck,
+  IconNotes,
 } from "@tabler/icons-react";
 import React, { lazy, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -125,7 +125,7 @@ export const SECTIONS_CONFIG = {
   },
   prompts: {
     labelKey: "sidebar.postProcessing",
-    icon: IconTextSpellcheck,
+    icon: IconNotes,
     component: PromptsConfiguration,
     enabled: () => true,
     shortcutKey: "5",
