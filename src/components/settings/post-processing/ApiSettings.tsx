@@ -1,11 +1,11 @@
 import {
-  Badge,
   Box,
   Button,
   Dialog,
   Flex,
   Grid,
   IconButton,
+  Popover,
   ScrollArea,
   Switch,
   Text,
@@ -21,7 +21,6 @@ import {
   IconLayoutGrid,
   IconPencil,
   IconPlug,
-  IconPlugConnected,
   IconPlus,
   IconRefresh,
   IconRobot,
@@ -60,7 +59,6 @@ import {
   PROVIDER_TEMPLATES,
   RECOMMENDED_PROVIDER_TEMPLATE_IDS,
 } from "./providerTemplates";
-import { AdvancedSettings } from "./AdvancedSettings";
 import { SidebarItem } from "./SidebarItem";
 
 const getProviderGlyph = (
@@ -223,13 +221,27 @@ const ProviderAvatar: React.FC<{
 };
 
 /** Multi-key list for a single provider. */
-const ApiKeyList: React.FC<{
-  providerId: string;
-  onKeysChanged?: () => void;
-}> = ({ providerId, onKeysChanged }) => {
+type ConnectionStatus = "idle" | "testing" | "success" | "error";
+
+export interface ApiKeyListHandle {
+  addKey: () => void;
+}
+
+const ApiKeyList = React.forwardRef<
+  ApiKeyListHandle,
+  {
+    providerId: string;
+    onKeysChanged?: () => void;
+    onTestConnection?: () => Promise<{ error?: string | null; result?: string }>;
+  }
+>(({ providerId, onKeysChanged, onTestConnection }, ref) => {
   const { getPostProcessApiKeys, setPostProcessApiKeys } = useSettings();
+  const { t } = useTranslation();
   const [keys, setKeys] = useState<KeyEntry[]>([]);
   const [showKeys, setShowKeys] = useState<Record<number, boolean>>({});
+  const [keyStatus, setKeyStatus] = useState<
+    Record<number, { status: ConnectionStatus; message: string }>
+  >({});
   const loadedProviderRef = useRef<string | null>(null);
 
   // Load keys from backend when provider changes
@@ -242,6 +254,18 @@ const ApiKeyList: React.FC<{
         if (!cancelled && loadedProviderRef.current === providerId) {
           setKeys(loaded ?? []);
           setShowKeys({});
+          setKeyStatus({});
+          // Auto-enter editing for any empty key
+          const emptyIdx = (loaded ?? []).findIndex(
+            (k) => !k.key.trim(),
+          );
+          if (emptyIdx >= 0) {
+            setEditingIndex(emptyIdx);
+            setEditSnapshot({ ...(loaded ?? [])[emptyIdx] });
+          } else {
+            setEditingIndex(null);
+            setEditSnapshot(null);
+          }
         }
       })
       .catch(() => {
@@ -262,9 +286,16 @@ const ApiKeyList: React.FC<{
   );
 
   const handleAddKey = useCallback(() => {
-    const updated = [...keys, { key: "", enabled: true, label: null }];
+    const newEntry: KeyEntry = { key: "", enabled: true, label: null };
+    const updated = [...keys, newEntry];
     setKeys(updated);
+    setEditingIndex(updated.length - 1);
+    setEditSnapshot({ ...newEntry });
   }, [keys]);
+
+  React.useImperativeHandle(ref, () => ({ addKey: handleAddKey }), [
+    handleAddKey,
+  ]);
 
   const handleKeyChange = useCallback(
     (index: number, value: string) => {
@@ -313,8 +344,28 @@ const ApiKeyList: React.FC<{
 
   const handleDelete = useCallback(
     (index: number) => {
-      const updated = keys.filter((_, i) => i !== index);
-      void persist(updated);
+      if (keys.length <= 1) {
+        // Last item: clear content but keep the entry, stay in editing
+        const cleared: KeyEntry = { key: "", enabled: true, label: null };
+        void persist([cleared]);
+        setEditingIndex(0);
+        setEditSnapshot({ ...cleared });
+        setKeyStatus({});
+      } else {
+        const updated = keys.filter((_, i) => i !== index);
+        void persist(updated);
+        setEditingIndex(null);
+        // Shift statuses after deletion
+        setKeyStatus((prev) => {
+          const next: typeof prev = {};
+          for (const [k, v] of Object.entries(prev)) {
+            const ki = Number(k);
+            if (ki < index) next[ki] = v;
+            else if (ki > index) next[ki - 1] = v;
+          }
+          return next;
+        });
+      }
     },
     [keys, persist],
   );
@@ -323,96 +374,289 @@ const ApiKeyList: React.FC<{
     setShowKeys((prev) => ({ ...prev, [index]: !prev[index] }));
   }, []);
 
-  // When no keys exist, show a single empty input
+  // Per-item editing state
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  // Snapshot for cancel
+  const [editSnapshot, setEditSnapshot] = useState<KeyEntry | null>(null);
+
+  const maskKey = (key: string) => {
+    if (!key) return "";
+    if (key.length <= 8) return key.slice(0, 3) + "…";
+    return key.slice(0, 6) + "…" + key.slice(-4);
+  };
+
+  const formatKeyDisplay = (entry: KeyEntry) => {
+    const parts: string[] = [];
+    if (entry.label) parts.push(entry.label);
+    if (entry.key) parts.push(maskKey(entry.key));
+    return parts.join(" · ") || "";
+  };
+
+  const handleTestKey = useCallback(
+    async (index: number) => {
+      if (!onTestConnection) return;
+      const current = keyStatus[index];
+      if (current?.status === "testing") return;
+
+      setKeyStatus((prev) => ({
+        ...prev,
+        [index]: { status: "testing", message: "" },
+      }));
+
+      try {
+        const res = await onTestConnection();
+        if (res.error) {
+          setKeyStatus((prev) => ({
+            ...prev,
+            [index]: { status: "error", message: res.error ?? "" },
+          }));
+          toast.error(res.error);
+        } else {
+          setKeyStatus((prev) => ({
+            ...prev,
+            [index]: { status: "success", message: res.result ?? "OK" },
+          }));
+          toast.success(
+            t("settings.postProcessing.api.providers.api.testSuccess", {
+              result: res.result ?? "OK",
+            }),
+          );
+        }
+      } catch (e) {
+        const msg = String(e);
+        setKeyStatus((prev) => ({
+          ...prev,
+          [index]: { status: "error", message: msg },
+        }));
+        toast.error(msg);
+      }
+    },
+    [onTestConnection, keyStatus, t],
+  );
+
+  const getDotProps = (index: number) => {
+    const s = keyStatus[index]?.status ?? "idle";
+    const msg = keyStatus[index]?.message ?? "";
+    const color =
+      s === "success"
+        ? "bg-green-500"
+        : s === "error"
+          ? "bg-red-500"
+          : s === "testing"
+            ? "bg-yellow-500 animate-pulse"
+            : "bg-(--gray-7)";
+    const title =
+      s === "success"
+        ? msg || "Connected"
+        : s === "error"
+          ? msg || "Connection failed"
+          : s === "testing"
+            ? "Testing…"
+            : "Click to test";
+    return { color, title };
+  };
+
+  const startEditing = (index: number) => {
+    setEditSnapshot({ ...keys[index] });
+    setEditingIndex(index);
+  };
+
+  const confirmEditing = (index: number) => {
+    // Only allow confirm if key is not empty
+    if (!keys[index]?.key.trim()) return;
+    handleKeyBlur(index);
+    setEditingIndex(null);
+    setEditSnapshot(null);
+  };
+
+  const cancelEditing = (index: number) => {
+    if (editSnapshot) {
+      const updated = keys.map((k, i) =>
+        i === index ? editSnapshot : k,
+      );
+      setKeys(updated);
+      // If snapshot key was also empty, stay in editing
+      if (!editSnapshot.key.trim()) return;
+    }
+    setEditingIndex(null);
+    setEditSnapshot(null);
+  };
+
+  // Empty: show placeholder
   if (keys.length === 0) {
     return (
-      <Flex direction="column" gap="2">
-        <Flex align="center" gap="2">
-          <TextField.Root
-            type="password"
-            placeholder="sk-..."
-            className="flex-1"
-            onBlur={(e) => {
-              const val = e.target.value.trim();
-              if (val) {
-                void persist([{ key: val, enabled: true, label: null }]);
-              }
-            }}
-          />
-          <IconButton
-            size="1"
-            variant="ghost"
-            color="gray"
-            onClick={handleAddKey}
-            type="button"
-          >
-            <IconPlus size={14} />
-          </IconButton>
-        </Flex>
+      <Flex align="center" gap="3" className="h-8 min-w-0">
+        <span className="shrink-0 h-2.5 w-2.5 rounded-full bg-(--gray-7)" />
+        <Text size="2" className="flex-1 min-w-0 opacity-40">
+          —
+        </Text>
       </Flex>
     );
   }
 
   return (
-    <Flex direction="column" gap="2">
-      {keys.map((entry, index) => (
-        <Flex key={index} align="center" gap="2">
-          <TextField.Root
-            type={showKeys[index] ? "text" : "password"}
-            value={entry.key}
-            onChange={(e) => handleKeyChange(index, e.target.value)}
-            onBlur={() => handleKeyBlur(index)}
-            placeholder="sk-..."
-            className="flex-1"
-          >
-            <TextField.Slot side="right">
-              <IconButton
-                size="1"
-                variant="ghost"
-                onClick={() => toggleShowKey(index)}
-                type="button"
-                color="gray"
-              >
-                {showKeys[index] ? (
-                  <IconEyeOff height={14} width={14} />
-                ) : (
-                  <IconEye height={14} width={14} />
-                )}
-              </IconButton>
-            </TextField.Slot>
-          </TextField.Root>
-          <TextField.Root
-            value={entry.label ?? ""}
-            onChange={(e) => handleLabelChange(index, e.target.value)}
-            onBlur={handleLabelBlur}
-            placeholder="Label"
-            className="w-24"
-          />
-          <Switch
-            size="1"
-            checked={entry.enabled}
-            onCheckedChange={() => handleToggle(index)}
-          />
-          <IconButton
-            size="1"
-            variant="ghost"
-            color="red"
-            onClick={() => handleDelete(index)}
-            type="button"
-          >
-            <IconTrash size={14} />
-          </IconButton>
-        </Flex>
-      ))}
-      <Flex>
-        <Button variant="ghost" size="1" onClick={handleAddKey} type="button">
-          <IconPlus size={14} />
-          Add Key
-        </Button>
-      </Flex>
+    <Flex direction="column" gap="1">
+      {keys.map((entry, index) => {
+        const isEditing = editingIndex === index;
+        const labelPlaceholder = entry.key
+          ? maskKey(entry.key)
+          : "Label";
+
+        // Every row: [●] [label] [key/display] [actions...]
+        const dot = getDotProps(index);
+        return (
+          <Flex key={index} align="center" gap="2" className="h-8">
+            {/* 1. Status dot - always visible, per-key */}
+            <button
+              type="button"
+              className={`shrink-0 h-2.5 w-2.5 rounded-full cursor-pointer transition-colors ${dot.color}`}
+              title={dot.title}
+              onClick={() => handleTestKey(index)}
+            />
+
+            {isEditing ? (
+              <>
+                {/* 2. Label input */}
+                <TextField.Root
+                  value={entry.label ?? ""}
+                  onChange={(e) => handleLabelChange(index, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && entry.key.trim())
+                      confirmEditing(index);
+                    else if (e.key === "Escape") cancelEditing(index);
+                  }}
+                  placeholder={labelPlaceholder}
+                  className="w-24 shrink-0"
+                />
+                {/* 3. Key input */}
+                <TextField.Root
+                  type={showKeys[index] ? "text" : "password"}
+                  value={entry.key}
+                  onChange={(e) => handleKeyChange(index, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && entry.key.trim())
+                      confirmEditing(index);
+                    else if (e.key === "Escape") cancelEditing(index);
+                  }}
+                  placeholder="sk-..."
+                  className="flex-1"
+                  autoFocus
+                >
+                  <TextField.Slot side="right">
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      onClick={() => toggleShowKey(index)}
+                      type="button"
+                      color="gray"
+                    >
+                      {showKeys[index] ? (
+                        <IconEyeOff height={14} width={14} />
+                      ) : (
+                        <IconEye height={14} width={14} />
+                      )}
+                    </IconButton>
+                  </TextField.Slot>
+                </TextField.Root>
+                {/* Actions */}
+                <Flex gap="3" className="ml-1 shrink-0">
+                  <IconButton
+                    size="2"
+                    variant="ghost"
+                    color="green"
+                    onClick={() => confirmEditing(index)}
+                    disabled={!entry.key.trim()}
+                    className="cursor-pointer"
+                  >
+                    <IconCheck size={16} />
+                  </IconButton>
+                  {editSnapshot?.key.trim() && (
+                    <IconButton
+                      size="2"
+                      variant="ghost"
+                      color="gray"
+                      onClick={() => cancelEditing(index)}
+                      className="cursor-pointer"
+                    >
+                      <IconX size={16} />
+                    </IconButton>
+                  )}
+                  {editSnapshot?.key.trim() && (
+                    <Popover.Root>
+                      <Popover.Trigger>
+                        <IconButton
+                          size="2"
+                          variant="ghost"
+                          color="red"
+                          className="cursor-pointer"
+                        >
+                          <IconTrash size={16} />
+                        </IconButton>
+                      </Popover.Trigger>
+                      <Popover.Content size="1" side="bottom" align="end">
+                        <Flex gap="2">
+                          <Popover.Close>
+                            <Button
+                              size="1"
+                              color="red"
+                              variant="soft"
+                              onClick={() => handleDelete(index)}
+                              className="cursor-pointer"
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </Popover.Close>
+                          <Popover.Close>
+                            <Button
+                              size="1"
+                              variant="soft"
+                              color="gray"
+                              className="cursor-pointer"
+                            >
+                              {t("common.cancel")}
+                            </Button>
+                          </Popover.Close>
+                        </Flex>
+                      </Popover.Content>
+                    </Popover.Root>
+                  )}
+                </Flex>
+              </>
+            ) : (
+              <>
+                {/* 2+3. Label · masked key display */}
+                <Text
+                  size="2"
+                  className={`flex-1 min-w-0 truncate ${entry.enabled ? "text-(--gray-11)" : "text-(--gray-8) line-through"}`}
+                  title={formatKeyDisplay(entry)}
+                >
+                  {formatKeyDisplay(entry)}
+                </Text>
+                {/* Toggle enable/disable */}
+                <Switch
+                  size="1"
+                  checked={entry.enabled}
+                  onCheckedChange={() => handleToggle(index)}
+                  className="shrink-0"
+                />
+                {/* Edit button */}
+                <IconButton
+                  size="2"
+                  variant="ghost"
+                  color="gray"
+                  onClick={() => startEditing(index)}
+                  className="cursor-pointer shrink-0"
+                >
+                  <IconPencil size={16} />
+                </IconButton>
+              </>
+            )}
+          </Flex>
+        );
+      })}
     </Flex>
   );
-};
+});
 
 export const ApiSettings: React.FC<ApiSettingsProps> = ({
   isFetchingModels,
@@ -430,6 +674,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     setProviderUseProxy,
   } = useSettings();
 
+  const apiKeyListRef = useRef<ApiKeyListHandle>(null);
   const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
   const [editingBaseUrl, setEditingBaseUrl] = useState(false);
   const [editingName, setEditingName] = useState("");
@@ -883,7 +1128,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
         {/* Content Area */}
         <Flex direction="column" className="h-full overflow-hidden">
           {/* Header */}
-          <Box className="pt-6 px-8 pb-2 shrink-0">
+          <Box className="pt-4 px-8 pb-1 shrink-0">
             <Flex justify="between" align="center" width="100%">
               <Flex align="center" gap="3" className="min-w-0 flex-1">
                 <Dialog.Root
@@ -1134,7 +1379,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           {/* Form Fields - Scrollable */}
           <Box className="px-8 py-4 flex-1 overflow-y-auto">
             {/* Grid: label right-aligned | value left-aligned */}
-            <Grid columns="auto 1fr" gapX="4" gapY="3" align="center">
+            <Grid columns="auto 1fr" gapX="4" gapY="2" align="center">
               {/* Base URL */}
               <Text
                 size="2"
@@ -1167,11 +1412,8 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 };
 
                 return (
-                  <Flex align="center" gap="3" className="h-8 min-w-0">
-                    <input
-                      ref={(el) => {
-                        if (el && editingBaseUrl) el.focus();
-                      }}
+                  <Flex align="center" gap="2" className="h-8 min-w-0">
+                    <TextField.Root
                       value={localBaseUrl}
                       readOnly={!editingBaseUrl}
                       onChange={(e) => setLocalBaseUrl(e.target.value)}
@@ -1183,15 +1425,10 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                         if (e.key === "Enter") saveBaseUrl();
                         else if (e.key === "Escape") cancelBaseUrl();
                       }}
-                      onBlur={() => {
-                        if (editingBaseUrl) saveBaseUrl();
-                      }}
                       placeholder="https://api.openai.com/v1"
-                      className={`flex-1 min-w-0 h-full rounded bg-transparent px-1 text-sm outline-none border transition-colors ${
-                        editingBaseUrl
-                          ? "border-(--accent-a6) text-(--gray-12) cursor-text"
-                          : "border-transparent text-(--gray-11) cursor-pointer hover:bg-(--gray-a3)"
-                      }`}
+                      variant={editingBaseUrl ? "surface" : "soft"}
+                      className={`flex-1 ${!editingBaseUrl ? "cursor-pointer" : ""}`}
+                      autoFocus={editingBaseUrl}
                     />
                     <Flex gap="3" className="shrink-0">
                       {editingBaseUrl ? (
@@ -1250,94 +1487,52 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 size="2"
                 weight="medium"
                 color="gray"
-                className="text-right select-none pt-1"
+                className="self-start text-right select-none h-8 leading-8"
               >
                 {t("settings.postProcessing.api.providers.fields.apiKey")}:
               </Text>
-              <Flex direction="column" gap="2" className="min-w-0">
-                <ApiKeyList
-                  providerId={state.selectedProviderId}
-                  onKeysChanged={() => {
-                    // Clear cached models when keys change
-                    void state.handleRefreshModels();
-                  }}
-                />
-                <Flex align="center" gap="3">
-                  <Button
-                    variant="solid"
-                    size="1"
-                    className="shrink-0"
-                    onClick={async () => {
-                      if (state.model) {
-                        const res = await state.testInference(state.model);
-                        state.setLastInferenceResult(res);
-                        const { result, error, hasThinking } = res;
-                        if (!error) {
-                          const displayResult = hasThinking
-                            ? `[Thinking] ${result}`
-                            : result;
-                          toast.success(
-                            t(
-                              "settings.postProcessing.api.providers.api.testSuccess",
-                              { result: displayResult },
-                            ),
-                          );
-                        } else {
-                          toast.error(
-                            t(
-                              "settings.postProcessing.api.providers.api.testFailed",
-                              { error },
-                            ),
-                          );
-                        }
-                      } else {
-                        const error = await state.testConnection();
-                        if (!error) {
-                          toast.success(
-                            t(
-                              "settings.postProcessing.api.providers.api.testSuccess",
-                              { result: "OK" },
-                            ),
-                          );
-                        } else {
-                          toast.error(
-                            t(
-                              "settings.postProcessing.api.providers.api.testFailed",
-                              { error },
-                            ),
-                          );
-                        }
-                      }
-                    }}
-                    disabled={isFetchingModels}
+              <ApiKeyList
+                ref={apiKeyListRef}
+                providerId={state.selectedProviderId}
+                onKeysChanged={() => {
+                  void state.handleRefreshModels();
+                }}
+                onTestConnection={async () => {
+                  const error = await state.testConnection();
+                  return { error: error ?? null, result: "OK" };
+                }}
+              />
+
+              {/* Proxy - inside grid, only when global proxy is configured */}
+              {settings?.proxy_global_enabled && settings?.proxy_url && (
+                <>
+                  <Text
+                    size="2"
+                    weight="medium"
+                    color="gray"
+                    className="text-right select-none"
                   >
-                    {isFetchingModels ? (
-                      t("common.loading")
-                    ) : (
-                      <>
-                        <IconPlugConnected size={14} />
-                        {t(
-                          "settings.postProcessing.api.providers.api.testConnection",
-                        )}
-                      </>
+                    {t(
+                      "settings.postProcessing.api.proxy.useProxy",
+                      "Proxy",
                     )}
-                  </Button>
-                  {state.lastInferenceResult && (
-                    <Badge
-                      color={state.lastInferenceResult.error ? "red" : "green"}
-                      variant="soft"
+                    :
+                  </Text>
+                  <Flex align="center" className="h-8">
+                    <Switch
                       size="1"
-                      className="shrink-0"
-                    >
-                      {state.lastInferenceResult.error ? "Failure" : "Success"}
-                    </Badge>
-                  )}
-                </Flex>
-              </Flex>
+                      checked={state.selectedProvider?.use_proxy ?? true}
+                      onCheckedChange={(checked: boolean) =>
+                        setProviderUseProxy(state.selectedProviderId, checked)
+                      }
+                    />
+                  </Flex>
+                </>
+              )}
             </Grid>
 
-            {/* Add Model - outside grid */}
-            <Box className="mt-6">
+            {/* Actions - outside grid */}
+            <Flex align="center" gap="3" className="mt-4">
               <Button
                 variant="soft"
                 onClick={onOpenAddModel}
@@ -1346,35 +1541,17 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 <IconPlus size={14} />
                 {t("settings.postProcessing.models.selectModel.addButton")}
               </Button>
-            </Box>
-
-            {/* Use Proxy Switch - show when global proxy is configured */}
-            {settings?.proxy_global_enabled && settings?.proxy_url && (
-              <Flex align="center" gap="2" className="mt-4">
-                <Switch
-                  size="1"
-                  checked={state.selectedProvider?.use_proxy ?? true}
-                  onCheckedChange={(checked: boolean) =>
-                    setProviderUseProxy(state.selectedProviderId, checked)
-                  }
-                />
-                <Text size="2" color="gray">
-                  {t(
-                    "settings.postProcessing.api.proxy.useProxy",
-                    "Use proxy",
-                  )}
-                </Text>
-              </Flex>
-            )}
-
-            {/* Models endpoint */}
-            <Box className="mt-4">
-              <AdvancedSettings
-                modelsEndpoint={state.modelsEndpoint || ""}
-                onModelsEndpointChange={state.handleModelsEndpointChange}
-                providerId={state.selectedProviderId}
-              />
-            </Box>
+              <Button
+                variant="outline"
+                onClick={() => apiKeyListRef.current?.addKey()}
+              >
+                <IconPlus size={14} />
+                {t(
+                  "settings.postProcessing.api.providers.fields.addKey",
+                  "Add Key",
+                )}
+              </Button>
+            </Flex>
           </Box>
         </Flex>
       </Grid>

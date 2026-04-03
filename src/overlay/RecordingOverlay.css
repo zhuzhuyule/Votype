@@ -280,12 +280,19 @@
   gap: 5px;
 }
 
-.skill-content-dot {
-  width: 7px;
-  height: 7px;
+.skill-content-close {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: #ff5f57;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.5);
+  line-height: 1;
 }
 
 .skill-content-app {
@@ -296,11 +303,15 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+.skill-content-sep {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.2);
+}
+
 .skill-content-count {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.3);
   white-space: nowrap;
-  margin-left: auto;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -352,11 +363,17 @@
   background: var(--gray-3);
 }
 
-/* Wider overlay when showing skill confirmation */
+/* Wider overlay when showing skill confirmation — switch to single-column layout */
 .recording-overlay.has-skill-confirm {
   width: min(480px, calc(100% - 12px));
+  grid-template-columns: 1fr;
   border-radius: 16px;
-  padding: 8px 12px;
+  padding: 10px 14px;
+}
+
+.recording-overlay.has-skill-confirm .overlay-left,
+.recording-overlay.has-skill-confirm .overlay-right {
+  display: none;
 }
 
 /* Rewrite count badge — replaces icon in rewrite mode */
