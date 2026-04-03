@@ -398,7 +398,16 @@
       "recording": "Recording...",
       "transcribing": "Transcribing...",
       "review": "Review...",
-      "rewrite": "Rewrite #{{count}}"
+      "rewrite": "Processing…"
+    },
+    "rewriteOperation": {
+      "rewrite": "Rewritten",
+      "expand": "Expanded",
+      "format": "Formatted",
+      "translate": "Translated",
+      "polish": "Polished",
+      "append": "Appended",
+      "unknown": "Done"
     },
     "timeout": {
       "title": "Online transcription timed out",

@@ -436,7 +436,16 @@
       "recording": "录音中…",
       "transcribing": "转录中…",
       "review": "审阅中…",
-      "rewrite": "第{{count}}次修改"
+      "rewrite": "处理中…"
+    },
+    "rewriteOperation": {
+      "rewrite": "已改写",
+      "expand": "已扩充",
+      "format": "已格式化",
+      "translate": "已翻译",
+      "polish": "已润色",
+      "append": "已追加",
+      "unknown": "已完成"
     },
     "timeout": {
       "title": "在线识别超时",
