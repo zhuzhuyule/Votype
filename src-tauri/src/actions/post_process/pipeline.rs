@@ -32,6 +32,7 @@ pub async fn unified_post_process(
     review_editor_active: bool,
     selected_text: Option<String>,
     review_document_text: Option<String>,
+    cursor_context: Option<crate::clipboard::CursorContext>,
 ) -> super::PipelineResult {
     let log_routing = crate::DEBUG_LOG_ROUTING.load(std::sync::atomic::Ordering::Relaxed);
 
@@ -348,6 +349,7 @@ pub async fn unified_post_process(
             .app_name(app_name.as_deref())
             .window_title(window_title.as_deref())
             .hotword_injection(hotword_injection)
+            .cursor_context(cursor_context.as_ref())
             .session_context(session_ctx)
             .app_language(&lite_settings.app_language)
             .injection_policy(super::prompt_builder::InjectionPolicy::for_post_process(
@@ -676,6 +678,7 @@ pub async fn unified_post_process(
         review_editor_active,
         selected_text,
         review_document_text,
+        cursor_context,
         true, // skip_smart_routing: already done by unified_post_process
     )
     .await;
@@ -1081,6 +1084,7 @@ pub async fn maybe_post_process_transcription(
     review_editor_active: bool,
     selected_text: Option<String>,
     review_document_text: Option<String>,
+    cursor_context: Option<crate::clipboard::CursorContext>,
     skip_smart_routing: bool,
 ) -> (
     Option<String>, // processed text
@@ -2042,6 +2046,7 @@ pub async fn maybe_post_process_transcription(
         let mut builder = super::prompt_builder::PromptBuilder::new(&prompt, transcription_content)
             .streaming_transcription(streaming_transcription)
             .selected_text(selected_text.as_deref())
+            .cursor_context(cursor_context.as_ref())
             .app_name(app_name.as_deref())
             .window_title(window_title.as_deref())
             .history_entries(history_entries)
