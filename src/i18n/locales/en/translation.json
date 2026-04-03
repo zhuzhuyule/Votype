@@ -391,7 +391,8 @@
     "skillConfirmation": {
       "confirmUse": "on selection?",
       "detectedSelection": "Use ",
-      "prompt": "Use this skill?"
+      "prompt": "Use this skill?",
+      "charCount": "{{count}} chars"
     },
     "status": {
       "llm": "Post Processing...",

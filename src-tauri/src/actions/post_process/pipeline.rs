@@ -1752,7 +1752,24 @@ pub async fn maybe_post_process_transcription(
                             skill_name: String,
                             transcription: String,
                             polish_result: Option<String>,
+                            app_name: Option<String>,
+                            selected_text_len: Option<usize>,
+                            selected_text_preview: Option<String>,
                         }
+
+                        // Build a short preview of the selected text (first 80 chars)
+                        let (sel_len, sel_preview) =
+                            if let Some(ref text) = effective_selected_text {
+                                let chars: Vec<char> = text.chars().collect();
+                                let preview = if chars.len() > 80 {
+                                    format!("{}…", chars[..80].iter().collect::<String>())
+                                } else {
+                                    text.clone()
+                                };
+                                (Some(chars.len()), Some(preview))
+                            } else {
+                                (None, None)
+                            };
 
                         app_handle
                             .emit(
@@ -1761,7 +1778,10 @@ pub async fn maybe_post_process_transcription(
                                     skill_id: skill_id.clone(),
                                     skill_name: routed_prompt.name.clone(),
                                     transcription: transcription.to_string(),
-                                    polish_result: polish_text, // Frontend should handle None case (show loading or N/A)
+                                    polish_result: polish_text,
+                                    app_name: app_name.clone(),
+                                    selected_text_len: sel_len,
+                                    selected_text_preview: sel_preview,
                                 },
                             )
                             .ok();

@@ -22,6 +22,9 @@ type SkillConfirmationEvent = {
   skill_name: string;
   transcription: string;
   polish_result?: string;
+  app_name?: string;
+  selected_text_len?: number;
+  selected_text_preview?: string;
 };
 
 const stripTrailingSentencePunctuation = (input: string) => {
@@ -722,13 +725,22 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               align="center"
               gap="2"
             >
-              <Text className="prompt-text">
-                {t("overlay.skillConfirmation.detectedSelection")}
-              </Text>
               <Text className="skill-name">{skillConfirmation.skill_name}</Text>
-              <Text className="prompt-text">
-                {t("overlay.skillConfirmation.confirmUse")}
-              </Text>
+              {skillConfirmation.selected_text_len != null && (
+                <Flex direction="column" className="skill-context" gap="1">
+                  <Text className="skill-context-meta">
+                    {skillConfirmation.app_name || "—"} ·{" "}
+                    {t("overlay.skillConfirmation.charCount", {
+                      count: skillConfirmation.selected_text_len,
+                    })}
+                  </Text>
+                  {skillConfirmation.selected_text_preview && (
+                    <Text className="skill-context-preview">
+                      {skillConfirmation.selected_text_preview}
+                    </Text>
+                  )}
+                </Flex>
+              )}
               <Flex className="confirm-buttons" justify="center" gap="2">
                 <Box
                   className={`confirm-button accept ${focusedButton === "accept" ? "focused" : ""}`}
