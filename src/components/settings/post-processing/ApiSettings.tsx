@@ -242,11 +242,41 @@ const ApiKeyList = React.forwardRef<
   const [keyStatus, setKeyStatus] = useState<
     Record<number, { status: ConnectionStatus; message: string }>
   >({});
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editSnapshot, setEditSnapshot] = useState<KeyEntry | null>(null);
   const loadedProviderRef = useRef<string | null>(null);
+
+  // Cleanup empty/dirty keys before switching provider
+  const cleanupEditingRef = useRef<() => void>(() => {});
+  cleanupEditingRef.current = () => {
+    if (editingIndex === null) return;
+    const entry = keys[editingIndex];
+    if (!entry) return;
+    if (!entry.key.trim()) {
+      // Empty key: restore snapshot if it had content, otherwise delete
+      if (editSnapshot?.key.trim()) {
+        const restored = keys.map((k, i) =>
+          i === editingIndex ? editSnapshot : k,
+        );
+        void persist(restored);
+      } else {
+        // New empty entry — remove it
+        const cleaned = keys.filter((_, i) => i !== editingIndex);
+        if (cleaned.length > 0) {
+          void persist(cleaned);
+        }
+      }
+    }
+    setEditingIndex(null);
+    setEditSnapshot(null);
+  };
 
   // Load keys from backend when provider changes
   useEffect(() => {
     if (!providerId) return;
+    // Cleanup previous provider's dirty state
+    cleanupEditingRef.current();
+
     let cancelled = false;
     loadedProviderRef.current = providerId;
     getPostProcessApiKeys(providerId)
@@ -287,11 +317,29 @@ const ApiKeyList = React.forwardRef<
 
   const handleAddKey = useCallback(() => {
     const newEntry: KeyEntry = { key: "", enabled: true, label: null };
-    const updated = [...keys, newEntry];
+    // If currently editing an empty key, remove it first
+    let base = keys;
+    if (editingIndex !== null) {
+      const current = keys[editingIndex];
+      if (current && !current.key.trim()) {
+        // Empty — remove it (or restore snapshot if had content)
+        if (editSnapshot?.key.trim()) {
+          base = keys.map((k, i) =>
+            i === editingIndex ? editSnapshot : k,
+          );
+        } else {
+          base = keys.filter((_, i) => i !== editingIndex);
+        }
+      } else if (current) {
+        // Has content — persist it
+        void persist(keys);
+      }
+    }
+    const updated = [...base, newEntry];
     setKeys(updated);
     setEditingIndex(updated.length - 1);
     setEditSnapshot({ ...newEntry });
-  }, [keys]);
+  }, [keys, editingIndex, editSnapshot, persist]);
 
   React.useImperativeHandle(ref, () => ({ addKey: handleAddKey }), [
     handleAddKey,
@@ -373,11 +421,6 @@ const ApiKeyList = React.forwardRef<
   const toggleShowKey = useCallback((index: number) => {
     setShowKeys((prev) => ({ ...prev, [index]: !prev[index] }));
   }, []);
-
-  // Per-item editing state
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  // Snapshot for cancel
-  const [editSnapshot, setEditSnapshot] = useState<KeyEntry | null>(null);
 
   const maskKey = (key: string) => {
     if (!key) return "";
@@ -471,12 +514,24 @@ const ApiKeyList = React.forwardRef<
 
   const cancelEditing = (index: number) => {
     if (editSnapshot) {
+      if (!editSnapshot.key.trim()) {
+        // Snapshot was empty (new entry) — remove it
+        const cleaned = keys.filter((_, i) => i !== index);
+        if (cleaned.length > 0) {
+          void persist(cleaned);
+        } else {
+          // Keep at least one, stay in editing
+          return;
+        }
+        setEditingIndex(null);
+        setEditSnapshot(null);
+        return;
+      }
+      // Restore snapshot
       const updated = keys.map((k, i) =>
         i === index ? editSnapshot : k,
       );
       setKeys(updated);
-      // If snapshot key was also empty, stay in editing
-      if (!editSnapshot.key.trim()) return;
     }
     setEditingIndex(null);
     setEditSnapshot(null);
@@ -497,7 +552,10 @@ const ApiKeyList = React.forwardRef<
   return (
     <Flex direction="column" gap="1">
       {keys.map((entry, index) => {
-        const isEditing = editingIndex === index;
+        // Empty key always stays in editing mode
+        const isEditing =
+          editingIndex === index ||
+          (!entry.key.trim() && editingIndex === null);
         const labelPlaceholder = entry.key
           ? maskKey(entry.key)
           : "Label";
@@ -1277,22 +1335,23 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     </Box>
                   </Dialog.Content>
                 </Dialog.Root>
-                <Box className="min-w-0 flex-1">
-                  <TextField.Root
-                    value={editingName}
-                    onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={handleNameBlur}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    placeholder={t(
-                      "settings.postProcessing.api.provider.namePlaceholder",
-                    )}
-                    className="max-w-sm font-medium"
-                  />
-                </Box>
+                <TextField.Root
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  onBlur={handleNameBlur}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                    } else if (e.key === "Escape") {
+                      setEditingName(selectedProviderLabel);
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  placeholder={t(
+                    "settings.postProcessing.api.provider.namePlaceholder",
+                  )}
+                  className="w-60 shrink-0 font-medium"
+                />
                 {(() => {
                   const tpl = matchProviderTemplate(
                     state.selectedProviderId,
@@ -1395,7 +1454,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   state.selectedProvider?.base_url,
                 );
                 const defaultUrl = tpl?.baseUrl ?? "";
-                const isChanged = defaultUrl && localBaseUrl !== defaultUrl;
+                // vs template default
+                const isDiffFromDefault =
+                  !!defaultUrl && localBaseUrl !== defaultUrl;
+                // vs value before editing
+                const isDiffFromSaved = localBaseUrl !== state.baseUrl;
 
                 const saveBaseUrl = () => {
                   state.handleBaseUrlChange(localBaseUrl);
@@ -1413,23 +1476,29 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
                 return (
                   <Flex align="center" gap="2" className="h-8 min-w-0">
-                    <TextField.Root
-                      value={localBaseUrl}
-                      readOnly={!editingBaseUrl}
-                      onChange={(e) => setLocalBaseUrl(e.target.value)}
-                      onClick={() => {
-                        if (!editingBaseUrl) setEditingBaseUrl(true);
-                      }}
-                      onKeyDown={(e) => {
-                        if (!editingBaseUrl) return;
-                        if (e.key === "Enter") saveBaseUrl();
-                        else if (e.key === "Escape") cancelBaseUrl();
-                      }}
-                      placeholder="https://api.openai.com/v1"
-                      variant={editingBaseUrl ? "surface" : "soft"}
-                      className={`flex-1 ${!editingBaseUrl ? "cursor-pointer" : ""}`}
-                      autoFocus={editingBaseUrl}
-                    />
+                    {editingBaseUrl ? (
+                      <TextField.Root
+                        value={localBaseUrl}
+                        onChange={(e) => setLocalBaseUrl(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveBaseUrl();
+                          else if (e.key === "Escape") cancelBaseUrl();
+                        }}
+                        placeholder="https://api.openai.com/v1"
+                        className="flex-1"
+                        autoFocus
+                      />
+                    ) : (
+                      <Text
+                        size="2"
+                        className="flex-1 min-w-0 truncate text-(--gray-11) leading-8"
+                        title={localBaseUrl}
+                      >
+                        {localBaseUrl || (
+                          <span className="opacity-40">—</span>
+                        )}
+                      </Text>
+                    )}
                     <Flex gap="3" className="shrink-0">
                       {editingBaseUrl ? (
                         <>
@@ -1438,6 +1507,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                             variant="ghost"
                             color="green"
                             onClick={saveBaseUrl}
+                            disabled={!isDiffFromSaved}
                             className="cursor-pointer"
                           >
                             <IconCheck size={16} />
@@ -1447,10 +1517,25 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                             variant="ghost"
                             color="gray"
                             onClick={cancelBaseUrl}
+                            disabled={!isDiffFromSaved}
                             className="cursor-pointer"
                           >
                             <IconX size={16} />
                           </IconButton>
+                          {isDiffFromDefault && (
+                            <IconButton
+                              size="2"
+                              variant="ghost"
+                              color="orange"
+                              onClick={resetBaseUrl}
+                              title={t(
+                                "settings.postProcessing.api.providers.resetUrl",
+                              )}
+                              className="cursor-pointer"
+                            >
+                              <IconRotate size={16} />
+                            </IconButton>
+                          )}
                         </>
                       ) : (
                         <IconButton
@@ -1461,20 +1546,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                           className="cursor-pointer"
                         >
                           <IconPencil size={16} />
-                        </IconButton>
-                      )}
-                      {isChanged && (
-                        <IconButton
-                          size="2"
-                          variant="ghost"
-                          color="orange"
-                          onClick={resetBaseUrl}
-                          title={t(
-                            "settings.postProcessing.api.providers.resetUrl",
-                          )}
-                          className="cursor-pointer"
-                        >
-                          <IconRotate size={16} />
                         </IconButton>
                       )}
                     </Flex>
