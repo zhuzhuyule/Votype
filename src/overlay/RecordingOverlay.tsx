@@ -82,7 +82,8 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const { t } = useTranslation();
   // isVisible is implicitly true if we are mounted
   const [state, setState] = useState<OverlayState>(initialState);
-  const [rewriteCount, setRewriteCount] = useState<number>(1);
+  const [rewriteCount, setRewriteCount] = useState<number>(0);
+  const [operationText, setOperationText] = useState<string>("");
   const [levels, setLevels] = useState<number[]>(EMPTY_LEVELS.slice(0, 9));
   const [waveform, setWaveform] = useState<number[]>(EMPTY_WAVEFORM);
   const [accentColor, setAccentColor] = useState<string>(getAccentColor);
@@ -143,6 +144,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     setErrorText("");
     setChainedPromptName("");
     setSkillConfirmation(null);
+    setOperationText("");
   };
 
   // If initial state changes (unlikely if unmounted, but good practice)
@@ -330,11 +332,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             rewrite_count?: number;
           };
           overlayState = richPayload.state;
-          if (
-            overlayState === "rewrite" &&
-            richPayload.rewrite_count !== undefined
-          ) {
+          if (richPayload.rewrite_count !== undefined) {
             setRewriteCount(richPayload.rewrite_count);
+          } else if (overlayState === "recording") {
+            setRewriteCount(0);
           }
         } else {
           overlayState = event.payload as OverlayState;
@@ -351,6 +352,19 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         return;
       }
       unlisteners.push(unlistenStateUpdate);
+
+      const unlistenRewriteOperation = await listen<{ operation: string }>(
+        "rewrite-operation-complete",
+        (event) => {
+          const op = event.payload.operation || "unknown";
+          setOperationText(t(`overlay.rewriteOperation.${op}`, t("overlay.rewriteOperation.unknown")));
+        },
+      );
+      if (disposed) {
+        unlistenRewriteOperation();
+        return;
+      }
+      unlisteners.push(unlistenRewriteOperation);
 
       // Listen for skill confirmation requests (selected text scenario)
       const unlistenSkillConfirmation = await listen<SkillConfirmationEvent>(
@@ -558,9 +572,18 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     el.scrollTop = el.scrollHeight;
   }, [realtimeText, realtimeIsFinal, state]);
 
+  const isRewriteMode = rewriteCount > 0;
+
   const getIcon = () => {
     if (Boolean(errorText) && state !== "recording") {
       return <CancelIcon color="var(--ruby-9)" />;
+    }
+    if (isRewriteMode) {
+      return (
+        <Box className="rewrite-badge">
+          <Text className="rewrite-badge-number">{rewriteCount}</Text>
+        </Box>
+      );
     }
     if (state === "recording") {
       return <MicrophoneIcon color={accentColor} />;
@@ -573,7 +596,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     recording: t("overlay.status.recording"),
     transcribing: t("overlay.status.transcribing"),
     llm: t("overlay.status.llm"),
-    rewrite: t("overlay.status.rewrite", { count: rewriteCount }),
+    rewrite: t("overlay.status.rewrite"),
   };
 
   const realtimeDisplayText =
@@ -647,7 +670,9 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           {!showRealtimeText && state !== "recording" && !skillConfirmation && (
             <Flex direction="column" className="status-text" align="center">
               {!showErrorText && (
-                <Text>{chainedPromptName || statusTextMap[state]}</Text>
+                <Text>
+                  {operationText || chainedPromptName || statusTextMap[state]}
+                </Text>
               )}
               {showErrorText && (
                 <Text style={{ color: "var(--ruby-9)", fontWeight: "bold" }}>
