@@ -1574,32 +1574,37 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 }}
               />
 
-              {/* Proxy - inside grid, only when global proxy is configured */}
-              {settings?.proxy_global_enabled && settings?.proxy_url && (
-                <>
-                  <Text
-                    size="2"
-                    weight="medium"
-                    color="gray"
-                    className="text-right select-none"
-                  >
+              {/* Proxy toggle - always visible */}
+              <Text
+                size="2"
+                weight="medium"
+                color="gray"
+                className="text-right select-none"
+              >
+                {t(
+                  "settings.postProcessing.api.providers.proxy.useProxy",
+                  "Proxy",
+                )}
+                :
+              </Text>
+              <Flex align="center" gap="2" className="h-8">
+                <Switch
+                  size="1"
+                  checked={state.selectedProvider?.use_proxy ?? true}
+                  disabled={!settings?.proxy_global_enabled || !settings?.proxy_url}
+                  onCheckedChange={(checked: boolean) =>
+                    setProviderUseProxy(state.selectedProviderId, checked)
+                  }
+                />
+                {(!settings?.proxy_global_enabled || !settings?.proxy_url) && (
+                  <Text size="1" color="gray" className="opacity-60">
                     {t(
-                      "settings.postProcessing.api.proxy.useProxy",
-                      "Proxy",
+                      "settings.postProcessing.api.providers.proxy.noGlobalProxy",
+                      "Configure proxy in Advanced settings first",
                     )}
-                    :
                   </Text>
-                  <Flex align="center" className="h-8">
-                    <Switch
-                      size="1"
-                      checked={state.selectedProvider?.use_proxy ?? true}
-                      onCheckedChange={(checked: boolean) =>
-                        setProviderUseProxy(state.selectedProviderId, checked)
-                      }
-                    />
-                  </Flex>
-                </>
-              )}
+                )}
+              </Flex>
             </Grid>
 
             {/* Actions - outside grid */}
