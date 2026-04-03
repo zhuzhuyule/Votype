@@ -10,7 +10,7 @@ import {
   IconLayoutDashboard,
   IconSchool,
   IconSettings,
-  IconSparkles,
+  IconTextScan,
 } from "@tabler/icons-react";
 import React, { lazy, useCallback } from "react";
 import { useTranslation } from "react-i18next";
@@ -125,7 +125,7 @@ export const SECTIONS_CONFIG = {
   },
   prompts: {
     labelKey: "sidebar.postProcessing",
-    icon: IconSparkles,
+    icon: IconTextScan,
     component: PromptsConfiguration,
     enabled: () => true,
     shortcutKey: "5",
