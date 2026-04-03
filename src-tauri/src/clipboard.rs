@@ -553,7 +553,6 @@ pub fn get_cursor_context(_app_handle: &AppHandle) -> Result<CursorContext, Stri
 
 /// Text surrounding the cursor position in the active editor.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct CursorContext {
     /// Text before the cursor (up to 300 chars, truncated at sentence/paragraph boundary).
     pub before: String,
@@ -561,11 +560,8 @@ pub struct CursorContext {
     pub after: String,
 }
 
-#[allow(dead_code)]
 const CURSOR_CONTEXT_BEFORE_LIMIT: usize = 300;
-#[allow(dead_code)]
 const CURSOR_CONTEXT_AFTER_LIMIT: usize = 100;
-#[allow(dead_code)]
 const AX_VALUE_MAX_LENGTH: usize = 100_000;
 
 /// Truncate text to at most `limit` characters from the END, preferring to cut
