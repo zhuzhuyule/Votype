@@ -895,6 +895,11 @@ async fn execute_votype_rewrite_prompt(
         .as_ref()
         .map(|c| c.primary_id.as_str()));
 
+    // Switch overlay to "处理中…" state for rewrite LLM processing
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let _ = overlay_window.emit("show-overlay", "rewrite");
+    }
+
     let rewrite_start = std::time::Instant::now();
     let (result, err, error_message, api_token_count) =
         super::core::execute_llm_request_with_messages(
@@ -951,6 +956,19 @@ async fn execute_votype_rewrite_prompt(
                 crate::review_window::RewriteRole::Assistant,
                 parsed.rewritten_text.clone(),
             );
+            // Emit operation completion for overlay flash
+            if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+                #[derive(Clone, serde::Serialize)]
+                struct OperationComplete {
+                    operation: String,
+                }
+                let _ = overlay_window.emit(
+                    "rewrite-operation-complete",
+                    OperationComplete {
+                        operation: parsed.operation.clone(),
+                    },
+                );
+            }
             return (
                 Some(parsed.rewritten_text),
                 Some(model.clone()),
@@ -964,6 +982,20 @@ async fn execute_votype_rewrite_prompt(
                 Some(rewrite_duration_ms),
             );
         }
+    }
+
+    // Emit fallback operation completion
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        #[derive(Clone, serde::Serialize)]
+        struct OperationComplete {
+            operation: String,
+        }
+        let _ = overlay_window.emit(
+            "rewrite-operation-complete",
+            OperationComplete {
+                operation: "unknown".to_string(),
+            },
+        );
     }
 
     (

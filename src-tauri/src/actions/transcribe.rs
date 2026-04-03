@@ -2175,7 +2175,6 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             if matches!(votype_mode, VotypeInputMode::ReviewRewrite) {
-                                utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
                                 // Update REVIEW_EDITOR_CONTENT synchronously BEFORE emitting.
                                 // This ensures the next freeze_review_editor_content_snapshot()
@@ -2194,6 +2193,12 @@ impl ShortcutAction for TranscribeAction {
                                         model: used_model,
                                     },
                                 );
+                                // Delay overlay hide to show operation-complete flash (~800ms)
+                                let ah_for_hide = ah_clone.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+                                    utils::hide_recording_overlay(&ah_for_hide);
+                                });
                                 return;
                             }
 
