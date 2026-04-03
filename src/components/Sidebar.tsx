@@ -165,12 +165,12 @@ export const SECTION_ORDER: SidebarSection[] = [
   "dashboard",
   "summary",
   "general",
-  "advanced",
   "models",
   "prompts",
   "shortcuts",
   "appProfiles",
   "vocabulary",
+  "advanced",
   "about",
 ];
 

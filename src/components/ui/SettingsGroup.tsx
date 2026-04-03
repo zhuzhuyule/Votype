@@ -11,6 +11,7 @@ interface SettingsGroupProps {
   cardProps?: CardProps;
   contentClassName?: string;
   framed?: boolean;
+  noContent?: boolean;
 }
 
 export const SettingsGroup: React.FC<SettingsGroupProps> = ({
@@ -22,9 +23,10 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
   cardProps,
   contentClassName,
   framed = true,
+  noContent
 }) => {
   const header = (
-    <Box mb="2">
+    <Box mb={noContent ? "0" : "2"}>
       <Flex justify="between" align="center">
         <Box>
           {title && (

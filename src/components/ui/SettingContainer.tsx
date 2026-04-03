@@ -34,7 +34,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
 
   return (
     <Flex
-      py="2"
+      py="0"
       px="0"
       align="center"
       justify="between"
@@ -45,7 +45,6 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
         opacity: disabled ? 0.5 : 1,
         // Keep pointer events to allow tooltips/hover explanations even when disabled.
         pointerEvents: "auto",
-        minHeight: "44px", // Ensure consistent height for rows
       }}
     >
       <Flex gap="3" align="center" style={{ flex: 1, minWidth: 0 }}>
@@ -57,8 +56,7 @@ export const SettingContainer: React.FC<SettingContainerProps> = ({
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Flex align="center" gap="2">
             <Text
-              size="2"
-              weight="medium"
+              size="3"
               style={{
                 lineHeight: "1.5",
                 color: "var(--gray-12)",

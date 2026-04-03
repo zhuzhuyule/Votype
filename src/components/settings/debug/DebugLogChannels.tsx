@@ -1,8 +1,8 @@
-import React from "react";
 import { Flex, Text } from "@radix-ui/themes";
+import React from "react";
 import { useTranslation } from "react-i18next";
-import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { useSettings } from "../../../hooks/useSettings";
+import { ToggleSwitch } from "../../ui/ToggleSwitch";
 
 type ChannelKey =
   | "debug_log_post_process"
