@@ -441,6 +441,12 @@ impl ShortcutAction for TranscribeAction {
                     );
                 }
                 let selected_text = crate::clipboard::get_selected_text(&ah).ok();
+                // Cursor context: mutually exclusive with selected_text
+                let cursor_context = if selected_text.is_some() {
+                    None
+                } else {
+                    crate::clipboard::get_cursor_context(&ah).ok()
+                };
                 let review_document_text = if shortcut_str == "review-window-local" {
                     crate::review_window::take_frozen_review_editor_content()
                         .or_else(crate::review_window::current_review_editor_content)
@@ -1761,6 +1767,7 @@ impl ShortcutAction for TranscribeAction {
                                         review_editor_active,
                                         selected_text.clone(),
                                         review_document_text.clone(),
+                                        cursor_context.clone(),
                                     )
                                     .await;
 
