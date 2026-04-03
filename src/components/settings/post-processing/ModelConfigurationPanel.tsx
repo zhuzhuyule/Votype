@@ -94,99 +94,51 @@ const ModelCard: React.FC<{
   t,
 }) => {
   const isAsr = model.model_type === "asr";
-  const tint = isAsr ? "teal" : "blue";
 
   return (
-    <Box className="group/card relative rounded-[10px] border border-(--gray-4) hover:border-(--gray-6) hover:brightness-105 transition-all duration-150 overflow-hidden">
-      {/* Header bar — candidate-panel style */}
-      <Flex
-        align="center"
-        justify="between"
-        className="relative overflow-hidden"
-        style={{
-          padding: "5px 10px",
-          background: `color-mix(in srgb, var(--${tint}-4) 45%, transparent)`,
-          borderRadius: "9px 9px 0 0",
-        }}
-      >
-        {/* Left: name + badges */}
-        <Flex align="center" gap="1.5" className="min-w-0" style={{ zIndex: 1 }}>
-          {isAsr ? (
-            <IconMicrophone size={12} style={{ color: `var(--${tint}-11)`, flexShrink: 0 }} />
-          ) : (
-            <IconMessageChatbot size={12} style={{ color: `var(--${tint}-11)`, flexShrink: 0 }} />
-          )}
-          {model.custom_label ? (
-            <Tooltip content={model.model_id} delayDuration={200}>
-              <Flex align="center" gap="1" className="min-w-0">
-                <span className="truncate text-xs font-semibold" style={{ color: "var(--gray-12)" }}>
+    <Box className="group/card relative rounded-lg bg-(--gray-a2) border-2 border-transparent hover:border-(--gray-a6) transition-all duration-100 overflow-hidden">
+      <Flex direction="column" className="px-3 py-2.5">
+        {/* Row 1: model name */}
+        <Flex justify="between" align="start">
+          <Flex align="center" gap="1.5" className="min-w-0">
+            {model.custom_label ? (
+              <Tooltip content={model.model_id} delayDuration={200}>
+                <Text size="2" weight="medium" className="truncate" style={{ lineHeight: 1.3 }}>
                   {model.custom_label}
-                </span>
-                <IconTag size={9} className="text-amber-500/70 shrink-0" />
-              </Flex>
-            </Tooltip>
-          ) : (
-            <span className="truncate text-xs font-semibold" style={{ color: "var(--gray-12)" }}>
-              {model.model_id}
-            </span>
-          )}
-          {showProvider && (
-            <span
-              className="shrink-0 text-[10px] font-medium whitespace-nowrap"
-              style={{
-                padding: "1px 5px",
-                borderRadius: 4,
-                background: "var(--gray-a3)",
-                color: "var(--gray-11)",
-              }}
-            >
-              {providerName}
-            </span>
-          )}
-          {model.is_thinking_model && (
-            <Tooltip content="Thinking" delayDuration={200}>
-              <IconBrain size={11} className="text-purple-500/80 shrink-0" />
-            </Tooltip>
-          )}
+                </Text>
+              </Tooltip>
+            ) : (
+              <Text size="2" weight="medium" className="truncate" style={{ lineHeight: 1.3 }}>
+                {model.model_id}
+              </Text>
+            )}
+          </Flex>
+          <Flex align="center" gap="1" className="shrink-0 ml-1">
+            {model.is_thinking_model && (
+              <Tooltip content="Thinking" delayDuration={200}>
+                <IconBrain size={12} className="text-purple-500/80" />
+              </Tooltip>
+            )}
+            {isAsr && (
+              <Tooltip content="ASR" delayDuration={200}>
+                <IconMicrophone size={12} className="text-teal-500/80" />
+              </Tooltip>
+            )}
+          </Flex>
         </Flex>
 
-        {/* Right: stats */}
-        <Flex
-          align="center"
-          gap="1.5"
-          className="shrink-0 tabular-nums"
-          style={{ zIndex: 1, fontSize: 10, color: "var(--gray-10)" }}
-        >
-          {stats && stats.totalCalls > 0 ? (
-            <>
-              <Tooltip
-                content={`${stats.totalCalls.toLocaleString()} ${t("settings.postProcessing.providerModels.totalCalls", "calls")}`}
-                delayDuration={300}
-              >
-                <Flex align="center" gap="0.5">
-                  <IconActivity size={10} strokeWidth={2.5} />
-                  <span>{formatCalls(stats.totalCalls)}</span>
-                </Flex>
-              </Tooltip>
-              {stats.avgSpeed > 0 && (
-                <>
-                  <span style={{ opacity: 0.3 }}>|</span>
-                  <Tooltip
-                    content={`${stats.avgSpeed.toFixed(1)} ${t("settings.postProcessing.providerModels.avgSpeed", "tokens/sec")}`}
-                    delayDuration={300}
-                  >
-                    <Flex align="center" gap="0.5">
-                      <IconFlame size={10} strokeWidth={2.5} className="text-amber-500/60" />
-                      <span>{formatSpeed(stats.avgSpeed)}</span>
-                    </Flex>
-                  </Tooltip>
-                </>
-              )}
-            </>
-          ) : (
-            <span style={{ opacity: 0.4 }}>--</span>
-          )}
-        </Flex>
+        {/* Row 2: provider / type label */}
+        <Text size="1" color="gray" mt="0.5">
+          {showProvider ? providerName : (isAsr ? "ASR" : "Standard")}
+        </Text>
+
+        {/* Row 3: stats */}
+        {stats && stats.totalCalls > 0 && (
+          <Text size="1" color="gray" className="tabular-nums" mt="0.5">
+            {stats.totalCalls.toLocaleString()} {t("common.calls", "次")}
+            {stats.avgSpeed > 0 && ` · ${formatSpeed(stats.avgSpeed)} t/s`}
+          </Text>
+        )}
       </Flex>
 
       {/* Hover overlay: actions */}
