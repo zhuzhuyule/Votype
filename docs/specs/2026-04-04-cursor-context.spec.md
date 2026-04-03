@@ -125,4 +125,6 @@ estimate: "3h"
 
 | 原计划 | 实际实现 | 原因 |
 | ------ | -------- | ---- |
-| —      | —        | —    |
+| 使用现有扩展字段记录 has_cursor_context | 新增 migration 41: ALTER TABLE pipeline_decisions ADD COLUMN has_cursor_context | PipelineDecisionRecord 无 extras 字段，需新增列 |
+| extensions.rs 如需透传 cursor_context | 未修改 extensions.rs，multi-model 路径无 cursor_context | extensions.rs 有独立 HTTP 实现，统一为后续工作（与 CLAUDE.md 一致） |
+| test_truncate_before_at_sentence_boundary 期望 "Second sentence. Third sentence here." | 实际断言 "Third sentence here." | 计划中的期望值计算有误，实际算法在 30% 搜索窗口找到 `.` 后跳过空格 |
