@@ -100,21 +100,21 @@ export const SECTIONS_CONFIG = {
     icon: IconChartBar,
     component: SummaryPage,
     enabled: () => true,
-    shortcutKey: "s",
+    shortcutKey: "2",
   },
   general: {
     labelKey: "sidebar.general",
     icon: IconSettings,
     component: GeneralSettings,
     enabled: () => true,
-    shortcutKey: "2",
+    shortcutKey: "3",
   },
   advanced: {
     labelKey: "sidebar.advanced",
     icon: IconAdjustments,
     component: AdvancedSettings,
     enabled: (expertMode: boolean) => expertMode,
-    shortcutKey: "3",
+    shortcutKey: "9",
   },
   models: {
     labelKey: "sidebar.models",
@@ -156,7 +156,7 @@ export const SECTIONS_CONFIG = {
     icon: IconInfoCircle,
     component: AboutSettings,
     enabled: () => true,
-    shortcutKey: "9",
+    shortcutKey: "",
   },
 } as const satisfies Record<string, SectionConfig>;
 
@@ -241,7 +241,7 @@ const SidebarItem: React.FC<{
           </Text>
         )}
       </Flex>
-      {!collapsed && (
+      {!collapsed && section.shortcutKey && (
         <Flex
           align="center"
           justify="center"
@@ -266,10 +266,10 @@ export const Sidebar: React.FC<SidebarProps & { collapsed: boolean }> = ({
   const { t } = useTranslation();
   const { expertMode, updateSetting } = useSettings();
 
-  const sections = Object.entries(SECTIONS_CONFIG)
-    .filter(([_, config]) => config.enabled(expertMode))
-    .map(([id, config]) => ({
-      id,
+  const sections = SECTION_ORDER
+    .map((id) => ({ id, ...SECTIONS_CONFIG[id] }))
+    .filter((config) => config.enabled(expertMode))
+    .map((config) => ({
       ...config,
       label: t(config.labelKey),
     }));
