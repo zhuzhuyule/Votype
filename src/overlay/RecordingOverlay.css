@@ -188,105 +188,87 @@
 
 /* Skill Confirmation UI */
 .skill-confirmation {
-  padding: 6px 14px;
-  min-width: 200px;
+  padding: 6px 10px;
+  width: 100%;
+}
+
+.skill-confirm-header {
+  width: 100%;
+  gap: 8px;
 }
 
 .skill-confirmation .skill-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: #fff;
   background: var(--overlay-accent-color, #faa2ca);
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.skill-confirmation .prompt-text {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 400;
-}
-
-.skill-context {
-  width: 100%;
-  padding: 0 2px;
-}
-
-.skill-context-meta {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+.skill-confirm-hints {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  text-align: center;
-  white-space: nowrap;
 }
 
-.skill-context-preview {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
-  font-family: "SF Mono", "Menlo", "Consolas", monospace;
-  line-height: 1.3;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.confirm-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
+/* Selected content mini-window (macOS window style) */
+.skill-content-window {
   width: 100%;
-}
-
-.confirm-button {
-  padding: 5px 12px;
   border-radius: 6px;
-  cursor: pointer;
-  transition: all 150ms ease-out;
-  font-size: 12px;
-  font-weight: 500;
-  border: 2px solid transparent;
-  outline: none;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.confirm-button.accept {
-  background: var(--overlay-accent-color, #4ade80);
-  color: #fff;
+.skill-content-titlebar {
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 5px;
 }
 
-.confirm-button.accept:hover {
-  filter: brightness(1.1);
-  transform: scale(1.02);
-}
-
-.confirm-button.reject {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-}
-
-.confirm-button.reject:hover {
+.skill-content-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.02);
+  flex-shrink: 0;
 }
 
-.confirm-button:active {
-  transform: scale(0.98);
+.skill-content-app {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Focused state for keyboard navigation */
-.confirm-button.focused {
-  border-color: rgba(255, 255, 255, 0.7);
+.skill-content-count {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+  margin-left: auto;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-.confirm-button.accept.focused {
-  border-color: #fff;
-  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+.skill-content-body {
+  padding: 5px 8px;
 }
 
-.confirm-button.reject.focused {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.15);
+.skill-content-text {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
 }
 
 /* ASR Timeout UI */
@@ -323,9 +305,8 @@
 
 /* Wider overlay when showing skill confirmation */
 .recording-overlay.has-skill-confirm {
-  width: auto;
-  min-width: 220px;
-  max-width: 360px;
+  width: min(420px, calc(100% - 12px));
+  border-radius: 12px;
 }
 
 /* Rewrite count badge — replaces icon in rewrite mode */

@@ -722,51 +722,49 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             <Flex
               direction="column"
               className="skill-confirmation"
-              align="center"
               gap="2"
             >
-              <Text className="skill-name">{skillConfirmation.skill_name}</Text>
-              {skillConfirmation.selected_text_len != null && (
-                <Flex direction="column" className="skill-context" gap="1">
-                  <Text className="skill-context-meta">
-                    {skillConfirmation.app_name || "—"} ·{" "}
-                    {t("overlay.skillConfirmation.charCount", {
-                      count: skillConfirmation.selected_text_len,
-                    })}
-                  </Text>
-                  {skillConfirmation.selected_text_preview && (
-                    <Text className="skill-context-preview">
-                      {skillConfirmation.selected_text_preview}
-                    </Text>
-                  )}
-                </Flex>
-              )}
-              <Flex className="confirm-buttons" justify="center" gap="2">
-                <Box
-                  className={`confirm-button accept ${focusedButton === "accept" ? "focused" : ""}`}
-                  onClick={() => {
-                    invoke("confirm_skill", {
-                      skillId: skillConfirmation.skill_id,
-                      accepted: true,
-                    });
-                    setSkillConfirmation(null);
-                  }}
-                >
-                  {t("common.confirm")} (Enter)
-                </Box>
-                <Box
-                  className={`confirm-button reject ${focusedButton === "reject" ? "focused" : ""}`}
-                  onClick={() => {
-                    invoke("confirm_skill", {
-                      skillId: skillConfirmation.skill_id,
-                      accepted: false,
-                    });
-                    setSkillConfirmation(null);
-                  }}
-                >
-                  {t("common.cancel")} (Esc)
-                </Box>
+              {/* Header: skill name + keyboard hints */}
+              <Flex
+                className="skill-confirm-header"
+                justify="between"
+                align="center"
+              >
+                <Text className="skill-name">
+                  {skillConfirmation.skill_name}
+                </Text>
+                <Text className="skill-confirm-hints">
+                  Enter {t("common.confirm")} · Esc {t("common.cancel")}
+                </Text>
               </Flex>
+
+              {/* Selected content mini-window */}
+              {skillConfirmation.selected_text_len != null && (
+                <Box className="skill-content-window">
+                  <Flex
+                    className="skill-content-titlebar"
+                    align="center"
+                    gap="1"
+                  >
+                    <Box className="skill-content-dot" />
+                    <Text className="skill-content-app">
+                      {skillConfirmation.app_name || "—"}
+                    </Text>
+                    <Text className="skill-content-count">
+                      {t("overlay.skillConfirmation.charCount", {
+                        count: skillConfirmation.selected_text_len,
+                      })}
+                    </Text>
+                  </Flex>
+                  {skillConfirmation.selected_text_preview && (
+                    <Box className="skill-content-body">
+                      <Text className="skill-content-text">
+                        {skillConfirmation.selected_text_preview}
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+              )}
             </Flex>
           )}
         </Flex>

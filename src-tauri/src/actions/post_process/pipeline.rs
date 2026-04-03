@@ -1761,8 +1761,8 @@ pub async fn maybe_post_process_transcription(
                         let (sel_len, sel_preview) =
                             if let Some(ref text) = effective_selected_text {
                                 let chars: Vec<char> = text.chars().collect();
-                                let preview = if chars.len() > 80 {
-                                    format!("{}…", chars[..80].iter().collect::<String>())
+                                let preview = if chars.len() > 200 {
+                                    format!("{}…", chars[..200].iter().collect::<String>())
                                 } else {
                                     text.clone()
                                 };
