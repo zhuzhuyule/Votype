@@ -58,6 +58,7 @@ pub async fn unified_post_process(
         history_id,
         ..Default::default()
     };
+    decision.has_cursor_context = cursor_context.is_some();
 
     // ═══════════════════════════════════════════════════════════════
     // Step 1 + 2: Smart Routing (only for short text with smart mode on)

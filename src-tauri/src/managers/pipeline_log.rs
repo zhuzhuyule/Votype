@@ -39,6 +39,7 @@ pub struct PipelineDecisionRecord {
     pub app_name: Option<String>,
     pub smart_routing_enabled: bool,
     pub bypass_reason: Option<String>,
+    pub has_cursor_context: bool,
 }
 
 pub struct PipelineLogManager {
@@ -75,11 +76,12 @@ impl PipelineLogManager {
                 intent_overridden, intent_override_reason,
                 model_selection, selected_model_id, is_multi_model,
                 result_type, total_elapsed_ms, error_type, error_detail,
-                app_name, smart_routing_enabled, bypass_reason
+                app_name, smart_routing_enabled, bypass_reason,
+                has_cursor_context
             ) VALUES (
                 ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
                 ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20,
-                ?21, ?22, ?23
+                ?21, ?22, ?23, ?24
             )",
             params![
                 r.history_id,
@@ -105,6 +107,7 @@ impl PipelineLogManager {
                 r.app_name,
                 r.smart_routing_enabled,
                 r.bypass_reason,
+                r.has_cursor_context,
             ],
         )?;
         Ok(())
