@@ -776,14 +776,16 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                   <Flex
                     className="skill-content-titlebar"
                     align="center"
-                    gap="1"
                   >
-                    <Box className="skill-content-close">✕</Box>
-                    <Text className="skill-content-app">
+                    <Box className="skill-content-dots">
+                      <span />
+                      <span />
+                      <span />
+                    </Box>
+                    <Text className="skill-content-title">
                       {skillConfirmation.app_name || "—"}
                     </Text>
-                    <Text className="skill-content-sep">·</Text>
-                    <Text className="skill-content-count">
+                    <Text className="skill-content-meta">
                       {t("overlay.skillConfirmation.charCount", {
                         count: skillConfirmation.selected_text_len,
                       })}
