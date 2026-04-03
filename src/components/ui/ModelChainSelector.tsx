@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import { IconSelector } from "@tabler/icons-react";
+import { ModelCardContent } from "./ModelCard";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type {
@@ -18,12 +19,6 @@ import type {
 import { useModelSpeedStats } from "../../hooks/useModelSpeedStats";
 import { useSettingsStore } from "../../stores/settingsStore";
 
-function formatSpeed(speed: number): string {
-  if (speed >= 1000) return `${(speed / 1000).toFixed(1)}k`;
-  if (speed >= 100) return Math.round(speed).toString();
-  if (speed >= 10) return speed.toFixed(1);
-  return speed.toFixed(2);
-}
 
 export interface ModelChainSelectorProps {
   chain: ModelChain | null;
@@ -243,9 +238,8 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
                         const isFallback = fallbackId === model.id;
 
                         return (
-                          <Flex
+                          <div
                             key={model.id}
-                            direction="column"
                             className={`relative rounded-lg px-3 py-2.5 cursor-pointer transition-all select-none ${
                               isPrimary
                                 ? "bg-[var(--accent-a3)] border-2 border-[var(--accent-7)] shadow-sm"
@@ -256,63 +250,29 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
                             onClick={() => handleLeftClick(model.id)}
                             onContextMenu={(e) => handleRightClick(e, model.id)}
                           >
-                            <Flex justify="between" align="start">
-                              <Text
-                                size="2"
-                                weight="medium"
-                                style={{ lineHeight: 1.3 }}
-                              >
-                                {getModelName(model)}
-                              </Text>
-                              {isPrimary && (
-                                <Tooltip
-                                  content={t(
-                                    "settings.postProcessing.modelChain.primary",
+                            <ModelCardContent
+                              name={getModelName(model)}
+                              modelId={model.custom_label ? model.model_id : undefined}
+                              subtitle={model.is_thinking_model ? "Thinking" : "Standard"}
+                              isAsr={model.model_type === "asr"}
+                              isThinking={model.is_thinking_model}
+                              stats={getAggregatedStats(model.model_id, model.provider_id)}
+                              trailing={
+                                <>
+                                  {isPrimary && (
+                                    <Tooltip content={t("settings.postProcessing.modelChain.primary")}>
+                                      <span className="text-[var(--accent-9)] text-sm">●</span>
+                                    </Tooltip>
                                   )}
-                                >
-                                  <span className="text-[var(--accent-9)] text-sm ml-1">
-                                    ●
-                                  </span>
-                                </Tooltip>
-                              )}
-                              {isFallback && (
-                                <Tooltip
-                                  content={t(
-                                    "settings.postProcessing.modelChain.fallback",
+                                  {isFallback && (
+                                    <Tooltip content={t("settings.postProcessing.modelChain.fallback")}>
+                                      <span className="text-[var(--amber-9)] text-sm">○</span>
+                                    </Tooltip>
                                   )}
-                                >
-                                  <span className="text-[var(--amber-9)] text-sm ml-1">
-                                    ○
-                                  </span>
-                                </Tooltip>
-                              )}
-                            </Flex>
-                            <Text size="1" color="gray" mt="0.5">
-                              {model.is_thinking_model
-                                ? "Thinking"
-                                : "Standard"}
-                            </Text>
-                            {(() => {
-                              const s = getAggregatedStats(
-                                model.model_id,
-                                model.provider_id,
-                              );
-                              if (!s || s.totalCalls === 0) return null;
-                              return (
-                                <Text
-                                  size="1"
-                                  color="gray"
-                                  className="tabular-nums"
-                                  mt="0.5"
-                                >
-                                  {s.totalCalls.toLocaleString()}{" "}
-                                  {t("common.calls", "次")}
-                                  {s.avgSpeed > 0 &&
-                                    ` · ${formatSpeed(s.avgSpeed)} t/s`}
-                                </Text>
-                              );
-                            })()}
-                          </Flex>
+                                </>
+                              }
+                            />
+                          </div>
                         );
                       })}
                     </Grid>

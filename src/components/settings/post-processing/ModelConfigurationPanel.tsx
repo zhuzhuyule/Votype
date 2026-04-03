@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useMemo, useState } from "react";
 import { EditModelDialog } from "./dialogs/EditModelDialog";
+import { ModelCardContent } from "../../ui/ModelCard";
 
 import {
   AlertDialog,
@@ -15,16 +16,10 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import {
-  IconActivity,
-  IconBrain,
   IconEdit,
-  IconFlame,
   IconLayoutList,
-  IconMessageChatbot,
-  IconMicrophone,
   IconPlayerPlay,
   IconSearch,
-  IconTag,
   IconTrash,
 } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -37,18 +32,6 @@ import { useSettings } from "../../../hooks/useSettings";
 import type { CachedModel, ModelType } from "../../../lib/types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function formatSpeed(speed: number): string {
-  if (speed >= 1000) return `${(speed / 1000).toFixed(1)}k`;
-  if (speed >= 100) return Math.round(speed).toString();
-  if (speed >= 10) return speed.toFixed(1);
-  return speed.toFixed(2);
-}
-
-function formatCalls(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return n.toString();
-}
 
 function getModelStats(
   modelId: string,
@@ -97,49 +80,16 @@ const ModelCard: React.FC<{
 
   return (
     <Box className="group/card relative rounded-lg bg-(--gray-a2) border-2 border-transparent hover:border-(--gray-a6) transition-all duration-100 overflow-hidden">
-      <Flex direction="column" className="px-3 py-2.5">
-        {/* Row 1: model name */}
-        <Flex justify="between" align="start">
-          <Flex align="center" gap="1.5" className="min-w-0">
-            {model.custom_label ? (
-              <Tooltip content={model.model_id} delayDuration={200}>
-                <Text size="2" weight="medium" className="truncate" style={{ lineHeight: 1.3 }}>
-                  {model.custom_label}
-                </Text>
-              </Tooltip>
-            ) : (
-              <Text size="2" weight="medium" className="truncate" style={{ lineHeight: 1.3 }}>
-                {model.model_id}
-              </Text>
-            )}
-          </Flex>
-          <Flex align="center" gap="1" className="shrink-0 ml-1">
-            {model.is_thinking_model && (
-              <Tooltip content="Thinking" delayDuration={200}>
-                <IconBrain size={12} className="text-purple-500/80" />
-              </Tooltip>
-            )}
-            {isAsr && (
-              <Tooltip content="ASR" delayDuration={200}>
-                <IconMicrophone size={12} className="text-teal-500/80" />
-              </Tooltip>
-            )}
-          </Flex>
-        </Flex>
-
-        {/* Row 2: provider / type label */}
-        <Text size="1" color="gray" mt="0.5">
-          {showProvider ? providerName : (isAsr ? "ASR" : "Standard")}
-        </Text>
-
-        {/* Row 3: stats */}
-        {stats && stats.totalCalls > 0 && (
-          <Text size="1" color="gray" className="tabular-nums" mt="0.5">
-            {stats.totalCalls.toLocaleString()} {t("common.calls", "次")}
-            {stats.avgSpeed > 0 && ` · ${formatSpeed(stats.avgSpeed)} t/s`}
-          </Text>
-        )}
-      </Flex>
+      <div className="px-3 py-2.5">
+        <ModelCardContent
+          name={model.custom_label || model.model_id}
+          modelId={model.custom_label ? model.model_id : undefined}
+          subtitle={showProvider ? providerName : (isAsr ? "ASR" : "Standard")}
+          isAsr={isAsr}
+          isThinking={model.is_thinking_model}
+          stats={stats}
+        />
+      </div>
 
       {/* Hover overlay: actions */}
       <Flex
