@@ -1348,8 +1348,8 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               </Button>
             </Box>
 
-            {/* Use Proxy Switch */}
-            {settings?.proxy_url && (
+            {/* Use Proxy Switch - show when global proxy is configured */}
+            {settings?.proxy_global_enabled && settings?.proxy_url && (
               <Flex align="center" gap="2" className="mt-4">
                 <Switch
                   size="1"
@@ -1367,7 +1367,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               </Flex>
             )}
 
-            {/* Advanced Settings (models endpoint) */}
+            {/* Models endpoint */}
             <Box className="mt-4">
               <AdvancedSettings
                 modelsEndpoint={state.modelsEndpoint || ""}

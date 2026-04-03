@@ -42,7 +42,7 @@ export const AdvancedSettings: React.FC = () => {
               onBlur={() =>
                 setProxySettings(localProxyUrl || null, proxyGlobalEnabled)
               }
-              placeholder="http://127.0.0.1:7890"
+              placeholder="http://[user:pass@]host:port"
               variant="surface"
               className="max-w-md"
             />
