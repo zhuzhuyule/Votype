@@ -188,31 +188,80 @@
 
 /* Skill Confirmation UI */
 .skill-confirmation {
-  padding: 6px 10px;
-  width: 100%;
-}
-
-.skill-confirm-header {
-  width: 100%;
-  gap: 8px;
+  padding: 6px 14px;
+  min-width: 200px;
 }
 
 .skill-confirmation .skill-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: #fff;
   background: var(--overlay-accent-color, #faa2ca);
-  padding: 3px 8px;
-  border-radius: 5px;
-  white-space: nowrap;
-  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
 }
 
-.skill-confirm-hints {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-  white-space: nowrap;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+.skill-confirmation .prompt-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+.confirm-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.confirm-button {
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+  font-size: 12px;
+  font-weight: 500;
+  border: 2px solid transparent;
+  outline: none;
+}
+
+.confirm-button.accept {
+  background: var(--overlay-accent-color, #4ade80);
+  color: #fff;
+}
+
+.confirm-button.accept:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.confirm-button.reject {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.confirm-button.reject:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.02);
+}
+
+.confirm-button:active {
+  transform: scale(0.98);
+}
+
+/* Focused state for keyboard navigation */
+.confirm-button.focused {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.confirm-button.accept.focused {
+  border-color: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+.confirm-button.reject.focused {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 /* Selected content mini-window (macOS window style) */
@@ -305,8 +354,9 @@
 
 /* Wider overlay when showing skill confirmation */
 .recording-overlay.has-skill-confirm {
-  width: min(420px, calc(100% - 12px));
-  border-radius: 12px;
+  width: min(480px, calc(100% - 12px));
+  border-radius: 16px;
+  padding: 8px 12px;
 }
 
 /* Rewrite count badge — replaces icon in rewrite mode */

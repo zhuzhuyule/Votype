@@ -722,20 +722,41 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             <Flex
               direction="column"
               className="skill-confirmation"
+              align="center"
               gap="2"
             >
-              {/* Header: skill name + keyboard hints */}
-              <Flex
-                className="skill-confirm-header"
-                justify="between"
-                align="center"
-              >
-                <Text className="skill-name">
-                  {skillConfirmation.skill_name}
-                </Text>
-                <Text className="skill-confirm-hints">
-                  Enter {t("common.confirm")} · Esc {t("common.cancel")}
-                </Text>
+              <Text className="prompt-text">
+                {t("overlay.skillConfirmation.detectedSelection")}
+              </Text>
+              <Text className="skill-name">{skillConfirmation.skill_name}</Text>
+              <Text className="prompt-text">
+                {t("overlay.skillConfirmation.confirmUse")}
+              </Text>
+              <Flex className="confirm-buttons" justify="center" gap="2">
+                <Box
+                  className={`confirm-button accept ${focusedButton === "accept" ? "focused" : ""}`}
+                  onClick={() => {
+                    invoke("confirm_skill", {
+                      skillId: skillConfirmation.skill_id,
+                      accepted: true,
+                    });
+                    setSkillConfirmation(null);
+                  }}
+                >
+                  {t("common.confirm")} (Enter)
+                </Box>
+                <Box
+                  className={`confirm-button reject ${focusedButton === "reject" ? "focused" : ""}`}
+                  onClick={() => {
+                    invoke("confirm_skill", {
+                      skillId: skillConfirmation.skill_id,
+                      accepted: false,
+                    });
+                    setSkillConfirmation(null);
+                  }}
+                >
+                  {t("common.cancel")} (Esc)
+                </Box>
               </Flex>
 
               {/* Selected content mini-window */}
