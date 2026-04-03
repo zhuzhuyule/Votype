@@ -188,7 +188,7 @@
 
 /* Skill Confirmation UI */
 .skill-confirmation {
-  padding: 6px 0;
+  padding: 4px 0 0;
   min-width: 200px;
   width: 100%;
 }
@@ -202,10 +202,16 @@
   border-radius: 6px;
 }
 
+.skill-confirm-prompt {
+  gap: 4px;
+  text-align: center;
+}
+
 .skill-confirmation .prompt-text {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.6);
   font-weight: 400;
+  line-height: 1.5;
 }
 
 .confirm-buttons {
@@ -278,7 +284,8 @@
   padding: 5px 8px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 5px;
+  gap: 6px;
+  flex-wrap: nowrap;
 }
 
 .skill-content-close {

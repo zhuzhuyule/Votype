@@ -723,15 +723,26 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               direction="column"
               className="skill-confirmation"
               align="center"
-              gap="3"
+              gap="2"
             >
-              <Text className="prompt-text">
-                {t("overlay.skillConfirmation.detectedSelection")}
-              </Text>
-              <Text className="skill-name">{skillConfirmation.skill_name}</Text>
-              <Text className="prompt-text">
-                {t("overlay.skillConfirmation.confirmUse")}
-              </Text>
+              {/* Prompt + skill name + confirm text — tight group */}
+              <Flex
+                direction="column"
+                align="center"
+                className="skill-confirm-prompt"
+              >
+                <Text className="prompt-text">
+                  {t("overlay.skillConfirmation.detectedSelection")}
+                </Text>
+                <Text className="skill-name">
+                  {skillConfirmation.skill_name}
+                </Text>
+                <Text className="prompt-text">
+                  {t("overlay.skillConfirmation.confirmUse")}
+                </Text>
+              </Flex>
+
+              {/* Buttons */}
               <Flex className="confirm-buttons" justify="center" gap="2">
                 <Box
                   className={`confirm-button accept ${focusedButton === "accept" ? "focused" : ""}`}
