@@ -188,8 +188,9 @@
 
 /* Skill Confirmation UI */
 .skill-confirmation {
-  padding: 6px 14px;
+  padding: 6px 0;
   min-width: 200px;
+  width: 100%;
 }
 
 .skill-confirmation .skill-name {
@@ -267,14 +268,14 @@
 /* Selected content mini-window (macOS window style) */
 .skill-content-window {
   width: 100%;
-  border-radius: 6px;
+  border-radius: 8px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .skill-content-titlebar {
-  padding: 3px 8px;
+  padding: 5px 8px;
   background: rgba(255, 255, 255, 0.05);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   gap: 5px;
@@ -316,7 +317,7 @@
 }
 
 .skill-content-body {
-  padding: 5px 8px;
+  padding: 6px 8px;
 }
 
 .skill-content-text {

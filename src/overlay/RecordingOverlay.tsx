@@ -723,7 +723,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               direction="column"
               className="skill-confirmation"
               align="center"
-              gap="2"
+              gap="3"
             >
               <Text className="prompt-text">
                 {t("overlay.skillConfirmation.detectedSelection")}
