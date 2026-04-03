@@ -393,6 +393,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 false,
                 pending.selected_text.clone(),
                 None,
+                None, // cursor_context
                 true, // skip_smart_routing: skill already identified, execute directly
             )
             .await;
@@ -501,6 +502,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                     false,
                     None,
                     None,
+                    None, // cursor_context
                     true, // skip_smart_routing: already done in parallel
                 )
                 .await;

@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 enum FieldTag {
     Instruction,
     SelectedText,
+    CursorContext,
     PersonNames,
     ProductNames,
     DomainTerms,
@@ -29,6 +30,7 @@ impl FieldTag {
             FieldTag::DomainTerms => "domain-terms: hotword reference - domain terminology, abbreviations, or technical terms",
             FieldTag::Hotwords => "hotwords: hotword reference - other frequently used terms",
             FieldTag::SelectedText => "selected-text: partially selected text, weak reference only",
+            FieldTag::CursorContext => "cursor-context: text surrounding the cursor in the active editor — use only for disambiguation and contextual understanding, do not copy or reference this text in output",
             FieldTag::HistoryHints => "history-hints: historical context for terminology consistency and weak disambiguation",
         }
     }
@@ -37,6 +39,7 @@ impl FieldTag {
         match self {
             FieldTag::Instruction => "{{instruction}}",
             FieldTag::SelectedText => "{{selected-text}}",
+            FieldTag::CursorContext => "{{cursor-context}}",
             FieldTag::PersonNames => "{{person-names}}",
             FieldTag::ProductNames => "{{product-names}}",
             FieldTag::DomainTerms => "{{domain-terms}}",
@@ -91,6 +94,11 @@ fn build_input_protocol_note(fields: &[FieldTag]) -> String {
     if fields.iter().any(|f| *f == FieldTag::AsrCorrections) {
         rules.push(
             "- asr-corrections lists known ASR misrecognition patterns with confidence ratings (★★★ = very likely, ★★ = likely, ★ = possible); when input-text contains a word matching the left side, strongly prefer replacing it with the right side".to_string(),
+        );
+    }
+    if fields.iter().any(|f| *f == FieldTag::CursorContext) {
+        rules.push(
+            "- cursor-context shows text around the user's cursor position in the active editor; use it only for disambiguation and understanding the user's writing context — do not copy, quote, or reference this text in your output".to_string(),
         );
     }
 
@@ -190,6 +198,8 @@ pub struct PromptBuilder<'a> {
     raw_transcription: Option<&'a str>,
     streaming_transcription: Option<&'a str>,
     selected_text: Option<&'a str>,
+    /// Text surrounding the cursor in the active editor (macOS Accessibility API).
+    cursor_context: Option<&'a crate::clipboard::CursorContext>,
     /// User's spoken instruction (e.g. "解释一下") — when present, tells the skill
     /// what to do with input-text instead of the default processing task.
     instruction: Option<&'a str>,
@@ -224,6 +234,7 @@ fn sanitize_history_entry(entry: &str) -> Option<String> {
                 && !trimmed.starts_with("[person-names]")
                 && !trimmed.starts_with("[instruction]")
                 && !trimmed.starts_with("[selected-text]")
+                && !trimmed.starts_with("[cursor-context]")
                 && !trimmed.starts_with("[history-hints]")
                 && !trimmed.starts_with("[asr-corrections]")
                 && !trimmed.contains("${")
@@ -293,6 +304,22 @@ fn render_session_context_block(entries: &[String]) -> Option<String> {
         "[session-context]\n(以下为同一应用内最近的输入，仅供理解当前语境参考)\n{}",
         items.join("\n")
     ))
+}
+
+fn render_cursor_context_block(ctx: &crate::clipboard::CursorContext) -> Option<String> {
+    if ctx.before.is_empty() && ctx.after.is_empty() {
+        return None;
+    }
+    let mut parts = vec!["[cursor-context]".to_string()];
+    if !ctx.before.is_empty() {
+        parts.push("--- before cursor ---".to_string());
+        parts.push(ctx.before.clone());
+    }
+    if !ctx.after.is_empty() {
+        parts.push("--- after cursor ---".to_string());
+        parts.push(ctx.after.clone());
+    }
+    Some(parts.join("\n"))
 }
 
 fn render_history_hints_block(entries: &[String]) -> Option<String> {
@@ -383,6 +410,7 @@ impl<'a> PromptBuilder<'a> {
             raw_transcription: None,
             streaming_transcription: None,
             selected_text: None,
+            cursor_context: None,
             instruction: None,
             app_name: None,
             window_title: None,
@@ -409,6 +437,11 @@ impl<'a> PromptBuilder<'a> {
 
     pub fn selected_text(mut self, text: Option<&'a str>) -> Self {
         self.selected_text = text.filter(|s| !s.is_empty());
+        self
+    }
+
+    pub fn cursor_context(mut self, ctx: Option<&'a crate::clipboard::CursorContext>) -> Self {
+        self.cursor_context = ctx.filter(|c| !c.before.is_empty() || !c.after.is_empty());
         self
     }
 
@@ -567,6 +600,9 @@ impl<'a> PromptBuilder<'a> {
         if self.selected_text.is_some() {
             present_fields.push(FieldTag::SelectedText);
         }
+        if self.cursor_context.is_some() {
+            present_fields.push(FieldTag::CursorContext);
+        }
         if !person_names.is_empty() {
             present_fields.push(FieldTag::PersonNames);
         }
@@ -610,6 +646,18 @@ impl<'a> PromptBuilder<'a> {
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .map(str::to_string),
+                FieldTag::CursorContext => self
+                    .cursor_context
+                    .and_then(|ctx| {
+                        let mut parts = Vec::new();
+                        if !ctx.before.is_empty() {
+                            parts.push(format!("--- before cursor ---\n{}", ctx.before));
+                        }
+                        if !ctx.after.is_empty() {
+                            parts.push(format!("--- after cursor ---\n{}", ctx.after));
+                        }
+                        if parts.is_empty() { None } else { Some(parts.join("\n")) }
+                    }),
                 FieldTag::PersonNames => render_plain_hotword_values(&person_names),
                 FieldTag::ProductNames => render_plain_hotword_values(&product_names),
                 FieldTag::DomainTerms => render_plain_hotword_values(&domain_terms),
@@ -677,6 +725,13 @@ impl<'a> PromptBuilder<'a> {
             let text = self.selected_text.unwrap();
             if let Some(block) = render_text_block("selected-text", text) {
                 sections.push(block);
+            }
+        }
+        if let Some(ctx) = self.cursor_context {
+            if !explicit_field_references.contains(&FieldTag::CursorContext) {
+                if let Some(block) = render_cursor_context_block(ctx) {
+                    sections.push(block);
+                }
             }
         }
         if let Some(injection) = &hotword_injection {
@@ -1291,6 +1346,62 @@ mod tests {
         }];
         let result = render_correction_block(&pairs, "今天天气不错");
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_cursor_context_renders_both_sections() {
+        let prompt = make_prompt("# Expert\nProcess input.");
+        let ctx = crate::clipboard::CursorContext {
+            before: "I want to confirm".to_string(),
+            after: "please reply".to_string(),
+        };
+        let built = PromptBuilder::new(&prompt, "the attendee list")
+            .cursor_context(Some(&ctx))
+            .build();
+        let input = built.user_message.unwrap();
+        assert!(input.contains("[cursor-context]"));
+        assert!(input.contains("--- before cursor ---"));
+        assert!(input.contains("I want to confirm"));
+        assert!(input.contains("--- after cursor ---"));
+        assert!(input.contains("please reply"));
+        assert!(input.ends_with("[input-text]\nthe attendee list"));
+    }
+
+    #[test]
+    fn test_cursor_context_only_before() {
+        let prompt = make_prompt("# Expert\nProcess input.");
+        let ctx = crate::clipboard::CursorContext {
+            before: "Some text before cursor".to_string(),
+            after: String::new(),
+        };
+        let built = PromptBuilder::new(&prompt, "hello")
+            .cursor_context(Some(&ctx))
+            .build();
+        let input = built.user_message.unwrap();
+        assert!(input.contains("[cursor-context]"));
+        assert!(input.contains("--- before cursor ---"));
+        assert!(!input.contains("--- after cursor ---"));
+    }
+
+    #[test]
+    fn test_cursor_context_not_in_protocol_when_absent() {
+        let prompt = make_prompt("# Expert\nProcess input.");
+        let built = PromptBuilder::new(&prompt, "hello").build();
+        assert!(!built.system_prompt.contains("cursor-context"));
+    }
+
+    #[test]
+    fn test_cursor_context_in_protocol_when_present() {
+        let prompt = make_prompt("# Expert\nProcess input.");
+        let ctx = crate::clipboard::CursorContext {
+            before: "context".to_string(),
+            after: String::new(),
+        };
+        let built = PromptBuilder::new(&prompt, "hello")
+            .cursor_context(Some(&ctx))
+            .build();
+        assert!(built.system_prompt.contains("cursor-context"));
+        assert!(built.system_prompt.contains("disambiguation"));
     }
 
     #[test]
