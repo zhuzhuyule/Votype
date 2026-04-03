@@ -457,13 +457,14 @@ fn get_cursor_context_via_accessibility() -> Result<CursorContext, String> {
         let cf_value = CFString::wrap_under_create_rule(value_ref as CFStringRef);
         let full_text = cf_value.to_string();
 
-        // Length guard
-        if full_text.len() > AX_VALUE_MAX_LENGTH {
+        // Length guard (use char count, not byte length, so CJK text is measured correctly)
+        let char_count = full_text.chars().count();
+        if char_count > AX_VALUE_MAX_LENGTH {
             CFRelease(focused_element);
             CFRelease(system_element);
             return Err(format!(
                 "AXValue too large ({} chars, limit {})",
-                full_text.len(),
+                char_count,
                 AX_VALUE_MAX_LENGTH
             ));
         }
