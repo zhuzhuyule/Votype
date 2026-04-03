@@ -339,6 +339,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           }
         } else {
           overlayState = event.payload as OverlayState;
+          // Plain string payload has no rewrite_count — reset badge for normal recordings
+          if (overlayState === "recording") {
+            setRewriteCount(0);
+          }
         }
         setState(overlayState);
         // Reset buffer if restarting recording
