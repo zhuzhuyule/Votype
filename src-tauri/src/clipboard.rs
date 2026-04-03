@@ -379,9 +379,163 @@ fn get_selected_text_via_accessibility() -> Result<String, String> {
     }
 }
 
+/// Text surrounding the cursor position in the active editor.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct CursorContext {
+    /// Text before the cursor (up to 300 chars, truncated at sentence/paragraph boundary).
+    pub before: String,
+    /// Text after the cursor (up to 100 chars, truncated at sentence/paragraph boundary).
+    pub after: String,
+}
+
+#[allow(dead_code)]
+const CURSOR_CONTEXT_BEFORE_LIMIT: usize = 300;
+#[allow(dead_code)]
+const CURSOR_CONTEXT_AFTER_LIMIT: usize = 100;
+#[allow(dead_code)]
+const AX_VALUE_MAX_LENGTH: usize = 100_000;
+
+/// Truncate text to at most `limit` characters from the END, preferring to cut
+/// at sentence/paragraph boundaries (newline, period, exclamation, question mark).
+fn truncate_before(text: &str, limit: usize) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() <= limit {
+        return text.to_string();
+    }
+
+    let start = chars.len() - limit;
+    let slice = &chars[start..];
+
+    // Look for a boundary in the first 30% of the slice to avoid cutting too much
+    let search_range = (limit * 3) / 10;
+    let boundary_chars = ['\n', '。', '！', '？', '.', '!', '?'];
+
+    for i in 0..search_range.min(slice.len()) {
+        if boundary_chars.contains(&slice[i]) {
+            // Start after the boundary character (skip whitespace too)
+            let mut j = i + 1;
+            while j < slice.len() && slice[j].is_whitespace() {
+                j += 1;
+            }
+            if j < slice.len() {
+                return slice[j..].iter().collect();
+            }
+        }
+    }
+
+    // No sentence boundary found — try space/CJK boundary
+    for i in 0..search_range.min(slice.len()) {
+        if slice[i].is_whitespace() {
+            let mut j = i + 1;
+            while j < slice.len() && slice[j].is_whitespace() {
+                j += 1;
+            }
+            if j < slice.len() {
+                return slice[j..].iter().collect();
+            }
+        }
+    }
+
+    // Hard truncate
+    slice.iter().collect()
+}
+
+/// Truncate text to at most `limit` characters from the START, preferring to cut
+/// at sentence/paragraph boundaries.
+fn truncate_after(text: &str, limit: usize) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() <= limit {
+        return text.to_string();
+    }
+
+    let slice = &chars[..limit];
+    let boundary_chars = ['\n', '。', '！', '？', '.', '!', '?'];
+
+    // Search from the end of the slice backwards, within last 30%
+    let search_start = limit - (limit * 3) / 10;
+    for i in (search_start..slice.len()).rev() {
+        if boundary_chars.contains(&slice[i]) {
+            return slice[..=i].iter().collect();
+        }
+    }
+
+    // No sentence boundary — try space
+    for i in (search_start..slice.len()).rev() {
+        if slice[i].is_whitespace() {
+            return slice[..i].iter().collect();
+        }
+    }
+
+    // Hard truncate
+    slice.iter().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_truncate_before_at_sentence_boundary() {
+        let text = "First sentence. Second sentence. Third sentence here.";
+        let result = truncate_before(text, 30);
+        // slice = chars[23..] = "sentence. Third sentence here."
+        // boundary '.' found at index 8, skip space at 9, return from index 10
+        assert_eq!(result, "Third sentence here.");
+    }
+
+    #[test]
+    fn test_truncate_before_no_boundary() {
+        let text = "abcdefghijklmnopqrstuvwxyz";
+        let result = truncate_before(text, 10);
+        assert_eq!(result.chars().count(), 10);
+    }
+
+    #[test]
+    fn test_truncate_after_at_sentence_boundary() {
+        let text = "First sentence. Second sentence. Third.";
+        let result = truncate_after(text, 20);
+        assert_eq!(result, "First sentence.");
+    }
+
+    #[test]
+    fn test_truncate_after_no_boundary() {
+        let text = "abcdefghijklmnopqrstuvwxyz";
+        let result = truncate_after(text, 10);
+        assert_eq!(result.chars().count(), 10);
+    }
+
+    #[test]
+    fn test_truncate_before_empty() {
+        assert_eq!(truncate_before("", 300), "");
+    }
+
+    #[test]
+    fn test_truncate_after_empty() {
+        assert_eq!(truncate_after("", 100), "");
+    }
+
+    #[test]
+    fn test_truncate_before_paragraph_boundary() {
+        let text = "Line one.\nLine two.\nLine three.";
+        let result = truncate_before(text, 15);
+        // Should find the newline boundary
+        assert!(result.starts_with("Line two.") || result.starts_with("Line three."));
+    }
+
+    #[test]
+    fn test_truncate_before_shorter_than_limit() {
+        let text = "Short text.";
+        let result = truncate_before(text, 300);
+        assert_eq!(result, "Short text.");
+    }
+
+    #[test]
+    fn test_truncate_after_shorter_than_limit() {
+        let text = "Short text.";
+        let result = truncate_after(text, 100);
+        assert_eq!(result, "Short text.");
+    }
 
     #[test]
     fn auto_submit_requires_setting_enabled() {
