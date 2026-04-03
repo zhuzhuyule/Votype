@@ -426,6 +426,8 @@ static MIGRATIONS: &[M] = &[
         CREATE INDEX IF NOT EXISTS idx_pd_history ON pipeline_decisions(history_id);
         CREATE INDEX IF NOT EXISTS idx_pd_timestamp ON pipeline_decisions(timestamp);"
     ),
+    // Migration 41: Add cursor context tracking to pipeline decisions
+    M::up("ALTER TABLE pipeline_decisions ADD COLUMN has_cursor_context INTEGER NOT NULL DEFAULT 0;"),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
