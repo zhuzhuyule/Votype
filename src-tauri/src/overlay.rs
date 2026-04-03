@@ -307,6 +307,32 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
     }
 }
 
+/// Shows the recording overlay with rewrite count badge
+pub fn show_recording_overlay_rewrite(app_handle: &AppHandle, rewrite_count: u32) {
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return;
+    }
+
+    let refocus_target = focused_votype_window_label(app_handle);
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        if let Some((x, y)) = calculate_overlay_position(app_handle) {
+            let _ = overlay_window
+                .set_position(tauri::Position::Logical(tauri::LogicalPosition { x, y }));
+        }
+
+        let _ = overlay_window.set_ignore_cursor_events(true);
+        let _ = overlay_window.show();
+
+        #[cfg(target_os = "windows")]
+        force_overlay_topmost(&overlay_window);
+
+        emit_overlay_state_with_count_and_retry(overlay_window, "recording", rewrite_count);
+        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
+    }
+}
+
 /// Shows the transcribing overlay window
 pub fn show_transcribing_overlay(app_handle: &AppHandle) {
     // Check if overlay should be shown based on position setting
@@ -357,7 +383,7 @@ pub fn show_rewrite_overlay(app_handle: &AppHandle, rewrite_count: u32) {
         #[cfg(target_os = "windows")]
         force_overlay_topmost(&overlay_window);
 
-        emit_rewrite_overlay_state_with_retry(overlay_window, rewrite_count);
+        emit_overlay_state_with_count_and_retry(overlay_window, "rewrite", rewrite_count);
         restore_votype_focus_after_overlay_show(app_handle, refocus_target);
     }
 }
@@ -396,14 +422,18 @@ fn emit_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, state: &'
 }
 
 #[derive(Clone, serde::Serialize)]
-struct RewriteOverlayPayload {
+struct OverlayStateWithCount {
     state: &'static str,
     rewrite_count: u32,
 }
 
-fn emit_rewrite_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, rewrite_count: u32) {
-    let payload = RewriteOverlayPayload {
-        state: "rewrite",
+fn emit_overlay_state_with_count_and_retry(
+    overlay_window: tauri::WebviewWindow,
+    state: &'static str,
+    rewrite_count: u32,
+) {
+    let payload = OverlayStateWithCount {
+        state,
         rewrite_count,
     };
     let _ = overlay_window.emit("show-overlay", payload.clone());

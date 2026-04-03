@@ -6,7 +6,7 @@ use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::overlay::{show_recording_overlay, show_rewrite_overlay, show_transcribing_overlay};
+use crate::overlay::{show_recording_overlay, show_recording_overlay_rewrite, show_transcribing_overlay};
 use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -197,7 +197,7 @@ pub(crate) fn compute_change_percent(source: &str, target: &str) -> i8 {
 }
 
 impl ShortcutAction for TranscribeAction {
-    fn start(&self, app: &AppHandle, binding_id: &str, _shortcut_str: &str) {
+    fn start(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str) {
         let start_time = Instant::now();
         debug!("TranscribeAction::start called for binding: {}", binding_id);
 
@@ -235,7 +235,12 @@ impl ShortcutAction for TranscribeAction {
 
         let binding_id = binding_id.to_string();
         change_tray_icon(app, TrayIconState::Recording);
-        show_recording_overlay(app);
+        if shortcut_str == "review-window-local" {
+            let rewrite_count = crate::review_window::increment_rewrite_count();
+            show_recording_overlay_rewrite(app, rewrite_count);
+        } else {
+            show_recording_overlay(app);
+        }
 
         // Setup channel for receiving audio frames for realtime simulation if using local model
         let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
@@ -342,12 +347,8 @@ impl ShortcutAction for TranscribeAction {
         );
 
         change_tray_icon(app, TrayIconState::Transcribing);
-        if shortcut_str == "review-window-local" {
-            let rewrite_count = crate::review_window::increment_rewrite_count();
-            show_rewrite_overlay(app, rewrite_count);
-        } else {
-            show_transcribing_overlay(app);
-        }
+        // Rewrite count was already incremented in start()
+        show_transcribing_overlay(app);
 
         // Drop the speech frame sender so the realtime worker exits
         // before the final transcription grabs the engine.
