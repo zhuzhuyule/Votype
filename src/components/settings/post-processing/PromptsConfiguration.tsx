@@ -796,12 +796,12 @@ const PromptsConfiguration: React.FC = () => {
                     {/* Instructions Section */}
                     <Box>
                       <PromptEditor
-                          t={t}
-                          draftContent={draftContent}
-                          setDraftContent={setDraftContent}
-                          onAiLoadingChange={setIsInstructionGenerating}
-                          skillId={viewingPrompt?.id}
-                        />
+                        t={t}
+                        draftContent={draftContent}
+                        setDraftContent={setDraftContent}
+                        onAiLoadingChange={setIsInstructionGenerating}
+                        skillId={viewingPrompt?.id}
+                      />
                     </Box>
 
                     {/* Scene References Section */}

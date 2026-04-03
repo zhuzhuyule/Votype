@@ -444,10 +444,7 @@ export const Dashboard: React.FC = () => {
       durationMs: calcTrend(summary.durationMs, previousSummary.durationMs),
       charCount: calcTrend(summary.charCount, previousSummary.charCount),
       llmCalls: calcTrend(summary.llmCalls, previousSummary.llmCalls),
-      totalTokens: calcTrend(
-        summary.totalTokens,
-        previousSummary.totalTokens,
-      ),
+      totalTokens: calcTrend(summary.totalTokens, previousSummary.totalTokens),
     };
   }, [summary, previousSummary, selection]);
 

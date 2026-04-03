@@ -13,6 +13,7 @@
 ### Task 1: Add `CorrectionPair` struct and extend `HotwordInjection`
 
 **Files:**
+
 - Modify: `src-tauri/src/managers/hotword.rs:97-109`
 
 - [ ] **Step 1: Add `CorrectionPair` struct and extend `HotwordInjection`**
@@ -62,6 +63,7 @@ git commit -m "Add CorrectionPair struct and correction_pairs field to HotwordIn
 ### Task 2: Populate `correction_pairs` in `build_injection_from_ranked`
 
 **Files:**
+
 - Modify: `src-tauri/src/managers/hotword.rs:931-976` (`build_injection_from_ranked`)
 
 - [ ] **Step 1: Add star-rating helper**
@@ -126,6 +128,7 @@ git commit -m "Populate correction_pairs from hotword originals with star rating
 ### Task 3: Add `[asr-corrections]` rendering in `prompt_builder.rs`
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/prompt_builder.rs`
 
 - [ ] **Step 1: Import `CorrectionPair` at the top**
@@ -279,6 +282,7 @@ git commit -m "Add [asr-corrections] section to polish prompt with star-rated co
 ### Task 4: Add tests for the new correction block rendering
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/prompt_builder.rs` (tests module, starting ~line 639)
 
 - [ ] **Step 1: Write test for `render_correction_block` filtering**

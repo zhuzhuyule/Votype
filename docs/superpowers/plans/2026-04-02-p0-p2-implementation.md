@@ -9,6 +9,7 @@
 **Tech Stack:** Rust (Tauri backend), TypeScript/React (frontend), SQLite (storage)
 
 **Important context:**
+
 - `extensions.rs` has its own HTTP implementation that mirrors `core.rs` but does NOT call it. This plan refactors `core.rs` and its direct callers only. Unifying `extensions.rs` is a separate future task.
 - `fallback.rs` uses `Result<T, String>` — callers already convert the 4-tuple to Result before passing to fallback. This pattern stays unchanged.
 
@@ -19,6 +20,7 @@
 ### Task 1: Define LlmError and LlmResponse types
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/core.rs` (top of file)
 - Modify: `src-tauri/src/actions/post_process/mod.rs` (re-export)
 
@@ -183,6 +185,7 @@ git commit -m "Define LlmError, LlmResponse, LlmResult types with retry policy a
 ### Task 2: Refactor execute_llm_request_with_messages to return LlmResult
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/core.rs`
 
 This is the largest single change. The function currently returns `(Option<String>, bool, Option<String>, Option<i64>)` from 11 code paths. We convert it to return `LlmResult` and add a new wrapper that preserves the old signature for callers not yet migrated.
@@ -220,6 +223,7 @@ async fn execute_llm_request_inner(
 Replace each return point (reference line numbers from the original):
 
 **Apple Intelligence unavailable (line 278-283):**
+
 ```rust
 // OLD: (None, true, Some("Apple Intelligence 不可用".to_string()), None)
 // NEW:
@@ -229,6 +233,7 @@ return Err(LlmError::AppleIntelligence {
 ```
 
 **Apple Intelligence success (line 299):**
+
 ```rust
 // OLD: (Some(result), false, None, None)
 // NEW:
@@ -236,6 +241,7 @@ return Ok(LlmResponse { text: result, token_count: None });
 ```
 
 **Apple Intelligence error (line 309-314):**
+
 ```rust
 // OLD: (None, true, Some(format!("Apple Intelligence 请求失败: {}", err)), None)
 // NEW:
@@ -245,6 +251,7 @@ return Err(LlmError::AppleIntelligence {
 ```
 
 **Non-macOS Apple Intelligence (line 319):**
+
 ```rust
 // OLD: (None, false, None, None)
 // This is a "not applicable" case, not an error. Return empty success:
@@ -252,6 +259,7 @@ return Ok(LlmResponse { text: String::new(), token_count: None });
 ```
 
 **Client init failure (line 345-356):**
+
 ```rust
 // OLD: (None, true, Some(format!("LLM 客户端初始化失败 ...")), None)
 // NEW:
@@ -263,6 +271,7 @@ return Err(LlmError::ClientInit {
 ```
 
 **Empty messages (line 395):**
+
 ```rust
 // OLD: (None, false, None, None)
 // NEW:
@@ -270,6 +279,7 @@ return Ok(LlmResponse { text: String::new(), token_count: None });
 ```
 
 **JSON success (line 691):**
+
 ```rust
 // OLD: return (Some(text), false, None, token_count);
 // NEW:
@@ -277,6 +287,7 @@ return Ok(LlmResponse { text, token_count });
 ```
 
 **JSON parse failure (line 706):**
+
 ```rust
 // OLD: return (None, true, Some(detail), None);
 // NEW:
@@ -288,6 +299,7 @@ return Err(LlmError::ParseError {
 ```
 
 **HTTP non-success status (line 724):**
+
 ```rust
 // OLD: return (None, true, Some(detail), None);
 // NEW:
@@ -301,6 +313,7 @@ return Err(LlmError::ApiError {
 ```
 
 **Network error (line 740):**
+
 ```rust
 // OLD: return (None, true, Some(detail), None);
 // NEW:
@@ -313,6 +326,7 @@ return Err(LlmError::Network {
 ```
 
 **HTTP client build failure (line 757):**
+
 ```rust
 // OLD: return (None, true, Some(detail), None);
 // NEW:
@@ -424,6 +438,7 @@ git commit -m "Refactor core LLM execution to LlmResult internally with legacy b
 ### Task 3: Add retry wrapper
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/core.rs`
 
 - [ ] **Step 1: Add retry wrapper function**
@@ -511,6 +526,7 @@ git commit -m "Add execute_llm_request_with_retry with transient failure recover
 ### Task 4: Frontend error code mapping
 
 **Files:**
+
 - Modify: `src/overlay/RecordingOverlay.tsx`
 
 - [ ] **Step 1: Extend the error code map**
@@ -528,8 +544,7 @@ const errorMap: Record<string, string> = {
   llm_auth_failed: "overlay.error.llmAuthFailed",
   llm_api_error: "overlay.error.llmApiError",
   llm_parse_error: "overlay.error.llmParseError",
-  apple_intelligence_unavailable:
-    "overlay.error.appleIntelligenceUnavailable",
+  apple_intelligence_unavailable: "overlay.error.appleIntelligenceUnavailable",
   apple_intelligence_failed: "overlay.error.appleIntelligenceFailed",
 };
 ```
@@ -578,6 +593,7 @@ git commit -m "Add typed LLM error codes to overlay with i18n messages"
 ### Task 5: Create pipeline_decisions table
 
 **Files:**
+
 - Modify: `src-tauri/src/managers/history.rs` (migration)
 
 - [ ] **Step 1: Add migration 40**
@@ -634,6 +650,7 @@ git commit -m "Add pipeline_decisions table for routing observability (Migration
 ### Task 6: Pipeline decision logger
 
 **Files:**
+
 - Create: `src-tauri/src/managers/pipeline_log.rs`
 - Modify: `src-tauri/src/managers/mod.rs`
 
@@ -776,6 +793,7 @@ git commit -m "Add PipelineLogManager for routing decision observability"
 ### Task 7: Instrument unified_post_process with decision logging
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/pipeline.rs`
 
 - [ ] **Step 1: Add timing and accumulator at pipeline entry**
@@ -804,6 +822,7 @@ decision.history_elapsed_ms = Some(history_start.elapsed().as_millis() as u64);
 ```
 
 On cache hit (before the `return PipelineResult::Cached`):
+
 ```rust
 decision.history_hit = true;
 decision.result_type = "Cached".to_string();
@@ -827,6 +846,7 @@ if let Some(ref d) = intent_decision {
 ```
 
 On PassThrough return (before `return PipelineResult::PassThrough`):
+
 ```rust
 decision.result_type = "PassThrough".to_string();
 decision.total_elapsed_ms = pipeline_start.elapsed().as_millis() as u64;
@@ -834,6 +854,7 @@ log_pipeline_decision(app_handle, &decision);
 ```
 
 On repetition override:
+
 ```rust
 decision.intent_overridden = true;
 decision.intent_override_reason = Some("repetition_pattern".to_string());
@@ -842,6 +863,7 @@ decision.intent_override_reason = Some("repetition_pattern".to_string());
 - [ ] **Step 4: Instrument Step 3/4 (Model selection + execution)**
 
 Before each `return PipelineResult::SingleModel` (LitePolish path):
+
 ```rust
 decision.model_selection = Some("lite".to_string());
 decision.selected_model_id = Some(result_model.clone());
@@ -852,6 +874,7 @@ log_pipeline_decision(app_handle, &decision);
 ```
 
 Before `return PipelineResult::MultiModel`:
+
 ```rust
 decision.model_selection = Some("multi".to_string());
 decision.is_multi_model = true;
@@ -861,6 +884,7 @@ log_pipeline_decision(app_handle, &decision);
 ```
 
 Before the final `PipelineResult::SingleModel` (FullPolish path):
+
 ```rust
 decision.model_selection = Some("full".to_string());
 decision.result_type = "SingleModel".to_string();
@@ -870,6 +894,7 @@ log_pipeline_decision(app_handle, &decision);
 ```
 
 On Skipped returns, set `decision.bypass_reason` accordingly:
+
 ```rust
 decision.result_type = "Skipped".to_string();
 decision.bypass_reason = Some("post_process_disabled".to_string()); // or appropriate reason
@@ -918,6 +943,7 @@ git commit -m "Instrument unified pipeline with decision logging at all step bou
 ### Task 8: Add token cost display to Dashboard
 
 **Files:**
+
 - Modify: `src/components/settings/dashboard/Dashboard.tsx`
 
 The Dashboard already fetches `totalTokens` via `get_llm_usage_stats` but doesn't display it. This task surfaces token usage in the existing stats cards.
@@ -963,6 +989,7 @@ git commit -m "Surface token usage in dashboard stats cards"
 ### Task 9: Update engineering plan status
 
 **Files:**
+
 - Modify: `docs/superpowers/plans/2026-04-02-engineering-improvements.md`
 
 - [ ] **Step 1: Mark all completed items in the Progress Tracker table**

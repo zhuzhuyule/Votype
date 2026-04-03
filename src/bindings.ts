@@ -105,6 +105,38 @@ async changePostProcessApiKeySetting(providerId: string, apiKey: string) : Promi
     else return { status: "error", error: e  as any };
 }
 },
+async setPostProcessApiKeys(providerId: string, keys: KeyEntry[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_post_process_api_keys", { providerId, keys }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getPostProcessApiKeys(providerId: string) : Promise<Result<KeyEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_post_process_api_keys", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setProxySettings(url: string | null, globalEnabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_proxy_settings", { url, globalEnabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setProviderUseProxy(providerId: string, useProxy: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_provider_use_proxy", { providerId, useProxy }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changePostProcessModelSetting(providerId: string, model: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_post_process_model_setting", { providerId, model }) };
@@ -1073,6 +1105,10 @@ export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number 
 export type ImplementationChangeResult = { success: boolean; reset_bindings: string[] }
 export type InferenceResult = { content: string | null; reasoning_content: string | null; duration_ms: number | null; total_tokens: number | null }
 export type JsonValue = null | boolean | number | string | JsonValue[] | Partial<{ [key in string]: JsonValue }>
+/**
+ * A single API key entry with metadata
+ */
+export type KeyEntry = { key: string; enabled?: boolean; label?: string | null }
 export type KeyboardImplementation = "tauri" | "handy_keys"
 /**
  * A model selection with optional fallback.
@@ -1133,7 +1169,11 @@ export type PostProcessProvider = { id: string; label: string; base_url: string;
  * Custom HTTP headers to include in every request to this provider
  * e.g. {"X-Custom-Auth": "token123"}
  */
-custom_headers?: Partial<{ [key in string]: string }> | null }
+custom_headers?: Partial<{ [key in string]: string }> | null; 
+/**
+ * Whether this provider should use the global proxy
+ */
+use_proxy?: boolean }
 export type PromptInfo = { id: string; name: string }
 export type PromptListResponse = { prompts: PromptInfo[]; selected_id: string | null }
 export type PromptMessageRole = "system" | "developer"

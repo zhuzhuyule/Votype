@@ -130,7 +130,8 @@ export const KeyValueEditor: React.FC<KeyValueEditorProps> = ({
   React.useEffect(() => {
     if (prevValueRef.current !== value) {
       prevValueRef.current = value;
-      const newEntries = Object.keys(value).length > 0 ? objectToEntries(value) : [];
+      const newEntries =
+        Object.keys(value).length > 0 ? objectToEntries(value) : [];
       setEntriesRaw(newEntries);
       onEntryCountChange?.(newEntries.length);
     }

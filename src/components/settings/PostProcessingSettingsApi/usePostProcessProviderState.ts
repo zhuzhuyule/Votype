@@ -101,10 +101,14 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
-  const apiKeyEntries = settings?.post_process_api_keys?.[viewingProviderId] ?? [];
-  const apiKey = (Array.isArray(apiKeyEntries)
-    ? apiKeyEntries.find((e: any) => e.enabled && e.key)?.key
-    : typeof apiKeyEntries === 'string' ? apiKeyEntries : '') ?? "";
+  const apiKeyEntries =
+    settings?.post_process_api_keys?.[viewingProviderId] ?? [];
+  const apiKey =
+    (Array.isArray(apiKeyEntries)
+      ? apiKeyEntries.find((e: any) => e.enabled && e.key)?.key
+      : typeof apiKeyEntries === "string"
+        ? apiKeyEntries
+        : "") ?? "";
   const model = settings?.post_process_models?.[viewingProviderId] ?? "";
   const modelsEndpoint = selectedProvider?.models_endpoint ?? "";
 
@@ -115,12 +119,9 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     }));
   }, [providers]);
 
-  const handleProviderSelect = useCallback(
-    async (providerId: string) => {
-      setViewingProviderId(providerId);
-    },
-    [],
-  );
+  const handleProviderSelect = useCallback(async (providerId: string) => {
+    setViewingProviderId(providerId);
+  }, []);
 
   const handleBaseUrlChange = useCallback(
     async (value: string) => {

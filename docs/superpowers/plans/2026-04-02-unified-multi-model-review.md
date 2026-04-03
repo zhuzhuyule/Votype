@@ -12,21 +12,22 @@
 
 ## File Map
 
-| File | Changes |
-|------|---------|
-| `src-tauri/src/actions/post_process/mod.rs` | Remove `MultiModelAutoPick`, add `strategy` + `intent_token_count` to `MultiModelManual` |
-| `src-tauri/src/actions/post_process/pipeline.rs` | All strategies return `MultiModelManual`; remove auto-pick await path |
-| `src-tauri/src/actions/transcribe.rs` | Remove `MultiModelAutoPick` match arm; unify `MultiModelManual` to handle all strategies with review policy + auto-confirm |
+| File                                               | Changes                                                                                                                                    |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src-tauri/src/actions/post_process/mod.rs`        | Remove `MultiModelAutoPick`, add `strategy` + `intent_token_count` to `MultiModelManual`                                                   |
+| `src-tauri/src/actions/post_process/pipeline.rs`   | All strategies return `MultiModelManual`; remove auto-pick await path                                                                      |
+| `src-tauri/src/actions/transcribe.rs`              | Remove `MultiModelAutoPick` match arm; unify `MultiModelManual` to handle all strategies with review policy + auto-confirm                 |
 | `src-tauri/src/actions/post_process/extensions.rs` | `multi_post_process_transcription` always collects all results (no early return for race/lazy); emit `auto_selected_id` in progress events |
-| `src-tauri/src/review_window.rs` | Add `auto_selected_id` to `ReviewWindowMultiCandidatePayload` |
-| `src/review/main.tsx` | Pass `auto_selected_id` through to ReviewWindow |
-| `src/review/ReviewWindow.tsx` | Use `auto_selected_id` for initial selection instead of first candidate |
+| `src-tauri/src/review_window.rs`                   | Add `auto_selected_id` to `ReviewWindowMultiCandidatePayload`                                                                              |
+| `src/review/main.tsx`                              | Pass `auto_selected_id` through to ReviewWindow                                                                                            |
+| `src/review/ReviewWindow.tsx`                      | Use `auto_selected_id` for initial selection instead of first candidate                                                                    |
 
 ---
 
 ### Task 1: Extend `MultiModelManual` and remove `MultiModelAutoPick`
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/mod.rs:140-199`
 
 - [ ] **Step 1: Update `MultiModelManual` variant to carry strategy info**
@@ -54,12 +55,14 @@ Note: We rename `MultiModelManual` → `MultiModel` and remove `MultiModelAutoPi
 - [ ] **Step 2: Fix all compiler errors from the rename**
 
 The rename will cause errors in:
+
 - `src-tauri/src/actions/post_process/pipeline.rs` — update return statements
 - `src-tauri/src/actions/transcribe.rs` — update match arms (leave as `todo!()` for now in the old AutoPick arm; we'll fix properly in Task 3)
 
 Run: `cargo check 2>&1 | head -40`
 
 Fix each error by:
+
 1. In `pipeline.rs`: change `PipelineResult::MultiModelManual { .. }` to `PipelineResult::MultiModel { .. }` and add `strategy` field
 2. In `transcribe.rs`: change match arm from `MultiModelManual` to `MultiModel`, temporarily keep AutoPick arm as unreachable
 
@@ -80,6 +83,7 @@ git commit -m "Rename MultiModelManual to MultiModel and remove MultiModelAutoPi
 ### Task 2: Pipeline always returns `MultiModel` immediately
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/pipeline.rs:351-427`
 
 - [ ] **Step 1: Remove the auto-pick await path**
@@ -131,6 +135,7 @@ git commit -m "Pipeline returns MultiModel immediately for all strategies"
 ### Task 3: Add `auto_selected_id` to review window payload
 
 **Files:**
+
 - Modify: `src-tauri/src/review_window.rs:54-62, 651-721`
 
 - [ ] **Step 1: Add `auto_selected_id` field to `ReviewWindowMultiCandidatePayload`**
@@ -201,6 +206,7 @@ git commit -m "Add auto_selected_id to review window multi-candidate payload"
 ### Task 4: `multi_post_process_transcription` always collects all results
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/extensions.rs:336-500`
 
 Currently, race mode returns early with the first result and lazy mode returns early at timeout. We need them to always collect all results but **mark** which result would be the auto-pick.
@@ -210,6 +216,7 @@ Currently, race mode returns early with the first result and lazy mode returns e
 Add a return struct at the top of the file (or near `MultiModelPostProcessResult`):
 
 In `mod.rs`, add:
+
 ```rust
 pub struct MultiModelCollectedResults {
     pub results: Vec<MultiModelPostProcessResult>,
@@ -221,6 +228,7 @@ pub struct MultiModelCollectedResults {
 - [ ] **Step 2: Refactor the result collection loop**
 
 Change the `while !futures.is_empty()` loop in `multi_post_process_transcription` to:
+
 - **Race**: When first success arrives, record its ID as `auto_selected_id` and emit `multi-post-process-auto-selected` event, but **continue collecting** remaining results
 - **Lazy**: Same as before for timeout logic, but record the pick ID and **continue collecting**
 - **Manual**: No auto-select; collect all results normally
@@ -228,6 +236,7 @@ Change the `while !futures.is_empty()` loop in `multi_post_process_transcription
 Replace early `return vec![result]` statements with setting `auto_selected_id` and continuing the loop.
 
 The key change pattern for race mode (around line 423):
+
 ```rust
 if strategy == "race" && auto_selected_id.is_none() && result.ready && result.error.is_none() {
     auto_selected_id = Some(result.id.clone());
@@ -255,6 +264,7 @@ pub async fn multi_post_process_transcription(
 ```
 
 At the end:
+
 ```rust
     emit_multi_complete(_app_handle, total, all_results.len(), all_results.clone());
     MultiModelCollectedResults {
@@ -283,9 +293,11 @@ git commit -m "multi_post_process always collects all results, tracks auto_selec
 ### Task 5: Unify the `MultiModel` match arm in `transcribe.rs`
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/transcribe.rs:1717-1860`
 
 This is the core task. The new `MultiModel` match arm must:
+
 1. Always open review window with loading candidates
 2. Start `multi_post_process_transcription` (streams results)
 3. When complete: save to history
@@ -477,12 +489,14 @@ git commit -m "Unify MultiModel match arm: all strategies use multi-candidate wi
 ### Task 6: Frontend — pass `auto_selected_id` through to ReviewWindow
 
 **Files:**
+
 - Modify: `src/review/main.tsx:34-41`
 - Modify: `src/review/ReviewWindow.tsx:219-223`
 
 - [ ] **Step 1: Add `auto_selected_id` to `MultiCandidateData` interface**
 
 In `main.tsx`:
+
 ```typescript
 interface MultiCandidateData {
   source_text: string;
@@ -500,6 +514,7 @@ interface MultiCandidateData {
 In `main.tsx`, where ReviewWindow is rendered with multiCandidateData (around line 190), pass the ID:
 
 Find where `multiCandidates={multiCandidateData.candidates}` is passed and add:
+
 ```typescript
 autoSelectedId={multiCandidateData.auto_selected_id}
 ```
@@ -514,6 +529,7 @@ autoSelectedId?: string | null;
 ```
 
 Change the initial selectedCandidateId state (line 219-223):
+
 ```typescript
 const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(
   autoSelectedId && multiCandidates?.some((c) => c.id === autoSelectedId)
@@ -541,8 +557,12 @@ useEffect(() => {
       if (prev !== null && prev !== firstId) return prev;
       return event.payload.id;
     });
-  }).then((fn) => { unlisten = fn; });
-  return () => { if (unlisten) unlisten(); };
+  }).then((fn) => {
+    unlisten = fn;
+  });
+  return () => {
+    if (unlisten) unlisten();
+  };
 }, [!!multiCandidates]);
 ```
 
@@ -558,6 +578,7 @@ git commit -m "Frontend: use auto_selected_id for initial candidate selection"
 ### Task 7: Manual mode default selection — favorite model
 
 **Files:**
+
 - Modify: `src-tauri/src/actions/post_process/extensions.rs`
 
 For manual mode, the auto_selected_id should be the user's favorite/preferred model.

@@ -188,29 +188,30 @@ Two display modes based on candidate count:
 
 Four public entry points exist — use the right one:
 
-| Function | Returns | Use When |
-|----------|---------|----------|
-| `execute_llm_request` | Legacy tuple | Simple single-prompt calls (existing code) |
-| `execute_llm_request_with_messages` | Legacy tuple | Multi-message calls (existing code) |
-| `execute_llm_request_typed` | `LlmResult` | New code, caller handles errors |
-| `execute_llm_request_with_retry` | `LlmResult` | New code, automatic retry for transient failures |
+| Function                            | Returns      | Use When                                         |
+| ----------------------------------- | ------------ | ------------------------------------------------ |
+| `execute_llm_request`               | Legacy tuple | Simple single-prompt calls (existing code)       |
+| `execute_llm_request_with_messages` | Legacy tuple | Multi-message calls (existing code)              |
+| `execute_llm_request_typed`         | `LlmResult`  | New code, caller handles errors                  |
+| `execute_llm_request_with_retry`    | `LlmResult`  | New code, automatic retry for transient failures |
 
 **For new code, prefer `execute_llm_request_with_retry`.** It handles Network errors, 429 rate limits, and 5xx server errors with up to 2 retries (budget ≤1.5s). Legacy wrappers delegate to the same `execute_llm_request_inner` internally.
 
 ### Error Types (LlmError)
 
-| Variant | Error Code | Retryable |
-|---------|-----------|-----------|
-| `ClientInit` | `llm_init_failed` | No |
-| `Network` | `llm_network_error` | Yes (0ms + 500ms) |
-| `ApiError { 429 }` | `llm_rate_limited` | Yes (1000ms) |
-| `ApiError { 401/403 }` | `llm_auth_failed` | No |
-| `ApiError { 5xx }` | `llm_api_error` | Yes (0ms + 500ms) |
-| `ParseError` | `llm_parse_error` | No |
+| Variant                | Error Code          | Retryable         |
+| ---------------------- | ------------------- | ----------------- |
+| `ClientInit`           | `llm_init_failed`   | No                |
+| `Network`              | `llm_network_error` | Yes (0ms + 500ms) |
+| `ApiError { 429 }`     | `llm_rate_limited`  | Yes (1000ms)      |
+| `ApiError { 401/403 }` | `llm_auth_failed`   | No                |
+| `ApiError { 5xx }`     | `llm_api_error`     | Yes (0ms + 500ms) |
+| `ParseError`           | `llm_parse_error`   | No                |
 
 ### Known Limitation: extensions.rs
 
 `execute_single_model_post_process` in `extensions.rs` has its **own HTTP implementation** that does NOT call `core.rs` functions. This means:
+
 - `LlmError` types are not used in multi-model execution
 - `execute_llm_request_with_retry` does not apply to multi-model candidates
 - Unifying this is tracked as future work

@@ -116,10 +116,7 @@ export const ActivationMode: React.FC<ActivationModeProps> = React.memo(() => {
             size="1"
           >
             {ACTIVATION_OPTIONS.map((option) => (
-              <SegmentedControl.Item
-                key={option.value}
-                value={option.value}
-              >
+              <SegmentedControl.Item key={option.value} value={option.value}>
                 {t(option.labelKey)}
               </SegmentedControl.Item>
             ))}

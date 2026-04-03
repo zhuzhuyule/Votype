@@ -2,57 +2,83 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Dialog,
   Flex,
   Grid,
   SegmentedControl,
-  Select,
-  Switch,
-  Tabs,
   Text,
-  TextArea,
   TextField,
 } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
-import { IconChevronDown, IconSettings } from "@tabler/icons-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { IconActivity, IconFlame, IconSearch } from "@tabler/icons-react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import {
+  useModelSpeedStats,
+  type ModelSpeedStats,
+} from "../../../../hooks/useModelSpeedStats";
 import { useSettings } from "../../../../hooks/useSettings";
-import type { CachedModel, ModelType } from "../../../../lib/types";
-import { Dropdown } from "../../../ui/Dropdown";
+import type { CachedModel } from "../../../../lib/types";
 import type { PostProcessProviderState } from "../../PostProcessingSettingsApi/usePostProcessProviderState";
-
-// --- Helpers & Types for Dialog ---
-const MODEL_TYPE_INFO: Record<
-  string,
-  { label: string; icon: string; hint: string }
-> = {
-  text: {
-    label: "settings.postProcessing.models.modelTypes.text.label",
-    icon: "IconSparkles",
-    hint: "settings.postProcessing.models.modelTypes.text.hint",
-  },
-  asr: {
-    label: "settings.postProcessing.models.modelTypes.asr.label",
-    icon: "IconMicrophone",
-    hint: "settings.postProcessing.models.modelTypes.asr.hint",
-  },
-  other: {
-    label: "settings.postProcessing.models.modelTypes.other.label",
-    icon: "IconBolt",
-    hint: "settings.postProcessing.models.modelTypes.other.hint",
-  },
-};
-
-const MODEL_TYPE_ORDER: ModelType[] = ["text", "asr", "other"];
 
 // Map our provider IDs to the worker API's provider field
 const PROVIDER_TO_WORKER: Record<string, string> = {
   gitee: "gitee",
   xingchen: "xunfei",
 };
+
+interface FreeModel {
+  id: string;
+  name: string;
+  capabilities: string;
+  price: number;
+  provider: string;
+  vendor: string;
+}
+
+// Unified model option for display
+interface ModelOption {
+  id: string;
+  name: string;
+  source: "free" | "api";
+  capabilities?: string;
+  vendor?: string;
+}
+
+function formatSpeed(speed: number): string {
+  if (speed >= 1000) return `${(speed / 1000).toFixed(1)}k`;
+  if (speed >= 100) return Math.round(speed).toString();
+  if (speed >= 10) return speed.toFixed(1);
+  return speed.toFixed(2);
+}
+
+function formatCalls(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return n.toString();
+}
+
+function getModelStats(
+  modelId: string,
+  providerId: string,
+  stats: ModelSpeedStats[],
+): { totalCalls: number; avgSpeed: number } | null {
+  const matched = stats.filter(
+    (s) => s.model_id === modelId && s.provider === providerId,
+  );
+  if (matched.length === 0) return null;
+  const totalCalls = matched.reduce((sum, s) => sum + s.total_calls, 0);
+  const weightedSpeed = matched.reduce(
+    (sum, s) => sum + s.avg_speed * s.total_calls,
+    0,
+  );
+  return {
+    totalCalls,
+    avgSpeed: totalCalls > 0 ? weightedSpeed / totalCalls : 0,
+  };
+}
 
 const buildCacheId = (modelId: string, providerId: string) => {
   if (globalThis.crypto?.randomUUID) {
@@ -75,25 +101,15 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   isFetchingModels,
 }) => {
   const { t } = useTranslation();
-  const { settings, addCachedModel, isUpdating } = useSettings();
+  const { settings, addCachedModel } = useSettings();
+  const { stats: speedStats } = useModelSpeedStats();
 
-  // --- Dialog specific state ---
-  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
-  const [pendingModelType, setPendingModelType] = useState<ModelType>("text");
-  const [customTypeLabel, setCustomTypeLabel] = useState("");
-  const [isManualModelEntry, setIsManualModelEntry] = useState(false);
-  const [extraParamsStr, setExtraParamsStr] = useState("");
-  const [thinkingEnabled, setThinkingEnabled] = useState(false);
-  const [supportsThinking, setSupportsThinking] = useState(false);
-  const [developerMode, setDeveloperMode] = useState(false);
-  const [freeModels, setFreeModels] = useState<{ id: string; name: string; capabilities: string; provider: string; vendor: string }[]>([]);
-  const [freeModelsLoading, setFreeModelsLoading] = useState(false);
-  const [useOfficialModels, setUseOfficialModels] = useState(false);
-  const [modelFamily, setModelFamily] = useState<string | undefined>();
-  const [modelFamilies, setModelFamilies] = useState<[string, string][]>([]);
-  const [autoDetectedFamily, setAutoDetectedFamily] = useState<
-    string | undefined
-  >();
+  const [source, setSource] = useState<"free" | "api">("free");
+  const [query, setQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [freeModels, setFreeModels] = useState<FreeModel[]>([]);
+  const [freeLoading, setFreeLoading] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const cachedModels = settings?.cached_models ?? [];
   const configuredIds = useMemo(
@@ -101,563 +117,302 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     [cachedModels],
   );
 
-  const availableModels = useMemo(() => {
-    // Map options to include Badges for existing models
-    return providerState.modelOptions.map((option) => {
-      const existing = cachedModels.filter((m) => m.model_id === option.value);
-
-      // If no existing, just return simple option
-      if (existing.length === 0) {
-        return {
-          value: option.value,
-          label: option.value,
-          searchValue: option.value,
-        };
-      }
-
-      // Render rich label with tags
-      return {
-        value: option.value,
-        label: (
-          <Flex
-            align="center"
-            gap="2"
-            style={{ width: "100%", overflow: "hidden" }}
-          >
-            <Text truncate style={{ flexShrink: 0 }}>
-              {option.value}
-            </Text>
-            <Flex gap="1" wrap="wrap" style={{ overflow: "hidden" }}>
-              {existing.map((m) => (
-                <Badge key={m.id} color="gray" variant="soft" radius="full">
-                  {m.custom_label || "Added"}
-                </Badge>
-              ))}
-            </Flex>
-          </Flex>
-        ),
-        searchValue: option.value, // Search by model ID
-      };
-    });
-  }, [providerState.modelOptions, cachedModels]);
-
-  // Built-in free models as dropdown options
-  const builtinModelOptions = useMemo(() => {
-    return freeModels
-      .filter((m) => m.capabilities === "文本生成" || m.capabilities === "speech2text" || m.capabilities === "多模态")
-      .map((m) => {
-        const existing = cachedModels.filter((cm) => cm.model_id === m.id);
-        if (existing.length === 0) {
-          return {
-            value: m.id,
-            label: `${m.name}`,
-            searchValue: `${m.id} ${m.name} ${m.vendor}`,
-          };
-        }
-        return {
-          value: m.id,
-          label: (
-            <Flex align="center" gap="2" style={{ width: "100%", overflow: "hidden" }}>
-              <Text truncate style={{ flexShrink: 0 }}>{m.name}</Text>
-              <Flex gap="1" wrap="wrap" style={{ overflow: "hidden" }}>
-                {existing.map((cm) => (
-                  <Badge key={cm.id} color="gray" variant="soft" radius="full">
-                    {cm.custom_label || "Added"}
-                  </Badge>
-                ))}
-              </Flex>
-            </Flex>
-          ),
-          searchValue: `${m.id} ${m.name} ${m.vendor}`,
-        };
-      });
-  }, [freeModels, cachedModels]);
-
-  // The active model options depend on the toggle
-  const activeModelOptions = useOfficialModels ? availableModels : builtinModelOptions;
-
-  const localizedModelTypeOptions = useMemo(
-    () =>
-      MODEL_TYPE_ORDER.map((modelType) => ({
-        value: modelType,
-        label: t(MODEL_TYPE_INFO[modelType].label),
-        hint: t(MODEL_TYPE_INFO[modelType].hint),
-      })),
-    [t],
-  );
-
-  // Load free models on dialog open (always, for built-in mode)
+  // Load free models when dialog opens
   useEffect(() => {
     if (open) {
-      setFreeModelsLoading(true);
-      const workerProvider = PROVIDER_TO_WORKER[providerState.selectedProviderId] ?? null;
-      invoke<{ id: string; name: string; capabilities: string; provider: string; vendor: string }[]>(
-        "get_free_models",
-        { provider: workerProvider },
-      )
-        .then((models) => setFreeModels(models))
-        .catch((e) => {
-          console.error("[AddModelDialog] get_free_models failed:", e);
-          setFreeModels([]);
-        })
-        .finally(() => setFreeModelsLoading(false));
+      setSelectedIds(new Set());
+      setQuery("");
+
+      // Load free models
+      setFreeLoading(true);
+      const workerProvider =
+        PROVIDER_TO_WORKER[providerState.selectedProviderId] ?? null;
+      invoke<FreeModel[]>("get_free_models", { provider: workerProvider })
+        .then(setFreeModels)
+        .catch(() => setFreeModels([]))
+        .finally(() => setFreeLoading(false));
+
+      // Fetch API models if needed
+      if (source === "api" && !isFetchingModels) {
+        providerState.handleRefreshModels();
+      }
     }
   }, [open, providerState.selectedProviderId]);
 
-  // Only fetch from provider API when official mode is enabled
+  // Fetch API models when switching to API source
   useEffect(() => {
-    if (open && useOfficialModels && !isFetchingModels) {
+    if (open && source === "api" && !isFetchingModels) {
       providerState.handleRefreshModels();
     }
-  }, [open, useOfficialModels]);
+  }, [source]);
 
-  useEffect(() => {
-    if (pendingModelType !== "other") setCustomTypeLabel("");
-  }, [pendingModelType]);
-
-  // Auto-detect thinking support when model or provider changes
-  const updateThinkingConfig = useCallback(
-    async (modelId: string | null, enabled: boolean) => {
-      if (!modelId || !providerState.selectedProviderId) {
-        setSupportsThinking(false);
-        return;
-      }
-      try {
-        const config = await invoke<string | null>("get_thinking_config", {
-          modelId,
-          providerId: providerState.selectedProviderId,
-          enabled,
-          customLabel: customTypeLabel || null,
-        });
-        setSupportsThinking(config !== null);
-        if (config !== null) {
-          setExtraParamsStr(config);
-        }
-      } catch {
-        setSupportsThinking(false);
-      }
-    },
-    [providerState.selectedProviderId],
-  );
-
-  // Load model families on mount
-  useEffect(() => {
-    invoke<[string, string][]>("get_model_families")
-      .then((families) => {
-        console.log("[AddModelDialog] model families loaded:", families);
-        setModelFamilies(families);
-      })
-      .catch((e) => {
-        console.error("[AddModelDialog] get_model_families failed:", e);
-        setModelFamilies([]);
-      });
-  }, []);
-
-  useEffect(() => {
-    if (pendingModelId) {
-      updateThinkingConfig(pendingModelId, thinkingEnabled);
-      // Auto-detect model family
-      invoke<string | null>("detect_model_family_cmd", {
-        modelId: pendingModelId,
-        customLabel: customTypeLabel || null,
-      })
-        .then((family) => {
-          setAutoDetectedFamily(family ?? undefined);
-          setModelFamily(family ?? undefined);
-        })
-        .catch(() => {
-          setAutoDetectedFamily(undefined);
-          setModelFamily(undefined);
-        });
-    } else {
-      setSupportsThinking(false);
-      setAutoDetectedFamily(undefined);
-      setModelFamily(undefined);
+  // Build unified model options based on source
+  const modelOptions: ModelOption[] = useMemo(() => {
+    if (source === "free") {
+      return freeModels
+        .filter(
+          (m) =>
+            m.capabilities === "文本生成" ||
+            m.capabilities === "speech2text" ||
+            m.capabilities === "多模态",
+        )
+        .map((m) => ({
+          id: m.id,
+          name: m.name,
+          source: "free" as const,
+          capabilities: m.capabilities,
+          vendor: m.vendor,
+        }));
     }
-  }, [pendingModelId, providerState.selectedProviderId]);
+    // API source
+    return providerState.modelOptions.map((o) => ({
+      id: o.value,
+      name: o.value,
+      source: "api" as const,
+    }));
+  }, [source, freeModels, providerState.modelOptions]);
 
-  // Smart Deduplication & Initialization Effect
-  useEffect(() => {
-    if (isManualModelEntry) return;
+  // Filter by search
+  const filteredOptions = useMemo(() => {
+    const lq = query.toLowerCase().trim();
+    if (!lq) return modelOptions;
+    return modelOptions.filter((m) => {
+      const target = `${m.id} ${m.name} ${m.vendor ?? ""}`.toLowerCase();
+      return target.includes(lq);
+    });
+  }, [modelOptions, query]);
 
-    if (!pendingModelId) {
-      if (activeModelOptions.length > 0 && !pendingModelId) {
-        setPendingModelId(activeModelOptions[0].value);
-      }
-      return;
-    }
-
-    // Smart Alias Logic
-    // If model already exists, suggest a unique alias
-    const existing = cachedModels.filter((m) => m.model_id === pendingModelId);
-    if (existing.length > 0) {
-      // Find a unique name based on the model ID or the last alias
-      // We prefer to base it on the model_id to keep it clean, or the last user alias?
-      // User request: "Smart deduplication... subsequent added items should automatically take '123'"
-
-      // Simple strategy: Start with ModelID (or last alias base) and increment
-      const baseName = pendingModelId;
-
-      let counter = 1;
-      let candidate = `${baseName} ${counter}`;
-
-      // Check uniqueness against ALL cached models custom_labels and names
-      const layoutNames = new Set(
-        cachedModels.map((m) => m.custom_label || m.model_id),
-      );
-
-      while (layoutNames.has(candidate)) {
-        counter++;
-        candidate = `${baseName} ${counter}`;
-      }
-      setCustomTypeLabel(candidate);
-    } else {
-      setCustomTypeLabel(""); // Reset if new
-    }
-  }, [pendingModelId, isManualModelEntry, cachedModels, activeModelOptions]);
-
-  const handleAddModel = async () => {
-    if (!pendingModelId || !providerState.selectedProviderId) return;
-
-    let extra_params = undefined;
-    if (extraParamsStr.trim()) {
-      try {
-        // Simple attempt to fix "loose" JSON (e.g. {key: "value"} or single quotes)
-        let fixedJson = extraParamsStr.trim();
-        if (fixedJson.startsWith("{") && fixedJson.endsWith("}")) {
-          fixedJson = fixedJson
-            // Fix unquoted keys
-            .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
-            // Fix single quotes to double quotes (naive check)
-            .replace(/'/g, '"')
-            // Remove trailing commas
-            .replace(/,\s*([}\]])/g, "$1");
-        }
-        extra_params = JSON.parse(fixedJson);
-        if (typeof extra_params !== "object" || extra_params === null) {
-          throw new Error("Must be a JSON object");
-        }
-
-        // If object is empty, set to undefined
-        if (Object.keys(extra_params).length === 0) {
-          extra_params = undefined;
-        }
-      } catch (e) {
-        // If fixing fails, try the original one last time before giving up
-        try {
-          extra_params = JSON.parse(extraParamsStr);
-          if (typeof extra_params === "object" && extra_params !== null) {
-            if (Object.keys(extra_params).length === 0) {
-              extra_params = undefined;
-            }
-          }
-        } catch (e2) {
-          toast.error(
-            t(
-              "settings.postProcessing.models.selectModel.invalidJson",
-              "Invalid JSON format",
-            ),
-          );
-          return;
-        }
-      }
-    }
-
-    const newModel: CachedModel = {
-      id: buildCacheId(pendingModelId, providerState.selectedProviderId),
-      name: pendingModelId,
-      model_type: pendingModelType,
-      provider_id: providerState.selectedProviderId,
-      model_id: pendingModelId,
-      added_at: new Date().toISOString(),
-      custom_label: customTypeLabel.trim() || undefined,
-      is_thinking_model: thinkingEnabled,
-      prompt_message_role: developerMode ? "developer" : "system",
-      extra_params,
-      model_family: modelFamily,
-    };
-    await addCachedModel(newModel);
-    onOpenChange(false);
-    setPendingModelId("");
-    setCustomTypeLabel("");
-    setIsManualModelEntry(false);
-    setExtraParamsStr("");
-    setThinkingEnabled(false);
-    setSupportsThinking(false);
-    setDeveloperMode(false);
-    setModelFamily(undefined);
-    setAutoDetectedFamily(undefined);
+  const toggleModel = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
+
+  const handleAddSelected = async () => {
+    if (selectedIds.size === 0 || !providerState.selectedProviderId) return;
+    setAdding(true);
+    try {
+      for (const modelId of selectedIds) {
+        const freeModel = freeModels.find((m) => m.id === modelId);
+        const modelType =
+          freeModel?.capabilities === "speech2text" ? "asr" : "text";
+
+        const newModel: CachedModel = {
+          id: buildCacheId(modelId, providerState.selectedProviderId),
+          name: modelId,
+          model_type: modelType,
+          provider_id: providerState.selectedProviderId,
+          model_id: modelId,
+          added_at: new Date().toISOString(),
+          is_thinking_model: false,
+          prompt_message_role: "system",
+        };
+        await addCachedModel(newModel);
+      }
+      toast.success(
+        t("settings.postProcessing.models.addedCount", {
+          count: selectedIds.size,
+          defaultValue: `Added ${selectedIds.size} model(s)`,
+        }),
+      );
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const isLoading = source === "free" ? freeLoading : isFetchingModels;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content maxWidth="500px">
+      <Dialog.Content maxWidth="720px">
         <Dialog.Title>
           {t("settings.postProcessing.models.selectModel.title")}
         </Dialog.Title>
-        <Dialog.Description size="2" mb="4" color="gray">
-          {t("settings.postProcessing.models.selectModel.description")}
-        </Dialog.Description>
 
-        <Flex direction="column" gap="5">
-          {/* Input Method Tabs */}
-          <Tabs.Root
-            defaultValue="select"
-            value={isManualModelEntry ? "custom" : "select"}
-            onValueChange={(val) => {
-              setIsManualModelEntry(val === "custom");
-              if (val === "select")
-                setPendingModelId(activeModelOptions[0]?.value || null);
-              else setPendingModelId("");
-            }}
-          >
-            <Tabs.List className="w-full grid grid-cols-2 mb-4">
-              <Tabs.Trigger value="select">
+        <Flex direction="column" gap="3" className="mt-3">
+          {/* Toolbar: source toggle + search */}
+          <Flex gap="2" align="center" wrap="wrap">
+            <SegmentedControl.Root
+              size="1"
+              value={source}
+              onValueChange={(v) => {
+                setSource(v as "free" | "api");
+                setSelectedIds(new Set());
+              }}
+            >
+              <SegmentedControl.Item value="free">
                 {t(
-                  "settings.postProcessing.models.selectModel.segmented.selectModel",
+                  "settings.postProcessing.models.selectModel.sourceBuiltin",
+                  "Free",
                 )}
-              </Tabs.Trigger>
-              <Tabs.Trigger value="custom">
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="api">
                 {t(
-                  "settings.postProcessing.models.selectModel.segmented.customModel",
+                  "settings.postProcessing.models.selectModel.sourceOfficial",
+                  "API",
                 )}
-              </Tabs.Trigger>
-            </Tabs.List>
+              </SegmentedControl.Item>
+            </SegmentedControl.Root>
 
-            <Tabs.Content value="select">
-              <Box className="space-y-4">
-                {/* Source toggle */}
-                <SegmentedControl.Root
-                  size="1"
-                  value={useOfficialModels ? "api" : "free"}
-                  onValueChange={(v) => setUseOfficialModels(v === "api")}
-                >
-                  <SegmentedControl.Item value="free">
-                    {t("settings.postProcessing.models.selectModel.sourceBuiltin", "Free")}
-                  </SegmentedControl.Item>
-                  <SegmentedControl.Item value="api">
-                    {t("settings.postProcessing.models.selectModel.sourceOfficial", "API")}
-                  </SegmentedControl.Item>
-                </SegmentedControl.Root>
-
-                <Box>
-                  <Text size="2" mb="2" weight="medium" color="gray">
-                    {t(
-                      "settings.postProcessing.models.selectModel.selectLabel",
-                      "Available Models",
-                    )}
-                  </Text>
-                  <Dropdown
-                    options={activeModelOptions}
-                    selectedValue={pendingModelId || undefined}
-                    onSelect={setPendingModelId}
-                    placeholder={
-                      availableModels.length === 0
-                        ? t(
-                            "settings.postProcessing.models.selectModel.placeholderEmpty",
-                          )
-                        : t(
-                            "settings.postProcessing.models.selectModel.placeholder",
-                          )
-                    }
-                    className="w-full"
-                    enableFilter={true}
-                  />
-                </Box>
-              </Box>
-            </Tabs.Content>
-
-            <Tabs.Content value="custom">
-              <Box className="space-y-4">
-                <Box>
-                  <Text size="2" mb="2" weight="medium" color="gray">
-                    {t(
-                      "settings.postProcessing.models.selectModel.manualLabel",
-                      "Model ID / Name",
-                    )}
-                  </Text>
-                  <TextField.Root
-                    placeholder={t(
-                      "settings.postProcessing.models.selectModel.customModelPlaceholder",
-                    )}
-                    value={pendingModelId || ""}
-                    onChange={(e) => setPendingModelId(e.target.value)}
-                  />
-                </Box>
-              </Box>
-            </Tabs.Content>
-          </Tabs.Root>
-
-          {/* Model Family */}
-          {pendingModelId && (
-            <Box>
-              <Text size="2" weight="medium" mb="2" color="gray">
-                {t("settings.postProcessing.models.modelFamily", "模型系列")}
-              </Text>
-              <Select.Root
-                value={modelFamily || "__unknown__"}
-                onValueChange={(v) =>
-                  setModelFamily(v === "__unknown__" ? undefined : v)
+            <Box className="min-w-[160px] flex-1">
+              <TextField.Root
+                size="2"
+                placeholder={t(
+                  "settings.postProcessing.models.searchPlaceholder",
+                  "Search...",
+                )}
+                value={query}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setQuery(e.target.value)
                 }
               >
-                <Select.Trigger className="w-full" />
-                <Select.Content>
-                  <Select.Item value="__unknown__">
-                    {t("settings.postProcessing.models.familyUnknown", "未知")}
-                  </Select.Item>
-                  {modelFamilies.map(([id, displayName]) => (
-                    <Select.Item key={id} value={id}>
-                      {displayName}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Root>
-              {autoDetectedFamily && modelFamily === autoDetectedFamily && (
-                <Text size="1" color="blue" mt="1" as="div">
-                  {t(
-                    "settings.postProcessing.models.familyAutoDetected",
-                    "已自动识别，将应用推荐参数",
-                  )}
-                </Text>
-              )}
+                <TextField.Slot>
+                  <IconSearch size={14} className="text-(--gray-9)" />
+                </TextField.Slot>
+              </TextField.Root>
             </Box>
-          )}
 
-          {/* Model Type - Always visible but styled better */}
-          <Box>
-            <Text size="2" weight="medium" mb="2" color="gray">
-              {t("settings.postProcessing.models.selectModel.usageTypeTitle")}
-            </Text>
-            <Grid columns="3" gap="2">
-              {localizedModelTypeOptions.map((o) => {
-                const isSelected = pendingModelType === o.value;
-                return (
-                  <Box
-                    key={o.value}
-                    onClick={() => setPendingModelType(o.value as ModelType)}
-                    className={`
-                        cursor-pointer rounded-lg border p-3 transition-colors text-center
-                        ${
-                          isSelected
-                            ? "bg-(--accent-3) border-(--accent-8)"
-                            : "bg-(--gray-2) border-transparent hover:bg-(--gray-4)"
-                        }
-                      `}
-                  >
-                    <Flex direction="column" align="center" gap="1">
-                      {/* Icons could be mapped here if imports available, for now text */}
-                      <Text
-                        size="2"
-                        weight={isSelected ? "bold" : "medium"}
-                        color={isSelected ? "blue" : undefined}
-                      >
-                        {o.label}
-                      </Text>
-                      <Text size="1" color="gray" style={{ lineHeight: "1.2" }}>
-                        {o.hint}
-                      </Text>
-                    </Flex>
-                  </Box>
-                );
-              })}
-            </Grid>
+            {selectedIds.size > 0 && (
+              <Badge variant="solid" size="1">
+                {selectedIds.size}
+              </Badge>
+            )}
+          </Flex>
+
+          {/* Model grid */}
+          <Box className="max-h-[420px] overflow-y-auto rounded-[var(--radius-3)] border border-(--gray-a4) p-2">
+            {isLoading ? (
+              <Flex align="center" justify="center" py="8">
+                <Text size="2" color="gray">
+                  {t("common.loading")}
+                </Text>
+              </Flex>
+            ) : filteredOptions.length === 0 ? (
+              <Flex align="center" justify="center" py="8">
+                <Text size="2" color="gray">
+                  {query
+                    ? t(
+                        "settings.postProcessing.models.empty.noMatch",
+                        "No models match your search.",
+                      )
+                    : t(
+                        "settings.postProcessing.models.selectModel.noFreeModels",
+                        "No models available.",
+                      )}
+                </Text>
+              </Flex>
+            ) : (
+              <Grid columns="3" gap="2">
+                {filteredOptions.map((model) => {
+                  const isSelected = selectedIds.has(model.id);
+                  const alreadyAdded = configuredIds.has(model.id);
+                  const stats = getModelStats(
+                    model.id,
+                    providerState.selectedProviderId,
+                    speedStats,
+                  );
+
+                  return (
+                    <Box
+                      key={model.id}
+                      onClick={() => toggleModel(model.id)}
+                      className={[
+                        "relative cursor-pointer select-none rounded-[var(--radius-2)] border px-3 py-2 transition-all duration-100",
+                        isSelected
+                          ? "border-(--accent-a7) bg-(--accent-a2)"
+                          : "border-(--gray-a4) hover:border-(--gray-a6) hover:bg-(--gray-a2)",
+                      ].join(" ")}
+                    >
+                      <Flex direction="column" gap="1">
+                        {/* Row 1: checkbox + name */}
+                        <Flex align="center" gap="2" className="min-w-0">
+                          <Checkbox
+                            size="1"
+                            checked={isSelected}
+                            tabIndex={-1}
+                            className="shrink-0 pointer-events-none"
+                          />
+                          <Text size="2" weight="medium" className="truncate">
+                            {model.name}
+                          </Text>
+                        </Flex>
+
+                        {/* Row 2: meta info */}
+                        <Flex
+                          align="center"
+                          gap="2"
+                          className="min-h-[16px] pl-5"
+                        >
+                          {model.capabilities && (
+                            <Text size="1" className="text-(--gray-8)">
+                              {model.capabilities}
+                            </Text>
+                          )}
+                          {alreadyAdded && (
+                            <Badge variant="soft" color="gray" size="1">
+                              {t(
+                                "settings.postProcessing.models.selectModel.alreadyAdded",
+                                "Added",
+                              )}
+                            </Badge>
+                          )}
+                          {source === "free" && (
+                            <Badge variant="soft" color="green" size="1">
+                              Free
+                            </Badge>
+                          )}
+                        </Flex>
+
+                        {/* Row 3: usage stats (if available) */}
+                        {stats && stats.totalCalls > 0 && (
+                          <Flex align="center" gap="2.5" className="pl-5">
+                            <Flex align="center" gap="0.5">
+                              <IconActivity
+                                size={10}
+                                strokeWidth={2.5}
+                                className="text-(--gray-8)"
+                              />
+                              <Text
+                                size="1"
+                                className="text-(--gray-9) tabular-nums"
+                              >
+                                {formatCalls(stats.totalCalls)}
+                              </Text>
+                            </Flex>
+                            {stats.avgSpeed > 0 && (
+                              <Flex align="center" gap="0.5">
+                                <IconFlame
+                                  size={10}
+                                  strokeWidth={2.5}
+                                  className="text-amber-500/50"
+                                />
+                                <Text
+                                  size="1"
+                                  className="text-(--gray-9) tabular-nums"
+                                >
+                                  {formatSpeed(stats.avgSpeed)}
+                                  <span className="ml-0.5 opacity-40">t/s</span>
+                                </Text>
+                              </Flex>
+                            )}
+                          </Flex>
+                        )}
+                      </Flex>
+                    </Box>
+                  );
+                })}
+              </Grid>
+            )}
           </Box>
 
-          {/* Advanced Settings (Collapsible) */}
-          <Box>
-            <details className="group">
-              <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors select-none py-2">
-                <IconSettings size={16} />
-                {t(
-                  "settings.postProcessing.models.selectModel.advancedOptions",
-                  "Advanced Configuration",
-                )}
-                <IconChevronDown
-                  size={14}
-                  className="group-open:rotate-180 transition-transform"
-                />
-              </summary>
-              <Box className="pt-2 pl-2 border-l-2 border-(--gray-4) space-y-4 ml-2 mt-1">
-                {/* Model Nickname */}
-                <Box>
-                  <Text size="2" weight="medium" mb="1" as="div">
-                    {t(
-                      "settings.postProcessing.models.selectModel.customLabel",
-                    )}
-                  </Text>
-                  <TextField.Root
-                    placeholder={t(
-                      "settings.postProcessing.models.selectModel.customLabelPlaceholder",
-                    )}
-                    value={customTypeLabel}
-                    onChange={(e) => setCustomTypeLabel(e.target.value)}
-                  />
-                </Box>
-
-                {/* Thinking Mode Toggle */}
-                {supportsThinking && (
-                  <Flex align="center" justify="between">
-                    <Text size="2" weight="medium">
-                      {t(
-                        "settings.postProcessing.models.thinkingMode.label",
-                        "Thinking",
-                      )}
-                    </Text>
-                    <Switch
-                      size="1"
-                      checked={thinkingEnabled}
-                      onCheckedChange={(checked) => {
-                        const enabled = !!checked;
-                        setThinkingEnabled(enabled);
-                        updateThinkingConfig(pendingModelId, enabled);
-                      }}
-                    />
-                  </Flex>
-                )}
-
-                {/* Developer Mode Toggle */}
-                <Flex align="center" justify="between">
-                  <Text size="2" weight="medium">
-                    {t(
-                      "settings.postProcessing.models.promptMessageRole.label",
-                      "Developer mode",
-                    )}
-                  </Text>
-                  <Switch
-                    size="1"
-                    checked={developerMode}
-                    onCheckedChange={(checked) => setDeveloperMode(!!checked)}
-                  />
-                </Flex>
-
-                {/* Extra Params (JSON) */}
-                <Box>
-                  <Flex justify="between" align="baseline" mb="1">
-                    <Text size="2" weight="medium">
-                      {t(
-                        "settings.postProcessing.models.selectModel.extraParams",
-                      )}
-                    </Text>
-                    <Text size="1" color="gray">
-                      JSON
-                    </Text>
-                  </Flex>
-                  <TextArea
-                    placeholder='e.g. {"extended_thinking": true}'
-                    value={extraParamsStr}
-                    onChange={(e) => setExtraParamsStr(e.target.value)}
-                    className="font-mono text-xs bg-(--gray-2)"
-                    rows={3}
-                  />
-                  <Text size="1" color="gray" mt="1">
-                    Supports simplified format like &#123;key: "value"&#125;
-                  </Text>
-                </Box>
-              </Box>
-            </details>
-          </Box>
-
-          <Flex justify="end" gap="3" mt="2">
+          {/* Footer: cancel + add */}
+          <Flex justify="end" gap="3">
             <Dialog.Close>
               <Button variant="soft" color="gray">
                 {t("common.cancel")}
@@ -665,10 +420,11 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
             </Dialog.Close>
             <Button
               variant="solid"
-              onClick={handleAddModel}
-              disabled={!pendingModelId || isUpdating("cached_model_add")}
+              onClick={handleAddSelected}
+              disabled={selectedIds.size === 0 || adding}
             >
-              {t("common.add")}
+              {t("common.add")}{" "}
+              {selectedIds.size > 0 && `(${selectedIds.size})`}
             </Button>
           </Flex>
         </Flex>

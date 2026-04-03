@@ -41,9 +41,19 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   const thinking = React.useMemo(() => {
     const p = extraParams;
     // {"thinking": {"type": "enabled"}}
-    if (p.thinking && typeof p.thinking === "object" && (p.thinking as any).type === "enabled") return true;
+    if (
+      p.thinking &&
+      typeof p.thinking === "object" &&
+      (p.thinking as any).type === "enabled"
+    )
+      return true;
     // {"chat_template_kwargs": {"enable_thinking": true}}
-    if (p.chat_template_kwargs && typeof p.chat_template_kwargs === "object" && (p.chat_template_kwargs as any).enable_thinking === true) return true;
+    if (
+      p.chat_template_kwargs &&
+      typeof p.chat_template_kwargs === "object" &&
+      (p.chat_template_kwargs as any).enable_thinking === true
+    )
+      return true;
     // {"enable_thinking": true}
     if (p.enable_thinking === true) return true;
     // {"reasoning_effort": "high"}
@@ -138,7 +148,6 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
       })
       .catch(() => setPresetParamsHint(""));
   }, [modelFamily]);
-
 
   const handleSave = async () => {
     setSaving(true);
@@ -255,7 +264,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 variant="soft"
                 color="blue"
                 onClick={() => {
-                  const params = thinkingEnableParams || { thinking: { type: "enabled" } };
+                  const params = thinkingEnableParams || {
+                    thinking: { type: "enabled" },
+                  };
                   setExtraParams((prev) => ({ ...prev, ...params }));
                 }}
               >
@@ -267,7 +278,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
                 variant="soft"
                 color="orange"
                 onClick={() => {
-                  const params = thinkingDisableParams || { thinking: { type: "disabled" } };
+                  const params = thinkingDisableParams || {
+                    thinking: { type: "disabled" },
+                  };
                   setExtraParams((prev) => ({ ...prev, ...params }));
                 }}
               >
