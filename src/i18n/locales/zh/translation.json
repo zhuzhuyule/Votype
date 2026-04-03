@@ -534,7 +534,23 @@
         "inputOutput": "输入与输出",
         "transcriptionOptimization": "转录优化",
         "dataManagement": "数据管理",
+        "network": "网络",
         "debug": "调试选项"
+      },
+      "proxy": {
+        "add": "添加代理",
+        "server": "服务器",
+        "username": "用户名",
+        "usernamePlaceholder": "可选",
+        "password": "密码",
+        "passwordPlaceholder": "可选",
+        "enable": "启用",
+        "globalHint": "默认应用到所有供应商",
+        "testAndSave": "测试并保存",
+        "testSuccess": "代理连接成功",
+        "testFailed": "代理连接失败：{{error}}",
+        "remove": "移除",
+        "removed": "代理已移除"
       },
       "modelUnload": {
         "description": "当模型在指定时间内未使用时自动释放 GPU/CPU 内存",
@@ -988,6 +1004,10 @@
             "namePlaceholder": "我的提供商",
             "v1AutoAppended": "已自动追加 /v1",
             "v1MissingWarning": "URL 可能缺少版本路径（如 /v1）"
+          },
+          "proxy": {
+            "useProxy": "代理",
+            "noGlobalProxy": "请先在高级设置中配置代理"
           },
           "group": {
             "recommended": "推荐",

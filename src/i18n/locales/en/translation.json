@@ -495,8 +495,24 @@
         "dataManagement": "Data Management",
         "debug": "Debug Options",
         "inputOutput": "Input & Output",
+        "network": "Network",
         "startup": "Startup & Behavior",
         "transcriptionOptimization": "Transcription Optimization"
+      },
+      "proxy": {
+        "add": "Add proxy",
+        "server": "Server",
+        "username": "Username",
+        "usernamePlaceholder": "Optional",
+        "password": "Password",
+        "passwordPlaceholder": "Optional",
+        "enable": "Enable",
+        "globalHint": "Apply to all providers by default",
+        "testAndSave": "Test & Save",
+        "testSuccess": "Proxy connection successful",
+        "testFailed": "Proxy connection failed: {{error}}",
+        "remove": "Remove",
+        "removed": "Proxy removed"
       },
       "modelUnload": {
         "description": "Automatically free GPU/CPU memory when the model hasn't been used for the specified time",
@@ -950,6 +966,10 @@
             "namePlaceholder": "My Provider",
             "v1AutoAppended": "/v1 was automatically appended",
             "v1MissingWarning": "URL may be missing version path (e.g. /v1)"
+          },
+          "proxy": {
+            "useProxy": "Proxy",
+            "noGlobalProxy": "Configure proxy in Advanced settings first"
           },
           "group": {
             "recommended": "Recommended",
