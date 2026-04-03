@@ -361,33 +361,6 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
     }
 }
 
-/// Shows the rewrite overlay window during voice rewrite from the review window
-pub fn show_rewrite_overlay(app_handle: &AppHandle, rewrite_count: u32) {
-    let settings = settings::get_settings(app_handle);
-    if settings.overlay_position == OverlayPosition::None {
-        return;
-    }
-
-    let refocus_target = focused_votype_window_label(app_handle);
-
-    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
-        // Only update position if the overlay is not currently visible
-        if !overlay_window.is_visible().unwrap_or(false) {
-            update_overlay_position(app_handle);
-        }
-
-        let _ = overlay_window.set_ignore_cursor_events(true);
-        let _ = overlay_window.show();
-
-        // On Windows, aggressively re-assert "topmost" in the native Z-order after showing
-        #[cfg(target_os = "windows")]
-        force_overlay_topmost(&overlay_window);
-
-        emit_overlay_state_with_count_and_retry(overlay_window, "rewrite", rewrite_count);
-        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
-    }
-}
-
 /// Shows the LLM processing overlay window
 pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
     let settings = settings::get_settings(app_handle);
