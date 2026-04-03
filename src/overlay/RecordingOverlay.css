@@ -191,7 +191,6 @@
   padding: 2px 0 0;
   min-width: 200px;
   width: 100%;
-  gap: 10px;
 }
 
 .skill-confirmation .skill-name {
@@ -199,18 +198,19 @@
   font-weight: 700;
   color: #fff;
   background: var(--overlay-accent-color, #faa2ca);
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
-  margin: 2px 0;
+  margin-right: 5px;
 }
 
 .skill-confirm-prompt {
+  margin-bottom: 10px;
   gap: 4px;
   text-align: center;
 }
 
 .skill-confirmation .prompt-text {
-  font-size: 13px;
+  font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
   font-weight: 400;
   line-height: 1.6;
@@ -278,15 +278,19 @@
   width: 100%;
   border-radius: 8px;
   overflow: hidden;
+  margin-top: 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .skill-content-titlebar {
   padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.12);
+  background: #2a2a2e;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   gap: 6px;
   flex-wrap: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .skill-content-dots {
@@ -316,17 +320,17 @@
 }
 
 .skill-content-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
+  margin-left: 8px;
   color: rgba(255, 255, 255, 0.8);
   white-space: nowrap;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  flex: 1;
-  text-align: center;
 }
 
 .skill-content-meta {
-  font-size: 10px;
+  font-size: 11px;
+  margin-left: 8px;
   color: rgba(255, 255, 255, 0.4);
   white-space: nowrap;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -335,7 +339,7 @@
 
 .skill-content-body {
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #1e1e22;
 }
 
 .skill-content-text {

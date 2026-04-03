@@ -723,7 +723,6 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               direction="column"
               className="skill-confirmation"
               align="center"
-              gap="2"
             >
               {/* Prompt + skill name + confirm text — tight group */}
               <Flex
@@ -773,9 +772,8 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               {/* Selected content mini-window */}
               {skillConfirmation.selected_text_len != null && (
                 <Box className="skill-content-window">
-                  <Flex
+                  <Box
                     className="skill-content-titlebar"
-                    align="center"
                   >
                     <Box className="skill-content-dots">
                       <span />
@@ -790,7 +788,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                         count: skillConfirmation.selected_text_len,
                       })}
                     </Text>
-                  </Flex>
+                  </Box>
                   {skillConfirmation.selected_text_preview && (
                     <Box className="skill-content-body">
                       <Text className="skill-content-text">
