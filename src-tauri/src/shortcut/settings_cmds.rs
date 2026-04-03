@@ -1242,3 +1242,19 @@ pub fn set_provider_use_proxy(
         Err(format!("Provider not found: {}", provider_id))
     }
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn test_proxy_connection(proxy_url: String) -> Result<(), String> {
+    let client = crate::http_client::build_http_client(
+        Some(&proxy_url),
+        std::time::Duration::from_secs(10),
+        reqwest::header::HeaderMap::new(),
+    )?;
+    client
+        .get("https://www.google.com/generate_204")
+        .send()
+        .await
+        .map_err(|e| format!("{}", e))?;
+    Ok(())
+}

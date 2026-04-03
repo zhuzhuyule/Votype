@@ -137,6 +137,14 @@ async setProviderUseProxy(providerId: string, useProxy: boolean) : Promise<Resul
     else return { status: "error", error: e  as any };
 }
 },
+async testProxyConnection(proxyUrl: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_proxy_connection", { proxyUrl }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changePostProcessModelSetting(providerId: string, model: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_post_process_model_setting", { providerId, model }) };
