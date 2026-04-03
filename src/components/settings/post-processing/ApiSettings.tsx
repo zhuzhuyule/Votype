@@ -427,7 +427,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     addCustomProvider,
     refreshSettings,
     setProxySettings,
-    setProviderProxyOverride,
+    setProviderUseProxy,
   } = useSettings();
 
   const [localBaseUrl, setLocalBaseUrl] = useState(state.baseUrl);
@@ -1348,29 +1348,31 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               </Button>
             </Box>
 
-            {/* Advanced Settings (models endpoint + proxy) */}
+            {/* Use Proxy Switch */}
+            {settings?.proxy_url && (
+              <Flex align="center" gap="2" className="mt-4">
+                <Switch
+                  size="1"
+                  checked={state.selectedProvider?.use_proxy ?? true}
+                  onCheckedChange={(checked: boolean) =>
+                    setProviderUseProxy(state.selectedProviderId, checked)
+                  }
+                />
+                <Text size="2" color="gray">
+                  {t(
+                    "settings.postProcessing.api.proxy.useProxy",
+                    "Use proxy",
+                  )}
+                </Text>
+              </Flex>
+            )}
+
+            {/* Advanced Settings (models endpoint) */}
             <Box className="mt-4">
               <AdvancedSettings
                 modelsEndpoint={state.modelsEndpoint || ""}
                 onModelsEndpointChange={state.handleModelsEndpointChange}
                 providerId={state.selectedProviderId}
-                proxyUrl={settings?.proxy_url ?? ""}
-                proxyGlobalEnabled={settings?.proxy_global_enabled ?? false}
-                onProxyUrlChange={(url) =>
-                  setProxySettings(
-                    url || null,
-                    settings?.proxy_global_enabled ?? false,
-                  )
-                }
-                onProxyGlobalEnabledChange={(enabled) =>
-                  setProxySettings(settings?.proxy_url ?? null, enabled)
-                }
-                proxyOverride={
-                  state.selectedProvider?.proxy_override ?? "follow_global"
-                }
-                onProxyOverrideChange={(value) =>
-                  setProviderProxyOverride(state.selectedProviderId, value)
-                }
               />
             </Box>
           </Box>

@@ -1,5 +1,5 @@
-import { Flex } from "@radix-ui/themes";
-import React from "react";
+import { Flex, Switch, Text, TextField } from "@radix-ui/themes";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -16,10 +16,55 @@ import { WordCorrectionThreshold } from "../debug/WordCorrectionThreshold";
 
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { expertMode } = useSettings();
+  const { expertMode, settings, setProxySettings } = useSettings();
+  const [localProxyUrl, setLocalProxyUrl] = useState(
+    settings?.proxy_url ?? "",
+  );
+
+  useEffect(() => {
+    setLocalProxyUrl(settings?.proxy_url ?? "");
+  }, [settings?.proxy_url]);
+
+  const proxyGlobalEnabled = settings?.proxy_global_enabled ?? false;
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
+      {/* Network / Proxy */}
+      <SettingsGroup title={t("settings.advanced.groups.network", "Network")}>
+        <Flex direction="column" gap="3" p="2">
+          <Flex direction="column" gap="1">
+            <Text size="2" weight="medium" color="gray">
+              {t("settings.advanced.proxy.url", "Proxy URL")}
+            </Text>
+            <TextField.Root
+              value={localProxyUrl}
+              onChange={(e) => setLocalProxyUrl(e.target.value)}
+              onBlur={() =>
+                setProxySettings(localProxyUrl || null, proxyGlobalEnabled)
+              }
+              placeholder="http://127.0.0.1:7890"
+              variant="surface"
+              className="max-w-md"
+            />
+          </Flex>
+          <Flex align="center" gap="2">
+            <Switch
+              size="1"
+              checked={proxyGlobalEnabled}
+              onCheckedChange={(checked: boolean) =>
+                setProxySettings(settings?.proxy_url ?? null, checked)
+              }
+            />
+            <Text size="2" color="gray">
+              {t(
+                "settings.advanced.proxy.globalEnabled",
+                "Enable proxy globally",
+              )}
+            </Text>
+          </Flex>
+        </Flex>
+      </SettingsGroup>
+
       {/* Transcription Optimization - Expert only */}
       {expertMode && (
         <SettingsGroup

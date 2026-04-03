@@ -189,10 +189,7 @@ export const PostProcessProviderSchema = z.object({
     .enum(["openai_compatible", "anthropic"])
     .optional()
     .default("openai_compatible"),
-  proxy_override: z
-    .enum(["follow_global", "force_enabled", "force_disabled"])
-    .optional()
-    .default("follow_global"),
+  use_proxy: z.boolean().optional().default(true),
 });
 
 export type PostProcessProvider = z.infer<typeof PostProcessProviderSchema>;
@@ -262,7 +259,10 @@ export const SettingsSchema = z.object({
     .array(PostProcessProviderSchema)
     .optional()
     .default([]),
-  post_process_api_keys: z.record(z.array(KeyEntrySchema)).optional().default({}),
+  post_process_api_keys: z
+    .record(z.array(KeyEntrySchema))
+    .optional()
+    .default({}),
   post_process_models: z.record(z.string()).optional().default({}),
   post_process_provider_avatar_overrides: z
     .record(z.string())

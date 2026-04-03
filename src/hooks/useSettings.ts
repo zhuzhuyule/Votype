@@ -89,9 +89,18 @@ interface UseSettingsReturn {
   ) => Promise<{ content?: string; reasoning_content?: string }>;
   updateModelChain: (field: string, chain: ModelChain | null) => Promise<void>;
   getPostProcessApiKeys: (providerId: string) => Promise<KeyEntry[]>;
-  setPostProcessApiKeys: (providerId: string, keys: KeyEntry[]) => Promise<void>;
-  setProxySettings: (url: string | null, globalEnabled: boolean) => Promise<void>;
-  setProviderProxyOverride: (providerId: string, proxyOverride: string) => Promise<void>;
+  setPostProcessApiKeys: (
+    providerId: string,
+    keys: KeyEntry[],
+  ) => Promise<void>;
+  setProxySettings: (
+    url: string | null,
+    globalEnabled: boolean,
+  ) => Promise<void>;
+  setProviderUseProxy: (
+    providerId: string,
+    useProxy: boolean,
+  ) => Promise<void>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
@@ -144,6 +153,6 @@ export const useSettings = (): UseSettingsReturn => {
     getPostProcessApiKeys: store.getPostProcessApiKeys,
     setPostProcessApiKeys: store.setPostProcessApiKeys,
     setProxySettings: store.setProxySettings,
-    setProviderProxyOverride: store.setProviderProxyOverride,
+    setProviderUseProxy: store.setProviderUseProxy,
   };
 };

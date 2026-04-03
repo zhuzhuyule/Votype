@@ -1224,10 +1224,10 @@ pub fn set_proxy_settings(
 
 #[tauri::command]
 #[specta::specta]
-pub fn set_provider_proxy_override(
+pub fn set_provider_use_proxy(
     app: AppHandle,
     provider_id: String,
-    proxy_override: crate::settings::ProxyOverride,
+    use_proxy: bool,
 ) -> Result<(), String> {
     let mut settings = crate::settings::get_settings(&app);
     if let Some(provider) = settings
@@ -1235,7 +1235,7 @@ pub fn set_provider_proxy_override(
         .iter_mut()
         .find(|p| p.id == provider_id)
     {
-        provider.proxy_override = proxy_override;
+        provider.use_proxy = use_proxy;
         crate::settings::write_settings(&app, settings);
         Ok(())
     } else {

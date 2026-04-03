@@ -227,18 +227,9 @@ pub struct PostProcessProvider {
     /// e.g. {"X-Custom-Auth": "token123"}
     #[serde(default)]
     pub custom_headers: Option<HashMap<String, String>>,
-    /// Per-provider proxy override: follow global, force on, or force off
-    #[serde(default)]
-    pub proxy_override: ProxyOverride,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default, Type)]
-#[serde(rename_all = "snake_case")]
-pub enum ProxyOverride {
-    #[default]
-    FollowGlobal,
-    ForceEnabled,
-    ForceDisabled,
+    /// Whether this provider should use the global proxy
+    #[serde(default = "default_true")]
+    pub use_proxy: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -1154,7 +1145,7 @@ fn builtin_post_process_provider(
         models_endpoint: models_endpoint.map(str::to_string),
         supports_structured_output,
         custom_headers: None,
-        proxy_override: ProxyOverride::default(),
+        use_proxy: true,
     }
 }
 
@@ -1194,7 +1185,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
             custom_headers: None,
-            proxy_override: ProxyOverride::default(),
+            use_proxy: true,
         },
         builtin_post_process_provider(
             "iflow",
@@ -1237,7 +1228,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             models_endpoint: None,
             supports_structured_output: false,
             custom_headers: None,
-            proxy_override: ProxyOverride::default(),
+            use_proxy: true,
         });
     }
 
@@ -2210,20 +2201,16 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 }
 
 /// Resolve effective proxy URL for a provider based on global and per-provider settings.
+/// Returns Some(url) only when: global proxy is enabled AND provider use_proxy is true AND url is set.
 pub fn resolve_proxy(settings: &AppSettings, provider: &PostProcessProvider) -> Option<String> {
-    let proxy_url = settings.proxy_url.as_deref().filter(|u| !u.is_empty())?;
-
-    let use_proxy = match provider.proxy_override {
-        ProxyOverride::ForceEnabled => true,
-        ProxyOverride::ForceDisabled => false,
-        ProxyOverride::FollowGlobal => settings.proxy_global_enabled,
-    };
-
-    if use_proxy {
-        Some(proxy_url.to_string())
-    } else {
-        None
+    if !settings.proxy_global_enabled || !provider.use_proxy {
+        return None;
     }
+    settings
+        .proxy_url
+        .as_deref()
+        .filter(|u| !u.is_empty())
+        .map(|u| u.to_string())
 }
 
 #[cfg(test)]

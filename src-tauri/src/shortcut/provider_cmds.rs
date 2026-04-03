@@ -486,7 +486,7 @@ pub fn add_custom_provider(
         models_endpoint,
         supports_structured_output: false,
         custom_headers: None,
-        proxy_override: settings::ProxyOverride::default(),
+        use_proxy: true,
     };
     settings.post_process_providers.push(provider.clone());
     settings::write_settings(&app, settings);

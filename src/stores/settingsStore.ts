@@ -101,9 +101,18 @@ interface SettingsStore {
   removeMultiModelPostProcessItem: (itemId: string) => Promise<void>;
   updateModelChain: (field: string, chain: ModelChain | null) => Promise<void>;
   getPostProcessApiKeys: (providerId: string) => Promise<KeyEntry[]>;
-  setPostProcessApiKeys: (providerId: string, keys: KeyEntry[]) => Promise<void>;
-  setProxySettings: (url: string | null, globalEnabled: boolean) => Promise<void>;
-  setProviderProxyOverride: (providerId: string, proxyOverride: string) => Promise<void>;
+  setPostProcessApiKeys: (
+    providerId: string,
+    keys: KeyEntry[],
+  ) => Promise<void>;
+  setProxySettings: (
+    url: string | null,
+    globalEnabled: boolean,
+  ) => Promise<void>;
+  setProviderUseProxy: (
+    providerId: string,
+    useProxy: boolean,
+  ) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -927,7 +936,9 @@ export const useSettingsStore = create<SettingsStore>()(
     },
 
     getPostProcessApiKeys: async (providerId) => {
-      const keys: KeyEntry[] = await invoke("get_post_process_api_keys", { providerId });
+      const keys: KeyEntry[] = await invoke("get_post_process_api_keys", {
+        providerId,
+      });
       return keys;
     },
 
@@ -947,8 +958,11 @@ export const useSettingsStore = create<SettingsStore>()(
       await get().refreshSettings();
     },
 
-    setProviderProxyOverride: async (providerId, proxyOverride) => {
-      await invoke("set_provider_proxy_override", { providerId, proxyOverride });
+    setProviderUseProxy: async (providerId, useProxy) => {
+      await invoke("set_provider_use_proxy", {
+        providerId,
+        useProxy,
+      });
       await get().refreshSettings();
     },
 
