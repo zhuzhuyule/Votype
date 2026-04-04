@@ -1915,9 +1915,12 @@ impl ShortcutAction for TranscribeAction {
                                                 effective_prompt_id.clone(),
                                                 None, // auto_selected_id comes via event later
                                             );
+                                            // Hide overlay now — review window takes over
+                                            utils::hide_recording_overlay(&ah_clone);
+                                            change_tray_icon(&ah_clone, TrayIconState::Idle);
                                         }
-                                        utils::hide_recording_overlay(&ah_clone);
-                                        change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                        // When !should_review, keep overlay visible during
+                                        // multi-model execution; it will be hidden after paste.
 
                                         // Start multi-model processing (streams results via events)
                                         info!(
@@ -1985,6 +1988,13 @@ impl ShortcutAction for TranscribeAction {
                                                     return;
                                                 }
 
+                                                // Hide overlay immediately (no fade) for snappy auto-confirm
+                                                if let Some(w) = ah_clone.get_webview_window("recording_overlay") {
+                                                    let _ = w.emit("hide-overlay", ());
+                                                    let _ = w.hide();
+                                                }
+                                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+
                                                 let ah_inner = ah_clone.clone();
                                                 ah_clone
                                                     .run_on_main_thread(move || {
@@ -1995,6 +2005,10 @@ impl ShortcutAction for TranscribeAction {
                                                     .unwrap_or_else(|e| {
                                                         error!("Failed to run paste on main thread: {:?}", e)
                                                     });
+                                            } else {
+                                                // No usable result — hide overlay anyway
+                                                utils::hide_recording_overlay(&ah_clone);
+                                                change_tray_icon(&ah_clone, TrayIconState::Idle);
                                             }
                                         }
                                         return;
@@ -2238,14 +2252,19 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
+                            // Hide overlay before paste — immediate hide for snappy feel
+                            if !error_shown {
+                                if let Some(w) = ah_clone.get_webview_window("recording_overlay") {
+                                    let _ = w.emit("hide-overlay", ());
+                                    let _ = w.hide();
+                                }
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                            }
+
                             let ah_clone_inner = ah_clone.clone();
                             ah_clone
                                 .run_on_main_thread(move || {
-                                    // If no error needs to be shown, hide immediately.
-                                    if !error_shown {
-                                        utils::hide_recording_overlay(&ah_clone_inner);
-                                        change_tray_icon(&ah_clone_inner, TrayIconState::Idle);
-                                    } else {
+                                    if error_shown {
                                         let ah_delayed = ah_clone_inner.clone();
                                         std::thread::spawn(move || {
                                             std::thread::sleep(Duration::from_millis(3000));

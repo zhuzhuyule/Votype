@@ -50,6 +50,13 @@ pub async fn unified_post_process(
         settings.length_routing_enabled && settings.post_process_intent_model.is_some();
     let is_short_text = char_count <= settings.length_routing_threshold;
 
+    // Show LLM processing overlay as soon as post-processing begins,
+    // so the user sees "在润色中" during intent analysis and model selection,
+    // not just during the final LLM call.
+    if show_overlay {
+        show_llm_processing_overlay(app_handle);
+    }
+
     let pipeline_start = std::time::Instant::now();
     let mut decision = crate::managers::pipeline_log::PipelineDecisionRecord {
         input_length: char_count,
@@ -326,10 +333,6 @@ pub async fn unified_post_process(
         } else {
             None
         };
-
-        if show_overlay {
-            show_llm_processing_overlay(app_handle);
-        }
 
         let lite_start = std::time::Instant::now();
 
@@ -1074,7 +1077,7 @@ pub async fn maybe_post_process_transcription(
     settings: &AppSettings,
     transcription: &str,
     streaming_transcription: Option<&str>,
-    show_overlay: bool,
+    _show_overlay: bool,
     override_prompt_id: Option<String>,
     app_name: Option<String>,
     window_title: Option<String>,
@@ -1554,8 +1557,6 @@ pub async fn maybe_post_process_transcription(
     if !effective_skill_mode && !transcription.trim().is_empty() && has_selected_text {
         info!("[PostProcess] Entering intent detection mode (has selected text)");
 
-        // Switch overlay to LLM processing state and notify UI
-        crate::overlay::show_llm_processing_overlay(app_handle);
         app_handle.emit("post-process-status", "正在润色中...").ok();
 
         if let Some(default_prompt) = &initial_prompt_opt {
@@ -1932,10 +1933,6 @@ pub async fn maybe_post_process_transcription(
                 );
             }
         };
-
-        if show_overlay {
-            show_llm_processing_overlay(app_handle);
-        }
 
         // Keep prompt template as-is, only replace metadata variables
         // (PromptBuilder handles variable detection, stripping, and data injection)
