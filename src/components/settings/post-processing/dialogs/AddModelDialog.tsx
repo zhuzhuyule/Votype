@@ -23,12 +23,11 @@ import {
 import { useSettings } from "../../../../hooks/useSettings";
 import type { CachedModel } from "../../../../lib/types";
 import type { PostProcessProviderState } from "../../PostProcessingSettingsApi/usePostProcessProviderState";
+import { PROVIDER_TEMPLATES } from "../providerTemplates";
 
-// Map our provider IDs to the worker API's provider field
-const PROVIDER_TO_WORKER: Record<string, string> = {
-  gitee: "gitee",
-  xingchen: "xunfei",
-};
+function resolveTemplateMeta(providerId: string) {
+  return PROVIDER_TEMPLATES.find((t) => t.id === providerId) ?? null;
+}
 
 interface FreeModel {
   id: string;
@@ -111,6 +110,10 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
   const [freeLoading, setFreeLoading] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const templateMeta = resolveTemplateMeta(providerState.selectedProviderId);
+  const freeModelProviderKey = templateMeta?.freeModelProvider ?? null;
+  const hasFreeModels = freeModelProviderKey !== null;
+
   const cachedModels = settings?.cached_models ?? [];
   const configuredIds = useMemo(
     () => new Set(cachedModels.map((m) => m.model_id)),
@@ -122,12 +125,11 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     if (open) {
       setSelectedIds(new Set());
       setQuery("");
+      setSource(freeModelProviderKey ? "free" : "api");
 
       // Load free models
       setFreeLoading(true);
-      const workerProvider =
-        PROVIDER_TO_WORKER[providerState.selectedProviderId] ?? null;
-      invoke<FreeModel[]>("get_free_models", { provider: workerProvider })
+      invoke<FreeModel[]>("get_free_models", { provider: freeModelProviderKey })
         .then(setFreeModels)
         .catch(() => setFreeModels([]))
         .finally(() => setFreeLoading(false));
@@ -238,27 +240,29 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
         <Flex direction="column" gap="3" className="mt-3">
           {/* Toolbar: source toggle + search */}
           <Flex gap="2" align="center" wrap="wrap">
-            <SegmentedControl.Root
-              size="1"
-              value={source}
-              onValueChange={(v) => {
-                setSource(v as "free" | "api");
-                setSelectedIds(new Set());
-              }}
-            >
-              <SegmentedControl.Item value="free">
-                {t(
-                  "settings.postProcessing.models.selectModel.sourceBuiltin",
-                  "Free",
-                )}
-              </SegmentedControl.Item>
-              <SegmentedControl.Item value="api">
-                {t(
-                  "settings.postProcessing.models.selectModel.sourceOfficial",
-                  "API",
-                )}
-              </SegmentedControl.Item>
-            </SegmentedControl.Root>
+            {hasFreeModels && (
+              <SegmentedControl.Root
+                size="1"
+                value={source}
+                onValueChange={(v) => {
+                  setSource(v as "free" | "api");
+                  setSelectedIds(new Set());
+                }}
+              >
+                <SegmentedControl.Item value="free">
+                  {t(
+                    "settings.postProcessing.models.selectModel.sourceBuiltin",
+                    "Free",
+                  )}
+                </SegmentedControl.Item>
+                <SegmentedControl.Item value="api">
+                  {t(
+                    "settings.postProcessing.models.selectModel.sourceOfficial",
+                    "API",
+                  )}
+                </SegmentedControl.Item>
+              </SegmentedControl.Root>
+            )}
 
             <Box className="min-w-[160px] flex-1">
               <TextField.Root
@@ -352,6 +356,11 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                           {model.capabilities && (
                             <Text size="1" className="text-(--gray-8)">
                               {model.capabilities}
+                            </Text>
+                          )}
+                          {source === "free" && templateMeta?.label && (
+                            <Text size="1" className="text-(--gray-8)">
+                              · {templateMeta.label}
                             </Text>
                           )}
                           {alreadyAdded && (
