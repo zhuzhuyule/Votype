@@ -6,6 +6,7 @@ export type ProviderTemplate = {
   modelsEndpoint?: string;
   websiteUrl?: string;
   signupUrl?: string;
+  freeModelProvider?: string;
 };
 
 export const RECOMMENDED_PROVIDER_TEMPLATE_IDS = [
@@ -131,6 +132,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     modelsEndpoint: "/models",
     websiteUrl: "https://ai.gitee.com",
     signupUrl: "https://ai.gitee.com/dashboard/settings/tokens",
+    freeModelProvider: "gitee",
   },
   {
     id: "minimax",
@@ -252,6 +254,7 @@ export const PROVIDER_TEMPLATES: ProviderTemplate[] = [
     modelsEndpoint: "/models",
     websiteUrl: "https://maas.xfyun.cn",
     signupUrl: "https://maas.xfyun.cn/modelService",
+    freeModelProvider: "xunfei",
   },
   {
     id: "zhipu",
