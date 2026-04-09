@@ -189,84 +189,39 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
 }
 
 /// Get the currently selected text from the active application.
-/// On macOS, tries Accessibility API first, falls back to clipboard method.
-/// On other platforms, uses clipboard method.
-pub fn get_selected_text(app_handle: &AppHandle) -> Result<String, String> {
+/// On macOS, uses Accessibility API (AXSelectedText).
+/// On other platforms, returns empty (UI Automation / AT-SPI2 not yet implemented).
+pub fn get_selected_text(_app_handle: &AppHandle) -> Result<String, String> {
     #[cfg(target_os = "macos")]
     {
-        // Try Accessibility API first
         match get_selected_text_via_accessibility() {
             Ok(text) if !text.is_empty() => {
                 info!(
                     "[Selection] Got text via Accessibility API: {} chars",
                     text.len()
                 );
-                return Ok(text);
+                Ok(text)
             }
             Ok(_) => {
-                info!("[Selection] Accessibility API returned empty, trying clipboard method");
+                info!("[Selection] Accessibility API returned empty, no text selected");
+                Ok(String::new())
             }
             Err(e) => {
                 info!(
-                    "[Selection] Accessibility API failed ({}), trying clipboard method",
+                    "[Selection] Accessibility API failed ({}), assuming no text selected",
                     e
                 );
+                Ok(String::new())
             }
         }
     }
-
-    // Fallback: use clipboard method
-    get_selected_text_via_clipboard(app_handle)
-}
-
-/// Get selected text using the clipboard method:
-/// 1. Save current clipboard content
-/// 2. Send Cmd+C / Ctrl+C to copy selection
-/// 3. Read clipboard content
-/// 4. Restore original clipboard content
-fn get_selected_text_via_clipboard(app_handle: &AppHandle) -> Result<String, String> {
-    let clipboard = app_handle.clipboard();
-
-    // Save current clipboard content
-    let original_content = clipboard.read_text().unwrap_or_default();
-
-    // Clear clipboard to detect if copy succeeded
-    clipboard
-        .write_text("")
-        .map_err(|e| format!("Failed to clear clipboard: {}", e))?;
-
-    // Get enigo for sending keystrokes
-    let enigo_state = app_handle
-        .try_state::<EnigoState>()
-        .ok_or("Enigo state not initialized")?;
-    let mut enigo_opt = enigo_state.get_or_init()?;
-    let enigo = enigo_opt
-        .as_mut()
-        .ok_or("Failed to initialize input system")?;
-
-    // Send copy keystroke
-    #[cfg(target_os = "macos")]
-    input::send_copy_cmd_c(enigo)?;
     #[cfg(not(target_os = "macos"))]
-    input::send_copy_ctrl_c(enigo)?;
-
-    // Wait for clipboard to update
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
-    // Read the selected text
-    let selected_text = clipboard.read_text().unwrap_or_default();
-
-    // Restore original clipboard content
-    clipboard
-        .write_text(&original_content)
-        .map_err(|e| format!("Failed to restore clipboard: {}", e))?;
-
-    info!(
-        "[Selection] Got text via clipboard method: {} chars",
-        selected_text.len()
-    );
-    Ok(selected_text)
+    {
+        info!("[Selection] Selected text detection not supported on this platform");
+        Ok(String::new())
+    }
 }
+
 
 fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), String> {
     match key_type {
