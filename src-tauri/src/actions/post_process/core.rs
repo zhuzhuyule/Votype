@@ -175,7 +175,7 @@ pub(crate) fn classify_http_status_for_failover(
 ) -> crate::provider_gateway::AttemptError {
     let detail = detail.into();
     match status {
-        401 | 403 | 429 => crate::provider_gateway::AttemptError::Retryable {
+        429 => crate::provider_gateway::AttemptError::Retryable {
             status: Some(status),
             detail,
         },
@@ -411,6 +411,14 @@ mod tests {
             classify_http_status_for_failover(400, "bad request"),
             AttemptError::Fatal {
                 status: Some(400),
+                ..
+            }
+        ));
+
+        assert!(matches!(
+            classify_http_status_for_failover(401, "unauthorized"),
+            AttemptError::Fatal {
+                status: Some(401),
                 ..
             }
         ));
