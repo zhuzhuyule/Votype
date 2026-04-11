@@ -17,6 +17,7 @@ struct ProviderState {
     last_error_code: Vec<Option<u16>>,
     last_used_at: Vec<Option<Instant>>,
     last_success_at: Vec<Option<Instant>>,
+    cooldown_fallback_used: bool,
 }
 
 impl ProviderState {
@@ -28,6 +29,7 @@ impl ProviderState {
             last_error_code: vec![None; key_count],
             last_used_at: vec![None; key_count],
             last_success_at: vec![None; key_count],
+            cooldown_fallback_used: false,
         }
     }
 
@@ -100,17 +102,14 @@ impl KeySelector {
         // Keep runtime vectors aligned with the current key list.
         provider_state.resize(keys.len());
 
+        if attempted_indices.is_empty() {
+            // A fresh request starts with no prior attempts.
+            provider_state.cooldown_fallback_used = false;
+        }
+
         let now = Instant::now();
         let count = enabled.len();
         let start = provider_state.index % count;
-        let cooldown_fallback_used = attempted_indices.iter().any(|idx| {
-            provider_state
-                .cooldowns
-                .get(*idx)
-                .and_then(|c| *c)
-                .map(|expiry| now < expiry)
-                .unwrap_or(false)
-        });
 
         // Try round-robin, skipping attempted and cooled-down keys.
         for offset in 0..count {
@@ -141,7 +140,7 @@ impl KeySelector {
             }
         }
 
-        if cooldown_fallback_used {
+        if provider_state.cooldown_fallback_used {
             return None;
         }
 
@@ -166,6 +165,7 @@ impl KeySelector {
             if let Some(last_used_at) = provider_state.last_used_at.get_mut(idx) {
                 *last_used_at = Some(now);
             }
+            provider_state.cooldown_fallback_used = true;
             AcquiredKey {
                 key_index: idx,
                 api_key: key,
@@ -291,6 +291,27 @@ mod tests {
         let attempted = HashSet::from([first.key_index]);
         let second = selector.acquire_next_key("provider-d", &keys, &attempted);
         assert!(second.is_none());
+    }
+
+    #[test]
+    fn acquire_next_key_still_allows_fallback_after_healthy_attempt_later_enters_cooldown() {
+        let selector = KeySelector::new();
+        let keys = vec![key("k0"), key("k1")];
+
+        let first = selector
+            .acquire_next_key("provider-e", &keys, &HashSet::new())
+            .expect("expected a healthy key");
+        assert_eq!(first.key_index, 0);
+        assert!(!first.from_cooldown_fallback);
+
+        selector.mark_error("provider-e", first.key_index, 429);
+        selector.mark_error("provider-e", 1, 403);
+
+        let second = selector
+            .acquire_next_key("provider-e", &keys, &HashSet::from([first.key_index]))
+            .expect("expected cooldown fallback after healthy attempt failed");
+        assert!(second.from_cooldown_fallback);
+        assert_eq!(second.key_index, 1);
     }
 
     #[test]
