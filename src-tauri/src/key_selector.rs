@@ -103,6 +103,14 @@ impl KeySelector {
         let now = Instant::now();
         let count = enabled.len();
         let start = provider_state.index % count;
+        let cooldown_fallback_used = attempted_indices.iter().any(|idx| {
+            provider_state
+                .cooldowns
+                .get(*idx)
+                .and_then(|c| *c)
+                .map(|expiry| now < expiry)
+                .unwrap_or(false)
+        });
 
         // Try round-robin, skipping attempted and cooled-down keys.
         for offset in 0..count {
@@ -131,6 +139,10 @@ impl KeySelector {
                     from_cooldown_fallback: false,
                 });
             }
+        }
+
+        if cooldown_fallback_used {
+            return None;
         }
 
         // All keys in cooldown — pick the one expiring soonest
@@ -261,6 +273,24 @@ mod tests {
         assert_eq!(acquired.key_index, 1);
         assert_eq!(acquired.api_key, "k1");
         assert!(acquired.from_cooldown_fallback);
+    }
+
+    #[test]
+    fn acquire_next_key_returns_none_after_consuming_single_cooldown_fallback() {
+        let selector = KeySelector::new();
+        let keys = vec![key("k0"), key("k1")];
+
+        selector.mark_error("provider-d", 0, 429);
+        selector.mark_error("provider-d", 1, 403);
+
+        let first = selector
+            .acquire_next_key("provider-d", &keys, &HashSet::new())
+            .expect("expected the earliest-expiring cooldown key");
+        assert!(first.from_cooldown_fallback);
+
+        let attempted = HashSet::from([first.key_index]);
+        let second = selector.acquire_next_key("provider-d", &keys, &attempted);
+        assert!(second.is_none());
     }
 
     #[test]
