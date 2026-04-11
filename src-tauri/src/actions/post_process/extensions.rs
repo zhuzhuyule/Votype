@@ -5,7 +5,7 @@ use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use log::{error, info};
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time::{sleep_until, Instant as TokioInstant};
@@ -463,10 +463,7 @@ pub async fn multi_post_process_transcription(
         if strategy == "manual" && auto_selected_id.is_none() {
             if let Some(ref preferred_id) = preferred_model_id {
                 if result.ready && result.error.is_none() && &result.id == preferred_id {
-                    info!(
-                        "[MultiModel] Manual mode favorite arrived: {}",
-                        result.id
-                    );
+                    info!("[MultiModel] Manual mode favorite arrived: {}", result.id);
                     auto_selected_id = Some(result.id.clone());
                     let _ = _app_handle.emit(
                         "multi-post-process-auto-selected",
@@ -648,18 +645,6 @@ async fn execute_single_model_post_process(
         }
     };
 
-    // Get API key via rotation
-    let key_selector = _app_handle.state::<crate::key_selector::KeySelector>();
-    let keys = settings
-        .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
-    let (key_index, api_key) = match key_selector.next_key(&provider.id, &keys) {
-        Some((idx, key)) => (idx, key.to_string()),
-        None => (0, String::new()),
-    };
-
     // Resolve convention-based references
     let app_category = app_name
         .map(crate::app_category::from_app_name)
@@ -817,18 +802,13 @@ async fn execute_single_model_post_process(
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::AUTHORIZATION,
-        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
-            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
-    );
-    headers.insert(
+    let mut base_headers = reqwest::header::HeaderMap::new();
+    base_headers.insert(
         reqwest::header::CONTENT_TYPE,
         reqwest::header::HeaderValue::from_static("application/json"),
     );
     if provider.id == "anthropic" {
-        headers.insert(
+        base_headers.insert(
             "anthropic-version",
             reqwest::header::HeaderValue::from_static("2023-06-01"),
         );
@@ -839,7 +819,7 @@ async fn execute_single_model_post_process(
                 reqwest::header::HeaderName::from_bytes(k.as_bytes()),
                 reqwest::header::HeaderValue::from_str(v),
             ) {
-                headers.insert(name, val);
+                base_headers.insert(name, val);
             }
         }
     }
@@ -849,7 +829,7 @@ async fn execute_single_model_post_process(
                 reqwest::header::HeaderName::from_bytes(k.as_bytes()),
                 reqwest::header::HeaderValue::from_str(v),
             ) {
-                headers.insert(name, val);
+                base_headers.insert(name, val);
             }
         }
     }
@@ -858,117 +838,218 @@ async fn execute_single_model_post_process(
     let timeout_secs = if is_thinking_model { 120 } else { 60 };
 
     let effective_proxy = crate::settings::resolve_proxy(settings, &provider);
-    let http_client = match crate::http_client::build_http_client(
-        effective_proxy.as_deref(),
-        std::time::Duration::from_secs(timeout_secs),
-        headers,
-    ) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("[MultiModel] Failed to create HTTP client: {:?}", e);
-            return (None, Some(format!("Client creation failed: {:?}", e)), None);
-        }
-    };
+    let max_attempts = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .map(|keys| {
+            keys.iter()
+                .filter(|entry| entry.enabled && !entry.key.is_empty())
+                .count()
+                .clamp(1, 3)
+        })
+        .unwrap_or(1);
+    let last_error = Arc::new(Mutex::new(None::<String>));
 
-    let resp = match http_client.post(&url).json(&body).send().await {
-        Ok(r) => r,
-        Err(e) => {
-            error!("[MultiModel] LLM request failed: {:?}", e);
-            return (None, Some(format!("LLM request failed: {:?}", e)), None);
-        }
-    };
+    let outcome = crate::provider_gateway::execute_with_failover(
+        _app_handle,
+        settings,
+        crate::provider_gateway::ExecutionPlan {
+            provider_id: provider.id.clone(),
+            cached_model_id: item.id.clone(),
+            remote_model_id: model.clone(),
+            max_attempts,
+        },
+        {
+            let provider = provider.clone();
+            let model = model.clone();
+            let item_id = item.id.clone();
+            let url = url.clone();
+            let body = body.clone();
+            let base_headers = base_headers.clone();
+            let effective_proxy = effective_proxy.clone();
+            let last_error = Arc::clone(&last_error);
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        if matches!(status.as_u16(), 429 | 401 | 403) {
-            key_selector.mark_error(&provider.id, key_index, status.as_u16());
+            move |api_key| {
+                let api_key = api_key.to_string();
+                let provider = provider.clone();
+                let model = model.clone();
+                let item_id = item_id.clone();
+                let url = url.clone();
+                let body = body.clone();
+                let mut headers = base_headers.clone();
+                let effective_proxy = effective_proxy.clone();
+                let last_error = Arc::clone(&last_error);
+
+                async move {
+                    headers.insert(
+                        reqwest::header::AUTHORIZATION,
+                        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
+                            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
+                    );
+
+                    let http_client = match crate::http_client::build_http_client(
+                        effective_proxy.as_deref(),
+                        std::time::Duration::from_secs(timeout_secs),
+                        headers,
+                    ) {
+                        Ok(client) => client,
+                        Err(e) => {
+                            let detail = format!("Client creation failed: {:?}", e);
+                            error!("[MultiModel] {}", detail);
+                            *last_error.lock().unwrap() = Some(detail.clone());
+                            return Err(crate::provider_gateway::AttemptError::Fatal {
+                                status: None,
+                                detail,
+                            });
+                        }
+                    };
+
+                    let resp = match http_client.post(&url).json(&body).send().await {
+                        Ok(resp) => resp,
+                        Err(e) => {
+                            let detail = format!("LLM request failed: {:?}", e);
+                            error!("[MultiModel] {}", detail);
+                            *last_error.lock().unwrap() = Some(detail.clone());
+                            return Err(crate::provider_gateway::AttemptError::Retryable {
+                                status: None,
+                                detail,
+                            });
+                        }
+                    };
+
+                    if !resp.status().is_success() {
+                        let status = resp.status();
+                        let error_text = resp.text().await.unwrap_or_default();
+                        let detail = format!("API error ({}): {}", status, error_text);
+                        error!("[MultiModel] {}", detail);
+                        *last_error.lock().unwrap() = Some(detail.clone());
+                        return Err(super::core::classify_http_status_for_failover(
+                            status.as_u16(),
+                            detail,
+                        ));
+                    }
+
+                    let json_resp: serde_json::Value = match resp.json().await {
+                        Ok(json_resp) => json_resp,
+                        Err(e) => {
+                            let detail = format!("Response parse failed: {:?}", e);
+                            error!("[MultiModel] {}", detail);
+                            *last_error.lock().unwrap() = Some(detail.clone());
+                            return Err(crate::provider_gateway::AttemptError::Fatal {
+                                status: None,
+                                detail,
+                            });
+                        }
+                    };
+                    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed)
+                        && log::log_enabled!(log::Level::Debug)
+                    {
+                        if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
+                            log::debug!(
+                                "[MultiModel] ResponseBody item_id={} provider={} model={}:\n{}",
+                                item_id,
+                                provider.id,
+                                model,
+                                pretty_resp
+                            );
+                        }
+                    }
+
+                    let message_obj = &json_resp["choices"][0]["message"];
+                    let raw_content = message_obj["content"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .replace('\u{200B}', "")
+                        .replace('\u{200C}', "")
+                        .replace('\u{200D}', "")
+                        .replace('\u{FEFF}', "");
+
+                    let reasoning = message_obj["reasoning_content"]
+                        .as_str()
+                        .or_else(|| message_obj["reasoning"].as_str())
+                        .or_else(|| message_obj["thinking"].as_str());
+                    let has_think_tags =
+                        raw_content.contains("<think>") || raw_content.contains("</think>");
+                    let is_thinking = reasoning.is_some() || has_think_tags;
+
+                    let text = super::core::extract_llm_text(&raw_content);
+
+                    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+                        info!(
+                            "[MultiModel] Model {} completed: len={} thinking={} reasoning_len={}",
+                            item_id,
+                            text.len(),
+                            is_thinking,
+                            reasoning.map(|r| r.len()).unwrap_or(0),
+                        );
+                        info!(
+                            "[MultiModel] FinalResult item_id={} provider={} model={}",
+                            item_id, provider.id, model
+                        );
+                        super::core::preview_multiline(
+                            "MultiModelResponseContentRaw",
+                            &raw_content,
+                        );
+                        if let Some(reasoning_text) = reasoning {
+                            super::core::preview_multiline(
+                                "MultiModelResponseReasoning",
+                                reasoning_text,
+                            );
+                        }
+                        if text != raw_content {
+                            super::core::preview_multiline("MultiModelResponseText", &text);
+                        }
+                    }
+
+                    let token_count = json_resp
+                        .get("usage")
+                        .and_then(|u| u.get("total_tokens"))
+                        .and_then(|t| t.as_i64())
+                        .or_else(|| {
+                            tiktoken_rs::cl100k_base().ok().map(|bpe| {
+                                let prompt_tokens =
+                                    bpe.encode_with_special_tokens(
+                                        &serde_json::to_string(&body).unwrap_or_default(),
+                                    )
+                                    .len() as i64;
+                                let response_tokens =
+                                    bpe.encode_with_special_tokens(&text).len() as i64;
+                                prompt_tokens + response_tokens
+                            })
+                        });
+
+                    Ok((text, token_count))
+                }
+            }
+        },
+    )
+    .await;
+
+    match outcome {
+        crate::provider_gateway::ExecutionOutcome::Success((text, token_count)) => {
+            (Some(text), None, token_count)
         }
-        let error_text = resp.text().await.unwrap_or_default();
-        error!("[MultiModel] API error ({}): {}", status, error_text);
-        return (
-            None,
-            Some(format!("API error ({}): {}", status, error_text)),
-            None,
-        );
+        crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => {
+            (None, Some(detail), None)
+        }
+        crate::provider_gateway::ExecutionOutcome::Exhausted {
+            provider_id,
+            attempts,
+            last_error: attempt_error,
+        } => {
+            let fallback = match attempt_error {
+                crate::provider_gateway::AttemptError::Retryable { detail, .. }
+                | crate::provider_gateway::AttemptError::Fatal { detail, .. } => detail,
+            };
+            let detail = last_error.lock().unwrap().clone().unwrap_or_else(|| {
+                format!(
+                    "Provider {} exhausted after {} attempts: {}",
+                    provider_id, attempts, fallback
+                )
+            });
+            (None, Some(detail), None)
+        }
     }
-
-    let json_resp: serde_json::Value = match resp.json().await {
-        Ok(j) => j,
-        Err(e) => {
-            error!("[MultiModel] Failed to parse response: {:?}", e);
-            return (None, Some(format!("Response parse failed: {:?}", e)), None);
-        }
-    };
-    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed)
-        && log::log_enabled!(log::Level::Debug)
-    {
-        if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
-            log::debug!(
-                "[MultiModel] ResponseBody item_id={} provider={} model={}:\n{}",
-                item.id,
-                provider.id,
-                model,
-                pretty_resp
-            );
-        }
-    }
-
-    let message_obj = &json_resp["choices"][0]["message"];
-    let raw_content = message_obj["content"]
-        .as_str()
-        .unwrap_or_default()
-        .replace('\u{200B}', "")
-        .replace('\u{200C}', "")
-        .replace('\u{200D}', "")
-        .replace('\u{FEFF}', "");
-
-    // Detect thinking mode from response
-    let reasoning = message_obj["reasoning_content"]
-        .as_str()
-        .or_else(|| message_obj["reasoning"].as_str())
-        .or_else(|| message_obj["thinking"].as_str());
-    let has_think_tags = raw_content.contains("<think>") || raw_content.contains("</think>");
-    let is_thinking = reasoning.is_some() || has_think_tags;
-
-    let text = super::core::extract_llm_text(&raw_content);
-
-    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
-        info!(
-            "[MultiModel] Model {} completed: len={} thinking={} reasoning_len={}",
-            item.id,
-            text.len(),
-            is_thinking,
-            reasoning.map(|r| r.len()).unwrap_or(0),
-        );
-        info!(
-            "[MultiModel] FinalResult item_id={} provider={} model={}",
-            item.id, provider.id, model
-        );
-        super::core::preview_multiline("MultiModelResponseContentRaw", &raw_content);
-        if let Some(reasoning_text) = reasoning {
-            super::core::preview_multiline("MultiModelResponseReasoning", reasoning_text);
-        }
-        if text != raw_content {
-            super::core::preview_multiline("MultiModelResponseText", &text);
-        }
-    }
-
-    let token_count = json_resp
-        .get("usage")
-        .and_then(|u| u.get("total_tokens"))
-        .and_then(|t| t.as_i64())
-        .or_else(|| {
-            // Fallback: estimate tokens via tiktoken if API didn't return usage
-            tiktoken_rs::cl100k_base().ok().map(|bpe| {
-                let prompt_tokens = bpe
-                    .encode_with_special_tokens(&serde_json::to_string(&body).unwrap_or_default())
-                    .len() as i64;
-                let response_tokens = bpe.encode_with_special_tokens(&text).len() as i64;
-                prompt_tokens + response_tokens
-            })
-        });
-
-    (Some(text), None, token_count)
 }
 
 #[allow(dead_code)]

@@ -20,6 +20,7 @@ mod online_asr;
 mod overlay;
 pub mod phonetic_similarity;
 mod review_window;
+mod provider_gateway;
 mod settings;
 mod shortcut;
 mod signal_handle;

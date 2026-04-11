@@ -10,7 +10,8 @@ use async_openai::types::{
 };
 use log::info;
 use std::collections::HashMap;
-use tauri::{AppHandle, Emitter, Manager};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter};
 
 /// Field name for structured output JSON schema
 const TRANSCRIPTION_FIELD: &str = "transcription";
@@ -46,9 +47,7 @@ pub enum LlmError {
         detail: String,
     },
     /// Apple Intelligence specific error
-    AppleIntelligence {
-        detail: String,
-    },
+    AppleIntelligence { detail: String },
 }
 
 #[allow(dead_code)]
@@ -92,16 +91,35 @@ impl LlmError {
     /// Human-readable error message
     pub fn message(&self) -> String {
         match self {
-            LlmError::ClientInit { provider, model, detail, .. } => {
+            LlmError::ClientInit {
+                provider,
+                model,
+                detail,
+                ..
+            } => {
                 format!("LLM 客户端初始化失败 provider={provider} model={model}: {detail}")
             }
-            LlmError::Network { provider, model, url, detail } => {
+            LlmError::Network {
+                provider,
+                model,
+                url,
+                detail,
+            } => {
                 format!("LLM 网络请求失败 provider={provider} model={model} url={url}: {detail}")
             }
-            LlmError::ApiError { provider, model, status, body } => {
+            LlmError::ApiError {
+                provider,
+                model,
+                status,
+                body,
+            } => {
                 format!("LLM 请求失败 provider={provider} model={model} status={status}: {body}")
             }
-            LlmError::ParseError { provider, model, detail } => {
+            LlmError::ParseError {
+                provider,
+                model,
+                detail,
+            } => {
                 format!("LLM 响应解析失败 provider={provider} model={model}: {detail}")
             }
             LlmError::AppleIntelligence { detail } => {
@@ -149,6 +167,79 @@ fn emit_llm_error(app_handle: &AppHandle, error: &LlmError) {
             "message": error.message(),
         }),
     );
+}
+
+pub(crate) fn classify_http_status_for_failover(
+    status: u16,
+    detail: impl Into<String>,
+) -> crate::provider_gateway::AttemptError {
+    let detail = detail.into();
+    match status {
+        401 | 403 | 429 => crate::provider_gateway::AttemptError::Retryable {
+            status: Some(status),
+            detail,
+        },
+        500..=599 => crate::provider_gateway::AttemptError::Retryable {
+            status: Some(status),
+            detail,
+        },
+        _ => crate::provider_gateway::AttemptError::Fatal {
+            status: Some(status),
+            detail,
+        },
+    }
+}
+
+fn llm_error_to_attempt_error(error: &LlmError) -> crate::provider_gateway::AttemptError {
+    match error {
+        LlmError::ApiError { status, body, .. } => {
+            classify_http_status_for_failover(*status, body.clone())
+        }
+        LlmError::Network { detail, .. } => crate::provider_gateway::AttemptError::Retryable {
+            status: None,
+            detail: detail.clone(),
+        },
+        LlmError::ClientInit { detail, .. }
+        | LlmError::ParseError { detail, .. }
+        | LlmError::AppleIntelligence { detail } => crate::provider_gateway::AttemptError::Fatal {
+            status: None,
+            detail: detail.clone(),
+        },
+    }
+}
+
+fn attempt_error_to_llm_error(
+    provider_id: String,
+    model: &str,
+    url: &str,
+    error: crate::provider_gateway::AttemptError,
+) -> LlmError {
+    match error {
+        crate::provider_gateway::AttemptError::Retryable {
+            status: Some(status),
+            detail,
+        }
+        | crate::provider_gateway::AttemptError::Fatal {
+            status: Some(status),
+            detail,
+        } => LlmError::ApiError {
+            provider: provider_id,
+            model: model.to_string(),
+            status,
+            body: detail,
+        },
+        crate::provider_gateway::AttemptError::Retryable { detail, .. } => LlmError::Network {
+            provider: provider_id,
+            model: model.to_string(),
+            url: url.to_string(),
+            detail,
+        },
+        crate::provider_gateway::AttemptError::Fatal { detail, .. } => LlmError::ClientInit {
+            provider: provider_id,
+            model: model.to_string(),
+            detail,
+        },
+    }
 }
 
 pub(crate) fn preview_multiline(label: &str, content: &str) {
@@ -271,7 +362,8 @@ fn salvage_rewrite_response(content: &str) -> Option<super::RewriteResponse> {
 
 #[cfg(test)]
 mod tests {
-    use super::extract_rewrite_response;
+    use super::{classify_http_status_for_failover, extract_rewrite_response};
+    use crate::provider_gateway::AttemptError;
 
     #[test]
     fn test_extract_rewrite_response_salvages_invalid_json_with_rewritten_text() {
@@ -295,6 +387,33 @@ mod tests {
             parsed.rewritten_text,
             "我怎么看着他这块显示的还是之前你给显示的那种内容呢？没有 token 消耗呢？"
         );
+    }
+
+    #[test]
+    fn classify_http_status_for_failover_marks_retryable_and_fatal_statuses() {
+        assert!(matches!(
+            classify_http_status_for_failover(429, "rate limit"),
+            AttemptError::Retryable {
+                status: Some(429),
+                ..
+            }
+        ));
+
+        assert!(matches!(
+            classify_http_status_for_failover(503, "server unavailable"),
+            AttemptError::Retryable {
+                status: Some(503),
+                ..
+            }
+        ));
+
+        assert!(matches!(
+            classify_http_status_for_failover(400, "bad request"),
+            AttemptError::Fatal {
+                status: Some(400),
+                ..
+            }
+        ));
     }
 }
 
@@ -442,29 +561,6 @@ async fn execute_llm_request_inner(
     }
 
     // Get key via rotation
-    let key_selector = _app_handle.state::<crate::key_selector::KeySelector>();
-    let keys = settings
-        .post_process_api_keys
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
-    let (key_index, api_key) = match key_selector.next_key(&provider.id, &keys) {
-        Some((idx, key)) => (idx, key.to_string()),
-        None => (0, String::new()),
-    };
-
-    let effective_proxy_for_client = crate::settings::resolve_proxy(settings, provider);
-    let _client = match crate::llm_client::create_client(provider, api_key.clone(), effective_proxy_for_client.as_deref()) {
-        Ok(client) => client,
-        Err(e) => {
-            return Err(LlmError::ClientInit {
-                provider: provider.id.clone(),
-                model: model.to_string(),
-                detail: format!("{}", e),
-            });
-        }
-    };
-
     // Build messages list
     let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
     let prompt_message_role =
@@ -634,19 +730,14 @@ async fn execute_llm_request_inner(
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
-    let mut headers = reqwest::header::HeaderMap::new();
-    headers.insert(
-        reqwest::header::AUTHORIZATION,
-        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
-            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
-    );
-    headers.insert(
+    let mut base_headers = reqwest::header::HeaderMap::new();
+    base_headers.insert(
         reqwest::header::CONTENT_TYPE,
         reqwest::header::HeaderValue::from_static("application/json"),
     );
 
     if provider.id == "anthropic" {
-        headers.insert(
+        base_headers.insert(
             "anthropic-version",
             reqwest::header::HeaderValue::from_static("2023-06-01"),
         );
@@ -658,7 +749,7 @@ async fn execute_llm_request_inner(
                 reqwest::header::HeaderName::from_bytes(k.as_bytes()),
                 reqwest::header::HeaderValue::from_str(v),
             ) {
-                headers.insert(name, val);
+                base_headers.insert(name, val);
             }
         }
     }
@@ -669,19 +760,15 @@ async fn execute_llm_request_inner(
                 reqwest::header::HeaderName::from_bytes(k.as_bytes()),
                 reqwest::header::HeaderValue::from_str(v),
             ) {
-                headers.insert(name, val);
+                base_headers.insert(name, val);
             }
         }
     }
-    let sanitized_headers: Vec<(String, String)> = headers
+    let sanitized_headers: Vec<(String, String)> = base_headers
         .iter()
         .map(|(name, value)| {
             let header_name = name.as_str().to_string();
-            let header_value = if header_name.eq_ignore_ascii_case("authorization") {
-                "Bearer ***".to_string()
-            } else {
-                value.to_str().unwrap_or("<non-utf8>").to_string()
-            };
+            let header_value = value.to_str().unwrap_or("<non-utf8>").to_string();
             (header_name, header_value)
         })
         .collect();
@@ -695,154 +782,250 @@ async fn execute_llm_request_inner(
         }
     }
     let effective_proxy = crate::settings::resolve_proxy(settings, provider);
-    let http_client = crate::http_client::build_http_client(
-        effective_proxy.as_deref(),
-        std::time::Duration::from_secs(60),
-        headers,
-    );
+    let max_attempts = settings
+        .post_process_api_keys
+        .get(&provider.id)
+        .map(|keys| {
+            keys.iter()
+                .filter(|entry| entry.enabled && !entry.key.is_empty())
+                .count()
+                .clamp(1, 3)
+        })
+        .unwrap_or(1);
+    let last_error = Arc::new(Mutex::new(None::<LlmError>));
 
-    match http_client {
-        Ok(client) => {
-            match client.post(&url).json(&body).send().await {
-                Ok(resp) => {
-                    if resp.status().is_success() {
-                        match resp.json::<serde_json::Value>().await {
-                            Ok(json_resp) => {
-                                if crate::DEBUG_LOG_POST_PROCESS
-                                    .load(std::sync::atomic::Ordering::Relaxed)
-                                    && log::log_enabled!(log::Level::Debug)
-                                {
-                                    if let Ok(pretty_resp) =
-                                        serde_json::to_string_pretty(&json_resp)
+    let outcome = crate::provider_gateway::execute_with_failover(
+        _app_handle,
+        settings,
+        crate::provider_gateway::ExecutionPlan {
+            provider_id: provider.id.clone(),
+            cached_model_id: cached_model_id.unwrap_or(model).to_string(),
+            remote_model_id: model.to_string(),
+            max_attempts,
+        },
+        {
+            let provider = provider.clone();
+            let model = model.to_string();
+            let url = url.clone();
+            let body = body.clone();
+            let base_headers = base_headers.clone();
+            let effective_proxy = effective_proxy.clone();
+            let last_error = Arc::clone(&last_error);
+
+            move |api_key| {
+                let api_key = api_key.to_string();
+                let provider = provider.clone();
+                let model = model.clone();
+                let url = url.clone();
+                let body = body.clone();
+                let mut headers = base_headers.clone();
+                let effective_proxy = effective_proxy.clone();
+                let last_error = Arc::clone(&last_error);
+
+                async move {
+                    match crate::llm_client::create_client(
+                        &provider,
+                        api_key.clone(),
+                        effective_proxy.as_deref(),
+                    ) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            let error = LlmError::ClientInit {
+                                provider: provider.id.clone(),
+                                model: model.clone(),
+                                detail: format!("{}", e),
+                            };
+                            *last_error.lock().unwrap() = Some(error.clone());
+                            return Err(llm_error_to_attempt_error(&error));
+                        }
+                    }
+
+                    headers.insert(
+                        reqwest::header::AUTHORIZATION,
+                        reqwest::header::HeaderValue::from_str(&format!("Bearer {}", api_key))
+                            .unwrap_or_else(|_| reqwest::header::HeaderValue::from_static("")),
+                    );
+
+                    let http_client = match crate::http_client::build_http_client(
+                        effective_proxy.as_deref(),
+                        std::time::Duration::from_secs(60),
+                        headers,
+                    ) {
+                        Ok(client) => client,
+                        Err(e) => {
+                            let error = LlmError::ClientInit {
+                                provider: provider.id.clone(),
+                                model: model.clone(),
+                                detail: format!("{}", e),
+                            };
+                            *last_error.lock().unwrap() = Some(error.clone());
+                            return Err(llm_error_to_attempt_error(&error));
+                        }
+                    };
+
+                    match http_client.post(&url).json(&body).send().await {
+                        Ok(resp) => {
+                            if !resp.status().is_success() {
+                                let status = resp.status();
+                                let error_text = resp.text().await.unwrap_or_default();
+                                let error = LlmError::ApiError {
+                                    provider: provider.id.clone(),
+                                    model: model.clone(),
+                                    status: status.as_u16(),
+                                    body: error_text.clone(),
+                                };
+                                *last_error.lock().unwrap() = Some(error);
+                                return Err(classify_http_status_for_failover(
+                                    status.as_u16(),
+                                    error_text,
+                                ));
+                            }
+
+                            match resp.json::<serde_json::Value>().await {
+                                Ok(json_resp) => {
+                                    if crate::DEBUG_LOG_POST_PROCESS
+                                        .load(std::sync::atomic::Ordering::Relaxed)
+                                        && log::log_enabled!(log::Level::Debug)
                                     {
-                                        log::debug!(
-                                            "[LLM] ResponseBody (len={}):\n{}",
-                                            pretty_resp.len(),
-                                            pretty_resp
+                                        if let Ok(pretty_resp) =
+                                            serde_json::to_string_pretty(&json_resp)
+                                        {
+                                            log::debug!(
+                                                "[LLM] ResponseBody (len={}):\n{}",
+                                                pretty_resp.len(),
+                                                pretty_resp
+                                            );
+                                        }
+                                    }
+
+                                    let raw_content = &json_resp["choices"][0]["message"]["content"];
+                                    let content = raw_content
+                                        .as_str()
+                                        .unwrap_or_default()
+                                        .replace('\u{200B}', "")
+                                        .replace('\u{200C}', "")
+                                        .replace('\u{200D}', "")
+                                        .replace('\u{FEFF}', "");
+
+                                    let message_obj = &json_resp["choices"][0]["message"];
+                                    let reasoning = message_obj["reasoning_content"]
+                                        .as_str()
+                                        .or_else(|| message_obj["reasoning"].as_str())
+                                        .or_else(|| message_obj["thinking"].as_str());
+                                    let has_think_tags =
+                                        content.contains("<think>") || content.contains("</think>");
+                                    let is_thinking = reasoning.is_some() || has_think_tags;
+
+                                    if crate::DEBUG_LOG_POST_PROCESS
+                                        .load(std::sync::atomic::Ordering::Relaxed)
+                                    {
+                                        info!(
+                                            "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
+                                            model,
+                                            content.len(),
+                                            is_thinking,
+                                            reasoning.map(|r| r.len()).unwrap_or(0)
                                         );
+                                        preview_multiline("ResponseContentRaw", &content);
+                                        if let Some(reasoning_text) = reasoning {
+                                            preview_multiline("ResponseReasoning", reasoning_text);
+                                        }
                                     }
-                                }
-                                // Extract content from OpenAI-compatible response
-                                let raw_content = &json_resp["choices"][0]["message"]["content"];
-                                let content = raw_content
-                                    .as_str()
-                                    .unwrap_or_default()
-                                    .replace('\u{200B}', "") // Zero-Width Space
-                                    .replace('\u{200C}', "") // Zero-Width Non-Joiner
-                                    .replace('\u{200D}', "") // Zero-Width Joiner
-                                    .replace('\u{FEFF}', ""); // Byte Order Mark / Zero-Width No-Break Space
 
-                                // Detect thinking mode from response
-                                let message_obj = &json_resp["choices"][0]["message"];
-                                let reasoning = message_obj["reasoning_content"]
-                                    .as_str()
-                                    .or_else(|| message_obj["reasoning"].as_str())
-                                    .or_else(|| message_obj["thinking"].as_str());
-                                let has_think_tags =
-                                    content.contains("<think>") || content.contains("</think>");
-                                let is_thinking = reasoning.is_some() || has_think_tags;
-
-                                if crate::DEBUG_LOG_POST_PROCESS
-                                    .load(std::sync::atomic::Ordering::Relaxed)
-                                {
-                                    info!(
-                                        "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
-                                        model,
-                                        content.len(),
-                                        is_thinking,
-                                        reasoning.map(|r| r.len()).unwrap_or(0)
-                                    );
-                                    preview_multiline("ResponseContentRaw", &content);
-                                    if let Some(reasoning_text) = reasoning {
-                                        preview_multiline("ResponseReasoning", reasoning_text);
-                                    }
-                                }
-
-                                // When structured output is enabled, try to parse JSON
-                                // and extract the transcription field
-                                let text = if provider.supports_structured_output {
-                                    match serde_json::from_str::<serde_json::Value>(&content) {
-                                        Ok(json) => {
-                                            if let Some(t) = json
-                                                .get(TRANSCRIPTION_FIELD)
-                                                .and_then(|v| v.as_str())
-                                            {
-                                                info!(
-                                                    "[LLM] Structured output extracted '{}' field ({} chars)",
-                                                    TRANSCRIPTION_FIELD,
-                                                    t.len()
-                                                );
-                                                t.to_string()
-                                            } else {
+                                    let text = if provider.supports_structured_output {
+                                        match serde_json::from_str::<serde_json::Value>(&content) {
+                                            Ok(json) => {
+                                                if let Some(t) = json
+                                                    .get(TRANSCRIPTION_FIELD)
+                                                    .and_then(|v| v.as_str())
+                                                {
+                                                    info!(
+                                                        "[LLM] Structured output extracted '{}' field ({} chars)",
+                                                        TRANSCRIPTION_FIELD,
+                                                        t.len()
+                                                    );
+                                                    t.to_string()
+                                                } else {
+                                                    log::warn!(
+                                                        "[LLM] Structured output missing '{}' field, falling back to text extraction",
+                                                        TRANSCRIPTION_FIELD
+                                                    );
+                                                    extract_llm_text(&content)
+                                                }
+                                            }
+                                            Err(_) => {
                                                 log::warn!(
-                                                    "[LLM] Structured output missing '{}' field, falling back to text extraction",
-                                                    TRANSCRIPTION_FIELD
+                                                    "[LLM] Structured output JSON parse failed, falling back to text extraction"
                                                 );
                                                 extract_llm_text(&content)
                                             }
                                         }
-                                        Err(_) => {
-                                            log::warn!(
-                                                "[LLM] Structured output JSON parse failed, falling back to text extraction"
-                                            );
-                                            extract_llm_text(&content)
-                                        }
+                                    } else {
+                                        extract_llm_text(&content)
+                                    };
+
+                                    if text != content
+                                        && crate::DEBUG_LOG_POST_PROCESS
+                                            .load(std::sync::atomic::Ordering::Relaxed)
+                                    {
+                                        preview_multiline("ResponseText", &text);
                                     }
-                                } else {
-                                    extract_llm_text(&content)
-                                };
-                                if text != content
-                                    && crate::DEBUG_LOG_POST_PROCESS
-                                        .load(std::sync::atomic::Ordering::Relaxed)
-                                {
-                                    preview_multiline("ResponseText", &text);
+
+                                    let token_count = json_resp
+                                        .get("usage")
+                                        .and_then(|u| u.get("total_tokens"))
+                                        .and_then(|t| t.as_i64());
+                                    Ok(LlmResponse { text, token_count })
                                 }
-                                let token_count = json_resp
-                                    .get("usage")
-                                    .and_then(|u| u.get("total_tokens"))
-                                    .and_then(|t| t.as_i64());
-                                return Ok(LlmResponse { text, token_count });
-                            }
-                            Err(e) => {
-                                return Err(LlmError::ParseError {
-                                    provider: provider.id.clone(),
-                                    model: model.to_string(),
-                                    detail: format!("{:?}", e),
-                                });
+                                Err(e) => {
+                                    let error = LlmError::ParseError {
+                                        provider: provider.id.clone(),
+                                        model: model.clone(),
+                                        detail: format!("{:?}", e),
+                                    };
+                                    *last_error.lock().unwrap() = Some(error.clone());
+                                    Err(llm_error_to_attempt_error(&error))
+                                }
                             }
                         }
-                    } else {
-                        let status = resp.status();
-                        let error_text = resp.text().await.unwrap_or_default();
-                        // Mark key for cooldown on rate limit or auth errors
-                        if matches!(status.as_u16(), 429 | 401 | 403) {
-                            key_selector.mark_error(&provider.id, key_index, status.as_u16());
+                        Err(err) => {
+                            let error = LlmError::Network {
+                                provider: provider.id.clone(),
+                                model: model.clone(),
+                                url: url.clone(),
+                                detail: format!("{:?}", err),
+                            };
+                            *last_error.lock().unwrap() = Some(error.clone());
+                            Err(llm_error_to_attempt_error(&error))
                         }
-                        return Err(LlmError::ApiError {
-                            provider: provider.id.clone(),
-                            model: model.to_string(),
-                            status: status.as_u16(),
-                            body: error_text,
-                        });
                     }
                 }
-                Err(err) => {
-                    return Err(LlmError::Network {
-                        provider: provider.id.clone(),
-                        model: model.to_string(),
-                        url: url.clone(),
-                        detail: format!("{:?}", err),
-                    });
-                }
             }
-        }
-        Err(e) => {
-            return Err(LlmError::ClientInit {
-                provider: provider.id.clone(),
+        },
+    )
+    .await;
+
+    match outcome {
+        crate::provider_gateway::ExecutionOutcome::Success(response) => Ok(response),
+        crate::provider_gateway::ExecutionOutcome::Fatal {
+            provider_id,
+            detail,
+        } => Err(last_error
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or(LlmError::ClientInit {
+                provider: provider_id,
                 model: model.to_string(),
-                detail: format!("{}", e),
-            });
-        }
+                detail,
+            })),
+        crate::provider_gateway::ExecutionOutcome::Exhausted {
+            provider_id,
+            last_error: attempt_error,
+            ..
+        } => Err(last_error.lock().unwrap().clone().unwrap_or_else(|| {
+            attempt_error_to_llm_error(provider_id, model, &url, attempt_error)
+        })),
     }
 }
 
@@ -861,7 +1044,7 @@ pub async fn execute_llm_request_with_messages(
     _match_type: Option<crate::settings::TitleMatchType>,
     override_extra_params: Option<&HashMap<String, serde_json::Value>>,
 ) -> (Option<String>, bool, Option<String>, Option<i64>) {
-    let result = execute_llm_request_inner(
+    let inner_future = execute_llm_request_inner(
         app_handle,
         settings,
         provider,
@@ -875,8 +1058,25 @@ pub async fn execute_llm_request_with_messages(
         _match_pattern,
         _match_type,
         override_extra_params,
-    )
-    .await;
+    );
+
+    let result = match tokio::time::timeout(std::time::Duration::from_secs(10), inner_future).await
+    {
+        Ok(r) => r,
+        Err(_) => {
+            log::warn!(
+                "[LLM] Request timed out (>10s): provider={} model={}",
+                provider.id,
+                model
+            );
+            Err(LlmError::Network {
+                provider: provider.id.clone(),
+                model: model.to_string(),
+                url: String::new(),
+                detail: "LLM request timed out (>10s)".to_string(),
+            })
+        }
+    };
 
     if let Err(ref e) = result {
         log::error!("LLM request failed: {}", e);
