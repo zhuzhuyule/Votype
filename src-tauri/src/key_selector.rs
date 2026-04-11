@@ -62,19 +62,6 @@ impl KeySelector {
         }
     }
 
-    /// Select the next available key using round-robin.
-    /// Skips disabled and cooled-down keys.
-    /// Returns (key_index_in_original_list, api_key_string).
-    /// If all keys are in cooldown, returns the one closest to expiry.
-    pub fn next_key<'a>(
-        &self,
-        provider_id: &str,
-        keys: &'a [KeyEntry],
-    ) -> Option<(usize, &'a str)> {
-        self.acquire_next_key(provider_id, keys, &HashSet::new())
-            .map(|acquired| (acquired.key_index, acquired.api_key))
-    }
-
     /// Select the next available key for a single request.
     /// Skips disabled, empty, attempted, and cooled-down keys.
     /// If all keys are cooling down, returns the earliest-expiring one once.
