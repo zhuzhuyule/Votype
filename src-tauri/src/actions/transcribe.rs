@@ -6,7 +6,9 @@ use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::overlay::{show_recording_overlay, show_recording_overlay_rewrite, show_transcribing_overlay};
+use crate::overlay::{
+    show_recording_overlay, show_recording_overlay_rewrite, show_transcribing_overlay,
+};
 use crate::settings::get_settings;
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
@@ -1728,7 +1730,7 @@ impl ShortcutAction for TranscribeAction {
                                 let app_policy = matched_rule
                                     .map(|r| r.policy)
                                     .or_else(|| app_profile.map(|p| p.policy))
-                                    .unwrap_or(crate::settings::AppReviewPolicy::Auto);
+                                    .unwrap_or(crate::settings::AppReviewPolicy::Never);
 
                                 let override_prompt_id = matched_rule
                                     .and_then(|r| r.prompt_id.clone())

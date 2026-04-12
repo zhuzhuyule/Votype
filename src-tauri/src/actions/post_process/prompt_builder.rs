@@ -646,18 +646,20 @@ impl<'a> PromptBuilder<'a> {
                     .map(str::trim)
                     .filter(|s| !s.is_empty())
                     .map(str::to_string),
-                FieldTag::CursorContext => self
-                    .cursor_context
-                    .and_then(|ctx| {
-                        let mut parts = Vec::new();
-                        if !ctx.before.is_empty() {
-                            parts.push(format!("--- before cursor ---\n{}", ctx.before));
-                        }
-                        if !ctx.after.is_empty() {
-                            parts.push(format!("--- after cursor ---\n{}", ctx.after));
-                        }
-                        if parts.is_empty() { None } else { Some(parts.join("\n")) }
-                    }),
+                FieldTag::CursorContext => self.cursor_context.and_then(|ctx| {
+                    let mut parts = Vec::new();
+                    if !ctx.before.is_empty() {
+                        parts.push(format!("--- before cursor ---\n{}", ctx.before));
+                    }
+                    if !ctx.after.is_empty() {
+                        parts.push(format!("--- after cursor ---\n{}", ctx.after));
+                    }
+                    if parts.is_empty() {
+                        None
+                    } else {
+                        Some(parts.join("\n"))
+                    }
+                }),
                 FieldTag::PersonNames => render_plain_hotword_values(&person_names),
                 FieldTag::ProductNames => render_plain_hotword_values(&product_names),
                 FieldTag::DomainTerms => render_plain_hotword_values(&domain_terms),

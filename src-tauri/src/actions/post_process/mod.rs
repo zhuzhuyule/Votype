@@ -6,8 +6,8 @@ mod extensions;
 mod manual;
 mod pipeline;
 pub(crate) mod prompt_builder;
-pub(crate) mod reference_resolver;
 pub mod recent_context;
+pub(crate) mod reference_resolver;
 pub(crate) mod routing;
 
 // Re-export public functions

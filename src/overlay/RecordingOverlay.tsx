@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AppIcon } from "../components/shared/AppIcon";
 import {
   CancelIcon,
   MicrophoneIcon,
@@ -780,6 +781,13 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
                       <span />
                       <span />
                     </Box>
+                    {skillConfirmation.app_name && (
+                      <AppIcon
+                        appName={skillConfirmation.app_name}
+                        size={12}
+                        style={{ marginRight: 4 }}
+                      />
+                    )}
                     <Text className="skill-content-title">
                       {skillConfirmation.app_name || "—"}
                     </Text>

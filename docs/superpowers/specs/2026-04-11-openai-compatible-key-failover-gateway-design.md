@@ -45,6 +45,13 @@
 
 第一版不引入新的“逻辑模型名”。对外暴露的模型列表直接由 `cached_models` 生成，调用时传入的 `model` 必须严格命中单个 `cached_model`。
 
+为避免 `cached_model.id` 与 `cached_model.model_id` 混用导致歧义，第一版北向 API 的公共契约明确如下：
+
+- `/v1/models` 返回的 `id` 固定使用 `cached_model.id`
+- 外部请求体中的 `model` 字段也必须传 `cached_model.id`
+- `cached_model.model_id` 仅作为内部真实上游模型名使用，不对外作为唯一标识暴露
+- 执行层解析流程固定为：`request.model -> cached_model.id -> (provider_id, model_id)`
+
 解析结果固定为：
 
 - `cached_model.id`
@@ -118,7 +125,7 @@ struct ProviderKeyState {
 
 必备行为：
 
-- `acquire_next_key(provider_id, keys, attempted_indices)`：按轮询顺序返回下一个健康且本次请求尚未尝试的 Key
+- `acquire_next_key(provider_id, keys, attempted_indices)`：按轮询顺序返回下一个本次请求尚未尝试的 Key，优先选择健康 Key；若健康 Key 为 0，可按兜底规则返回一个冷却中但最早恢复的 Key
 - `report_success(provider_id, key_index)`：清空失败计数，记录最后成功时间
 - `report_error(provider_id, key_index, classified_error)`：按错误类型更新失败计数、错误码、冷却时间
 - `reset(provider_id)`：当 Key 列表被修改时清空运行态
@@ -127,7 +134,7 @@ struct ProviderKeyState {
 
 ### 5. 单次请求的 failover 规则
 
-第一版采用“有上限的健康 Key 轮询尝试”：
+第一版采用“有上限的健康 Key 轮询尝试”，并保留一次“全部冷却时的兜底尝试”：
 
 ```text
 max_attempts_per_request = min(healthy_key_count, 3)
@@ -135,12 +142,18 @@ max_attempts_per_request = min(healthy_key_count, 3)
 
 具体行为：
 
-1. 先统计当前 provider 下启用、非空、未被永久禁用的 Key
-2. 跳过本次请求已尝试过的 Key
-3. 按轮询 cursor 取下一个健康 Key
-4. 调用失败后，若错误允许 failover，则继续尝试下一个 Key
-5. 成功即结束
-6. 达到最大尝试次数或无可用 Key 时，结束为 provider exhausted
+1. 先统计当前 provider 下启用、非空、未被永久禁用的 Key，并区分：
+   - `healthy keys`：当前未处于 cooldown
+   - `cooled-down keys`：当前仍处于 cooldown
+2. 若 `healthy_key_count > 0`，则本次请求最多尝试 `min(healthy_key_count, 3)` 个健康 Key
+3. 若 `healthy_key_count == 0`，但存在启用 Key，则允许额外进行 `1` 次兜底尝试：
+   - 选择当前仍处于 cooldown、但 `cooldown_until` 最早到期的那个 Key
+   - 该兜底 Key 仅在本次请求中尝试一次，不再继续轮转其他 cooldown Key
+4. 跳过本次请求已尝试过的 Key
+5. 按轮询 cursor 取下一个符合条件的 Key
+6. 调用失败后，若错误允许 failover，则继续尝试下一个 Key
+7. 成功即结束
+8. 达到最大尝试次数或无可用 Key 时，结束为 provider exhausted
 
 采用上限 `3` 的原因：
 
@@ -198,7 +211,7 @@ max_attempts_per_request = min(healthy_key_count, 3)
 仅在下面任一条件满足时触发用户可见错误与 DA 报警：
 
 - 本次请求的 `max_attempts_per_request` 已全部失败
-- 或短时间窗口内同一 provider 连续出现多次 exhausted
+- 或 `60s` 时间窗口内同一 provider 连续出现 `3` 次 exhausted
 
 用户与外部 API 调用方看到的最终错误应是：
 
@@ -322,7 +335,13 @@ max_attempts_per_request = min(healthy_key_count, 3)
 - **When**: 请求执行且该 Key 返回 `429`
 - **Then**: 系统只尝试这 1 个 Key，并返回 exhausted 错误，不会进入无意义的额外重试
 
-### 6. cached_model_strict_binding_edge_case
+### 6. all_keys_in_cooldown_fallback_edge_case
+
+- **Given**: 某 provider 的所有启用 Key 当前都处于 cooldown，且至少存在 1 个 Key
+- **When**: 新请求到来
+- **Then**: 系统只选择 `cooldown_until` 最早到期的那个 Key 做 1 次兜底尝试；若仍失败，则返回 exhausted 错误
+
+### 7. cached_model_strict_binding_edge_case
 
 - **Given**: 外部请求传入的 `model` 已解析为某个 `cached_model`
 - **When**: 该模型对应 provider 的全部允许尝试 Key 失败

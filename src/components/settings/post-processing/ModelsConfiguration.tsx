@@ -1,14 +1,29 @@
 import { Box, Button, Flex, Text } from "@radix-ui/themes";
 import { IconList } from "@tabler/icons-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSettings } from "../../../hooks/useSettings";
+import {
+  DEFAULT_MODEL_LIST_VIEW_STATE,
+  hasStoredModelListViewState,
+  readModelListViewState,
+  sanitizeProviderFilter,
+  writeModelListViewState,
+} from "../../../lib/modelListViewState";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { ApiSettings } from "./ApiSettings";
 import { AddModelDialog } from "./dialogs/AddModelDialog";
 import { ModelListPanel } from "./ModelConfigurationPanel";
+
+function getStoredModelListViewState() {
+  if (typeof window === "undefined") {
+    return DEFAULT_MODEL_LIST_VIEW_STATE;
+  }
+
+  return readModelListViewState(window.localStorage);
+}
 
 export const ModelsConfiguration: React.FC = () => {
   const { t } = useTranslation();
@@ -17,18 +32,59 @@ export const ModelsConfiguration: React.FC = () => {
   const { settings } = useSettings();
 
   const [isModelPickerOpen, setIsModelPickerOpen] = useState(false);
+  const lastSelectedProviderIdRef = useRef(providerState.selectedProviderId);
 
   // Provider filter: null = all, string = specific provider
-  const [providerFilter, setProviderFilter] = useState<string | null>(
-    providerState.selectedProviderId || null,
-  );
+  const [providerFilter, setProviderFilter] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      const storage = window.localStorage;
+      if (hasStoredModelListViewState(storage)) {
+        return readModelListViewState(storage).providerFilter;
+      }
+    }
+    return providerState.selectedProviderId || null;
+  });
 
-  // Sync with provider sidebar clicks
+  // Sync with provider sidebar clicks, but do not override the restored state
+  // during the first render.
   useEffect(() => {
-    if (providerState.selectedProviderId) {
+    const previousProviderId = lastSelectedProviderIdRef.current;
+    const nextProviderId = providerState.selectedProviderId;
+
+    if (nextProviderId && nextProviderId !== previousProviderId) {
       setProviderFilter(providerState.selectedProviderId);
     }
+
+    lastSelectedProviderIdRef.current = nextProviderId;
   }, [providerState.selectedProviderId]);
+
+  useEffect(() => {
+    const providerIds = (settings?.post_process_providers ?? []).map(
+      (provider) => provider.id,
+    );
+    const sanitizedState = sanitizeProviderFilter(
+      {
+        ...getStoredModelListViewState(),
+        providerFilter,
+      },
+      providerIds,
+    );
+
+    if (sanitizedState.providerFilter !== providerFilter) {
+      setProviderFilter(sanitizedState.providerFilter);
+    }
+  }, [providerFilter, settings?.post_process_providers]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    writeModelListViewState(window.localStorage, {
+      ...getStoredModelListViewState(),
+      providerFilter,
+    });
+  }, [providerFilter]);
 
   // Provider name map
   const providerNameMap = useMemo(() => {

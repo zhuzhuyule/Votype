@@ -1099,7 +1099,8 @@ impl ModelManager {
             None,
             std::time::Duration::from_secs(300),
             reqwest::header::HeaderMap::new(),
-        ).map_err(|e| anyhow::anyhow!(e))?;
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
         let mut request = client.get(&url);
 
         if resume_from > 0 {

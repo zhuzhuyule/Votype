@@ -10,7 +10,6 @@ use async_openai::types::{
 };
 use log::info;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 
 /// Field name for structured output JSON schema
@@ -178,14 +177,17 @@ pub(crate) fn classify_http_status_for_failover(
         429 => crate::provider_gateway::AttemptError::Retryable {
             status: Some(status),
             detail,
+            kind: crate::provider_gateway::AttemptErrorKind::Http,
         },
         500..=599 => crate::provider_gateway::AttemptError::Retryable {
             status: Some(status),
             detail,
+            kind: crate::provider_gateway::AttemptErrorKind::Http,
         },
         _ => crate::provider_gateway::AttemptError::Fatal {
             status: Some(status),
             detail,
+            kind: crate::provider_gateway::AttemptErrorKind::Http,
         },
     }
 }
@@ -198,12 +200,18 @@ fn llm_error_to_attempt_error(error: &LlmError) -> crate::provider_gateway::Atte
         LlmError::Network { detail, .. } => crate::provider_gateway::AttemptError::Retryable {
             status: None,
             detail: detail.clone(),
+            kind: crate::provider_gateway::AttemptErrorKind::Network,
         },
         LlmError::ClientInit { detail, .. }
-        | LlmError::ParseError { detail, .. }
         | LlmError::AppleIntelligence { detail } => crate::provider_gateway::AttemptError::Fatal {
             status: None,
             detail: detail.clone(),
+            kind: crate::provider_gateway::AttemptErrorKind::ClientInit,
+        },
+        LlmError::ParseError { detail, .. } => crate::provider_gateway::AttemptError::Fatal {
+            status: None,
+            detail: detail.clone(),
+            kind: crate::provider_gateway::AttemptErrorKind::Parse,
         },
     }
 }
@@ -218,25 +226,46 @@ fn attempt_error_to_llm_error(
         crate::provider_gateway::AttemptError::Retryable {
             status: Some(status),
             detail,
+            kind: _,
         }
         | crate::provider_gateway::AttemptError::Fatal {
             status: Some(status),
             detail,
+            kind: _,
         } => LlmError::ApiError {
             provider: provider_id,
             model: model.to_string(),
             status,
             body: detail,
         },
-        crate::provider_gateway::AttemptError::Retryable { detail, .. } => LlmError::Network {
+        crate::provider_gateway::AttemptError::Retryable {
+            detail,
+            kind: crate::provider_gateway::AttemptErrorKind::Network,
+            ..
+        } => LlmError::Network {
             provider: provider_id,
             model: model.to_string(),
             url: url.to_string(),
             detail,
         },
+        crate::provider_gateway::AttemptError::Fatal {
+            detail,
+            kind: crate::provider_gateway::AttemptErrorKind::Parse,
+            ..
+        } => LlmError::ParseError {
+            provider: provider_id,
+            model: model.to_string(),
+            detail,
+        },
         crate::provider_gateway::AttemptError::Fatal { detail, .. } => LlmError::ClientInit {
             provider: provider_id,
             model: model.to_string(),
+            detail,
+        },
+        crate::provider_gateway::AttemptError::Retryable { detail, .. } => LlmError::Network {
+            provider: provider_id,
+            model: model.to_string(),
+            url: url.to_string(),
             detail,
         },
     }
@@ -362,8 +391,10 @@ fn salvage_rewrite_response(content: &str) -> Option<super::RewriteResponse> {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify_http_status_for_failover, extract_rewrite_response};
-    use crate::provider_gateway::AttemptError;
+    use super::{
+        attempt_error_to_llm_error, classify_http_status_for_failover, extract_rewrite_response,
+    };
+    use crate::provider_gateway::{AttemptError, AttemptErrorKind};
 
     #[test]
     fn test_extract_rewrite_response_salvages_invalid_json_with_rewritten_text() {
@@ -395,6 +426,7 @@ mod tests {
             classify_http_status_for_failover(429, "rate limit"),
             AttemptError::Retryable {
                 status: Some(429),
+                kind: AttemptErrorKind::Http,
                 ..
             }
         ));
@@ -403,6 +435,7 @@ mod tests {
             classify_http_status_for_failover(503, "server unavailable"),
             AttemptError::Retryable {
                 status: Some(503),
+                kind: AttemptErrorKind::Http,
                 ..
             }
         ));
@@ -411,6 +444,7 @@ mod tests {
             classify_http_status_for_failover(400, "bad request"),
             AttemptError::Fatal {
                 status: Some(400),
+                kind: AttemptErrorKind::Http,
                 ..
             }
         ));
@@ -419,9 +453,26 @@ mod tests {
             classify_http_status_for_failover(401, "unauthorized"),
             AttemptError::Fatal {
                 status: Some(401),
+                kind: AttemptErrorKind::Http,
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn attempt_error_to_llm_error_preserves_parse_error_kind() {
+        let error = attempt_error_to_llm_error(
+            "provider-a".to_string(),
+            "model-a",
+            "https://example.com/chat/completions",
+            AttemptError::Fatal {
+                status: None,
+                detail: "parse failed".to_string(),
+                kind: AttemptErrorKind::Parse,
+            },
+        );
+
+        assert!(matches!(error, super::LlmError::ParseError { .. }));
     }
 }
 
@@ -800,8 +851,6 @@ async fn execute_llm_request_inner(
                 .clamp(1, 3)
         })
         .unwrap_or(1);
-    let last_error = Arc::new(Mutex::new(None::<LlmError>));
-
     let outcome = crate::provider_gateway::execute_with_failover(
         _app_handle,
         settings,
@@ -818,7 +867,6 @@ async fn execute_llm_request_inner(
             let body = body.clone();
             let base_headers = base_headers.clone();
             let effective_proxy = effective_proxy.clone();
-            let last_error = Arc::clone(&last_error);
 
             move |api_key| {
                 let api_key = api_key.to_string();
@@ -828,7 +876,6 @@ async fn execute_llm_request_inner(
                 let body = body.clone();
                 let mut headers = base_headers.clone();
                 let effective_proxy = effective_proxy.clone();
-                let last_error = Arc::clone(&last_error);
 
                 async move {
                     match crate::llm_client::create_client(
@@ -843,7 +890,6 @@ async fn execute_llm_request_inner(
                                 model: model.clone(),
                                 detail: format!("{}", e),
                             };
-                            *last_error.lock().unwrap() = Some(error.clone());
                             return Err(llm_error_to_attempt_error(&error));
                         }
                     }
@@ -866,7 +912,6 @@ async fn execute_llm_request_inner(
                                 model: model.clone(),
                                 detail: format!("{}", e),
                             };
-                            *last_error.lock().unwrap() = Some(error.clone());
                             return Err(llm_error_to_attempt_error(&error));
                         }
                     };
@@ -876,13 +921,6 @@ async fn execute_llm_request_inner(
                             if !resp.status().is_success() {
                                 let status = resp.status();
                                 let error_text = resp.text().await.unwrap_or_default();
-                                let error = LlmError::ApiError {
-                                    provider: provider.id.clone(),
-                                    model: model.clone(),
-                                    status: status.as_u16(),
-                                    body: error_text.clone(),
-                                };
-                                *last_error.lock().unwrap() = Some(error);
                                 return Err(classify_http_status_for_failover(
                                     status.as_u16(),
                                     error_text,
@@ -991,7 +1029,6 @@ async fn execute_llm_request_inner(
                                         model: model.clone(),
                                         detail: format!("{:?}", e),
                                     };
-                                    *last_error.lock().unwrap() = Some(error.clone());
                                     Err(llm_error_to_attempt_error(&error))
                                 }
                             }
@@ -1003,7 +1040,6 @@ async fn execute_llm_request_inner(
                                 url: url.clone(),
                                 detail: format!("{:?}", err),
                             };
-                            *last_error.lock().unwrap() = Some(error.clone());
                             Err(llm_error_to_attempt_error(&error))
                         }
                     }
@@ -1018,22 +1054,21 @@ async fn execute_llm_request_inner(
         crate::provider_gateway::ExecutionOutcome::Fatal {
             provider_id,
             detail,
-        } => Err(last_error
-            .lock()
-            .unwrap()
-            .clone()
-            .unwrap_or(LlmError::ClientInit {
-                provider: provider_id,
-                model: model.to_string(),
-                detail,
-            })),
+        } => Err(LlmError::ClientInit {
+            provider: provider_id,
+            model: model.to_string(),
+            detail,
+        }),
         crate::provider_gateway::ExecutionOutcome::Exhausted {
             provider_id,
             last_error: attempt_error,
             ..
-        } => Err(last_error.lock().unwrap().clone().unwrap_or_else(|| {
-            attempt_error_to_llm_error(provider_id, model, &url, attempt_error)
-        })),
+        } => Err(attempt_error_to_llm_error(
+            provider_id,
+            model,
+            &url,
+            attempt_error,
+        )),
     }
 }
 

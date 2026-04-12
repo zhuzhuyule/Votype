@@ -59,7 +59,10 @@ impl FreeModelsCache {
         let cache: CacheFile = serde_json::from_str(&content)?;
         let mut models = self.models.lock().unwrap();
         *models = cache.models;
-        info!("[FreeModels] Loaded {} models from disk cache", models.len());
+        info!(
+            "[FreeModels] Loaded {} models from disk cache",
+            models.len()
+        );
         Ok(())
     }
 
@@ -95,7 +98,8 @@ impl FreeModelsCache {
             None,
             std::time::Duration::from_secs(15),
             reqwest::header::HeaderMap::new(),
-        ).map_err(|e| anyhow::anyhow!(e))?;
+        )
+        .map_err(|e| anyhow::anyhow!(e))?;
 
         let response = client.get(WORKER_URL).send().await?;
         let status = response.status();

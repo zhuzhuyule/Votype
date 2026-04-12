@@ -361,13 +361,14 @@ pub(super) async fn perform_skill_routing(
 ) -> Option<SkillRoutingResult> {
     let settings = crate::settings::get_settings(_app_handle);
     let effective_proxy = crate::settings::resolve_proxy(&settings, provider);
-    let client = match crate::llm_client::create_client(provider, api_key, effective_proxy.as_deref()) {
-        Ok(c) => c,
-        Err(e) => {
-            log::warn!("[SkillRouter] Failed to create LLM client: {:?}", e);
-            return None;
-        }
-    };
+    let client =
+        match crate::llm_client::create_client(provider, api_key, effective_proxy.as_deref()) {
+            Ok(c) => c,
+            Err(e) => {
+                log::warn!("[SkillRouter] Failed to create LLM client: {:?}", e);
+                return None;
+            }
+        };
 
     let has_selected_text = selected_text.map(|s| !s.trim().is_empty()).unwrap_or(false);
 
@@ -1311,9 +1312,7 @@ async fn execute_smart_polish_lite<'a>(
 
     // Check for fallback chain on the lite model
     let lite_chain = lite_settings.selected_prompt_model.as_ref();
-    let has_fallback = lite_chain
-        .and_then(|c| c.fallback_id.as_ref())
-        .is_some();
+    let has_fallback = lite_chain.and_then(|c| c.fallback_id.as_ref()).is_some();
 
     // For non-fallback: resolve model early
     let lite_fallback = match lite_settings.active_post_process_provider() {
@@ -1408,21 +1407,20 @@ async fn execute_smart_polish_lite<'a>(
                         }
                         _ => None,
                     };
-                    let _ =
-                        m.log_call(&crate::managers::llm_metrics::LlmCallRecord {
-                            history_id: hist_id,
-                            model_id: log_model_id.clone(),
-                            provider: log_provider_id.clone(),
-                            call_type: "single_polish".to_string(),
-                            input_tokens: None,
-                            output_tokens: None,
-                            total_tokens: token_count,
-                            token_estimate: None,
-                            duration_ms: elapsed_ms as i64,
-                            tokens_per_sec,
-                            error: if err { error_msg.clone() } else { None },
-                            is_fallback: false,
-                        });
+                    let _ = m.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                        history_id: hist_id,
+                        model_id: log_model_id.clone(),
+                        provider: log_provider_id.clone(),
+                        call_type: "single_polish".to_string(),
+                        input_tokens: None,
+                        output_tokens: None,
+                        total_tokens: token_count,
+                        token_estimate: None,
+                        duration_ms: elapsed_ms as i64,
+                        tokens_per_sec,
+                        error: if err { error_msg.clone() } else { None },
+                        is_fallback: false,
+                    });
                 }
 
                 if err {

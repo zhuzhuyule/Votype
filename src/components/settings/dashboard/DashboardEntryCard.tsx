@@ -21,6 +21,7 @@ import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { AppIcon } from "../../shared/AppIcon";
 import { DynamicIcon } from "../../shared/IconPicker";
 import { AudioPlayer } from "../../ui/AudioPlayer";
 import { Card } from "../../ui/Card";
@@ -320,6 +321,7 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
               )}
 
               <Flex gap="1" align="center">
+                {appName && <AppIcon appName={appName} size={14} />}
                 <Text size="1" color="gray" weight="medium">
                   {appName || t("common.unknown")}
                 </Text>

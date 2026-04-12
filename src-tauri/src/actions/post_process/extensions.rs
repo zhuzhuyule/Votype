@@ -5,7 +5,7 @@ use ferrous_opencc::{config::BuiltinConfig, OpenCC};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use log::{error, info};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time::{sleep_until, Instant as TokioInstant};
@@ -848,8 +848,6 @@ async fn execute_single_model_post_process(
                 .clamp(1, 3)
         })
         .unwrap_or(1);
-    let last_error = Arc::new(Mutex::new(None::<String>));
-
     let outcome = crate::provider_gateway::execute_with_failover(
         _app_handle,
         settings,
@@ -867,7 +865,6 @@ async fn execute_single_model_post_process(
             let body = body.clone();
             let base_headers = base_headers.clone();
             let effective_proxy = effective_proxy.clone();
-            let last_error = Arc::clone(&last_error);
 
             move |api_key| {
                 let api_key = api_key.to_string();
@@ -878,7 +875,6 @@ async fn execute_single_model_post_process(
                 let body = body.clone();
                 let mut headers = base_headers.clone();
                 let effective_proxy = effective_proxy.clone();
-                let last_error = Arc::clone(&last_error);
 
                 async move {
                     headers.insert(
@@ -896,10 +892,10 @@ async fn execute_single_model_post_process(
                         Err(e) => {
                             let detail = format!("Client creation failed: {:?}", e);
                             error!("[MultiModel] {}", detail);
-                            *last_error.lock().unwrap() = Some(detail.clone());
                             return Err(crate::provider_gateway::AttemptError::Fatal {
                                 status: None,
                                 detail,
+                                kind: crate::provider_gateway::AttemptErrorKind::ClientInit,
                             });
                         }
                     };
@@ -909,10 +905,10 @@ async fn execute_single_model_post_process(
                         Err(e) => {
                             let detail = format!("LLM request failed: {:?}", e);
                             error!("[MultiModel] {}", detail);
-                            *last_error.lock().unwrap() = Some(detail.clone());
                             return Err(crate::provider_gateway::AttemptError::Retryable {
                                 status: None,
                                 detail,
+                                kind: crate::provider_gateway::AttemptErrorKind::Network,
                             });
                         }
                     };
@@ -922,7 +918,6 @@ async fn execute_single_model_post_process(
                         let error_text = resp.text().await.unwrap_or_default();
                         let detail = format!("API error ({}): {}", status, error_text);
                         error!("[MultiModel] {}", detail);
-                        *last_error.lock().unwrap() = Some(detail.clone());
                         return Err(super::core::classify_http_status_for_failover(
                             status.as_u16(),
                             detail,
@@ -934,10 +929,10 @@ async fn execute_single_model_post_process(
                         Err(e) => {
                             let detail = format!("Response parse failed: {:?}", e);
                             error!("[MultiModel] {}", detail);
-                            *last_error.lock().unwrap() = Some(detail.clone());
                             return Err(crate::provider_gateway::AttemptError::Fatal {
                                 status: None,
                                 detail,
+                                kind: crate::provider_gateway::AttemptErrorKind::Parse,
                             });
                         }
                     };
@@ -1041,12 +1036,10 @@ async fn execute_single_model_post_process(
                 crate::provider_gateway::AttemptError::Retryable { detail, .. }
                 | crate::provider_gateway::AttemptError::Fatal { detail, .. } => detail,
             };
-            let detail = last_error.lock().unwrap().clone().unwrap_or_else(|| {
-                format!(
-                    "Provider {} exhausted after {} attempts: {}",
-                    provider_id, attempts, fallback
-                )
-            });
+            let detail = format!(
+                "Provider {} exhausted after {} attempts: {}",
+                provider_id, attempts, fallback
+            );
             (None, Some(detail), None)
         }
     }

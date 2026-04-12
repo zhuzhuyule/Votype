@@ -64,7 +64,9 @@ pub async fn test_post_process_model_inference(
     .await?;
 
     // Log to metrics
-    if let Some(metrics) = app.try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>() {
+    if let Some(metrics) =
+        app.try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+    {
         let duration_ms = result.duration_ms.unwrap_or(0);
         let tokens_per_sec = match (result.total_tokens, result.duration_ms) {
             (Some(tokens), Some(ms)) if ms > 0 => Some(tokens as f64 / ms as f64 * 1000.0),

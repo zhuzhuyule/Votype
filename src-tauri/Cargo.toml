@@ -84,6 +84,8 @@ thiserror = "2"
 clap = { version = "4", features = ["derive"] }
 tiktoken-rs = "0.6"
 sha2 = "0.10"
+plist = "1.7"
+rayon = "1.10"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"

@@ -10,7 +10,7 @@ pub mod text;
 pub mod transcription;
 pub mod vocabulary;
 
-use crate::{active_window, settings, utils::cancel_current_operation};
+use crate::{active_window, app_list, settings, utils::cancel_current_operation};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_log::LogLevel;
 use tauri_plugin_opener::OpenerExt;
@@ -126,6 +126,21 @@ pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 pub fn get_active_window_info() -> Result<active_window::ActiveWindowInfo, String> {
     active_window::fetch_active_window()
+}
+
+#[tauri::command]
+pub fn list_installed_apps(
+    app: AppHandle,
+    refresh: Option<bool>,
+) -> Result<Vec<app_list::InstalledApp>, String> {
+    let cache_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
+    Ok(app_list::list_installed_apps(
+        &cache_dir,
+        refresh.unwrap_or(false),
+    ))
 }
 
 #[tauri::command]

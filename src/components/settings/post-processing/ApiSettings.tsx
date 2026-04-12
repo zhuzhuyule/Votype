@@ -232,7 +232,10 @@ const ApiKeyList = React.forwardRef<
   {
     providerId: string;
     onKeysChanged?: () => void;
-    onTestConnection?: () => Promise<{ error?: string | null; result?: string }>;
+    onTestConnection?: () => Promise<{
+      error?: string | null;
+      result?: string;
+    }>;
   }
 >(({ providerId, onKeysChanged, onTestConnection }, ref) => {
   const { getPostProcessApiKeys, setPostProcessApiKeys } = useSettings();
@@ -245,6 +248,7 @@ const ApiKeyList = React.forwardRef<
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editSnapshot, setEditSnapshot] = useState<KeyEntry | null>(null);
   const loadedProviderRef = useRef<string | null>(null);
+  const EMPTY_KEY_ENTRY: KeyEntry = { key: "", enabled: true, label: null };
 
   // Cleanup empty/dirty keys before switching provider
   const cleanupEditingRef = useRef<() => void>(() => {});
@@ -282,16 +286,16 @@ const ApiKeyList = React.forwardRef<
     getPostProcessApiKeys(providerId)
       .then((loaded) => {
         if (!cancelled && loadedProviderRef.current === providerId) {
-          setKeys(loaded ?? []);
+          const normalizedKeys =
+            loaded && loaded.length > 0 ? loaded : [EMPTY_KEY_ENTRY];
+          setKeys(normalizedKeys);
           setShowKeys({});
           setKeyStatus({});
           // Auto-enter editing for any empty key
-          const emptyIdx = (loaded ?? []).findIndex(
-            (k) => !k.key.trim(),
-          );
+          const emptyIdx = normalizedKeys.findIndex((k) => !k.key.trim());
           if (emptyIdx >= 0) {
             setEditingIndex(emptyIdx);
-            setEditSnapshot({ ...(loaded ?? [])[emptyIdx] });
+            setEditSnapshot({ ...normalizedKeys[emptyIdx] });
           } else {
             setEditingIndex(null);
             setEditSnapshot(null);
@@ -299,7 +303,11 @@ const ApiKeyList = React.forwardRef<
         }
       })
       .catch(() => {
-        if (!cancelled) setKeys([]);
+        if (!cancelled) {
+          setKeys([EMPTY_KEY_ENTRY]);
+          setEditingIndex(0);
+          setEditSnapshot({ ...EMPTY_KEY_ENTRY });
+        }
       });
     return () => {
       cancelled = true;
@@ -324,9 +332,7 @@ const ApiKeyList = React.forwardRef<
       if (current && !current.key.trim()) {
         // Empty — remove it (or restore snapshot if had content)
         if (editSnapshot?.key.trim()) {
-          base = keys.map((k, i) =>
-            i === editingIndex ? editSnapshot : k,
-          );
+          base = keys.map((k, i) => (i === editingIndex ? editSnapshot : k));
         } else {
           base = keys.filter((_, i) => i !== editingIndex);
         }
@@ -505,8 +511,23 @@ const ApiKeyList = React.forwardRef<
   };
 
   const confirmEditing = (index: number) => {
-    // Only allow confirm if key is not empty
-    if (!keys[index]?.key.trim()) return;
+    const entry = keys[index];
+    if (!entry) return;
+
+    if (!entry.key.trim()) {
+      if (keys.length <= 1) {
+        setEditingIndex(index);
+        setEditSnapshot({ ...EMPTY_KEY_ENTRY });
+        return;
+      }
+
+      const cleaned = keys.filter((_, i) => i !== index);
+      void persist(cleaned);
+      setEditingIndex(null);
+      setEditSnapshot(null);
+      return;
+    }
+
     handleKeyBlur(index);
     setEditingIndex(null);
     setEditSnapshot(null);
@@ -515,22 +536,20 @@ const ApiKeyList = React.forwardRef<
   const cancelEditing = (index: number) => {
     if (editSnapshot) {
       if (!editSnapshot.key.trim()) {
-        // Snapshot was empty (new entry) — remove it
-        const cleaned = keys.filter((_, i) => i !== index);
-        if (cleaned.length > 0) {
-          void persist(cleaned);
-        } else {
-          // Keep at least one, stay in editing
+        if (keys.length <= 1) {
+          setEditingIndex(index);
+          setEditSnapshot({ ...EMPTY_KEY_ENTRY });
           return;
         }
+
+        const cleaned = keys.filter((_, i) => i !== index);
+        void persist(cleaned);
         setEditingIndex(null);
         setEditSnapshot(null);
         return;
       }
       // Restore snapshot
-      const updated = keys.map((k, i) =>
-        i === index ? editSnapshot : k,
-      );
+      const updated = keys.map((k, i) => (i === index ? editSnapshot : k));
       setKeys(updated);
     }
     setEditingIndex(null);
@@ -556,9 +575,7 @@ const ApiKeyList = React.forwardRef<
         const isEditing =
           editingIndex === index ||
           (!entry.key.trim() && editingIndex === null);
-        const labelPlaceholder = entry.key
-          ? maskKey(entry.key)
-          : "Label";
+        const labelPlaceholder = entry.key ? maskKey(entry.key) : "Label";
 
         // Every row: [●] [label] [key/display] [actions...]
         const dot = getDotProps(index);
@@ -579,8 +596,7 @@ const ApiKeyList = React.forwardRef<
                   value={entry.label ?? ""}
                   onChange={(e) => handleLabelChange(index, e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && entry.key.trim())
-                      confirmEditing(index);
+                    if (e.key === "Enter") confirmEditing(index);
                     else if (e.key === "Escape") cancelEditing(index);
                   }}
                   placeholder={labelPlaceholder}
@@ -592,8 +608,7 @@ const ApiKeyList = React.forwardRef<
                   value={entry.key}
                   onChange={(e) => handleKeyChange(index, e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && entry.key.trim())
-                      confirmEditing(index);
+                    if (e.key === "Enter") confirmEditing(index);
                     else if (e.key === "Escape") cancelEditing(index);
                   }}
                   placeholder="sk-..."
@@ -623,7 +638,7 @@ const ApiKeyList = React.forwardRef<
                     variant="ghost"
                     color="green"
                     onClick={() => confirmEditing(index)}
-                    disabled={!entry.key.trim()}
+                    disabled={!entry.key.trim() && keys.length <= 1}
                     className="cursor-pointer"
                   >
                     <IconCheck size={16} />
@@ -639,7 +654,7 @@ const ApiKeyList = React.forwardRef<
                       <IconX size={16} />
                     </IconButton>
                   )}
-                  {editSnapshot?.key.trim() && (
+                  {(editSnapshot?.key.trim() || keys.length > 1) && (
                     <Popover.Root>
                       <Popover.Trigger>
                         <IconButton
@@ -728,8 +743,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     removeCustomProvider,
     addCustomProvider,
     refreshSettings,
-    setProxySettings,
-    setProviderUseProxy,
   } = useSettings();
 
   const apiKeyListRef = useRef<ApiKeyListHandle>(null);
@@ -859,6 +872,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     ].filter((g) => g.templates.length > 0);
   }, [t]);
 
+  const customProviderTemplate = useMemo(
+    () => PROVIDER_TEMPLATES.find((template) => template.id === "custom"),
+    [],
+  );
+
   const getTemplateHost = (baseUrl: string) => {
     if (!baseUrl.trim()) return "Custom endpoint";
     try {
@@ -921,6 +939,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     });
     setShowTemplatePicker(false);
     await state.handleProviderSelect(provider.id);
+  };
+
+  const handleAddCustomProvider = async () => {
+    if (customProviderTemplate == null) return;
+    await handleAddProvider(customProviderTemplate);
   };
 
   const refreshProviderAvatar = () => {
@@ -1013,9 +1036,26 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     );
   }, [state.providerOptions, visibleProviders]);
 
+  const providerSectionHeight = useMemo(() => {
+    const HEADER_HEIGHT = 64;
+    const ITEM_HEIGHT = 40;
+    const VERTICAL_PADDING = 20;
+
+    return Math.min(
+      500,
+      Math.max(
+        300,
+        HEADER_HEIGHT + sortedOptions.length * ITEM_HEIGHT + VERTICAL_PADDING,
+      ),
+    );
+  }, [sortedOptions.length]);
+
   return (
     <Card className="p-0! overflow-hidden">
-      <Grid columns="220px 1fr" className="h-[500px]">
+      <Grid
+        columns="220px 1fr"
+        style={{ height: providerSectionHeight }}
+      >
         {/* Sidebar */}
         <Flex
           direction="column"
@@ -1030,128 +1070,149 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               {t("settings.postProcessing.api.provider.title")}
             </Text>
             <Dialog.Root
-              open={showTemplatePicker}
-              onOpenChange={setShowTemplatePicker}
-            >
-              <Dialog.Trigger>
-                <IconButton
-                  variant="ghost"
-                  size="1"
-                  className="cursor-pointer text-gray-500 hover:text-(--accent-11)"
-                  title={t("settings.postProcessing.api.providers.add")}
-                >
-                  <IconPlus size={16} />
-                </IconButton>
-              </Dialog.Trigger>
-              <Dialog.Content maxWidth="860px" className="p-0 overflow-hidden">
-                <Dialog.Title>
-                  {t("settings.postProcessing.api.providers.add")}
-                </Dialog.Title>
-                <Box className="h-[70vh] max-h-160 overflow-hidden py-2 pl-2">
-                  <ScrollArea
-                    scrollbars="vertical"
-                    type="hover"
-                    className="h-[400px] overflow-auto pr-4"
+                open={showTemplatePicker}
+                onOpenChange={setShowTemplatePicker}
+              >
+                <Dialog.Trigger>
+                  <IconButton
+                    variant="ghost"
+                    size="1"
+                    className="cursor-pointer text-gray-500 hover:text-(--accent-11)"
+                    title={t("settings.postProcessing.api.providers.add")}
                   >
-                    <Flex direction="column" gap="4" className="pr-2 py-1">
-                      {groupedTemplates.map((group) => (
-                        <Box key={group.key}>
-                          <Text
-                            size="1"
-                            weight="bold"
-                            className="mb-1! block text-gray-500"
-                          >
-                            {group.label}
-                          </Text>
-                          <Grid
-                            columns={{ initial: "2", sm: "3", lg: "4" }}
-                            gap="2"
-                          >
-                            {group.templates.map((template) => (
-                              <button
-                                key={template.id}
-                                type="button"
-                                onClick={() => void handleAddProvider(template)}
-                                className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
-                              >
-                                <Flex align="center" gap="3">
-                                  <Flex
-                                    align="center"
-                                    gap="3"
-                                    className="min-w-0"
-                                  >
-                                    <ProviderAvatar
-                                      providerId={template.id}
-                                      baseUrl={template.baseUrl}
-                                      large
-                                      refreshToken={avatarRefreshToken}
-                                      overrideValue={
-                                        settings
-                                          ?.post_process_provider_avatar_overrides?.[
-                                          template.id
-                                        ] ?? null
-                                      }
-                                    />
+                    <IconPlus size={16} />
+                  </IconButton>
+                </Dialog.Trigger>
+                <Dialog.Content
+                  maxWidth="860px"
+                  className="p-0 overflow-hidden"
+                >
+                  <Flex align="center" justify="between" className="pr-4">
+                    <Dialog.Title>
+                      {t("settings.postProcessing.api.providers.add")}
+                    </Dialog.Title>
+                    <Button
+                      size="1"
+                      variant="soft"
+                      className="cursor-pointer"
+                      onClick={() => void handleAddCustomProvider()}
+                      disabled={customProviderTemplate == null}
+                    >
+                      {t(
+                        "settings.postProcessing.api.providers.addCustom",
+                        "Add Custom",
+                      )}
+                    </Button>
+                  </Flex>
+                  <Box className="h-[70vh] max-h-160 overflow-hidden py-2 pl-2">
+                    <ScrollArea
+                      scrollbars="vertical"
+                      type="hover"
+                      className="h-[400px] overflow-auto pr-4"
+                    >
+                      <Flex direction="column" gap="4" className="pr-2 py-1">
+                        {groupedTemplates.map((group) => (
+                          <Box key={group.key}>
+                            <Text
+                              size="1"
+                              weight="bold"
+                              className="mb-1! block text-gray-500"
+                            >
+                              {group.label}
+                            </Text>
+                            <Grid
+                              columns={{ initial: "2", sm: "3", lg: "4" }}
+                              gap="2"
+                            >
+                              {group.templates.map((template) => (
+                                <button
+                                  key={template.id}
+                                  type="button"
+                                  onClick={() =>
+                                    void handleAddProvider(template)
+                                  }
+                                  className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
+                                >
+                                  <Flex align="center" gap="3">
                                     <Flex
-                                      direction="column"
-                                      justify="between"
-                                      className="min-w-0 flex-1"
-                                      style={{ minHeight: 40 }}
+                                      align="center"
+                                      gap="3"
+                                      className="min-w-0"
                                     >
-                                      <Text
-                                        size="2"
-                                        weight="medium"
-                                        className="block truncate text-(--gray-12)"
-                                        title={template.label}
-                                      >
-                                        {template.label}
-                                      </Text>
+                                      <ProviderAvatar
+                                        providerId={template.id}
+                                        baseUrl={template.baseUrl}
+                                        large
+                                        refreshToken={avatarRefreshToken}
+                                        overrideValue={
+                                          settings
+                                            ?.post_process_provider_avatar_overrides?.[
+                                            template.id
+                                          ] ?? null
+                                        }
+                                      />
                                       <Flex
-                                        align="center"
-                                        gap="1"
-                                        className="min-w-0"
+                                        direction="column"
+                                        justify="between"
+                                        className="min-w-0 flex-1"
+                                        style={{ minHeight: 40 }}
                                       >
                                         <Text
-                                          size="1"
-                                          color="gray"
-                                          className="block truncate leading-[1.2]"
-                                          title={getTemplateHost(
-                                            template.baseUrl,
-                                          )}
+                                          size="2"
+                                          weight="medium"
+                                          className="block truncate text-(--gray-12)"
+                                          title={template.label}
                                         >
-                                          {getTemplateHost(template.baseUrl)}
+                                          {template.label}
                                         </Text>
-                                        {template.signupUrl && (
-                                          <IconExternalLink
-                                            size={12}
-                                            className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              void openUrl(template.signupUrl!);
-                                            }}
-                                          />
-                                        )}
+                                        <Flex
+                                          align="center"
+                                          gap="1"
+                                          className="min-w-0"
+                                        >
+                                          <Text
+                                            size="1"
+                                            color="gray"
+                                            className="block truncate leading-[1.2]"
+                                            title={getTemplateHost(
+                                              template.baseUrl,
+                                            )}
+                                          >
+                                            {getTemplateHost(template.baseUrl)}
+                                          </Text>
+                                          {template.signupUrl && (
+                                            <IconExternalLink
+                                              size={12}
+                                              className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                void openUrl(
+                                                  template.signupUrl!,
+                                                );
+                                              }}
+                                            />
+                                          )}
+                                        </Flex>
                                       </Flex>
                                     </Flex>
                                   </Flex>
-                                </Flex>
-                              </button>
-                            ))}
-                          </Grid>
-                        </Box>
-                      ))}
-                    </Flex>
-                  </ScrollArea>
-                </Box>
-              </Dialog.Content>
-            </Dialog.Root>
+                                </button>
+                              ))}
+                            </Grid>
+                          </Box>
+                        ))}
+                      </Flex>
+                    </ScrollArea>
+                  </Box>
+                </Dialog.Content>
+              </Dialog.Root>
           </Flex>
           <ScrollArea
             scrollbars="vertical"
             type="hover"
             className="flex-1 min-h-0"
           >
-            <Box className="px-2 space-y-0.5">
+            <Box className="px-2 pb-4 space-y-0.5">
               {sortedOptions.map((option) => (
                 <SidebarItem
                   key={option.value}
@@ -1474,9 +1535,12 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   setEditingBaseUrl(false);
                 };
 
+                const isBaseUrlEditing =
+                  editingBaseUrl || !localBaseUrl.trim();
+
                 return (
                   <Flex align="center" gap="2" className="h-8 min-w-0">
-                    {editingBaseUrl ? (
+                    {isBaseUrlEditing ? (
                       <TextField.Root
                         value={localBaseUrl}
                         onChange={(e) => setLocalBaseUrl(e.target.value)}
@@ -1494,13 +1558,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                         className="flex-1 min-w-0 truncate text-(--gray-11) leading-8"
                         title={localBaseUrl}
                       >
-                        {localBaseUrl || (
-                          <span className="opacity-40">—</span>
-                        )}
+                        {localBaseUrl || <span className="opacity-40">—</span>}
                       </Text>
                     )}
                     <Flex gap="3" className="shrink-0">
-                      {editingBaseUrl ? (
+                      {isBaseUrlEditing ? (
                         <>
                           <IconButton
                             size="2"
@@ -1574,37 +1636,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 }}
               />
 
-              {/* Proxy toggle - always visible */}
-              <Text
-                size="2"
-                weight="medium"
-                color="gray"
-                className="text-right select-none"
-              >
-                {t(
-                  "settings.postProcessing.api.providers.proxy.useProxy",
-                  "Proxy",
-                )}
-                :
-              </Text>
-              <Flex align="center" gap="2" className="h-8">
-                <Switch
-                  size="1"
-                  checked={state.selectedProvider?.use_proxy ?? true}
-                  disabled={!settings?.proxy_global_enabled || !settings?.proxy_url}
-                  onCheckedChange={(checked: boolean) =>
-                    setProviderUseProxy(state.selectedProviderId, checked)
-                  }
-                />
-                {(!settings?.proxy_global_enabled || !settings?.proxy_url) && (
-                  <Text size="1" color="gray" className="opacity-60">
-                    {t(
-                      "settings.postProcessing.api.providers.proxy.noGlobalProxy",
-                      "Configure proxy in Advanced settings first",
-                    )}
-                  </Text>
-                )}
-              </Flex>
             </Grid>
 
             {/* Actions - outside grid */}

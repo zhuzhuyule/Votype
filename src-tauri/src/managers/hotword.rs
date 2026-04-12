@@ -1574,7 +1574,8 @@ impl HotwordManager {
 
         // Create LLM client and call
         let effective_proxy = crate::settings::resolve_proxy(&settings, &provider);
-        let client = match llm_client::create_client(&provider, api_key, effective_proxy.as_deref()) {
+        let client = match llm_client::create_client(&provider, api_key, effective_proxy.as_deref())
+        {
             Ok(c) => c,
             Err(e) => {
                 warn!("[Hotword] Failed to create LLM client: {}", e);

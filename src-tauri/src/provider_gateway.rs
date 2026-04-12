@@ -5,9 +5,26 @@ use std::future::Future;
 use tauri::{AppHandle, Manager};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AttemptErrorKind {
+    Http,
+    Network,
+    ClientInit,
+    Parse,
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AttemptError {
-    Retryable { status: Option<u16>, detail: String },
-    Fatal { status: Option<u16>, detail: String },
+    Retryable {
+        status: Option<u16>,
+        detail: String,
+        kind: AttemptErrorKind,
+    },
+    Fatal {
+        status: Option<u16>,
+        detail: String,
+        kind: AttemptErrorKind,
+    },
 }
 
 pub type AttemptResult<T> = Result<T, AttemptError>;
@@ -71,15 +88,21 @@ where
     let mut attempted_indices = HashSet::new();
     let mut attempts = 0usize;
     let mut last_error: Option<AttemptError> = None;
+    let mut cooldown_fallback_used = false;
 
     while attempts < plan.max_attempts {
-        let Some(acquired_key) =
-            key_selector.acquire_next_key(&plan.provider_id, &keys, &attempted_indices)
+        let Some(acquired_key) = key_selector.acquire_next_key(
+            &plan.provider_id,
+            &keys,
+            &attempted_indices,
+            cooldown_fallback_used,
+        )
         else {
             break;
         };
 
         attempted_indices.insert(acquired_key.key_index);
+        cooldown_fallback_used |= acquired_key.from_cooldown_fallback;
         attempts += 1;
 
         match attempt(acquired_key.api_key).await {
@@ -87,13 +110,21 @@ where
                 key_selector.report_success(&plan.provider_id, acquired_key.key_index);
                 return ExecutionOutcome::Success(value);
             }
-            Err(AttemptError::Retryable { status, detail }) => {
+            Err(AttemptError::Retryable {
+                status,
+                detail,
+                kind,
+            }) => {
                 key_selector.mark_error(
                     &plan.provider_id,
                     acquired_key.key_index,
                     status.unwrap_or(503),
                 );
-                last_error = Some(AttemptError::Retryable { status, detail });
+                last_error = Some(AttemptError::Retryable {
+                    status,
+                    detail,
+                    kind,
+                });
             }
             Err(AttemptError::Fatal { detail, .. }) => {
                 return ExecutionOutcome::Fatal {
@@ -110,6 +141,7 @@ where
         last_error: last_error.unwrap_or_else(|| AttemptError::Retryable {
             status: None,
             detail: "No available API key for provider".to_string(),
+            kind: AttemptErrorKind::Other,
         }),
     }
 }
@@ -117,7 +149,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::{
-        execute_with_failover_with_selector, AttemptError, ExecutionOutcome, ExecutionPlan,
+        execute_with_failover_with_selector, AttemptError, AttemptErrorKind, ExecutionOutcome,
+        ExecutionPlan,
     };
     use crate::settings::{get_default_settings, AppSettings, KeyEntry, SecretKeyRing};
     use std::collections::HashMap;
@@ -157,6 +190,7 @@ mod tests {
                     Err(AttemptError::Retryable {
                         status: Some(429),
                         detail: "rate limited".to_string(),
+                        kind: AttemptErrorKind::Http,
                     })
                 } else {
                     Ok("ok".to_string())
@@ -192,6 +226,7 @@ mod tests {
                 Err::<String, _>(AttemptError::Fatal {
                     status: Some(400),
                     detail: "bad request".to_string(),
+                    kind: AttemptErrorKind::Http,
                 })
             }
         })
@@ -230,6 +265,7 @@ mod tests {
                 Err::<String, _>(AttemptError::Retryable {
                     status: Some(503),
                     detail: format!("temporary failure on {api_key}"),
+                    kind: AttemptErrorKind::Http,
                 })
             }
         })
@@ -239,14 +275,15 @@ mod tests {
             ExecutionOutcome::Exhausted {
                 provider_id,
                 attempts: attempt_count,
-                last_error,
-            } => {
+                    last_error,
+                } => {
                 assert_eq!(provider_id, "provider-a");
                 assert_eq!(attempt_count, 2);
                 assert!(matches!(
                     last_error,
                     AttemptError::Retryable {
                         status: Some(503),
+                        kind: AttemptErrorKind::Http,
                         ..
                     }
                 ));

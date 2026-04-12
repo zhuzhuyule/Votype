@@ -1,5 +1,10 @@
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
-import { IconBrain, IconFlame, IconMicrophone, IconRepeat } from "@tabler/icons-react";
+import {
+  IconBolt,
+  IconBrain,
+  IconHistory,
+  IconMicrophone,
+} from "@tabler/icons-react";
 import React from "react";
 
 export interface ModelCardStats {
@@ -47,65 +52,93 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
   trailing,
 }) => {
   const showTooltip = modelId && modelId !== name;
+  const hasStats = !!stats && stats.totalCalls > 0;
 
   return (
-    <Flex direction="column">
-      {/* Row 1: name + badges */}
-      <Flex justify="between" align="start">
+    <Flex align="start" justify="between" gap="3">
+      <Flex direction="column" className="min-w-0 flex-1">
         <Flex align="center" gap="1.5" className="min-w-0">
           {showTooltip ? (
             <Tooltip content={modelId} delayDuration={200}>
-              <Text size="2" weight="medium" className="truncate" style={{ lineHeight: 1.3 }}>
+              <Text
+                size="2"
+                weight="medium"
+                className="truncate"
+                style={{ lineHeight: 1.3 }}
+              >
                 {name}
               </Text>
             </Tooltip>
           ) : (
-            <Text size="2" weight="medium" className="truncate" style={{ lineHeight: 1.3 }}>
+            <Text
+              size="2"
+              weight="medium"
+              className="truncate"
+              style={{ lineHeight: 1.3 }}
+            >
               {name}
             </Text>
           )}
         </Flex>
-        <Flex align="center" gap="1" className="shrink-0 ml-1">
+
+        <Flex align="center" gap="1" className="min-w-0 mt-0.5">
+          {subtitle && (
+            <Text size="1" color="gray" className="truncate">
+              {subtitle}
+            </Text>
+          )}
           {isThinking && (
             <Tooltip content="Thinking" delayDuration={200}>
-              <IconBrain size={12} className="text-purple-500/80" />
+              <IconBrain size={11} className="shrink-0 text-purple-500/80" />
             </Tooltip>
           )}
           {isAsr && (
             <Tooltip content="ASR" delayDuration={200}>
-              <IconMicrophone size={12} className="text-teal-500/80" />
+              <IconMicrophone size={11} className="shrink-0 text-teal-500/80" />
             </Tooltip>
           )}
-          {trailing}
         </Flex>
       </Flex>
 
-      {/* Row 2: subtitle */}
-      {subtitle && (
-        <Text size="1" color="gray" mt="0.5">
-          {subtitle}
-        </Text>
-      )}
+      {(hasStats || trailing) && (
+        <Flex
+          direction="column"
+          align="end"
+          gap="1"
+          className="shrink-0 min-w-fit"
+        >
+          {trailing && (
+            <Flex align="center" gap="1" className="min-h-[12px]">
+              {trailing}
+            </Flex>
+          )}
 
-      {/* Row 3: stats */}
-      {stats && stats.totalCalls > 0 && (
-        <Flex align="center" gap="1" mt="0.5">
-          <Flex align="center" gap="0.5">
-            <IconRepeat size={10} strokeWidth={2} className="text-(--gray-8)" />
-            <Text size="1" color="gray" className="tabular-nums">
-              {stats.totalCalls.toLocaleString()}
-            </Text>
-          </Flex>
-          {stats.avgSpeed > 0 && (
-            <>
-              <Text size="1" color="gray" style={{ opacity: 0.4 }}>·</Text>
+          {hasStats && (
+            <Flex align="center" gap="2" className="min-h-[12px]">
               <Flex align="center" gap="0.5">
-                <IconFlame size={10} strokeWidth={2} className="text-amber-500/60" />
+                <IconHistory
+                  size={10}
+                  strokeWidth={2}
+                  className="text-(--gray-8)"
+                />
                 <Text size="1" color="gray" className="tabular-nums">
-                  {formatSpeed(stats.avgSpeed)} t/s
+                  {stats.totalCalls.toLocaleString()}
                 </Text>
               </Flex>
-            </>
+
+              {stats.avgSpeed > 0 && (
+                <Flex align="center" gap="0.5">
+                  <IconBolt
+                    size={10}
+                    strokeWidth={2}
+                    className="text-amber-500/70"
+                  />
+                  <Text size="1" color="gray" className="tabular-nums">
+                    {formatSpeed(stats.avgSpeed)} t/s
+                  </Text>
+                </Flex>
+              )}
+            </Flex>
           )}
         </Flex>
       )}

@@ -1090,7 +1090,11 @@ impl HistoryManager {
         }
 
         // Compute review feedback
-        let review_action = if learn_from_edit { "edit_accept" } else { "accept" };
+        let review_action = if learn_from_edit {
+            "edit_accept"
+        } else {
+            "accept"
+        };
         let review_edit_distance: Option<i64> = if learn_from_edit {
             original_text_opt.as_ref().map(|orig| {
                 // Simple character-level edit distance approximation:
@@ -1111,7 +1115,13 @@ impl HistoryManager {
                 review_action = ?4,
                 review_edit_distance = ?5
              WHERE id = ?3",
-            params![post_processed_text, corrected_char_count, id, review_action, review_edit_distance],
+            params![
+                post_processed_text,
+                corrected_char_count,
+                id,
+                review_action,
+                review_edit_distance
+            ],
         )?;
 
         let _ = corrected_char_count - old_corrected_char_count;

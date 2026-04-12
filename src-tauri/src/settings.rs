@@ -1735,9 +1735,26 @@ pub fn get_default_settings() -> AppSettings {
 
 impl AppSettings {
     pub fn active_post_process_provider(&self) -> Option<&PostProcessProvider> {
-        self.post_process_providers
+        // 1. Exact match on persisted provider_id
+        if let Some(p) = self
+            .post_process_providers
             .iter()
             .find(|provider| provider.id == self.post_process_provider_id)
+        {
+            return Some(p);
+        }
+
+        // 2. Derive from selected_prompt_model → cached_model → provider
+        if let Some(chain) = &self.selected_prompt_model {
+            if let Some(cached) = self.cached_models.iter().find(|m| m.id == chain.primary_id) {
+                if let Some(p) = self.post_process_provider(&cached.provider_id) {
+                    return Some(p);
+                }
+            }
+        }
+
+        // 3. Last resort: first available provider
+        self.post_process_providers.first()
     }
 
     pub fn post_process_provider(&self, provider_id: &str) -> Option<&PostProcessProvider> {
@@ -2202,15 +2219,21 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 
 /// Resolve effective proxy URL for a provider based on global and per-provider settings.
 /// Returns Some(url) only when: global proxy is enabled AND provider use_proxy is true AND url is set.
-pub fn resolve_proxy(settings: &AppSettings, provider: &PostProcessProvider) -> Option<String> {
-    if !settings.proxy_global_enabled || !provider.use_proxy {
-        return None;
-    }
-    settings
-        .proxy_url
-        .as_deref()
-        .filter(|u| !u.is_empty())
-        .map(|u| u.to_string())
+///
+/// NOTE: Proxy feature is temporarily disabled — always returns None.
+/// The original logic is preserved below for when the feature is re-enabled.
+pub fn resolve_proxy(_settings: &AppSettings, _provider: &PostProcessProvider) -> Option<String> {
+    // Proxy feature temporarily disabled
+    None
+    // Original logic:
+    // if !settings.proxy_global_enabled || !provider.use_proxy {
+    //     return None;
+    // }
+    // settings
+    //     .proxy_url
+    //     .as_deref()
+    //     .filter(|u| !u.is_empty())
+    //     .map(|u| u.to_string())
 }
 
 #[cfg(test)]

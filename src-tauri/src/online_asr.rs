@@ -49,11 +49,9 @@ impl OnlineAsrClient {
             language,
             wav_bytes.len()
         );
-        let client = crate::http_client::build_blocking_http_client(
-            None,
-            self.timeout,
-        ).map_err(|e| anyhow::anyhow!(e))
-         .context("failed to build HTTP client")?;
+        let client = crate::http_client::build_blocking_http_client(None, self.timeout)
+            .map_err(|e| anyhow::anyhow!(e))
+            .context("failed to build HTTP client")?;
 
         let mut form = multipart::Form::new()
             .part(

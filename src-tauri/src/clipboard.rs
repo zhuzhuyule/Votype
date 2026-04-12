@@ -222,7 +222,6 @@ pub fn get_selected_text(_app_handle: &AppHandle) -> Result<String, String> {
     }
 }
 
-
 fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), String> {
     match key_type {
         AutoSubmitKey::Enter => {
@@ -364,11 +363,7 @@ fn get_cursor_context_via_accessibility() -> Result<CursorContext, String> {
 
     #[link(name = "ApplicationServices", kind = "framework")]
     extern "C" {
-        fn AXValueGetValue(
-            value: *mut c_void,
-            value_type: u32,
-            value_ptr: *mut c_void,
-        ) -> bool;
+        fn AXValueGetValue(value: *mut c_void, value_type: u32, value_ptr: *mut c_void) -> bool;
     }
 
     // AXValueType::CGRange = 4 (kAXValueCFRangeType)
@@ -419,8 +414,7 @@ fn get_cursor_context_via_accessibility() -> Result<CursorContext, String> {
             CFRelease(system_element);
             return Err(format!(
                 "AXValue too large ({} chars, limit {})",
-                char_count,
-                AX_VALUE_MAX_LENGTH
+                char_count, AX_VALUE_MAX_LENGTH
             ));
         }
 

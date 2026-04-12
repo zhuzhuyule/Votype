@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { EditModelDialog } from "./dialogs/EditModelDialog";
 import { ModelCardContent } from "../../ui/ModelCard";
 
@@ -29,6 +29,11 @@ import {
   type ModelSpeedStats,
 } from "../../../hooks/useModelSpeedStats";
 import { useSettings } from "../../../hooks/useSettings";
+import {
+  DEFAULT_MODEL_LIST_VIEW_STATE,
+  readModelListViewState,
+  writeModelListViewState,
+} from "../../../lib/modelListViewState";
 import type { CachedModel, ModelType } from "../../../lib/types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -54,6 +59,14 @@ function getModelStats(
 }
 
 type SortKey = "name" | "calls" | "speed" | "provider";
+
+function getStoredModelListViewState() {
+  if (typeof window === "undefined") {
+    return DEFAULT_MODEL_LIST_VIEW_STATE;
+  }
+
+  return readModelListViewState(window.localStorage);
+}
 
 // ─── Model Card ─────────────────────────────────────────────────────────────
 
@@ -84,7 +97,7 @@ const ModelCard: React.FC<{
         <ModelCardContent
           name={model.custom_label || model.model_id}
           modelId={model.custom_label ? model.model_id : undefined}
-          subtitle={showProvider ? providerName : (isAsr ? "ASR" : "Standard")}
+          subtitle={showProvider ? providerName : isAsr ? "ASR" : "Standard"}
           isAsr={isAsr}
           isThinking={model.is_thinking_model}
           stats={stats}
@@ -275,9 +288,13 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
     useSettings();
   const { stats: speedStats } = useModelSpeedStats();
   const [editingModel, setEditingModel] = useState<CachedModel | null>(null);
-  const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [typeFilter, setTypeFilter] = useState<"all" | ModelType>("all");
-  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>(
+    () => getStoredModelListViewState().sortKey,
+  );
+  const [typeFilter, setTypeFilter] = useState<"all" | ModelType>(
+    () => getStoredModelListViewState().typeFilter,
+  );
+  const [query, setQuery] = useState(() => getStoredModelListViewState().query);
   const { t } = useTranslation();
 
   const cachedModels = settings?.cached_models ?? [];
@@ -371,11 +388,29 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
   );
 
   const isShowingAll = !providerFilter;
-  const [grouped, setGrouped] = useState(true);
+  const [grouped, setGrouped] = useState(
+    () => getStoredModelListViewState().grouped,
+  );
+  const effectiveGrouped = isShowingAll ? grouped : false;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    writeModelListViewState(window.localStorage, {
+      ...getStoredModelListViewState(),
+      providerFilter,
+      grouped,
+      sortKey,
+      typeFilter,
+      query,
+    });
+  }, [grouped, providerFilter, query, sortKey, typeFilter]);
 
   // Group models by provider
   const groupedModels = useMemo(() => {
-    if (!isShowingAll || !grouped) return null;
+    if (!effectiveGrouped) return null;
     const groups: Record<string, CachedModel[]> = {};
     filteredModels.forEach((m) => {
       if (!groups[m.provider_id]) groups[m.provider_id] = [];
@@ -384,10 +419,10 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
     return Object.entries(groups).sort(([a], [b]) =>
       (providerNameMap[a] ?? a).localeCompare(providerNameMap[b] ?? b),
     );
-  }, [isShowingAll, grouped, filteredModels, providerNameMap]);
+  }, [effectiveGrouped, filteredModels, providerNameMap]);
 
   // In flat "all" mode, show provider name on each card
-  const showProviderOnCard = isShowingAll && !grouped;
+  const showProviderOnCard = isShowingAll && !effectiveGrouped;
 
   return (
     <Box>
@@ -464,7 +499,7 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
             {t("settings.postProcessing.models.sort.speed", "Speed")}
           </SegmentedControl.Item>
           {/* Provider sort — useful in flat all mode */}
-          {isShowingAll && !grouped && (
+          {isShowingAll && !effectiveGrouped && (
             <SegmentedControl.Item value="provider">
               {t("settings.postProcessing.models.sort.provider", "Provider")}
             </SegmentedControl.Item>

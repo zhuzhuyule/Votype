@@ -1,7 +1,6 @@
 import {
   Box,
   Button,
-  DropdownMenu,
   Flex,
   IconButton,
   SegmentedControl,
@@ -10,6 +9,7 @@ import {
   Tooltip,
 } from "@radix-ui/themes";
 import {
+  IconAlertTriangle,
   IconChevronDown,
   IconChevronRight,
   IconGripVertical,
@@ -20,8 +20,14 @@ import {
 } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React, { useCallback, useEffect, useState } from "react";
+import { AppPickerDialog } from "./dialogs/AppPickerDialog";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import {
+  getAppIconUrl,
+  isAppInstalled,
+  useInstalledApps,
+} from "../../../hooks/useInstalledApps";
 import {
   AppProfile,
   AppReviewPolicy,
@@ -276,9 +282,18 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
     isDragging,
   } = useSortable({ id: profile.id });
 
+  // Subscribe to installed apps cache so this card re-renders when it updates
+  useInstalledApps();
+
   // Ensure rules is always an array (handle legacy data)
   const rules = profile.rules || [];
   const [expanded, setExpanded] = useState(rules.length > 0);
+
+  // Resolve display icon: user custom override > native app icon > fallback
+  const nativeIcon = getAppIconUrl(appName);
+  const displayIcon = profile.icon ?? nativeIcon;
+  const installedStatus = isAppInstalled(appName);
+  const isMissing = installedStatus === false;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -339,15 +354,36 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
                 </IconButton>
               )}
               <IconPicker
-                value={profile.icon}
+                value={displayIcon}
                 onChange={(icon) => onUpdateProfile(profile.id, { icon })}
               />
               <IconButton variant="ghost" size="1" onClick={handleAddRule}>
                 <IconPlus size={14} />
               </IconButton>
-              <Text weight="bold" size="2">
+              <Text
+                weight="bold"
+                size="2"
+                color={isMissing ? "gray" : undefined}
+                style={
+                  isMissing ? { textDecoration: "line-through" } : undefined
+                }
+              >
                 {appName}
               </Text>
+              {isMissing && (
+                <Tooltip
+                  content={t(
+                    "settings.postProcessing.appRules.appNotInstalled",
+                    "This app is no longer installed",
+                  )}
+                >
+                  <IconAlertTriangle
+                    size={14}
+                    color="var(--amber-9)"
+                    style={{ flexShrink: 0 }}
+                  />
+                </Tooltip>
+              )}
               {rules.length > 0 && (
                 <Text size="1" color="gray">
                   ({rules.length})
@@ -450,6 +486,9 @@ export const AppProfilesManager: React.FC = () => {
   const [isCapturing, setIsCapturing] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [suggestedApps, setSuggestedApps] = useState<string[]>([]);
+  const [appPickerOpen, setAppPickerOpen] = useState(false);
+  // Warm installed apps cache on mount; also re-renders when cache updates.
+  useInstalledApps();
 
   const profiles = settings?.app_profiles || [];
   const appToProfile = settings?.app_to_profile || {};
@@ -504,6 +543,8 @@ export const AppProfilesManager: React.FC = () => {
       if (appToProfile[appName]) return;
 
       const profileId = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      // Icon is null by default — native icon is resolved at render time
+      // from the installed apps cache. User can override via IconPicker.
       const newProfile: AppProfile = {
         id: profileId,
         name: appName,
@@ -603,36 +644,15 @@ export const AppProfilesManager: React.FC = () => {
             : t("settings.postProcessing.appRules.noProfiles")}
         </Text>
         <Flex gap="2">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Button
-                variant="soft"
-                size="2"
-                style={{ minWidth: "fit-content" }}
-              >
-                <IconPlus size={16} />
-                {t("settings.postProcessing.appRules.addApp")}
-                <DropdownMenu.TriggerIcon />
-              </Button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content
-              style={{ minWidth: "max-content", maxWidth: 400 }}
-            >
-              {suggestedApps.map((app) => (
-                <DropdownMenu.Item
-                  key={app}
-                  onClick={() => handleAssignApp(app)}
-                >
-                  <Text size="2">{app}</Text>
-                </DropdownMenu.Item>
-              ))}
-              {suggestedApps.length === 0 && (
-                <DropdownMenu.Item disabled>
-                  {t("common.noOptionsFound")}
-                </DropdownMenu.Item>
-              )}
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+          <Button
+            variant="soft"
+            size="2"
+            style={{ minWidth: "fit-content" }}
+            onClick={() => setAppPickerOpen(true)}
+          >
+            <IconPlus size={16} />
+            {t("settings.postProcessing.appRules.addApp")}
+          </Button>
 
           <Button
             variant="solid"
@@ -645,6 +665,14 @@ export const AppProfilesManager: React.FC = () => {
               : t("settings.postProcessing.appRules.capture")}
           </Button>
         </Flex>
+
+        <AppPickerDialog
+          open={appPickerOpen}
+          onOpenChange={setAppPickerOpen}
+          onSelect={(name) => handleAssignApp(name)}
+          excludedApps={Object.keys(appToProfile)}
+          recentApps={suggestedApps}
+        />
       </Flex>
 
       <DndContext

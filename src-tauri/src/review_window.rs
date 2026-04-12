@@ -784,7 +784,10 @@ pub fn show_review_window_with_candidates(
         // If JS is already loaded, emit and show immediately; otherwise review_window_ready() will replay
         if REVIEW_WINDOW_READY.load(Ordering::SeqCst) {
             let emit_result = review_window.emit("review-window-multi-candidate", &payload);
-            debug!("review_window.emit() multi-candidate result: {:?}", emit_result);
+            debug!(
+                "review_window.emit() multi-candidate result: {:?}",
+                emit_result
+            );
 
             let focus_token = REVIEW_WINDOW_FOCUS_TOKEN.fetch_add(1, Ordering::SeqCst) + 1;
             let _ = review_window.show();

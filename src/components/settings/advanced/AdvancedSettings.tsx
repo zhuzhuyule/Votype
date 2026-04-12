@@ -135,7 +135,8 @@ export const AdvancedSettings: React.FC = () => {
         </SettingsGroup>
       )}
 
-      {/* Network / Proxy */}
+      {/* Network / Proxy - temporarily hidden */}
+      {false && (
       <SettingsGroup
         title={t("settings.advanced.groups.network", "Network")}
         noContent={!hasProxy && !showProxy}
@@ -388,6 +389,7 @@ export const AdvancedSettings: React.FC = () => {
           </Flex>
         )}
       </SettingsGroup>
+      )}
 
       {/* Debug Options - Expert only */}
       {expertMode && (

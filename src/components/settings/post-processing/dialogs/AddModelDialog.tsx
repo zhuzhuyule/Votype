@@ -6,6 +6,7 @@ import {
   Dialog,
   Flex,
   Grid,
+  ScrollArea,
   SegmentedControl,
   Text,
   TextField,
@@ -232,7 +233,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content maxWidth="720px">
+      <Dialog.Content maxWidth="860px">
         <Dialog.Title>
           {t("settings.postProcessing.models.selectModel.title")}
         </Dialog.Title>
@@ -290,7 +291,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
           </Flex>
 
           {/* Model grid */}
-          <Box className="max-h-[420px] overflow-y-auto rounded-[var(--radius-3)] border border-(--gray-a4) p-2">
+          <ScrollArea scrollbars="vertical" type="hover" style={{ maxHeight: 520 }} className="[&>.rt-ScrollAreaViewport]:rounded-[var(--radius-3)] [&>.rt-ScrollAreaViewport]:border [&>.rt-ScrollAreaViewport]:border-(--gray-a4) [&>.rt-ScrollAreaViewport]:p-2">
             {isLoading ? (
               <Flex align="center" justify="center" py="8">
                 <Text size="2" color="gray">
@@ -330,7 +331,9 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                         "relative cursor-pointer select-none rounded-[var(--radius-2)] border px-3 py-2 transition-all duration-100",
                         isSelected
                           ? "border-(--accent-a7) bg-(--accent-a2)"
-                          : "border-(--gray-a4) hover:border-(--gray-a6) hover:bg-(--gray-a2)",
+                          : alreadyAdded
+                            ? "border-(--gray-a3) bg-(--gray-a2) hover:border-(--gray-a6)"
+                            : "border-(--gray-a4) hover:border-(--gray-a6) hover:bg-(--gray-a2)",
                       ].join(" ")}
                     >
                       <Flex direction="column" gap="1">
@@ -358,22 +361,12 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                               {model.capabilities}
                             </Text>
                           )}
-                          {source === "free" && templateMeta?.label && (
-                            <Text size="1" className="text-(--gray-8)">
-                              · {templateMeta.label}
-                            </Text>
-                          )}
                           {alreadyAdded && (
-                            <Badge variant="soft" color="gray" size="1">
+                            <Badge variant="soft" color="blue" size="1">
                               {t(
                                 "settings.postProcessing.models.selectModel.alreadyAdded",
                                 "Added",
                               )}
-                            </Badge>
-                          )}
-                          {source === "free" && (
-                            <Badge variant="soft" color="green" size="1">
-                              Free
                             </Badge>
                           )}
                         </Flex>
@@ -418,7 +411,7 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
                 })}
               </Grid>
             )}
-          </Box>
+          </ScrollArea>
 
           {/* Footer: cancel + add */}
           <Flex justify="end" gap="3">

@@ -299,9 +299,7 @@ pub async fn unified_post_process(
 
         // Check for fallback chain on the lite model
         let lite_chain = lite_settings.selected_prompt_model.as_ref();
-        let has_lite_fallback = lite_chain
-            .and_then(|c| c.fallback_id.as_ref())
-            .is_some();
+        let has_lite_fallback = lite_chain.and_then(|c| c.fallback_id.as_ref()).is_some();
 
         let fallback_provider = match lite_settings.active_post_process_provider() {
             Some(p) => p,
@@ -365,160 +363,163 @@ pub async fn unified_post_process(
         let lite_app_name_for_context = app_name.clone();
 
         // Execute with or without fallback chain
-        let (result, err, error_message, api_token_count, result_model, result_provider, metrics_logged) =
-            if has_lite_fallback {
-                let chain = lite_chain.unwrap();
-                let app = app_handle.clone();
-                let s = lite_settings.clone();
-                let sys_msgs = built.system_messages.clone();
-                let user_msg = built.user_message.clone();
-                let an = app_name;
-                let wt = window_title;
-                let metrics = app_handle
-                    .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
-                    .map(|m| (*m).clone());
-                let hist_id = history_id;
+        let (
+            result,
+            err,
+            error_message,
+            api_token_count,
+            result_model,
+            result_provider,
+            metrics_logged,
+        ) = if has_lite_fallback {
+            let chain = lite_chain.unwrap();
+            let app = app_handle.clone();
+            let s = lite_settings.clone();
+            let sys_msgs = built.system_messages.clone();
+            let user_msg = built.user_message.clone();
+            let an = app_name;
+            let wt = window_title;
+            let metrics = app_handle
+                .try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
+                .map(|m| (*m).clone());
+            let hist_id = history_id;
 
-                let fb_result =
-                    crate::fallback::execute_with_fallback(chain, |cached_model_id| {
-                        let app = app.clone();
-                        let s = s.clone();
-                        let sys_msgs = sys_msgs.clone();
-                        let user_msg = user_msg.clone();
-                        let an = an.clone();
-                        let wt = wt.clone();
-                        let metrics = metrics.clone();
-                        async move {
-                            let cached = s
-                                .cached_models
-                                .iter()
-                                .find(|m| m.id == cached_model_id)
-                                .ok_or_else(|| {
-                                    format!("Model {} not found", cached_model_id)
-                                })?;
-                            let provider = s
-                                .post_process_provider(&cached.provider_id)
-                                .ok_or_else(|| {
-                                    format!("Provider {} not found", cached.provider_id)
-                                })?;
-                            let model = cached.model_id.clone();
-                            let log_model_id = cached.model_id.clone();
-                            let log_provider_id = provider.id.clone();
+            let fb_result = crate::fallback::execute_with_fallback(chain, |cached_model_id| {
+                let app = app.clone();
+                let s = s.clone();
+                let sys_msgs = sys_msgs.clone();
+                let user_msg = user_msg.clone();
+                let an = an.clone();
+                let wt = wt.clone();
+                let metrics = metrics.clone();
+                async move {
+                    let cached = s
+                        .cached_models
+                        .iter()
+                        .find(|m| m.id == cached_model_id)
+                        .ok_or_else(|| format!("Model {} not found", cached_model_id))?;
+                    let provider = s
+                        .post_process_provider(&cached.provider_id)
+                        .ok_or_else(|| format!("Provider {} not found", cached.provider_id))?;
+                    let model = cached.model_id.clone();
+                    let log_model_id = cached.model_id.clone();
+                    let log_provider_id = provider.id.clone();
 
-                            let call_start = std::time::Instant::now();
-                            let (result, err, error_msg, token_count) =
-                                super::core::execute_llm_request_with_messages(
-                                    &app,
-                                    &s,
-                                    provider,
-                                    &model,
-                                    Some(&cached_model_id),
-                                    &sys_msgs,
-                                    user_msg.as_deref(),
-                                    None,
-                                    an,
-                                    wt,
-                                    None,
-                                    None,
-                                    None,
-                                )
-                                .await;
-                            let elapsed_ms = call_start.elapsed().as_millis() as u64;
+                    let call_start = std::time::Instant::now();
+                    let (result, err, error_msg, token_count) =
+                        super::core::execute_llm_request_with_messages(
+                            &app,
+                            &s,
+                            provider,
+                            &model,
+                            Some(&cached_model_id),
+                            &sys_msgs,
+                            user_msg.as_deref(),
+                            None,
+                            an,
+                            wt,
+                            None,
+                            None,
+                            None,
+                        )
+                        .await;
+                    let elapsed_ms = call_start.elapsed().as_millis() as u64;
 
-                            // Self-log metrics
-                            if let Some(ref m) = metrics {
-                                let tokens_per_sec = match (&result, elapsed_ms) {
-                                    (Some(ref t), d) if d > 0 => {
-                                        let est = super::extensions::estimate_tokens(t);
-                                        Some(est / d as f64 * 1000.0)
-                                    }
-                                    _ => None,
-                                };
-                                let _ = m.log_call(
-                                    &crate::managers::llm_metrics::LlmCallRecord {
-                                        history_id: hist_id,
-                                        model_id: log_model_id.clone(),
-                                        provider: log_provider_id.clone(),
-                                        call_type: "single_polish".to_string(),
-                                        input_tokens: None,
-                                        output_tokens: None,
-                                        total_tokens: token_count,
-                                        token_estimate: None,
-                                        duration_ms: elapsed_ms as i64,
-                                        tokens_per_sec,
-                                        error: if err {
-                                            error_msg.clone()
-                                        } else {
-                                            None
-                                        },
-                                        is_fallback: false,
-                                    },
-                                );
+                    // Self-log metrics
+                    if let Some(ref m) = metrics {
+                        let tokens_per_sec = match (&result, elapsed_ms) {
+                            (Some(ref t), d) if d > 0 => {
+                                let est = super::extensions::estimate_tokens(t);
+                                Some(est / d as f64 * 1000.0)
                             }
-
-                            if err {
-                                Err(error_msg.unwrap_or_else(|| "LLM error".into()))
-                            } else {
-                                result
-                                    .map(|text| {
-                                        (text, token_count, log_model_id, log_provider_id)
-                                    })
-                                    .ok_or_else(|| "Empty result".into())
-                            }
-                        }
-                    })
-                    .await;
-
-                if fb_result.is_fallback {
-                    info!(
-                        "[UnifiedPipeline] LitePolish used fallback model '{}'",
-                        fb_result.actual_model_id
-                    );
-                }
-
-                match fb_result.result {
-                    Ok((text, tc, mid, pid)) => {
-                        (Some(text), false, None, tc, mid, pid, true)
+                            _ => None,
+                        };
+                        let _ = m.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+                            history_id: hist_id,
+                            model_id: log_model_id.clone(),
+                            provider: log_provider_id.clone(),
+                            call_type: "single_polish".to_string(),
+                            input_tokens: None,
+                            output_tokens: None,
+                            total_tokens: token_count,
+                            token_estimate: None,
+                            duration_ms: elapsed_ms as i64,
+                            tokens_per_sec,
+                            error: if err { error_msg.clone() } else { None },
+                            is_fallback: false,
+                        });
                     }
-                    Err(e) => {
-                        log::warn!("[UnifiedPipeline] LitePolish fallback chain failed: {}", e);
-                        (None, true, Some(e), None, String::new(), String::new(), true)
+
+                    if err {
+                        Err(error_msg.unwrap_or_else(|| "LLM error".into()))
+                    } else {
+                        result
+                            .map(|text| (text, token_count, log_model_id, log_provider_id))
+                            .ok_or_else(|| "Empty result".into())
                     }
                 }
-            } else {
-                let (actual_provider, model) = single_resolved.unwrap();
-                let cached_model_id = lite_prompt.model_id.as_deref().or(lite_settings
-                    .selected_prompt_model
-                    .as_ref()
-                    .map(|c| c.primary_id.as_str()));
+            })
+            .await;
 
-                let (result, err, error_message, api_token_count) =
-                    super::core::execute_llm_request_with_messages(
-                        app_handle,
-                        &lite_settings,
-                        actual_provider,
-                        &model,
-                        cached_model_id,
-                        &built.system_messages,
-                        built.user_message.as_deref(),
+            // Each individual LLM call inside the fallback chain is protected
+            // by the 10s timeout in execute_llm_request_with_messages.
+
+            if fb_result.is_fallback {
+                info!(
+                    "[UnifiedPipeline] LitePolish used fallback model '{}'",
+                    fb_result.actual_model_id
+                );
+            }
+
+            match fb_result.result {
+                Ok((text, tc, mid, pid)) => (Some(text), false, None, tc, mid, pid, true),
+                Err(e) => {
+                    log::warn!("[UnifiedPipeline] LitePolish fallback chain failed: {}", e);
+                    (
                         None,
-                        app_name,
-                        window_title,
+                        true,
+                        Some(e),
                         None,
-                        None,
-                        None,
+                        String::new(),
+                        String::new(),
+                        true,
                     )
-                    .await;
-                (
-                    result,
-                    err,
-                    error_message,
-                    api_token_count,
-                    model.clone(),
-                    actual_provider.id.clone(),
-                    false,
+                }
+            }
+        } else {
+            let (actual_provider, model) = single_resolved.unwrap();
+            let cached_model_id = lite_prompt.model_id.as_deref().or(lite_settings
+                .selected_prompt_model
+                .as_ref()
+                .map(|c| c.primary_id.as_str()));
+
+            let (result, err, error_message, api_token_count) =
+                super::core::execute_llm_request_with_messages(
+                    app_handle,
+                    &lite_settings,
+                    actual_provider,
+                    &model,
+                    cached_model_id,
+                    &built.system_messages,
+                    built.user_message.as_deref(),
+                    None,
+                    app_name,
+                    window_title,
+                    None,
+                    None,
+                    None,
                 )
-            };
+                .await;
+            (
+                result,
+                err,
+                error_message,
+                api_token_count,
+                model.clone(),
+                actual_provider.id.clone(),
+                false,
+            )
+        };
 
         let lite_duration_ms = lite_start.elapsed().as_millis() as u64;
         let total_tokens = sum_tokens(intent_tokens, api_token_count);
@@ -551,8 +552,16 @@ pub async fn unified_post_process(
             llm_call_count: total_calls,
             error: err,
             error_message,
-            metrics_model_id: if metrics_logged { None } else { Some(result_model) },
-            metrics_provider_id: if metrics_logged { None } else { Some(result_provider) },
+            metrics_model_id: if metrics_logged {
+                None
+            } else {
+                Some(result_model)
+            },
+            metrics_provider_id: if metrics_logged {
+                None
+            } else {
+                Some(result_provider)
+            },
             metrics_duration_ms: Some(lite_duration_ms),
             metrics_tokens_per_sec: lite_tokens_per_sec,
         };
@@ -1286,7 +1295,14 @@ pub async fn maybe_post_process_transcription(
 
     let fallback_provider = match settings.active_post_process_provider() {
         Some(p) => p,
-        None => return (None, None, None, false, None, None, None, None, None, None),
+        None => {
+            log::warn!(
+                "[PostProcess] active_post_process_provider() returned None! provider_id='{}', available_providers=[{}]",
+                settings.post_process_provider_id,
+                settings.post_process_providers.iter().map(|p| p.id.as_str()).collect::<Vec<_>>().join(", ")
+            );
+            return (None, None, None, false, None, None, None, None, None, None);
+        }
     };
 
     // Load external skills (Phase 9)
@@ -1764,18 +1780,18 @@ pub async fn maybe_post_process_transcription(
                         }
 
                         // Build a short preview of the selected text (first 80 chars)
-                        let (sel_len, sel_preview) =
-                            if let Some(ref text) = effective_selected_text {
-                                let chars: Vec<char> = text.chars().collect();
-                                let preview = if chars.len() > 200 {
-                                    format!("{}…", chars[..200].iter().collect::<String>())
-                                } else {
-                                    text.clone()
-                                };
-                                (Some(chars.len()), Some(preview))
+                        let (sel_len, sel_preview) = if let Some(ref text) = effective_selected_text
+                        {
+                            let chars: Vec<char> = text.chars().collect();
+                            let preview = if chars.len() > 200 {
+                                format!("{}…", chars[..200].iter().collect::<String>())
                             } else {
-                                (None, None)
+                                text.clone()
                             };
+                            (Some(chars.len()), Some(preview))
+                        } else {
+                            (None, None)
+                        };
 
                         app_handle
                             .emit(
@@ -2105,40 +2121,25 @@ pub async fn maybe_post_process_transcription(
         let captured_model_id = model.clone();
         let captured_provider_id = actual_provider.id.clone();
 
-        // Single-model request: apply a 10s timeout.
-        // If the LLM takes too long, skip post-processing and return the original text.
+        // Each LLM call is protected by a 10s timeout in execute_llm_request_with_messages.
         let polish_start = std::time::Instant::now();
-        let llm_future = super::core::execute_llm_request_with_messages(
-            app_handle,
-            settings,
-            actual_provider,
-            &model,
-            cached_model_id,
-            &built.system_messages,
-            built.user_message.as_deref(),
-            None,
-            app_name.clone(),
-            window_title.clone(),
-            match_pattern.clone(),
-            match_type,
-            merged_extra_params.as_ref(),
-        );
-
         let (mut result, mut err, mut error_message, mut api_token_count) =
-            match tokio::time::timeout(std::time::Duration::from_secs(10), llm_future).await {
-                Ok(llm_result) => llm_result,
-                Err(_) => {
-                    log::warn!(
-                    "[PostProcess] Single-model LLM request timed out (>10s), returning original transcription"
-                );
-                    (
-                        Some(current_input_content.clone()),
-                        false,
-                        Some("LLM request timed out".to_string()),
-                        None,
-                    )
-                }
-            };
+            super::core::execute_llm_request_with_messages(
+                app_handle,
+                settings,
+                actual_provider,
+                &model,
+                cached_model_id,
+                &built.system_messages,
+                built.user_message.as_deref(),
+                None,
+                app_name.clone(),
+                window_title.clone(),
+                match_pattern.clone(),
+                match_type,
+                merged_extra_params.as_ref(),
+            )
+            .await;
 
         // Fallback: if primary model failed and a fallback is configured, retry with fallback model
         let mut used_fallback = false;
@@ -2164,7 +2165,7 @@ pub async fn maybe_post_process_transcription(
                     super::routing::resolve_cached_model_to_provider_owned(settings, fallback_id)
                 {
                     let fb_cached_model_id = Some(fallback_id.as_str());
-                    let fb_future = super::core::execute_llm_request_with_messages(
+                    let fb_result = super::core::execute_llm_request_with_messages(
                         app_handle,
                         settings,
                         &fb_provider,
@@ -2178,26 +2179,8 @@ pub async fn maybe_post_process_transcription(
                         match_pattern.clone(),
                         match_type,
                         merged_extra_params.as_ref(),
-                    );
-
-                    let fb_result =
-                        match tokio::time::timeout(std::time::Duration::from_secs(10), fb_future)
-                            .await
-                        {
-                            Ok(r) => r,
-                            Err(_) => {
-                                log::warn!(
-                                    "[PostProcess] Fallback model '{}' also timed out",
-                                    fallback_id
-                                );
-                                (
-                                    Some(current_input_content.clone()),
-                                    false,
-                                    Some("Fallback LLM request timed out".to_string()),
-                                    None,
-                                )
-                            }
-                        };
+                    )
+                    .await;
 
                     // Destructure: (Option<String>, bool, Option<String>, Option<i64>)
                     result = fb_result.0;
@@ -2347,8 +2330,8 @@ fn log_pipeline_decision(
     app_handle: &AppHandle,
     record: &crate::managers::pipeline_log::PipelineDecisionRecord,
 ) {
-    if let Some(manager) = app_handle
-        .try_state::<std::sync::Arc<crate::managers::pipeline_log::PipelineLogManager>>()
+    if let Some(manager) =
+        app_handle.try_state::<std::sync::Arc<crate::managers::pipeline_log::PipelineLogManager>>()
     {
         manager.log_decision(record);
     }

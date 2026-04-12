@@ -152,8 +152,12 @@ export const DynamicIcon = React.forwardRef<
     );
   }
 
-  // 2. Base64/Image URL support
-  if (name.startsWith("data:image") || name.startsWith("http")) {
+  // 2. Base64/Image URL support (incl. Tauri asset:// protocol)
+  if (
+    name.startsWith("data:image") ||
+    name.startsWith("http") ||
+    name.startsWith("asset:")
+  ) {
     return (
       <img
         ref={ref as React.Ref<HTMLImageElement>}
@@ -163,7 +167,7 @@ export const DynamicIcon = React.forwardRef<
           width: props.size || 18,
           height: props.size || 18,
           borderRadius: "4px",
-          objectFit: "cover",
+          objectFit: "contain",
           display: "block",
         }}
         {...props}
@@ -260,17 +264,48 @@ export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange }) => {
   }, [search]);
 
   const isSearchMode = search.trim().length > 0;
+  const isImageValue =
+    typeof value === "string" &&
+    (value.startsWith("data:image") ||
+      value.startsWith("http") ||
+      value.startsWith("asset:") ||
+      value.startsWith("<svg"));
 
   return (
     <Popover.Root>
       <Popover.Trigger>
-        <IconButton
-          variant="soft"
-          size="2"
-          style={{ cursor: "pointer", width: "28px", height: "28px" }}
-        >
-          <DynamicIcon name={currentIconData} size={18} />
-        </IconButton>
+        {isImageValue ? (
+          <button
+            type="button"
+            aria-label="Change icon"
+            style={{
+              cursor: "pointer",
+              width: 28,
+              height: 28,
+              padding: 0,
+              border: "none",
+              borderRadius: 6,
+              overflow: "hidden",
+              background: "var(--gray-a2)",
+              boxShadow:
+                "inset 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <DynamicIcon name={currentIconData} size={26} />
+          </button>
+        ) : (
+          <IconButton
+            variant="soft"
+            size="2"
+            style={{ cursor: "pointer", width: "28px", height: "28px" }}
+          >
+            <DynamicIcon name={currentIconData} size={18} />
+          </IconButton>
+        )}
       </Popover.Trigger>
       <Popover.Content
         size="1"
