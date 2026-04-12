@@ -969,6 +969,7 @@
         },
         "providers": {
           "add": "添加提供商",
+          "addCustom": "添加自定义",
           "advancedSettings": "高级设置",
           "api": {
             "model": {
@@ -1497,6 +1498,16 @@
       "noApps": "暂无应用数据",
       "appDistribution": "应用分布",
       "timeDistribution": "时间分布"
+    },
+    "recap": {
+      "title": "每日复盘",
+      "empty": "当前时间范围内还没有足够的数据形成复盘。",
+      "progress": "关键推进",
+      "friction": "卡点与摩擦",
+      "nextFocus": "下一步重点",
+      "blockers": "当前卡点",
+      "nextStep": "建议续接",
+      "records": "条记录"
     },
     "timeline": {
       "title": "历史记录",

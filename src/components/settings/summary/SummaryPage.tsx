@@ -12,9 +12,12 @@ import {
 import {
   IconChevronLeft,
   IconChevronRight,
+  IconCircleCheck,
   IconCode,
   IconDownload,
   IconFileText,
+  IconFlag3,
+  IconRouteAltLeft,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,9 +31,11 @@ import {
 } from "./SummaryStats";
 import { useSummary } from "./hooks/useSummary";
 import {
+  type DailyOverview,
   type PeriodSelection,
   type PeriodType,
   type Summary,
+  type TaskCluster,
 } from "./summaryTypes";
 
 // Helper for local YMD (moved from SummaryCalendar or duplicated)
@@ -39,6 +44,193 @@ const toLocalYmd = (date: Date) => {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+};
+
+function formatDurationShort(ms: number) {
+  const minutes = Math.max(1, Math.round(ms / 60000));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainMinutes = minutes % 60;
+  return remainMinutes > 0 ? `${hours}h ${remainMinutes}m` : `${hours}h`;
+}
+
+const SummaryRecapSection: React.FC<{
+  overview?: DailyOverview | null;
+  tasks?: TaskCluster[];
+  loading: boolean;
+}> = ({ overview, tasks = [], loading }) => {
+  const { t } = useTranslation();
+
+  if (loading && !overview && tasks.length === 0) {
+    return (
+      <Grid columns="2" gap="4">
+        <Box className="rounded-2xl border border-(--gray-5) bg-(--gray-2) h-48 animate-pulse" />
+        <Box className="rounded-2xl border border-(--gray-5) bg-(--gray-2) h-48 animate-pulse" />
+      </Grid>
+    );
+  }
+
+  if (!overview && tasks.length === 0) {
+    return (
+      <Box className="rounded-2xl border border-(--gray-5) bg-linear-to-br from-(--gray-1) to-(--gray-2) p-5">
+        <Text size="2" color="gray">
+          {t("summary.recap.empty")}
+        </Text>
+      </Box>
+    );
+  }
+
+  return (
+    <Grid columns="2" gap="4">
+      <Box className="rounded-2xl border border-sky-200/60 bg-linear-to-br from-sky-50 to-cyan-50 p-5 shadow-sm dark:border-sky-900/40 dark:from-sky-950/20 dark:to-cyan-950/10">
+        <Flex align="center" gap="2" mb="3">
+          <Box className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
+            <IconFlag3 size={16} />
+          </Box>
+          <Heading size="4">{t("summary.recap.title")}</Heading>
+        </Flex>
+        {overview?.headline ? (
+          <Text size="3" className="block leading-6 text-(--gray-12)">
+            {overview.headline}
+          </Text>
+        ) : null}
+        {overview?.key_progress?.length ? (
+          <Box mt="4">
+            <Text
+              size="2"
+              weight="medium"
+              className="mb-2 block text-(--gray-11)"
+            >
+              {t("summary.recap.progress")}
+            </Text>
+            <Flex direction="column" gap="2">
+              {overview.key_progress.slice(0, 3).map((item) => (
+                <Flex key={item} align="start" gap="2">
+                  <IconCircleCheck
+                    size={16}
+                    className="mt-0.5 shrink-0 text-emerald-600"
+                  />
+                  <Text size="2" className="leading-5">
+                    {item}
+                  </Text>
+                </Flex>
+              ))}
+            </Flex>
+          </Box>
+        ) : null}
+        {overview?.friction_points?.length ? (
+          <Box mt="4">
+            <Text
+              size="2"
+              weight="medium"
+              className="mb-2 block text-(--gray-11)"
+            >
+              {t("summary.recap.friction")}
+            </Text>
+            <Flex direction="column" gap="2">
+              {overview.friction_points.slice(0, 3).map((item) => (
+                <Flex key={item} align="start" gap="2">
+                  <IconRouteAltLeft
+                    size={16}
+                    className="mt-0.5 shrink-0 text-amber-600"
+                  />
+                  <Text size="2" className="leading-5">
+                    {item}
+                  </Text>
+                </Flex>
+              ))}
+            </Flex>
+          </Box>
+        ) : null}
+        {overview?.next_focus ? (
+          <Box mt="4" className="rounded-xl bg-white/70 p-3 dark:bg-black/10">
+            <Text
+              size="1"
+              weight="medium"
+              className="mb-1 block uppercase tracking-wide text-(--gray-10)"
+            >
+              {t("summary.recap.nextFocus")}
+            </Text>
+            <Text size="2">{overview.next_focus}</Text>
+          </Box>
+        ) : null}
+      </Box>
+
+      <Flex direction="column" gap="3">
+        {tasks.slice(0, 4).map((task) => (
+          <Box
+            key={`${task.title}-${task.time_span}`}
+            className="rounded-2xl border border-(--gray-5) bg-linear-to-br from-white to-(--gray-1) p-4 shadow-sm dark:from-(--gray-2) dark:to-(--gray-1)"
+          >
+            <Flex justify="between" align="start" gap="3">
+              <Box className="min-w-0">
+                <Heading size="3" className="mb-1">
+                  {task.title}
+                </Heading>
+                <Flex wrap="wrap" gap="2" align="center">
+                  <Badge
+                    color={task.status === "卡住" ? "amber" : "blue"}
+                    variant="soft"
+                  >
+                    {task.status}
+                  </Badge>
+                  <Text size="1" color="gray">
+                    {task.time_span}
+                  </Text>
+                  <Text size="1" color="gray">
+                    {formatDurationShort(task.total_duration_ms)}
+                  </Text>
+                </Flex>
+              </Box>
+              <Badge color="gray" variant="surface">
+                {task.entry_count} {t("summary.recap.records")}
+              </Badge>
+            </Flex>
+
+            <Text size="2" className="mt-3 block leading-5 text-(--gray-11)">
+              {task.summary}
+            </Text>
+
+            {task.apps.length ? (
+              <Flex wrap="wrap" gap="2" mt="3">
+                {task.apps.map((app) => (
+                  <Badge key={app} color="gray" variant="soft">
+                    {app}
+                  </Badge>
+                ))}
+              </Flex>
+            ) : null}
+
+            {task.blockers.length ? (
+              <Box mt="3">
+                <Text
+                  size="1"
+                  weight="medium"
+                  className="mb-1 block uppercase tracking-wide text-amber-700 dark:text-amber-400"
+                >
+                  {t("summary.recap.blockers")}
+                </Text>
+                <Text size="2">{task.blockers.join(" / ")}</Text>
+              </Box>
+            ) : null}
+
+            {task.next_step ? (
+              <Box mt="3" className="rounded-xl bg-(--accent-2) p-3">
+                <Text
+                  size="1"
+                  weight="medium"
+                  className="mb-1 block uppercase tracking-wide text-(--gray-10)"
+                >
+                  {t("summary.recap.nextStep")}
+                </Text>
+                <Text size="2">{task.next_step}</Text>
+              </Box>
+            ) : null}
+          </Box>
+        ))}
+      </Flex>
+    </Grid>
+  );
 };
 
 function getPeriodSelection(
@@ -592,6 +784,12 @@ export const SummaryPage: React.FC = () => {
               </DropdownMenu.Root>
             </Flex>
           </Flex>
+
+          <SummaryRecapSection
+            overview={summary?.stats.daily_overview}
+            tasks={summary?.stats.task_clusters}
+            loading={loading}
+          />
 
           {/* Stats & Charts Grid */}
           <Grid

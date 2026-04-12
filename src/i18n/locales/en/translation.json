@@ -931,6 +931,7 @@
         },
         "providers": {
           "add": "Add Provider",
+          "addCustom": "Add Custom",
           "advancedSettings": "Advanced Settings",
           "api": {
             "model": {
@@ -1460,6 +1461,16 @@
       "noApps": "No app data",
       "appDistribution": "App Distribution",
       "timeDistribution": "Time Distribution"
+    },
+    "recap": {
+      "title": "Daily Recap",
+      "empty": "There is not enough activity in this range to build a recap yet.",
+      "progress": "Key Progress",
+      "friction": "Friction",
+      "nextFocus": "Next Focus",
+      "blockers": "Blockers",
+      "nextStep": "Suggested Next Step",
+      "records": "records"
     },
     "timeline": {
       "title": "History",

@@ -10,6 +10,37 @@ pub struct AppStats {
     pub chars: i64,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct DailyOverview {
+    pub headline: String,
+    pub key_progress: Vec<String>,
+    pub friction_points: Vec<String>,
+    pub next_focus: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct TaskCluster {
+    pub title: String,
+    pub status: String,
+    pub time_span: String,
+    pub apps: Vec<String>,
+    pub entry_count: i64,
+    pub total_duration_ms: i64,
+    pub summary: String,
+    pub blockers: Vec<String>,
+    pub next_step: Option<String>,
+    pub keywords: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ContextPack {
+    pub active_tasks: Vec<String>,
+    pub recent_decisions: Vec<String>,
+    pub pending_followups: Vec<String>,
+    pub task_entities: Vec<String>,
+    pub context_bias: String,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SummaryStats {
     pub entry_count: i64,
@@ -19,6 +50,12 @@ pub struct SummaryStats {
     pub by_app: std::collections::HashMap<String, AppStats>,
     pub by_hour: Vec<i64>,
     pub top_skills: Vec<String>,
+    #[serde(default)]
+    pub daily_overview: Option<DailyOverview>,
+    #[serde(default)]
+    pub task_clusters: Vec<TaskCluster>,
+    #[serde(default)]
+    pub context_pack: Option<ContextPack>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -85,6 +122,343 @@ impl SummaryManager {
             Some(id) if id.is_empty() => true,
             Some(id) => id == DEFAULT_POLISH_PROMPT_ID,
         }
+    }
+
+    fn empty_stats() -> SummaryStats {
+        SummaryStats {
+            entry_count: 0,
+            total_duration_ms: 0,
+            total_chars: 0,
+            llm_calls: 0,
+            by_app: std::collections::HashMap::new(),
+            by_hour: vec![0; 24],
+            top_skills: Vec::new(),
+            daily_overview: None,
+            task_clusters: Vec::new(),
+            context_pack: None,
+        }
+    }
+
+    fn extract_keywords(text: &str) -> Vec<String> {
+        const KEYWORDS: [(&str, &str); 22] = [
+            ("provider", "Provider"),
+            ("api key", "API Key"),
+            ("base url", "Base URL"),
+            ("customer", "Customer"),
+            ("custom", "Custom"),
+            ("proxy", "Proxy"),
+            ("summary", "Summary"),
+            ("prompt", "Prompt"),
+            ("review", "Review"),
+            ("rewrite", "Rewrite"),
+            ("model", "Model"),
+            ("rate limit", "Rate Limit"),
+            ("logseq", "Logseq"),
+            ("mcp", "MCP"),
+            ("telegram", "Telegram"),
+            ("payment", "Payment"),
+            ("encrypt", "Encrypt"),
+            ("aigne", "Aigne"),
+            ("handy", "Handy"),
+            ("提供商", "提供商"),
+            ("密钥", "API Key"),
+            ("总结", "总结"),
+        ];
+
+        let normalized = text.to_lowercase();
+        let mut keywords = Vec::new();
+        for (needle, label) in KEYWORDS {
+            if normalized.contains(needle) && !keywords.iter().any(|item| item == label) {
+                keywords.push(label.to_string());
+            }
+        }
+        keywords
+    }
+
+    fn find_blockers(text: &str) -> Vec<String> {
+        const BLOCKERS: [(&str, &str); 18] = [
+            ("问题", "出现问题"),
+            ("失败", "执行失败"),
+            ("异常", "出现异常"),
+            ("报错", "出现报错"),
+            ("卡住", "流程卡住"),
+            ("不对", "结果不对"),
+            ("没有", "配置未生效"),
+            ("无法", "当前无法完成"),
+            ("不能", "当前不能完成"),
+            ("不显示", "界面未正确显示"),
+            ("不生效", "配置没有生效"),
+            ("read only", "只读状态异常"),
+            ("error", "发生错误"),
+            ("failed", "执行失败"),
+            ("issue", "存在问题"),
+            ("stuck", "流程卡住"),
+            ("why", "存在待解释问题"),
+            ("invalid", "配置无效"),
+        ];
+
+        let normalized = text.to_lowercase();
+        let mut blockers = Vec::new();
+        for (needle, label) in BLOCKERS {
+            if normalized.contains(needle) && !blockers.iter().any(|item| item == label) {
+                blockers.push(label.to_string());
+            }
+        }
+        blockers
+    }
+
+    fn derive_title(apps: &[String], keywords: &[String]) -> String {
+        if keywords.iter().any(|item| item == "Aigne") {
+            return "Aigne 账号与链路排查".to_string();
+        }
+        if keywords.iter().any(|item| item == "Handy")
+            || keywords.iter().any(|item| item == "Provider")
+            || keywords.iter().any(|item| item == "API Key")
+            || keywords.iter().any(|item| item == "Base URL")
+        {
+            return "Handy Provider 与配置调整".to_string();
+        }
+        if keywords.iter().any(|item| item == "Rate Limit")
+            || keywords.iter().any(|item| item == "Model")
+            || keywords.iter().any(|item| item == "Logseq")
+            || keywords.iter().any(|item| item == "MCP")
+        {
+            return "模型与资料调研".to_string();
+        }
+        if apps.iter().any(|item| item == "Telegram") {
+            return "外部沟通与信息同步".to_string();
+        }
+        if let Some(first_keyword) = keywords.first() {
+            return format!("{first_keyword} 相关推进");
+        }
+        if let Some(first_app) = apps.first() {
+            return format!("{first_app} 场景工作");
+        }
+        "今日任务推进".to_string()
+    }
+
+    fn derive_status(progress_signals: usize, blockers: usize) -> String {
+        if progress_signals > 0 && blockers == 0 {
+            "有推进".to_string()
+        } else if progress_signals > 0 && blockers > 0 {
+            "推进中".to_string()
+        } else if blockers > 0 {
+            "卡住".to_string()
+        } else {
+            "整理中".to_string()
+        }
+    }
+
+    fn derive_context_bias(app_counts: &std::collections::HashMap<String, AppStats>) -> String {
+        let app_names: Vec<&str> = app_counts.keys().map(String::as_str).collect();
+        if app_names
+            .iter()
+            .any(|app| matches!(*app, "Codex" | "VSCode" | "Xcode" | "Cursor"))
+        {
+            return "coding".to_string();
+        }
+        if app_names
+            .iter()
+            .any(|app| matches!(*app, "Comet" | "Arc" | "Safari" | "Chrome"))
+        {
+            return "research".to_string();
+        }
+        if app_names
+            .iter()
+            .any(|app| matches!(*app, "Telegram" | "微信" | "WeChat"))
+        {
+            return "communication".to_string();
+        }
+        "general".to_string()
+    }
+
+    fn build_recap(
+        &self,
+        entries: &[RichAnalysisEntry],
+        by_app: &std::collections::HashMap<String, AppStats>,
+    ) -> (Option<DailyOverview>, Vec<TaskCluster>, Option<ContextPack>) {
+        if entries.is_empty() {
+            return (None, Vec::new(), None);
+        }
+
+        let mut segments: Vec<Vec<&RichAnalysisEntry>> = Vec::new();
+        let mut current: Vec<&RichAnalysisEntry> = Vec::new();
+        let mut last_timestamp: Option<i64> = None;
+        let mut last_app: Option<&str> = None;
+
+        for entry in entries {
+            let should_split = if let (Some(prev_ts), Some(prev_app)) = (last_timestamp, last_app) {
+                let ts_gap = entry.timestamp.saturating_sub(prev_ts);
+                ts_gap > 20 * 60 || (entry.app != prev_app && ts_gap > 8 * 60)
+            } else {
+                false
+            };
+
+            if should_split && !current.is_empty() {
+                segments.push(std::mem::take(&mut current));
+            }
+            current.push(entry);
+            last_timestamp = Some(entry.timestamp);
+            last_app = Some(entry.app.as_str());
+        }
+
+        if !current.is_empty() {
+            segments.push(current);
+        }
+
+        let mut clusters = Vec::new();
+        for segment in segments {
+            let mut apps = Vec::new();
+            let mut keywords = Vec::new();
+            let mut blockers = Vec::new();
+            let mut progress_signals = 0usize;
+            let mut duration_ms = 0i64;
+            let mut representative = Vec::new();
+            let start = segment
+                .first()
+                .map(|entry| entry.time.clone())
+                .unwrap_or_default();
+            let end = segment
+                .last()
+                .map(|entry| entry.time.clone())
+                .unwrap_or_default();
+
+            for entry in &segment {
+                if !apps.iter().any(|item| item == &entry.app) {
+                    apps.push(entry.app.clone());
+                }
+                for keyword in Self::extract_keywords(&format!("{} {}", entry.window, entry.text)) {
+                    if !keywords.iter().any(|item| item == &keyword) && keywords.len() < 5 {
+                        keywords.push(keyword);
+                    }
+                }
+                for blocker in Self::find_blockers(&entry.text) {
+                    if !blockers.iter().any(|item| item == &blocker) && blockers.len() < 4 {
+                        blockers.push(blocker);
+                    }
+                }
+                if matches!(entry.review_action.as_str(), "accept" | "edit_accept")
+                    || entry.has_polish
+                    || entry.text.contains("完成")
+                    || entry.text.contains("改成")
+                    || entry.text.to_lowercase().contains("fixed")
+                {
+                    progress_signals += 1;
+                }
+                duration_ms += entry.duration_sec * 1000;
+                if representative.len() < 2 && !entry.text.trim().is_empty() {
+                    representative.push(entry.text.chars().take(36).collect::<String>());
+                }
+            }
+
+            let title = Self::derive_title(&apps, &keywords);
+            let status = Self::derive_status(progress_signals, blockers.len());
+            let summary = if representative.is_empty() {
+                format!("围绕 {title} 进行了 {} 次交互。", segment.len())
+            } else {
+                format!("{}。", representative.join("；"))
+            };
+            let next_step = if blockers.is_empty() {
+                representative
+                    .last()
+                    .map(|item| format!("继续跟进：{}", item.chars().take(24).collect::<String>()))
+            } else {
+                blockers.first().map(|item| format!("优先处理：{item}"))
+            };
+
+            clusters.push(TaskCluster {
+                title,
+                status,
+                time_span: format!("{start} - {end}"),
+                apps,
+                entry_count: segment.len() as i64,
+                total_duration_ms: duration_ms,
+                summary,
+                blockers,
+                next_step,
+                keywords,
+            });
+        }
+
+        clusters.sort_by(|a, b| {
+            b.total_duration_ms
+                .cmp(&a.total_duration_ms)
+                .then_with(|| b.entry_count.cmp(&a.entry_count))
+        });
+        clusters.truncate(5);
+
+        let key_progress = clusters
+            .iter()
+            .take(3)
+            .map(|cluster| format!("{}：{}", cluster.title, cluster.summary))
+            .collect::<Vec<_>>();
+        let friction_points = clusters
+            .iter()
+            .filter_map(|cluster| {
+                cluster
+                    .blockers
+                    .first()
+                    .map(|blocker| format!("{}：{}", cluster.title, blocker))
+            })
+            .take(3)
+            .collect::<Vec<_>>();
+        let next_focus = clusters
+            .iter()
+            .find_map(|cluster| cluster.next_step.clone())
+            .unwrap_or_else(|| "继续收敛今天最重要的任务并补齐关键缺口。".to_string());
+        let headline = if let Some(primary) = clusters.first() {
+            format!(
+                "今天主要围绕 {} 等 {} 个任务推进。",
+                primary.title,
+                clusters.len()
+            )
+        } else {
+            "今天有一些零散记录，但尚未形成明确主线。".to_string()
+        };
+
+        let task_entities = clusters
+            .iter()
+            .flat_map(|cluster| cluster.keywords.iter().cloned())
+            .fold(Vec::<String>::new(), |mut acc, item| {
+                if !acc.iter().any(|existing| existing == &item) && acc.len() < 8 {
+                    acc.push(item);
+                }
+                acc
+            });
+
+        let pending_followups = clusters
+            .iter()
+            .filter_map(|cluster| cluster.next_step.clone())
+            .take(4)
+            .collect::<Vec<_>>();
+
+        let recent_decisions = clusters
+            .iter()
+            .filter(|cluster| cluster.status != "卡住")
+            .map(|cluster| format!("{}：{}", cluster.title, cluster.status))
+            .take(3)
+            .collect::<Vec<_>>();
+
+        (
+            Some(DailyOverview {
+                headline,
+                key_progress,
+                friction_points,
+                next_focus,
+            }),
+            clusters.clone(),
+            Some(ContextPack {
+                active_tasks: clusters
+                    .iter()
+                    .take(3)
+                    .map(|item| item.title.clone())
+                    .collect(),
+                recent_decisions,
+                pending_followups,
+                task_entities,
+                context_bias: Self::derive_context_bias(by_app),
+            }),
+        )
     }
 
     /// Calculate stats for a given time range from history entries
@@ -219,6 +593,10 @@ impl SummaryManager {
             top_skills.push(row?);
         }
 
+        let rich_entries = self.get_entries_for_analysis_rich(start_ts, end_ts, 500)?;
+        let (daily_overview, task_clusters, context_pack) =
+            self.build_recap(&rich_entries, &by_app);
+
         Ok(SummaryStats {
             entry_count,
             total_duration_ms,
@@ -227,6 +605,9 @@ impl SummaryManager {
             by_app,
             by_hour,
             top_skills,
+            daily_overview,
+            task_clusters,
+            context_pack,
         })
     }
 
@@ -256,16 +637,8 @@ impl SummaryManager {
                 params![period_type, start_ts],
                 |row| {
                     let old_stats_json: String = row.get(4)?;
-                    let old_stats: SummaryStats =
-                        serde_json::from_str(&old_stats_json).unwrap_or_else(|_| SummaryStats {
-                            entry_count: 0,
-                            total_duration_ms: 0,
-                            total_chars: 0,
-                            llm_calls: 0,
-                            by_app: std::collections::HashMap::new(),
-                            by_hour: vec![0; 24],
-                            top_skills: Vec::new(),
-                        });
+                    let old_stats: SummaryStats = serde_json::from_str(&old_stats_json)
+                        .unwrap_or_else(|_| Self::empty_stats());
                     Ok(Summary {
                         id: row.get(0)?,
                         period_type: row.get(1)?,
@@ -474,15 +847,7 @@ impl SummaryManager {
         let rows = stmt.query_map([], |row| {
             let stats_json: String = row.get(4)?;
             let stats: SummaryStats =
-                serde_json::from_str(&stats_json).unwrap_or_else(|_| SummaryStats {
-                    entry_count: 0,
-                    total_duration_ms: 0,
-                    total_chars: 0,
-                    llm_calls: 0,
-                    by_app: std::collections::HashMap::new(),
-                    by_hour: vec![0; 24],
-                    top_skills: Vec::new(),
-                });
+                serde_json::from_str(&stats_json).unwrap_or_else(|_| Self::empty_stats());
             Ok(Summary {
                 id: row.get(0)?,
                 period_type: row.get(1)?,
@@ -667,6 +1032,7 @@ pub struct AnalysisEntry {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RichAnalysisEntry {
     pub id: i64,
+    pub timestamp: i64,
     pub time: String,      // "09:30" 格式
     pub date: String,      // "2026-01-25" 格式
     pub app: String,       // 应用名
@@ -674,7 +1040,8 @@ pub struct RichAnalysisEntry {
     pub duration_sec: i64, // 持续秒数
     pub text: String,      // 有效文本内容
     pub has_polish: bool,  // 是否经过 AI 润色
-    pub char_count: i64,   // 字符数
+    pub review_action: String,
+    pub char_count: i64, // 字符数
 }
 
 /// Pre-computed analysis metrics for the LLM
@@ -712,15 +1079,7 @@ impl SummaryManager {
             |row| {
                 let stats_json: String = row.get(4)?;
                 let stats: SummaryStats =
-                    serde_json::from_str(&stats_json).unwrap_or_else(|_| SummaryStats {
-                        entry_count: 0,
-                        total_duration_ms: 0,
-                        total_chars: 0,
-                        llm_calls: 0,
-                        by_app: std::collections::HashMap::new(),
-                        by_hour: vec![0; 24],
-                        top_skills: Vec::new(),
-                    });
+                    serde_json::from_str(&stats_json).unwrap_or_else(|_| Self::empty_stats());
                 Ok(Summary {
                     id: row.get(0)?,
                     period_type: row.get(1)?,
@@ -1026,7 +1385,7 @@ impl SummaryManager {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
             "SELECT id, timestamp, transcription_text, post_processed_text, 
-                    app_name, window_title, duration_ms, char_count, post_process_prompt_id
+                    app_name, window_title, duration_ms, char_count, post_process_prompt_id, review_action
              FROM transcription_history
              WHERE timestamp >= ?1 AND timestamp <= ?2 AND deleted = 0
              ORDER BY timestamp ASC
@@ -1043,6 +1402,7 @@ impl SummaryManager {
             let duration_ms: Option<i64> = row.get(6)?;
             let char_count: Option<i64> = row.get(7)?;
             let prompt_id: Option<String> = row.get(8)?;
+            let review_action: Option<String> = row.get(9)?;
 
             // Format time
             let dt = Local
@@ -1076,6 +1436,7 @@ impl SummaryManager {
 
             Ok(RichAnalysisEntry {
                 id,
+                timestamp,
                 time,
                 date,
                 app: app_name.unwrap_or_else(|| "其他".to_string()),
@@ -1083,6 +1444,7 @@ impl SummaryManager {
                 duration_sec: duration_ms.unwrap_or(0) / 1000,
                 text,
                 has_polish,
+                review_action: review_action.unwrap_or_default(),
                 char_count: text_char_count,
             })
         })?;

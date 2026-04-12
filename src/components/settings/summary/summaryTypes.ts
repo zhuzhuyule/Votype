@@ -3,6 +3,34 @@ export interface AppStats {
   chars: number;
 }
 
+export interface DailyOverview {
+  headline: string;
+  key_progress: string[];
+  friction_points: string[];
+  next_focus: string;
+}
+
+export interface TaskCluster {
+  title: string;
+  status: string;
+  time_span: string;
+  apps: string[];
+  entry_count: number;
+  total_duration_ms: number;
+  summary: string;
+  blockers: string[];
+  next_step: string | null;
+  keywords: string[];
+}
+
+export interface ContextPack {
+  active_tasks: string[];
+  recent_decisions: string[];
+  pending_followups: string[];
+  task_entities: string[];
+  context_bias: string;
+}
+
 export interface SummaryStats {
   entry_count: number;
   total_duration_ms: number;
@@ -11,6 +39,9 @@ export interface SummaryStats {
   by_app: Record<string, AppStats>;
   by_hour: number[];
   top_skills: string[];
+  daily_overview?: DailyOverview | null;
+  task_clusters?: TaskCluster[];
+  context_pack?: ContextPack | null;
 }
 
 export interface AiAnalysisEntry {
