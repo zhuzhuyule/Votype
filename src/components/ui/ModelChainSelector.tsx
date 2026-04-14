@@ -11,6 +11,7 @@ import { IconSelector } from "@tabler/icons-react";
 import { ModelCardContent } from "./ModelCard";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getModelTypeLabel } from "../../lib/modelTypeUtils";
 import type {
   CachedModel,
   ModelChain,
@@ -18,7 +19,6 @@ import type {
 } from "../../lib/types";
 import { useModelSpeedStats } from "../../hooks/useModelSpeedStats";
 import { useSettingsStore } from "../../stores/settingsStore";
-
 
 export interface ModelChainSelectorProps {
   chain: ModelChain | null;
@@ -252,21 +252,38 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
                           >
                             <ModelCardContent
                               name={getModelName(model)}
-                              modelId={model.custom_label ? model.model_id : undefined}
-                              subtitle={model.is_thinking_model ? "Thinking" : "Standard"}
+                              modelId={
+                                model.custom_label ? model.model_id : undefined
+                              }
+                              subtitle={getModelTypeLabel(model.model_type)}
                               isAsr={model.model_type === "asr"}
                               isThinking={model.is_thinking_model}
-                              stats={getAggregatedStats(model.model_id, model.provider_id)}
+                              stats={getAggregatedStats(
+                                model.model_id,
+                                model.provider_id,
+                              )}
                               trailing={
                                 <>
                                   {isPrimary && (
-                                    <Tooltip content={t("settings.postProcessing.modelChain.primary")}>
-                                      <span className="text-[var(--accent-9)] text-sm">●</span>
+                                    <Tooltip
+                                      content={t(
+                                        "settings.postProcessing.modelChain.primary",
+                                      )}
+                                    >
+                                      <span className="text-[var(--accent-9)] text-sm">
+                                        ●
+                                      </span>
                                     </Tooltip>
                                   )}
                                   {isFallback && (
-                                    <Tooltip content={t("settings.postProcessing.modelChain.fallback")}>
-                                      <span className="text-[var(--amber-9)] text-sm">○</span>
+                                    <Tooltip
+                                      content={t(
+                                        "settings.postProcessing.modelChain.fallback",
+                                      )}
+                                    >
+                                      <span className="text-[var(--amber-9)] text-sm">
+                                        ○
+                                      </span>
                                     </Tooltip>
                                   )}
                                 </>

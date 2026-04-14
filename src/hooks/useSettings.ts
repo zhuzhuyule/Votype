@@ -62,6 +62,7 @@ interface UseSettingsReturn {
     modelsEndpoint?: string;
   }) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
+  reorderPostProcessProviders: (providerIds: string[]) => Promise<void>;
   toggleMultiModelSelection: (
     cachedModelId: string,
     selected: boolean,
@@ -147,6 +148,7 @@ export const useSettings = (): UseSettingsReturn => {
     addCustomProvider: store.addCustomProvider,
     updateCustomProvider: store.updateCustomProvider,
     removeCustomProvider: store.removeCustomProvider,
+    reorderPostProcessProviders: store.reorderPostProcessProviders,
     toggleMultiModelSelection: store.toggleMultiModelSelection,
     testPostProcessInference: store.testPostProcessInference,
     updateModelChain: store.updateModelChain,

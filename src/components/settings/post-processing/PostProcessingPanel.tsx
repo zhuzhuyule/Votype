@@ -23,6 +23,7 @@ import { TooltipIcon } from "../../ui/TooltipIcon";
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { getModelTypeLabel } from "../../../lib/modelTypeUtils";
 import type { CachedModel } from "../../../lib/types";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AppProfilesContextSettings } from "./AppProfilesContextSettings";
@@ -335,9 +336,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                                       {model.custom_label || model.model_id}
                                     </Text>
                                     <Text size="1" color="gray" mt="0.5">
-                                      {model.is_thinking_model
-                                        ? "Thinking"
-                                        : "Standard"}
+                                      {getModelTypeLabel(model.model_type)}
                                     </Text>
                                     {/* Star badge */}
                                     {isSelected && (

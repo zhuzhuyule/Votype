@@ -3,6 +3,7 @@ import {
   Dialog,
   Flex,
   IconButton,
+  SegmentedControl,
   Select,
   Text,
   TextField,
@@ -12,7 +13,8 @@ import { IconBrain, IconPlus } from "@tabler/icons-react";
 import { invoke } from "@tauri-apps/api/core";
 import React from "react";
 import { useTranslation } from "react-i18next";
-import type { CachedModel } from "../../../../lib/types";
+import { useSettings } from "../../../../hooks/useSettings";
+import type { CachedModel, ModelType } from "../../../../lib/types";
 import {
   KeyValueEditor,
   type KeyValueEditorHandle,
@@ -30,7 +32,9 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
   onSave,
 }) => {
   const { t } = useTranslation();
+  const { updateCachedModelType } = useSettings();
   const [label, setLabel] = React.useState(model.custom_label || "");
+  const [modelType, setModelType] = React.useState<ModelType>(model.model_type);
   const [extraParams, setExtraParams] = React.useState<Record<string, unknown>>(
     model.extra_params || {},
   );
@@ -168,6 +172,7 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
         isThinkingModel: thinking,
         promptMessageRole: model.prompt_message_role || "system",
       });
+      await updateCachedModelType(model.id, modelType);
       await invoke("update_cached_model_family", {
         id: model.id,
         modelFamily: modelFamily.trim() || null,
@@ -210,6 +215,39 @@ export const EditModelDialog: React.FC<EditModelDialogProps> = ({
               onChange={(e) => setLabel(e.target.value)}
               placeholder={model.model_id}
             />
+          </Flex>
+
+          <Flex direction="column" gap="1">
+            <Text size="2" weight="medium" color="gray">
+              {t(
+                "settings.postProcessing.models.selectModel.usageTypeTitle",
+                "Usage Type",
+              )}
+            </Text>
+            <SegmentedControl.Root
+              value={modelType}
+              onValueChange={(v) => setModelType(v as ModelType)}
+              size="1"
+            >
+              <SegmentedControl.Item value="text">
+                {t(
+                  "settings.postProcessing.models.modelTypes.text.label",
+                  "Text",
+                )}
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="asr">
+                {t(
+                  "settings.postProcessing.models.modelTypes.asr.label",
+                  "ASR",
+                )}
+              </SegmentedControl.Item>
+              <SegmentedControl.Item value="other">
+                {t(
+                  "settings.postProcessing.models.modelTypes.other.label",
+                  "Other",
+                )}
+              </SegmentedControl.Item>
+            </SegmentedControl.Root>
           </Flex>
 
           {/* Model Family */}

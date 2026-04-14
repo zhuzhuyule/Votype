@@ -88,6 +88,7 @@ interface SettingsStore {
     modelsEndpoint?: string;
   }) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
+  reorderPostProcessProviders: (providerIds: string[]) => Promise<void>;
   toggleMultiModelSelection: (
     cachedModelId: string,
     selected: boolean,
@@ -849,6 +850,46 @@ export const useSettingsStore = create<SettingsStore>()(
         await refreshSettings();
       } catch (error) {
         console.error("Failed to remove custom provider:", error);
+      } finally {
+        setUpdating(updateKey, false);
+      }
+    },
+
+    reorderPostProcessProviders: async (providerIds) => {
+      const updateKey = "reorder_post_process_providers";
+      const { settings, setUpdating, refreshSettings } = get();
+      const originalProviders = settings?.post_process_providers ?? [];
+      const providerMap = new Map(originalProviders.map((provider) => [provider.id, provider]));
+      const reorderedProviders = providerIds
+        .map((providerId) => providerMap.get(providerId))
+        .filter((provider): provider is PostProcessProvider => !!provider);
+
+      setUpdating(updateKey, true);
+
+      try {
+        set((state) => ({
+          settings: state.settings
+            ? {
+                ...state.settings,
+                post_process_providers: reorderedProviders,
+              }
+            : null,
+        }));
+
+        await invoke("reorder_post_process_providers", {
+          providerIds,
+        });
+        await refreshSettings();
+      } catch (error) {
+        console.error("Failed to reorder post-process providers:", error);
+        set((state) => ({
+          settings: state.settings
+            ? {
+                ...state.settings,
+                post_process_providers: originalProviders,
+              }
+            : null,
+        }));
       } finally {
         setUpdating(updateKey, false);
       }

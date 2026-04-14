@@ -17,7 +17,7 @@ export interface ModelCardProps {
   name: string;
   /** Original model_id (shown in tooltip when name is custom_label) */
   modelId?: string;
-  /** Subtitle: provider name, "Standard", "ASR", etc. */
+  /** Subtitle: provider name, "Text", "ASR", etc. */
   subtitle?: string;
   /** Whether this is an ASR model */
   isAsr?: boolean;
@@ -55,21 +55,10 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
   const hasStats = !!stats && stats.totalCalls > 0;
 
   return (
-    <Flex align="start" justify="between" gap="3">
-      <Flex direction="column" className="min-w-0 flex-1">
-        <Flex align="center" gap="1.5" className="min-w-0">
-          {showTooltip ? (
-            <Tooltip content={modelId} delayDuration={200}>
-              <Text
-                size="2"
-                weight="medium"
-                className="truncate"
-                style={{ lineHeight: 1.3 }}
-              >
-                {name}
-              </Text>
-            </Tooltip>
-          ) : (
+    <Flex direction="column" gap="1">
+      <Flex align="center" gap="1.5" className="min-w-0">
+        {showTooltip ? (
+          <Tooltip content={modelId} delayDuration={200}>
             <Text
               size="2"
               weight="medium"
@@ -78,70 +67,71 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
             >
               {name}
             </Text>
-          )}
-        </Flex>
+          </Tooltip>
+        ) : (
+          <Text
+            size="2"
+            weight="medium"
+            className="truncate"
+            style={{ lineHeight: 1.3 }}
+          >
+            {name}
+          </Text>
+        )}
+        {isThinking && (
+          <Tooltip content="Thinking" delayDuration={200}>
+            <IconBrain size={11} className="shrink-0 text-purple-500/80" />
+          </Tooltip>
+        )}
+        {isAsr && (
+          <Tooltip content="ASR" delayDuration={200}>
+            <IconMicrophone size={11} className="shrink-0 text-teal-500/80" />
+          </Tooltip>
+        )}
+        {trailing && (
+          <Flex align="center" gap="1" className="shrink-0">
+            {trailing}
+          </Flex>
+        )}
+      </Flex>
 
-        <Flex align="center" gap="1" className="min-w-0 mt-0.5">
+      <Flex align="center" justify="between" gap="3">
+        <Flex align="center" gap="1" className="min-w-0 flex-1">
           {subtitle && (
             <Text size="1" color="gray" className="truncate">
               {subtitle}
             </Text>
           )}
-          {isThinking && (
-            <Tooltip content="Thinking" delayDuration={200}>
-              <IconBrain size={11} className="shrink-0 text-purple-500/80" />
-            </Tooltip>
-          )}
-          {isAsr && (
-            <Tooltip content="ASR" delayDuration={200}>
-              <IconMicrophone size={11} className="shrink-0 text-teal-500/80" />
-            </Tooltip>
-          )}
         </Flex>
-      </Flex>
 
-      {(hasStats || trailing) && (
-        <Flex
-          direction="column"
-          align="end"
-          gap="1"
-          className="shrink-0 min-w-fit"
-        >
-          {trailing && (
-            <Flex align="center" gap="1" className="min-h-[12px]">
-              {trailing}
+        {hasStats && (
+          <Flex align="center" gap="2" className="shrink-0 min-w-fit">
+            <Flex align="center" gap="0.5">
+              <IconHistory
+                size={10}
+                strokeWidth={2}
+                className="text-(--gray-8)"
+              />
+              <Text size="1" color="gray" className="tabular-nums">
+                {stats.totalCalls.toLocaleString()}
+              </Text>
             </Flex>
-          )}
 
-          {hasStats && (
-            <Flex align="center" gap="2" className="min-h-[12px]">
+            {stats.avgSpeed > 0 && (
               <Flex align="center" gap="0.5">
-                <IconHistory
+                <IconBolt
                   size={10}
                   strokeWidth={2}
-                  className="text-(--gray-8)"
+                  className="text-amber-500/70"
                 />
                 <Text size="1" color="gray" className="tabular-nums">
-                  {stats.totalCalls.toLocaleString()}
+                  {formatSpeed(stats.avgSpeed)} t/s
                 </Text>
               </Flex>
-
-              {stats.avgSpeed > 0 && (
-                <Flex align="center" gap="0.5">
-                  <IconBolt
-                    size={10}
-                    strokeWidth={2}
-                    className="text-amber-500/70"
-                  />
-                  <Text size="1" color="gray" className="tabular-nums">
-                    {formatSpeed(stats.avgSpeed)} t/s
-                  </Text>
-                </Flex>
-              )}
-            </Flex>
-          )}
-        </Flex>
-      )}
+            )}
+          </Flex>
+        )}
+      </Flex>
     </Flex>
   );
 };

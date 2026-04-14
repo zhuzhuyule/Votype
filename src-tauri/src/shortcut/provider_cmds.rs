@@ -569,3 +569,32 @@ pub fn remove_custom_provider(app: AppHandle, provider_id: String) -> Result<(),
 
     Ok(())
 }
+
+#[tauri::command]
+#[specta::specta]
+pub fn reorder_post_process_providers(
+    app: AppHandle,
+    provider_ids: Vec<String>,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+
+    if provider_ids.len() != settings.post_process_providers.len() {
+        return Err("Provider count mismatch".to_string());
+    }
+
+    let existing = std::mem::take(&mut settings.post_process_providers);
+    let mut reordered = Vec::with_capacity(existing.len());
+
+    for provider_id in &provider_ids {
+        let provider = existing
+            .iter()
+            .find(|provider| &provider.id == provider_id)
+            .cloned()
+            .ok_or_else(|| format!("Provider not found: {}", provider_id))?;
+        reordered.push(provider);
+    }
+
+    settings.post_process_providers = reordered;
+    settings::write_settings(&app, settings);
+    Ok(())
+}

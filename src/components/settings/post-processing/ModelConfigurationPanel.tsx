@@ -34,6 +34,7 @@ import {
   readModelListViewState,
   writeModelListViewState,
 } from "../../../lib/modelListViewState";
+import { getModelTypeLabel } from "../../../lib/modelTypeUtils";
 import type { CachedModel, ModelType } from "../../../lib/types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -97,7 +98,9 @@ const ModelCard: React.FC<{
         <ModelCardContent
           name={model.custom_label || model.model_id}
           modelId={model.custom_label ? model.model_id : undefined}
-          subtitle={showProvider ? providerName : isAsr ? "ASR" : "Standard"}
+          subtitle={
+            showProvider ? providerName : getModelTypeLabel(model.model_type)
+          }
           isAsr={isAsr}
           isThinking={model.is_thinking_model}
           stats={stats}

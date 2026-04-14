@@ -878,6 +878,14 @@ async removeCustomProvider(providerId: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async reorderPostProcessProviders(providerIds: string[]) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reorder_post_process_providers", { providerIds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async testPostProcessModelInference(modelId: string, providerId: string, cachedModelId: string | null) : Promise<Result<InferenceResult, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("test_post_process_model_inference", { modelId, providerId, cachedModelId }) };

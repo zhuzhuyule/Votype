@@ -110,13 +110,13 @@ function getOptionLabelText(label: string | React.ReactNode) {
 }
 
 const PROVIDER_TAB_BUTTON_CLASS =
-  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[12px] leading-none transition-[background-color,border-color,color,box-shadow,transform] duration-150";
+  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[12px] leading-none transition-[background-color,border-color,color,box-shadow] duration-150";
 
 const PROVIDER_TAB_IDLE_CLASS =
-  "border-[rgba(15,23,42,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,248,252,0.96))] text-[rgba(51,65,85,0.92)] shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:border-[rgba(59,130,246,0.18)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.98))] hover:shadow-[0_2px_6px_rgba(15,23,42,0.08)]";
+  "border-(--gray-a4) bg-(--gray-a2) text-(--gray-11) shadow-sm hover:bg-(--gray-a3)";
 
 const PROVIDER_TAB_ACTIVE_CLASS =
-  "border-[rgba(59,130,246,0.22)] bg-[linear-gradient(180deg,rgba(239,246,255,0.98),rgba(224,231,255,0.98))] text-[rgba(37,99,235,0.98)] shadow-[0_1px_2px_rgba(37,99,235,0.12)]";
+  "border-(--accent-a5) bg-(--accent-a3) text-(--accent-11) shadow-sm";
 
 const ProviderAvatar: React.FC<{
   providerId: string;

@@ -22,6 +22,7 @@ import {
   type ModelSpeedStats,
 } from "../../../../hooks/useModelSpeedStats";
 import { useSettings } from "../../../../hooks/useSettings";
+import { inferModelType } from "../../../../lib/modelTypeUtils";
 import type { CachedModel } from "../../../../lib/types";
 import type { PostProcessProviderState } from "../../PostProcessingSettingsApi/usePostProcessProviderState";
 import { PROVIDER_TEMPLATES } from "../providerTemplates";
@@ -200,8 +201,11 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
     try {
       for (const modelId of selectedIds) {
         const freeModel = freeModels.find((m) => m.id === modelId);
-        const modelType =
-          freeModel?.capabilities === "speech2text" ? "asr" : "text";
+        const modelType = inferModelType({
+          modelId,
+          name: freeModel?.name ?? modelId,
+          capabilities: freeModel?.capabilities ?? null,
+        });
 
         const newModel: CachedModel = {
           id: buildCacheId(modelId, providerState.selectedProviderId),
@@ -291,7 +295,12 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
           </Flex>
 
           {/* Model grid */}
-          <ScrollArea scrollbars="vertical" type="hover" style={{ maxHeight: 520 }} className="[&>.rt-ScrollAreaViewport]:rounded-[var(--radius-3)] [&>.rt-ScrollAreaViewport]:border [&>.rt-ScrollAreaViewport]:border-(--gray-a4) [&>.rt-ScrollAreaViewport]:p-2">
+          <ScrollArea
+            scrollbars="vertical"
+            type="hover"
+            style={{ maxHeight: 520 }}
+            className="[&>.rt-ScrollAreaViewport]:rounded-[var(--radius-3)] [&>.rt-ScrollAreaViewport]:border [&>.rt-ScrollAreaViewport]:border-(--gray-a4) [&>.rt-ScrollAreaViewport]:p-2"
+          >
             {isLoading ? (
               <Flex align="center" justify="center" py="8">
                 <Text size="2" color="gray">
