@@ -37,6 +37,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -45,6 +46,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
+import { buildProviderTabsLayout } from "../../../lib/providerTabsLayout";
 import type { KeyEntry } from "../../../lib/types";
 import { Card } from "../../ui/Card";
 import type { PostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
@@ -59,8 +61,6 @@ import {
   PROVIDER_TEMPLATES,
   RECOMMENDED_PROVIDER_TEMPLATE_IDS,
 } from "./providerTemplates";
-import { SidebarItem } from "./SidebarItem";
-
 const getProviderGlyph = (
   providerId: string,
   baseUrl: string,
@@ -102,16 +102,34 @@ const getProviderMeta = (providerId: string) => {
   }
 };
 
+const PROVIDER_TAB_GAP = 4;
+const PROVIDER_MORE_FALLBACK_WIDTH = 74;
+
+function getOptionLabelText(label: string | React.ReactNode) {
+  return typeof label === "string" ? label : "";
+}
+
+const PROVIDER_TAB_BUTTON_CLASS =
+  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-[12px] leading-none transition-[background-color,border-color,color,box-shadow,transform] duration-150";
+
+const PROVIDER_TAB_IDLE_CLASS =
+  "border-[rgba(15,23,42,0.08)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,248,252,0.96))] text-[rgba(51,65,85,0.92)] shadow-[0_1px_2px_rgba(15,23,42,0.05)] hover:border-[rgba(59,130,246,0.18)] hover:bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(241,245,249,0.98))] hover:shadow-[0_2px_6px_rgba(15,23,42,0.08)]";
+
+const PROVIDER_TAB_ACTIVE_CLASS =
+  "border-[rgba(59,130,246,0.22)] bg-[linear-gradient(180deg,rgba(239,246,255,0.98),rgba(224,231,255,0.98))] text-[rgba(37,99,235,0.98)] shadow-[0_1px_2px_rgba(37,99,235,0.12)]";
+
 const ProviderAvatar: React.FC<{
   providerId: string;
   baseUrl: string;
   large?: boolean;
+  compact?: boolean;
   refreshToken?: number;
   overrideValue?: string | null;
 }> = ({
   providerId,
   baseUrl,
   large = false,
+  compact = false,
   refreshToken = 0,
   overrideValue = null,
 }) => {
@@ -121,7 +139,9 @@ const ProviderAvatar: React.FC<{
   const meta = getProviderMeta(providerId);
   const frameClass = large
     ? "h-10 w-10 rounded-xl"
-    : "h-7 w-7 rounded-lg bg-(--gray-a3) p-0.5";
+    : compact
+      ? "h-5.5 w-5.5 rounded-md bg-(--gray-a3) p-0.5"
+      : "h-7 w-7 rounded-lg bg-(--gray-a3) p-0.5";
 
   useEffect(() => {
     const catalogKey = overrideValue?.startsWith("catalog:")
@@ -171,7 +191,7 @@ const ProviderAvatar: React.FC<{
         <img
           src={avatarUrl}
           alt=""
-          className="block shrink-0 h- w-6 object-contain"
+          className="block h-6 w-6 shrink-0 object-contain"
           onError={() => setAvatarUrl(null)}
         />
       </Box>
@@ -194,13 +214,21 @@ const ProviderAvatar: React.FC<{
       <Box
         className={`inline-flex! shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
       >
-        <Glyph size={18} className="block opacity-90" strokeWidth={1.5} />
+        <Glyph
+          size={compact ? 12 : 18}
+          className="block opacity-90"
+          strokeWidth={1.5}
+        />
       </Box>
     ) : (
       <Box
         className={`inline-flex! shrink-0 items-center justify-center ${frameClass}`}
       >
-        <Glyph size={16} className="block opacity-90" strokeWidth={1.5} />
+        <Glyph
+          size={compact ? 11 : 16}
+          className="block opacity-90"
+          strokeWidth={1.5}
+        />
       </Box>
     );
   }
@@ -213,7 +241,7 @@ const ProviderAvatar: React.FC<{
     </Box>
   ) : (
     <Box
-      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold text-xs ${frameClass}`}
+      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold ${compact ? "text-[10px]" : "text-xs"} ${frameClass}`}
     >
       {meta.label}
     </Box>
@@ -742,6 +770,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     updateCustomProvider,
     removeCustomProvider,
     addCustomProvider,
+    reorderPostProcessProviders,
     refreshSettings,
   } = useSettings();
 
@@ -755,6 +784,9 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [avatarRefreshToken, setAvatarRefreshToken] = useState(0);
   const [avatarUrlInput, setAvatarUrlInput] = useState("");
   const [avatarSearch, setAvatarSearch] = useState("");
+  const [draggingProviderId, setDraggingProviderId] = useState<string | null>(
+    null,
+  );
 
   const selectedProviderLabel = state.selectedProvider?.label ?? "";
 
@@ -1036,216 +1068,397 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     );
   }, [state.providerOptions, visibleProviders]);
 
-  const providerSectionHeight = useMemo(() => {
-    const HEADER_HEIGHT = 64;
-    const ITEM_HEIGHT = 40;
-    const VERTICAL_PADDING = 20;
+  const reorderProviderTabs = useCallback(
+    async (fromProviderId: string, toProviderId: string) => {
+      if (fromProviderId === toProviderId) return;
 
-    return Math.min(
-      500,
-      Math.max(
-        300,
-        HEADER_HEIGHT + sortedOptions.length * ITEM_HEIGHT + VERTICAL_PADDING,
+      const currentOrder = (settings?.post_process_providers ?? []).map(
+        (provider) => provider.id,
+      );
+      const fromIndex = currentOrder.indexOf(fromProviderId);
+      const toIndex = currentOrder.indexOf(toProviderId);
+
+      if (fromIndex === -1 || toIndex === -1) return;
+
+      const nextOrder = [...currentOrder];
+      const [moved] = nextOrder.splice(fromIndex, 1);
+      nextOrder.splice(toIndex, 0, moved);
+      await reorderPostProcessProviders(nextOrder);
+    },
+    [reorderPostProcessProviders, settings?.post_process_providers],
+  );
+
+  const tabsRailRef = useRef<HTMLDivElement | null>(null);
+  const moreMeasureRef = useRef<HTMLButtonElement | null>(null);
+  const tabMeasureRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [tabsRailWidth, setTabsRailWidth] = useState(0);
+  const [tabWidths, setTabWidths] = useState<Record<string, number>>({});
+  const [moreWidth, setMoreWidth] = useState(PROVIDER_MORE_FALLBACK_WIDTH);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      setTabsRailWidth(tabsRailRef.current?.getBoundingClientRect().width ?? 0);
+
+      const nextWidths: Record<string, number> = {};
+      for (const option of sortedOptions) {
+        const width =
+          tabMeasureRefs.current[option.value]?.getBoundingClientRect().width ??
+          0;
+        nextWidths[option.value] = width + PROVIDER_TAB_GAP;
+      }
+      setTabWidths(nextWidths);
+      setMoreWidth(
+        (moreMeasureRef.current?.getBoundingClientRect().width ??
+          PROVIDER_MORE_FALLBACK_WIDTH) + PROVIDER_TAB_GAP,
+      );
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(() => measure());
+    if (tabsRailRef.current) {
+      observer.observe(tabsRailRef.current);
+    }
+    if (moreMeasureRef.current) {
+      observer.observe(moreMeasureRef.current);
+    }
+    for (const node of Object.values(tabMeasureRefs.current)) {
+      if (node) observer.observe(node);
+    }
+
+    return () => observer.disconnect();
+  }, [sortedOptions, avatarRefreshToken]);
+
+  const { visible: visibleTabs, overflow: overflowTabs } = useMemo(
+    () =>
+      buildProviderTabsLayout(
+        sortedOptions.map((option) => ({
+          value: option.value,
+          label: getOptionLabelText(option.label),
+        })),
+        state.selectedProviderId,
+        tabWidths,
+        tabsRailWidth,
+        moreWidth,
       ),
-    );
-  }, [sortedOptions.length]);
+    [
+      moreWidth,
+      sortedOptions,
+      state.selectedProviderId,
+      tabWidths,
+      tabsRailWidth,
+    ],
+  );
 
   return (
     <Card className="p-0! overflow-hidden">
-      <Grid
-        columns="220px 1fr"
-        style={{ height: providerSectionHeight }}
-      >
-        {/* Sidebar */}
+      <Flex direction="column" className="min-h-[520px]">
         <Flex
-          direction="column"
-          className="h-full overflow-hidden border-r border-gray-100 dark:border-gray-800"
+          align="center"
+          justify="between"
+          gap="3"
+          className="shrink-0 border-b border-gray-100 px-4 py-2 dark:border-gray-800"
         >
-          <Flex
-            align="center"
-            justify="between"
-            className="pt-5 pb-2 px-4 shrink-0"
-          >
-            <Text size="3" weight="bold">
+          <Flex align="center" gap="3" className="min-w-0 flex-1">
+            <Text size="3" weight="bold" className="shrink-0">
               {t("settings.postProcessing.api.provider.title")}
             </Text>
-            <Dialog.Root
-                open={showTemplatePicker}
-                onOpenChange={setShowTemplatePicker}
+            <Box ref={tabsRailRef} className="min-w-0 flex-1">
+              <Flex
+                align="center"
+                gap="1"
+                wrap="nowrap"
+                className="min-w-0 overflow-hidden"
               >
-                <Dialog.Trigger>
-                  <IconButton
-                    variant="ghost"
-                    size="1"
-                    className="cursor-pointer text-gray-500 hover:text-(--accent-11)"
-                    title={t("settings.postProcessing.api.providers.add")}
-                  >
-                    <IconPlus size={16} />
-                  </IconButton>
-                </Dialog.Trigger>
-                <Dialog.Content
-                  maxWidth="860px"
-                  className="p-0 overflow-hidden"
-                >
-                  <Flex align="center" justify="between" className="pr-4">
-                    <Dialog.Title>
-                      {t("settings.postProcessing.api.providers.add")}
-                    </Dialog.Title>
-                    <Button
-                      size="1"
-                      variant="soft"
-                      className="cursor-pointer"
-                      onClick={() => void handleAddCustomProvider()}
-                      disabled={customProviderTemplate == null}
+                {visibleTabs.map((option) => {
+                  const isSelected = state.selectedProviderId === option.value;
+                  const provider = state.providers.find(
+                    (item) => item.id === option.value,
+                  );
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", option.value);
+                        setDraggingProviderId(option.value);
+                      }}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const fromProviderId =
+                          event.dataTransfer.getData("text/plain") ||
+                          draggingProviderId;
+                        if (!fromProviderId) return;
+                        void reorderProviderTabs(fromProviderId, option.value);
+                        setDraggingProviderId(null);
+                      }}
+                      onDragEnd={() => setDraggingProviderId(null)}
+                      onClick={() => state.handleProviderSelect(option.value)}
+                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${
+                        isSelected
+                          ? PROVIDER_TAB_ACTIVE_CLASS
+                          : PROVIDER_TAB_IDLE_CLASS
+                      } ${draggingProviderId === option.value ? "opacity-65" : ""}`}
                     >
-                      {t(
-                        "settings.postProcessing.api.providers.addCustom",
-                        "Add Custom",
-                      )}
-                    </Button>
-                  </Flex>
-                  <Box className="h-[70vh] max-h-160 overflow-hidden py-2 pl-2">
-                    <ScrollArea
-                      scrollbars="vertical"
-                      type="hover"
-                      className="h-[400px] overflow-auto pr-4"
+                      <ProviderAvatar
+                        providerId={option.value}
+                        baseUrl={provider?.base_url ?? ""}
+                        compact
+                        refreshToken={avatarRefreshToken}
+                        overrideValue={
+                          settings?.post_process_provider_avatar_overrides?.[
+                            option.value
+                          ] ?? null
+                        }
+                      />
+                      <Text size="1" className="whitespace-nowrap">
+                        {option.label}
+                      </Text>
+                    </button>
+                  );
+                })}
+
+                {overflowTabs.length > 0 && (
+                  <Popover.Root>
+                  <Popover.Trigger>
+                    <button
+                      type="button"
+                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${PROVIDER_TAB_IDLE_CLASS}`}
                     >
-                      <Flex direction="column" gap="4" className="pr-2 py-1">
-                        {groupedTemplates.map((group) => (
-                          <Box key={group.key}>
-                            <Text
-                              size="1"
-                              weight="bold"
-                              className="mb-1! block text-gray-500"
-                            >
-                              {group.label}
-                            </Text>
-                            <Grid
-                              columns={{ initial: "2", sm: "3", lg: "4" }}
-                              gap="2"
-                            >
-                              {group.templates.map((template) => (
-                                <button
-                                  key={template.id}
-                                  type="button"
-                                  onClick={() =>
-                                    void handleAddProvider(template)
+                      <Text size="1">更多</Text>
+                        <Text size="1" color="gray" className="tabular-nums">
+                          {overflowTabs.length}
+                        </Text>
+                      </button>
+                    </Popover.Trigger>
+                    <Popover.Content size="1" side="bottom" align="start">
+                      <Flex direction="column" gap="1" className="min-w-[220px]">
+                        {overflowTabs.map((option) => {
+                          const provider = state.providers.find(
+                            (item) => item.id === option.value,
+                          );
+                          return (
+                            <Popover.Close key={option.value}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  state.handleProviderSelect(option.value)
+                                }
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-(--gray-a2)"
+                              >
+                                <ProviderAvatar
+                                  providerId={option.value}
+                                  baseUrl={provider?.base_url ?? ""}
+                                  compact
+                                  refreshToken={avatarRefreshToken}
+                                  overrideValue={
+                                    settings
+                                      ?.post_process_provider_avatar_overrides?.[
+                                      option.value
+                                    ] ?? null
                                   }
-                                  className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
+                                />
+                                <Text size="2" className="truncate">
+                                  {option.label}
+                                </Text>
+                              </button>
+                            </Popover.Close>
+                          );
+                        })}
+                      </Flex>
+                    </Popover.Content>
+                  </Popover.Root>
+                )}
+              </Flex>
+            </Box>
+          </Flex>
+          <Dialog.Root
+            open={showTemplatePicker}
+            onOpenChange={setShowTemplatePicker}
+          >
+            <Dialog.Trigger>
+              <IconButton
+                variant="ghost"
+                size="1"
+                className="cursor-pointer text-gray-500 hover:text-(--accent-11)"
+                title={t("settings.postProcessing.api.providers.add")}
+              >
+                <IconPlus size={16} />
+              </IconButton>
+            </Dialog.Trigger>
+            <Dialog.Content maxWidth="860px" className="p-0 overflow-hidden">
+              <Flex align="center" justify="between" className="pr-4">
+                <Dialog.Title>
+                  {t("settings.postProcessing.api.providers.add")}
+                </Dialog.Title>
+                <Button
+                  size="1"
+                  variant="soft"
+                  className="cursor-pointer"
+                  onClick={() => void handleAddCustomProvider()}
+                  disabled={customProviderTemplate == null}
+                >
+                  {t(
+                    "settings.postProcessing.api.providers.addCustom",
+                    "Add Custom",
+                  )}
+                </Button>
+              </Flex>
+              <Box className="h-[70vh] max-h-160 overflow-hidden py-2 pl-2">
+                <ScrollArea
+                  scrollbars="vertical"
+                  type="hover"
+                  className="h-[400px] overflow-auto pr-4"
+                >
+                  <Flex direction="column" gap="4" className="pr-2 py-1">
+                    {groupedTemplates.map((group) => (
+                      <Box key={group.key}>
+                        <Text
+                          size="1"
+                          weight="bold"
+                          className="mb-1! block text-gray-500"
+                        >
+                          {group.label}
+                        </Text>
+                        <Grid
+                          columns={{ initial: "2", sm: "3", lg: "4" }}
+                          gap="2"
+                        >
+                          {group.templates.map((template) => (
+                            <button
+                              key={template.id}
+                              type="button"
+                              onClick={() => void handleAddProvider(template)}
+                              className="group w-full rounded-2xl border border-(--gray-a4) bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(248,248,250,0.9))] px-3 py-3 text-left shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:border-(--accent-a6) hover:shadow-[0_10px_28px_rgba(16,24,40,0.08)] dark:bg-[linear-gradient(180deg,rgba(30,30,34,0.88),rgba(24,24,28,0.92))] cursor-pointer"
+                            >
+                              <Flex align="center" gap="3">
+                                <Flex
+                                  align="center"
+                                  gap="3"
+                                  className="min-w-0"
                                 >
-                                  <Flex align="center" gap="3">
+                                  <ProviderAvatar
+                                    providerId={template.id}
+                                    baseUrl={template.baseUrl}
+                                    large
+                                    refreshToken={avatarRefreshToken}
+                                    overrideValue={
+                                      settings
+                                        ?.post_process_provider_avatar_overrides?.[
+                                        template.id
+                                      ] ?? null
+                                    }
+                                  />
+                                  <Flex
+                                    direction="column"
+                                    justify="between"
+                                    className="min-w-0 flex-1"
+                                    style={{ minHeight: 40 }}
+                                  >
+                                    <Text
+                                      size="2"
+                                      weight="medium"
+                                      className="block truncate text-(--gray-12)"
+                                      title={template.label}
+                                    >
+                                      {template.label}
+                                    </Text>
                                     <Flex
                                       align="center"
-                                      gap="3"
+                                      gap="1"
                                       className="min-w-0"
                                     >
-                                      <ProviderAvatar
-                                        providerId={template.id}
-                                        baseUrl={template.baseUrl}
-                                        large
-                                        refreshToken={avatarRefreshToken}
-                                        overrideValue={
-                                          settings
-                                            ?.post_process_provider_avatar_overrides?.[
-                                            template.id
-                                          ] ?? null
-                                        }
-                                      />
-                                      <Flex
-                                        direction="column"
-                                        justify="between"
-                                        className="min-w-0 flex-1"
-                                        style={{ minHeight: 40 }}
+                                      <Text
+                                        size="1"
+                                        color="gray"
+                                        className="block truncate leading-[1.2]"
+                                        title={getTemplateHost(
+                                          template.baseUrl,
+                                        )}
                                       >
-                                        <Text
-                                          size="2"
-                                          weight="medium"
-                                          className="block truncate text-(--gray-12)"
-                                          title={template.label}
-                                        >
-                                          {template.label}
-                                        </Text>
-                                        <Flex
-                                          align="center"
-                                          gap="1"
-                                          className="min-w-0"
-                                        >
-                                          <Text
-                                            size="1"
-                                            color="gray"
-                                            className="block truncate leading-[1.2]"
-                                            title={getTemplateHost(
-                                              template.baseUrl,
-                                            )}
-                                          >
-                                            {getTemplateHost(template.baseUrl)}
-                                          </Text>
-                                          {template.signupUrl && (
-                                            <IconExternalLink
-                                              size={12}
-                                              className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                void openUrl(
-                                                  template.signupUrl!,
-                                                );
-                                              }}
-                                            />
-                                          )}
-                                        </Flex>
-                                      </Flex>
+                                        {getTemplateHost(template.baseUrl)}
+                                      </Text>
+                                      {template.signupUrl && (
+                                        <IconExternalLink
+                                          size={12}
+                                          className="shrink-0 text-(--gray-8) opacity-0 transition-opacity group-hover:opacity-100 cursor-pointer"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            void openUrl(template.signupUrl!);
+                                          }}
+                                        />
+                                      )}
                                     </Flex>
                                   </Flex>
-                                </button>
-                              ))}
-                            </Grid>
-                          </Box>
-                        ))}
-                      </Flex>
-                    </ScrollArea>
-                  </Box>
-                </Dialog.Content>
-              </Dialog.Root>
-          </Flex>
-          <ScrollArea
-            scrollbars="vertical"
-            type="hover"
-            className="flex-1 min-h-0"
-          >
-            <Box className="px-2 pb-4 space-y-0.5">
-              {sortedOptions.map((option) => (
-                <SidebarItem
-                  key={option.value}
-                  option={option}
-                  isSelected={state.selectedProviderId === option.value}
-                  isVerified={state.verifiedProviderIds.has(option.value)}
-                  onClick={() => state.handleProviderSelect(option.value)}
-                  onActivate={() => state.activateProvider(option.value)}
-                  t={t}
-                  iconNode={
-                    <ProviderAvatar
-                      providerId={option.value}
-                      baseUrl={
-                        state.providers.find(
-                          (provider) => provider.id === option.value,
-                        )?.base_url ?? ""
-                      }
-                      refreshToken={avatarRefreshToken}
-                      overrideValue={
-                        settings?.post_process_provider_avatar_overrides?.[
-                          option.value
-                        ] ?? null
-                      }
-                    />
-                  }
-                />
-              ))}
-            </Box>
-          </ScrollArea>
+                                </Flex>
+                              </Flex>
+                            </button>
+                          ))}
+                        </Grid>
+                      </Box>
+                    ))}
+                  </Flex>
+                </ScrollArea>
+              </Box>
+            </Dialog.Content>
+          </Dialog.Root>
         </Flex>
 
-        {/* Content Area */}
-        <Flex direction="column" className="h-full overflow-hidden">
+        <Box
+          aria-hidden="true"
+          className="pointer-events-none fixed top-[-10000px] left-[-10000px] opacity-0"
+        >
+          <Flex align="center" gap="1" wrap="nowrap">
+            {sortedOptions.map((option) => {
+              const provider = state.providers.find(
+                (item) => item.id === option.value,
+              );
+              return (
+                <button
+                  key={`measure-${option.value}`}
+                  type="button"
+                  ref={(node) => {
+                    tabMeasureRefs.current[option.value] = node;
+                  }}
+                  className={`${PROVIDER_TAB_BUTTON_CLASS} ${PROVIDER_TAB_IDLE_CLASS}`}
+                >
+                  <ProviderAvatar
+                    providerId={option.value}
+                    baseUrl={provider?.base_url ?? ""}
+                    compact
+                    refreshToken={avatarRefreshToken}
+                    overrideValue={
+                      settings?.post_process_provider_avatar_overrides?.[
+                        option.value
+                      ] ?? null
+                    }
+                  />
+                  <Text size="1" className="whitespace-nowrap">
+                    {option.label}
+                  </Text>
+                </button>
+              );
+            })}
+            <button
+              ref={moreMeasureRef}
+              type="button"
+              className={`${PROVIDER_TAB_BUTTON_CLASS} ${PROVIDER_TAB_IDLE_CLASS}`}
+            >
+              <Text size="1">更多</Text>
+              <Text size="1" color="gray" className="tabular-nums">
+                99
+              </Text>
+            </button>
+          </Flex>
+        </Box>
+
+        <Flex direction="column" className="min-h-0 flex-1 overflow-hidden">
           {/* Header */}
           <Box className="pt-4 px-8 pb-1 shrink-0">
             <Flex justify="between" align="center" width="100%">
@@ -1535,8 +1748,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   setEditingBaseUrl(false);
                 };
 
-                const isBaseUrlEditing =
-                  editingBaseUrl || !localBaseUrl.trim();
+                const isBaseUrlEditing = editingBaseUrl || !localBaseUrl.trim();
 
                 return (
                   <Flex align="center" gap="2" className="h-8 min-w-0">
@@ -1635,7 +1847,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   return { error: error ?? null, result: "OK" };
                 }}
               />
-
             </Grid>
 
             {/* Actions - outside grid */}
@@ -1661,7 +1872,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
             </Flex>
           </Box>
         </Flex>
-      </Grid>
+      </Flex>
     </Card>
   );
 };
