@@ -110,7 +110,7 @@ function getOptionLabelText(label: string | React.ReactNode) {
 }
 
 const PROVIDER_TAB_BUTTON_CLASS =
-  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[12px] leading-none transition-[background-color,border-color,color,box-shadow] duration-150";
+  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-2)] border px-2.5 text-[12px] leading-none transition-[background-color,border-color,color,box-shadow] duration-150";
 
 const PROVIDER_TAB_IDLE_CLASS =
   "border-(--gray-a4) bg-(--gray-a2) text-(--gray-11) shadow-sm hover:bg-(--gray-a3)";
