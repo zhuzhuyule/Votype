@@ -168,6 +168,10 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   post_process_secondary_model_id: null,
   post_process_intent_model: null,
   app_review_policies: {},
+  openai_compatible_api_enabled: true,
+  openai_compatible_api_host: "127.0.0.1",
+  openai_compatible_api_port: 33178,
+  openai_compatible_api_access_key: "",
   expert_mode: false,
 };
 
@@ -273,6 +277,12 @@ const settingUpdaters: {
   post_process_hotword_injection_enabled: (value) =>
     invoke("change_post_process_hotword_injection_enabled_setting", {
       enabled: value,
+    }),
+  openai_compatible_api_enabled: (value) =>
+    invoke("change_openai_compatible_api_enabled_setting", { enabled: value }),
+  openai_compatible_api_access_key: (value) =>
+    invoke("change_openai_compatible_api_access_key_setting", {
+      accessKey: value,
     }),
   post_process_use_secondary_output: (value) =>
     invoke("change_post_process_use_secondary_output_setting", {

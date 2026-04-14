@@ -100,7 +100,7 @@ function getOptionLabelText(label: string | React.ReactNode) {
 }
 
 const PROVIDER_TAB_BUTTON_CLASS =
-  "min-h-10 shrink-0 whitespace-nowrap px-3 py-2 text-[12px] bg-white/90";
+  "min-h-8! shrink-0 whitespace-nowrap text-[12px] bg-white/90";
 
 function getProviderFallbackMark(label: string, providerId: string) {
   const source = `${label} ${providerId}`.trim();
@@ -1163,7 +1163,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       key={option.value}
                       type="button"
                       size="1"
-                      variant={isSelected ? "soft" : "outline"}
+                      variant={"outline"}
                       draggable
                       onDragStart={(event) => {
                         event.dataTransfer.effectAllowed = "move";
@@ -1185,7 +1185,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       }}
                       onDragEnd={() => setDraggingProviderId(null)}
                       onClick={() => state.handleProviderSelect(option.value)}
-                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${draggingProviderId === option.value ? "opacity-65" : ""}`}
+                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${isSelected ? "bg-white!" : ""} ${draggingProviderId === option.value ? "opacity-65" : ""}`}
                     >
                       <ProviderAvatar
                         providerId={option.value}

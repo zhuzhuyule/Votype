@@ -314,6 +314,10 @@ export const SettingsSchema = z.object({
   post_process_context_limit: z.number().min(1).max(30).optional().default(3),
   post_process_streaming_output_enabled: z.boolean().optional().default(true),
   post_process_hotword_injection_enabled: z.boolean().optional().default(true),
+  openai_compatible_api_enabled: z.boolean().optional().default(true),
+  openai_compatible_api_host: z.string().optional().default("127.0.0.1"),
+  openai_compatible_api_port: z.number().int().nonnegative().optional().default(33178),
+  openai_compatible_api_access_key: z.string().optional().default(""),
   expert_mode: z.boolean().optional().default(false),
   keyboard_implementation: z
     .enum(["tauri", "handy_keys"])

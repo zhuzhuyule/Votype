@@ -18,6 +18,7 @@ mod key_selector;
 mod llm_client;
 mod managers;
 mod online_asr;
+mod openai_api_server;
 mod overlay;
 pub mod phonetic_similarity;
 mod provider_gateway;
@@ -353,6 +354,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
 
+    openai_api_server::start_openai_api_server(app_handle);
+
     // Review window is created lazily on first use (saves ~80MB idle memory)
 }
 
@@ -414,6 +417,8 @@ pub fn run() {
             shortcut::settings_cmds::change_post_process_context_limit_setting,
             shortcut::settings_cmds::change_post_process_streaming_output_enabled_setting,
             shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_enabled_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_access_key_setting,
             shortcut::settings_cmds::change_post_process_base_url_setting,
             shortcut::settings_cmds::change_post_process_api_key_setting,
             shortcut::settings_cmds::set_post_process_api_keys,
@@ -776,6 +781,8 @@ pub fn run() {
             shortcut::settings_cmds::change_post_process_context_limit_setting,
             shortcut::settings_cmds::change_post_process_streaming_output_enabled_setting,
             shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_enabled_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_access_key_setting,
             shortcut::settings_cmds::set_post_process_provider,
             shortcut::provider_cmds::fetch_post_process_models,
             shortcut::provider_cmds::get_provider_avatar_path,

@@ -36,6 +36,27 @@ impl OnlineAsrClient {
         samples: &[f32],
     ) -> Result<String> {
         let wav_bytes = encode_wav(samples, self.sample_rate)?;
+        self.transcribe_audio_bytes(
+            provider,
+            api_key,
+            model_id,
+            language,
+            &wav_bytes,
+            Some("recording.wav"),
+            Some("audio/wav"),
+        )
+    }
+
+    pub fn transcribe_audio_bytes(
+        &self,
+        provider: &PostProcessProvider,
+        api_key: Option<String>,
+        model_id: &str,
+        language: Option<&str>,
+        audio_bytes: &[u8],
+        file_name: Option<&str>,
+        mime_type: Option<&str>,
+    ) -> Result<String> {
         let url = format!(
             "{}/{}",
             provider.base_url.trim_end_matches('/'),
@@ -47,7 +68,7 @@ impl OnlineAsrClient {
             url,
             model_id,
             language,
-            wav_bytes.len()
+            audio_bytes.len()
         );
         let client = crate::http_client::build_blocking_http_client(None, self.timeout)
             .map_err(|e| anyhow::anyhow!(e))
@@ -56,9 +77,9 @@ impl OnlineAsrClient {
         let mut form = multipart::Form::new()
             .part(
                 "file",
-                multipart::Part::bytes(wav_bytes)
-                    .file_name("recording.wav")
-                    .mime_str("audio/wav")?,
+                multipart::Part::bytes(audio_bytes.to_vec())
+                    .file_name(file_name.unwrap_or("recording.wav").to_string())
+                    .mime_str(mime_type.unwrap_or("audio/wav"))?,
             )
             .text("model", model_id.to_string());
 

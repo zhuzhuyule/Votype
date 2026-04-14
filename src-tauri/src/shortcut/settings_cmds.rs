@@ -61,6 +61,30 @@ pub fn change_post_process_hotword_injection_enabled_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_openai_compatible_api_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.openai_compatible_api_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_openai_compatible_api_access_key_setting(
+    app: AppHandle,
+    access_key: String,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.openai_compatible_api_access_key = access_key.trim().to_string();
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_post_process_base_url_setting(
     app: AppHandle,
     provider_id: String,

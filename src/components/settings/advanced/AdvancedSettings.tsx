@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   Flex,
   Grid,
@@ -9,6 +10,8 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
+  IconCopy,
+  IconKey,
   IconPlug,
   IconPlus,
   IconTrash,
@@ -82,15 +85,23 @@ function buildProxyUrl(parts: ProxyParts): string {
 
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { expertMode, settings, setProxySettings } = useSettings();
+  const { expertMode, settings, setProxySettings, updateSetting } =
+    useSettings();
 
   const savedUrl = settings?.proxy_url ?? "";
   const initialParts = useMemo(() => parseProxyUrl(savedUrl), [savedUrl]);
   const [proxyParts, setProxyParts] = useState<ProxyParts>(initialParts);
+  const [localApiKey, setLocalApiKey] = useState(
+    settings?.openai_compatible_api_access_key ?? "",
+  );
 
   useEffect(() => {
     setProxyParts(parseProxyUrl(savedUrl));
   }, [savedUrl]);
+
+  useEffect(() => {
+    setLocalApiKey(settings?.openai_compatible_api_access_key ?? "");
+  }, [settings?.openai_compatible_api_access_key]);
 
   const hasProxy = !!savedUrl;
   const [showProxy, setShowProxy] = useState(hasProxy);
@@ -111,9 +122,110 @@ export const AdvancedSettings: React.FC = () => {
   };
 
   const proxyGlobalEnabled = settings?.proxy_global_enabled ?? false;
+  const localApiEnabled = settings?.openai_compatible_api_enabled ?? true;
+  const localApiHost = settings?.openai_compatible_api_host ?? "127.0.0.1";
+  const localApiPort = settings?.openai_compatible_api_port ?? 33178;
+  const localApiUrl = `http://${localApiHost}:${localApiPort}/v1`;
+
+  const copyText = useCallback(async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label}已复制`);
+    } catch (error) {
+      console.error(`Failed to copy ${label}:`, error);
+      toast.error(`复制${label}失败`);
+    }
+  }, []);
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
+      <SettingsGroup title="Local API">
+        <Flex direction="column" gap="4" p="2">
+          <Flex align="center" justify="between" gap="4">
+            <Box>
+              <Text size="2" weight="medium">
+                启用 OpenAI-compatible 本地服务
+              </Text>
+              <Text size="1" color="gray">
+                仅绑定本机地址，供外部工具通过统一 URL 和 Key 调用模型与 ASR。
+              </Text>
+            </Box>
+            <Switch
+              checked={localApiEnabled}
+              onCheckedChange={(checked) => {
+                void updateSetting("openai_compatible_api_enabled", !!checked);
+              }}
+            />
+          </Flex>
+
+          <Grid columns="auto 1fr auto" gapX="4" gapY="3" align="center">
+            <Text size="2" weight="medium" color="gray" className="text-right">
+              URL:
+            </Text>
+            <Text
+              size="2"
+              className="truncate rounded-lg border border-(--gray-a4) bg-(--gray-a2) px-3 py-2"
+              title={localApiUrl}
+            >
+              {localApiUrl}
+            </Text>
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => void copyText(localApiUrl, "URL")}
+            >
+              <IconCopy size={14} />
+              复制
+            </Button>
+
+            <Text size="2" weight="medium" color="gray" className="text-right">
+              Access Key:
+            </Text>
+            <TextField.Root
+              value={localApiKey}
+              onChange={(event) => setLocalApiKey(event.target.value)}
+              onBlur={() => {
+                if (
+                  localApiKey !==
+                  (settings?.openai_compatible_api_access_key ?? "")
+                ) {
+                  void updateSetting(
+                    "openai_compatible_api_access_key",
+                    localApiKey,
+                  );
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="votype-local-..."
+            >
+              <TextField.Slot side="left">
+                <IconKey size={14} />
+              </TextField.Slot>
+            </TextField.Root>
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={() => void copyText(localApiKey, "Access Key")}
+              disabled={!localApiKey.trim()}
+            >
+              <IconCopy size={14} />
+              复制
+            </Button>
+          </Grid>
+
+          <Text size="1" color="gray">
+            示例：
+            <span className="ml-1 font-mono">
+              Authorization: Bearer {localApiKey || "your-key"}
+            </span>
+          </Text>
+        </Flex>
+      </SettingsGroup>
+
       {/* Transcription Optimization - Expert only */}
       {expertMode && (
         <SettingsGroup

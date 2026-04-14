@@ -1020,6 +1020,14 @@ pub struct AppSettings {
     /// Whisper GPU device index (-1 = auto)
     #[serde(default = "default_whisper_gpu_device")]
     pub whisper_gpu_device: i32,
+    #[serde(default = "default_openai_compatible_api_enabled")]
+    pub openai_compatible_api_enabled: bool,
+    #[serde(default = "default_openai_compatible_api_host")]
+    pub openai_compatible_api_host: String,
+    #[serde(default = "default_openai_compatible_api_port")]
+    pub openai_compatible_api_port: u16,
+    #[serde(default)]
+    pub openai_compatible_api_access_key: String,
 }
 
 fn default_model() -> String {
@@ -1036,6 +1044,18 @@ fn default_always_on_microphone() -> bool {
 
 fn default_translate_to_english() -> bool {
     false
+}
+
+fn default_openai_compatible_api_enabled() -> bool {
+    true
+}
+
+fn default_openai_compatible_api_host() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_openai_compatible_api_port() -> u16 {
+    33178
 }
 
 fn default_start_hidden() -> bool {
@@ -1724,6 +1744,10 @@ pub fn get_default_settings() -> AppSettings {
         whisper_accelerator: WhisperAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
         whisper_gpu_device: default_whisper_gpu_device(),
+        openai_compatible_api_enabled: default_openai_compatible_api_enabled(),
+        openai_compatible_api_host: default_openai_compatible_api_host(),
+        openai_compatible_api_port: default_openai_compatible_api_port(),
+        openai_compatible_api_access_key: String::new(),
     }
 }
 
