@@ -1,7 +1,5 @@
 use crate::managers::prompt::{self, PromptManager};
-use crate::settings;
 use crate::settings::{AppSettings, LLMPrompt, PostProcessProvider};
-use async_openai::types::CreateChatCompletionRequestArgs;
 use log::info;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
@@ -47,7 +45,7 @@ pub(super) async fn execute_smart_action_routing(
 ) -> Option<super::IntentDecision> {
     // Resolve intent model
     let default_prompt = settings.post_process_prompts.first()?;
-    let (provider, model, _api_key) =
+    let (provider, model) =
         resolve_intent_routing_model(settings, fallback_provider, default_prompt)?;
 
     // Load the smart routing prompt
@@ -351,24 +349,14 @@ pub(super) struct SkillRoutingResult {
 }
 
 pub(super) async fn perform_skill_routing(
-    _app_handle: &AppHandle,
-    api_key: String,
+    app_handle: &AppHandle,
     prompts: &[LLMPrompt],
     provider: &PostProcessProvider,
     model: &str,
     transcription: &str,
     selected_text: Option<&str>,
 ) -> Option<SkillRoutingResult> {
-    let settings = crate::settings::get_settings(_app_handle);
-    let effective_proxy = crate::settings::resolve_proxy(&settings, provider);
-    let client =
-        match crate::llm_client::create_client(provider, api_key, effective_proxy.as_deref()) {
-            Ok(c) => c,
-            Err(e) => {
-                log::warn!("[SkillRouter] Failed to create LLM client: {:?}", e);
-                return None;
-            }
-        };
+    let settings = crate::settings::get_settings(app_handle);
 
     let has_selected_text = selected_text.map(|s| !s.trim().is_empty()).unwrap_or(false);
 
@@ -377,8 +365,8 @@ pub(super) async fn perform_skill_routing(
         model, transcription.len(), has_selected_text, prompts.len()
     );
 
-    let prompt_manager = _app_handle.state::<Arc<PromptManager>>();
-    let template = match prompt_manager.get_prompt(_app_handle, "system_skill_routing") {
+    let prompt_manager = app_handle.state::<Arc<PromptManager>>();
+    let template = match prompt_manager.get_prompt(app_handle, "system_skill_routing") {
         Ok(t) => t,
         Err(e) => {
             log::warn!("[SkillRouter] Failed to load prompt: {}", e);
@@ -387,57 +375,33 @@ pub(super) async fn perform_skill_routing(
     };
     let routing_prompt = build_skill_routing_prompt(&template, prompts, has_selected_text);
 
-    let mut messages = Vec::new();
-
-    let prompt_role = super::core::resolve_prompt_message_role(
-        &settings::get_settings(_app_handle),
-        &provider.id,
-        None,
-        model,
-    );
-    if let Some(msg) = super::core::build_instruction_message(prompt_role, routing_prompt.clone()) {
-        messages.push(msg);
-    }
-
-    if let Some(msg) = super::core::build_user_message(transcription.to_string()) {
-        messages.push(msg);
-    }
-
     if crate::DEBUG_LOG_SKILL_ROUTING.load(std::sync::atomic::Ordering::Relaxed) {
         super::core::preview_multiline("SkillRouter.SystemPrompt", &routing_prompt);
         super::core::preview_multiline("SkillRouter.UserMessage", transcription);
     }
 
-    let req = match CreateChatCompletionRequestArgs::default()
-        .model(model.to_string())
-        .messages(messages)
-        .build()
-    {
-        Ok(r) => r,
-        Err(e) => {
-            log::warn!("[SkillRouter] Failed to build request: {:?}", e);
-            return None;
-        }
-    };
+    let system_prompts = vec![routing_prompt];
+    let (response_text, _is_error, _error_msg, token_count) =
+        super::core::execute_llm_request_with_messages(
+            app_handle,
+            &settings,
+            provider,
+            model,
+            None,
+            &system_prompts,
+            Some(transcription),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
 
-    let response = match client.chat().create(req).await {
-        Ok(r) => r,
-        Err(e) => {
-            log::warn!("[SkillRouter] LLM request failed: {:?}", e);
-            return None;
-        }
-    };
-
-    // Extract token count from usage
-    let token_count = response.usage.as_ref().map(|u| u.total_tokens as i64);
-
-    let content = match response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())
-    {
-        Some(c) => c,
-        None => {
+    let content = match response_text {
+        Some(c) if !c.trim().is_empty() => c,
+        _ => {
             log::warn!("[SkillRouter] LLM response has no content");
             return None;
         }
@@ -999,7 +963,7 @@ pub(crate) fn resolve_intent_routing_model<'a>(
     settings: &'a AppSettings,
     fallback_provider: &'a PostProcessProvider,
     fallback_prompt: &LLMPrompt,
-) -> Option<(&'a PostProcessProvider, String, String)> {
+) -> Option<(&'a PostProcessProvider, String)> {
     if let Some(intent_model_id) = settings
         .post_process_intent_model
         .as_ref()
@@ -1014,12 +978,7 @@ pub(crate) fn resolve_intent_routing_model<'a>(
                 if let Some(provider) = settings.post_process_provider(&cached_model.provider_id) {
                     let model_id = cached_model.model_id.trim().to_string();
                     if !model_id.is_empty() {
-                        let api_key = settings
-                            .post_process_api_keys
-                            .first_key(&provider.id)
-                            .unwrap_or("")
-                            .to_string();
-                        return Some((provider, model_id, api_key));
+                        return Some((provider, model_id));
                     }
                 } else {
                     log::warn!(
@@ -1043,12 +1002,7 @@ pub(crate) fn resolve_intent_routing_model<'a>(
 
     let (actual_provider, model) =
         resolve_effective_model(settings, fallback_provider, fallback_prompt)?;
-    let api_key = settings
-        .post_process_api_keys
-        .first_key(&actual_provider.id)
-        .unwrap_or("")
-        .to_string();
-    Some((actual_provider, model, api_key))
+    Some((actual_provider, model))
 }
 
 pub(super) fn resolve_prompt_from_text(

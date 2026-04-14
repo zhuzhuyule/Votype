@@ -1490,12 +1490,11 @@ pub async fn maybe_post_process_transcription(
     // Mode B: invoke_skill hotkey always enters skill routing, regardless of app rules
     if effective_skill_mode && !transcription.trim().is_empty() {
         if let Some(p) = &initial_prompt_opt {
-            if let Some((route_provider, route_model, route_api_key)) =
+            if let Some((route_provider, route_model)) =
                 super::routing::resolve_intent_routing_model(settings, fallback_provider, p)
             {
                 if let Some(routing_result) = super::routing::perform_skill_routing(
                     app_handle,
-                    route_api_key,
                     &all_prompts,
                     route_provider,
                     &route_model,
@@ -1576,7 +1575,7 @@ pub async fn maybe_post_process_transcription(
         app_handle.emit("post-process-status", "正在润色中...").ok();
 
         if let Some(default_prompt) = &initial_prompt_opt {
-            if let Some((route_provider, route_model, route_api_key)) =
+            if let Some((route_provider, route_model)) =
                 super::routing::resolve_intent_routing_model(
                     settings,
                     fallback_provider,
@@ -1593,7 +1592,6 @@ pub async fn maybe_post_process_transcription(
                     // Intent detection
                     super::routing::perform_skill_routing(
                         app_handle,
-                        route_api_key,
                         &all_prompts,
                         route_provider,
                         &route_model,

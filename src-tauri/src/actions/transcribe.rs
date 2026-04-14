@@ -9,11 +9,12 @@ use crate::managers::transcription::TranscriptionManager;
 use crate::overlay::{
     show_recording_overlay, show_recording_overlay_rewrite, show_transcribing_overlay,
 };
-use crate::settings::get_settings;
+use crate::settings::{get_settings, AppSettings, CachedModel};
 use crate::shortcut;
 use crate::tray::{change_tray_icon, TrayIconState};
 use crate::utils;
 use crate::window_context::VotypeInputMode;
+use anyhow::anyhow;
 use log::{debug, error, info};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -28,6 +29,208 @@ impl TranscribeAction {
     pub fn new(skill_mode: bool) -> Self {
         Self { skill_mode }
     }
+}
+
+fn online_asr_max_attempts(settings: &AppSettings, provider_id: &str) -> usize {
+    settings
+        .post_process_api_keys
+        .get(provider_id)
+        .map(|keys| {
+            keys.iter()
+                .filter(|entry| entry.enabled && !entry.key.is_empty())
+                .count()
+                .clamp(1, 3)
+        })
+        .unwrap_or(1)
+}
+
+fn extract_online_asr_status(detail: &str) -> Option<u16> {
+    let marker = "remote transcription failed (";
+    let start = detail.find(marker)? + marker.len();
+    let digits: String = detail[start..]
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect();
+    if digits.len() == 3 {
+        digits.parse::<u16>().ok()
+    } else {
+        None
+    }
+}
+
+fn classify_online_asr_attempt_error(detail: &str) -> crate::provider_gateway::AttemptError {
+    use crate::provider_gateway::{AttemptError, AttemptErrorKind};
+
+    if let Some(status) = extract_online_asr_status(detail) {
+        return match status {
+            401 | 403 => AttemptError::Fatal {
+                status: Some(status),
+                detail: detail.to_string(),
+                kind: AttemptErrorKind::Http,
+            },
+            429 | 500..=599 => AttemptError::Retryable {
+                status: Some(status),
+                detail: detail.to_string(),
+                kind: AttemptErrorKind::Http,
+            },
+            _ => AttemptError::Fatal {
+                status: Some(status),
+                detail: detail.to_string(),
+                kind: AttemptErrorKind::Http,
+            },
+        };
+    }
+
+    let lower = detail.to_ascii_lowercase();
+    if lower.contains("timed out")
+        || lower.contains("timeout")
+        || lower.contains("failed to send transcription request")
+        || lower.contains("connection")
+    {
+        return AttemptError::Retryable {
+            status: None,
+            detail: detail.to_string(),
+            kind: AttemptErrorKind::Network,
+        };
+    }
+
+    if lower.contains("failed to deserialize transcription response")
+        || lower.contains("transcription missing text field")
+    {
+        return AttemptError::Fatal {
+            status: None,
+            detail: detail.to_string(),
+            kind: AttemptErrorKind::Parse,
+        };
+    }
+
+    AttemptError::Retryable {
+        status: None,
+        detail: detail.to_string(),
+        kind: AttemptErrorKind::Other,
+    }
+}
+
+async fn execute_online_asr_request(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    cached_model: &CachedModel,
+    audio_samples: Vec<f32>,
+    lang: String,
+    is_fallback: bool,
+    metrics: Option<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>,
+    history_id: Option<i64>,
+    audio_ms: i64,
+) -> anyhow::Result<String> {
+    let provider = settings
+        .post_process_providers
+        .iter()
+        .find(|p| p.id == cached_model.provider_id)
+        .cloned()
+        .ok_or_else(|| anyhow!("ASR provider not found for model {}", cached_model.name))?;
+    let provider_id_for_log = cached_model.provider_id.clone();
+    let cached_id_for_log = cached_model.model_id.clone();
+    let remote_model_id = cached_model.model_id.clone();
+    let audio_samples = Arc::new(audio_samples);
+    let lang = Arc::new(lang);
+    let start = Instant::now();
+
+    let outcome = crate::provider_gateway::execute_with_failover(
+        app_handle,
+        settings,
+        crate::provider_gateway::ExecutionPlan {
+            provider_id: provider.id.clone(),
+            cached_model_id: cached_model.id.clone(),
+            remote_model_id: remote_model_id.clone(),
+            max_attempts: online_asr_max_attempts(settings, &provider.id),
+        },
+        {
+            let provider = provider.clone();
+            let remote_model_id = remote_model_id.clone();
+            let audio_samples = audio_samples.clone();
+            let lang = lang.clone();
+
+            move |api_key| {
+                let provider = provider.clone();
+                let remote_model_id = remote_model_id.clone();
+                let audio_samples = audio_samples.clone();
+                let lang = lang.clone();
+                let api_key = api_key.to_string();
+
+                async move {
+                    let join_result = tokio::task::spawn_blocking(move || {
+                        let client =
+                            crate::online_asr::OnlineAsrClient::new(16000, Duration::from_secs(120));
+                        let language = if lang.as_str() == "auto" {
+                            None
+                        } else {
+                            Some(lang.as_str())
+                        };
+                        client.transcribe(
+                            &provider,
+                            Some(api_key),
+                            &remote_model_id,
+                            language,
+                            audio_samples.as_slice(),
+                        )
+                    })
+                    .await;
+
+                    match join_result {
+                        Ok(Ok(text)) => Ok(text),
+                        Ok(Err(err)) => Err(classify_online_asr_attempt_error(&err.to_string())),
+                        Err(err) => Err(crate::provider_gateway::AttemptError::Retryable {
+                            status: None,
+                            detail: format!("Online ASR task failed: {}", err),
+                            kind: crate::provider_gateway::AttemptErrorKind::Other,
+                        }),
+                    }
+                }
+            }
+        },
+    )
+    .await;
+
+    let result = match outcome {
+        crate::provider_gateway::ExecutionOutcome::Success(text) => Ok(text),
+        crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => Err(anyhow!(detail)),
+        crate::provider_gateway::ExecutionOutcome::Exhausted { last_error, .. } => {
+            let detail = match last_error {
+                crate::provider_gateway::AttemptError::Retryable { detail, .. }
+                | crate::provider_gateway::AttemptError::Fatal { detail, .. } => detail,
+            };
+            Err(anyhow!(detail))
+        }
+    };
+
+    let elapsed_ms = start.elapsed().as_millis() as i64;
+    if let Some(ref metrics) = metrics {
+        let (out_chars, err_msg) = match &result {
+            Ok(text) => (text.chars().count() as i64, None),
+            Err(e) => (0i64, Some(e.to_string())),
+        };
+        let speed = if elapsed_ms > 0 && out_chars > 0 {
+            Some(out_chars as f64 / elapsed_ms as f64 * 1000.0)
+        } else {
+            None
+        };
+        let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
+            history_id,
+            model_id: cached_id_for_log,
+            provider: provider_id_for_log,
+            call_type: "asr".to_string(),
+            input_tokens: None,
+            output_tokens: None,
+            total_tokens: None,
+            token_estimate: Some(audio_ms as f64),
+            duration_ms: elapsed_ms,
+            tokens_per_sec: speed,
+            error: err_msg,
+            is_fallback,
+        });
+    }
+
+    result
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -566,19 +769,18 @@ impl ShortcutAction for TranscribeAction {
                     Option<String>,
                 ) = if settings.online_asr_enabled {
                     // --- Online ASR with fallback chain support ---
-                    use crate::online_asr::OnlineAsrClient;
-
                     // Grab metrics manager for per-call ASR logging
                     let asr_metrics: Option<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>> =
                         ah.try_state::<std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>>()
                             .map(|m| (*m).clone());
                     let asr_history_id = presave_history_id;
                     let asr_audio_duration_ms = duration_ms;
+                    let asr_app_handle = ah.clone();
 
                     // Helper: spawn an online ASR task for a given cached_model_id.
                     // Each task self-logs its metrics (timing, chars, error) so that
                     // every participant in Race/Staggered/Serial is individually recorded.
-                    let spawn_asr_task = |cached_model_id: &str,
+                    let spawn_asr_task = move |cached_model_id: &str,
                                           settings: &crate::settings::AppSettings,
                                           audio_samples: Vec<f32>,
                                           lang: String,
@@ -591,84 +793,31 @@ impl ShortcutAction for TranscribeAction {
                      -> Option<
                         tokio::task::JoinHandle<anyhow::Result<String>>,
                     > {
-                        let cached = settings.cached_models.iter().find(|m| {
-                            m.model_type == crate::settings::ModelType::Asr
-                                && m.id == cached_model_id
-                        })?;
-                        let provider_info = settings
-                            .post_process_providers
+                        let cached = settings
+                            .cached_models
                             .iter()
-                            .find(|p| p.id == cached.provider_id)
-                            .cloned();
-                        let api_key = settings
-                            .post_process_api_keys
-                            .first_key(&cached.provider_id)
-                            .map(|s| s.to_string());
-                        let remote_model_id = cached.model_id.clone();
-                        let model_name = cached.name.clone();
-                        let provider_id_for_log = cached.provider_id.clone();
-                        let cached_id_for_log = cached.model_id.clone();
+                            .find(|m| {
+                                m.model_type == crate::settings::ModelType::Asr
+                                    && m.id == cached_model_id
+                            })?
+                            .clone();
+                        let app_handle = asr_app_handle.clone();
+                        let settings = settings.clone();
 
-                        Some(tokio::task::spawn_blocking(
-                            move || -> anyhow::Result<String> {
-                                let provider = provider_info.ok_or_else(|| {
-                                    anyhow::anyhow!(
-                                        "ASR provider not found for model {}",
-                                        model_name
-                                    )
-                                })?;
-                                let client = OnlineAsrClient::new(
-                                    16000,
-                                    std::time::Duration::from_secs(120),
-                                );
-                                let l = if lang == "auto" {
-                                    None
-                                } else {
-                                    Some(lang.as_str())
-                                };
-
-                                let start = std::time::Instant::now();
-                                let result = client.transcribe(
-                                    &provider,
-                                    api_key,
-                                    &remote_model_id,
-                                    l,
-                                    &audio_samples,
-                                );
-                                let elapsed_ms = start.elapsed().as_millis() as i64;
-
-                                // Log this individual ASR call
-                                if let Some(ref metrics) = metrics {
-                                    let (out_chars, err_msg) = match &result {
-                                        Ok(text) => (text.chars().count() as i64, None),
-                                        Err(e) => (0i64, Some(e.to_string())),
-                                    };
-                                    let speed = if elapsed_ms > 0 && out_chars > 0 {
-                                        Some(out_chars as f64 / elapsed_ms as f64 * 1000.0)
-                                    } else {
-                                        None
-                                    };
-                                    let _ = metrics.log_call(
-                                        &crate::managers::llm_metrics::LlmCallRecord {
-                                            history_id,
-                                            model_id: cached_id_for_log,
-                                            provider: provider_id_for_log,
-                                            call_type: "asr".to_string(),
-                                            input_tokens: None,
-                                            output_tokens: None,
-                                            total_tokens: None,
-                                            token_estimate: Some(audio_ms as f64),
-                                            duration_ms: elapsed_ms,
-                                            tokens_per_sec: speed,
-                                            error: err_msg,
-                                            is_fallback,
-                                        },
-                                    );
-                                }
-
-                                result
-                            },
-                        ))
+                        Some(tokio::spawn(async move {
+                            execute_online_asr_request(
+                                &app_handle,
+                                &settings,
+                                &cached,
+                                audio_samples,
+                                lang,
+                                is_fallback,
+                                metrics,
+                                history_id,
+                                audio_ms,
+                            )
+                            .await
+                        }))
                     };
 
                     let chain = settings.selected_asr_model.clone();
@@ -1016,100 +1165,27 @@ impl ShortcutAction for TranscribeAction {
                                             .cloned();
 
                                         if let Some(fallback_model) = fallback_cached {
-                                            let fb_provider = settings
-                                                .post_process_providers
-                                                .iter()
-                                                .find(|p| p.id == fallback_model.provider_id)
-                                                .cloned();
-                                            let fb_api_key = settings
-                                                .post_process_api_keys
-                                                .first_key(&fallback_model.provider_id)
-                                                .map(|s| s.to_string());
-                                            let fb_remote_id = fallback_model.model_id.clone();
-                                            let fb_provider_id = fallback_model.provider_id.clone();
-                                            let fb_cached_id = fallback_model.model_id.clone();
-                                            let fb_samples = samples.clone();
-                                            let fb_language = settings.selected_language.clone();
-                                            let fb_metrics = asr_metrics.clone();
-                                            let fb_history_id = asr_history_id;
-                                            let fb_audio_ms = asr_audio_duration_ms;
-
-                                            let fallback_handle = tokio::task::spawn_blocking(
-                                                move || -> anyhow::Result<String> {
-                                                    let provider =
-                                                        fb_provider.ok_or_else(|| {
-                                                            anyhow::anyhow!(
-                                                                "Fallback ASR provider not found"
-                                                            )
-                                                        })?;
-                                                    let client = OnlineAsrClient::new(
-                                                        16000,
-                                                        std::time::Duration::from_secs(120),
-                                                    );
-                                                    let lang = if fb_language == "auto" {
-                                                        None
-                                                    } else {
-                                                        Some(fb_language.as_str())
-                                                    };
-                                                    let start = std::time::Instant::now();
-                                                    let result = client.transcribe(
-                                                        &provider,
-                                                        fb_api_key,
-                                                        &fb_remote_id,
-                                                        lang,
-                                                        &fb_samples,
-                                                    );
-                                                    let elapsed_ms =
-                                                        start.elapsed().as_millis() as i64;
-                                                    if let Some(ref metrics) = fb_metrics {
-                                                        let (out_chars, err_msg) = match &result {
-                                                            Ok(text) => {
-                                                                (text.chars().count() as i64, None)
-                                                            }
-                                                            Err(e) => (0i64, Some(e.to_string())),
-                                                        };
-                                                        let speed =
-                                                            if elapsed_ms > 0 && out_chars > 0 {
-                                                                Some(
-                                                                    out_chars as f64
-                                                                        / elapsed_ms as f64
-                                                                        * 1000.0,
-                                                                )
-                                                            } else {
-                                                                None
-                                                            };
-                                                        let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
-                                                            history_id: fb_history_id,
-                                                            model_id: fb_cached_id,
-                                                            provider: fb_provider_id,
-                                                            call_type: "asr".to_string(),
-                                                            input_tokens: None,
-                                                            output_tokens: None,
-                                                            total_tokens: None,
-                                                            token_estimate: Some(fb_audio_ms as f64),
-                                                            duration_ms: elapsed_ms,
-                                                            tokens_per_sec: speed,
-                                                            error: err_msg,
-                                                            is_fallback: true,
-                                                        });
-                                                    }
-                                                    result
-                                                },
-                                            );
-
-                                            match fallback_handle.await {
-                                                Ok(Ok(text)) => {
+                                            match execute_online_asr_request(
+                                                &ah,
+                                                &settings,
+                                                &fallback_model,
+                                                samples.clone(),
+                                                settings.selected_language.clone(),
+                                                true,
+                                                asr_metrics.clone(),
+                                                asr_history_id,
+                                                asr_audio_duration_ms,
+                                            )
+                                            .await
+                                            {
+                                                Ok(text) => {
                                                     log::info!(
                                                         "[ASR] Fallback online model succeeded"
                                                     );
                                                     primary = Ok(text);
                                                 }
-                                                Ok(Err(e)) => log::warn!(
-                                                    "[ASR] Fallback online model also failed: {}",
-                                                    e
-                                                ),
                                                 Err(e) => log::warn!(
-                                                    "[ASR] Fallback task panicked: {}",
+                                                    "[ASR] Fallback online model also failed: {}",
                                                     e
                                                 ),
                                             }
@@ -1186,100 +1262,27 @@ impl ShortcutAction for TranscribeAction {
                                             .cloned();
 
                                         if let Some(fallback_model) = fallback_cached {
-                                            let fb_provider = settings
-                                                .post_process_providers
-                                                .iter()
-                                                .find(|p| p.id == fallback_model.provider_id)
-                                                .cloned();
-                                            let fb_api_key = settings
-                                                .post_process_api_keys
-                                                .first_key(&fallback_model.provider_id)
-                                                .map(|s| s.to_string());
-                                            let fb_remote_id = fallback_model.model_id.clone();
-                                            let fb_provider_id = fallback_model.provider_id.clone();
-                                            let fb_cached_id = fallback_model.model_id.clone();
-                                            let fb_samples = samples.clone();
-                                            let fb_language = settings.selected_language.clone();
-                                            let fb_metrics = asr_metrics.clone();
-                                            let fb_history_id = asr_history_id;
-                                            let fb_audio_ms = asr_audio_duration_ms;
-
-                                            let fallback_handle = tokio::task::spawn_blocking(
-                                                move || -> anyhow::Result<String> {
-                                                    let provider =
-                                                        fb_provider.ok_or_else(|| {
-                                                            anyhow::anyhow!(
-                                                                "Fallback ASR provider not found"
-                                                            )
-                                                        })?;
-                                                    let client = OnlineAsrClient::new(
-                                                        16000,
-                                                        std::time::Duration::from_secs(120),
-                                                    );
-                                                    let lang = if fb_language == "auto" {
-                                                        None
-                                                    } else {
-                                                        Some(fb_language.as_str())
-                                                    };
-                                                    let start = std::time::Instant::now();
-                                                    let result = client.transcribe(
-                                                        &provider,
-                                                        fb_api_key,
-                                                        &fb_remote_id,
-                                                        lang,
-                                                        &fb_samples,
-                                                    );
-                                                    let elapsed_ms =
-                                                        start.elapsed().as_millis() as i64;
-                                                    if let Some(ref metrics) = fb_metrics {
-                                                        let (out_chars, err_msg) = match &result {
-                                                            Ok(text) => {
-                                                                (text.chars().count() as i64, None)
-                                                            }
-                                                            Err(e) => (0i64, Some(e.to_string())),
-                                                        };
-                                                        let speed =
-                                                            if elapsed_ms > 0 && out_chars > 0 {
-                                                                Some(
-                                                                    out_chars as f64
-                                                                        / elapsed_ms as f64
-                                                                        * 1000.0,
-                                                                )
-                                                            } else {
-                                                                None
-                                                            };
-                                                        let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
-                                                            history_id: fb_history_id,
-                                                            model_id: fb_cached_id,
-                                                            provider: fb_provider_id,
-                                                            call_type: "asr".to_string(),
-                                                            input_tokens: None,
-                                                            output_tokens: None,
-                                                            total_tokens: None,
-                                                            token_estimate: Some(fb_audio_ms as f64),
-                                                            duration_ms: elapsed_ms,
-                                                            tokens_per_sec: speed,
-                                                            error: err_msg,
-                                                            is_fallback: true,
-                                                        });
-                                                    }
-                                                    result
-                                                },
-                                            );
-
-                                            match fallback_handle.await {
-                                                Ok(Ok(text)) => {
+                                            match execute_online_asr_request(
+                                                &ah,
+                                                &settings,
+                                                &fallback_model,
+                                                samples.clone(),
+                                                settings.selected_language.clone(),
+                                                true,
+                                                asr_metrics.clone(),
+                                                asr_history_id,
+                                                asr_audio_duration_ms,
+                                            )
+                                            .await
+                                            {
+                                                Ok(text) => {
                                                     log::info!(
                                                         "[ASR] Fallback online model succeeded"
                                                     );
                                                     primary = Ok(text);
                                                 }
-                                                Ok(Err(e)) => log::warn!(
-                                                    "[ASR] Fallback online model also failed: {}",
-                                                    e
-                                                ),
                                                 Err(e) => log::warn!(
-                                                    "[ASR] Fallback task panicked: {}",
+                                                    "[ASR] Fallback online model also failed: {}",
                                                     e
                                                 ),
                                             }
@@ -1330,88 +1333,20 @@ impl ShortcutAction for TranscribeAction {
                                                     if let Some(cached) =
                                                         cached_model_for_retry.as_ref()
                                                     {
-                                                        let provider_info = settings
-                                                            .post_process_providers
-                                                            .iter()
-                                                            .find(|p| p.id == cached.provider_id)
-                                                            .cloned();
-                                                        let api_key = settings
-                                                            .post_process_api_keys
-                                                            .first_key(&cached.provider_id)
-                                                            .map(|s| s.to_string());
-                                                        let remote_model_id =
-                                                            cached.model_id.clone();
-                                                        let retry_provider_id =
-                                                            cached.provider_id.clone();
-                                                        let retry_cached_id =
-                                                            cached.model_id.clone();
-                                                        let language =
-                                                            settings.selected_language.clone();
-                                                        let samples_retry = samples.clone();
-                                                        let retry_metrics = asr_metrics.clone();
-                                                        let retry_history_id = asr_history_id;
-                                                        let retry_audio_ms = asr_audio_duration_ms;
-
-                                                        let retry_handle = tokio::task::spawn_blocking(
-                                                        move || -> anyhow::Result<String> {
-                                                            let provider = provider_info
-                                                                .ok_or_else(|| {
-                                                                    anyhow::anyhow!(
-                                                                    "Online ASR provider not found"
-                                                                )
-                                                                })?;
-                                                            let client = OnlineAsrClient::new(
-                                                                16000,
-                                                                Duration::from_secs(120),
-                                                            );
-                                                            let lang = if language == "auto" {
-                                                                None
-                                                            } else {
-                                                                Some(language.as_str())
-                                                            };
-                                                            let start = std::time::Instant::now();
-                                                            let result = client.transcribe(
-                                                                &provider,
-                                                                api_key,
-                                                                &remote_model_id,
-                                                                lang,
-                                                                &samples_retry,
-                                                            );
-                                                            let elapsed_ms = start.elapsed().as_millis() as i64;
-                                                            if let Some(ref metrics) = retry_metrics {
-                                                                let (out_chars, err_msg) = match &result {
-                                                                    Ok(text) => (text.chars().count() as i64, None),
-                                                                    Err(e) => (0i64, Some(e.to_string())),
-                                                                };
-                                                                let speed = if elapsed_ms > 0 && out_chars > 0 {
-                                                                    Some(out_chars as f64 / elapsed_ms as f64 * 1000.0)
-                                                                } else { None };
-                                                                let _ = metrics.log_call(&crate::managers::llm_metrics::LlmCallRecord {
-                                                                    history_id: retry_history_id,
-                                                                    model_id: retry_cached_id,
-                                                                    provider: retry_provider_id,
-                                                                    call_type: "asr".to_string(),
-                                                                    input_tokens: None,
-                                                                    output_tokens: None,
-                                                                    total_tokens: None,
-                                                                    token_estimate: Some(retry_audio_ms as f64),
-                                                                    duration_ms: elapsed_ms,
-                                                                    tokens_per_sec: speed,
-                                                                    error: err_msg,
-                                                                    is_fallback: false,
-                                                                });
-                                                            }
-                                                            result
-                                                        },
-                                                    );
-                                                        let primary = match retry_handle.await {
-                                                            Ok(res) => res,
-                                                            Err(e) => Err(anyhow::anyhow!(
-                                                                "Online ASR {} failed: {}",
-                                                                action,
-                                                                e
-                                                            )),
-                                                        };
+                                                        let primary = execute_online_asr_request(
+                                                            &ah,
+                                                            &settings,
+                                                            cached,
+                                                            samples.clone(),
+                                                            settings
+                                                                .selected_language
+                                                                .clone(),
+                                                            false,
+                                                            asr_metrics.clone(),
+                                                            asr_history_id,
+                                                            asr_audio_duration_ms,
+                                                        )
+                                                        .await;
                                                         (primary, None)
                                                     } else {
                                                         (
