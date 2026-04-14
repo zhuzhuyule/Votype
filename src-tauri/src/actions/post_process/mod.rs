@@ -11,9 +11,7 @@ pub(crate) mod reference_resolver;
 pub(crate) mod routing;
 
 // Re-export public functions
-pub(crate) use core::{
-    build_instruction_message, build_user_message, execute_llm_request, resolve_prompt_message_role,
-};
+pub(crate) use core::execute_llm_request;
 #[allow(unused_imports)]
 pub(crate) use core::{
     execute_llm_request_typed, execute_llm_request_with_retry, llm_result_to_legacy, LlmError,

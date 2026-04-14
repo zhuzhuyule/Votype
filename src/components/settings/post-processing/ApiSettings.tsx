@@ -13,20 +13,14 @@ import {
 } from "@radix-ui/themes";
 import {
   IconCheck,
-  IconCpu,
   IconExternalLink,
   IconEye,
   IconEyeOff,
-  IconHexagonLetterA,
-  IconLayoutGrid,
   IconPencil,
-  IconPlug,
   IconPlus,
   IconRefresh,
-  IconRobot,
   IconRotate,
   IconSearch,
-  IconServer,
   IconTrash,
   IconUpload,
   IconX,
@@ -61,24 +55,6 @@ import {
   PROVIDER_TEMPLATES,
   RECOMMENDED_PROVIDER_TEMPLATE_IDS,
 } from "./providerTemplates";
-const getProviderGlyph = (
-  providerId: string,
-  baseUrl: string,
-): React.ElementType | null => {
-  const normalized = `${providerId} ${baseUrl}`.toLowerCase();
-
-  if (normalized.includes("ollama")) return IconRobot;
-  if (normalized.includes("lmstudio") || normalized.includes("lm-studio")) {
-    return IconLayoutGrid;
-  }
-  if (normalized.includes("localai")) return IconServer;
-  if (normalized.includes("vllm")) return IconCpu;
-  if (normalized.includes("xinference")) return IconHexagonLetterA;
-  if (normalized.includes("custom")) return IconPlug;
-
-  return null;
-};
-
 interface ApiSettingsProps {
   isFetchingModels: boolean;
   providerState: PostProcessProviderState;
@@ -104,23 +80,46 @@ const getProviderMeta = (providerId: string) => {
 
 const PROVIDER_TAB_GAP = 4;
 const PROVIDER_MORE_FALLBACK_WIDTH = 74;
+const PROVIDER_FALLBACK_TONES = [
+  "bg-rose-500/15 text-rose-700",
+  "bg-orange-500/15 text-orange-700",
+  "bg-amber-500/15 text-amber-700",
+  "bg-lime-500/15 text-lime-700",
+  "bg-emerald-500/15 text-emerald-700",
+  "bg-teal-500/15 text-teal-700",
+  "bg-cyan-500/15 text-cyan-700",
+  "bg-sky-500/15 text-sky-700",
+  "bg-blue-500/15 text-blue-700",
+  "bg-indigo-500/15 text-indigo-700",
+  "bg-violet-500/15 text-violet-700",
+  "bg-fuchsia-500/15 text-fuchsia-700",
+];
 
 function getOptionLabelText(label: string | React.ReactNode) {
   return typeof label === "string" ? label : "";
 }
 
 const PROVIDER_TAB_BUTTON_CLASS =
-  "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-2)] border px-2.5 text-[12px] leading-none transition-[background-color,border-color,color,box-shadow] duration-150";
+  "min-h-10 shrink-0 whitespace-nowrap px-3 py-2 text-[12px] bg-white/90";
 
-const PROVIDER_TAB_IDLE_CLASS =
-  "border-(--gray-a4) bg-(--gray-a2) text-(--gray-11) shadow-sm hover:bg-(--gray-a3)";
+function getProviderFallbackMark(label: string, providerId: string) {
+  const source = `${label} ${providerId}`.trim();
+  const match = source.match(/[A-Za-z0-9\u4e00-\u9fff]/u);
+  return (match?.[0] ?? "?").toUpperCase();
+}
 
-const PROVIDER_TAB_ACTIVE_CLASS =
-  "border-(--accent-a5) bg-(--accent-a3) text-(--accent-11) shadow-sm";
+function getProviderFallbackTone(seed: string) {
+  let hash = 0;
+  for (const char of seed) {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return PROVIDER_FALLBACK_TONES[hash % PROVIDER_FALLBACK_TONES.length];
+}
 
 const ProviderAvatar: React.FC<{
   providerId: string;
   baseUrl: string;
+  label?: string;
   large?: boolean;
   compact?: boolean;
   refreshToken?: number;
@@ -128,6 +127,7 @@ const ProviderAvatar: React.FC<{
 }> = ({
   providerId,
   baseUrl,
+  label = "",
   large = false,
   compact = false,
   refreshToken = 0,
@@ -135,13 +135,14 @@ const ProviderAvatar: React.FC<{
 }) => {
   const staticAssetUrl = PROVIDER_BRAND_ASSETS[providerId] ?? null;
   const [avatarUrl, setAvatarUrl] = useState<string | null>(staticAssetUrl);
-  const Glyph = getProviderGlyph(providerId, baseUrl);
   const meta = getProviderMeta(providerId);
+  const fallbackMark = getProviderFallbackMark(label, providerId);
+  const fallbackTone = getProviderFallbackTone(`${label}:${providerId}`);
   const frameClass = large
     ? "h-10 w-10 rounded-xl"
     : compact
-      ? "h-5.5 w-5.5 rounded-md bg-(--gray-a3) p-0.5"
-      : "h-7 w-7 rounded-lg bg-(--gray-a3) p-0.5";
+      ? "h-5.5 w-5.5 rounded-md"
+      : "h-7 w-7 rounded-lg";
 
   useEffect(() => {
     const catalogKey = overrideValue?.startsWith("catalog:")
@@ -197,7 +198,7 @@ const ProviderAvatar: React.FC<{
       </Box>
     ) : (
       <Box
-        className={`inline-flex! shrink-0 items-center justify-center ${frameClass}`}
+        className={`inline-flex! shrink-0 items-center justify-center bg-(--gray-a3) p-0.5 ${frameClass}`}
       >
         <img
           src={avatarUrl}
@@ -209,41 +210,23 @@ const ProviderAvatar: React.FC<{
     );
   }
 
-  if (Glyph) {
-    return large ? (
-      <Box
-        className={`inline-flex! shrink-0 items-center justify-center ${frameClass} ${meta.tone}`}
-      >
-        <Glyph
-          size={compact ? 12 : 18}
-          className="block opacity-90"
-          strokeWidth={1.5}
-        />
-      </Box>
-    ) : (
-      <Box
-        className={`inline-flex! shrink-0 items-center justify-center ${frameClass}`}
-      >
-        <Glyph
-          size={compact ? 11 : 16}
-          className="block opacity-90"
-          strokeWidth={1.5}
-        />
-      </Box>
-    );
-  }
-
   return large ? (
     <Box
-      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold text-base ${frameClass} ${meta.tone}`}
+      className={`relative inline-flex! shrink-0 overflow-hidden text-center font-semibold ${frameClass} ${fallbackTone}`}
     >
-      {meta.label}
+      <span className="absolute inset-0 flex items-center justify-center text-lg leading-none!">
+        {fallbackMark}
+      </span>
     </Box>
   ) : (
     <Box
-      className={`inline-flex shrink-0 items-center justify-center text-center leading-none font-semibold ${compact ? "text-[10px]" : "text-xs"} ${frameClass}`}
+      className={`relative inline-flex! shrink-0 overflow-hidden text-center font-semibold ${frameClass} ${fallbackTone}`}
     >
-      {meta.label}
+      <span
+        className={`absolute inset-0 flex items-center justify-center leading-none! ${compact ? "text-[12px]" : "text-[13px]"}`}
+      >
+        {fallbackMark}
+      </span>
     </Box>
   );
 };
@@ -1152,12 +1135,12 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
 
   return (
     <Card className="p-0! overflow-hidden">
-      <Flex direction="column" className="min-h-[520px]">
+      <Flex direction="column" className="min-h-[280px]">
         <Flex
           align="center"
           justify="between"
           gap="3"
-          className="shrink-0 border-b border-gray-100 px-4 py-2 dark:border-gray-800"
+          className="shrink-0 border-b border-(--gray-a3) px-4 py-3 dark:border-(--gray-a3)"
         >
           <Flex align="center" gap="3" className="min-w-0 flex-1">
             <Text size="3" weight="bold" className="shrink-0">
@@ -1176,9 +1159,11 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                     (item) => item.id === option.value,
                   );
                   return (
-                    <button
+                    <Button
                       key={option.value}
                       type="button"
+                      size="1"
+                      variant={isSelected ? "soft" : "outline"}
                       draggable
                       onDragStart={(event) => {
                         event.dataTransfer.effectAllowed = "move";
@@ -1200,15 +1185,12 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       }}
                       onDragEnd={() => setDraggingProviderId(null)}
                       onClick={() => state.handleProviderSelect(option.value)}
-                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${
-                        isSelected
-                          ? PROVIDER_TAB_ACTIVE_CLASS
-                          : PROVIDER_TAB_IDLE_CLASS
-                      } ${draggingProviderId === option.value ? "opacity-65" : ""}`}
+                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${draggingProviderId === option.value ? "opacity-65" : ""}`}
                     >
                       <ProviderAvatar
                         providerId={option.value}
                         baseUrl={provider?.base_url ?? ""}
+                        label={getOptionLabelText(option.label)}
                         compact
                         refreshToken={avatarRefreshToken}
                         overrideValue={
@@ -1220,25 +1202,32 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       <Text size="1" className="whitespace-nowrap">
                         {option.label}
                       </Text>
-                    </button>
+                    </Button>
                   );
                 })}
 
                 {overflowTabs.length > 0 && (
                   <Popover.Root>
-                  <Popover.Trigger>
-                    <button
-                      type="button"
-                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${PROVIDER_TAB_IDLE_CLASS}`}
-                    >
-                      <Text size="1">更多</Text>
+                    <Popover.Trigger>
+                      <Button
+                        type="button"
+                        size="1"
+                        variant="outline"
+                        color="gray"
+                        className={PROVIDER_TAB_BUTTON_CLASS}
+                      >
+                        <Text size="1">更多</Text>
                         <Text size="1" color="gray" className="tabular-nums">
                           {overflowTabs.length}
                         </Text>
-                      </button>
+                      </Button>
                     </Popover.Trigger>
                     <Popover.Content size="1" side="bottom" align="start">
-                      <Flex direction="column" gap="1" className="min-w-[220px]">
+                      <Flex
+                        direction="column"
+                        gap="1"
+                        className="min-w-[220px]"
+                      >
                         {overflowTabs.map((option) => {
                           const provider = state.providers.find(
                             (item) => item.id === option.value,
@@ -1255,6 +1244,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                                 <ProviderAvatar
                                   providerId={option.value}
                                   baseUrl={provider?.base_url ?? ""}
+                                  label={getOptionLabelText(option.label)}
                                   compact
                                   refreshToken={avatarRefreshToken}
                                   overrideValue={
@@ -1346,6 +1336,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                                   <ProviderAvatar
                                     providerId={template.id}
                                     baseUrl={template.baseUrl}
+                                    label={template.label}
                                     large
                                     refreshToken={avatarRefreshToken}
                                     overrideValue={
@@ -1420,17 +1411,21 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                 (item) => item.id === option.value,
               );
               return (
-                <button
+                <Button
                   key={`measure-${option.value}`}
                   type="button"
+                  size="1"
+                  variant="outline"
+                  color="gray"
                   ref={(node) => {
                     tabMeasureRefs.current[option.value] = node;
                   }}
-                  className={`${PROVIDER_TAB_BUTTON_CLASS} ${PROVIDER_TAB_IDLE_CLASS}`}
+                  className={PROVIDER_TAB_BUTTON_CLASS}
                 >
                   <ProviderAvatar
                     providerId={option.value}
                     baseUrl={provider?.base_url ?? ""}
+                    label={getOptionLabelText(option.label)}
                     compact
                     refreshToken={avatarRefreshToken}
                     overrideValue={
@@ -1442,19 +1437,22 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   <Text size="1" className="whitespace-nowrap">
                     {option.label}
                   </Text>
-                </button>
+                </Button>
               );
             })}
-            <button
+            <Button
               ref={moreMeasureRef}
               type="button"
-              className={`${PROVIDER_TAB_BUTTON_CLASS} ${PROVIDER_TAB_IDLE_CLASS}`}
+              size="1"
+              variant="outline"
+              color="gray"
+              className={PROVIDER_TAB_BUTTON_CLASS}
             >
               <Text size="1">更多</Text>
               <Text size="1" color="gray" className="tabular-nums">
                 99
               </Text>
-            </button>
+            </Button>
           </Flex>
         </Box>
 
@@ -1476,6 +1474,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                       <ProviderAvatar
                         providerId={state.selectedProviderId}
                         baseUrl={state.selectedProvider?.base_url ?? ""}
+                        label={state.selectedProvider?.label ?? ""}
                         large
                         refreshToken={avatarRefreshToken}
                         overrideValue={selectedProviderAvatarOverride}
@@ -1495,6 +1494,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                           <ProviderAvatar
                             providerId={state.selectedProviderId}
                             baseUrl={state.selectedProvider?.base_url ?? ""}
+                            label={state.selectedProvider?.label ?? ""}
                             large
                             refreshToken={avatarRefreshToken}
                             overrideValue={selectedProviderAvatarOverride}

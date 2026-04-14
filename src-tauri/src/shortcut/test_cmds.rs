@@ -17,11 +17,6 @@ pub async fn test_post_process_model_inference(
         .iter()
         .find(|p| p.id == provider_id)
         .ok_or("Provider not found")?;
-    let api_key = settings
-        .post_process_api_keys
-        .first_key(&provider_id)
-        .unwrap_or("")
-        .to_string();
 
     // Look up CachedModel to get extra_params
     let cached_model = cached_model_id
@@ -49,19 +44,108 @@ pub async fn test_post_process_model_inference(
             (None, Some(up)) => Some(up),
             (None, None) => None,
         };
-    let merged_ref = merged_extra_params.as_ref();
-
     let effective_proxy = crate::settings::resolve_proxy(&settings, provider);
-    let result = crate::llm_client::send_chat_completion_with_params(
-        provider,
-        api_key,
-        &model_id,
-        "你是啥模型？".to_string(),
-        merged_ref,
-        extra_headers,
-        effective_proxy.as_deref(),
+    let max_attempts = settings
+        .post_process_api_keys
+        .get(&provider_id)
+        .map(|keys| {
+            keys.iter()
+                .filter(|entry| entry.enabled && !entry.key.is_empty())
+                .count()
+                .clamp(1, 3)
+        })
+        .unwrap_or(1);
+
+    let outcome = crate::provider_gateway::execute_with_failover(
+        &app,
+        &settings,
+        crate::provider_gateway::ExecutionPlan {
+            provider_id: provider_id.clone(),
+            cached_model_id: cached_model_id
+                .clone()
+                .unwrap_or_else(|| "__test_inference__".to_string()),
+            remote_model_id: model_id.clone(),
+            max_attempts,
+        },
+        {
+            let provider = provider.clone();
+            let model_id = model_id.clone();
+            let prompt = "你是啥模型？".to_string();
+            let merged_extra_params = merged_extra_params.clone();
+            let extra_headers = extra_headers.cloned();
+            let effective_proxy = effective_proxy.clone();
+
+            move |api_key| {
+                let provider = provider.clone();
+                let model_id = model_id.clone();
+                let prompt = prompt.clone();
+                let merged_extra_params = merged_extra_params.clone();
+                let extra_headers = extra_headers.clone();
+                let effective_proxy = effective_proxy.clone();
+                let api_key = api_key.to_string();
+
+                async move {
+                    match crate::llm_client::send_chat_completion_with_params(
+                        &provider,
+                        api_key,
+                        &model_id,
+                        prompt,
+                        merged_extra_params.as_ref(),
+                        extra_headers.as_ref(),
+                        effective_proxy.as_deref(),
+                    )
+                    .await
+                    {
+                        Ok(result) => Ok(result),
+                        Err(detail) => {
+                            let status = detail
+                                .strip_prefix("API request failed with status ")
+                                .and_then(|rest| rest.split(':').next())
+                                .and_then(|raw| raw.trim().parse::<u16>().ok());
+                            let error = match status {
+                                Some(401 | 403) => crate::provider_gateway::AttemptError::Fatal {
+                                    status,
+                                    detail,
+                                    kind: crate::provider_gateway::AttemptErrorKind::Http,
+                                },
+                                Some(429) | Some(500..=599) => {
+                                    crate::provider_gateway::AttemptError::Retryable {
+                                        status,
+                                        detail,
+                                        kind: crate::provider_gateway::AttemptErrorKind::Http,
+                                    }
+                                }
+                                Some(_) => crate::provider_gateway::AttemptError::Fatal {
+                                    status,
+                                    detail,
+                                    kind: crate::provider_gateway::AttemptErrorKind::Http,
+                                },
+                                None => crate::provider_gateway::AttemptError::Retryable {
+                                    status: None,
+                                    detail,
+                                    kind: crate::provider_gateway::AttemptErrorKind::Network,
+                                },
+                            };
+                            Err(error)
+                        }
+                    }
+                }
+            }
+        },
     )
-    .await?;
+    .await;
+
+    let result = match outcome {
+        crate::provider_gateway::ExecutionOutcome::Success(result) => result,
+        crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => return Err(detail),
+        crate::provider_gateway::ExecutionOutcome::Exhausted { last_error, .. } => {
+            let detail = match last_error {
+                crate::provider_gateway::AttemptError::Retryable { detail, .. }
+                | crate::provider_gateway::AttemptError::Fatal { detail, .. } => detail,
+            };
+            return Err(detail);
+        }
+    };
 
     // Log to metrics
     if let Some(metrics) =

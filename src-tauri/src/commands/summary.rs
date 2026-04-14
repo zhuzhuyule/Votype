@@ -1,11 +1,6 @@
-use crate::llm_client;
 use crate::managers::prompt::PromptManager;
 use crate::managers::summary::{Summary, SummaryManager, SummaryStats, UserProfile};
 use crate::settings;
-use async_openai::types::{
-    ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
-    CreateChatCompletionRequestArgs,
-};
 use chrono::TimeZone;
 use log::{error, info};
 use serde::Deserialize;
@@ -108,31 +103,23 @@ pub async fn generate_summary_ai_analysis(
         .ok_or_else(|| "No active post-process provider configured".to_string())?
         .clone();
 
-    // Get API key for the provider
-    let api_key = app_settings
-        .post_process_api_keys
-        .first_key(&provider.id)
-        .unwrap_or("")
-        .to_string();
-
     // Get the model to use: user-selected > settings default > provider default
+    let selected_cached_model = app_settings
+        .selected_prompt_model
+        .as_ref()
+        .map(|c| &c.primary_id)
+        .and_then(|id| {
+            app_settings
+                .cached_models
+                .iter()
+                .find(|m| m.id == *id && m.provider_id == provider.id)
+        });
     let model = selected_model
         .filter(|m| !m.is_empty())
-        .or_else(|| {
-            app_settings
-                .selected_prompt_model
-                .as_ref()
-                .map(|c| &c.primary_id)
-                .and_then(|id| {
-                    app_settings
-                        .cached_models
-                        .iter()
-                        .find(|m| m.id == *id && m.provider_id == provider.id)
-                })
-                .map(|m| m.model_id.clone())
-        })
+        .or_else(|| selected_cached_model.map(|m| m.model_id.clone()))
         .or_else(|| app_settings.post_process_models.get(&provider.id).cloned())
         .ok_or_else(|| "No model configured for AI analysis".to_string())?;
+    let cached_model_id = selected_cached_model.map(|m| m.id.clone());
 
     // Load the prompt template based on period type
     // First get the summary to determine period_type
@@ -164,8 +151,9 @@ pub async fn generate_summary_ai_analysis(
 
     let prompt_manager_clone = (*prompt_manager).clone();
     let model = model.clone();
+    let cached_model_id = cached_model_id.clone();
     let provider = provider.clone();
-    let api_key = api_key.clone();
+    let app_settings = app_settings.clone();
 
     // Spawn a detached task to ensure completion even if frontend disconnects
     let handle = tauri::async_runtime::spawn(async move {
@@ -190,34 +178,33 @@ pub async fn generate_summary_ai_analysis(
 
         let call_llm = |prompt: String,
                         provider: settings::PostProcessProvider,
-                        api_key: String,
-                        model: String| async move {
-            let client = llm_client::create_client(&provider, api_key, None)?;
-            let user_msg = ChatCompletionRequestUserMessageArgs::default()
-                .content(prompt)
-                .build()
-                .map_err(|e| format!("Failed to build user message: {}", e))?;
+                        model: String,
+                        cached_model_id: Option<String>| {
+            let app = app.clone();
+            let app_settings = app_settings.clone();
+            async move {
+                let (content, is_error, error_msg, _token_count) =
+                    crate::actions::post_process::execute_llm_request(
+                        &app,
+                        &app_settings,
+                        &provider,
+                        &model,
+                        cached_model_id.as_deref(),
+                        "",
+                        Some(&prompt),
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                    .await;
 
-            let messages: Vec<ChatCompletionRequestMessage> =
-                vec![ChatCompletionRequestMessage::User(user_msg)];
+                if is_error {
+                    return Err(error_msg.unwrap_or_else(|| "LLM request failed".to_string()));
+                }
 
-            let request = CreateChatCompletionRequestArgs::default()
-                .model(model)
-                .messages(messages)
-                .build()
-                .map_err(|e| format!("Failed to build request: {}", e))?;
-
-            let response = client
-                .chat()
-                .create(request)
-                .await
-                .map_err(|e| format!("LLM request failed: {}", e))?;
-
-            response
-                .choices
-                .first()
-                .and_then(|c| c.message.content.clone())
-                .ok_or_else(|| "No response content from LLM".to_string())
+                content.ok_or_else(|| "No response content from LLM".to_string())
+            }
         };
 
         let ai_summary = if split_requests {
@@ -286,8 +273,8 @@ pub async fn generate_summary_ai_analysis(
                     let app = app.clone();
                     let analysis_data = analysis_data.clone();
                     let provider = provider.clone();
-                    let api_key = api_key.clone();
                     let model = model.clone();
+                    let cached_model_id = cached_model_id.clone();
                     async move {
                         let template = prompt_manager_clone
                             .get_prompt(&app, pid)
@@ -299,7 +286,7 @@ pub async fn generate_summary_ai_analysis(
                             "Generating AI analysis part '{}' for summary {} using model {} on provider {}",
                             key, summary_id, model, provider.id
                         );
-                        let content = call_llm(prompt, provider, api_key, model).await?;
+                        let content = call_llm(prompt, provider, model, cached_model_id).await?;
                         Ok::<(String, String), String>((key.to_string(), content))
                     }
                 });
@@ -374,7 +361,14 @@ pub async fn generate_summary_ai_analysis(
                         key, summary_id, model, provider.id
                     );
 
-                    match call_llm(prompt, provider.clone(), api_key.clone(), model.clone()).await {
+                    match call_llm(
+                        prompt,
+                        provider.clone(),
+                        model.clone(),
+                        cached_model_id.clone(),
+                    )
+                    .await
+                    {
                         Ok(content) => {
                             info!(
                                 "[AI分析] 维度 '{}' 返回内容长度: {} bytes",
@@ -455,7 +449,7 @@ pub async fn generate_summary_ai_analysis(
                 "Generating AI analysis for summary {} using model {} on provider {}",
                 summary_id, model, provider.id
             );
-            call_llm(prompt, provider, api_key, model.clone()).await?
+            call_llm(prompt, provider, model.clone(), cached_model_id).await?
         };
 
         info!(

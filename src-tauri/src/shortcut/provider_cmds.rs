@@ -446,12 +446,6 @@ pub async fn fetch_post_process_models(
         .iter()
         .find(|p| p.id == provider_id)
         .ok_or("Provider not found")?;
-    let api_key = settings
-        .post_process_api_keys
-        .first_key(&provider_id)
-        .unwrap_or("")
-        .to_string();
-
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
@@ -463,7 +457,83 @@ pub async fn fetch_post_process_models(
         }
     }
 
-    super::fetch_models_manual(provider, api_key).await
+    let max_attempts = settings
+        .post_process_api_keys
+        .get(&provider_id)
+        .map(|keys| {
+            keys.iter()
+                .filter(|entry| entry.enabled && !entry.key.is_empty())
+                .count()
+                .clamp(1, 3)
+        })
+        .unwrap_or(1);
+
+    let outcome = crate::provider_gateway::execute_with_failover(
+        &app,
+        &settings,
+        crate::provider_gateway::ExecutionPlan {
+            provider_id: provider_id.clone(),
+            cached_model_id: "__fetch_models__".to_string(),
+            remote_model_id: "__fetch_models__".to_string(),
+            max_attempts,
+        },
+        {
+            let provider = provider.clone();
+            move |api_key| {
+                let provider = provider.clone();
+                let api_key = api_key.to_string();
+                async move {
+                    match super::fetch_models_manual(&provider, api_key).await {
+                        Ok(models) => Ok(models),
+                        Err(detail) => {
+                            let status = detail
+                                .strip_prefix("Model list request failed (")
+                                .and_then(|rest| rest.split(')').next())
+                                .and_then(|raw| raw.parse::<u16>().ok());
+                            let error = match status {
+                                Some(401 | 403) => crate::provider_gateway::AttemptError::Fatal {
+                                    status,
+                                    detail,
+                                    kind: crate::provider_gateway::AttemptErrorKind::Http,
+                                },
+                                Some(429) | Some(500..=599) => {
+                                    crate::provider_gateway::AttemptError::Retryable {
+                                        status,
+                                        detail,
+                                        kind: crate::provider_gateway::AttemptErrorKind::Http,
+                                    }
+                                }
+                                Some(_) => crate::provider_gateway::AttemptError::Fatal {
+                                    status,
+                                    detail,
+                                    kind: crate::provider_gateway::AttemptErrorKind::Http,
+                                },
+                                None => crate::provider_gateway::AttemptError::Retryable {
+                                    status: None,
+                                    detail,
+                                    kind: crate::provider_gateway::AttemptErrorKind::Network,
+                                },
+                            };
+                            Err(error)
+                        }
+                    }
+                }
+            }
+        },
+    )
+    .await;
+
+    match outcome {
+        crate::provider_gateway::ExecutionOutcome::Success(models) => Ok(models),
+        crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => Err(detail),
+        crate::provider_gateway::ExecutionOutcome::Exhausted { last_error, .. } => {
+            let detail = match last_error {
+                crate::provider_gateway::AttemptError::Retryable { detail, .. }
+                | crate::provider_gateway::AttemptError::Fatal { detail, .. } => detail,
+            };
+            Err(detail)
+        }
+    }
 }
 
 #[tauri::command]

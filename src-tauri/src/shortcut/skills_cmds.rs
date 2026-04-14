@@ -239,12 +239,7 @@ pub async fn ai_generate_skill(
     description: String,
     output_mode: String,
 ) -> Result<String, String> {
-    use crate::llm_client::create_client;
     use crate::managers::prompt::{self, PromptManager};
-    use async_openai::types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
-        CreateChatCompletionRequestArgs,
-    };
     use std::sync::Arc;
 
     let settings = settings::get_settings(&app);
@@ -254,22 +249,26 @@ pub async fn ai_generate_skill(
         .active_post_process_provider()
         .ok_or("No text provider configured")?;
 
-    let api_key = settings
-        .post_process_api_keys
-        .first_key(&provider.id)
-        .unwrap_or("")
-        .to_string();
-
-    let effective_proxy = crate::settings::resolve_proxy(&settings, &provider);
-    let client =
-        create_client(&provider, api_key, effective_proxy.as_deref()).map_err(|e| e.to_string())?;
-
     // Get model ID
-    let model_id = settings
-        .post_process_models
-        .get(&provider.id)
-        .cloned()
-        .filter(|id| !id.trim().is_empty())
+    let cached_model = settings
+        .selected_prompt_model
+        .as_ref()
+        .map(|c| &c.primary_id)
+        .and_then(|id| {
+            settings
+                .cached_models
+                .iter()
+                .find(|m| m.id == *id && m.provider_id == provider.id)
+        });
+    let model_id = cached_model
+        .map(|m| m.model_id.clone())
+        .or_else(|| {
+            settings
+                .post_process_models
+                .get(&provider.id)
+                .cloned()
+                .filter(|id| !id.trim().is_empty())
+        })
         .or_else(|| {
             settings
                 .cached_models
@@ -278,6 +277,7 @@ pub async fn ai_generate_skill(
                 .map(|m| m.model_id.clone())
         })
         .ok_or_else(|| format!("No model found for provider {}", provider.id))?;
+    let cached_model_id = cached_model.map(|m| m.id.as_str());
 
     // Build prompt from external template
     let prompt_manager = app.state::<Arc<PromptManager>>();
@@ -291,33 +291,27 @@ pub async fn ai_generate_skill(
     vars.insert("OUTPUT_MODE", output_mode.clone());
     let prompt = prompt::substitute_variables(&template, &vars);
 
-    // Call LLM
-    let mut messages = Vec::new();
+    let (response_text, is_error, error_msg, _token_count) =
+        crate::actions::post_process::execute_llm_request(
+            &app,
+            &settings,
+            provider,
+            &model_id,
+            cached_model_id,
+            "",
+            Some(&prompt),
+            None,
+            None,
+            None,
+            None,
+        )
+        .await;
 
-    if let Ok(user_msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(prompt)
-        .build()
-    {
-        messages.push(ChatCompletionRequestMessage::User(user_msg));
+    if is_error {
+        return Err(error_msg.unwrap_or_else(|| "LLM request failed".to_string()));
     }
 
-    let request = CreateChatCompletionRequestArgs::default()
-        .model(model_id)
-        .messages(messages)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let response = client
-        .chat()
-        .create(request)
-        .await
-        .map_err(|e| format!("LLM request failed: {}", e))?;
-
-    let content = response
-        .choices
-        .first()
-        .and_then(|c| c.message.content.clone())
-        .ok_or("No response from LLM")?;
+    let content = response_text.ok_or("No response from LLM")?;
 
     Ok(content)
 }

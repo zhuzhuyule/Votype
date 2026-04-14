@@ -764,12 +764,6 @@ impl<'de> Deserialize<'de> for SecretKeyRing {
 }
 
 impl SecretKeyRing {
-    pub fn first_key(&self, provider_id: &str) -> Option<&str> {
-        self.0
-            .get(provider_id)
-            .and_then(|keys| keys.iter().find(|k| k.enabled && !k.key.is_empty()))
-            .map(|k| k.key.as_str())
-    }
     #[allow(dead_code)] // Used by upcoming KeySelector (Task 2)
     pub fn enabled_keys(&self, provider_id: &str) -> Vec<&KeyEntry> {
         self.0

@@ -1414,16 +1414,14 @@ impl HotwordManager {
                 .join(", ")
         );
 
-        use crate::llm_client;
         use crate::managers::prompt::{self, PromptManager};
         use crate::settings::get_settings;
-        use async_openai::types::CreateChatCompletionRequestArgs;
         use std::sync::Arc;
 
         let settings = get_settings(&app_handle);
 
         // Resolve provider and model via CachedModel (same as main pipeline)
-        let (provider, api_key, model) = {
+        let (provider, model, cached_model_id) = {
             // Try selected_prompt_model first (it's a CachedModel.id UUID)
             if let Some(cm_id) = settings
                 .selected_prompt_model
@@ -1436,12 +1434,7 @@ impl HotwordManager {
                         .iter()
                         .find(|p| p.id == cm.provider_id);
                     if let Some(p) = prov {
-                        let key = settings
-                            .post_process_api_keys
-                            .first_key(&p.id)
-                            .unwrap_or("")
-                            .to_string();
-                        (p.clone(), key, cm.model_id.clone())
+                        (p.clone(), cm.model_id.clone(), Some(cm.id.clone()))
                     } else {
                         info!(
                             "[Hotword] Provider {} not found for cached model {}, skipping LLM correction analysis",
@@ -1465,11 +1458,6 @@ impl HotwordManager {
                         return;
                     }
                 };
-                let key = settings
-                    .post_process_api_keys
-                    .first_key(&prov.id)
-                    .unwrap_or("")
-                    .to_string();
                 let mdl = settings
                     .post_process_models
                     .get(&prov.id)
@@ -1479,17 +1467,9 @@ impl HotwordManager {
                     info!("[Hotword] No model configured, skipping LLM correction analysis");
                     return;
                 }
-                (prov, key, mdl)
+                (prov, mdl, None)
             }
         };
-
-        if api_key.is_empty() {
-            info!(
-                "[Hotword] No API key for provider {}, skipping LLM correction analysis",
-                provider.id
-            );
-            return;
-        }
 
         // Load prompt template
         let prompt_manager = app_handle.state::<Arc<PromptManager>>();
@@ -1572,64 +1552,33 @@ impl HotwordManager {
             system_prompt
         );
 
-        // Create LLM client and call
-        let effective_proxy = crate::settings::resolve_proxy(&settings, &provider);
-        let client = match llm_client::create_client(&provider, api_key, effective_proxy.as_deref())
-        {
-            Ok(c) => c,
-            Err(e) => {
-                warn!("[Hotword] Failed to create LLM client: {}", e);
-                return;
-            }
-        };
+        let (response_text, is_error, error_msg, _token_count) =
+            crate::actions::post_process::execute_llm_request(
+                &app_handle,
+                &settings,
+                &provider,
+                &model,
+                cached_model_id.as_deref(),
+                &system_prompt,
+                Some("请分析上述修正对。"),
+                None,
+                None,
+                None,
+                None,
+            )
+            .await;
 
-        let mut messages = Vec::new();
-        let prompt_role = crate::actions::post_process::resolve_prompt_message_role(
-            &settings,
-            &provider.id,
-            settings
-                .selected_prompt_model
-                .as_ref()
-                .map(|c| c.primary_id.as_str()),
-            &model,
-        );
-        if let Some(msg) =
-            crate::actions::post_process::build_instruction_message(prompt_role, system_prompt)
-        {
-            messages.push(msg);
-        }
-        if let Some(msg) = crate::actions::post_process::build_user_message("请分析上述修正对。")
-        {
-            messages.push(msg);
+        if is_error {
+            warn!(
+                "[Hotword] LLM correction analysis request failed: {}",
+                error_msg.unwrap_or_else(|| "unknown error".to_string())
+            );
+            return;
         }
 
-        let req = match CreateChatCompletionRequestArgs::default()
-            .model(model.to_string())
-            .messages(messages)
-            .build()
-        {
-            Ok(r) => r,
-            Err(e) => {
-                warn!("[Hotword] Failed to build LLM request: {}", e);
-                return;
-            }
-        };
-
-        let response = match client.chat().create(req).await {
-            Ok(r) => r,
-            Err(e) => {
-                warn!("[Hotword] LLM correction analysis request failed: {}", e);
-                return;
-            }
-        };
-
-        let content = match response
-            .choices
-            .first()
-            .and_then(|c| c.message.content.as_ref())
-        {
-            Some(c) => c.clone(),
-            None => {
+        let content = match response_text {
+            Some(c) if !c.trim().is_empty() => c,
+            _ => {
                 warn!("[Hotword] LLM returned empty response for correction analysis");
                 return;
             }

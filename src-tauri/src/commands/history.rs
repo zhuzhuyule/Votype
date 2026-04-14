@@ -6,6 +6,63 @@ use log::{debug, error, info};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
 
+fn extract_online_asr_status(detail: &str) -> Option<u16> {
+    let marker = "remote transcription failed (";
+    let start = detail.find(marker)? + marker.len();
+    let digits: String = detail[start..]
+        .chars()
+        .take_while(|ch| ch.is_ascii_digit())
+        .collect();
+    if digits.len() == 3 {
+        digits.parse::<u16>().ok()
+    } else {
+        None
+    }
+}
+
+fn classify_online_asr_attempt_error(detail: &str) -> crate::provider_gateway::AttemptError {
+    use crate::provider_gateway::{AttemptError, AttemptErrorKind};
+
+    if let Some(status) = extract_online_asr_status(detail) {
+        return match status {
+            401 | 403 => AttemptError::Fatal {
+                status: Some(status),
+                detail: detail.to_string(),
+                kind: AttemptErrorKind::Http,
+            },
+            429 | 500..=599 => AttemptError::Retryable {
+                status: Some(status),
+                detail: detail.to_string(),
+                kind: AttemptErrorKind::Http,
+            },
+            _ => AttemptError::Fatal {
+                status: Some(status),
+                detail: detail.to_string(),
+                kind: AttemptErrorKind::Http,
+            },
+        };
+    }
+
+    let lower = detail.to_ascii_lowercase();
+    if lower.contains("timed out")
+        || lower.contains("timeout")
+        || lower.contains("failed to send transcription request")
+        || lower.contains("connection")
+    {
+        return AttemptError::Retryable {
+            status: None,
+            detail: detail.to_string(),
+            kind: AttemptErrorKind::Network,
+        };
+    }
+
+    AttemptError::Retryable {
+        status: None,
+        detail: detail.to_string(),
+        kind: AttemptErrorKind::Other,
+    }
+}
+
 #[tauri::command]
 pub async fn get_history_entries(
     _app: AppHandle,
@@ -236,45 +293,98 @@ pub async fn retranscribe_history_entry(
 
     let start_time = std::time::Instant::now();
     let transcription_text = if settings.online_asr_enabled {
-        // Use OnlineAsrClient for online ASR (must run in spawn_blocking
-        // because reqwest::blocking creates its own runtime internally)
-        use crate::online_asr::OnlineAsrClient;
-
         let cached_model = settings
             .cached_models
             .iter()
             .find(|m| m.id == model_id)
             .ok_or_else(|| format!("Online ASR model not found in cached models: {}", model_id))?;
-
-        let provider = cached_model.provider_id.clone();
-        let remote_model_id = cached_model.model_id.clone();
-
-        let provider_info = settings
+        let provider = settings
             .post_process_providers
             .iter()
-            .find(|p| p.id == provider)
-            .ok_or_else(|| format!("Provider not found: {}", provider))?
-            .clone();
-
-        let api_key = settings
-            .post_process_api_keys
-            .first_key(&provider)
-            .map(|s| s.to_string());
-
+            .find(|p| p.id == cached_model.provider_id)
+            .cloned()
+            .ok_or_else(|| format!("Provider not found: {}", cached_model.provider_id))?;
         let language = settings.selected_language.clone();
+        let max_attempts = settings
+            .post_process_api_keys
+            .get(&provider.id)
+            .map(|keys| {
+                keys.iter()
+                    .filter(|entry| entry.enabled && !entry.key.is_empty())
+                    .count()
+                    .clamp(1, 3)
+            })
+            .unwrap_or(1);
 
-        tokio::task::spawn_blocking(move || {
-            let client = OnlineAsrClient::new(16000, std::time::Duration::from_secs(120));
-            let lang = if language == "auto" {
-                None
-            } else {
-                Some(language.as_str())
-            };
-            client.transcribe(&provider_info, api_key, &remote_model_id, lang, &samples)
-        })
-        .await
-        .map_err(|e| format!("Online ASR task failed: {}", e))?
-        .map_err(|e| e.to_string())?
+        let outcome = crate::provider_gateway::execute_with_failover(
+            &app,
+            &settings,
+            crate::provider_gateway::ExecutionPlan {
+                provider_id: provider.id.clone(),
+                cached_model_id: cached_model.id.clone(),
+                remote_model_id: cached_model.model_id.clone(),
+                max_attempts,
+            },
+            {
+                let provider = provider.clone();
+                let remote_model_id = cached_model.model_id.clone();
+                let samples = Arc::new(samples);
+                move |api_key| {
+                    let provider = provider.clone();
+                    let remote_model_id = remote_model_id.clone();
+                    let samples = samples.clone();
+                    let language = language.clone();
+                    let api_key = api_key.to_string();
+
+                    async move {
+                        let result = tokio::task::spawn_blocking(move || {
+                            let client = crate::online_asr::OnlineAsrClient::new(
+                                16000,
+                                std::time::Duration::from_secs(120),
+                            );
+                            let lang = if language == "auto" {
+                                None
+                            } else {
+                                Some(language.as_str())
+                            };
+                            client.transcribe(
+                                &provider,
+                                Some(api_key),
+                                &remote_model_id,
+                                lang,
+                                samples.as_slice(),
+                            )
+                        })
+                        .await;
+
+                        match result {
+                            Ok(Ok(text)) => Ok(text),
+                            Ok(Err(err)) => Err(classify_online_asr_attempt_error(&err.to_string())),
+                            Err(err) => Err(crate::provider_gateway::AttemptError::Retryable {
+                                status: None,
+                                detail: format!("Online ASR task failed: {}", err),
+                                kind: crate::provider_gateway::AttemptErrorKind::Other,
+                            }),
+                        }
+                    }
+                }
+            },
+        )
+        .await;
+
+        match outcome {
+            crate::provider_gateway::ExecutionOutcome::Success(text) => text,
+            crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => {
+                return Err(detail);
+            }
+            crate::provider_gateway::ExecutionOutcome::Exhausted { last_error, .. } => {
+                let detail = match last_error {
+                    crate::provider_gateway::AttemptError::Retryable { detail, .. }
+                    | crate::provider_gateway::AttemptError::Fatal { detail, .. } => detail,
+                };
+                return Err(detail);
+            }
+        }
     } else {
         // Use local transcription manager
         info!("[retranscribe] Loading local model: {}", model_id);
