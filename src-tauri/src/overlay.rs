@@ -618,6 +618,10 @@ pub fn update_overlay_position(app_handle: &AppHandle) {
 /// paying Cocoa's window show/hide scheduling cost each time.
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
     let gen = bump_overlay_generation();
+    // Bump the emit seq too so any still-pending show-overlay retries (40 ms
+    // / 120 ms after the previous state emit) abort instead of re-showing
+    // the overlay right after we asked it to hide.
+    OVERLAY_EMIT_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     log::debug!("[overlay-trace] hide_recording_overlay gen={}", gen);
     clear_overlay_target_app();
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
