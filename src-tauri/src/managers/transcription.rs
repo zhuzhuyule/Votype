@@ -1,6 +1,8 @@
 use crate::audio_toolkit::filter_transcription_output;
 use crate::audio_toolkit::text::apply_custom_words;
+use crate::managers::history::HistoryManager;
 use crate::managers::model::{EngineType, ModelManager};
+use crate::managers::HotwordManager;
 use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
 use log::{debug, error, info, warn};
@@ -523,30 +525,45 @@ impl TranscriptionManager {
 
     /// Kicks off the model loading in a background thread if the correct model isn't already loaded
     pub fn initiate_model_load(&self) {
+        let settings = get_settings(&self.app_handle);
+        self.initiate_model_load_for(&settings.selected_model);
+    }
+
+    /// Like `initiate_model_load`, but targets a specific model id (e.g. the
+    /// secondary local model used for realtime preview while online ASR is primary).
+    pub fn initiate_model_load_for(&self, desired_model: &str) {
+        if desired_model.trim().is_empty() {
+            log::warn!(
+                "[TranscriptionManager] initiate_model_load_for called with empty model id — skipping"
+            );
+            return;
+        }
+
         let mut is_loading = self.is_loading.lock().unwrap();
         if *is_loading {
             return;
         }
 
-        // Check if the correct model is already loaded
-        let settings = get_settings(&self.app_handle);
-        let desired_model = &settings.selected_model;
         if let Some(ref current) = *self.current_model_id.lock().unwrap() {
             if current == desired_model {
                 return;
             }
             debug!(
-                "Loaded model '{}' differs from selected '{}', reloading",
+                "Loaded model '{}' differs from desired '{}', reloading",
                 current, desired_model
             );
         }
 
         *is_loading = true;
         let self_clone = self.clone();
+        let desired_model = desired_model.to_string();
         thread::spawn(move || {
-            let settings = get_settings(&self_clone.app_handle);
-            if let Err(e) = self_clone.load_model(&settings.selected_model) {
-                error!("Failed to load model: {}", e);
+            log::info!(
+                "[TranscriptionManager] loading local model '{}'",
+                desired_model
+            );
+            if let Err(e) = self_clone.load_model(&desired_model) {
+                error!("Failed to load local model '{}': {}", desired_model, e);
             }
             let mut is_loading = self_clone.is_loading.lock().unwrap();
             *is_loading = false;
@@ -779,6 +796,24 @@ impl TranscriptionManager {
             )
         } else {
             result.text
+        };
+
+        let corrected_result = if let Some(hm) = self.app_handle.try_state::<Arc<HistoryManager>>()
+        {
+            match HotwordManager::new(hm.db_path.clone())
+                .apply_force_replacements(&corrected_result)
+            {
+                Ok(replaced) => replaced,
+                Err(err) => {
+                    warn!(
+                        "[Transcription] Failed to apply hotword force replacements: {}",
+                        err
+                    );
+                    corrected_result
+                }
+            }
+        } else {
+            corrected_result
         };
 
         // Filter out filler words and hallucinations

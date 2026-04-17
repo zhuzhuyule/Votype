@@ -7,7 +7,8 @@ use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
 use crate::overlay::{
-    show_recording_overlay, show_recording_overlay_rewrite, show_transcribing_overlay,
+    show_inserting_overlay, show_recording_overlay, show_recording_overlay_rewrite,
+    show_transcribing_overlay, show_translation_overlay,
 };
 use crate::settings::{get_settings, AppSettings, CachedModel};
 use crate::shortcut;
@@ -23,6 +24,246 @@ use tokio::time::{sleep, timeout};
 
 pub(super) struct TranscribeAction {
     pub skill_mode: bool,
+}
+
+const EFFECTIVE_RECORDING_TOO_SHORT_MS: i64 = 500;
+const WHISPER_SAMPLE_RATE: usize = 16000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RecordingDisposition {
+    Proceed { effective_duration_ms: i64 },
+    IgnoredTooShort { effective_duration_ms: i64 },
+}
+
+fn effective_recording_duration_ms(samples: &[f32]) -> i64 {
+    ((samples.len() as f64 / WHISPER_SAMPLE_RATE as f64) * 1000.0) as i64
+}
+
+/// Persist raw ASR samples to disk for offline replay/debugging.
+/// Writes to `<app_data_dir>/debug_audio/<timestamp>-<tag>.wav`.
+/// Returns the path on success so the caller can log it.
+fn save_debug_audio(
+    app_handle: &AppHandle,
+    samples: &[f32],
+    tag: &str,
+) -> Option<std::path::PathBuf> {
+    use std::io::Write;
+
+    let data_dir = app_handle.path().app_data_dir().ok()?;
+    let dir = data_dir.join("debug_audio");
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        log::warn!(
+            "[ASR-diag] failed to create debug_audio dir {}: {}",
+            dir.display(),
+            e
+        );
+        return None;
+    }
+
+    let ts = chrono::Local::now().format("%Y%m%d-%H%M%S%.3f");
+    let safe_tag: String = tag
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let path = dir.join(format!("{}-{}.wav", ts, safe_tag));
+
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate: WHISPER_SAMPLE_RATE as u32,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = match hound::WavWriter::create(&path, spec) {
+        Ok(w) => w,
+        Err(e) => {
+            log::warn!("[ASR-diag] failed to create wav {}: {}", path.display(), e);
+            return None;
+        }
+    };
+    for &s in samples {
+        let v = (s * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        if let Err(e) = writer.write_sample(v) {
+            log::warn!("[ASR-diag] failed to write sample: {}", e);
+            return None;
+        }
+    }
+    if let Err(e) = writer.finalize() {
+        log::warn!("[ASR-diag] failed to finalize wav: {}", e);
+        return None;
+    }
+
+    // Also drop a small sidecar with context so we know what this file is.
+    let meta_path = path.with_extension("txt");
+    if let Ok(mut f) = std::fs::File::create(&meta_path) {
+        let _ = writeln!(
+            f,
+            "tag={}\nsamples={}\nseconds={:.2}\nsample_rate={}",
+            tag,
+            samples.len(),
+            samples.len() as f64 / WHISPER_SAMPLE_RATE as f64,
+            WHISPER_SAMPLE_RATE,
+        );
+    }
+
+    Some(path)
+}
+
+fn classify_recording_samples(samples: &[f32]) -> RecordingDisposition {
+    let effective_duration_ms = effective_recording_duration_ms(samples);
+    if effective_duration_ms < EFFECTIVE_RECORDING_TOO_SHORT_MS {
+        RecordingDisposition::IgnoredTooShort {
+            effective_duration_ms,
+        }
+    } else {
+        RecordingDisposition::Proceed {
+            effective_duration_ms,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PostProcessOutcome {
+    final_text: String,
+    failed: bool,
+}
+
+fn resolve_post_process_outcome(
+    transcription_text: &str,
+    processed_text: Option<&str>,
+    err: bool,
+) -> PostProcessOutcome {
+    match processed_text
+        .map(str::trim)
+        .filter(|text| !text.is_empty())
+    {
+        Some(text) => PostProcessOutcome {
+            final_text: text.to_string(),
+            failed: err,
+        },
+        None => PostProcessOutcome {
+            final_text: transcription_text.to_string(),
+            failed: true,
+        },
+    }
+}
+
+fn should_show_post_process_review_window(
+    votype_mode: VotypeInputMode,
+    override_prompt_id: Option<&str>,
+    app_policy: crate::settings::AppReviewPolicy,
+    output_mode: crate::settings::PromptOutputMode,
+    manual_review: bool,
+) -> bool {
+    if matches!(
+        votype_mode,
+        VotypeInputMode::MainPolishInput
+            | VotypeInputMode::MainSelectedEdit
+            | VotypeInputMode::ReviewRewrite
+    ) {
+        return false;
+    }
+
+    if override_prompt_id == Some("__SKIP_POST_PROCESS__") {
+        return false;
+    }
+
+    if output_mode == crate::settings::PromptOutputMode::Chat {
+        return true;
+    }
+
+    if manual_review {
+        return true;
+    }
+
+    app_policy != crate::settings::AppReviewPolicy::Never
+}
+
+fn direct_paste_target_pid(
+    active_window_snapshot: Option<&crate::active_window::ActiveWindowInfo>,
+) -> Option<u64> {
+    active_window_snapshot
+        .map(|info| info.process_id)
+        .filter(|pid| *pid != 0)
+}
+
+fn restore_focus_before_direct_paste(
+    active_window_snapshot: Option<&crate::active_window::ActiveWindowInfo>,
+) {
+    let Some(pid) = direct_paste_target_pid(active_window_snapshot) else {
+        return;
+    };
+
+    if let Err(e) = crate::active_window::focus_app_by_pid(pid) {
+        log::warn!(
+            "[DirectPaste] Failed to restore focus to original app pid {}: {}",
+            pid,
+            e
+        );
+    } else {
+        std::thread::sleep(Duration::from_millis(120));
+    }
+}
+
+fn app_profile_translate_to_english_on_insert(
+    settings: &AppSettings,
+    active_window_snapshot: Option<&crate::active_window::ActiveWindowInfo>,
+) -> bool {
+    let Some(info) = active_window_snapshot else {
+        return false;
+    };
+
+    let Some(profile_id) = settings
+        .app_to_profile
+        .iter()
+        .find(|(app_name, _)| app_name.eq_ignore_ascii_case(&info.app_name))
+        .map(|(_, profile_id)| profile_id)
+    else {
+        return false;
+    };
+
+    settings
+        .app_profiles
+        .iter()
+        .find(|profile| &profile.id == profile_id)
+        .map(|profile| profile.translate_to_english_on_insert)
+        .unwrap_or(false)
+}
+
+async fn maybe_translate_text_for_insert(
+    app_handle: &AppHandle,
+    should_translate: bool,
+    skill_mode: bool,
+    text: String,
+) -> String {
+    // Translation is a polish-flow capability only. Skill outputs follow the
+    // skill's own insertion semantics — never auto-translate them, even if the
+    // app-profile flag is on.
+    if skill_mode || !should_translate || text.trim().is_empty() {
+        return text;
+    }
+
+    show_translation_overlay(app_handle);
+
+    match crate::commands::text::translate_text_to_english(app_handle, &text).await {
+        Ok(translated) if !translated.trim().is_empty() => translated,
+        Ok(_) => {
+            log::warn!("[InsertTranslation] Translation returned empty text, using original text");
+            text
+        }
+        Err(err) => {
+            log::warn!(
+                "[InsertTranslation] Translation failed, using original text: {}",
+                err
+            );
+            text
+        }
+    }
 }
 
 impl TranscribeAction {
@@ -159,8 +400,10 @@ async fn execute_online_asr_request(
 
                 async move {
                     let join_result = tokio::task::spawn_blocking(move || {
-                        let client =
-                            crate::online_asr::OnlineAsrClient::new(16000, Duration::from_secs(120));
+                        let client = crate::online_asr::OnlineAsrClient::new(
+                            16000,
+                            Duration::from_secs(120),
+                        );
                         let language = if lang.as_str() == "auto" {
                             None
                         } else {
@@ -421,11 +664,37 @@ impl ShortcutAction for TranscribeAction {
 
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
-        if !settings_for_load.online_asr_enabled || enable_realtime {
+        if settings_for_load.online_asr_enabled && enable_realtime {
+            // Online is primary but realtime preview wants a local model —
+            // load the configured secondary, NOT `selected_model` (which may
+            // point to an online model id or stale value in this mode).
+            let secondary = settings_for_load
+                .post_process_secondary_model_id
+                .as_ref()
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string());
+
+            match secondary {
+                Some(model_id) => {
+                    log::info!(
+                        "[Realtime] loading secondary local model '{}' for preview",
+                        model_id
+                    );
+                    let tm = app.state::<Arc<TranscriptionManager>>();
+                    tm.initiate_model_load_for(&model_id);
+                }
+                None => {
+                    log::warn!(
+                        "[Realtime] enabled but post_process_secondary_model_id is empty — preview will not render"
+                    );
+                }
+            }
+        } else if !settings_for_load.online_asr_enabled {
             let tm = app.state::<Arc<TranscriptionManager>>();
             tm.initiate_model_load();
         } else {
-            debug!("Online ASR enabled: skip preloading local model");
+            debug!("Online ASR enabled and realtime preview off: skip preloading local model");
         }
 
         // Pre-load VAD in parallel with ASR model
@@ -446,6 +715,11 @@ impl ShortcutAction for TranscribeAction {
         } else {
             show_recording_overlay(app);
         }
+
+        // Pre-warm the review webview so its 484 KB bundle is already loaded by
+        // the time recording finishes. First review of the day is otherwise
+        // noticeably delayed by the cold start.
+        crate::review_window::prewarm_review_window(app);
 
         // Setup channel for receiving audio frames for realtime simulation if using local model
         let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
@@ -551,10 +825,6 @@ impl ShortcutAction for TranscribeAction {
             &app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>(),
         );
 
-        change_tray_icon(app, TrayIconState::Transcribing);
-        // Rewrite count was already incremented in start()
-        show_transcribing_overlay(app);
-
         // Drop the speech frame sender so the realtime worker exits
         // before the final transcription grabs the engine.
         rm.set_speech_frame_sender(None);
@@ -620,14 +890,23 @@ impl ShortcutAction for TranscribeAction {
 
             let stop_recording_time = Instant::now();
             if let Some(samples) = rm.stop_recording(&binding_id) {
-                // If samples are very short (e.g., < 0.3s), likely no speech, so skip transcription.
-                if samples.len() < 4800 {
-                    debug!(
-                        "Recording too short or empty ({} samples), skipping transcription and error.",
-                        samples.len()
-                    );
-                    return;
+                match classify_recording_samples(&samples) {
+                    RecordingDisposition::IgnoredTooShort {
+                        effective_duration_ms,
+                    } => {
+                        info!(
+                            "[Transcribe] ignored/too_short: effective_duration_ms={} samples={}",
+                            effective_duration_ms,
+                            samples.len()
+                        );
+                        return;
+                    }
+                    RecordingDisposition::Proceed { .. } => {}
                 }
+
+                change_tray_icon(&ah, TrayIconState::Transcribing);
+                // Rewrite count was already incremented in start()
+                show_transcribing_overlay(&ah);
 
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
@@ -636,7 +915,7 @@ impl ShortcutAction for TranscribeAction {
                 );
 
                 let settings = get_settings(&ah);
-                let duration_ms = (samples.len() as f64 / 16000.0 * 1000.0) as i64;
+                let duration_ms = effective_recording_duration_ms(&samples);
 
                 let active_window_snapshot = active_window::fetch_active_window().ok();
                 if let Some(info) = &active_window_snapshot {
@@ -781,16 +1060,16 @@ impl ShortcutAction for TranscribeAction {
                     // Each task self-logs its metrics (timing, chars, error) so that
                     // every participant in Race/Staggered/Serial is individually recorded.
                     let spawn_asr_task = move |cached_model_id: &str,
-                                          settings: &crate::settings::AppSettings,
-                                          audio_samples: Vec<f32>,
-                                          lang: String,
-                                          is_fallback: bool,
-                                          metrics: Option<
+                                               settings: &crate::settings::AppSettings,
+                                               audio_samples: Vec<f32>,
+                                               lang: String,
+                                               is_fallback: bool,
+                                               metrics: Option<
                         std::sync::Arc<crate::managers::llm_metrics::LlmMetricsManager>,
                     >,
-                                          history_id: Option<i64>,
-                                          audio_ms: i64|
-                     -> Option<
+                                               history_id: Option<i64>,
+                                               audio_ms: i64|
+                          -> Option<
                         tokio::task::JoinHandle<anyhow::Result<String>>,
                     > {
                         let cached = settings
@@ -968,14 +1247,59 @@ impl ShortcutAction for TranscribeAction {
                                 let stg_history_id = asr_history_id;
                                 let stg_audio_ms = asr_audio_duration_ms;
                                 let stg_audio_secs = samples.len() as f64 / 16000.0;
+                                let stg_app_handle = ah.clone();
+                                let stg_samples_for_debug = samples.clone();
                                 tokio::spawn(async move {
                                     let mut p = primary_handle;
 
-                                    let min_expected_chars = if stg_audio_secs > 15.0 {
-                                        (stg_audio_secs * 2.0) as usize
+                                    // Relaxed heuristic: only flag "suspiciously short" when
+                                    // audio is long enough AND text is under ~1 char/sec.
+                                    // Previous threshold (2x) fired on normal English speech.
+                                    let min_expected_chars = if stg_audio_secs > 30.0 {
+                                        stg_audio_secs as usize
                                     } else {
                                         0
                                     };
+
+                                    // Cap on how long we'll block for a second candidate after
+                                    // the first one arrives — prevents the outer 30s timeout
+                                    // from being our only safety net.
+                                    const SECOND_CANDIDATE_WAIT: Duration = Duration::from_secs(3);
+
+                                    // Shared diagnostic helper: emit a side-by-side comparison
+                                    // log and persist the source audio for offline replay.
+                                    let diag =
+                                        |primary_text: &str, fallback_text: &str, reason: &str| {
+                                            let p_cc = primary_text.chars().count();
+                                            let f_cc = fallback_text.chars().count();
+                                            log::warn!(
+                                            "[ASR-diag] {} audio={:.1}s primary={} chars={} fallback={} chars={}",
+                                            reason,
+                                            stg_audio_secs,
+                                            primary_id_log,
+                                            p_cc,
+                                            stg_fb_id_log,
+                                            f_cc,
+                                        );
+                                            log::warn!(
+                                                "[ASR-diag] primary_text={:?}",
+                                                primary_text
+                                            );
+                                            log::warn!(
+                                                "[ASR-diag] fallback_text={:?}",
+                                                fallback_text
+                                            );
+                                            if let Some(path) = save_debug_audio(
+                                                &stg_app_handle,
+                                                &stg_samples_for_debug,
+                                                &format!("staggered-{}", reason),
+                                            ) {
+                                                log::warn!(
+                                                    "[ASR-diag] saved audio: {}",
+                                                    path.display()
+                                                );
+                                            }
+                                        };
 
                                     // Wait for primary or stagger delay
                                     tokio::select! {
@@ -1003,16 +1327,31 @@ impl ShortcutAction for TranscribeAction {
                                                             if min_expected_chars == 0 || cc >= min_expected_chars {
                                                                 return res;
                                                             }
-                                                            log::warn!("[ASR] Staggered: primary text too short ({} < {}), waiting for fallback", cc, min_expected_chars);
-                                                            if let Ok(Ok(fb_text)) = f.await {
-                                                                if fb_text.chars().count() > cc {
-                                                                    log::info!("[ASR] Staggered: using fallback ({} > {} chars)", fb_text.chars().count(), cc);
-                                                                    return Ok(fb_text);
+                                                            log::warn!("[ASR] Staggered: primary text short ({} < {}), waiting up to {}s for fallback", cc, min_expected_chars, SECOND_CANDIDATE_WAIT.as_secs());
+                                                            match timeout(SECOND_CANDIDATE_WAIT, f).await {
+                                                                Ok(join_res) => {
+                                                                    if let Ok(Ok(fb_text)) = join_res {
+                                                                        diag(text, &fb_text, "primary-short");
+                                                                        if fb_text.chars().count() > cc {
+                                                                            log::info!("[ASR] Staggered: using fallback ({} > {} chars)", fb_text.chars().count(), cc);
+                                                                            return Ok(fb_text);
+                                                                        }
+                                                                    }
+                                                                }
+                                                                Err(_) => {
+                                                                    log::warn!("[ASR] Staggered: fallback wait timed out, keeping primary");
+                                                                    diag(text, "", "primary-short-fallback-timeout");
                                                                 }
                                                             }
                                                             return res;
                                                         }
-                                                        f.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                                        match timeout(SECOND_CANDIDATE_WAIT, f).await {
+                                                            Ok(join_res) => join_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e))),
+                                                            Err(_) => {
+                                                                log::warn!("[ASR] Staggered: primary failed and fallback wait timed out");
+                                                                Err(anyhow::anyhow!("Staggered: both candidates unavailable"))
+                                                            }
+                                                        }
                                                     }
                                                     f_res = &mut f => {
                                                         let res = f_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)));
@@ -1021,16 +1360,31 @@ impl ShortcutAction for TranscribeAction {
                                                             if min_expected_chars == 0 || cc >= min_expected_chars {
                                                                 return res;
                                                             }
-                                                            log::warn!("[ASR] Staggered: fallback ({}) text too short ({} < {}), waiting for primary", stg_fb_id_log, cc, min_expected_chars);
-                                                            if let Ok(Ok(p_text)) = p.await {
-                                                                if p_text.chars().count() > cc {
-                                                                    log::info!("[ASR] Staggered: using primary ({} > {} chars)", p_text.chars().count(), cc);
-                                                                    return Ok(p_text);
+                                                            log::warn!("[ASR] Staggered: fallback ({}) text short ({} < {}), waiting up to {}s for primary", stg_fb_id_log, cc, min_expected_chars, SECOND_CANDIDATE_WAIT.as_secs());
+                                                            match timeout(SECOND_CANDIDATE_WAIT, p).await {
+                                                                Ok(join_res) => {
+                                                                    if let Ok(Ok(p_text)) = join_res {
+                                                                        diag(&p_text, text, "fallback-short");
+                                                                        if p_text.chars().count() > cc {
+                                                                            log::info!("[ASR] Staggered: using primary ({} > {} chars)", p_text.chars().count(), cc);
+                                                                            return Ok(p_text);
+                                                                        }
+                                                                    }
+                                                                }
+                                                                Err(_) => {
+                                                                    log::warn!("[ASR] Staggered: primary wait timed out, keeping fallback");
+                                                                    diag("", text, "fallback-short-primary-timeout");
                                                                 }
                                                             }
                                                             return res;
                                                         }
-                                                        p.await.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e)))
+                                                        match timeout(SECOND_CANDIDATE_WAIT, p).await {
+                                                            Ok(join_res) => join_res.unwrap_or_else(|e| Err(anyhow::anyhow!("{}", e))),
+                                                            Err(_) => {
+                                                                log::warn!("[ASR] Staggered: fallback failed and primary wait timed out");
+                                                                Err(anyhow::anyhow!("Staggered: both candidates unavailable"))
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             } else {
@@ -1231,10 +1585,18 @@ impl ShortcutAction for TranscribeAction {
                             }
                         }
                     } else {
-                        // No local fallback — online-only mode with 30s timeout prompt
+                        // No local fallback — online-only mode.
+                        // If Race/Staggered already spawned an online fallback alongside the primary,
+                        // the outer budget can be tight (10s). Otherwise fall back to the 30s prompt.
                         const ONLINE_TIMEOUT_NO_LOCAL: u64 = 30;
+                        const ONLINE_TIMEOUT_WITH_PARALLEL_FALLBACK: u64 = 10;
+                        let online_timeout_secs = if fallback_already_handled {
+                            ONLINE_TIMEOUT_WITH_PARALLEL_FALLBACK
+                        } else {
+                            ONLINE_TIMEOUT_NO_LOCAL
+                        };
 
-                        match timeout(Duration::from_secs(ONLINE_TIMEOUT_NO_LOCAL), primary_handle)
+                        match timeout(Duration::from_secs(online_timeout_secs), primary_handle)
                             .await
                         {
                             Ok(join_result) => {
@@ -1295,8 +1657,16 @@ impl ShortcutAction for TranscribeAction {
                             Err(_elapsed) => {
                                 log::warn!(
                                     "[ASR] Online-only ASR timed out after {}s, prompting user",
-                                    ONLINE_TIMEOUT_NO_LOCAL
+                                    online_timeout_secs
                                 );
+                                if let Some(path) =
+                                    save_debug_audio(&ah, &samples, "online-only-timeout")
+                                {
+                                    log::warn!(
+                                        "[ASR-diag] saved audio on outer timeout: {}",
+                                        path.display()
+                                    );
+                                }
                                 let _ = ah.emit(
                                     "asr-online-timeout",
                                     serde_json::json!({
@@ -1338,9 +1708,7 @@ impl ShortcutAction for TranscribeAction {
                                                             &settings,
                                                             cached,
                                                             samples.clone(),
-                                                            settings
-                                                                .selected_language
-                                                                .clone(),
+                                                            settings.selected_language.clone(),
                                                             false,
                                                             asr_metrics.clone(),
                                                             asr_history_id,
@@ -1404,6 +1772,49 @@ impl ShortcutAction for TranscribeAction {
                         None
                     }
                 };
+
+                // === Long-audio cross-check (A+B) ============================
+                // For audio >30s, GLM-ASR-class providers have been observed
+                // returning truncated content. We:
+                //   A) Unconditionally log primary vs. local-fusion side-by-side
+                //      and save the source WAV for offline replay.
+                //   B) If local-fusion is significantly longer than primary
+                //      (≥1.3x chars), swap primary_text to the local-fusion
+                //      candidate — primary's content was very likely truncated.
+                let audio_secs_for_check = samples.len() as f64 / 16000.0;
+                if audio_secs_for_check > 30.0 {
+                    let primary_for_log = primary_text.as_deref().unwrap_or("");
+                    let secondary_for_log =
+                        secondary_result.as_deref().map(|s| s.trim()).unwrap_or("");
+                    let p_cc = primary_for_log.chars().count();
+                    let s_cc = secondary_for_log.chars().count();
+
+                    log::info!(
+                        "[ASR-longcheck] audio={:.1}s primary_chars={} secondary_chars={}",
+                        audio_secs_for_check,
+                        p_cc,
+                        s_cc
+                    );
+                    log::info!("[ASR-longcheck] primary_text={:?}", primary_for_log);
+                    log::info!("[ASR-longcheck] secondary_text={:?}", secondary_for_log);
+                    if let Some(path) = save_debug_audio(&ah, &samples, "longaudio-crosscheck") {
+                        log::info!("[ASR-longcheck] saved audio: {}", path.display());
+                    }
+
+                    // B: prefer the substantially-longer candidate.
+                    // Trigger only when primary is non-empty (avoid masking
+                    // pure failure cases — those have their own fallback path).
+                    if p_cc > 0 && s_cc as f64 > (p_cc as f64) * 1.3 {
+                        log::warn!(
+                            "[ASR-longcheck] primary likely truncated ({} chars) — swapping in local-fusion ({} chars, +{:.0}%)",
+                            p_cc,
+                            s_cc,
+                            (s_cc as f64 / p_cc as f64 - 1.0) * 100.0
+                        );
+                        primary_text = Some(secondary_for_log.to_string());
+                    }
+                }
+                // ================================================================
 
                 // Fallback priority:
                 // 1) primary transcription (online or local)
@@ -1741,6 +2152,18 @@ impl ShortcutAction for TranscribeAction {
                                     }
 
                                     crate::actions::post_process::PipelineResult::PendingSkillConfirmation => {
+                                        if let Some(pending_state) = ah_clone
+                                            .try_state::<crate::ManagedPendingSkillConfirmation>()
+                                        {
+                                            if let Ok(mut guard) = pending_state.lock() {
+                                                guard.process_id = active_window_snapshot_for_review
+                                                    .as_ref()
+                                                    .map(|info| info.process_id);
+                                                guard.active_window =
+                                                    active_window_snapshot_for_review.clone();
+                                                guard.app_review_policy = Some(app_policy);
+                                            }
+                                        }
                                         info!("[PostProcess] Skill confirmation pending, keeping overlay visible");
                                         return;
                                     }
@@ -1771,22 +2194,13 @@ impl ShortcutAction for TranscribeAction {
                                         };
 
                                         // Determine if review window should be shown
-                                        let should_review = if matches!(
+                                        let should_review = should_show_post_process_review_window(
                                             votype_mode,
-                                            VotypeInputMode::MainPolishInput
-                                                | VotypeInputMode::MainSelectedEdit
-                                                | VotypeInputMode::ReviewRewrite
-                                        ) {
-                                            false
-                                        } else if override_prompt_id.as_deref() == Some("__SKIP_POST_PROCESS__") {
-                                            false
-                                        } else if strategy == "manual" {
-                                            true // Manual always shows review
-                                        } else if app_policy == crate::settings::AppReviewPolicy::Never {
-                                            false
-                                        } else {
-                                            true
-                                        };
+                                            override_prompt_id.as_deref(),
+                                            app_policy,
+                                            output_mode,
+                                            strategy == "manual",
+                                        );
 
                                         // Build loading candidates
                                         let mut loading_candidates: Vec<crate::review_window::MultiModelCandidate> =
@@ -1925,19 +2339,22 @@ impl ShortcutAction for TranscribeAction {
                                                     return;
                                                 }
 
-                                                // Hide overlay immediately (no fade) for snappy auto-confirm
-                                                if let Some(w) = ah_clone.get_webview_window("recording_overlay") {
-                                                    let _ = w.emit("hide-overlay", ());
-                                                    let _ = w.hide();
-                                                }
-                                                change_tray_icon(&ah_clone, TrayIconState::Idle);
+                                                show_inserting_overlay(&ah_clone);
 
                                                 let ah_inner = ah_clone.clone();
+                                                let ah_for_cleanup = ah_clone.clone();
+                                                let active_window_for_paste =
+                                                    active_window_snapshot_for_review.clone();
                                                 ah_clone
                                                     .run_on_main_thread(move || {
+                                                        restore_focus_before_direct_paste(
+                                                            active_window_for_paste.as_ref(),
+                                                        );
                                                         if let Err(e) = utils::paste(paste_text, ah_inner) {
                                                             error!("Failed to paste multi-model result: {}", e);
                                                         }
+                                                        utils::hide_recording_overlay(&ah_for_cleanup);
+                                                        change_tray_icon(&ah_for_cleanup, TrayIconState::Idle);
                                                     })
                                                     .unwrap_or_else(|e| {
                                                         error!("Failed to run paste on main thread: {:?}", e)
@@ -1964,21 +2381,41 @@ impl ShortcutAction for TranscribeAction {
                                         metrics_tokens_per_sec,
                                         ..
                                     } => {
-                                        post_process_failed = err && processed_text.is_none();
-                                        error_shown = error_shown || err;
+                                        let outcome = resolve_post_process_outcome(
+                                            &transcription_clone,
+                                            processed_text.as_deref(),
+                                            err,
+                                        );
+                                        post_process_failed = outcome.failed;
+                                        error_shown = error_shown || post_process_failed;
 
                                         if model.is_some() {
                                             used_model = model;
                                         }
-                                        if let Some(ref text) = processed_text {
-                                            final_text = text.clone();
-                                        }
+                                        final_text = outcome.final_text;
                                         if prompt_id.is_some() {
                                             post_process_prompt_id = prompt_id;
                                         }
                                         if post_process_failed {
                                             if let Some(ref msg) = error_message {
                                                 error!("Post-processing failed: {}", msg);
+                                            } else if processed_text
+                                                .as_deref()
+                                                .map(str::trim)
+                                                .is_some_and(|text| text.is_empty())
+                                            {
+                                                error!(
+                                                    "Post-processing failed: model returned empty text"
+                                                );
+                                            }
+
+                                            if !err {
+                                                let _ = ah_clone.emit(
+                                                    "overlay-error",
+                                                    serde_json::json!({
+                                                        "message": "润色失败：模型返回了空结果",
+                                                    }),
+                                                );
                                             }
                                         }
 
@@ -2037,23 +2474,13 @@ impl ShortcutAction for TranscribeAction {
 
                                 // Always show review/confidence window for normal polish mode.
                                 // Only skip for Votype internal modes and explicit skip markers.
-                                let should_review = if matches!(
+                                let should_review = should_show_post_process_review_window(
                                     votype_mode,
-                                    VotypeInputMode::MainPolishInput
-                                        | VotypeInputMode::MainSelectedEdit
-                                        | VotypeInputMode::ReviewRewrite
-                                ) {
-                                    false
-                                } else if override_prompt_id.as_deref()
-                                    == Some("__SKIP_POST_PROCESS__")
-                                {
-                                    false
-                                } else if app_policy == crate::settings::AppReviewPolicy::Never {
-                                    false
-                                } else {
-                                    // Normal polish mode: always show confidence window
-                                    true
-                                };
+                                    override_prompt_id.as_deref(),
+                                    app_policy,
+                                    output_mode,
+                                    false,
+                                );
 
                                 if should_review {
                                     log::info!(
@@ -2117,8 +2544,21 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
 
+                            let should_translate_on_insert =
+                                app_profile_translate_to_english_on_insert(
+                                    &settings_clone,
+                                    active_window_snapshot_for_review.as_ref(),
+                                );
+
                             // Handle Votype internal modes before history save (they return early)
                             if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
+                                let final_text = maybe_translate_text_for_insert(
+                                    &ah_clone,
+                                    should_translate_on_insert,
+                                    skill_mode,
+                                    final_text,
+                                )
+                                .await;
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
                                 let _ = ah_clone.emit("votype-local-insert", final_text.clone());
@@ -2126,6 +2566,13 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             if matches!(votype_mode, VotypeInputMode::MainSelectedEdit) {
+                                let final_text = maybe_translate_text_for_insert(
+                                    &ah_clone,
+                                    should_translate_on_insert,
+                                    skill_mode,
+                                    final_text,
+                                )
+                                .await;
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
                                 let _ = ah_clone.emit("votype-local-insert", final_text.clone());
@@ -2189,16 +2636,19 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             }
 
-                            // Hide overlay before paste — immediate hide for snappy feel
-                            if !error_shown {
-                                if let Some(w) = ah_clone.get_webview_window("recording_overlay") {
-                                    let _ = w.emit("hide-overlay", ());
-                                    let _ = w.hide();
-                                }
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-                            }
+                            let final_text = maybe_translate_text_for_insert(
+                                &ah_clone,
+                                should_translate_on_insert,
+                                skill_mode,
+                                final_text,
+                            )
+                            .await;
+
+                            show_inserting_overlay(&ah_clone);
 
                             let ah_clone_inner = ah_clone.clone();
+                            let ah_for_cleanup = ah_clone.clone();
+                            let active_window_for_paste = active_window_snapshot_for_review.clone();
                             ah_clone
                                 .run_on_main_thread(move || {
                                     if error_shown {
@@ -2210,8 +2660,15 @@ impl ShortcutAction for TranscribeAction {
                                         });
                                     }
 
+                                    restore_focus_before_direct_paste(
+                                        active_window_for_paste.as_ref(),
+                                    );
                                     if let Err(e) = utils::paste(final_text, ah_clone_inner) {
                                         error!("Failed to paste transcription: {}", e);
+                                    }
+                                    if !error_shown {
+                                        utils::hide_recording_overlay(&ah_for_cleanup);
+                                        change_tray_icon(&ah_for_cleanup, TrayIconState::Idle);
                                     }
                                 })
                                 .unwrap_or_else(|e| {
@@ -2282,10 +2739,22 @@ impl ShortcutAction for TranscribeAction {
 
                         if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
                             let ah_clone = ah.clone();
+                            let should_translate_on_insert =
+                                app_profile_translate_to_english_on_insert(
+                                    &settings,
+                                    active_window_snapshot.as_ref(),
+                                );
+                            let text_for_insert = maybe_translate_text_for_insert(
+                                &ah,
+                                should_translate_on_insert,
+                                skill_mode,
+                                transcription_clone,
+                            )
+                            .await;
                             ah.run_on_main_thread(move || {
                                 utils::hide_recording_overlay(&ah_clone);
                                 change_tray_icon(&ah_clone, TrayIconState::Idle);
-                                let _ = ah_clone.emit("votype-local-insert", transcription_clone);
+                                let _ = ah_clone.emit("votype-local-insert", text_for_insert);
                             })
                             .unwrap_or_else(|e| {
                                 error!("Failed to emit local insert on main thread: {:?}", e)
@@ -2354,13 +2823,28 @@ impl ShortcutAction for TranscribeAction {
                             change_tray_icon(&ah_clone, TrayIconState::Idle);
                         } else {
                             let ah_clone = ah.clone();
+                            let active_window_for_paste = active_window_snapshot.clone();
+                            let should_translate_on_insert =
+                                app_profile_translate_to_english_on_insert(
+                                    &settings,
+                                    active_window_snapshot.as_ref(),
+                                );
+                            let text_for_insert = maybe_translate_text_for_insert(
+                                &ah,
+                                should_translate_on_insert,
+                                skill_mode,
+                                transcription_clone,
+                            )
+                            .await;
                             ah.run_on_main_thread(move || {
-                                utils::hide_recording_overlay(&ah_clone);
-                                change_tray_icon(&ah_clone, TrayIconState::Idle);
-
-                                if let Err(e) = utils::paste(transcription_clone, ah_clone) {
+                                let ah_for_paste = ah_clone.clone();
+                                show_inserting_overlay(&ah_clone);
+                                restore_focus_before_direct_paste(active_window_for_paste.as_ref());
+                                if let Err(e) = utils::paste(text_for_insert, ah_for_paste) {
                                     error!("Failed to paste transcription: {}", e);
                                 }
+                                utils::hide_recording_overlay(&ah_clone);
+                                change_tray_icon(&ah_clone, TrayIconState::Idle);
                             })
                             .unwrap_or_else(|e| {
                                 error!("Failed to run paste on main thread: {:?}", e)
@@ -2697,4 +3181,127 @@ fn apply_punct_anchors(raw: &str, anchors: &[PunctAnchor]) -> String {
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        classify_recording_samples, direct_paste_target_pid, effective_recording_duration_ms,
+        resolve_post_process_outcome, should_show_post_process_review_window, PostProcessOutcome,
+        RecordingDisposition, EFFECTIVE_RECORDING_TOO_SHORT_MS, WHISPER_SAMPLE_RATE,
+    };
+    use crate::settings::{AppReviewPolicy, PromptOutputMode};
+    use crate::window_context::VotypeInputMode;
+
+    #[test]
+    fn short_effective_recording_is_ignored() {
+        let samples = vec![0.0; WHISPER_SAMPLE_RATE / 4];
+
+        assert_eq!(
+            classify_recording_samples(&samples),
+            RecordingDisposition::IgnoredTooShort {
+                effective_duration_ms: 250,
+            }
+        );
+    }
+
+    #[test]
+    fn threshold_duration_recording_proceeds() {
+        let sample_count =
+            (WHISPER_SAMPLE_RATE as i64 * EFFECTIVE_RECORDING_TOO_SHORT_MS / 1000) as usize;
+        let samples = vec![0.0; sample_count];
+
+        assert_eq!(
+            classify_recording_samples(&samples),
+            RecordingDisposition::Proceed {
+                effective_duration_ms: EFFECTIVE_RECORDING_TOO_SHORT_MS,
+            }
+        );
+    }
+
+    #[test]
+    fn effective_duration_uses_whisper_sample_rate() {
+        let samples = vec![0.0; WHISPER_SAMPLE_RATE * 3 / 2];
+
+        assert_eq!(effective_recording_duration_ms(&samples), 1500);
+    }
+
+    #[test]
+    fn empty_post_process_result_falls_back_to_transcription_and_marks_failed() {
+        let outcome = resolve_post_process_outcome("原始识别", Some(""), true);
+
+        assert_eq!(
+            outcome,
+            PostProcessOutcome {
+                final_text: "原始识别".to_string(),
+                failed: true,
+            }
+        );
+    }
+
+    #[test]
+    fn blank_post_process_result_falls_back_to_transcription_and_marks_failed() {
+        let outcome = resolve_post_process_outcome("original asr", Some("   "), false);
+
+        assert_eq!(
+            outcome,
+            PostProcessOutcome {
+                final_text: "original asr".to_string(),
+                failed: true,
+            }
+        );
+    }
+
+    #[test]
+    fn chat_output_mode_overrides_never_review_policy() {
+        assert!(should_show_post_process_review_window(
+            VotypeInputMode::ExternalDefault,
+            None,
+            AppReviewPolicy::Never,
+            PromptOutputMode::Chat,
+            false
+        ));
+    }
+
+    #[test]
+    fn internal_votype_modes_still_skip_chat_review_window() {
+        assert!(!should_show_post_process_review_window(
+            VotypeInputMode::ReviewRewrite,
+            None,
+            AppReviewPolicy::Always,
+            PromptOutputMode::Chat,
+            false
+        ));
+    }
+
+    #[test]
+    fn polish_output_mode_still_respects_never_review_policy() {
+        assert!(!should_show_post_process_review_window(
+            VotypeInputMode::ExternalDefault,
+            None,
+            AppReviewPolicy::Never,
+            PromptOutputMode::Polish,
+            false
+        ));
+    }
+
+    #[test]
+    fn direct_paste_target_pid_uses_snapshot_pid() {
+        let snapshot = crate::active_window::ActiveWindowInfo {
+            title: "Codex".to_string(),
+            app_name: "Codex".to_string(),
+            window_id: "1".to_string(),
+            process_id: 42,
+            process_path: "/Applications/Codex.app".to_string(),
+            position: crate::active_window::WindowPosition {
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 100.0,
+            },
+        };
+
+        assert_eq!(direct_paste_target_pid(Some(&snapshot)), Some(42));
+        assert_eq!(direct_paste_target_pid(None), None);
+    }
 }
