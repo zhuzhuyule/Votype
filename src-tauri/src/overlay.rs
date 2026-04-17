@@ -46,6 +46,27 @@ pub fn current_overlay_generation() -> u64 {
     OVERLAY_GENERATION.load(std::sync::atomic::Ordering::SeqCst)
 }
 
+/// Session-scoped paste-target app. Snapshotted at recording start (so the
+/// overlay can show the target app's icon all the way from "录音中" through
+/// "后处理中" to the eventual "翻译成功 ✓"). Refreshed by the translation
+/// insert path via `show_translation_overlay_fast(..., Some(app))`.
+static OVERLAY_TARGET_APP: once_cell::sync::Lazy<std::sync::Mutex<Option<String>>> =
+    once_cell::sync::Lazy::new(|| std::sync::Mutex::new(None));
+
+fn set_overlay_target_app(name: Option<String>) {
+    if let Ok(mut slot) = OVERLAY_TARGET_APP.lock() {
+        *slot = name;
+    }
+}
+
+fn current_overlay_target_app() -> Option<String> {
+    OVERLAY_TARGET_APP.lock().ok().and_then(|slot| slot.clone())
+}
+
+fn clear_overlay_target_app() {
+    set_overlay_target_app(None);
+}
+
 #[cfg(target_os = "macos")]
 const OVERLAY_TOP_OFFSET: f64 = 46.0;
 #[cfg(any(target_os = "windows", target_os = "linux"))]
@@ -297,6 +318,13 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 /// Shows the recording overlay window with fade-in animation
 pub fn show_recording_overlay(app_handle: &AppHandle) {
     bump_overlay_generation();
+    // Snapshot the target app the moment recording starts; keeps the icon
+    // consistent for the whole session (recording → transcribing → llm →
+    // translation → success) instead of only the final translation insert.
+    let target = crate::active_window::fetch_active_window()
+        .ok()
+        .map(|info| info.app_name);
+    set_overlay_target_app(target);
     // Check if overlay should be shown based on position setting
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
@@ -327,6 +355,10 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
 /// Shows the recording overlay with rewrite count badge
 pub fn show_recording_overlay_rewrite(app_handle: &AppHandle, rewrite_count: u32) {
     bump_overlay_generation();
+    let target = crate::active_window::fetch_active_window()
+        .ok()
+        .map(|info| info.app_name);
+    set_overlay_target_app(target);
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
         return;
@@ -407,28 +439,25 @@ pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
 /// running the focus restore thread would otherwise race with the hide and
 /// make the overlay appear to lag.
 pub fn show_translation_overlay_fast(app_handle: &AppHandle, target_app_name: Option<String>) {
-    let gen = bump_overlay_generation();
-    log::debug!(
-        "[overlay-trace] show_translation_overlay_fast gen={} target_app={:?}",
-        gen,
-        target_app_name
-    );
+    bump_overlay_generation();
+    // Refresh the session target (the insert path may be triggered outside
+    // the original recording session, e.g. from a review window that was
+    // opened minutes ago).
+    if target_app_name.is_some() {
+        set_overlay_target_app(target_app_name);
+    }
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
-        log::debug!("[overlay-trace] overlay disabled by settings, skipping");
         return;
     }
 
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
-        let visible_before = overlay_window.is_visible().unwrap_or(false);
-        if !visible_before {
+        if !overlay_window.is_visible().unwrap_or(false) {
             update_overlay_position(app_handle);
         }
         let _ = overlay_window.set_ignore_cursor_events(true);
         let _ = overlay_window.show();
-        emit_overlay_state_with_app_retry(overlay_window, "translation", target_app_name);
-    } else {
-        log::warn!("[overlay-trace] overlay window NOT found");
+        emit_overlay_state_with_retry(overlay_window, "translation");
     }
 }
 
@@ -466,6 +495,9 @@ pub fn show_success_overlay(
     target_app_name: Option<String>,
 ) -> u64 {
     let gen = bump_overlay_generation();
+    if target_app_name.is_some() {
+        set_overlay_target_app(target_app_name);
+    }
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
         return gen;
@@ -477,7 +509,7 @@ pub fn show_success_overlay(
             let _ = overlay_window.show();
         }
         let _ = overlay_window.set_ignore_cursor_events(true);
-        emit_overlay_state_with_app_retry(overlay_window, variant, target_app_name);
+        emit_overlay_state_with_retry(overlay_window, variant);
     }
     gen
 }
@@ -511,8 +543,17 @@ pub fn show_inserting_overlay(app_handle: &AppHandle) {
 static OVERLAY_EMIT_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn emit_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, state: &'static str) {
+    // Always carry the current session's target app so the overlay can
+    // render its icon consistently across recording → transcribing → llm →
+    // translation → success. Callers (re-)set this via
+    // `set_overlay_target_app` at session start / at translation insert.
+    let app_name = current_overlay_target_app();
     let seq = OVERLAY_EMIT_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-    let _ = overlay_window.emit("show-overlay", state);
+    let payload = OverlayStateWithApp {
+        state,
+        app_name: app_name.clone(),
+    };
+    let _ = overlay_window.emit("show-overlay", payload.clone());
 
     std::thread::spawn(move || {
         for delay_ms in [40_u64, 120_u64] {
@@ -520,7 +561,7 @@ fn emit_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, state: &'
             if OVERLAY_EMIT_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
                 return; // a newer emit superseded us
             }
-            let _ = overlay_window.emit("show-overlay", state);
+            let _ = overlay_window.emit("show-overlay", payload.clone());
         }
     });
 }
@@ -531,33 +572,12 @@ struct OverlayStateWithCount {
     rewrite_count: u32,
 }
 
-/// Rich payload: state + optional target app name. Used for the translation
-/// insert path so the overlay can display a small icon of the app the text is
-/// being pasted into ("this translation is going to Slack / Mail / …").
+/// Rich payload: state + optional target app name. The overlay uses this to
+/// render a small icon of the paste-target app alongside the status label.
 #[derive(Clone, serde::Serialize)]
 struct OverlayStateWithApp {
     state: &'static str,
     app_name: Option<String>,
-}
-
-fn emit_overlay_state_with_app_retry(
-    overlay_window: tauri::WebviewWindow,
-    state: &'static str,
-    app_name: Option<String>,
-) {
-    let seq = OVERLAY_EMIT_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-    let payload = OverlayStateWithApp { state, app_name };
-    let _ = overlay_window.emit("show-overlay", payload.clone());
-
-    std::thread::spawn(move || {
-        for delay_ms in [40_u64, 120_u64] {
-            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-            if OVERLAY_EMIT_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
-                return;
-            }
-            let _ = overlay_window.emit("show-overlay", payload.clone());
-        }
-    });
 }
 
 fn emit_overlay_state_with_count_and_retry(
@@ -599,6 +619,7 @@ pub fn update_overlay_position(app_handle: &AppHandle) {
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
     let gen = bump_overlay_generation();
     log::debug!("[overlay-trace] hide_recording_overlay gen={}", gen);
+    clear_overlay_target_app();
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         let _ = overlay_window.set_ignore_cursor_events(true);
         // React side toggles its `.fade-in` class off and runs a CSS opacity
