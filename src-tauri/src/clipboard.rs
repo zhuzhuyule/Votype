@@ -1,5 +1,5 @@
 use crate::input::{self, EnigoState};
-use crate::settings::{get_settings, AutoSubmitKey, ClipboardHandling, PasteMethod};
+use crate::settings::{get_settings, AppSettings, AutoSubmitKey, ClipboardHandling, PasteMethod};
 use enigo::{Direction, Enigo, Key, Keyboard};
 use log::info;
 use std::time::Duration;
@@ -194,6 +194,10 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
 pub fn get_selected_text(_app_handle: &AppHandle) -> Result<String, String> {
     #[cfg(target_os = "macos")]
     {
+        let active_window = crate::active_window::fetch_active_window().ok();
+        let active_app_name = active_window.as_ref().map(|info| info.app_name.as_str());
+        let settings = get_settings(_app_handle);
+
         match get_selected_text_via_accessibility() {
             Ok(text) if !text.is_empty() => {
                 info!(
@@ -203,15 +207,15 @@ pub fn get_selected_text(_app_handle: &AppHandle) -> Result<String, String> {
                 Ok(text)
             }
             Ok(_) => {
-                info!("[Selection] Accessibility API returned empty, no text selected");
-                Ok(String::new())
+                info!("[Selection] Accessibility API returned empty, trying fallback if enabled");
+                get_selected_text_with_fallback(_app_handle, &settings, active_app_name)
             }
             Err(e) => {
                 info!(
-                    "[Selection] Accessibility API failed ({}), assuming no text selected",
+                    "[Selection] Accessibility API failed ({}), trying fallback if enabled",
                     e
                 );
-                Ok(String::new())
+                get_selected_text_with_fallback(_app_handle, &settings, active_app_name)
             }
         }
     }
@@ -267,6 +271,57 @@ fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), Str
 
 fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool {
     auto_submit && paste_method != PasteMethod::None
+}
+
+fn should_use_selection_clipboard_fallback(
+    settings: &AppSettings,
+    active_app_name: Option<&str>,
+) -> bool {
+    let Some(app_name) = active_app_name
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    else {
+        return true;
+    };
+
+    if is_selection_clipboard_fallback_unsafe_app(app_name) {
+        return false;
+    }
+
+    let Some(profile_id) = settings.app_to_profile.get(app_name) else {
+        return true;
+    };
+
+    settings
+        .app_profiles
+        .iter()
+        .find(|profile| &profile.id == profile_id)
+        .map(|profile| !profile.disable_selection_clipboard_fallback)
+        .unwrap_or(true)
+}
+
+fn is_selection_clipboard_fallback_unsafe_app(app_name: &str) -> bool {
+    matches!(
+        app_name.to_ascii_lowercase().as_str(),
+        "ghostty" | "terminal" | "iterm2" | "wezterm" | "alacritty" | "kitty" | "warp"
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn get_selected_text_with_fallback(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    active_app_name: Option<&str>,
+) -> Result<String, String> {
+    if !should_use_selection_clipboard_fallback(settings, active_app_name) {
+        info!(
+            "[Selection] Clipboard fallback disabled or blocked for app {:?}",
+            active_app_name
+        );
+        return Ok(String::new());
+    }
+
+    get_selected_text_via_clipboard_fallback(app_handle)
 }
 
 /// Get selected text using macOS Accessibility API (AXSelectedText).
@@ -330,6 +385,71 @@ fn get_selected_text_via_accessibility() -> Result<String, String> {
         let text = cf_text.to_string();
 
         Ok(text)
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn get_selected_text_via_clipboard_fallback(app_handle: &AppHandle) -> Result<String, String> {
+    let clipboard = app_handle.clipboard();
+    let original_text = clipboard.read_text().unwrap_or_default();
+    let original_change_count = get_clipboard_change_count();
+
+    let enigo_state = app_handle
+        .try_state::<EnigoState>()
+        .ok_or("Enigo state not initialized")?;
+    let mut enigo_opt = enigo_state.get_or_init()?;
+    let enigo = enigo_opt
+        .as_mut()
+        .ok_or("Failed to initialize input system")?;
+
+    crate::input::send_copy_shortcut(enigo)?;
+    std::thread::sleep(std::time::Duration::from_millis(120));
+
+    let copied_change_count = get_clipboard_change_count();
+    let copied_text = clipboard
+        .read_text()
+        .map_err(|e| format!("Failed to read clipboard after copy: {}", e))?;
+
+    clipboard
+        .write_text(&original_text)
+        .map_err(|e| format!("Failed to restore clipboard after copy fallback: {}", e))?;
+
+    let trimmed = copied_text.trim();
+    let changed = copied_change_count > original_change_count;
+    if !changed {
+        info!(
+            "[Selection] Clipboard fallback ignored unchanged clipboard (change_count={} text_unchanged={})",
+            copied_change_count,
+            copied_text == original_text
+        );
+        return Ok(String::new());
+    }
+
+    if trimmed.is_empty() {
+        info!("[Selection] Clipboard fallback returned empty text after clipboard change");
+        return Ok(String::new());
+    }
+
+    info!(
+        "[Selection] Got text via clipboard fallback: {} chars",
+        copied_text.chars().count()
+    );
+    Ok(copied_text)
+}
+
+#[cfg(target_os = "macos")]
+fn get_clipboard_change_count() -> isize {
+    use objc2::rc::Retained;
+    use objc2::runtime::AnyObject;
+    use objc2::{class, msg_send, msg_send_id};
+
+    unsafe {
+        let cls = class!(NSPasteboard);
+        let pasteboard: Option<Retained<AnyObject>> = msg_send_id![cls, generalPasteboard];
+        match pasteboard {
+            Some(pasteboard) => msg_send![&*pasteboard, changeCount],
+            None => 0,
+        }
     }
 }
 
@@ -591,6 +711,29 @@ fn truncate_after(text: &str, limit: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::{AppProfile, AppReviewPolicy};
+
+    fn test_settings_with_profile(
+        app_name: &str,
+        disable_selection_clipboard_fallback: bool,
+    ) -> AppSettings {
+        let mut settings = crate::settings::get_default_settings();
+        let profile_id = "profile_codex".to_string();
+        settings
+            .app_to_profile
+            .insert(app_name.to_string(), profile_id.clone());
+        settings.app_profiles.push(AppProfile {
+            id: profile_id,
+            name: app_name.to_string(),
+            policy: AppReviewPolicy::Always,
+            prompt_id: None,
+            icon: None,
+            translate_to_english_on_insert: false,
+            disable_selection_clipboard_fallback,
+            rules: Vec::new(),
+        });
+        settings
+    }
 
     #[test]
     fn test_truncate_before_at_sentence_boundary() {
@@ -670,6 +813,46 @@ mod tests {
         assert!(should_send_auto_submit(true, PasteMethod::CtrlV));
         assert!(should_send_auto_submit(true, PasteMethod::Direct));
         assert!(should_send_auto_submit(true, PasteMethod::CtrlShiftV));
+    }
+
+    #[test]
+    fn selection_clipboard_fallback_enabled_by_default_for_unmatched_app() {
+        let settings = crate::settings::get_default_settings();
+        assert!(should_use_selection_clipboard_fallback(
+            &settings,
+            Some("Codex")
+        ));
+    }
+
+    #[test]
+    fn selection_clipboard_fallback_respects_app_profile_disable_flag() {
+        let settings = test_settings_with_profile("Codex", true);
+        assert!(!should_use_selection_clipboard_fallback(
+            &settings,
+            Some("Codex")
+        ));
+    }
+
+    #[test]
+    fn selection_clipboard_fallback_remains_enabled_when_profile_allows_it() {
+        let settings = test_settings_with_profile("Codex", false);
+        assert!(should_use_selection_clipboard_fallback(
+            &settings,
+            Some("Codex")
+        ));
+    }
+
+    #[test]
+    fn selection_clipboard_fallback_disabled_for_terminal_apps() {
+        let settings = crate::settings::get_default_settings();
+        assert!(!should_use_selection_clipboard_fallback(
+            &settings,
+            Some("Ghostty")
+        ));
+        assert!(!should_use_selection_clipboard_fallback(
+            &settings,
+            Some("iTerm2")
+        ));
     }
 
     #[test]
