@@ -580,6 +580,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const insertEnglishRef = useRef<() => void>(() => {});
   const insertOriginalRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
+  // Once the user grabs the bottom-right grip to resize manually, we stop
+  // driving window height from content and let the user own the size. The
+  // grip's double-click hands control back to auto mode.
+  const userResizedRef = useRef(false);
 
   const measureAndResize = useCallback(async (reposition: boolean) => {
     const container = containerRef.current;
@@ -590,27 +594,56 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     const headerH = header?.getBoundingClientRect().height ?? 44;
     const footerH = footer?.getBoundingClientRect().height ?? 52;
 
-    const sourcePanel = container.querySelector(".review-panel-source");
-    const outputPanel = container.querySelector(".review-panel-output");
-    const chatSection = container.querySelector(".review-section-no-title");
-
-    let contentH: number;
-    if (sourcePanel && outputPanel) {
-      // Panel mode: padding(24) + source + gap(10) + output
-      const sourceH = sourcePanel.scrollHeight;
-      const outputH = outputPanel.scrollHeight;
-      contentH = 24 + sourceH + 10 + outputH;
-    } else if (chatSection) {
-      contentH = chatSection.scrollHeight + 24;
-    } else {
-      contentH = 200;
-    }
-
     const previewDock = container.querySelector(".review-preview-dock");
     const previewH = previewDock?.getBoundingClientRect().height ?? 0;
+    const previewGap = previewH > 0 ? 12 : 0;
 
-    const totalH = headerH + contentH + footerH + previewH;
+    // Desired (un-clamped) content height. We use scrollHeight on the wrapper
+    // so user edits (typing, pasting, candidate swaps) immediately affect the
+    // computed size even if CSS max-height is about to clip it.
+    const contentWrapper =
+      container.querySelector<HTMLElement>(".review-panels-layout") ??
+      container.querySelector<HTMLElement>(".review-multi-content") ??
+      container.querySelector<HTMLElement>(".review-section-no-title");
+    const desiredContentH = contentWrapper
+      ? Math.max(contentWrapper.scrollHeight, 160)
+      : 200;
+
+    // Match Rust's dynamic max (screen_h - 80) so CSS and the Tauri window
+    // agree on the ceiling. Fall back to a conservative default if the API
+    // is unavailable.
+    const SCREEN_SAFETY = 80;
+    const screenMaxH = Math.max(
+      400,
+      (window.screen?.availHeight ?? 900) - SCREEN_SAFETY,
+    );
+
+    // Each fixed region (header, footer, preview) gets its budget first; the
+    // remainder is what the editable content region is allowed to occupy.
+    const contentBudget = Math.max(
+      160,
+      screenMaxH - headerH - footerH - previewH - previewGap,
+    );
+    const actualContentH = Math.min(desiredContentH, contentBudget);
+
+    // Publish the cap as a CSS variable so the content wrapper can scroll
+    // internally once it hits the budget — this is what keeps the preview
+    // dock and footer from being clipped when polish text grows long.
+    document.documentElement.style.setProperty(
+      "--review-content-max",
+      `${contentBudget}px`,
+    );
+
+    const rawTotalH =
+      headerH + actualContentH + footerH + previewH + previewGap;
+    // Add ~5% headroom so the outer box-shadow has room to render without
+    // being clipped by the Tauri window edge.
+    const totalH = Math.min(rawTotalH * 1.05, screenMaxH);
     const currentW = window.innerWidth;
+
+    // After a manual resize, don't override the user's chosen size — they own
+    // it until they double-click the grip to return to auto mode.
+    if (userResizedRef.current) return;
 
     try {
       await invoke("resize_review_window", {
@@ -928,12 +961,44 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
   // Insert English translation (reuses cached preview if source matches, otherwise backend re-translates)
   const handleInsertEnglish = useCallback(async () => {
+    // Skill / AI Q&A outputs follow the skill's own insertion semantics —
+    // never run them through the polish-flow English translation path.
+    // Fall back to plain polished insert so Cmd+Enter still does *something*
+    // useful instead of silently no-op'ing.
+    const isSkillOutput =
+      initialData.output_mode === "chat" || !!initialData.skill_name;
+    if (isSkillOutput) {
+      void handleInsertPolished();
+      return;
+    }
+
+    const t0 = performance.now();
+    const flog = (msg: string) => {
+      void invoke("log_from_frontend", {
+        source: "review",
+        message: `[overlay-trace] ${msg} +${(performance.now() - t0).toFixed(1)}ms`,
+      }).catch(() => {});
+    };
+    flog("handleInsertEnglish ENTER");
     const currentText = getEditorText();
     if (isSubmitting || !currentText.trim()) return;
 
     setIsSubmitting(true);
 
+    // Overlay only appears while translation is actually happening. If
+    // translation isn't enabled for the target app, the insert is silent
+    // (matching "pop-up exists only during active translation").
+    if (translationEnabled) {
+      flog("invoking show_review_translation_overlay");
+      void invoke("show_review_translation_overlay")
+        .then(() => flog("show_review_translation_overlay RESOLVED"))
+        .catch(() => {});
+    } else {
+      flog("skipping overlay (translationEnabled=false)");
+    }
+
     try {
+      flog("invoking confirm_reviewed_transcription");
       await invoke("confirm_reviewed_transcription", {
         text: currentText.trim(),
         historyId: initialData.history_id,
@@ -945,6 +1010,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         ...buildTranslationInsertPayload(currentText.trim()),
         insertTarget: "english",
       });
+      flog("confirm_reviewed_transcription RESOLVED");
       onClose();
     } catch (e) {
       console.error("Failed to insert english text:", e);
@@ -954,6 +1020,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, [
     getEditorText,
     initialData.history_id,
+    initialData.output_mode,
+    initialData.skill_name,
+    handleInsertPolished,
     onClose,
     isSubmitting,
     selectedCandidateId,
@@ -1486,7 +1555,12 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, [selectedCandidateId, localCandidates]);
 
   useEffect(() => {
-    if (!translationEnabled) {
+    // Skip auto-translation for skill / AI Q&A outputs — those are answers,
+    // not user-authored text destined for an English-language target.
+    const isSkillOutput =
+      initialData.output_mode === "chat" || !!initialData.skill_name;
+
+    if (!translationEnabled || isSkillOutput) {
       setTranslatedText(null);
       setTranslatedSourceText(null);
       setTranslationError(null);
@@ -1511,23 +1585,67 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }, 1000);
 
     return () => window.clearTimeout(timer);
-  }, [requestEnglishTranslation, translationEnabled, translationSourceText]);
+  }, [
+    requestEnglishTranslation,
+    translationEnabled,
+    translationSourceText,
+    initialData.output_mode,
+    initialData.skill_name,
+  ]);
 
+  // Re-measure whenever the preview card's content changes so the Tauri window
+  // hugs the card precisely and the transparent area below it stays minimal.
   useEffect(() => {
-    if (
-      translationEnabled ||
-      translatedText ||
-      translationError ||
-      translationStatus === "loading"
-    ) {
-      window.setTimeout(() => measureAndResize(false), 16);
-    }
+    window.setTimeout(() => measureAndResize(false), 16);
   }, [
     measureAndResize,
-    translatedText,
     translationEnabled,
+    translatedText,
     translationError,
     translationStatus,
+  ]);
+
+  // Observe layout-relevant containers so any user edit (typing, pasting,
+  // candidate switch, diff toggle) triggers an immediate window resize, keeping
+  // all content visible without leaving transparent-but-clickable dead space.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+
+    let rafId: number | null = null;
+    const schedule = () => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null;
+        void measureAndResize(false);
+      });
+    };
+
+    const observer = new ResizeObserver(schedule);
+    const selectors = [
+      ".review-header",
+      ".review-footer",
+      ".review-panel-source",
+      ".review-panel-output",
+      ".review-section-no-title",
+      ".review-multi-content",
+      ".review-preview-dock",
+      ".review-translation-float",
+    ];
+    for (const selector of selectors) {
+      const el = container.querySelector(selector);
+      if (el) observer.observe(el);
+    }
+
+    return () => {
+      if (rafId !== null) window.cancelAnimationFrame(rafId);
+      observer.disconnect();
+    };
+  }, [
+    measureAndResize,
+    initialData.output_mode,
+    translationEnabled,
+    sortedCandidates?.length,
   ]);
 
   const handleDrag = useCallback(async () => {
@@ -1538,6 +1656,32 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       console.error("Failed to start dragging:", e);
     }
   }, []);
+
+  const handleResizeGripPointerDown = useCallback(
+    async (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      userResizedRef.current = true;
+      try {
+        const appWindow = getCurrentWindow();
+        await appWindow.startResizeDragging("SouthEast");
+      } catch (e) {
+        console.error("Failed to start resize dragging:", e);
+      }
+    },
+    [],
+  );
+
+  const handleResizeGripDoubleClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      userResizedRef.current = false;
+      window.setTimeout(() => measureAndResize(false), 16);
+    },
+    [measureAndResize],
+  );
 
   const handleCopy = useCallback(async () => {
     try {
@@ -1570,8 +1714,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   };
 
   return (
-    <div className="w-screen h-screen flex items-center justify-center p-0 box-border overflow-hidden bg-transparent">
-      <div className="review-window-container" ref={containerRef}>
+    <div
+      className="w-screen h-screen flex flex-col items-stretch p-0 box-border overflow-hidden bg-transparent"
+      ref={containerRef}
+    >
+      <div className="review-window-container">
         <div
           className="cursor-grab select-none"
           onPointerDown={(e) => {
@@ -1713,44 +1860,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           </div>
         )}
 
-        {translationEnabled && (
-          <div className="review-preview-dock">
-            <div className="review-translation-float">
-              <div className="review-translation-float-header">
-                <span className="review-translation-title">
-                  {t("transcription.review.translationPreview", "英文预览")}
-                </span>
-                {(!translatedText || translationStatus === "error") && (
-                  <span className="review-translation-status">
-                    {translationStatus === "error"
-                      ? t(
-                          "transcription.review.translationFailedFallback",
-                          "翻译失败，插入时将回退原文",
-                        )
-                      : t(
-                          "transcription.review.translationUpdating",
-                          "翻译中...",
-                        )}
-                  </span>
-                )}
-              </div>
-              <div className="review-translation-float-content">
-                {translatedText ||
-                  translationError ||
-                  t("transcription.review.translationUpdating", "翻译中...")}
-              </div>
-              {translatedText && !isSubmitting && (
-                <button
-                  className="review-hover-insert-btn review-hover-insert-btn-english"
-                  onClick={() => void handleInsertEnglish()}
-                >
-                  {t("transcription.review.insertEnglish", "插入英文")}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
         {pendingClose && (
           <div className="review-pending-close-toast">
             {t(
@@ -1774,7 +1883,74 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           onUndo={handleUndoRevision}
           onRedo={handleRedoRevision}
         />
+        <div
+          className="review-resize-grip"
+          onPointerDown={(e) => void handleResizeGripPointerDown(e)}
+          onDoubleClick={handleResizeGripDoubleClick}
+          title={t(
+            "transcription.review.resizeGrip",
+            "拖拽调整尺寸，双击恢复自动",
+          )}
+          aria-label={t(
+            "transcription.review.resizeGrip",
+            "拖拽调整尺寸，双击恢复自动",
+          )}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+            <path
+              d="M11 3 L3 11 M11 7 L7 11 M11 11 L11 11"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              fill="none"
+            />
+          </svg>
+        </div>
       </div>
+
+      {translationEnabled && (
+        <div className="review-preview-dock">
+          <div className="review-translation-float">
+            <div className="review-translation-float-header">
+              <span className="review-translation-title-row">
+                <span
+                  className={`review-translation-status-dot review-translation-status-dot--${translationStatus}`}
+                  aria-hidden="true"
+                />
+                <span className="review-translation-title">
+                  {t("transcription.review.translationPreview", "英文预览")}
+                </span>
+              </span>
+              {translationStatus === "error" && (
+                <span className="review-translation-status">
+                  {t(
+                    "transcription.review.translationFailedFallback",
+                    "翻译失败，插入时将回退原文",
+                  )}
+                </span>
+              )}
+            </div>
+            <div className="review-translation-float-content">
+              {translatedText ||
+                translationError ||
+                t("transcription.review.translationUpdating", "翻译中...")}
+              {translatedText && !isSubmitting && (
+                <button
+                  className="review-hover-insert-btn"
+                  onClick={() => void handleInsertEnglish()}
+                  title={t("transcription.review.insertEnglish", "插入英文")}
+                  aria-label={t(
+                    "transcription.review.insertEnglish",
+                    "插入英文",
+                  )}
+                >
+                  <IconTextPlus size={16} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

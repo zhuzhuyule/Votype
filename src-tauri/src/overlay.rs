@@ -1,8 +1,6 @@
 use crate::input;
-use crate::managers::audio::AudioRecordingManager;
 use crate::settings;
 use crate::settings::OverlayPosition;
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(not(target_os = "macos"))]
@@ -33,6 +31,20 @@ tauri_panel! {
 const OVERLAY_WIDTH: f64 = 540.0;
 const OVERLAY_HEIGHT: f64 = 160.0;
 const CURSOR_VERTICAL_OFFSET: f64 = 18.0;
+
+/// Monotonically-increasing generation bumped by every `show_*`/`hide_*`
+/// overlay transition. Used so a delayed "success" → hide can bail out if a
+/// new overlay state has taken over (e.g. user started a fresh recording
+/// while the success checkmark was still being displayed).
+static OVERLAY_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn bump_overlay_generation() -> u64 {
+    OVERLAY_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
+}
+
+pub fn current_overlay_generation() -> u64 {
+    OVERLAY_GENERATION.load(std::sync::atomic::Ordering::SeqCst)
+}
 
 #[cfg(target_os = "macos")]
 const OVERLAY_TOP_OFFSET: f64 = 46.0;
@@ -226,12 +238,12 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
         .skip_taskbar(true)
         .transparent(true)
         .focused(false)
-        .visible(false)
+        .visible(true)
         .build()
         {
             Ok(_window) => {
                 set_overlay_interactive(app_handle, false);
-                debug!("Recording overlay window created successfully (hidden)");
+                debug!("Recording overlay window created (OS-visible, CSS-hidden)");
             }
             Err(e) => {
                 debug!("Failed to create recording overlay window: {}", e);
@@ -269,7 +281,11 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
         {
             Ok(panel) => {
                 set_overlay_interactive(app_handle, false);
-                let _ = panel.hide();
+                // Leave the panel OS-visible from creation onward; the React
+                // side controls actual visibility via CSS (.fade-in class).
+                // This avoids macOS NSPanel show()/hide() scheduling latency
+                // on the hot path.
+                let _ = panel.show();
             }
             Err(e) => {
                 log::error!("Failed to create recording overlay panel: {}", e);
@@ -280,6 +296,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
 
 /// Shows the recording overlay window with fade-in animation
 pub fn show_recording_overlay(app_handle: &AppHandle) {
+    bump_overlay_generation();
     // Check if overlay should be shown based on position setting
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
@@ -309,6 +326,7 @@ pub fn show_recording_overlay(app_handle: &AppHandle) {
 
 /// Shows the recording overlay with rewrite count badge
 pub fn show_recording_overlay_rewrite(app_handle: &AppHandle, rewrite_count: u32) {
+    bump_overlay_generation();
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
         return;
@@ -383,12 +401,126 @@ pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
     }
 }
 
+/// Shows the translation overlay without restoring Votype window focus.
+/// Used when the caller is about to hide the currently-focused Votype window
+/// anyway (e.g. `confirm_reviewed_transcription` hiding the review window);
+/// running the focus restore thread would otherwise race with the hide and
+/// make the overlay appear to lag.
+pub fn show_translation_overlay_fast(app_handle: &AppHandle) {
+    let gen = bump_overlay_generation();
+    log::debug!("[overlay-trace] show_translation_overlay_fast gen={}", gen);
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        log::debug!("[overlay-trace] overlay disabled by settings, skipping");
+        return;
+    }
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        let visible_before = overlay_window.is_visible().unwrap_or(false);
+        log::info!(
+            "[overlay-trace] overlay window found, visible_before={}",
+            visible_before
+        );
+        if !visible_before {
+            update_overlay_position(app_handle);
+        }
+        let _ = overlay_window.set_ignore_cursor_events(true);
+        let show_result = overlay_window.show();
+        log::info!(
+            "[overlay-trace] overlay_window.show() result={:?}",
+            show_result
+        );
+        emit_overlay_state_with_retry(overlay_window, "translation");
+        log::debug!("[overlay-trace] emit show-overlay translation done");
+    } else {
+        log::warn!("[overlay-trace] overlay window NOT found");
+    }
+}
+
+/// Shows the translation overlay window
+pub fn show_translation_overlay(app_handle: &AppHandle) {
+    bump_overlay_generation();
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return;
+    }
+
+    let refocus_target = focused_votype_window_label(app_handle);
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        if !overlay_window.is_visible().unwrap_or(false) {
+            update_overlay_position(app_handle);
+        }
+
+        let _ = overlay_window.set_ignore_cursor_events(true);
+        let _ = overlay_window.show();
+        emit_overlay_state_with_retry(overlay_window, "translation");
+        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
+    }
+}
+
+/// Shows a brief success checkmark state on the overlay window. Returns the
+/// overlay generation at the moment of the show so the caller can schedule a
+/// cancellable delayed hide (see `confirm_reviewed_transcription`).
+///
+/// `variant = "translation_success"` labels the state as "翻译成功" instead of
+/// the generic "已插入" used for non-translation inserts.
+pub fn show_success_overlay(app_handle: &AppHandle, variant: &'static str) -> u64 {
+    let gen = bump_overlay_generation();
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return gen;
+    }
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        if !overlay_window.is_visible().unwrap_or(false) {
+            update_overlay_position(app_handle);
+            let _ = overlay_window.show();
+        }
+        let _ = overlay_window.set_ignore_cursor_events(true);
+        emit_overlay_state_with_retry(overlay_window, variant);
+    }
+    gen
+}
+
+/// Shows the inserting overlay window
+pub fn show_inserting_overlay(app_handle: &AppHandle) {
+    bump_overlay_generation();
+    let settings = settings::get_settings(app_handle);
+    if settings.overlay_position == OverlayPosition::None {
+        return;
+    }
+
+    let refocus_target = focused_votype_window_label(app_handle);
+
+    if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
+        if !overlay_window.is_visible().unwrap_or(false) {
+            update_overlay_position(app_handle);
+        }
+
+        let _ = overlay_window.set_ignore_cursor_events(true);
+        let _ = overlay_window.show();
+        emit_overlay_state_with_retry(overlay_window, "inserting");
+        restore_votype_focus_after_overlay_show(app_handle, refocus_target);
+    }
+}
+
+/// Monotonic sequence number for each "show-overlay" emit. Used by the retry
+/// thread so that a later state change (e.g. translation → success) cancels
+/// the still-pending 40 ms / 120 ms retries of the earlier state instead of
+/// letting them overwrite the current one.
+static OVERLAY_EMIT_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn emit_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, state: &'static str) {
+    let seq = OVERLAY_EMIT_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let _ = overlay_window.emit("show-overlay", state);
 
     std::thread::spawn(move || {
         for delay_ms in [40_u64, 120_u64] {
             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            if OVERLAY_EMIT_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
+                return; // a newer emit superseded us
+            }
             let _ = overlay_window.emit("show-overlay", state);
         }
     });
@@ -405,6 +537,7 @@ fn emit_overlay_state_with_count_and_retry(
     state: &'static str,
     rewrite_count: u32,
 ) {
+    let seq = OVERLAY_EMIT_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
     let payload = OverlayStateWithCount {
         state,
         rewrite_count,
@@ -414,6 +547,9 @@ fn emit_overlay_state_with_count_and_retry(
     std::thread::spawn(move || {
         for delay_ms in [40_u64, 120_u64] {
             std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            if OVERLAY_EMIT_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
+                return;
+            }
             let _ = overlay_window.emit("show-overlay", payload.clone());
         }
     });
@@ -429,29 +565,18 @@ pub fn update_overlay_position(app_handle: &AppHandle) {
     }
 }
 
-/// Hides the recording overlay window with fade-out animation
+/// Fades the overlay out. The Tauri window itself stays OS-visible so the
+/// next show is instantaneous (CSS transition only, ~80 ms) instead of
+/// paying Cocoa's window show/hide scheduling cost each time.
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
-    // Always hide the overlay regardless of settings - if setting was changed while recording,
-    // we still want to hide it properly
+    let gen = bump_overlay_generation();
+    log::debug!("[overlay-trace] hide_recording_overlay gen={}", gen);
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         let _ = overlay_window.set_ignore_cursor_events(true);
-        // Emit event to trigger fade-out animation
+        // React side toggles its `.fade-in` class off and runs a CSS opacity
+        // transition to 0. No window.hide() — the window remains an invisible
+        // transparent overlay ready for the next emit.
         let _ = overlay_window.emit("hide-overlay", ());
-        // Hide the window after a short delay to allow animation to complete
-        let window_clone = overlay_window.clone();
-        let app_handle_clone = app_handle.clone();
-
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(300));
-
-            // Check if we started recording again during the fade-out
-            let rm = app_handle_clone.state::<Arc<AudioRecordingManager>>();
-            if rm.is_recording() {
-                return;
-            }
-
-            let _ = window_clone.hide();
-        });
     }
 }
 

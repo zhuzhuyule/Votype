@@ -140,16 +140,37 @@ pub async fn confirm_reviewed_transcription(
         });
     }
 
+    // Decide whether this invocation will need a live translation pass.
+    // We snapshot the decision BEFORE hiding the review window so the
+    // translation overlay can be shown first — without this, users see a
+    // blank moment between the window disappearing and the final paste.
+    let english_needs_translation = matches!(insert_target, ReviewInsertTarget::English)
+        && should_translate_review_insert(&app)
+        && !text.trim().is_empty();
+    if english_needs_translation {
+        log::debug!("[overlay-trace] confirm: english_needs_translation=true, calling fast show");
+        // Safety-net show (the frontend already fires the same overlay the
+        // instant Cmd+Enter is pressed); use the fast variant so we don't
+        // spawn a focus-restore thread that would thrash against the hide.
+        crate::overlay::show_translation_overlay_fast(&app);
+    } else {
+        log::info!(
+            "[overlay-trace] confirm: english_needs_translation=false (target={:?})",
+            insert_target
+        );
+    }
+
+    log::debug!("[overlay-trace] confirm: calling hide_review_window");
     // Hide the review window
     crate::review_window::hide_review_window(&app, history_id);
+    log::debug!("[overlay-trace] confirm: hide_review_window returned");
 
     let last_active_window = crate::review_window::get_last_active_window();
     let text = match insert_target {
         ReviewInsertTarget::English => {
-            let should_translate_on_insert = should_translate_review_insert(&app);
+            let should_translate_on_insert = english_needs_translation;
             let trimmed_text = text.trim().to_string();
             if should_translate_on_insert && !trimmed_text.is_empty() {
-                crate::overlay::show_translation_overlay(&app);
                 if let (Some(translated), Some(source_text)) =
                     (translated_text_for_insert, translation_source_text)
                 {
@@ -198,8 +219,11 @@ pub async fn confirm_reviewed_transcription(
         ReviewInsertTarget::Polished | ReviewInsertTarget::AsrOriginal => text,
     };
 
-    // Focus the previously active window and paste
-    crate::overlay::show_inserting_overlay(&app);
+    // Overlay policy for review inserts: the pop-up exists only to indicate
+    // active translation work. Polished / ASR-original inserts carry no
+    // translation step, so we deliberately do NOT show any overlay for them
+    // — the user already confirmed from the review window and expects the
+    // paste to be silent.
     if let Some(info) = last_active_window {
         if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
             log::warn!("Failed to focus previous app: {}", e);
@@ -209,8 +233,51 @@ pub async fn confirm_reviewed_transcription(
     }
 
     let result = crate::clipboard::paste(text, app.clone());
-    crate::utils::hide_recording_overlay(&app);
+
+    if english_needs_translation {
+        if result.is_ok() {
+            // Translation path only: flip the already-visible "翻译中…" overlay
+            // to "翻译成功 ✓" and schedule a cancellable hide 700 ms later.
+            let gen_at_success = crate::overlay::show_success_overlay(&app, "translation_success");
+            let app_for_hide = app.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(700)).await;
+                if crate::overlay::current_overlay_generation() == gen_at_success {
+                    crate::utils::hide_recording_overlay(&app_for_hide);
+                }
+            });
+        } else {
+            // Translation or paste failed — dismiss the "翻译中…" overlay so
+            // the user doesn't see it stuck.
+            crate::utils::hide_recording_overlay(&app);
+        }
+    }
+    // Non-translation paths (Polished / AsrOriginal): no overlay at all, the
+    // paste happens silently.
     result
+}
+
+/// Show the translation overlay immediately from the frontend, ahead of the
+/// async `confirm_reviewed_transcription` round-trip. This avoids the brief
+/// "blank" window the user otherwise sees between pressing Cmd+Enter and the
+/// overlay finally appearing.
+/// Forward a log line from any webview into the unified Rust log so we can
+/// read the entire event timeline in one place when tracing issues.
+#[tauri::command]
+#[specta::specta]
+pub fn log_from_frontend(source: String, message: String) {
+    log::debug!("[frontend:{}] {}", source, message);
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn show_review_translation_overlay(app: AppHandle) {
+    log::debug!("[overlay-trace] show_review_translation_overlay command ENTER");
+    // Use the fast variant: we're about to hide the review window anyway,
+    // so the standard overlay's focus-restore thread would just fight the
+    // review hide and delay the overlay becoming visible.
+    crate::overlay::show_translation_overlay_fast(&app);
+    log::debug!("[overlay-trace] show_review_translation_overlay command EXIT");
 }
 
 #[tauri::command]

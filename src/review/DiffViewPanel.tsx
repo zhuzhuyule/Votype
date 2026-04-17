@@ -95,16 +95,18 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
           ) : (
             <EditorContent editor={editor} />
           )}
+          {showInsertPolished && onInsertPolished && !isRerunning && (
+            <button
+              type="button"
+              className="review-hover-insert-btn"
+              onClick={onInsertPolished}
+              title={t("transcription.review.insertPolished", "插入润色")}
+              aria-label={t("transcription.review.insertPolished", "插入润色")}
+            >
+              <IconTextPlus size={16} />
+            </button>
+          )}
         </div>
-        {showInsertPolished && onInsertPolished && !isRerunning && (
-          <button
-            type="button"
-            className="review-hover-insert-btn"
-            onClick={onInsertPolished}
-          >
-            {t("transcription.review.insertPolished", "插入润色")}
-          </button>
-        )}
       </div>
     </div>
   );

@@ -17,8 +17,18 @@ const REVIEW_WINDOW_WIDTH: f64 = 540.0;
 const REVIEW_WINDOW_MIN_WIDTH: f64 = 600.0;
 const REVIEW_WINDOW_MAX_WIDTH: f64 = 1080.0;
 const REVIEW_WINDOW_HEIGHT: f64 = 480.0;
-const REVIEW_WINDOW_MIN_HEIGHT: f64 = 450.0;
+const REVIEW_WINDOW_MIN_HEIGHT: f64 = 120.0;
 const REVIEW_WINDOW_MAX_HEIGHT: f64 = 920.0;
+
+/// How long to keep the review webview alive after it's hidden so the next
+/// invocation can reuse it (avoiding the 484 KB bundle re-load). After this
+/// window elapses without another show, the webview is destroyed to free RAM.
+const REVIEW_WINDOW_IDLE_DESTROY_SECS: u64 = 300;
+
+/// Bumped every time the review window is shown or explicitly destroyed.
+/// The idle-destroy timer captures the value at hide time and bails out if
+/// anything else touched the window in the meantime.
+static REVIEW_WINDOW_LIFECYCLE_GEN: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, serde::Serialize)]
 struct ReviewWindowPayload {
@@ -189,7 +199,15 @@ fn record_hidden_windows(app_handle: &AppHandle) -> bool {
     hidden.clear();
     let mut any_visible = false;
     for (label, window) in app_handle.webview_windows() {
+        // Never touch the review window itself.
         if label == "review_window" {
+            continue;
+        }
+        // The recording overlay is intentionally always OS-visible (visibility
+        // is controlled in-webview via CSS). If we add it to the hidden list
+        // here, `schedule_hide_windows` will OS-hide it and the next show path
+        // has to pay the slow Cocoa window.show() cost on Cmd+Enter.
+        if label == "recording_overlay" {
             continue;
         }
         let is_visible = window.is_visible().unwrap_or(false);
@@ -338,6 +356,20 @@ fn position_window_near_cursor(window: &tauri::WebviewWindow, width: f64, height
     }
 }
 
+/// Pre-warm the review webview (creates it hidden, pays the bundle-load cost
+/// now) so the first actual `show_review_window` after a recording finishes
+/// can skip the ~500 ms cold start. Safe to call multiple times.
+pub fn prewarm_review_window(app_handle: &AppHandle) {
+    // Already exists — nothing to do (either alive from a previous session
+    // or being created right now).
+    if app_handle.get_webview_window("review_window").is_some() {
+        return;
+    }
+    // ensure_review_window builds it hidden; the bundle begins loading
+    // immediately so subsequent show() is instant.
+    let _ = ensure_review_window(app_handle);
+}
+
 /// Creates a fresh review window (hidden). Returns true on success.
 fn ensure_review_window(app_handle: &AppHandle) -> bool {
     // Already exists – nothing to do
@@ -383,12 +415,54 @@ fn ensure_review_window(app_handle: &AppHandle) -> bool {
 
 /// Destroys the review window webview to free memory (~80 MB).
 fn destroy_review_window(app_handle: &AppHandle) {
+    REVIEW_WINDOW_LIFECYCLE_GEN.fetch_add(1, Ordering::SeqCst);
     if let Some(window) = app_handle.get_webview_window("review_window") {
         let _ = window.hide();
         let _ = window.destroy();
         debug!("Review window destroyed");
     }
     REVIEW_WINDOW_READY.store(false, Ordering::SeqCst);
+}
+
+/// Hide the review webview but keep the JS context alive so subsequent
+/// `show_review_window` calls can skip the 300-700 ms cold-start. Schedules
+/// a lazy destroy after `REVIEW_WINDOW_IDLE_DESTROY_SECS` of idleness to
+/// reclaim the ~80 MB RAM footprint eventually.
+fn hide_review_window_keep_alive(app_handle: &AppHandle, history_id: Option<i64>) {
+    let gen_at_hide = REVIEW_WINDOW_LIFECYCLE_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+    log::debug!(
+        "[overlay-trace] hide_review_window_keep_alive ENTER gen={}",
+        gen_at_hide
+    );
+
+    if let Some(window) = app_handle.get_webview_window("review_window") {
+        // Tell the React side to unmount the ReviewWindow component so
+        // effects (ResizeObserver, translation debounce, etc.) stop running
+        // while the webview is parked between sessions.
+        let _ = window.emit(
+            "review-window-hide",
+            serde_json::json!({ "history_id": history_id }),
+        );
+        let hide_result = window.hide();
+        log::debug!(
+            "[overlay-trace] review_window.hide() result={:?}",
+            hide_result
+        );
+    }
+
+    let app_for_destroy = app_handle.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(REVIEW_WINDOW_IDLE_DESTROY_SECS)).await;
+        // If anything touched the window since we scheduled this destroy,
+        // bail out and let the newer lifecycle owner handle it.
+        if REVIEW_WINDOW_LIFECYCLE_GEN.load(Ordering::SeqCst) != gen_at_hide {
+            return;
+        }
+        if REVIEW_WINDOW_ACTIVE.load(Ordering::SeqCst) {
+            return;
+        }
+        destroy_review_window(&app_for_destroy);
+    });
 }
 
 /// Shows the review window with the provided data
@@ -483,8 +557,8 @@ pub fn show_review_window(
 
 /// Hides and destroys the review window to free memory
 #[allow(dead_code)]
-pub fn hide_review_window(app_handle: &AppHandle, _history_id: Option<i64>) {
-    destroy_review_window(app_handle);
+pub fn hide_review_window(app_handle: &AppHandle, history_id: Option<i64>) {
+    hide_review_window_keep_alive(app_handle, history_id);
     REVIEW_WINDOW_ACTIVE.store(false, Ordering::SeqCst);
     {
         let mut pending = PENDING_REVIEW_PAYLOAD.lock().unwrap();
@@ -582,8 +656,14 @@ pub fn resize_review_window(
     reposition: bool,
 ) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("review_window") {
+        // Dynamic max height tracks the current monitor so the window can grow
+        // with content (e.g. long polish + English preview) instead of clipping
+        // at a fixed 920px. We still leave ~80px for menu bar / dock.
+        let (_screen_w, screen_h) = get_screen_logical_size(&window);
+        let dynamic_max_h = (screen_h - 80.0).max(REVIEW_WINDOW_MIN_HEIGHT);
+
         let w = width.clamp(REVIEW_WINDOW_MIN_WIDTH, REVIEW_WINDOW_MAX_WIDTH);
-        let h = height.clamp(REVIEW_WINDOW_MIN_HEIGHT, REVIEW_WINDOW_MAX_HEIGHT);
+        let h = height.clamp(REVIEW_WINDOW_MIN_HEIGHT, dynamic_max_h);
         let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
             width: w,
             height: h,

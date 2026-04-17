@@ -2,6 +2,7 @@ import { Box, Flex, Text } from "@radix-ui/themes";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import React, { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { AppIcon } from "../components/shared/AppIcon";
 import {
@@ -13,7 +14,15 @@ import { ASR_ONLINE_TIMEOUT } from "../lib/events";
 import { getAccentColor, STORAGE_KEY } from "../lib/theme";
 import "./RecordingOverlay.css";
 
-export type OverlayState = "recording" | "transcribing" | "llm" | "rewrite";
+export type OverlayState =
+  | "recording"
+  | "transcribing"
+  | "inserting"
+  | "llm"
+  | "rewrite"
+  | "translation"
+  | "success"
+  | "translation_success";
 
 type OverlayErrorEvent = { code?: string; message?: string };
 
@@ -84,8 +93,21 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   initialState,
 }) => {
   const { t } = useTranslation();
-  // isVisible is implicitly true if we are mounted
+  // Drives visual visibility via CSS: the Tauri window itself stays alive,
+  // but the overlay contents fade in/out based on show-overlay / hide-overlay
+  // events. This avoids OS-level window.show()/hide() latency on macOS.
+  const [isOverlayShown, setIsOverlayShown] = useState<boolean>(false);
   const [state, setState] = useState<OverlayState>(initialState);
+
+  // Diagnostic trace: every time the visible state OR label changes, log it
+  // via the unified Rust logger so we can see exactly what the overlay is
+  // rendering at any moment.
+  useEffect(() => {
+    void invoke("log_from_frontend", {
+      source: "overlay",
+      message: `[overlay-trace] render state="${state}" visible=${isOverlayShown}`,
+    }).catch(() => {});
+  }, [state, isOverlayShown]);
   const [rewriteCount, setRewriteCount] = useState<number>(0);
   const [operationText, setOperationText] = useState<string>("");
   const [levels, setLevels] = useState<number[]>(EMPTY_LEVELS.slice(0, 9));
@@ -170,13 +192,15 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         (event) => {
           const payload = (event.payload ?? {}) as OverlayErrorEvent;
 
+          // Prefer a localized summary via known error code; keep raw backend
+          // detail only as a console breadcrumb for debugging. Showing the raw
+          // JSON/body in the overlay is hard to parse at a glance and leaks
+          // provider internals to the user.
           if (payload.message) {
-            setErrorText(payload.message);
-            return;
+            console.warn("[overlay-error] detail:", payload.message);
           }
 
           if (payload.code) {
-            // Map backend error codes to translation keys
             const errorMap: Record<string, string> = {
               transcription_failed_saved:
                 "overlay.error.transcriptionFailedSaved",
@@ -185,6 +209,8 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               llm_network_error: "overlay.error.llmNetworkError",
               llm_rate_limited: "overlay.error.llmRateLimited",
               llm_auth_failed: "overlay.error.llmAuthFailed",
+              llm_bad_request: "overlay.error.llmBadRequest",
+              llm_model_not_found: "overlay.error.llmModelNotFound",
               llm_api_error: "overlay.error.llmApiError",
               llm_parse_error: "overlay.error.llmParseError",
               apple_intelligence_unavailable:
@@ -199,6 +225,12 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               return;
             }
           }
+
+          // Unknown/missing code: fall back to a generic localized label so we
+          // don't dump raw provider output into the overlay.
+          setErrorText(
+            t("overlay.error.llmRequestFailed", "LLM 请求失败，请检查网络/API"),
+          );
         },
       );
       if (disposed) {
@@ -323,9 +355,14 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       unlisteners.push(unlistenPostProcessStatus);
 
       const unlistenStateUpdate = await listen("show-overlay", (event) => {
+        void invoke("log_from_frontend", {
+          source: "overlay",
+          message: `[overlay-trace] show-overlay event received, payload=${JSON.stringify(event.payload)}`,
+        }).catch(() => {});
         // Payload can be a plain string (for most states) or an object
         // { state: "rewrite", rewrite_count: N } for voice rewrite.
         let overlayState: OverlayState;
+        let nextRewriteCount: number | null = null;
         if (
           event.payload !== null &&
           typeof event.payload === "object" &&
@@ -337,35 +374,69 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           };
           overlayState = richPayload.state;
           if (richPayload.rewrite_count !== undefined) {
-            setRewriteCount(richPayload.rewrite_count);
+            nextRewriteCount = richPayload.rewrite_count;
           } else if (overlayState === "recording") {
-            setRewriteCount(0);
+            nextRewriteCount = 0;
           }
         } else {
           overlayState = event.payload as OverlayState;
-          // Plain string payload has no rewrite_count — reset badge for normal recordings
           if (overlayState === "recording") {
-            setRewriteCount(0);
+            nextRewriteCount = 0;
           }
         }
-        setState(overlayState);
-        // Reset buffer if restarting recording
+        // Atomic update — state label, rewrite badge, and visibility must land
+        // in the SAME render, otherwise users briefly see the previous label
+        // (e.g. "后处理中…") fade in before the new one ("翻译中…") replaces it.
+        //
+        // chainedPromptName (from `post-process-status` events) carries the
+        // custom prompt name (e.g. "开发润色") used during LLM post-processing
+        // and is rendered with higher priority than the state label. When the
+        // overlay moves off the LLM phase (recording / transcribing /
+        // translation / success / …) we MUST clear it, otherwise the stale
+        // prompt name keeps shadowing every later state.
+        flushSync(() => {
+          setState(overlayState);
+          if (nextRewriteCount !== null) setRewriteCount(nextRewriteCount);
+          setIsOverlayShown(true);
+          if (overlayState !== "llm") {
+            setChainedPromptName("");
+          }
+        });
         if (overlayState === "recording") {
           resetOverlayRecordingState();
           setShowTimeout(false);
         }
       });
+      unlisteners.push(unlistenStateUpdate);
+
+      const unlistenHide = await listen("hide-overlay", () => {
+        void invoke("log_from_frontend", {
+          source: "overlay",
+          message: "[overlay-trace] hide-overlay event received",
+        }).catch(() => {});
+        flushSync(() => {
+          setIsOverlayShown(false);
+          // Clear the prompt-name override so the next show starts on a clean
+          // state label, not whatever the last post-process round left behind.
+          setChainedPromptName("");
+        });
+      });
       if (disposed) {
-        unlistenStateUpdate();
+        unlistenHide();
         return;
       }
-      unlisteners.push(unlistenStateUpdate);
+      unlisteners.push(unlistenHide);
 
       const unlistenRewriteOperation = await listen<{ operation: string }>(
         "rewrite-operation-complete",
         (event) => {
           const op = event.payload.operation || "unknown";
-          setOperationText(t(`overlay.rewriteOperation.${op}`, t("overlay.rewriteOperation.unknown")));
+          setOperationText(
+            t(
+              `overlay.rewriteOperation.${op}`,
+              t("overlay.rewriteOperation.unknown"),
+            ),
+          );
         },
       );
       if (disposed) {
@@ -595,6 +666,19 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     }
     if (state === "recording") {
       return <MicrophoneIcon color={accentColor} />;
+    } else if (state === "success" || state === "translation_success") {
+      return (
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M5 12.5 L10 17.5 L19 7.5"
+            fill="none"
+            stroke="var(--grass-9)"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
     } else {
       return <TranscriptionIcon color={accentColor} />;
     }
@@ -603,8 +687,12 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const statusTextMap: Record<OverlayState, string> = {
     recording: t("overlay.status.recording"),
     transcribing: t("overlay.status.transcribing"),
+    inserting: t("overlay.status.inserting"),
     llm: t("overlay.status.llm"),
     rewrite: t("overlay.status.rewrite"),
+    translation: t("overlay.status.translation"),
+    success: t("overlay.status.success"),
+    translation_success: t("overlay.status.translationSuccess"),
   };
 
   const realtimeDisplayText =
@@ -621,7 +709,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   return (
     <Box className="overlay-root">
       <Box
-        className={`recording-overlay fade-in ${
+        className={`recording-overlay ${isOverlayShown ? "fade-in" : ""} ${
           showRealtimeText ? "has-realtime" : ""
         } ${skillConfirmation ? "has-skill-confirm" : ""}`}
       >
@@ -773,9 +861,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
               {/* Selected content mini-window */}
               {skillConfirmation.selected_text_len != null && (
                 <Box className="skill-content-window">
-                  <Box
-                    className="skill-content-titlebar"
-                  >
+                  <Box className="skill-content-titlebar">
                     <Box className="skill-content-dots">
                       <span />
                       <span />

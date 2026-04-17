@@ -132,6 +132,10 @@ pub struct PendingSkillConfirmation {
     pub history_id: Option<i64>,
     /// Process ID of the original window for focus restoration
     pub process_id: Option<u64>,
+    /// Original active window snapshot for review fallback / focus restore
+    pub active_window: Option<active_window::ActiveWindowInfo>,
+    /// App review policy resolved during the original transcription flow
+    pub app_review_policy: Option<settings::AppReviewPolicy>,
     /// Cached polish result from parallel request
     pub polish_result: Option<String>,
     /// Input source from skill routing: "select", "output", or "extract"
@@ -196,6 +200,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         app_data_dir.clone(),
     ));
     app_handle.manage(free_models_cache.clone());
+    let unsupported_params_manager =
+        crate::managers::unsupported_params::UnsupportedParamsManager::new(app_data_dir.clone());
+    app_handle.manage(unsupported_params_manager);
     app_handle.manage(key_selector::KeySelector::new());
     let presets_config = crate::managers::model_preset::load_model_presets(app_handle)
         .unwrap_or_else(|e| {
@@ -419,6 +426,9 @@ pub fn run() {
             shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
             shortcut::settings_cmds::change_openai_compatible_api_enabled_setting,
             shortcut::settings_cmds::change_openai_compatible_api_access_key_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_allow_lan_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_port_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_base_path_setting,
             shortcut::settings_cmds::change_post_process_base_url_setting,
             shortcut::settings_cmds::change_post_process_api_key_setting,
             shortcut::settings_cmds::set_post_process_api_keys,
@@ -505,6 +515,9 @@ pub fn run() {
             shortcut::multi_model_cmds::remove_multi_model_post_process_item,
             shortcut::multi_model_cmds::set_multi_model_preferred_id,
             shortcut::review_cmds::confirm_reviewed_transcription,
+            shortcut::review_cmds::show_review_translation_overlay,
+            shortcut::review_cmds::log_from_frontend,
+            shortcut::review_cmds::get_review_translation_settings,
             shortcut::review_cmds::cancel_transcription_review,
             shortcut::review_cmds::set_review_editor_active_state,
             shortcut::review_cmds::set_review_editor_content_state,
@@ -783,6 +796,9 @@ pub fn run() {
             shortcut::settings_cmds::change_post_process_hotword_injection_enabled_setting,
             shortcut::settings_cmds::change_openai_compatible_api_enabled_setting,
             shortcut::settings_cmds::change_openai_compatible_api_access_key_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_allow_lan_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_port_setting,
+            shortcut::settings_cmds::change_openai_compatible_api_base_path_setting,
             shortcut::settings_cmds::set_post_process_provider,
             shortcut::provider_cmds::fetch_post_process_models,
             shortcut::provider_cmds::get_provider_avatar_path,
@@ -848,6 +864,9 @@ pub fn run() {
             shortcut::settings_cmds::set_app_profiles,
             shortcut::settings_cmds::set_app_to_profile,
             shortcut::review_cmds::confirm_reviewed_transcription,
+            shortcut::review_cmds::show_review_translation_overlay,
+            shortcut::review_cmds::log_from_frontend,
+            shortcut::review_cmds::get_review_translation_settings,
             shortcut::review_cmds::cancel_transcription_review,
             shortcut::review_cmds::set_review_editor_active_state,
             shortcut::review_cmds::set_review_editor_content_state,
@@ -957,6 +976,7 @@ pub fn run() {
             commands::text::generate_skill_description,
             commands::text::generate_skill_metadata,
             commands::text::translate_review_text,
+            commands::text::translate_text_to_english_command,
             helpers::clamshell::is_clamshell,
             helpers::clamshell::is_laptop,
         ])

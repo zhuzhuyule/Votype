@@ -384,6 +384,8 @@
       "llmNetworkError": "Network error, retrying...",
       "llmRateLimited": "Rate limited, please wait",
       "llmAuthFailed": "Invalid API key, check settings",
+      "llmBadRequest": "Model rejected request parameters (e.g. min_p/top_k), check model params",
+      "llmModelNotFound": "Model not found or not enabled, check model ID",
       "llmApiError": "API service error",
       "llmParseError": "Failed to parse model response",
       "transcriptionFailedSaved": "Transcription failed (saved)"
@@ -401,7 +403,9 @@
       "translation": "Translating...",
       "transcribing": "Transcribing...",
       "review": "Review...",
-      "rewrite": "Processing…"
+      "rewrite": "Processing…",
+      "success": "Inserted",
+      "translationSuccess": "Translation Successful"
     },
     "rewriteOperation": {
       "rewrite": "Rewritten",
@@ -903,6 +907,9 @@
           "title": "Base URL"
         },
         "manageProviders": "Manage Providers",
+        "modelCard": {
+          "errorRate": "{{count}} failed call(s) — {{rate}}% error rate"
+        },
         "model": {
           "descriptionApple": "Provide an optional numeric token limit or keep the default on-device preset.",
           "descriptionCustom": "Provide the model identifier expected by your custom endpoint.",
@@ -1629,6 +1636,7 @@
       "insertTranslation": "Insert translation",
       "insertPolished": "Insert Polished",
       "insertEnglish": "Insert English",
+      "resizeGrip": "Drag to resize, double-click to auto-fit",
       "multiModel": "Multi-model Results",
       "processing": "Processing...",
       "restoreOrder": "Restore Original Order",
