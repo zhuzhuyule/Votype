@@ -54,6 +54,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   const shortModelId = settings?.length_routing_short_model?.primary_id ?? null;
   const defaultModelId = settings?.selected_prompt_model?.primary_id ?? null;
   const intentModelId = settings?.post_process_intent_model?.primary_id ?? null;
+  const expertMode = settings?.expert_mode ?? false;
   const multiModelSelectedIds = useMemo(
     () => settings?.multi_model_selected_ids ?? [],
     [settings?.multi_model_selected_ids],
@@ -645,6 +646,42 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
               defaultStrategy="serial"
             />
           </Flex>
+
+          {expertMode && (
+            <Flex align="center" justify="between">
+              <Flex align="center" gap="1">
+                <Text size="2" weight="medium">
+                  {t(
+                    "settings.postProcessing.translationModel.title",
+                    "Translation model",
+                  )}
+                </Text>
+                <TooltipIcon
+                  text={t(
+                    "settings.postProcessing.translationModel.title",
+                    "Translation model",
+                  )}
+                  description={t(
+                    "settings.postProcessing.translationModel.hint",
+                    "Used by insert-before-translation. Leave empty to fall back to the intent model, then the default post-processing model.",
+                  )}
+                />
+              </Flex>
+              <ModelChainSelector
+                chain={settings?.post_process_translation_model ?? null}
+                displayChain={
+                  settings?.post_process_translation_model ??
+                  settings?.post_process_intent_model ??
+                  null
+                }
+                onChange={(chain) =>
+                  updateModelChain("post_process_translation_model", chain)
+                }
+                modelFilter={(m) => m.model_type === "text"}
+                defaultStrategy="serial"
+              />
+            </Flex>
+          )}
 
           {/* Row 4: Auto-injection settings */}
           <AppProfilesContextSettings descriptionMode="inline" grouped={true} />

@@ -1,15 +1,19 @@
 import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import {
+  IconAlertTriangle,
   IconBolt,
   IconBrain,
   IconHistory,
   IconMicrophone,
 } from "@tabler/icons-react";
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 export interface ModelCardStats {
   totalCalls: number;
   avgSpeed: number;
+  /** Cumulative failed calls recorded in llm_call_stats.total_errors. */
+  totalErrors?: number;
 }
 
 export interface ModelCardProps {
@@ -51,8 +55,15 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
   stats,
   trailing,
 }) => {
+  const { t } = useTranslation();
   const showTooltip = modelId && modelId !== name;
   const hasStats = !!stats && stats.totalCalls > 0;
+  const totalErrors = stats?.totalErrors ?? 0;
+  const showErrorBadge = hasStats && totalErrors > 0;
+  const errorRate =
+    hasStats && stats.totalCalls > 0
+      ? (totalErrors / stats.totalCalls) * 100
+      : 0;
 
   return (
     <Flex direction="column" gap="1">
@@ -128,6 +139,31 @@ export const ModelCardContent: React.FC<ModelCardProps> = ({
                   {formatSpeed(stats.avgSpeed)} t/s
                 </Text>
               </Flex>
+            )}
+
+            {showErrorBadge && (
+              <Tooltip
+                content={t(
+                  "settings.postProcessing.modelCard.errorRate",
+                  "{{count}} failed call(s) — {{rate}}% error rate",
+                  {
+                    count: totalErrors,
+                    rate: errorRate.toFixed(1),
+                  },
+                )}
+                delayDuration={200}
+              >
+                <Flex align="center" gap="0.5">
+                  <IconAlertTriangle
+                    size={10}
+                    strokeWidth={2}
+                    className="text-red-500/80"
+                  />
+                  <Text size="1" className="tabular-nums text-red-500/90">
+                    {totalErrors.toLocaleString()}
+                  </Text>
+                </Flex>
+              </Tooltip>
             )}
           </Flex>
         )}

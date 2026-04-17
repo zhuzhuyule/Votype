@@ -10,7 +10,119 @@ use async_openai::types::{
 };
 use log::info;
 use std::collections::HashMap;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
+
+/// Extract the name of an unsupported request parameter from an OpenAI-compatible
+/// 400 error body. Handles shapes used by Groq, Cerebras, OpenAI, Together, etc.
+///
+/// Examples of matched bodies:
+///   {"error":{"message":"property 'min_p' is unsupported",...}}
+///   {"error":{"message":"body.top_k: property 'body.top_k' is unsupported\n..."}}
+///   {"error":{"message":"Unrecognized request argument supplied: top_k",...}}
+///   {"error":{"message":"unknown parameter: min_p",...}}
+///   {"error":{"param":"top_k",...}}  (some providers stuff it here)
+pub(crate) fn extract_unsupported_param(body: &str) -> Option<String> {
+    // Prefer textual patterns that unambiguously name a parameter. We scan the
+    // whole body so the regex works whether it's wrapped in JSON or not.
+    let patterns: [&str; 4] = [
+        r"property '([^']+)' is unsupported",
+        r"Unrecognized request argument(?: supplied)?:?\s*([A-Za-z_][A-Za-z0-9_\.]*)",
+        r"unknown parameter[:\s]+'?([A-Za-z_][A-Za-z0-9_\.]*)'?",
+        r"unsupported parameter[:\s]+'?([A-Za-z_][A-Za-z0-9_\.]*)'?",
+    ];
+    for pat in patterns {
+        if let Ok(re) = regex::Regex::new(pat) {
+            if let Some(caps) = re.captures(body) {
+                if let Some(m) = caps.get(1) {
+                    let cleaned = strip_body_prefix(m.as_str());
+                    if is_plausible_param_name(&cleaned) {
+                        return Some(cleaned);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fall back to `error.param` from JSON-shaped bodies. Some providers use
+    // this for the offending field name; others stuff a generic marker like
+    // "validation_error" here — those fail the plausibility check below.
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(body) {
+        if let Some(param) = value
+            .get("error")
+            .and_then(|e| e.get("param"))
+            .and_then(|p| p.as_str())
+        {
+            let cleaned = strip_body_prefix(param);
+            if is_plausible_param_name(&cleaned) && !is_generic_error_marker(&cleaned) {
+                return Some(cleaned);
+            }
+        }
+    }
+    None
+}
+
+fn is_generic_error_marker(s: &str) -> bool {
+    matches!(
+        s,
+        "validation_error" | "invalid_request_error" | "error" | "unknown"
+    )
+}
+
+fn strip_body_prefix(s: &str) -> String {
+    s.strip_prefix("body.").unwrap_or(s).to_string()
+}
+
+fn is_plausible_param_name(s: &str) -> bool {
+    !s.is_empty()
+        && s.len() <= 64
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.')
+}
+
+#[cfg(test)]
+mod extract_unsupported_param_tests {
+    use super::extract_unsupported_param;
+
+    #[test]
+    fn groq_property_unsupported() {
+        let body = r#"{"error":{"message":"property 'min_p' is unsupported","type":"invalid_request_error"}}"#;
+        assert_eq!(extract_unsupported_param(body).as_deref(), Some("min_p"));
+    }
+
+    #[test]
+    fn cerebras_body_prefix() {
+        let body = r#"{"error":{"message":"body.min_p: property 'body.min_p' is unsupported\nbody.top_k: property 'body.top_k' is unsupported","type":"invalid_request_error","param":"validation_error","code":"wrong_api_format"}}"#;
+        // Should pick the first unsupported param (we'll hit retry again for the next).
+        assert_eq!(extract_unsupported_param(body).as_deref(), Some("min_p"));
+    }
+
+    #[test]
+    fn openai_unrecognized_argument() {
+        let body = r#"{"error":{"message":"Unrecognized request argument supplied: top_k"}}"#;
+        assert_eq!(extract_unsupported_param(body).as_deref(), Some("top_k"));
+    }
+
+    #[test]
+    fn unknown_parameter_phrase() {
+        let body = r#"{"error":{"message":"unknown parameter: frequency_penalty"}}"#;
+        assert_eq!(
+            extract_unsupported_param(body).as_deref(),
+            Some("frequency_penalty")
+        );
+    }
+
+    #[test]
+    fn error_param_field() {
+        let body = r#"{"error":{"message":"bad","param":"min_p"}}"#;
+        assert_eq!(extract_unsupported_param(body).as_deref(), Some("min_p"));
+    }
+
+    #[test]
+    fn unrelated_400_returns_none() {
+        let body = r#"{"error":{"message":"context length exceeded"}}"#;
+        assert_eq!(extract_unsupported_param(body), None);
+    }
+}
 
 /// Field name for structured output JSON schema
 const TRANSCRIPTION_FIELD: &str = "transcription";
@@ -81,6 +193,8 @@ impl LlmError {
             LlmError::ApiError { status, .. } if *status == 401 || *status == 403 => {
                 "llm_auth_failed"
             }
+            LlmError::ApiError { status: 400, .. } => "llm_bad_request",
+            LlmError::ApiError { status: 404, .. } => "llm_model_not_found",
             LlmError::ApiError { .. } => "llm_api_error",
             LlmError::ParseError { .. } => "llm_parse_error",
             LlmError::AppleIntelligence { .. } => "apple_intelligence_failed",
@@ -168,6 +282,102 @@ fn emit_llm_error(app_handle: &AppHandle, error: &LlmError) {
     );
 }
 
+/// Parse a successful `/chat/completions` response into an `LlmResponse`.
+/// Extracted out of the HTTP closure so the self-heal loop can reuse it.
+async fn parse_successful_chat_response(
+    resp: reqwest::Response,
+    provider: &PostProcessProvider,
+    model: &str,
+) -> Result<LlmResponse, LlmError> {
+    let json_resp: serde_json::Value = resp.json().await.map_err(|e| LlmError::ParseError {
+        provider: provider.id.clone(),
+        model: model.to_string(),
+        detail: format!("{:?}", e),
+    })?;
+
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed)
+        && log::log_enabled!(log::Level::Debug)
+    {
+        if let Ok(pretty_resp) = serde_json::to_string_pretty(&json_resp) {
+            log::debug!(
+                "[LLM] ResponseBody (len={}):\n{}",
+                pretty_resp.len(),
+                pretty_resp
+            );
+        }
+    }
+
+    let raw_content = &json_resp["choices"][0]["message"]["content"];
+    let content = raw_content
+        .as_str()
+        .unwrap_or_default()
+        .replace('\u{200B}', "")
+        .replace('\u{200C}', "")
+        .replace('\u{200D}', "")
+        .replace('\u{FEFF}', "");
+
+    let message_obj = &json_resp["choices"][0]["message"];
+    let reasoning = message_obj["reasoning_content"]
+        .as_str()
+        .or_else(|| message_obj["reasoning"].as_str())
+        .or_else(|| message_obj["thinking"].as_str());
+    let has_think_tags = content.contains("<think>") || content.contains("</think>");
+    let is_thinking = reasoning.is_some() || has_think_tags;
+
+    if crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+        info!(
+            "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
+            model,
+            content.len(),
+            is_thinking,
+            reasoning.map(|r| r.len()).unwrap_or(0)
+        );
+        preview_multiline("ResponseContentRaw", &content);
+        if let Some(reasoning_text) = reasoning {
+            preview_multiline("ResponseReasoning", reasoning_text);
+        }
+    }
+
+    let text = if provider.supports_structured_output {
+        match serde_json::from_str::<serde_json::Value>(&content) {
+            Ok(json) => {
+                if let Some(t) = json.get(TRANSCRIPTION_FIELD).and_then(|v| v.as_str()) {
+                    info!(
+                        "[LLM] Structured output extracted '{}' field ({} chars)",
+                        TRANSCRIPTION_FIELD,
+                        t.len()
+                    );
+                    t.to_string()
+                } else {
+                    log::warn!(
+                        "[LLM] Structured output missing '{}' field, falling back to text extraction",
+                        TRANSCRIPTION_FIELD
+                    );
+                    extract_llm_text(&content)
+                }
+            }
+            Err(_) => {
+                log::warn!(
+                    "[LLM] Structured output JSON parse failed, falling back to text extraction"
+                );
+                extract_llm_text(&content)
+            }
+        }
+    } else {
+        extract_llm_text(&content)
+    };
+
+    if text != content && crate::DEBUG_LOG_POST_PROCESS.load(std::sync::atomic::Ordering::Relaxed) {
+        preview_multiline("ResponseText", &text);
+    }
+
+    let token_count = json_resp
+        .get("usage")
+        .and_then(|u| u.get("total_tokens"))
+        .and_then(|t| t.as_i64());
+    Ok(LlmResponse { text, token_count })
+}
+
 pub(crate) fn classify_http_status_for_failover(
     status: u16,
     detail: impl Into<String>,
@@ -202,12 +412,13 @@ fn llm_error_to_attempt_error(error: &LlmError) -> crate::provider_gateway::Atte
             detail: detail.clone(),
             kind: crate::provider_gateway::AttemptErrorKind::Network,
         },
-        LlmError::ClientInit { detail, .. }
-        | LlmError::AppleIntelligence { detail } => crate::provider_gateway::AttemptError::Fatal {
-            status: None,
-            detail: detail.clone(),
-            kind: crate::provider_gateway::AttemptErrorKind::ClientInit,
-        },
+        LlmError::ClientInit { detail, .. } | LlmError::AppleIntelligence { detail } => {
+            crate::provider_gateway::AttemptError::Fatal {
+                status: None,
+                detail: detail.clone(),
+                kind: crate::provider_gateway::AttemptErrorKind::ClientInit,
+            }
+        }
         LlmError::ParseError { detail, .. } => crate::provider_gateway::AttemptError::Fatal {
             status: None,
             detail: detail.clone(),
@@ -758,6 +969,34 @@ async fn execute_llm_request_inner(
         }
     }
 
+    // Pre-strip params known to be unsupported by this (provider, model) —
+    // learned from prior HTTP 400 responses. Keeps us from repeatedly
+    // triggering the self-heal path.
+    let unsupported_mgr = _app_handle
+        .try_state::<crate::managers::unsupported_params::UnsupportedParamsManager>()
+        .map(|s| s.inner().clone());
+    if let Some(ref mgr) = unsupported_mgr {
+        let known = mgr.get(&provider.id, model);
+        if !known.is_empty() {
+            if let Some(obj) = body.as_object_mut() {
+                let mut stripped: Vec<String> = Vec::new();
+                for p in &known {
+                    if obj.remove(p).is_some() {
+                        stripped.push(p.clone());
+                    }
+                }
+                if !stripped.is_empty() {
+                    log::debug!(
+                        "[LLM] Pre-stripped known-unsupported params for provider={} model={}: {:?}",
+                        provider.id,
+                        model,
+                        stripped
+                    );
+                }
+            }
+        }
+    }
+
     // Log request summary with actual parameter values
     let param_snapshot: std::collections::HashMap<&str, &serde_json::Value> = body
         .as_object()
@@ -867,6 +1106,7 @@ async fn execute_llm_request_inner(
             let body = body.clone();
             let base_headers = base_headers.clone();
             let effective_proxy = effective_proxy.clone();
+            let unsupported_mgr = unsupported_mgr.clone();
 
             move |api_key| {
                 let api_key = api_key.to_string();
@@ -876,6 +1116,7 @@ async fn execute_llm_request_inner(
                 let body = body.clone();
                 let mut headers = base_headers.clone();
                 let effective_proxy = effective_proxy.clone();
+                let unsupported_mgr = unsupported_mgr.clone();
 
                 async move {
                     match crate::llm_client::create_client(
@@ -916,132 +1157,82 @@ async fn execute_llm_request_inner(
                         }
                     };
 
-                    match http_client.post(&url).json(&body).send().await {
-                        Ok(resp) => {
-                            if !resp.status().is_success() {
-                                let status = resp.status();
-                                let error_text = resp.text().await.unwrap_or_default();
-                                return Err(classify_http_status_for_failover(
-                                    status.as_u16(),
-                                    error_text,
-                                ));
-                            }
+                    // Self-heal loop: on HTTP 400 with an extractable "unsupported
+                    // parameter" error, drop that key from the body, record it so
+                    // future requests pre-strip it, and retry once. Bounded at 3
+                    // iterations to avoid pathological back-and-forth.
+                    const MAX_SELF_HEAL_ATTEMPTS: u8 = 3;
+                    let mut current_body = body;
+                    let mut self_heal_attempts: u8 = 0;
 
-                            match resp.json::<serde_json::Value>().await {
-                                Ok(json_resp) => {
-                                    if crate::DEBUG_LOG_POST_PROCESS
-                                        .load(std::sync::atomic::Ordering::Relaxed)
-                                        && log::log_enabled!(log::Level::Debug)
-                                    {
-                                        if let Ok(pretty_resp) =
-                                            serde_json::to_string_pretty(&json_resp)
-                                        {
-                                            log::debug!(
-                                                "[LLM] ResponseBody (len={}):\n{}",
-                                                pretty_resp.len(),
-                                                pretty_resp
+                    loop {
+                        let send_res =
+                            http_client.post(&url).json(&current_body).send().await;
+                        let resp = match send_res {
+                            Ok(r) => r,
+                            Err(err) => {
+                                let error = LlmError::Network {
+                                    provider: provider.id.clone(),
+                                    model: model.clone(),
+                                    url: url.clone(),
+                                    detail: format!("{:?}", err),
+                                };
+                                return Err(llm_error_to_attempt_error(&error));
+                            }
+                        };
+
+                        if resp.status().is_success() {
+                            return parse_successful_chat_response(resp, &provider, &model)
+                                .await
+                                .map_err(|e| llm_error_to_attempt_error(&e));
+                        }
+
+                        let status_u16 = resp.status().as_u16();
+                        let error_text = resp.text().await.unwrap_or_default();
+
+                        if status_u16 == 400
+                            && self_heal_attempts < MAX_SELF_HEAL_ATTEMPTS
+                        {
+                            if let Some(param_name) = extract_unsupported_param(&error_text) {
+                                let removed = current_body
+                                    .as_object_mut()
+                                    .map(|obj| obj.remove(&param_name).is_some())
+                                    .unwrap_or(false);
+
+                                if removed {
+                                    log::warn!(
+                                        "[LLM] Provider '{}' rejected param '{}' for model '{}' — stripping and retrying (attempt {}/{})",
+                                        provider.id,
+                                        param_name,
+                                        model,
+                                        self_heal_attempts + 1,
+                                        MAX_SELF_HEAL_ATTEMPTS
+                                    );
+                                    if let Some(ref mgr) = unsupported_mgr {
+                                        let newly = mgr.mark(
+                                            &provider.id,
+                                            &model,
+                                            &param_name,
+                                        );
+                                        if newly {
+                                            log::info!(
+                                                "[LLM] Recorded unsupported param '{}' for {}/{}",
+                                                param_name,
+                                                provider.id,
+                                                model
                                             );
                                         }
                                     }
-
-                                    let raw_content = &json_resp["choices"][0]["message"]["content"];
-                                    let content = raw_content
-                                        .as_str()
-                                        .unwrap_or_default()
-                                        .replace('\u{200B}', "")
-                                        .replace('\u{200C}', "")
-                                        .replace('\u{200D}', "")
-                                        .replace('\u{FEFF}', "");
-
-                                    let message_obj = &json_resp["choices"][0]["message"];
-                                    let reasoning = message_obj["reasoning_content"]
-                                        .as_str()
-                                        .or_else(|| message_obj["reasoning"].as_str())
-                                        .or_else(|| message_obj["thinking"].as_str());
-                                    let has_think_tags =
-                                        content.contains("<think>") || content.contains("</think>");
-                                    let is_thinking = reasoning.is_some() || has_think_tags;
-
-                                    if crate::DEBUG_LOG_POST_PROCESS
-                                        .load(std::sync::atomic::Ordering::Relaxed)
-                                    {
-                                        info!(
-                                            "[LLM] Response: model={} content_len={} thinking={} reasoning_len={}",
-                                            model,
-                                            content.len(),
-                                            is_thinking,
-                                            reasoning.map(|r| r.len()).unwrap_or(0)
-                                        );
-                                        preview_multiline("ResponseContentRaw", &content);
-                                        if let Some(reasoning_text) = reasoning {
-                                            preview_multiline("ResponseReasoning", reasoning_text);
-                                        }
-                                    }
-
-                                    let text = if provider.supports_structured_output {
-                                        match serde_json::from_str::<serde_json::Value>(&content) {
-                                            Ok(json) => {
-                                                if let Some(t) = json
-                                                    .get(TRANSCRIPTION_FIELD)
-                                                    .and_then(|v| v.as_str())
-                                                {
-                                                    info!(
-                                                        "[LLM] Structured output extracted '{}' field ({} chars)",
-                                                        TRANSCRIPTION_FIELD,
-                                                        t.len()
-                                                    );
-                                                    t.to_string()
-                                                } else {
-                                                    log::warn!(
-                                                        "[LLM] Structured output missing '{}' field, falling back to text extraction",
-                                                        TRANSCRIPTION_FIELD
-                                                    );
-                                                    extract_llm_text(&content)
-                                                }
-                                            }
-                                            Err(_) => {
-                                                log::warn!(
-                                                    "[LLM] Structured output JSON parse failed, falling back to text extraction"
-                                                );
-                                                extract_llm_text(&content)
-                                            }
-                                        }
-                                    } else {
-                                        extract_llm_text(&content)
-                                    };
-
-                                    if text != content
-                                        && crate::DEBUG_LOG_POST_PROCESS
-                                            .load(std::sync::atomic::Ordering::Relaxed)
-                                    {
-                                        preview_multiline("ResponseText", &text);
-                                    }
-
-                                    let token_count = json_resp
-                                        .get("usage")
-                                        .and_then(|u| u.get("total_tokens"))
-                                        .and_then(|t| t.as_i64());
-                                    Ok(LlmResponse { text, token_count })
-                                }
-                                Err(e) => {
-                                    let error = LlmError::ParseError {
-                                        provider: provider.id.clone(),
-                                        model: model.clone(),
-                                        detail: format!("{:?}", e),
-                                    };
-                                    Err(llm_error_to_attempt_error(&error))
+                                    self_heal_attempts += 1;
+                                    continue;
                                 }
                             }
                         }
-                        Err(err) => {
-                            let error = LlmError::Network {
-                                provider: provider.id.clone(),
-                                model: model.clone(),
-                                url: url.clone(),
-                                detail: format!("{:?}", err),
-                            };
-                            Err(llm_error_to_attempt_error(&error))
-                        }
+
+                        return Err(classify_http_status_for_failover(
+                            status_u16,
+                            error_text,
+                        ));
                     }
                 }
             }
@@ -1054,11 +1245,18 @@ async fn execute_llm_request_inner(
         crate::provider_gateway::ExecutionOutcome::Fatal {
             provider_id,
             detail,
-        } => Err(LlmError::ClientInit {
-            provider: provider_id,
-            model: model.to_string(),
-            detail,
-        }),
+            status,
+            kind,
+        } => Err(attempt_error_to_llm_error(
+            provider_id,
+            model,
+            &url,
+            crate::provider_gateway::AttemptError::Fatal {
+                status,
+                detail,
+                kind,
+            },
+        )),
         crate::provider_gateway::ExecutionOutcome::Exhausted {
             provider_id,
             last_error: attempt_error,
@@ -1086,6 +1284,78 @@ pub async fn execute_llm_request_with_messages(
     _match_pattern: Option<String>,
     _match_type: Option<crate::settings::TitleMatchType>,
     override_extra_params: Option<&HashMap<String, serde_json::Value>>,
+) -> (Option<String>, bool, Option<String>, Option<i64>) {
+    execute_llm_request_with_messages_impl(
+        app_handle,
+        settings,
+        provider,
+        model,
+        cached_model_id,
+        system_prompts,
+        user_message,
+        conversation_history,
+        _app_name,
+        _window_title,
+        _match_pattern,
+        _match_type,
+        override_extra_params,
+        true,
+    )
+    .await
+}
+
+/// Same as `execute_llm_request_with_messages` but never emits the `overlay-error`
+/// event on failure. Use when the caller plans to retry/fallback and only wants
+/// the user-visible overlay to fire if every attempt fails.
+pub async fn execute_llm_request_with_messages_silent(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    cached_model_id: Option<&str>,
+    system_prompts: &[String],
+    user_message: Option<&str>,
+    conversation_history: Option<&[crate::review_window::RewriteMessage]>,
+    _app_name: Option<String>,
+    _window_title: Option<String>,
+    _match_pattern: Option<String>,
+    _match_type: Option<crate::settings::TitleMatchType>,
+    override_extra_params: Option<&HashMap<String, serde_json::Value>>,
+) -> (Option<String>, bool, Option<String>, Option<i64>) {
+    execute_llm_request_with_messages_impl(
+        app_handle,
+        settings,
+        provider,
+        model,
+        cached_model_id,
+        system_prompts,
+        user_message,
+        conversation_history,
+        _app_name,
+        _window_title,
+        _match_pattern,
+        _match_type,
+        override_extra_params,
+        false,
+    )
+    .await
+}
+
+async fn execute_llm_request_with_messages_impl(
+    app_handle: &AppHandle,
+    settings: &AppSettings,
+    provider: &PostProcessProvider,
+    model: &str,
+    cached_model_id: Option<&str>,
+    system_prompts: &[String],
+    user_message: Option<&str>,
+    conversation_history: Option<&[crate::review_window::RewriteMessage]>,
+    _app_name: Option<String>,
+    _window_title: Option<String>,
+    _match_pattern: Option<String>,
+    _match_type: Option<crate::settings::TitleMatchType>,
+    override_extra_params: Option<&HashMap<String, serde_json::Value>>,
+    emit_overlay: bool,
 ) -> (Option<String>, bool, Option<String>, Option<i64>) {
     let inner_future = execute_llm_request_inner(
         app_handle,
@@ -1123,7 +1393,9 @@ pub async fn execute_llm_request_with_messages(
 
     if let Err(ref e) = result {
         log::error!("LLM request failed: {}", e);
-        emit_llm_error(app_handle, e);
+        if emit_overlay {
+            emit_llm_error(app_handle, e);
+        }
     }
 
     llm_result_to_legacy(result)

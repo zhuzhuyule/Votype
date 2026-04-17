@@ -12,6 +12,23 @@ import {
   TextField,
 } from "@radix-ui/themes";
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   IconCheck,
   IconExternalLink,
   IconEye,
@@ -23,6 +40,7 @@ import {
   IconSearch,
   IconTrash,
   IconUpload,
+  IconGripVertical,
   IconX,
 } from "@tabler/icons-react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
@@ -40,6 +58,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { useSettings } from "../../../hooks/useSettings";
+import type { ProviderTabsLayout } from "../../../lib/providerTabsLayout";
 import { buildProviderTabsLayout } from "../../../lib/providerTabsLayout";
 import type { KeyEntry } from "../../../lib/types";
 import { Card } from "../../ui/Card";
@@ -228,6 +247,84 @@ const ProviderAvatar: React.FC<{
         {fallbackMark}
       </span>
     </Box>
+  );
+};
+
+const SortableProviderTab: React.FC<{
+  option: { value: string; label: React.ReactNode };
+  isSelected: boolean;
+  isDraggingGhost?: boolean;
+  provider?: { id: string; base_url: string } | undefined;
+  avatarRefreshToken: number;
+  avatarOverride: string | null;
+  onClick: () => void;
+}> = ({
+  option,
+  isSelected,
+  isDraggingGhost = false,
+  provider,
+  avatarRefreshToken,
+  avatarOverride,
+  onClick,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: option.value });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : undefined,
+    opacity: isDragging || isDraggingGhost ? 0.65 : undefined,
+  };
+
+  return (
+    <Button
+      ref={setNodeRef}
+      type="button"
+      size="1"
+      variant="outline"
+      onClick={onClick}
+      style={style}
+      className={`group ${PROVIDER_TAB_BUTTON_CLASS} ${
+        isSelected
+          ? "border-(--accent-a5)! bg-(--accent-a4)! text-(--accent-11)! shadow-[inset_0_0_0_1px_var(--accent-a4)]"
+          : ""
+      } ${isDragging ? "shadow-sm" : ""}`}
+    >
+      <Box
+        className="relative h-5.5 w-5.5 shrink-0 overflow-hidden rounded-md"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <Box className="absolute inset-0">
+          <ProviderAvatar
+            providerId={option.value}
+            baseUrl={provider?.base_url ?? ""}
+            label={getOptionLabelText(option.label)}
+            compact
+            refreshToken={avatarRefreshToken}
+            overrideValue={avatarOverride}
+          />
+        </Box>
+        <Box
+          {...attributes}
+          {...listeners}
+          className="absolute inset-0 z-10 flex items-center justify-center text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 cursor-grab active:cursor-grabbing"
+        >
+          <Box className="rounded-sm bg-black/45 p-[2px]">
+            <IconGripVertical size={14} strokeWidth={1.8} />
+          </Box>
+        </Box>
+      </Box>
+      <Text size="1" className="whitespace-nowrap">
+        {option.label}
+      </Text>
+    </Button>
   );
 };
 
@@ -767,9 +864,6 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   const [avatarRefreshToken, setAvatarRefreshToken] = useState(0);
   const [avatarUrlInput, setAvatarUrlInput] = useState("");
   const [avatarSearch, setAvatarSearch] = useState("");
-  const [draggingProviderId, setDraggingProviderId] = useState<string | null>(
-    null,
-  );
 
   const selectedProviderLabel = state.selectedProvider?.label ?? "";
 
@@ -1071,16 +1165,42 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     [reorderPostProcessProviders, settings?.post_process_providers],
   );
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleProviderDragEnd = useCallback(
+    async ({ active, over }: DragEndEvent) => {
+      if (!over || active.id === over.id) return;
+      await reorderProviderTabs(String(active.id), String(over.id));
+    },
+    [reorderProviderTabs],
+  );
+
   const tabsRailRef = useRef<HTMLDivElement | null>(null);
   const moreMeasureRef = useRef<HTMLButtonElement | null>(null);
   const tabMeasureRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [tabsRailWidth, setTabsRailWidth] = useState(0);
   const [tabWidths, setTabWidths] = useState<Record<string, number>>({});
   const [moreWidth, setMoreWidth] = useState(PROVIDER_MORE_FALLBACK_WIDTH);
+  const [providerTabsLayout, setProviderTabsLayout] =
+    useState<ProviderTabsLayout>({
+      visible: sortedOptions.map((option) => ({
+        value: option.value,
+        label: getOptionLabelText(option.label),
+      })),
+      overflow: [],
+    });
 
   useLayoutEffect(() => {
     const measure = () => {
-      setTabsRailWidth(tabsRailRef.current?.getBoundingClientRect().width ?? 0);
+      const nextRailWidth =
+        tabsRailRef.current?.getBoundingClientRect().width ?? 0;
 
       const nextWidths: Record<string, number> = {};
       for (const option of sortedOptions) {
@@ -1089,10 +1209,28 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
           0;
         nextWidths[option.value] = width + PROVIDER_TAB_GAP;
       }
-      setTabWidths(nextWidths);
-      setMoreWidth(
+      const nextMoreWidth =
         (moreMeasureRef.current?.getBoundingClientRect().width ??
-          PROVIDER_MORE_FALLBACK_WIDTH) + PROVIDER_TAB_GAP,
+          PROVIDER_MORE_FALLBACK_WIDTH) + PROVIDER_TAB_GAP;
+
+      setTabsRailWidth((prev) =>
+        Math.abs(prev - nextRailWidth) < 0.5 ? prev : nextRailWidth,
+      );
+      setTabWidths((prev) => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(nextWidths);
+        const sameShape =
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((key) => key in prev);
+        const sameValues =
+          sameShape &&
+          nextKeys.every(
+            (key) => Math.abs((prev[key] ?? 0) - nextWidths[key]) < 0.5,
+          );
+        return sameValues ? prev : nextWidths;
+      });
+      setMoreWidth((prev) =>
+        Math.abs(prev - nextMoreWidth) < 0.5 ? prev : nextMoreWidth,
       );
     };
 
@@ -1112,26 +1250,60 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     return () => observer.disconnect();
   }, [sortedOptions, avatarRefreshToken]);
 
-  const { visible: visibleTabs, overflow: overflowTabs } = useMemo(
+  const measuredTabOptions = useMemo(
     () =>
-      buildProviderTabsLayout(
-        sortedOptions.map((option) => ({
-          value: option.value,
-          label: getOptionLabelText(option.label),
-        })),
-        state.selectedProviderId,
-        tabWidths,
-        tabsRailWidth,
-        moreWidth,
-      ),
-    [
-      moreWidth,
-      sortedOptions,
+      sortedOptions.map((option) => ({
+        value: option.value,
+        label: getOptionLabelText(option.label),
+      })),
+    [sortedOptions],
+  );
+
+  useEffect(() => {
+    const allTabsMeasured =
+      tabsRailWidth > 0 &&
+      moreWidth > 0 &&
+      measuredTabOptions.every((option) => (tabWidths[option.value] ?? 0) > 0);
+
+    if (!allTabsMeasured) {
+      setProviderTabsLayout((prev) =>
+        prev.visible.length > 0 || prev.overflow.length > 0
+          ? prev
+          : { visible: measuredTabOptions, overflow: [] },
+      );
+      return;
+    }
+
+    const nextLayout = buildProviderTabsLayout(
+      measuredTabOptions,
       state.selectedProviderId,
       tabWidths,
       tabsRailWidth,
-    ],
-  );
+      moreWidth,
+    );
+
+    setProviderTabsLayout((prev) => {
+      const sameVisible =
+        prev.visible.length === nextLayout.visible.length &&
+        prev.visible.every(
+          (option, index) => option.value === nextLayout.visible[index]?.value,
+        );
+      const sameOverflow =
+        prev.overflow.length === nextLayout.overflow.length &&
+        prev.overflow.every(
+          (option, index) => option.value === nextLayout.overflow[index]?.value,
+        );
+      return sameVisible && sameOverflow ? prev : nextLayout;
+    });
+  }, [
+    measuredTabOptions,
+    moreWidth,
+    state.selectedProviderId,
+    tabWidths,
+    tabsRailWidth,
+  ]);
+
+  const { visible: visibleTabs, overflow: overflowTabs } = providerTabsLayout;
 
   return (
     <Card className="p-0! overflow-hidden">
@@ -1147,125 +1319,110 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
               {t("settings.postProcessing.api.provider.title")}
             </Text>
             <Box ref={tabsRailRef} className="min-w-0 flex-1">
-              <Flex
-                align="center"
-                gap="1"
-                wrap="nowrap"
-                className="min-w-0 overflow-hidden"
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => void handleProviderDragEnd(event)}
               >
-                {visibleTabs.map((option) => {
-                  const isSelected = state.selectedProviderId === option.value;
-                  const provider = state.providers.find(
-                    (item) => item.id === option.value,
-                  );
-                  return (
-                    <Button
-                      key={option.value}
-                      type="button"
-                      size="1"
-                      variant={"outline"}
-                      draggable
-                      onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData("text/plain", option.value);
-                        setDraggingProviderId(option.value);
-                      }}
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        const fromProviderId =
-                          event.dataTransfer.getData("text/plain") ||
-                          draggingProviderId;
-                        if (!fromProviderId) return;
-                        void reorderProviderTabs(fromProviderId, option.value);
-                        setDraggingProviderId(null);
-                      }}
-                      onDragEnd={() => setDraggingProviderId(null)}
-                      onClick={() => state.handleProviderSelect(option.value)}
-                      className={`${PROVIDER_TAB_BUTTON_CLASS} ${isSelected ? "bg-white!" : ""} ${draggingProviderId === option.value ? "opacity-65" : ""}`}
-                    >
-                      <ProviderAvatar
-                        providerId={option.value}
-                        baseUrl={provider?.base_url ?? ""}
-                        label={getOptionLabelText(option.label)}
-                        compact
-                        refreshToken={avatarRefreshToken}
-                        overrideValue={
-                          settings?.post_process_provider_avatar_overrides?.[
-                            option.value
-                          ] ?? null
-                        }
-                      />
-                      <Text size="1" className="whitespace-nowrap">
-                        {option.label}
-                      </Text>
-                    </Button>
-                  );
-                })}
+                <SortableContext
+                  items={visibleTabs.map((option) => option.value)}
+                  strategy={horizontalListSortingStrategy}
+                >
+                  <Flex
+                    align="center"
+                    gap="6px"
+                    wrap="nowrap"
+                    className="min-w-0 overflow-hidden"
+                  >
+                    {visibleTabs.map((option) => {
+                      const provider = state.providers.find(
+                        (item) => item.id === option.value,
+                      );
+                      return (
+                        <SortableProviderTab
+                          key={option.value}
+                          option={option}
+                          isSelected={state.selectedProviderId === option.value}
+                          provider={provider}
+                          avatarRefreshToken={avatarRefreshToken}
+                          avatarOverride={
+                            settings?.post_process_provider_avatar_overrides?.[
+                              option.value
+                            ] ?? null
+                          }
+                          onClick={() =>
+                            state.handleProviderSelect(option.value)
+                          }
+                        />
+                      );
+                    })}
 
-                {overflowTabs.length > 0 && (
-                  <Popover.Root>
-                    <Popover.Trigger>
-                      <Button
-                        type="button"
-                        size="1"
-                        variant="outline"
-                        color="gray"
-                        className={PROVIDER_TAB_BUTTON_CLASS}
-                      >
-                        <Text size="1">更多</Text>
-                        <Text size="1" color="gray" className="tabular-nums">
-                          {overflowTabs.length}
-                        </Text>
-                      </Button>
-                    </Popover.Trigger>
-                    <Popover.Content size="1" side="bottom" align="start">
-                      <Flex
-                        direction="column"
-                        gap="1"
-                        className="min-w-[220px]"
-                      >
-                        {overflowTabs.map((option) => {
-                          const provider = state.providers.find(
-                            (item) => item.id === option.value,
-                          );
-                          return (
-                            <Popover.Close key={option.value}>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  state.handleProviderSelect(option.value)
-                                }
-                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-(--gray-a2)"
-                              >
-                                <ProviderAvatar
-                                  providerId={option.value}
-                                  baseUrl={provider?.base_url ?? ""}
-                                  label={getOptionLabelText(option.label)}
-                                  compact
-                                  refreshToken={avatarRefreshToken}
-                                  overrideValue={
-                                    settings
-                                      ?.post_process_provider_avatar_overrides?.[
-                                      option.value
-                                    ] ?? null
-                                  }
-                                />
-                                <Text size="2" className="truncate">
-                                  {option.label}
-                                </Text>
-                              </button>
-                            </Popover.Close>
-                          );
-                        })}
-                      </Flex>
-                    </Popover.Content>
-                  </Popover.Root>
-                )}
-              </Flex>
+                    {overflowTabs.length > 0 && (
+                      <Popover.Root>
+                        <Popover.Trigger>
+                          <Button
+                            type="button"
+                            size="1"
+                            variant="outline"
+                            color="gray"
+                            className={PROVIDER_TAB_BUTTON_CLASS}
+                          >
+                            <Text size="1">更多</Text>
+                            <Text
+                              size="1"
+                              color="gray"
+                              className="tabular-nums"
+                            >
+                              {overflowTabs.length}
+                            </Text>
+                          </Button>
+                        </Popover.Trigger>
+                        <Popover.Content size="1" side="bottom" align="start">
+                          <Flex
+                            direction="column"
+                            gap="1"
+                            className="min-w-[220px]"
+                          >
+                            {overflowTabs.map((option) => {
+                              const provider = state.providers.find(
+                                (item) => item.id === option.value,
+                              );
+                              return (
+                                <Popover.Close key={option.value}>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      state.handleProviderSelect(option.value)
+                                    }
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-(--gray-a2)"
+                                  >
+                                    <ProviderAvatar
+                                      providerId={option.value}
+                                      baseUrl={provider?.base_url ?? ""}
+                                      label={getOptionLabelText(option.label)}
+                                      compact
+                                      refreshToken={avatarRefreshToken}
+                                      overrideValue={
+                                        settings
+                                          ?.post_process_provider_avatar_overrides?.[
+                                          option.value
+                                        ] ?? null
+                                      }
+                                    />
+                                    <Text size="2" className="truncate">
+                                      {option.label}
+                                    </Text>
+                                  </button>
+                                </Popover.Close>
+                              );
+                            })}
+                          </Flex>
+                        </Popover.Content>
+                      </Popover.Root>
+                    )}
+                  </Flex>
+                </SortableContext>
+              </DndContext>
             </Box>
           </Flex>
           <Dialog.Root

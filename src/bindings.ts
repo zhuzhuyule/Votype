@@ -105,6 +105,30 @@ async changeOpenaiCompatibleApiAccessKeySetting(accessKey: string) : Promise<Res
     else return { status: "error", error: e  as any };
 }
 },
+async changeOpenaiCompatibleApiAllowLanSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_openai_compatible_api_allow_lan_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeOpenaiCompatibleApiPortSetting(port: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_openai_compatible_api_port_setting", { port }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeOpenaiCompatibleApiBasePathSetting(basePath: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_openai_compatible_api_base_path_setting", { basePath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changePostProcessBaseUrlSetting(providerId: string, baseUrl: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_post_process_base_url_setting", { providerId, baseUrl }) };
@@ -770,13 +794,30 @@ async setMultiModelPreferredId(id: string | null) : Promise<Result<null, string>
     else return { status: "error", error: e  as any };
 }
 },
-async confirmReviewedTranscription(text: string, historyId: number | null, cachedModelId: string | null, learnFromEdit: boolean, originalTextForLearning: string | null) : Promise<Result<null, string>> {
+async confirmReviewedTranscription(text: string, historyId: number | null, cachedModelId: string | null, learnFromEdit: boolean, originalTextForLearning: string | null, translatedTextForInsert: string | null, translationSourceText: string | null, insertTarget: ReviewInsertTarget | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("confirm_reviewed_transcription", { text, historyId, cachedModelId, learnFromEdit, originalTextForLearning }) };
+    return { status: "ok", data: await TAURI_INVOKE("confirm_reviewed_transcription", { text, historyId, cachedModelId, learnFromEdit, originalTextForLearning, translatedTextForInsert, translationSourceText, insertTarget }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async showReviewTranslationOverlay() : Promise<void> {
+    await TAURI_INVOKE("show_review_translation_overlay");
+},
+/**
+ * Show the translation overlay immediately from the frontend, ahead of the
+ * async `confirm_reviewed_transcription` round-trip. This avoids the brief
+ * "blank" window the user otherwise sees between pressing Cmd+Enter and the
+ * overlay finally appearing.
+ * Forward a log line from any webview into the unified Rust log so we can
+ * read the entire event timeline in one place when tracing issues.
+ */
+async logFromFrontend(source: string, message: string) : Promise<void> {
+    await TAURI_INVOKE("log_from_frontend", { source, message });
+},
+async getReviewTranslationSettings() : Promise<ReviewTranslationSettingsResponse> {
+    return await TAURI_INVOKE("get_review_translation_settings");
 },
 async cancelTranscriptionReview(text: string | null, historyId: number | null) : Promise<Result<null, string>> {
     try {
@@ -1089,7 +1130,7 @@ async deleteSkillReference(skillId: string, filename: string) : Promise<Result<n
 
 /** user-defined types **/
 
-export type AppProfile = { id: string; name: string; policy: AppReviewPolicy; prompt_id: string | null; icon: string | null; 
+export type AppProfile = { id: string; name: string; policy: AppReviewPolicy; prompt_id: string | null; icon: string | null; translate_to_english_on_insert?: boolean; disable_selection_clipboard_fallback?: boolean; 
 /**
  * Title-based sub-rules for this app group
  */
@@ -1210,12 +1251,14 @@ export type PromptInfo = { id: string; name: string }
 export type PromptListResponse = { prompts: PromptInfo[]; selected_id: string | null }
 export type PromptMessageRole = "system" | "developer"
 export type RerunSingleResult = { text: string | null; error: string | null; model: string | null }
+export type ReviewInsertTarget = "english" | "polished" | "asr_original"
 export type ReviewModelOption = { id: string; label: string; model_id: string; provider_id: string }
 export type ReviewModelOptionsResponse = { models: ReviewModelOption[]; 
 /**
  * The cached_model.id of the current default model (resolved from settings)
  */
 default_model_id: string | null }
+export type ReviewTranslationSettingsResponse = { enabled: boolean }
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
 export type Skill = { id: string; name: string; 
 /**

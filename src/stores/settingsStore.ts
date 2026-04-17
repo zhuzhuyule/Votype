@@ -110,10 +110,7 @@ interface SettingsStore {
     url: string | null,
     globalEnabled: boolean,
   ) => Promise<void>;
-  setProviderUseProxy: (
-    providerId: string,
-    useProxy: boolean,
-  ) => Promise<void>;
+  setProviderUseProxy: (providerId: string, useProxy: boolean) => Promise<void>;
 
   // Internal state setters
   setSettings: (settings: Settings | null) => void;
@@ -167,10 +164,13 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   post_process_use_local_candidate_when_online_asr: false,
   post_process_secondary_model_id: null,
   post_process_intent_model: null,
+  post_process_translation_model: null,
   app_review_policies: {},
   openai_compatible_api_enabled: true,
   openai_compatible_api_host: "127.0.0.1",
   openai_compatible_api_port: 33178,
+  openai_compatible_api_allow_lan: false,
+  openai_compatible_api_base_path: "/v1",
   openai_compatible_api_access_key: "",
   expert_mode: false,
 };
@@ -284,6 +284,16 @@ const settingUpdaters: {
     invoke("change_openai_compatible_api_access_key_setting", {
       accessKey: value,
     }),
+  openai_compatible_api_allow_lan: (value) =>
+    invoke("change_openai_compatible_api_allow_lan_setting", {
+      enabled: value,
+    }),
+  openai_compatible_api_port: (value) =>
+    invoke("change_openai_compatible_api_port_setting", { port: value }),
+  openai_compatible_api_base_path: (value) =>
+    invoke("change_openai_compatible_api_base_path_setting", {
+      basePath: value,
+    }),
   post_process_use_secondary_output: (value) =>
     invoke("change_post_process_use_secondary_output_setting", {
       enabled: value,
@@ -299,6 +309,11 @@ const settingUpdaters: {
   post_process_intent_model: (value) =>
     invoke("update_model_chain", {
       field: "post_process_intent_model",
+      chain: value,
+    }),
+  post_process_translation_model: (value) =>
+    invoke("update_model_chain", {
+      field: "post_process_translation_model",
       chain: value,
     }),
   multi_model_post_process_enabled: (value) =>
@@ -869,7 +884,9 @@ export const useSettingsStore = create<SettingsStore>()(
       const updateKey = "reorder_post_process_providers";
       const { settings, setUpdating, refreshSettings } = get();
       const originalProviders = settings?.post_process_providers ?? [];
-      const providerMap = new Map(originalProviders.map((provider) => [provider.id, provider]));
+      const providerMap = new Map(
+        originalProviders.map((provider) => [provider.id, provider]),
+      );
       const reorderedProviders = providerIds
         .map((providerId) => providerMap.get(providerId))
         .filter((provider): provider is PostProcessProvider => !!provider);

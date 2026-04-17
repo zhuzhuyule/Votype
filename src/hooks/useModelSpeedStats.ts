@@ -7,6 +7,7 @@ export interface ModelSpeedStats {
   call_type: string;
   avg_speed: number;
   total_calls: number;
+  total_errors: number;
 }
 
 export function useModelSpeedStats() {
@@ -46,13 +47,17 @@ export function useModelSpeedStats() {
       if (matched.length === 0) return null;
 
       const totalCalls = matched.reduce((sum, s) => sum + s.total_calls, 0);
+      const totalErrors = matched.reduce(
+        (sum, s) => sum + (s.total_errors ?? 0),
+        0,
+      );
       const weightedSpeed = matched.reduce(
         (sum, s) => sum + s.avg_speed * s.total_calls,
         0,
       );
       const avgSpeed = totalCalls > 0 ? weightedSpeed / totalCalls : 0;
 
-      return { totalCalls, avgSpeed };
+      return { totalCalls, totalErrors, avgSpeed };
     },
     [getStatsForModel],
   );

@@ -64,6 +64,7 @@ pub struct ModelSpeedStats {
     pub call_type: String,
     pub avg_speed: f64,
     pub total_calls: i64,
+    pub total_errors: i64,
 }
 
 /// Aggregated LLM usage stats for dashboard display.
@@ -225,7 +226,7 @@ impl LlmMetricsManager {
     pub fn get_all_model_speed_stats(&self) -> Result<Vec<ModelSpeedStats>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(
-            "SELECT model_id, provider, call_type, avg_speed, total_calls FROM llm_call_stats WHERE total_calls > 0",
+            "SELECT model_id, provider, call_type, avg_speed, total_calls, total_errors FROM llm_call_stats WHERE total_calls > 0",
         )?;
         let results = stmt
             .query_map([], |row| {
@@ -235,6 +236,7 @@ impl LlmMetricsManager {
                     call_type: row.get(2)?,
                     avg_speed: row.get(3)?,
                     total_calls: row.get(4)?,
+                    total_errors: row.get(5)?,
                 })
             })?
             .filter_map(|r| r.ok())

@@ -12,6 +12,7 @@ pub mod prompt;
 pub mod skill;
 pub mod summary;
 pub mod transcription;
+pub mod unsupported_params;
 pub mod vocabulary;
 
 pub mod free_models;

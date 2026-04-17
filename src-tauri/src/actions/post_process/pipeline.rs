@@ -1757,6 +1757,8 @@ pub async fn maybe_post_process_transcription(
                                     window_title: window_title.clone(),
                                     history_id,
                                     process_id: active_pid,
+                                    active_window: None,
+                                    app_review_policy: None,
                                     polish_result: polish_text.clone(), // May be None if parallel polish failed!
                                     input_source: route_response.input_source.clone(),
                                     extracted_content: route_response.extracted_content.clone(),
@@ -2119,9 +2121,41 @@ pub async fn maybe_post_process_transcription(
         let captured_model_id = model.clone();
         let captured_provider_id = actual_provider.id.clone();
 
+        // Decide up front whether a fallback model is available, so we can
+        // suppress the primary attempt's overlay-error when we plan to retry.
+        let fallback_chain = prompt
+            .model_id
+            .as_ref()
+            .and_then(|id| {
+                // Prompt-level model IDs don't have chains; fall through to selected_prompt_model
+                let _ = id;
+                None::<&crate::fallback::ModelChain>
+            })
+            .or(settings.selected_prompt_model.as_ref());
+        let fallback_id_opt: Option<String> =
+            fallback_chain.and_then(|c| c.fallback_id.as_ref()).cloned();
+        let has_fallback = fallback_id_opt.is_some();
+
         // Each LLM call is protected by a 10s timeout in execute_llm_request_with_messages.
         let polish_start = std::time::Instant::now();
-        let (mut result, mut err, mut error_message, mut api_token_count) =
+        let (mut result, mut err, mut error_message, mut api_token_count) = if has_fallback {
+            super::core::execute_llm_request_with_messages_silent(
+                app_handle,
+                settings,
+                actual_provider,
+                &model,
+                cached_model_id,
+                &built.system_messages,
+                built.user_message.as_deref(),
+                None,
+                app_name.clone(),
+                window_title.clone(),
+                match_pattern.clone(),
+                match_type,
+                merged_extra_params.as_ref(),
+            )
+            .await
+        } else {
             super::core::execute_llm_request_with_messages(
                 app_handle,
                 settings,
@@ -2137,23 +2171,13 @@ pub async fn maybe_post_process_transcription(
                 match_type,
                 merged_extra_params.as_ref(),
             )
-            .await;
+            .await
+        };
 
         // Fallback: if primary model failed and a fallback is configured, retry with fallback model
         let mut used_fallback = false;
         if err {
-            let fallback_chain = prompt
-                .model_id
-                .as_ref()
-                .and_then(|id| {
-                    // Check if this prompt's model has a chain with fallback
-                    // Prompt-level model IDs don't have chains; fall through to selected_prompt_model
-                    let _ = id;
-                    None::<&crate::fallback::ModelChain>
-                })
-                .or(settings.selected_prompt_model.as_ref());
-
-            if let Some(fallback_id) = fallback_chain.and_then(|c| c.fallback_id.as_ref()) {
+            if let Some(fallback_id) = fallback_id_opt.as_deref() {
                 log::warn!(
                     "[PostProcess] Primary model '{}' failed, trying fallback '{}'",
                     captured_model_id,
@@ -2162,7 +2186,7 @@ pub async fn maybe_post_process_transcription(
                 if let Some((fb_provider, fb_model)) =
                     super::routing::resolve_cached_model_to_provider_owned(settings, fallback_id)
                 {
-                    let fb_cached_model_id = Some(fallback_id.as_str());
+                    let fb_cached_model_id = Some(fallback_id);
                     let fb_result = super::core::execute_llm_request_with_messages(
                         app_handle,
                         settings,

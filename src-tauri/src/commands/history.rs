@@ -359,7 +359,9 @@ pub async fn retranscribe_history_entry(
 
                         match result {
                             Ok(Ok(text)) => Ok(text),
-                            Ok(Err(err)) => Err(classify_online_asr_attempt_error(&err.to_string())),
+                            Ok(Err(err)) => {
+                                Err(classify_online_asr_attempt_error(&err.to_string()))
+                            }
                             Err(err) => Err(crate::provider_gateway::AttemptError::Retryable {
                                 status: None,
                                 detail: format!("Online ASR task failed: {}", err),

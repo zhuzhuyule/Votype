@@ -23,6 +23,7 @@ import { useSettingsStore } from "../../stores/settingsStore";
 export interface ModelChainSelectorProps {
   chain: ModelChain | null;
   onChange: (chain: ModelChain | null) => void;
+  displayChain?: ModelChain | null;
   modelFilter?: (model: CachedModel) => boolean;
   defaultStrategy?: ModelChainStrategy;
   disabled?: boolean;
@@ -34,6 +35,7 @@ const STRATEGIES: ModelChainStrategy[] = ["serial", "staggered", "race"];
 export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
   chain,
   onChange,
+  displayChain = null,
   modelFilter,
   defaultStrategy = "serial",
   disabled = false,
@@ -85,9 +87,9 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
     [],
   );
 
-  // Display values from chain prop
-  const primaryModel = findModel(chain?.primary_id);
-  const fallbackModel = findModel(chain?.fallback_id);
+  const effectiveDisplayChain = displayChain ?? chain;
+  const primaryModel = findModel(effectiveDisplayChain?.primary_id);
+  const fallbackModel = findModel(effectiveDisplayChain?.fallback_id);
 
   // Open dialog: sync local state from chain prop
   const handleOpen = useCallback(() => {
@@ -171,7 +173,7 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
             className="px-1 py-px rounded-sm bg-[var(--amber-a3)] text-[var(--amber-11)] text-[10px] font-medium cursor-pointer hover:bg-[var(--amber-a4)] transition disabled:cursor-not-allowed"
           >
             {t(
-              `settings.postProcessing.modelChain.${chain?.strategy ?? "serial"}`,
+              `settings.postProcessing.modelChain.${effectiveDisplayChain?.strategy ?? "serial"}`,
             )}
           </button>
         ) : primaryModel ? (

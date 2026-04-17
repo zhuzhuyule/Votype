@@ -43,18 +43,23 @@ function getModelStats(
   modelId: string,
   providerId: string,
   stats: ModelSpeedStats[],
-): { totalCalls: number; avgSpeed: number } | null {
+): { totalCalls: number; totalErrors: number; avgSpeed: number } | null {
   const matched = stats.filter(
     (s) => s.model_id === modelId && s.provider === providerId,
   );
   if (matched.length === 0) return null;
   const totalCalls = matched.reduce((sum, s) => sum + s.total_calls, 0);
+  const totalErrors = matched.reduce(
+    (sum, s) => sum + (s.total_errors ?? 0),
+    0,
+  );
   const weightedSpeed = matched.reduce(
     (sum, s) => sum + s.avg_speed * s.total_calls,
     0,
   );
   return {
     totalCalls,
+    totalErrors,
     avgSpeed: totalCalls > 0 ? weightedSpeed / totalCalls : 0,
   };
 }
@@ -78,7 +83,7 @@ const ModelCard: React.FC<{
   isRemoving: boolean;
   providerName: string;
   showProvider: boolean;
-  stats: { totalCalls: number; avgSpeed: number } | null;
+  stats: { totalCalls: number; totalErrors: number; avgSpeed: number } | null;
   t: any;
 }> = ({
   model,

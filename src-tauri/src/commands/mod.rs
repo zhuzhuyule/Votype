@@ -560,47 +560,10 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
             }
         }
 
-        // Resolve app review policy to decide: review window or direct paste
+        // Reuse the policy resolved during the original transcription flow.
         let app_policy = pending
-            .app_name
-            .as_ref()
-            .and_then(|app_name| {
-                let profile_id = settings
-                    .app_to_profile
-                    .iter()
-                    .find(|(k, _)| k.eq_ignore_ascii_case(app_name))
-                    .map(|(_, v)| v);
-                let profile =
-                    profile_id.and_then(|pid| settings.app_profiles.iter().find(|p| &p.id == pid));
-
-                if let Some(p) = profile {
-                    // Check title rules for more specific policy
-                    if let Some(ref title) = pending.window_title {
-                        let matched_rule = p
-                            .rules
-                            .iter()
-                            .filter(|rule| match rule.match_type {
-                                crate::settings::TitleMatchType::Text => {
-                                    title.to_lowercase().contains(&rule.pattern.to_lowercase())
-                                }
-                                crate::settings::TitleMatchType::Regex => {
-                                    regex::Regex::new(&rule.pattern)
-                                        .map(|re| re.is_match(title))
-                                        .unwrap_or(false)
-                                }
-                            })
-                            .max_by_key(|r| r.pattern.chars().count());
-
-                        if let Some(rule) = matched_rule {
-                            return Some(rule.policy);
-                        }
-                    }
-                    Some(p.policy)
-                } else {
-                    None
-                }
-            })
-            .unwrap_or(crate::settings::AppReviewPolicy::Auto);
+            .app_review_policy
+            .unwrap_or(crate::settings::AppReviewPolicy::Never);
 
         let change_percent = crate::actions::compute_change_percent(&transcription, &final_text);
 
@@ -616,6 +579,7 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
         );
 
         if should_review {
+            crate::review_window::set_last_active_window(pending.active_window.clone());
             crate::review_window::show_review_window(
                 &app_for_cleanup,
                 transcription,
@@ -629,6 +593,16 @@ pub async fn confirm_skill(app: AppHandle, skill_id: String, accepted: bool) -> 
                 None,
             );
         } else {
+            if let Some(pid) = pending.process_id {
+                if let Err(e) = crate::active_window::focus_app_by_pid(pid) {
+                    log::warn!(
+                        "[SkillConfirmation] Failed to restore focus for direct paste: {}",
+                        e
+                    );
+                } else {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(120)).await;
+                }
+            }
             crate::clipboard::paste(final_text, app)?;
         }
     }

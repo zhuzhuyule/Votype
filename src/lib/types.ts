@@ -92,6 +92,8 @@ export const AppProfileSchema = z.object({
   policy: AppReviewPolicySchema,
   prompt_id: z.string().nullable().optional(),
   icon: z.string().nullable().optional(),
+  translate_to_english_on_insert: z.boolean().default(false),
+  disable_selection_clipboard_fallback: z.boolean().default(false),
   rules: z.array(TitleRuleSchema).default([]),
 });
 export type AppProfile = z.infer<typeof AppProfileSchema>;
@@ -273,6 +275,9 @@ export const SettingsSchema = z.object({
   post_process_intent_model: ModelChainSchema.nullable()
     .optional()
     .default(null),
+  post_process_translation_model: ModelChainSchema.nullable()
+    .optional()
+    .default(null),
   proxy_url: z.string().nullable().optional().default(null),
   proxy_global_enabled: z.boolean().optional().default(false),
   multi_model_post_process_enabled: z.boolean().optional().default(false),
@@ -316,7 +321,14 @@ export const SettingsSchema = z.object({
   post_process_hotword_injection_enabled: z.boolean().optional().default(true),
   openai_compatible_api_enabled: z.boolean().optional().default(true),
   openai_compatible_api_host: z.string().optional().default("127.0.0.1"),
-  openai_compatible_api_port: z.number().int().nonnegative().optional().default(33178),
+  openai_compatible_api_port: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .default(33178),
+  openai_compatible_api_allow_lan: z.boolean().optional().default(false),
+  openai_compatible_api_base_path: z.string().optional().default("/v1"),
   openai_compatible_api_access_key: z.string().optional().default(""),
   expert_mode: z.boolean().optional().default(false),
   keyboard_implementation: z

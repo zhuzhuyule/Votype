@@ -428,6 +428,23 @@ static MIGRATIONS: &[M] = &[
     ),
     // Migration 41: Add cursor context tracking to pipeline decisions
     M::up("ALTER TABLE pipeline_decisions ADD COLUMN has_cursor_context INTEGER NOT NULL DEFAULT 0;"),
+    // Migration 42: Add per-hotword exact local replacement toggle
+    M::up("ALTER TABLE hotwords ADD COLUMN force_replace BOOLEAN NOT NULL DEFAULT 0;"),
+    // Migration 43: Replace force_replace toggle with explicit hotword entry type
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN entry_type TEXT NOT NULL DEFAULT 'correction';
+         UPDATE hotwords
+         SET entry_type = 'force_replace'
+         WHERE force_replace = 1;"
+    ),
+    // Migration 44: Split force-replace aliases from correction aliases
+    M::up(
+        "ALTER TABLE hotwords ADD COLUMN force_replace_originals TEXT NOT NULL DEFAULT '[]';
+         UPDATE hotwords
+         SET force_replace_originals = originals,
+             originals = '[]'
+         WHERE entry_type = 'force_replace' OR force_replace = 1;"
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

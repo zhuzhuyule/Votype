@@ -5,6 +5,98 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
+fn resolve_translation_target(
+    settings: &settings::AppSettings,
+) -> Result<(&settings::PostProcessProvider, String), String> {
+    let resolve_standard = || -> Result<(&settings::PostProcessProvider, String), String> {
+        let provider_id = &settings.post_process_provider_id;
+        let provider = settings
+            .post_process_provider(provider_id)
+            .ok_or_else(|| "Post-processing provider not found".to_string())?;
+        let model = settings
+            .resolve_model_for_provider(provider_id)
+            .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
+        Ok((provider, model))
+    };
+
+    (|| -> Result<_, String> {
+        let preferred_model_id = settings
+            .post_process_translation_model
+            .as_ref()
+            .map(|c| &c.primary_id)
+            .or_else(|| {
+                settings
+                    .post_process_intent_model
+                    .as_ref()
+                    .map(|c| &c.primary_id)
+            });
+
+        let cached_model_id = match preferred_model_id {
+            Some(id) => id,
+            None => return resolve_standard(),
+        };
+        let cached_model = match settings
+            .cached_models
+            .iter()
+            .find(|c| c.id == *cached_model_id)
+        {
+            Some(cm) if cm.model_type == crate::settings::ModelType::Text => cm,
+            _ => return resolve_standard(),
+        };
+        let intent_provider = match settings.post_process_provider(&cached_model.provider_id) {
+            Some(p) => p,
+            None => return resolve_standard(),
+        };
+        let model_id = cached_model.model_id.trim().to_string();
+        if model_id.is_empty() {
+            return resolve_standard();
+        }
+        log::info!(
+            "Using configured translation target: provider={}, model={}",
+            intent_provider.label,
+            model_id
+        );
+        Ok((intent_provider, model_id))
+    })()
+}
+
+pub async fn translate_text_to_english(
+    app_handle: &AppHandle,
+    text: &str,
+) -> Result<String, String> {
+    let settings = settings::get_settings(app_handle);
+    let (provider, model) = resolve_translation_target(&settings)?;
+
+    log::info!(
+        "Translating text to English: provider={}, model={}, chars={}",
+        provider.label,
+        model,
+        text.chars().count()
+    );
+
+    let system_prompt = "You are a fast translator. Translate the given text into natural, concise English. Preserve intent, formatting, lists, and code-like tokens when possible. If the input is long or covers multiple ideas, break the output into short paragraphs separated by blank lines so it reads comfortably; keep short input as a single block. Output only the translated English text, with no explanations or quotes.";
+
+    let (response, _err, _error_message, _token_count) = post_process::execute_llm_request(
+        app_handle,
+        &settings,
+        provider,
+        &model,
+        None,
+        system_prompt,
+        Some(text),
+        None,
+        None,
+        None,
+        None,
+    )
+    .await;
+
+    let translated_text =
+        response.ok_or_else(|| "Failed to get translation from LLM".to_string())?;
+
+    Ok(translated_text.trim().to_string())
+}
+
 #[tauri::command]
 pub async fn optimize_text_with_llm(
     app_handle: AppHandle,
@@ -192,6 +284,15 @@ pub struct TranslationResult {
 }
 
 #[tauri::command]
+pub async fn translate_text_to_english_command(
+    app_handle: AppHandle,
+    text: String,
+) -> Result<TranslationResult, String> {
+    let translated_text = translate_text_to_english(&app_handle, &text).await?;
+    Ok(TranslationResult { translated_text })
+}
+
+#[tauri::command]
 pub async fn translate_review_text(
     app_handle: AppHandle,
     text: String,
@@ -199,51 +300,7 @@ pub async fn translate_review_text(
     user_locale: String,
 ) -> Result<TranslationResult, String> {
     let settings = settings::get_settings(&app_handle);
-
-    // Try to use intent model (fast model) first, then fall back to standard model
-    let resolve_standard = || -> Result<(&settings::PostProcessProvider, String), String> {
-        let provider_id = &settings.post_process_provider_id;
-        let provider = settings
-            .post_process_provider(provider_id)
-            .ok_or_else(|| "Post-processing provider not found".to_string())?;
-        let model = settings
-            .resolve_model_for_provider(provider_id)
-            .ok_or_else(|| format!("No model configured for provider {}", provider_id))?;
-        Ok((provider, model))
-    };
-
-    let (provider, model) = (|| -> Result<_, String> {
-        let intent_model_id = match settings
-            .post_process_intent_model
-            .as_ref()
-            .map(|c| &c.primary_id)
-        {
-            Some(id) => id,
-            None => return resolve_standard(),
-        };
-        let cached_model = match settings
-            .cached_models
-            .iter()
-            .find(|c| c.id == *intent_model_id)
-        {
-            Some(cm) if cm.model_type == crate::settings::ModelType::Text => cm,
-            _ => return resolve_standard(),
-        };
-        let intent_provider = match settings.post_process_provider(&cached_model.provider_id) {
-            Some(p) => p,
-            None => return resolve_standard(),
-        };
-        let model_id = cached_model.model_id.trim().to_string();
-        if model_id.is_empty() {
-            return resolve_standard();
-        }
-        log::info!(
-            "Using intent model for translation: provider={}, model={}",
-            intent_provider.label,
-            model_id
-        );
-        Ok((intent_provider, model_id))
-    })()?;
+    let (provider, model) = resolve_translation_target(&settings)?;
 
     log::info!(
         "Translating review text: provider={}, model={}, user_locale={}",
@@ -269,6 +326,8 @@ pub async fn translate_review_text(
         **Rules:** \
         - IF text is in {locale_lang} → Translate to English \
         - IF text is in any other language → Translate to {locale_lang} \
+        \
+        If the input is long or covers multiple ideas, break the output into short paragraphs separated by blank lines so it reads comfortably; keep short input as a single block. \
         \
         Output only the translated text, nothing else.",
         locale_lang = locale_language

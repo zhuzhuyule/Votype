@@ -49,6 +49,8 @@ pub enum ExecutionOutcome<T> {
     Fatal {
         provider_id: String,
         detail: String,
+        status: Option<u16>,
+        kind: AttemptErrorKind,
     },
 }
 
@@ -96,8 +98,7 @@ where
             &keys,
             &attempted_indices,
             cooldown_fallback_used,
-        )
-        else {
+        ) else {
             break;
         };
 
@@ -126,10 +127,16 @@ where
                     kind,
                 });
             }
-            Err(AttemptError::Fatal { detail, .. }) => {
+            Err(AttemptError::Fatal {
+                detail,
+                status,
+                kind,
+            }) => {
                 return ExecutionOutcome::Fatal {
                     provider_id: plan.provider_id,
                     detail,
+                    status,
+                    kind,
                 };
             }
         }
@@ -236,9 +243,13 @@ mod tests {
             ExecutionOutcome::Fatal {
                 provider_id,
                 detail,
+                status,
+                kind,
             } => {
                 assert_eq!(provider_id, "provider-a");
                 assert!(detail.contains("bad request"));
+                assert_eq!(status, Some(400));
+                assert_eq!(kind, AttemptErrorKind::Http);
             }
             other => panic!("expected fatal, got {other:?}"),
         }
@@ -275,8 +286,8 @@ mod tests {
             ExecutionOutcome::Exhausted {
                 provider_id,
                 attempts: attempt_count,
-                    last_error,
-                } => {
+                last_error,
+            } => {
                 assert_eq!(provider_id, "provider-a");
                 assert_eq!(attempt_count, 2);
                 assert!(matches!(
