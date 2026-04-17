@@ -5,6 +5,7 @@ import {
   IconButton,
   SegmentedControl,
   Select,
+  Switch,
   Text,
   Tooltip,
 } from "@radix-ui/themes";
@@ -393,6 +394,52 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
 
             {/* Default settings */}
             <Flex align="center" gap="2">
+              <Tooltip
+                content={t(
+                  "settings.postProcessing.appRules.selectionClipboardFallback.description",
+                )}
+              >
+                <Flex align="center" gap="2" px="1">
+                  <Text size="1" color="gray">
+                    {t(
+                      "settings.postProcessing.appRules.selectionClipboardFallback.label",
+                    )}
+                  </Text>
+                  <Switch
+                    checked={!profile.disable_selection_clipboard_fallback}
+                    onCheckedChange={(checked) =>
+                      onUpdateProfile(profile.id, {
+                        disable_selection_clipboard_fallback: !checked,
+                      })
+                    }
+                    className="data-[state=checked]:bg-logo-primary/90"
+                  />
+                </Flex>
+              </Tooltip>
+
+              <Tooltip
+                content={t(
+                  "settings.postProcessing.appRules.translateToEnglishOnInsert.description",
+                )}
+              >
+                <Flex align="center" gap="2" px="1">
+                  <Text size="1" color="gray">
+                    {t(
+                      "settings.postProcessing.appRules.translateToEnglishOnInsert.label",
+                    )}
+                  </Text>
+                  <Switch
+                    checked={profile.translate_to_english_on_insert ?? false}
+                    onCheckedChange={(checked) =>
+                      onUpdateProfile(profile.id, {
+                        translate_to_english_on_insert: checked,
+                      })
+                    }
+                    className="data-[state=checked]:bg-logo-primary/90"
+                  />
+                </Flex>
+              </Tooltip>
+
               <Select.Root
                 size="1"
                 value={profile.policy}
@@ -551,6 +598,8 @@ export const AppProfilesManager: React.FC = () => {
         policy: "always",
         prompt_id: null,
         icon: null,
+        translate_to_english_on_insert: false,
+        disable_selection_clipboard_fallback: false,
         rules: [],
       };
 

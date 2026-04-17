@@ -85,6 +85,48 @@ pub fn change_openai_compatible_api_access_key_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_openai_compatible_api_allow_lan_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.openai_compatible_api_allow_lan = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_openai_compatible_api_port_setting(app: AppHandle, port: u16) -> Result<(), String> {
+    if port == 0 {
+        return Err("Port must be greater than 0".to_string());
+    }
+
+    let mut settings = settings::get_settings(&app);
+    settings.openai_compatible_api_port = port;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_openai_compatible_api_base_path_setting(
+    app: AppHandle,
+    base_path: String,
+) -> Result<(), String> {
+    let normalized = base_path.trim();
+    if normalized.is_empty() {
+        return Err("Base path cannot be empty".to_string());
+    }
+
+    let mut settings = settings::get_settings(&app);
+    settings.openai_compatible_api_base_path = normalized.to_string();
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_post_process_base_url_setting(
     app: AppHandle,
     provider_id: String,
@@ -905,6 +947,7 @@ pub fn update_model_chain(
         "selected_asr_model" => settings.selected_asr_model = chain,
         "selected_prompt_model" => settings.selected_prompt_model = chain,
         "post_process_intent_model" => settings.post_process_intent_model = chain,
+        "post_process_translation_model" => settings.post_process_translation_model = chain,
         "length_routing_short_model" => settings.length_routing_short_model = chain,
         "length_routing_long_model" => settings.length_routing_long_model = chain,
         _ => return Err(format!("Unknown model chain field: {}", field)),

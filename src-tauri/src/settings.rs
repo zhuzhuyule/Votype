@@ -129,6 +129,9 @@ pub struct Hotword {
     pub id: i64,
     /// Possible misrecognized forms (can be multiple)
     pub originals: Vec<String>,
+    /// Aliases that should be force-replaced locally before any LLM step
+    #[serde(default)]
+    pub force_replace_originals: Vec<String>,
     /// Target correct form
     pub target: String,
     /// Semantic category (e.g. "person", "term", "brand", "abbreviation", or custom)
@@ -549,6 +552,10 @@ pub struct AppProfile {
     pub policy: AppReviewPolicy,
     pub prompt_id: Option<String>,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub translate_to_english_on_insert: bool,
+    #[serde(default)]
+    pub disable_selection_clipboard_fallback: bool,
     /// Title-based sub-rules for this app group
     #[serde(default)]
     pub rules: Vec<TitleRule>,
@@ -913,6 +920,8 @@ pub struct AppSettings {
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default, alias = "post_process_intent_model_id")]
     pub post_process_intent_model: Option<ModelChain>,
+    #[serde(default)]
+    pub post_process_translation_model: Option<ModelChain>,
     /// Enable multi-model parallel post-processing
     #[serde(default)]
     pub multi_model_post_process_enabled: bool,
@@ -1027,6 +1036,10 @@ pub struct AppSettings {
     #[serde(default = "default_openai_compatible_api_port")]
     pub openai_compatible_api_port: u16,
     #[serde(default)]
+    pub openai_compatible_api_allow_lan: bool,
+    #[serde(default = "default_openai_compatible_api_base_path")]
+    pub openai_compatible_api_base_path: String,
+    #[serde(default)]
     pub openai_compatible_api_access_key: String,
 }
 
@@ -1056,6 +1069,10 @@ fn default_openai_compatible_api_host() -> String {
 
 fn default_openai_compatible_api_port() -> u16 {
     33178
+}
+
+fn default_openai_compatible_api_base_path() -> String {
+    "/v1".to_string()
 }
 
 fn default_start_hidden() -> bool {
@@ -1698,6 +1715,7 @@ pub fn get_default_settings() -> AppSettings {
         builtin_prompt_resource_hashes: HashMap::new(),
         post_process_selected_prompt_id: None,
         post_process_intent_model: None,
+        post_process_translation_model: None,
         multi_model_post_process_enabled: false,
         multi_model_post_process_items: Vec::new(),
         multi_model_selected_ids: Vec::new(),
@@ -1747,6 +1765,8 @@ pub fn get_default_settings() -> AppSettings {
         openai_compatible_api_enabled: default_openai_compatible_api_enabled(),
         openai_compatible_api_host: default_openai_compatible_api_host(),
         openai_compatible_api_port: default_openai_compatible_api_port(),
+        openai_compatible_api_allow_lan: false,
+        openai_compatible_api_base_path: default_openai_compatible_api_base_path(),
         openai_compatible_api_access_key: String::new(),
     }
 }
@@ -1979,6 +1999,8 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
                         policy,
                         prompt_id: None,
                         icon: None,
+                        translate_to_english_on_insert: false,
+                        disable_selection_clipboard_fallback: false,
                         rules: Vec::new(),
                     });
                 }
@@ -2122,7 +2144,12 @@ pub fn cleanup_stale_model_references(settings: &mut AppSettings) -> bool {
     clear_chain_if_stale!(settings.selected_prompt_model);
     clear_chain_if_stale!(settings.selected_asr_model);
     clear_chain_if_stale!(settings.post_process_intent_model);
-    clear_if_stale!(&mut settings.post_process_secondary_model_id);
+    clear_chain_if_stale!(settings.post_process_translation_model);
+    // NOTE: post_process_secondary_model_id is a *local STT model id* (from the
+    // transcribe-rs registry), not a cached_model UUID. Do NOT run
+    // `clear_if_stale` against `valid_ids` here — it would always be "stale"
+    // (since STT model ids never appear in `cached_models`) and get wiped on
+    // every settings read, silently undoing the user's selection.
     clear_chain_if_stale!(settings.length_routing_short_model);
     clear_chain_if_stale!(settings.length_routing_long_model);
     clear_if_stale!(&mut settings.multi_model_preferred_id);
@@ -2302,5 +2329,21 @@ mod tests {
         assert!(!settings.post_process_api_keys.contains_key("zai"));
         assert!(!settings.post_process_models.contains_key("openrouter"));
         assert!(!settings.post_process_models.contains_key("zai"));
+    }
+
+    #[test]
+    fn app_profile_clipboard_fallback_defaults_to_enabled() {
+        let profile: AppProfile = serde_json::from_value(serde_json::json!({
+            "id": "profile_test",
+            "name": "Codex",
+            "policy": "always",
+            "prompt_id": null,
+            "icon": null,
+            "rules": []
+        }))
+        .expect("profile should deserialize");
+
+        assert!(!profile.disable_selection_clipboard_fallback);
+        assert!(!profile.translate_to_english_on_insert);
     }
 }
