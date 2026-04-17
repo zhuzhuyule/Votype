@@ -28,6 +28,7 @@ import { useTranslation } from "react-i18next";
 import { escapeHtml } from "../lib/utils/html";
 import { MultiModelCandidate } from "./CandidatePanel";
 import { DiffViewPanel } from "./DiffViewPanel";
+import { NeonBorder } from "./NeonBorder";
 import { MultiCandidateView } from "./MultiCandidateView";
 import { ReviewFooter } from "./ReviewFooter";
 import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
@@ -580,11 +581,49 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const insertEnglishRef = useRef<() => void>(() => {});
   const insertOriginalRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
-  // Once the user grabs the bottom-right grip to resize manually, we stop
-  // driving window height from content and let the user own the size. The
-  // grip's double-click hands control back to auto mode.
-  const userResizedRef = useRef(false);
+  const translateRef = useRef<() => void>(() => {});
 
+  // Tracks which shortcut modifier the user is currently holding so we can
+  // preview the insert action: marquee-border the target button, highlight
+  // the shortcut glyph, and flash a border around the content that button
+  // would insert. Cleared on keyup or when the window loses focus.
+  const [pressedModifier, setPressedModifier] = useState<
+    "meta" | "ctrl" | null
+  >(null);
+
+  useEffect(() => {
+    const isEditableTargetNow = (el: EventTarget | null) =>
+      el instanceof HTMLElement &&
+      (el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable);
+
+    const handleDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      if (e.key === "Meta") setPressedModifier("meta");
+      else if (e.key === "Control") setPressedModifier("ctrl");
+      // If another key is typed in an editor, clear the preview — it means
+      // the user is just typing, not arming a shortcut.
+      else if (isEditableTargetNow(e.target) && !e.metaKey && !e.ctrlKey) {
+        setPressedModifier(null);
+      }
+    };
+    const handleUp = (e: KeyboardEvent) => {
+      if (e.key === "Meta" || e.key === "Control") {
+        setPressedModifier(null);
+      }
+    };
+    const clear = () => setPressedModifier(null);
+
+    window.addEventListener("keydown", handleDown);
+    window.addEventListener("keyup", handleUp);
+    window.addEventListener("blur", clear);
+    return () => {
+      window.removeEventListener("keydown", handleDown);
+      window.removeEventListener("keyup", handleUp);
+      window.removeEventListener("blur", clear);
+    };
+  }, []);
   const measureAndResize = useCallback(async (reposition: boolean) => {
     const container = containerRef.current;
     if (!container) return;
@@ -641,10 +680,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     const totalH = Math.min(rawTotalH * 1.05, screenMaxH);
     const currentW = window.innerWidth;
 
-    // After a manual resize, don't override the user's chosen size — they own
-    // it until they double-click the grip to return to auto mode.
-    if (userResizedRef.current) return;
-
     try {
       await invoke("resize_review_window", {
         width: currentW,
@@ -684,6 +719,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               },
               "Ctrl-Enter": () => {
                 insertPolishedRef.current();
+                return true;
+              },
+              "Mod-t": () => {
+                translateRef.current();
                 return true;
               },
               Tab: () => {
@@ -1162,12 +1201,21 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     await requestEnglishTranslation(currentText.trim());
   }, [getEditorText, isTranslating, requestEnglishTranslation]);
 
-  // Keep refs updated
+  // Keep refs updated. Shortcut bindings are consistent across modes:
+  //   Ctrl+Enter  → insert polished ("Insert" — fixed bottom-right button)
+  //   Cmd+Enter   → insert English / translation (the optional left button)
   useEffect(() => {
-    insertPolishedRef.current = handleInsertPolished;
-    insertEnglishRef.current = handleInsertEnglish;
     insertOriginalRef.current = handleInsertOriginal;
+    insertEnglishRef.current = handleInsertEnglish;
+    insertPolishedRef.current = handleInsertPolished;
   }, [handleInsertPolished, handleInsertEnglish, handleInsertOriginal]);
+
+  // Cmd+T / Ctrl+T — manual on-demand translation. When translationIntended
+  // is false, this is the only way to produce the English preview + unlock
+  // Ctrl+Enter for inserting the translation.
+  useEffect(() => {
+    translateRef.current = handleTranslate;
+  }, [handleTranslate]);
 
   const [hasRewriteApplied, setHasRewriteApplied] = useState(false);
 
@@ -1555,17 +1603,22 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   }, [selectedCandidateId, localCandidates]);
 
   useEffect(() => {
-    // Skip auto-translation for skill / AI Q&A outputs — those are answers,
-    // not user-authored text destined for an English-language target.
+    // Skill / AI Q&A outputs are never translated.
     const isSkillOutput =
       initialData.output_mode === "chat" || !!initialData.skill_name;
-
-    if (!translationEnabled || isSkillOutput) {
+    if (isSkillOutput) {
       setTranslatedText(null);
       setTranslatedSourceText(null);
       setTranslationError(null);
       setTranslationStatus("idle");
       setIsTranslating(false);
+      return;
+    }
+
+    // When the app-profile signals no English-insertion intent we skip the
+    // auto-fetch entirely. A translation produced by manual Cmd+T is still
+    // preserved (we don't clear the translation state here).
+    if (!translationEnabled) {
       return;
     }
 
@@ -1656,32 +1709,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       console.error("Failed to start dragging:", e);
     }
   }, []);
-
-  const handleResizeGripPointerDown = useCallback(
-    async (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-      event.preventDefault();
-      event.stopPropagation();
-      userResizedRef.current = true;
-      try {
-        const appWindow = getCurrentWindow();
-        await appWindow.startResizeDragging("SouthEast");
-      } catch (e) {
-        console.error("Failed to start resize dragging:", e);
-      }
-    },
-    [],
-  );
-
-  const handleResizeGripDoubleClick = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      userResizedRef.current = false;
-      window.setTimeout(() => measureAndResize(false), 16);
-    },
-    [measureAndResize],
-  );
 
   const handleCopy = useCallback(async () => {
     try {
@@ -1793,6 +1820,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             multiSortMode={multiSortMode}
             onMultiSortModeChange={setMultiSortMode}
             selectedCandidateLabel={selectedCandidateLabel}
+            pressedModifier={pressedModifier}
           />
         </div>
 
@@ -1834,6 +1862,17 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             changeStats={singleModelChangeStats}
             onInsertOriginal={handleInsertOriginal}
             onInsertPolished={handleInsertPolished}
+            // Fixed bottom-right "Insert" button = Ctrl+Enter (polished).
+            insertShortcut={isMac ? "⌃⏎" : "Ctrl⏎"}
+            isSubmitting={isSubmitting}
+            translationIntended={translationEnabled}
+            hasEnglishTranslation={
+              translationStatus === "ready" && !!translatedText
+            }
+            onInsertEnglish={handleInsertEnglish}
+            // Optional left "Insert English / Translation" button = Cmd+Enter.
+            englishShortcut={isMac ? "⌘⏎" : "⊞⏎"}
+            pressedModifier={pressedModifier}
           />
         ) : (
           <div className="review-content-area">
@@ -1874,43 +1913,32 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           outputMode={initialData.output_mode}
           isSubmitting={isSubmitting}
           hasText={!!getEditorText().trim()}
-          canUndo={revisionIndex > 0}
-          canRedo={revisionIndex < revisionHistory.length - 1}
           insertShortcut={insertShortcut}
-          isMultiModel={!!sortedCandidates && sortedCandidates.length > 0}
+          // Polish single-model view: Insert lives inside DiffViewPanel, so the
+          // footer must not render a duplicate Insert button.
+          hidePrimaryInsert={
+            initialData.output_mode !== "chat" &&
+            !(sortedCandidates && sortedCandidates.length > 0)
+          }
           onCopy={handleCopy}
           onInsert={handleInsertPolished}
-          onUndo={handleUndoRevision}
-          onRedo={handleRedoRevision}
         />
-        <div
-          className="review-resize-grip"
-          onPointerDown={(e) => void handleResizeGripPointerDown(e)}
-          onDoubleClick={handleResizeGripDoubleClick}
-          title={t(
-            "transcription.review.resizeGrip",
-            "拖拽调整尺寸，双击恢复自动",
-          )}
-          aria-label={t(
-            "transcription.review.resizeGrip",
-            "拖拽调整尺寸，双击恢复自动",
-          )}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-            <path
-              d="M11 3 L3 11 M11 7 L7 11 M11 11 L11 11"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-              fill="none"
-            />
-          </svg>
-        </div>
       </div>
 
       {translationEnabled && (
         <div className="review-preview-dock">
-          <div className="review-translation-float">
+          <div
+            className="review-translation-float"
+            data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
+          >
+            {pressedModifier === "meta" && (
+              <NeonBorder
+                radius={14}
+                gradientId="review-neon-gradient-float"
+                strokeWidth={2.8}
+                durationSec={3.2}
+              />
+            )}
             <div className="review-translation-float-header">
               <span className="review-translation-title-row">
                 <span
@@ -1934,19 +1962,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               {translatedText ||
                 translationError ||
                 t("transcription.review.translationUpdating", "翻译中...")}
-              {translatedText && !isSubmitting && (
-                <button
-                  className="review-hover-insert-btn"
-                  onClick={() => void handleInsertEnglish()}
-                  title={t("transcription.review.insertEnglish", "插入英文")}
-                  aria-label={t(
-                    "transcription.review.insertEnglish",
-                    "插入英文",
-                  )}
-                >
-                  <IconTextPlus size={16} />
-                </button>
-              )}
             </div>
           </div>
         </div>

@@ -31,53 +31,25 @@
 }
 
 /* Premium container styles */
-/* Premium container styles */
-.review-resize-grip {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  color: var(--gray-8);
-  cursor: nwse-resize;
-  opacity: 0.45;
-  transition:
-    opacity 120ms ease,
-    color 120ms ease,
-    background-color 120ms ease;
-  z-index: 30;
-  pointer-events: auto;
-}
-
-.review-resize-grip:hover {
-  opacity: 1;
-  color: var(--gray-11);
-  background: color-mix(in srgb, var(--gray-6) 30%, transparent);
-}
-
 .review-window-container {
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   flex: 0 0 auto;
-  /* Deep, rich dark background with subtle gradient */
+  padding-bottom: 10px;
+  /* Original grey gradient restored per user preference. */
   background: linear-gradient(
     145deg,
     color-mix(in srgb, var(--color-panel-solid) 95%, black) 0%,
     var(--color-panel-solid) 100%
   );
-  border: 1px solid rgba(255, 255, 255, 0.08); /* Keep subtle white border for glass effect */
-  border-radius: 18px; /* Slightly more rounded */
-  /* Shadows temporarily disabled while diagnosing stray line artifacts. */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
   box-shadow: none;
   overflow: hidden;
   animation: slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  color: var(--gray-12); /* Restore theme-based text color */
+  color: var(--gray-12);
 }
 
 /* Inner light reflection hint — disabled for artifact test. */
@@ -96,12 +68,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0) 100%
-  );
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: transparent;
+  border-bottom: none;
   user-select: none;
   cursor: grab;
 }
@@ -192,20 +160,16 @@
   min-width: 0;
 }
 
-/* Prompt selector in multi-model header */
+/* Prompt selector in header — subtle border at rest, stronger on hover/focus */
 .prompt-select {
   appearance: none;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent-3) 80%, transparent) 0%,
-    color-mix(in srgb, var(--accent-4) 70%, transparent) 100%
-  );
-  border: 1px solid color-mix(in srgb, var(--accent-6) 50%, transparent);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--gray-6) 65%, transparent);
   border-radius: 20px;
   padding: 4px 24px 4px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--accent-11);
+  color: var(--gray-11);
   cursor: pointer;
   outline: none;
   max-width: 200px;
@@ -217,15 +181,23 @@
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 8px 5px;
-  transition: border-color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .prompt-select:hover {
-  border-color: var(--accent-7);
+  border-color: color-mix(in srgb, var(--gray-6) 70%, transparent);
+  background-color: color-mix(in srgb, var(--gray-3) 70%, transparent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  color: var(--gray-12);
 }
 
 .prompt-select:focus {
-  border-color: var(--accent-8);
+  border-color: var(--accent-7);
+  background-color: color-mix(in srgb, var(--accent-3) 40%, transparent);
+  color: var(--accent-11);
 }
 
 .prompt-select option {
@@ -274,30 +246,24 @@
 }
 
 .model-select {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E"),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--gray-3) 80%, transparent) 0%,
-      color-mix(in srgb, var(--gray-4) 70%, transparent) 100%
-    );
-  background-repeat: no-repeat, no-repeat;
-  background-position:
-    right 10px center,
-    0 0;
-  background-size:
-    8px 5px,
-    100% 100%;
-  border-color: color-mix(in srgb, var(--gray-6) 50%, transparent);
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 8px 5px;
+  border-color: color-mix(in srgb, var(--gray-6) 65%, transparent);
   color: var(--gray-11);
 }
 
 .model-select:hover {
-  border-color: var(--gray-7);
+  border-color: color-mix(in srgb, var(--gray-6) 70%, transparent);
+  background-color: color-mix(in srgb, var(--gray-3) 70%, transparent);
+  color: var(--gray-12);
 }
 
 .model-select:focus {
-  border-color: var(--gray-8);
+  border-color: var(--gray-7);
+  background-color: color-mix(in srgb, var(--gray-3) 55%, transparent);
 }
 
 /* Diff toggle button */
@@ -400,7 +366,6 @@
 .review-source-inline {
   position: relative;
   padding: 8px 12px;
-  margin: 8px 0;
   border-radius: 6px;
   background: var(--gray-2);
   border: 1px solid var(--gray-5);
@@ -990,7 +955,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  gap: 12px;
+  gap: 7px;
   overflow-y: auto;
   max-height: var(--review-content-max, none);
   background: transparent; /* Let container background show through */
@@ -1389,15 +1354,15 @@
 /* ── Single-model panel layout ── */
 .review-panels-layout {
   padding: 0 12px 0;
-  gap: 8px;
+  gap: 10px;
 }
 
 /* ── Source inline frame (simple bordered text) ── */
 .review-source-inline {
-  padding: 6px 10px;
+  padding: 7px 10px;
   border-radius: 8px;
-  border: 1px solid var(--gray-4);
-  background: color-mix(in srgb, var(--gray-3) 40%, transparent);
+  border: 1px solid var(--gray-3);
+  background: var(--gray-2);
   color: var(--gray-11);
   font-size: 13px;
   line-height: 1.5;
@@ -1438,6 +1403,7 @@
   display: flex;
   flex-direction: column;
   border-radius: 10px;
+  margin-bottom: 3px;
   border: 1px solid var(--gray-5);
   overflow: hidden;
 }
@@ -1461,19 +1427,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  border: none;
-  background: var(--gray-a3);
-  color: var(--gray-11);
+  border: 1px solid color-mix(in srgb, var(--gray-6) 65%, transparent);
+  background: transparent;
+  color: var(--gray-10);
   cursor: pointer;
   padding: 0;
-  transition: background 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
 }
 
 .review-audio-play-btn:hover {
-  background: var(--gray-a5);
+  background: color-mix(in srgb, var(--gray-3) 70%, transparent);
+  border-color: var(--gray-7);
   color: var(--gray-12);
 }
 
@@ -2156,4 +2126,223 @@ span[data-diff-level="major"] {
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* ============================================================
+ * Simplified single-panel layout (polish mode)
+ * Body is a scrollable editor; a persistent flex action row below
+ * carries change% + Insert button(s). The row is outside the
+ * scrollable area so text never overlaps buttons.
+ * ============================================================ */
+.review-panel-output-compact {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.review-panel-output-compact .review-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Persistent bottom action row — no top border, paper-on-paper reading */
+.review-inline-action-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  border-top: none;
+  background: transparent;
+}
+
+.review-inline-action-row .review-change-stats {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--gray-3) 70%, transparent);
+  font-size: 10px;
+}
+
+.review-inline-action-row-spacer {
+  flex: 1 1 auto;
+}
+
+.review-inline-insert-btn,
+.review-inline-english-btn {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+/* ============================================================
+ * Modifier-held preview — SVG neon border traced on the actual
+ * rectangular path of the element.
+ *
+ * The `<NeonBorder>` component renders an absolutely positioned
+ * SVG with a `<rect pathLength="100">`. Two dashes (14% wide each,
+ * 36% gap between them, repeating) chase each other around the
+ * perimeter via an animated `stroke-dashoffset`. Constant
+ * tangential speed on long edges AND around rounded corners,
+ * without any pseudo-element trickery.
+ *
+ * Multi-hue linear gradient (cyan → purple → pink) means each
+ * light segment smoothly shifts colour as it travels.
+ * ============================================================ */
+.review-inline-insert-btn[data-mod-armed="true"],
+.review-inline-english-btn[data-mod-armed="true"],
+.review-panel-output-compact[data-mod-armed="true"],
+.review-translation-float[data-mod-armed="true"] {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.review-neon-border-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  overflow: visible;
+}
+
+/* Single-line chase: one uniform stroke with two dashes scrolling along
+ * the border at constant speed. */
+@keyframes review-neon-scroll {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+/* Default ("strong") glow — the SVG's hue rotates + a big drop-shadow stack
+ * makes the chain pop on dark / saturated backgrounds (primary button,
+ * translation float, polish card). */
+@keyframes review-neon-hue-strong {
+  0% {
+    filter: hue-rotate(0deg) drop-shadow(0 0 8px rgba(255, 79, 216, 0.7))
+      drop-shadow(0 0 18px rgba(109, 91, 255, 0.5));
+  }
+  100% {
+    filter: hue-rotate(360deg) drop-shadow(0 0 8px rgba(255, 79, 216, 0.7))
+      drop-shadow(0 0 18px rgba(109, 91, 255, 0.5));
+  }
+}
+
+/* Soft glow — used on secondary buttons that sit on pale bg; cuts the bloom
+ * way down so the neon doesn't blow out against the near-white surface. */
+@keyframes review-neon-hue-soft {
+  0% {
+    filter: hue-rotate(0deg) drop-shadow(0 0 3px rgba(255, 79, 216, 0.4));
+  }
+  100% {
+    filter: hue-rotate(360deg) drop-shadow(0 0 3px rgba(255, 79, 216, 0.4));
+  }
+}
+
+.review-neon-border-rect {
+  animation: review-neon-scroll var(--review-neon-duration, 2.4s) linear
+    infinite;
+}
+
+/* Default = strong. */
+.review-neon-border-svg {
+  animation: review-neon-hue-strong 5s linear infinite;
+}
+
+/* Secondary buttons use the soft variant. */
+.review-btn-secondary[data-mod-armed="true"] .review-neon-border-svg {
+  animation-name: review-neon-hue-soft;
+  opacity: 0.85;
+}
+
+/* Ambient outer glow on buttons that matches the neon palette. */
+.review-inline-insert-btn[data-mod-armed="true"],
+.review-inline-english-btn[data-mod-armed="true"] {
+  box-shadow:
+    0 0 18px -2px rgba(109, 91, 255, 0.45),
+    0 0 28px -6px rgba(255, 79, 216, 0.25) !important;
+}
+
+/* Content cards rely on the SVG neon border alone — no ambient box-shadow
+   on the container. Keeps the cards clean; the rotating stroke itself is
+   the only highlight cue. */
+.review-panel-output-compact[data-mod-armed="true"],
+.review-translation-float[data-mod-armed="true"] {
+  box-shadow: none;
+  transition: box-shadow 0.18s ease;
+}
+
+/* Inline shortcut glyph — dim by default, glows when its modifier is held. */
+.review-shortcut-hint {
+  margin-left: 6px;
+  opacity: 0.6;
+  font-weight: 400;
+  transition:
+    color 0.15s ease,
+    opacity 0.15s ease,
+    text-shadow 0.15s ease;
+}
+
+.review-shortcut-hint[data-mod-armed="true"] {
+  opacity: 1;
+  color: var(--accent-contrast, #fff);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--accent-9) 70%, transparent);
+}
+
+.review-btn-secondary .review-shortcut-hint[data-mod-armed="true"] {
+  color: var(--accent-11);
+}
+
+/* Translate button armed state — highlights when Cmd is held, and surfaces
+   the "T" keycap inside the button to signal Cmd+T is available. */
+.review-translate-btn[data-mod-armed="true"] {
+  color: var(--accent-11);
+  background: color-mix(in srgb, var(--accent-4) 70%, transparent);
+  border-color: color-mix(in srgb, var(--accent-7) 55%, transparent);
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--accent-8) 55%, transparent);
+}
+
+.review-translate-t-hint {
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--color-panel-solid);
+  border: 1px solid color-mix(in srgb, var(--accent-7) 60%, transparent);
+  color: var(--accent-11);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-7) 35%, transparent);
+  animation: review-translate-t-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes review-translate-t-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 0 transparent;
+  }
+  50% {
+    transform: translateY(-1px);
+    box-shadow: 0 0 8px color-mix(in srgb, var(--accent-8) 55%, transparent);
+  }
+}
+
+/* Expand the translate button so the inline T keycap fits without squeezing
+   the language icon. */
+.review-translate-btn[data-mod-armed="true"] {
+  width: auto;
+  padding: 0 6px 0 4px;
+  gap: 2px;
 }

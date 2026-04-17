@@ -61,6 +61,9 @@ interface ReviewHeaderProps {
   onMultiSortModeChange?: (mode: "default" | "speed" | "change") => void;
   /** Label of the currently selected candidate in multi mode */
   selectedCandidateLabel?: string | null;
+  /** Which shortcut modifier the user is currently holding. When meta is
+   *  held we light up the translate icon and hint its Cmd+T shortcut. */
+  pressedModifier?: "meta" | "ctrl" | null;
 }
 
 /** Inline play/pause button for ASR audio playback */
@@ -151,6 +154,7 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
   multiSortMode,
   onMultiSortModeChange,
   selectedCandidateLabel,
+  pressedModifier,
 }) => {
   const { t } = useTranslation();
 
@@ -290,11 +294,15 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
               onClick={onTranslate}
               onPointerDown={(e) => e.stopPropagation()}
               disabled={isTranslating}
+              data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
             >
               {isTranslating ? (
                 <IconLoader2 size={14} className="spinning" />
               ) : (
                 <IconLanguage size={14} />
+              )}
+              {pressedModifier === "meta" && (
+                <kbd className="review-translate-t-hint">T</kbd>
               )}
             </button>
           </div>
@@ -330,9 +338,6 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
   return (
     <div className="review-header">
       <div className="review-header-left">
-        <span className="review-panel-label">
-          {t("transcription.review.source", "Live transcript")}
-        </span>
         <AudioPlayButton historyId={historyId} />
         {prompts.length > 1 ? (
           <select
@@ -392,11 +397,15 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
             onClick={onTranslate}
             onPointerDown={(e) => e.stopPropagation()}
             disabled={isTranslating}
+            data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
           >
             {isTranslating ? (
               <IconLoader2 size={14} className="spinning" />
             ) : (
               <IconLanguage size={14} />
+            )}
+            {pressedModifier === "meta" && (
+              <kbd className="review-translate-t-hint">T</kbd>
             )}
           </button>
         </div>
