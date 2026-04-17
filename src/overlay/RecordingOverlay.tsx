@@ -98,6 +98,10 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   // events. This avoids OS-level window.show()/hide() latency on macOS.
   const [isOverlayShown, setIsOverlayShown] = useState<boolean>(false);
   const [state, setState] = useState<OverlayState>(initialState);
+  // Paste-target app for the current overlay cycle. Used to render a small
+  // icon of the app the text is landing in (e.g. Slack / Mail) next to the
+  // translation status — gives an immediate "this is going where?" signal.
+  const [targetAppName, setTargetAppName] = useState<string | null>(null);
 
   // Diagnostic trace: every time the visible state OR label changes, log it
   // via the unified Rust logger so we can see exactly what the overlay is
@@ -360,9 +364,11 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           message: `[overlay-trace] show-overlay event received, payload=${JSON.stringify(event.payload)}`,
         }).catch(() => {});
         // Payload can be a plain string (for most states) or an object
-        // { state: "rewrite", rewrite_count: N } for voice rewrite.
+        // { state: "rewrite", rewrite_count: N } for voice rewrite, or
+        // { state: "translation", app_name: "..." } for translation inserts.
         let overlayState: OverlayState;
         let nextRewriteCount: number | null = null;
+        let nextTargetApp: string | null = null;
         if (
           event.payload !== null &&
           typeof event.payload === "object" &&
@@ -371,12 +377,19 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           const richPayload = event.payload as {
             state: OverlayState;
             rewrite_count?: number;
+            app_name?: string | null;
           };
           overlayState = richPayload.state;
           if (richPayload.rewrite_count !== undefined) {
             nextRewriteCount = richPayload.rewrite_count;
           } else if (overlayState === "recording") {
             nextRewriteCount = 0;
+          }
+          if (
+            typeof richPayload.app_name === "string" &&
+            richPayload.app_name
+          ) {
+            nextTargetApp = richPayload.app_name;
           }
         } else {
           overlayState = event.payload as OverlayState;
@@ -401,6 +414,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           if (overlayState !== "llm") {
             setChainedPromptName("");
           }
+          setTargetAppName(nextTargetApp);
         });
         if (overlayState === "recording") {
           resetOverlayRecordingState();
@@ -419,6 +433,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           // Clear the prompt-name override so the next show starts on a clean
           // state label, not whatever the last post-process round left behind.
           setChainedPromptName("");
+          setTargetAppName(null);
         });
       });
       if (disposed) {
@@ -896,7 +911,15 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
           )}
         </Flex>
 
-        <Flex className="overlay-right" />
+        <Flex className="overlay-right">
+          {targetAppName && (
+            <AppIcon
+              appName={targetAppName}
+              size={18}
+              style={{ borderColor: "rgba(255,255,255,0.18)" }}
+            />
+          )}
+        </Flex>
       </Box>
     </Box>
   );

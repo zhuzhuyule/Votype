@@ -406,9 +406,13 @@ pub fn show_llm_processing_overlay(app_handle: &AppHandle) {
 /// anyway (e.g. `confirm_reviewed_transcription` hiding the review window);
 /// running the focus restore thread would otherwise race with the hide and
 /// make the overlay appear to lag.
-pub fn show_translation_overlay_fast(app_handle: &AppHandle) {
+pub fn show_translation_overlay_fast(app_handle: &AppHandle, target_app_name: Option<String>) {
     let gen = bump_overlay_generation();
-    log::debug!("[overlay-trace] show_translation_overlay_fast gen={}", gen);
+    log::debug!(
+        "[overlay-trace] show_translation_overlay_fast gen={} target_app={:?}",
+        gen,
+        target_app_name
+    );
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
         log::debug!("[overlay-trace] overlay disabled by settings, skipping");
@@ -417,21 +421,12 @@ pub fn show_translation_overlay_fast(app_handle: &AppHandle) {
 
     if let Some(overlay_window) = app_handle.get_webview_window("recording_overlay") {
         let visible_before = overlay_window.is_visible().unwrap_or(false);
-        log::info!(
-            "[overlay-trace] overlay window found, visible_before={}",
-            visible_before
-        );
         if !visible_before {
             update_overlay_position(app_handle);
         }
         let _ = overlay_window.set_ignore_cursor_events(true);
-        let show_result = overlay_window.show();
-        log::info!(
-            "[overlay-trace] overlay_window.show() result={:?}",
-            show_result
-        );
-        emit_overlay_state_with_retry(overlay_window, "translation");
-        log::debug!("[overlay-trace] emit show-overlay translation done");
+        let _ = overlay_window.show();
+        emit_overlay_state_with_app_retry(overlay_window, "translation", target_app_name);
     } else {
         log::warn!("[overlay-trace] overlay window NOT found");
     }
@@ -465,7 +460,11 @@ pub fn show_translation_overlay(app_handle: &AppHandle) {
 ///
 /// `variant = "translation_success"` labels the state as "翻译成功" instead of
 /// the generic "已插入" used for non-translation inserts.
-pub fn show_success_overlay(app_handle: &AppHandle, variant: &'static str) -> u64 {
+pub fn show_success_overlay(
+    app_handle: &AppHandle,
+    variant: &'static str,
+    target_app_name: Option<String>,
+) -> u64 {
     let gen = bump_overlay_generation();
     let settings = settings::get_settings(app_handle);
     if settings.overlay_position == OverlayPosition::None {
@@ -478,7 +477,7 @@ pub fn show_success_overlay(app_handle: &AppHandle, variant: &'static str) -> u6
             let _ = overlay_window.show();
         }
         let _ = overlay_window.set_ignore_cursor_events(true);
-        emit_overlay_state_with_retry(overlay_window, variant);
+        emit_overlay_state_with_app_retry(overlay_window, variant, target_app_name);
     }
     gen
 }
@@ -530,6 +529,35 @@ fn emit_overlay_state_with_retry(overlay_window: tauri::WebviewWindow, state: &'
 struct OverlayStateWithCount {
     state: &'static str,
     rewrite_count: u32,
+}
+
+/// Rich payload: state + optional target app name. Used for the translation
+/// insert path so the overlay can display a small icon of the app the text is
+/// being pasted into ("this translation is going to Slack / Mail / …").
+#[derive(Clone, serde::Serialize)]
+struct OverlayStateWithApp {
+    state: &'static str,
+    app_name: Option<String>,
+}
+
+fn emit_overlay_state_with_app_retry(
+    overlay_window: tauri::WebviewWindow,
+    state: &'static str,
+    app_name: Option<String>,
+) {
+    let seq = OVERLAY_EMIT_SEQ.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+    let payload = OverlayStateWithApp { state, app_name };
+    let _ = overlay_window.emit("show-overlay", payload.clone());
+
+    std::thread::spawn(move || {
+        for delay_ms in [40_u64, 120_u64] {
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+            if OVERLAY_EMIT_SEQ.load(std::sync::atomic::Ordering::SeqCst) != seq {
+                return;
+            }
+            let _ = overlay_window.emit("show-overlay", payload.clone());
+        }
+    });
 }
 
 fn emit_overlay_state_with_count_and_retry(

@@ -147,12 +147,20 @@ pub async fn confirm_reviewed_transcription(
     let english_needs_translation = matches!(insert_target, ReviewInsertTarget::English)
         && should_translate_review_insert(&app)
         && !text.trim().is_empty();
+    // Capture the paste-target app name so the overlay can show its icon
+    // alongside "翻译中…" / "翻译成功 ✓".
+    let target_app_name =
+        crate::review_window::get_last_active_window().map(|info| info.app_name.clone());
+
     if english_needs_translation {
-        log::debug!("[overlay-trace] confirm: english_needs_translation=true, calling fast show");
+        log::debug!(
+            "[overlay-trace] confirm: english_needs_translation=true, target_app={:?}",
+            target_app_name
+        );
         // Safety-net show (the frontend already fires the same overlay the
         // instant Cmd+Enter is pressed); use the fast variant so we don't
         // spawn a focus-restore thread that would thrash against the hide.
-        crate::overlay::show_translation_overlay_fast(&app);
+        crate::overlay::show_translation_overlay_fast(&app, target_app_name.clone());
     } else {
         log::info!(
             "[overlay-trace] confirm: english_needs_translation=false (target={:?})",
@@ -238,7 +246,11 @@ pub async fn confirm_reviewed_transcription(
         if result.is_ok() {
             // Translation path only: flip the already-visible "翻译中…" overlay
             // to "翻译成功 ✓" and schedule a cancellable hide 700 ms later.
-            let gen_at_success = crate::overlay::show_success_overlay(&app, "translation_success");
+            let gen_at_success = crate::overlay::show_success_overlay(
+                &app,
+                "translation_success",
+                target_app_name.clone(),
+            );
             let app_for_hide = app.clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(700)).await;
@@ -272,12 +284,16 @@ pub fn log_from_frontend(source: String, message: String) {
 #[tauri::command]
 #[specta::specta]
 pub fn show_review_translation_overlay(app: AppHandle) {
-    log::debug!("[overlay-trace] show_review_translation_overlay command ENTER");
+    let target_app_name =
+        crate::review_window::get_last_active_window().map(|info| info.app_name.clone());
+    log::debug!(
+        "[overlay-trace] show_review_translation_overlay target_app={:?}",
+        target_app_name
+    );
     // Use the fast variant: we're about to hide the review window anyway,
     // so the standard overlay's focus-restore thread would just fight the
     // review hide and delay the overlay becoming visible.
-    crate::overlay::show_translation_overlay_fast(&app);
-    log::debug!("[overlay-trace] show_review_translation_overlay command EXIT");
+    crate::overlay::show_translation_overlay_fast(&app, target_app_name);
 }
 
 #[tauri::command]
