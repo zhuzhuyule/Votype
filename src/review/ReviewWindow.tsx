@@ -293,9 +293,20 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const [currentModelName, setCurrentModelName] = useState<string>("");
 
   // Translation state
+  const [translationEnabled, setTranslationEnabled] = useState(false);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [isTranslationHovered, setIsTranslationHovered] = useState(false);
+  const [translationSourceText, setTranslationSourceText] = useState(
+    initialData.final_text,
+  );
+  const [translatedSourceText, setTranslatedSourceText] = useState<
+    string | null
+  >(null);
+  const [translationStatus, setTranslationStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const translationRequestIdRef = useRef(0);
   const [revisionHistory, setRevisionHistory] = useState<string[]>([
     initialData.final_text,
   ]);
@@ -345,6 +356,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         }
       });
     }
+
+    invoke<{ enabled: boolean }>("get_review_translation_settings")
+      .then((resp) => {
+        setTranslationEnabled(resp.enabled);
+      })
+      .catch((e) => {
+        console.error("Failed to load review translation settings:", e);
+      });
   }, []);
 
   // Sync external multiCandidates prop into local state
@@ -557,7 +576,8 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const insertShortcut = isMac ? "⌘⏎" : "Ctrl⏎";
 
   // Use refs to access latest callbacks inside Tiptap extension
-  const insertRef = useRef<() => void>(() => {});
+  const insertPolishedRef = useRef<() => void>(() => {});
+  const insertEnglishRef = useRef<() => void>(() => {});
   const insertOriginalRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
 
@@ -586,7 +606,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       contentH = 200;
     }
 
-    const totalH = headerH + contentH + footerH;
+    const previewDock = container.querySelector(".review-preview-dock");
+    const previewH = previewDock?.getBoundingClientRect().height ?? 0;
+
+    const totalH = headerH + contentH + footerH + previewH;
     const currentW = window.innerWidth;
 
     try {
@@ -622,8 +645,12 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           name: "shortcuts",
           addKeyboardShortcuts() {
             return {
-              "Mod-Enter": () => {
-                insertRef.current();
+              "Meta-Enter": () => {
+                insertEnglishRef.current();
+                return true;
+              },
+              "Ctrl-Enter": () => {
+                insertPolishedRef.current();
                 return true;
               },
               Tab: () => {
@@ -680,8 +707,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
 
     editor.commands.setContent(content, { emitUpdate: false });
+    const nextEditorText = editor.getText({ blockSeparator: "\n" });
+    setTranslationSourceText(nextEditorText);
     void invoke("set_review_editor_content_state", {
-      text: editor.getText({ blockSeparator: "\n" }),
+      text: nextEditorText,
     }).catch((e) => {
       console.error("Failed to sync review editor content state:", e);
     });
@@ -844,7 +873,27 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     sortedCandidates,
   ]);
 
-  const handleInsert = useCallback(async () => {
+  const buildTranslationInsertPayload = useCallback(
+    (text: string) => {
+      const trimmedText = text.trim();
+      if (
+        translationEnabled &&
+        translatedText &&
+        translatedSourceText &&
+        translatedSourceText === trimmedText
+      ) {
+        return {
+          translatedTextForInsert: translatedText,
+          translationSourceText: translatedSourceText,
+        };
+      }
+
+      return {};
+    },
+    [translatedSourceText, translatedText, translationEnabled],
+  );
+
+  const handleInsertPolished = useCallback(async () => {
     const currentText = getEditorText();
     if (isSubmitting || !currentText.trim()) return;
 
@@ -859,10 +908,11 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         originalTextForLearning: didUserEditReviewedText()
           ? getOriginalReviewText()
           : undefined,
+        insertTarget: "polished",
       });
       onClose();
     } catch (e) {
-      console.error("Failed to insert reviewed text:", e);
+      console.error("Failed to insert polished text:", e);
     } finally {
       setIsSubmitting(false);
     }
@@ -874,6 +924,42 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     selectedCandidateId,
     didUserEditReviewedText,
     getOriginalReviewText,
+  ]);
+
+  // Insert English translation (reuses cached preview if source matches, otherwise backend re-translates)
+  const handleInsertEnglish = useCallback(async () => {
+    const currentText = getEditorText();
+    if (isSubmitting || !currentText.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      await invoke("confirm_reviewed_transcription", {
+        text: currentText.trim(),
+        historyId: initialData.history_id,
+        cachedModelId: selectedCandidateId || undefined,
+        learnFromEdit: didUserEditReviewedText(),
+        originalTextForLearning: didUserEditReviewedText()
+          ? getOriginalReviewText()
+          : undefined,
+        ...buildTranslationInsertPayload(currentText.trim()),
+        insertTarget: "english",
+      });
+      onClose();
+    } catch (e) {
+      console.error("Failed to insert english text:", e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    getEditorText,
+    initialData.history_id,
+    onClose,
+    isSubmitting,
+    selectedCandidateId,
+    didUserEditReviewedText,
+    getOriginalReviewText,
+    buildTranslationInsertPayload,
   ]);
 
   // Insert original ASR text directly
@@ -888,6 +974,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         historyId: initialData.history_id,
         cachedModelId: undefined,
         learnFromEdit: false,
+        insertTarget: "asr_original",
       });
       onClose();
     } catch (e) {
@@ -908,6 +995,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           historyId: initialData.history_id,
           cachedModelId: candidateId || undefined,
           learnFromEdit: false,
+          insertTarget: "polished",
         });
         onClose();
       } catch (e) {
@@ -917,6 +1005,72 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       }
     },
     [initialData.history_id, onClose, isSubmitting],
+  );
+
+  const requestEnglishTranslation = useCallback(
+    async (sourceText: string) => {
+      const trimmedText = sourceText.trim();
+      if (!trimmedText) {
+        setTranslatedText(null);
+        setTranslatedSourceText(null);
+        setTranslationError(null);
+        setTranslationStatus("idle");
+        return;
+      }
+
+      const requestId = translationRequestIdRef.current + 1;
+      translationRequestIdRef.current = requestId;
+      setIsTranslating(true);
+      setTranslationStatus("loading");
+      setTranslationError(null);
+
+      try {
+        const result = await invoke<{ translated_text: string }>(
+          "translate_text_to_english_command",
+          {
+            text: trimmedText,
+          },
+        );
+
+        if (translationRequestIdRef.current !== requestId) return;
+
+        const nextTranslated = result.translated_text.trim();
+        if (!nextTranslated) {
+          setTranslatedText(null);
+          setTranslatedSourceText(null);
+          setTranslationError(
+            t(
+              "transcription.review.translationFailedFallback",
+              "翻译失败，插入时将回退原文",
+            ),
+          );
+          setTranslationStatus("error");
+          return;
+        }
+
+        setTranslatedText(nextTranslated);
+        setTranslatedSourceText(trimmedText);
+        setTranslationError(null);
+        setTranslationStatus("ready");
+      } catch (e) {
+        if (translationRequestIdRef.current !== requestId) return;
+        console.error("Failed to translate text:", e);
+        setTranslatedText(null);
+        setTranslatedSourceText(null);
+        setTranslationError(
+          t(
+            "transcription.review.translationFailedFallback",
+            "翻译失败，插入时将回退原文",
+          ),
+        );
+        setTranslationStatus("error");
+      } finally {
+        if (translationRequestIdRef.current === requestId) {
+          setIsTranslating(false);
+        }
+      }
+    },
+    [t],
   );
 
   const handleInsertCandidateByIndex = useCallback(
@@ -936,30 +1090,15 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     const currentText = getEditorText();
     if (isTranslating || !currentText.trim()) return;
 
-    setIsTranslating(true);
-
-    try {
-      const result = await invoke<{
-        translated_text: string;
-      }>("translate_review_text", {
-        text: currentText.trim(),
-        originalText: initialData.source_text,
-        userLocale: t("common.locale", "zh"), // Get user's locale from i18n
-      });
-      setTranslatedText(result.translated_text);
-    } catch (e) {
-      console.error("Failed to translate text:", e);
-      setTranslatedText(null);
-    } finally {
-      setIsTranslating(false);
-    }
-  }, [getEditorText, isTranslating, initialData.source_text, t]);
+    await requestEnglishTranslation(currentText.trim());
+  }, [getEditorText, isTranslating, requestEnglishTranslation]);
 
   // Keep refs updated
   useEffect(() => {
-    insertRef.current = handleInsert;
+    insertPolishedRef.current = handleInsertPolished;
+    insertEnglishRef.current = handleInsertEnglish;
     insertOriginalRef.current = handleInsertOriginal;
-  }, [handleInsert, handleInsertOriginal]);
+  }, [handleInsertPolished, handleInsertEnglish, handleInsertOriginal]);
 
   const [hasRewriteApplied, setHasRewriteApplied] = useState(false);
 
@@ -1047,17 +1186,24 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         }
       }
 
-      // Tab: insert original text
+      // Tab: insert original ASR text
       if (e.key === "Tab" && !e.shiftKey) {
         e.preventDefault();
         insertOriginalRef.current();
         return;
       }
 
-      // Cmd/Ctrl+Enter: insert edited/polished text
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      // Cmd+Enter: insert English translation
+      if (e.metaKey && !e.ctrlKey && e.key === "Enter") {
         e.preventDefault();
-        insertRef.current();
+        insertEnglishRef.current();
+        return;
+      }
+
+      // Ctrl+Enter: insert polished text
+      if (e.ctrlKey && !e.metaKey && e.key === "Enter") {
+        e.preventDefault();
+        insertPolishedRef.current();
         return;
       }
 
@@ -1184,6 +1330,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                   console.error("Failed to sync rewrite result to backend:", e);
                 },
               );
+              setTranslationSourceText(text);
             }
           } else {
             replaceEditorDocument(text);
@@ -1193,6 +1340,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                 console.error("Failed to sync rewrite result to backend:", e);
               },
             );
+            setTranslationSourceText(text);
           }
         },
       );
@@ -1262,6 +1410,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         text = editor.getText({ blockSeparator: "\n" });
       }
       if (text !== undefined) {
+        setTranslationSourceText(text);
         void invoke("set_review_editor_content_state", { text }).catch((e) => {
           console.error("Failed to sync review editor content state:", e);
         });
@@ -1329,11 +1478,57 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     if (candidate?.ready && candidate.text) {
       const text =
         editedTextsRef.current[selectedCandidateId] ?? candidate.text;
+      setTranslationSourceText(text);
       void invoke("set_review_editor_content_state", { text }).catch((e) => {
         console.error("Failed to sync candidate content:", e);
       });
     }
   }, [selectedCandidateId, localCandidates]);
+
+  useEffect(() => {
+    if (!translationEnabled) {
+      setTranslatedText(null);
+      setTranslatedSourceText(null);
+      setTranslationError(null);
+      setTranslationStatus("idle");
+      setIsTranslating(false);
+      return;
+    }
+
+    const trimmedText = translationSourceText.trim();
+    if (!trimmedText) {
+      setTranslatedText(null);
+      setTranslatedSourceText(null);
+      setTranslationError(null);
+      setTranslationStatus("idle");
+      setIsTranslating(false);
+      return;
+    }
+
+    setTranslationStatus("loading");
+    const timer = window.setTimeout(() => {
+      void requestEnglishTranslation(trimmedText);
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [requestEnglishTranslation, translationEnabled, translationSourceText]);
+
+  useEffect(() => {
+    if (
+      translationEnabled ||
+      translatedText ||
+      translationError ||
+      translationStatus === "loading"
+    ) {
+      window.setTimeout(() => measureAndResize(false), 16);
+    }
+  }, [
+    measureAndResize,
+    translatedText,
+    translationEnabled,
+    translationError,
+    translationStatus,
+  ]);
 
   const handleDrag = useCallback(async () => {
     try {
@@ -1407,6 +1602,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
               // Clear translation panel when changing prompt
               setTranslatedText(null);
+              setTranslatedSourceText(null);
+              setTranslationError(null);
+              setTranslationStatus("idle");
 
               if (isRealMultiModel) {
                 // Multi mode (2+ candidates): clear old results immediately
@@ -1434,6 +1632,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
               setIsRerunning(true);
               // Clear translation panel when rerunning
               setTranslatedText(null);
+              setTranslatedSourceText(null);
+              setTranslationError(null);
+              setTranslationStatus("idle");
             }}
             onRerunEnd={() => setIsRerunning(false)}
             onMeasureAndResize={measureAndResize}
@@ -1470,6 +1671,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             onEditEnd={() => setEditingCandidateId(null)}
             onTextChange={(candidateId, text) => {
               setEditedTexts((prev) => ({ ...prev, [candidateId]: text }));
+              if (candidateId === selectedCandidateId) {
+                setTranslationSourceText(text);
+              }
             }}
             onInsert={handleDirectInsert}
             onInsertOriginal={handleInsertOriginal}
@@ -1482,6 +1686,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             currentModelName={currentModelName}
             changeStats={singleModelChangeStats}
             onInsertOriginal={handleInsertOriginal}
+            onInsertPolished={handleInsertPolished}
           />
         ) : (
           <div className="review-content-area">
@@ -1508,37 +1713,38 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           </div>
         )}
 
-        {translatedText && (
-          <div className="review-translation-panel">
-            <div className="review-translation-header">
-              <span className="review-translation-title">
-                {t("transcription.review.translationResult", "翻译结果")}
-              </span>
-              <button
-                className="review-translation-close"
-                onClick={() => {
-                  setTranslatedText(null);
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div
-              className="review-translation-content"
-              onMouseEnter={() => setIsTranslationHovered(true)}
-              onMouseLeave={() => setIsTranslationHovered(false)}
-            >
-              {translatedText}
-              {isTranslationHovered && !isSubmitting && (
+        {translationEnabled && (
+          <div className="review-preview-dock">
+            <div className="review-translation-float">
+              <div className="review-translation-float-header">
+                <span className="review-translation-title">
+                  {t("transcription.review.translationPreview", "英文预览")}
+                </span>
+                {(!translatedText || translationStatus === "error") && (
+                  <span className="review-translation-status">
+                    {translationStatus === "error"
+                      ? t(
+                          "transcription.review.translationFailedFallback",
+                          "翻译失败，插入时将回退原文",
+                        )
+                      : t(
+                          "transcription.review.translationUpdating",
+                          "翻译中...",
+                        )}
+                  </span>
+                )}
+              </div>
+              <div className="review-translation-float-content">
+                {translatedText ||
+                  translationError ||
+                  t("transcription.review.translationUpdating", "翻译中...")}
+              </div>
+              {translatedText && !isSubmitting && (
                 <button
-                  className="review-translation-insert-btn"
-                  onClick={() => handleDirectInsert(translatedText)}
-                  title={t(
-                    "transcription.review.insertTranslation",
-                    "插入翻译结果",
-                  )}
+                  className="review-hover-insert-btn review-hover-insert-btn-english"
+                  onClick={() => void handleInsertEnglish()}
                 >
-                  <IconTextPlus size={16} />
+                  {t("transcription.review.insertEnglish", "插入英文")}
                 </button>
               )}
             </div>
@@ -1564,7 +1770,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           insertShortcut={insertShortcut}
           isMultiModel={!!sortedCandidates && sortedCandidates.length > 0}
           onCopy={handleCopy}
-          onInsert={handleInsert}
+          onInsert={handleInsertPolished}
           onUndo={handleUndoRevision}
           onRedo={handleRedoRevision}
         />

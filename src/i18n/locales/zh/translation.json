@@ -183,11 +183,18 @@
       "showDiff": "显示差异标注",
       "translateText": "翻译查看",
       "translationResult": "翻译结果",
+      "translationPreview": "英文预览",
+      "translationUpdating": "翻译中...",
+      "translationWaiting": "编辑后 1 秒自动更新",
+      "translationFailedFallback": "翻译失败，插入时将回退原文",
+      "translationReady": "已更新",
       "analysisTitle": "分析建议：",
       "deviationNone": "完全匹配",
       "deviationMinor": "轻微偏差",
       "deviationMajor": "偏差较大",
       "insertTranslation": "插入翻译结果",
+      "insertPolished": "插入润色",
+      "insertEnglish": "插入英文",
       "skipPostProcess": "不使用润色",
       "restoreOrder": "恢复原顺序",
       "sortBySpeed": "按反应速率排序",
@@ -433,8 +440,10 @@
       "transcriptionFailedSaved": "转录失败（已保存）"
     },
     "status": {
+      "inserting": "插入中…",
       "llm": "后处理中…",
       "recording": "录音中…",
+      "translation": "翻译中…",
       "transcribing": "转录中…",
       "review": "审阅中…",
       "rewrite": "处理中…"
@@ -1030,6 +1039,10 @@
         "placeholder": "选择意图模型",
         "title": "意图模型"
       },
+      "translationModel": {
+        "hint": "用于“插入前翻译英文”功能。留空时会先回退到意图模型，再回退到默认后处理模型。",
+        "title": "翻译模型"
+      },
       "inputInjection": {
         "groupTitle": "自动注入内容",
         "title": "自动注入内容",
@@ -1091,6 +1104,14 @@
         "profilesTitle": "应用配置文件",
         "promptDescription": "选择此配置文件中转录使用的自定义提示词。",
         "promptHeader": "覆盖 LLM 提示词",
+        "selectionClipboardFallback": {
+          "description": "关闭后，此应用读取选中文本时只尝试辅助功能接口，不再通过模拟复制读取剪贴板兜底。",
+          "label": "剪贴板兜底"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "命中此应用时，在最终插入前额外调用大模型翻译为英文；失败则回退原文。",
+          "label": "插入前翻译英文"
+        },
         "selectPrompt": "从侧边栏选择一个配置文件进行编辑",
         "skipPostProcess": "跳过后处理",
         "shortcuts": {

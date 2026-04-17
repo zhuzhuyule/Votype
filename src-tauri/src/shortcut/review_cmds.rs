@@ -4,25 +4,72 @@ use tauri::{AppHandle, Emitter, Manager};
 
 use crate::settings;
 
+#[derive(Clone, Copy, Debug, Serialize, serde::Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewInsertTarget {
+    English,
+    Polished,
+    AsrOriginal,
+}
+
+fn should_translate_review_insert(app: &AppHandle) -> bool {
+    let Some(info) = crate::review_window::get_last_active_window() else {
+        return false;
+    };
+
+    let settings = settings::get_settings(app);
+    settings
+        .app_to_profile
+        .iter()
+        .find(|(app_name, _)| app_name.eq_ignore_ascii_case(&info.app_name))
+        .map(|(_, profile_id)| profile_id)
+        .and_then(|profile_id| {
+            settings
+                .app_profiles
+                .iter()
+                .find(|profile| &profile.id == profile_id)
+        })
+        .map(|profile| profile.translate_to_english_on_insert)
+        .unwrap_or(false)
+}
+
+#[derive(Serialize, Type)]
+pub struct ReviewTranslationSettingsResponse {
+    pub enabled: bool,
+}
+
 #[tauri::command]
 #[specta::specta]
-pub fn confirm_reviewed_transcription(
+pub fn get_review_translation_settings(app: AppHandle) -> ReviewTranslationSettingsResponse {
+    ReviewTranslationSettingsResponse {
+        enabled: should_translate_review_insert(&app),
+    }
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn confirm_reviewed_transcription(
     app: AppHandle,
     text: String,
     history_id: Option<i64>,
     cached_model_id: Option<String>,
     learn_from_edit: bool,
     original_text_for_learning: Option<String>,
+    translated_text_for_insert: Option<String>,
+    translation_source_text: Option<String>,
+    insert_target: Option<ReviewInsertTarget>,
 ) -> Result<(), String> {
     use std::time::Duration;
 
+    let insert_target = insert_target.unwrap_or(ReviewInsertTarget::Polished);
     log::info!(
-        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}, cached_model_id={:?}, learn_from_edit={}, has_original_text_for_learning={}",
+        "confirm_reviewed_transcription: inserting {} chars, history_id={:?}, cached_model_id={:?}, learn_from_edit={}, has_original_text_for_learning={}, insert_target={:?}",
         text.len(),
         history_id,
         cached_model_id,
         learn_from_edit,
-        original_text_for_learning.is_some()
+        original_text_for_learning.is_some(),
+        insert_target
     );
 
     if let Some(ppm) =
@@ -96,8 +143,64 @@ pub fn confirm_reviewed_transcription(
     // Hide the review window
     crate::review_window::hide_review_window(&app, history_id);
 
+    let last_active_window = crate::review_window::get_last_active_window();
+    let text = match insert_target {
+        ReviewInsertTarget::English => {
+            let should_translate_on_insert = should_translate_review_insert(&app);
+            let trimmed_text = text.trim().to_string();
+            if should_translate_on_insert && !trimmed_text.is_empty() {
+                crate::overlay::show_translation_overlay(&app);
+                if let (Some(translated), Some(source_text)) =
+                    (translated_text_for_insert, translation_source_text)
+                {
+                    if source_text.trim() == trimmed_text && !translated.trim().is_empty() {
+                        translated
+                    } else {
+                        match crate::commands::text::translate_text_to_english(&app, &text).await {
+                            Ok(translated) if !translated.trim().is_empty() => translated,
+                            Ok(_) => {
+                                log::warn!(
+                                    "confirm_reviewed_transcription: translation returned empty text, using original"
+                                );
+                                text
+                            }
+                            Err(err) => {
+                                log::warn!(
+                                    "confirm_reviewed_transcription: translation failed, using original: {}",
+                                    err
+                                );
+                                text
+                            }
+                        }
+                    }
+                } else {
+                    match crate::commands::text::translate_text_to_english(&app, &text).await {
+                        Ok(translated) if !translated.trim().is_empty() => translated,
+                        Ok(_) => {
+                            log::warn!(
+                                "confirm_reviewed_transcription: translation returned empty text, using original"
+                            );
+                            text
+                        }
+                        Err(err) => {
+                            log::warn!(
+                                "confirm_reviewed_transcription: translation failed, using original: {}",
+                                err
+                            );
+                            text
+                        }
+                    }
+                }
+            } else {
+                text
+            }
+        }
+        ReviewInsertTarget::Polished | ReviewInsertTarget::AsrOriginal => text,
+    };
+
     // Focus the previously active window and paste
-    if let Some(info) = crate::review_window::get_last_active_window() {
+    crate::overlay::show_inserting_overlay(&app);
+    if let Some(info) = last_active_window {
         if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
             log::warn!("Failed to focus previous app: {}", e);
         } else {
@@ -105,7 +208,9 @@ pub fn confirm_reviewed_transcription(
         }
     }
 
-    crate::clipboard::paste(text, app)
+    let result = crate::clipboard::paste(text, app.clone());
+    crate::utils::hide_recording_overlay(&app);
+    result
 }
 
 #[tauri::command]

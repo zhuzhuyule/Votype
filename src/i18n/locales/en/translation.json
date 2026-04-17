@@ -395,8 +395,10 @@
       "charCount": "{{count}} chars"
     },
     "status": {
+      "inserting": "Inserting...",
       "llm": "Post Processing...",
       "recording": "Recording...",
+      "translation": "Translating...",
       "transcribing": "Transcribing...",
       "review": "Review...",
       "rewrite": "Processing…"
@@ -992,6 +994,10 @@
         "placeholder": "Select an intent model",
         "title": "Intent Model"
       },
+      "translationModel": {
+        "hint": "Used by the translate-before-insert feature. Leave it empty to fall back to the intent model, then the default post-processing model.",
+        "title": "Translation Model"
+      },
       "inputInjection": {
         "groupTitle": "Automatic Inputs",
         "title": "Automatic Inputs",
@@ -1053,6 +1059,14 @@
         "profilesTitle": "Application Profiles",
         "promptDescription": "Select a custom prompt to use for transcriptions in this profile.",
         "promptHeader": "Override LLM Prompt",
+        "selectionClipboardFallback": {
+          "description": "When disabled, selected text for this app only uses Accessibility API and skips the simulated-copy clipboard fallback.",
+          "label": "Clipboard Fallback"
+        },
+        "translateToEnglishOnInsert": {
+          "description": "For this app, run one extra LLM translation to English right before insertion. If translation fails, fall back to the original text.",
+          "label": "Translate before insert"
+        },
         "selectPrompt": "Select a profile from the sidebar to edit",
         "skipPostProcess": "Skip Post-Processing",
         "shortcuts": {
@@ -1603,11 +1617,18 @@
       "showDiff": "Show Diff",
       "translateText": "Translate",
       "translationResult": "Translation Result",
+      "translationPreview": "English Preview",
+      "translationUpdating": "Translating...",
+      "translationWaiting": "Updates automatically 1s after edits",
+      "translationFailedFallback": "Translation failed, original text will be inserted",
+      "translationReady": "Updated",
       "analysisTitle": "Analysis:",
       "deviationNone": "Perfect Match",
       "deviationMinor": "Minor Changes",
       "deviationMajor": "Significant Changes",
       "insertTranslation": "Insert translation",
+      "insertPolished": "Insert Polished",
+      "insertEnglish": "Insert English",
       "multiModel": "Multi-model Results",
       "processing": "Processing...",
       "restoreOrder": "Restore Original Order",

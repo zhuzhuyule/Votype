@@ -13,6 +13,8 @@ interface DiffViewPanelProps {
   currentModelName?: string;
   changeStats?: ChangeStats | null;
   onInsertOriginal?: () => void;
+  onInsertPolished?: () => void;
+  showInsertPolished?: boolean;
 }
 
 export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
@@ -22,6 +24,8 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
   currentModelName,
   changeStats,
   onInsertOriginal,
+  onInsertPolished,
+  showInsertPolished = true,
 }) => {
   const { t } = useTranslation();
   const [isSourceHovered, setIsSourceHovered] = useState(false);
@@ -50,7 +54,7 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
         )}
       </div>
       {/* Final output panel */}
-      <div className="review-panel review-panel-output">
+      <div className="review-panel review-panel-output review-polish-surface">
         <div className="review-panel-header">
           <span className="review-panel-label">
             {t("transcription.review.final", "Final output")}
@@ -92,6 +96,15 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
             <EditorContent editor={editor} />
           )}
         </div>
+        {showInsertPolished && onInsertPolished && !isRerunning && (
+          <button
+            type="button"
+            className="review-hover-insert-btn"
+            onClick={onInsertPolished}
+          >
+            {t("transcription.review.insertPolished", "插入润色")}
+          </button>
+        )}
       </div>
     </div>
   );
