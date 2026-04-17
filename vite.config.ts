@@ -11,6 +11,11 @@ export default defineConfig(async () => ({
 
   // Multiple entry points for main app, overlay, and review window
   build: {
+    // Tauri's WKWebView serves production assets via a custom protocol that
+    // doesn't fully support cross-chunk ESM static imports. Splitting vendor
+    // code via manualChunks causes blank screens. Keep chunks as-is and raise
+    // the warning limit — bundle size is irrelevant for a local desktop app.
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
