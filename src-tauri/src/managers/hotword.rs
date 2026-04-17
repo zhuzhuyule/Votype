@@ -6,6 +6,7 @@
 use anyhow::Result;
 use chrono::Utc;
 use log::{debug, error, info, warn};
+use regex::Regex;
 use rusqlite::{params, Connection};
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::{BTreeSet, HashMap};
@@ -87,6 +88,27 @@ fn count_hotword_occurrences(text: &str, target: &str) -> usize {
     }
 
     text.match_indices(target).count()
+}
+
+fn is_ascii_word_like(term: &str) -> bool {
+    term.chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch.is_ascii_whitespace())
+}
+
+fn apply_exact_term_replacement(text: &str, original: &str, target: &str) -> String {
+    let original = original.trim();
+    if text.is_empty() || original.is_empty() || original == target {
+        return text.to_string();
+    }
+
+    if is_ascii_word_like(original) {
+        let pattern = format!(r"(?i)\b{}\b", regex::escape(original));
+        return Regex::new(&pattern)
+            .map(|re| re.replace_all(text, target).into_owned())
+            .unwrap_or_else(|_| text.to_string());
+    }
+
+    text.replace(original, target)
 }
 
 /// Manages hotword vocabulary for transcription enhancement
@@ -196,6 +218,11 @@ impl HotwordManager {
         let scenarios_json: String = row.get("scenarios")?;
         let status: String = row.get("status").unwrap_or_else(|_| "active".to_string());
         let source: String = row.get("source").unwrap_or_else(|_| "manual".to_string());
+        let force_replace_originals_json = row
+            .get::<_, Option<String>>("force_replace_originals")
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "[]".to_string());
         let app_usage_stats = row
             .get::<_, Option<String>>("app_usage_stats")
             .ok()
@@ -209,6 +236,8 @@ impl HotwordManager {
             id: row.get("id")?,
             target: row.get("target")?,
             originals: serde_json::from_str(&originals_json).unwrap_or_default(),
+            force_replace_originals: serde_json::from_str(&force_replace_originals_json)
+                .unwrap_or_default(),
             category: category_str,
             scenarios: serde_json::from_str(&scenarios_json).unwrap_or_default(),
             user_override: row.get("user_override")?,
@@ -231,7 +260,7 @@ impl HotwordManager {
         let mut stmt = conn.prepare(
             "SELECT id, target, originals, category, scenarios,
                     user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats,
-                    last_used_at, false_positive_count, created_at, status, source
+                    last_used_at, false_positive_count, created_at, status, source, force_replace_originals
              FROM hotwords
              ORDER BY use_count DESC, created_at DESC",
         )?;
@@ -273,6 +302,7 @@ impl HotwordManager {
         &self,
         target: String,
         originals: Vec<String>,
+        force_replace_originals: Vec<String>,
         category: Option<String>,
         scenarios: Option<Vec<HotwordScenario>>,
     ) -> Result<Hotword> {
@@ -296,15 +326,16 @@ impl HotwordManager {
             i64,
             String,
             String,
+            String,
         )> = conn
             .query_row(
-                "SELECT id, target, originals, category, scenarios, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, last_used_at, false_positive_count, created_at, status, source FROM hotwords WHERE LOWER(target) = LOWER(?1)",
+                "SELECT id, target, originals, category, scenarios, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, last_used_at, false_positive_count, created_at, status, source, force_replace_originals FROM hotwords WHERE LOWER(target) = LOWER(?1)",
                 params![target],
                 |row| Ok((
                     row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?,
                     row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?,
                     row.get(8)?, row.get(9)?, row.get(10)?, row.get(11)?,
-                    row.get(12)?, row.get(13)?, row.get(14)?,
+                    row.get(12)?, row.get(13)?, row.get(14)?, row.get(15)?,
                 )),
             )
             .ok();
@@ -325,11 +356,14 @@ impl HotwordManager {
             existing_created_at,
             existing_status,
             existing_source,
+            existing_force_replace_originals_json,
         )) = existing
         {
             // Merge originals into existing hotword
             let mut existing_originals: Vec<String> =
                 serde_json::from_str(&existing_originals_json).unwrap_or_default();
+            let mut existing_force_replace_originals: Vec<String> =
+                serde_json::from_str(&existing_force_replace_originals_json).unwrap_or_default();
             for orig in &originals {
                 if !existing_originals
                     .iter()
@@ -338,10 +372,20 @@ impl HotwordManager {
                     existing_originals.push(orig.clone());
                 }
             }
+            for orig in &force_replace_originals {
+                if !existing_force_replace_originals
+                    .iter()
+                    .any(|o| o.eq_ignore_ascii_case(orig))
+                {
+                    existing_force_replace_originals.push(orig.clone());
+                }
+            }
             let merged_json = serde_json::to_string(&existing_originals)?;
+            let merged_force_replace_json =
+                serde_json::to_string(&existing_force_replace_originals)?;
             conn.execute(
-                "UPDATE hotwords SET originals = ?1 WHERE id = ?2",
-                params![merged_json, id],
+                "UPDATE hotwords SET originals = ?1, force_replace_originals = ?2 WHERE id = ?3",
+                params![merged_json, merged_force_replace_json, id],
             )?;
             info!(
                 "[Hotword] Merged into existing hotword \"{}\" (id={}), originals: {:?}",
@@ -353,6 +397,7 @@ impl HotwordManager {
                 id,
                 target: existing_target,
                 originals: existing_originals,
+                force_replace_originals: existing_force_replace_originals,
                 category: existing_category,
                 scenarios: existing_scenarios,
                 user_override: existing_user_override,
@@ -381,18 +426,20 @@ impl HotwordManager {
             scenarios.unwrap_or_else(|| vec![HotwordScenario::Work, HotwordScenario::Casual]);
 
         let originals_json = serde_json::to_string(&originals)?;
+        let force_replace_originals_json = serde_json::to_string(&force_replace_originals)?;
         let scenarios_json = serde_json::to_string(&final_scenarios)?;
 
         conn.execute(
-            "INSERT INTO hotwords (target, originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
-             VALUES (?1, ?2, ?3, ?4, ?5, 0, 0, ?6, 'active', 'manual')",
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, 0, 0, ?7, 'active', 'manual')",
             params![
                 target,
                 originals_json,
+                force_replace_originals_json,
                 final_category,
                 scenarios_json,
                 user_override,
-                now
+                now,
             ],
         )?;
 
@@ -407,6 +454,7 @@ impl HotwordManager {
             id,
             target,
             originals,
+            force_replace_originals,
             category: final_category,
             scenarios: final_scenarios,
             user_override,
@@ -428,27 +476,42 @@ impl HotwordManager {
         id: i64,
         target: Option<String>,
         originals: Vec<String>,
+        force_replace_originals: Vec<String>,
         category: String,
         scenarios: Vec<HotwordScenario>,
     ) -> Result<()> {
         let conn = self.get_connection()?;
 
         let originals_json = serde_json::to_string(&originals)?;
+        let force_replace_originals_json = serde_json::to_string(&force_replace_originals)?;
         let scenarios_json = serde_json::to_string(&scenarios)?;
 
         if let Some(ref new_target) = target {
             conn.execute(
                 "UPDATE hotwords
-                 SET target = ?1, originals = ?2, category = ?3, scenarios = ?4, user_override = 1
-                 WHERE id = ?5",
-                params![new_target, originals_json, category, scenarios_json, id],
+                 SET target = ?1, originals = ?2, force_replace_originals = ?3, category = ?4, scenarios = ?5, user_override = 1
+                 WHERE id = ?6",
+                params![
+                    new_target,
+                    originals_json,
+                    force_replace_originals_json,
+                    category,
+                    scenarios_json,
+                    id
+                ],
             )?;
         } else {
             conn.execute(
                 "UPDATE hotwords
-                 SET originals = ?1, category = ?2, scenarios = ?3, user_override = 1
-                 WHERE id = ?4",
-                params![originals_json, category, scenarios_json, id],
+                 SET originals = ?1, force_replace_originals = ?2, category = ?3, scenarios = ?4, user_override = 1
+                 WHERE id = ?5",
+                params![
+                    originals_json,
+                    force_replace_originals_json,
+                    category,
+                    scenarios_json,
+                    id
+                ],
             )?;
         }
 
@@ -558,6 +621,41 @@ impl HotwordManager {
         }
 
         Ok(total_hits)
+    }
+
+    pub fn apply_force_replacements(&self, text: &str) -> Result<String> {
+        if text.trim().is_empty() {
+            return Ok(text.to_string());
+        }
+
+        let mut pairs: Vec<(String, String)> = self
+            .get_all_with_usage_stats()?
+            .into_iter()
+            .filter(|hotword| hotword.status == "active")
+            .flat_map(|hotword| {
+                hotword
+                    .force_replace_originals
+                    .into_iter()
+                    .map(move |original| (original, hotword.target.clone()))
+            })
+            .filter(|(original, target)| {
+                let original = original.trim();
+                !original.is_empty() && original != target
+            })
+            .collect();
+
+        if pairs.is_empty() {
+            return Ok(text.to_string());
+        }
+
+        pairs.sort_by(|a, b| b.0.len().cmp(&a.0.len()).then_with(|| a.0.cmp(&b.0)));
+
+        let mut replaced = text.to_string();
+        for (original, target) in pairs {
+            replaced = apply_exact_term_replacement(&replaced, &original, &target);
+        }
+
+        Ok(replaced)
     }
 
     /// Increment false positive count for a hotword
@@ -1200,8 +1298,8 @@ impl HotwordManager {
             let originals_json = serde_json::to_string(&vec![original])?;
 
             conn.execute(
-                "INSERT INTO hotwords (target, originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
-                 VALUES (?1, ?2, ?3, '[\"work\",\"casual\"]', 0, 1, 0, ?4, 'active', 'auto_learned')",
+                "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
+                 VALUES (?1, ?2, '[]', ?3, '[\"work\",\"casual\"]', 0, 1, 0, ?4, 'active', 'auto_learned')",
                 params![target, originals_json, inferred_category, now],
             )?;
 
@@ -1261,8 +1359,8 @@ impl HotwordManager {
         } else {
             let originals_json = serde_json::to_string(&vec![original])?;
             conn.execute(
-                "INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
-                 VALUES (?1, ?2, ?3, '[\"work\",\"casual\"]', 0, 0, 0, ?4, 'suggested', 'auto_learned')",
+                "INSERT OR IGNORE INTO hotwords (target, originals, force_replace_originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
+                 VALUES (?1, ?2, '[]', ?3, '[\"work\",\"casual\"]', 0, 0, 0, ?4, 'suggested', 'auto_learned')",
                 params![target, originals_json, category, now],
             )?;
             info!(
@@ -1285,8 +1383,8 @@ impl HotwordManager {
             let scenarios_json = "[\"work\",\"casual\"]";
 
             let result = conn.execute(
-                "INSERT OR IGNORE INTO hotwords (target, originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
-                 VALUES (?1, ?2, ?3, ?4, 0, 0, 0, ?5, 'suggested', 'ai_extracted')",
+                "INSERT OR IGNORE INTO hotwords (target, originals, force_replace_originals, category, scenarios, user_override, use_count, false_positive_count, created_at, status, source)
+                 VALUES (?1, ?2, '[]', ?3, ?4, 0, 0, 0, ?5, 'suggested', 'ai_extracted')",
                 params![
                     target,
                     originals_json,
@@ -1302,6 +1400,7 @@ impl HotwordManager {
                     id,
                     target,
                     originals,
+                    force_replace_originals: vec![],
                     category,
                     scenarios: vec![HotwordScenario::Work, HotwordScenario::Casual],
                     user_override: false,
@@ -1333,7 +1432,7 @@ impl HotwordManager {
         let mut stmt = conn.prepare(
             "SELECT id, target, originals, category, scenarios,
                     user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats,
-                    last_used_at, false_positive_count, created_at, status, source
+                    last_used_at, false_positive_count, created_at, status, source, force_replace_originals
              FROM hotwords
              WHERE status = 'suggested'
              ORDER BY created_at DESC",
@@ -1724,6 +1823,7 @@ mod tests {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 target TEXT NOT NULL UNIQUE,
                 originals TEXT NOT NULL DEFAULT '[]',
+                force_replace_originals TEXT NOT NULL DEFAULT '[]',
                 category TEXT NOT NULL DEFAULT 'term',
                 scenarios TEXT NOT NULL DEFAULT '["work","casual"]',
                 confidence REAL NOT NULL DEFAULT 0.5,
@@ -1743,8 +1843,8 @@ mod tests {
         .expect("create hotwords table");
 
         conn.execute(
-            "INSERT INTO hotwords (target, originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
-             VALUES (?1, '[]', 'term', '[\"work\",\"casual\"]', 0.5, 0, 0, 0, '{}', '{}', 0, 1, 'active', 'manual')",
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', '[]', 'term', '[\"work\",\"casual\"]', 0.5, 0, 0, 0, '{}', '{}', 0, 1, 'active', 'manual')",
             params!["Votype"],
         )
         .expect("insert hotword");
@@ -2019,5 +2119,102 @@ mod tests {
         assert!(summary.contains("产品品牌类热词：Votype"));
         assert!(summary.contains("术语缩写类热词：ASR"));
         assert!(summary.contains("其他热词：悬浮窗"));
+    }
+
+    #[test]
+    fn test_apply_force_replacements_replaces_only_active_exact_matches() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', ?2, 'term', '[\"work\"]', 0.5, 1, 0, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params!["差距", serde_json::to_string(&vec!["叉举"]).unwrap()],
+        )
+        .expect("insert force replace hotword");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, '[]', 'term', '[\"work\"]', 0.5, 1, 0, 0, '{}', '{}', 0, 3, 'active', 'manual')",
+            params!["保留", serde_json::to_string(&vec!["不替换"]).unwrap()],
+        )
+        .expect("insert disabled hotword");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', ?2, 'term', '[\"work\"]', 0.5, 1, 0, 0, '{}', '{}', 0, 4, 'suggested', 'manual')",
+            params!["忽略", serde_json::to_string(&vec!["建议词"]).unwrap()],
+        )
+        .expect("insert suggested hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let replaced = manager
+            .apply_force_replacements("这里的叉举很大，不替换和建议词都不该动。")
+            .expect("apply force replacements");
+
+        assert!(replaced.contains("差距"));
+        assert!(!replaced.contains("叉举"));
+        assert!(replaced.contains("不替换"));
+        assert!(replaced.contains("建议词"));
+    }
+
+    #[test]
+    fn test_apply_force_replacements_does_not_replace_ascii_substrings() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', ?2, 'term', '[\"work\"]', 0.5, 1, 0, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params!["OpenAI", serde_json::to_string(&vec!["op"]).unwrap()],
+        )
+        .expect("insert ascii force replace hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let replaced = manager
+            .apply_force_replacements("open operator op OP")
+            .expect("apply force replacements");
+
+        assert_eq!(replaced, "open operator OpenAI OpenAI");
+    }
+
+    #[test]
+    fn test_contextual_injection_excludes_force_replace_aliases_from_correction_pairs() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, ?3, 'term', '[\"work\"]', 0.5, 1, 5, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params![
+                "差距",
+                serde_json::to_string(&vec!["常规纠错"]).unwrap(),
+                serde_json::to_string(&vec!["叉举"]).unwrap()
+            ],
+        )
+        .expect("insert force replace hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let injection = manager
+            .build_contextual_injection(
+                HotwordScenario::Work,
+                "这里有叉举这个误识别",
+                "请修正文稿",
+                Some("Code"),
+            )
+            .expect("build contextual injection");
+
+        assert!(injection
+            .correction_pairs
+            .iter()
+            .any(|pair| pair.target == "差距" && pair.original == "常规纠错"));
+        assert!(!injection
+            .correction_pairs
+            .iter()
+            .any(|pair| pair.target == "差距" && pair.original == "叉举"));
     }
 }

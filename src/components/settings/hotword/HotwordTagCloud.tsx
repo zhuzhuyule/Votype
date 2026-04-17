@@ -42,7 +42,6 @@ import { HotwordAddBar } from "./HotwordAddBar";
 import { HotwordEditPanel } from "./HotwordEditPanel";
 import { HotwordTag } from "./HotwordTag";
 
-// Droppable category group wrapper
 const DroppableCategoryGroup: React.FC<{
   category: HotwordCategory;
   isDragging: boolean;
@@ -139,18 +138,17 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
     }),
   );
 
-  // Filter hotwords by search
   const filteredHotwords = useMemo(() => {
     if (!search.trim()) return hotwords;
     const q = search.toLowerCase();
     return hotwords.filter(
       (h) =>
         h.target.toLowerCase().includes(q) ||
-        h.originals.some((o) => o.toLowerCase().includes(q)),
+        h.originals.some((o) => o.toLowerCase().includes(q)) ||
+        h.force_replace_originals.some((o) => o.toLowerCase().includes(q)),
     );
   }, [hotwords, search]);
 
-  // Group by category with configurable sort
   const grouped = useMemo(() => {
     const cjkRegex = /^[\u4e00-\u9fff\u3400-\u4dbf]/;
     const collator = new Intl.Collator("zh-Hans-CN", { sensitivity: "base" });
@@ -234,7 +232,6 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
     setShowAddBar(false);
   };
 
-  // All category ids for drag validation (sorted + any extra from hotwords)
   const allCategoryIds = useMemo(() => {
     const ids = new Set(sortedIds);
     for (const h of hotwords) {
@@ -252,14 +249,12 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
       const hotword = (active.data.current as { hotword: Hotword })?.hotword;
       if (!hotword) return;
 
-      // Extract category from droppable id "category-xxx"
       const targetCategory = String(over.id).replace("category-", "");
       if (!allCategoryIds.includes(targetCategory)) return;
       if (hotword.category === targetCategory) return;
 
       onUpdateCategory(hotword.id, targetCategory);
 
-      // Highlight the moved tag briefly
       setHighlightedId(hotword.id);
       setTimeout(() => setHighlightedId(null), 1200);
     },
@@ -268,7 +263,6 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
 
   return (
     <Flex direction="column" className="h-full">
-      {/* Toolbar */}
       <div className="p-4 pb-3 border-b border-gray-100 shrink-0 bg-white z-10">
         <Flex gap="2" align="center" justify="between">
           <Flex gap="2">
@@ -346,10 +340,8 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
         </Flex>
       </div>
 
-      {/* Scrollable Content */}
       <div className="flex-1 p-4 bg-gray-50/50 overflow-auto">
         <Flex direction="column" gap="3">
-          {/* Add Bar */}
           {showAddBar && (
             <HotwordAddBar
               onAdd={handleAddDone}
@@ -358,7 +350,6 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
             />
           )}
 
-          {/* AI Suggestions */}
           {suggestions.length > 0 && (
             <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/50">
               <Flex direction="column" gap="2">
@@ -483,28 +474,24 @@ export const HotwordTagCloud: React.FC<HotwordTagCloudProps> = ({
             </div>
           )}
 
-          {/* Loading */}
           {loading && (
             <Text size="2" color="gray" className="py-8 text-center">
               加载中...
             </Text>
           )}
 
-          {/* Empty state */}
           {!loading && hotwords.length === 0 && (
             <Text size="2" color="gray" className="py-8 text-center">
               暂无热词，点击"添加"按钮添加新热词
             </Text>
           )}
 
-          {/* Search empty */}
           {!loading && hotwords.length > 0 && filteredHotwords.length === 0 && (
             <Text size="2" color="gray" className="py-4 text-center">
               未找到匹配「{search}」的热词
             </Text>
           )}
 
-          {/* Category Groups with DnD */}
           {!loading && (
             <DndContext
               sensors={sensors}

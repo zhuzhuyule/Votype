@@ -21,7 +21,6 @@ export const HotwordSettings: React.FC = () => {
     categories,
     categoryMap,
     sortedIds,
-    reload: reloadCategories,
     addCategory,
     updateCategory,
     deleteCategory,
@@ -73,6 +72,7 @@ export const HotwordSettings: React.FC = () => {
     const newHotword = await invoke<Hotword>("add_hotword", {
       target,
       originals,
+      forceReplaceOriginals: [],
       category,
       scenarios,
     });
@@ -92,6 +92,7 @@ export const HotwordSettings: React.FC = () => {
         const newHotword = await invoke<Hotword>("add_hotword", {
           target,
           originals: [],
+          forceReplaceOriginals: [],
           category,
           scenarios: ["work", "casual"],
         });
@@ -118,6 +119,7 @@ export const HotwordSettings: React.FC = () => {
         id,
         target: null,
         originals: hotword.originals,
+        forceReplaceOriginals: hotword.force_replace_originals,
         category,
         scenarios: hotword.scenarios,
       });
@@ -189,6 +191,7 @@ export const HotwordSettings: React.FC = () => {
       hotwords: hotwords.map((h) => ({
         target: h.target,
         originals: h.originals,
+        force_replace_originals: h.force_replace_originals,
         category: h.category,
         scenarios: h.scenarios,
       })),
@@ -225,6 +228,7 @@ export const HotwordSettings: React.FC = () => {
               const newHotword = await invoke<Hotword>("add_hotword", {
                 target: target.trim(),
                 originals: [],
+                forceReplaceOriginals: [],
                 category,
                 scenarios: ["work", "casual"],
               });
@@ -240,6 +244,9 @@ export const HotwordSettings: React.FC = () => {
               const newHotword = await invoke<Hotword>("add_hotword", {
                 target: h.target.trim(),
                 originals: Array.isArray(h.originals) ? h.originals : [],
+                forceReplaceOriginals: Array.isArray(h.force_replace_originals)
+                  ? h.force_replace_originals
+                  : [],
                 category: h.category || "term",
                 scenarios: Array.isArray(h.scenarios)
                   ? h.scenarios

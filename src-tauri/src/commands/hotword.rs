@@ -19,6 +19,7 @@ pub fn add_hotword(
     app: AppHandle,
     target: String,
     originals: Vec<String>,
+    force_replace_originals: Vec<String>,
     category: Option<String>,
     scenarios: Vec<HotwordScenario>,
 ) -> Result<Hotword, String> {
@@ -30,7 +31,13 @@ pub fn add_hotword(
         Some(scenarios)
     };
     manager
-        .add(target, originals, category, scenarios_opt)
+        .add(
+            target,
+            originals,
+            force_replace_originals,
+            category,
+            scenarios_opt,
+        )
         .map_err(|e| e.to_string())
 }
 
@@ -40,13 +47,21 @@ pub fn update_hotword(
     id: i64,
     target: Option<String>,
     originals: Vec<String>,
+    force_replace_originals: Vec<String>,
     category: String,
     scenarios: Vec<HotwordScenario>,
 ) -> Result<(), String> {
     let hm = app.state::<Arc<HistoryManager>>();
     let manager = HotwordManager::new(hm.db_path.clone());
     manager
-        .update(id, target, originals, category, scenarios)
+        .update(
+            id,
+            target,
+            originals,
+            force_replace_originals,
+            category,
+            scenarios,
+        )
         .map_err(|e| e.to_string())
 }
 

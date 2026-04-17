@@ -7,6 +7,7 @@ export type HotwordSource = "manual" | "auto_learned" | "ai_extracted";
 export interface Hotword {
   id: number;
   originals: string[];
+  force_replace_originals: string[];
   target: string;
   category: HotwordCategory;
   scenarios: HotwordScenario[];
