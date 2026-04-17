@@ -14,6 +14,7 @@ import {
   IconKey,
   IconPlug,
   IconPlus,
+  IconRefresh,
   IconTrash,
 } from "@tabler/icons-react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -94,6 +95,12 @@ export const AdvancedSettings: React.FC = () => {
   const [localApiKey, setLocalApiKey] = useState(
     settings?.openai_compatible_api_access_key ?? "",
   );
+  const [localApiPortInput, setLocalApiPortInput] = useState(
+    String(settings?.openai_compatible_api_port ?? 33178),
+  );
+  const [localApiBasePathInput, setLocalApiBasePathInput] = useState(
+    settings?.openai_compatible_api_base_path ?? "/v1",
+  );
 
   useEffect(() => {
     setProxyParts(parseProxyUrl(savedUrl));
@@ -102,6 +109,16 @@ export const AdvancedSettings: React.FC = () => {
   useEffect(() => {
     setLocalApiKey(settings?.openai_compatible_api_access_key ?? "");
   }, [settings?.openai_compatible_api_access_key]);
+
+  useEffect(() => {
+    setLocalApiPortInput(String(settings?.openai_compatible_api_port ?? 33178));
+  }, [settings?.openai_compatible_api_port]);
+
+  useEffect(() => {
+    setLocalApiBasePathInput(
+      settings?.openai_compatible_api_base_path ?? "/v1",
+    );
+  }, [settings?.openai_compatible_api_base_path]);
 
   const hasProxy = !!savedUrl;
   const [showProxy, setShowProxy] = useState(hasProxy);
@@ -123,9 +140,11 @@ export const AdvancedSettings: React.FC = () => {
 
   const proxyGlobalEnabled = settings?.proxy_global_enabled ?? false;
   const localApiEnabled = settings?.openai_compatible_api_enabled ?? true;
-  const localApiHost = settings?.openai_compatible_api_host ?? "127.0.0.1";
   const localApiPort = settings?.openai_compatible_api_port ?? 33178;
-  const localApiUrl = `http://${localApiHost}:${localApiPort}/v1`;
+  const localApiAllowLan = settings?.openai_compatible_api_allow_lan ?? false;
+  const localApiBasePath = settings?.openai_compatible_api_base_path ?? "/v1";
+  const localApiUrl = `http://127.0.0.1:${localApiPort}${localApiBasePath}`;
+  const lanApiHint = `http://<你的局域网IP>:${localApiPort}${localApiBasePath}`;
 
   const copyText = useCallback(async (value: string, label: string) => {
     try {
@@ -136,6 +155,17 @@ export const AdvancedSettings: React.FC = () => {
       toast.error(`复制${label}失败`);
     }
   }, []);
+
+  const generateRandomApiKey = useCallback(() => {
+    const bytes = new Uint8Array(18);
+    crypto.getRandomValues(bytes);
+    const generated =
+      "votype-local-" +
+      Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    setLocalApiKey(generated);
+    void updateSetting("openai_compatible_api_access_key", generated);
+    toast.success("已生成新的 Access Key");
+  }, [updateSetting]);
 
   return (
     <Flex direction="column" className="max-w-5xl w-full mx-auto space-y-8">
@@ -158,7 +188,86 @@ export const AdvancedSettings: React.FC = () => {
             />
           </Flex>
 
+          <Flex align="center" justify="between" gap="4">
+            <Box>
+              <Text size="2" weight="medium">
+                允许局域网访问
+              </Text>
+              <Text size="1" color="gray">
+                开启后其他局域网设备可通过你的机器 IP
+                访问。修改后需重启应用生效。
+              </Text>
+            </Box>
+            <Switch
+              checked={localApiAllowLan}
+              onCheckedChange={(checked) => {
+                void updateSetting(
+                  "openai_compatible_api_allow_lan",
+                  !!checked,
+                );
+              }}
+            />
+          </Flex>
+
           <Grid columns="auto 1fr auto" gapX="4" gapY="3" align="center">
+            <Text size="2" weight="medium" color="gray" className="text-right">
+              Port:
+            </Text>
+            <TextField.Root
+              value={localApiPortInput}
+              onChange={(event) =>
+                setLocalApiPortInput(event.target.value.replace(/\D/g, ""))
+              }
+              onBlur={() => {
+                const parsed = Number(localApiPortInput);
+                if (
+                  Number.isInteger(parsed) &&
+                  parsed > 0 &&
+                  parsed !== (settings?.openai_compatible_api_port ?? 33178)
+                ) {
+                  void updateSetting("openai_compatible_api_port", parsed);
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="33178"
+            />
+            <Text size="1" color="gray">
+              重启生效
+            </Text>
+
+            <Text size="2" weight="medium" color="gray" className="text-right">
+              Endpoint:
+            </Text>
+            <TextField.Root
+              value={localApiBasePathInput}
+              onChange={(event) => setLocalApiBasePathInput(event.target.value)}
+              onBlur={() => {
+                const normalized = localApiBasePathInput.trim() || "/v1";
+                if (
+                  normalized !==
+                  (settings?.openai_compatible_api_base_path ?? "/v1")
+                ) {
+                  void updateSetting(
+                    "openai_compatible_api_base_path",
+                    normalized,
+                  );
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="/v1"
+            />
+            <Text size="1" color="gray">
+              重启生效
+            </Text>
+
             <Text size="2" weight="medium" color="gray" className="text-right">
               URL:
             </Text>
@@ -206,23 +315,45 @@ export const AdvancedSettings: React.FC = () => {
                 <IconKey size={14} />
               </TextField.Slot>
             </TextField.Root>
-            <Button
-              variant="soft"
-              color="gray"
-              onClick={() => void copyText(localApiKey, "Access Key")}
-              disabled={!localApiKey.trim()}
-            >
-              <IconCopy size={14} />
-              复制
-            </Button>
+            <Flex gap="2">
+              <Button
+                variant="soft"
+                color="gray"
+                onClick={() => void copyText(localApiKey, "Access Key")}
+                disabled={!localApiKey.trim()}
+              >
+                <IconCopy size={14} />
+                复制
+              </Button>
+              <Button
+                variant="soft"
+                color="gray"
+                onClick={generateRandomApiKey}
+              >
+                <IconRefresh size={14} />
+                随机
+              </Button>
+            </Flex>
           </Grid>
 
-          <Text size="1" color="gray">
-            示例：
-            <span className="ml-1 font-mono">
-              Authorization: Bearer {localApiKey || "your-key"}
-            </span>
-          </Text>
+          <Flex direction="column" gap="1">
+            <Text size="1" color="gray">
+              本机访问：
+              <span className="ml-1 font-mono">{localApiUrl}</span>
+            </Text>
+            {localApiAllowLan && (
+              <Text size="1" color="gray">
+                局域网访问：
+                <span className="ml-1 font-mono">{lanApiHint}</span>
+              </Text>
+            )}
+            <Text size="1" color="gray">
+              鉴权头：
+              <span className="ml-1 font-mono">
+                Authorization: Bearer {localApiKey || "your-key"}
+              </span>
+            </Text>
+          </Flex>
         </Flex>
       </SettingsGroup>
 
@@ -249,258 +380,250 @@ export const AdvancedSettings: React.FC = () => {
 
       {/* Network / Proxy - temporarily hidden */}
       {false && (
-      <SettingsGroup
-        title={t("settings.advanced.groups.network", "Network")}
-        noContent={!hasProxy && !showProxy}
-        actions={
-          !hasProxy &&
-          !showProxy && (
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={() => setShowProxy(true)}
-              className="cursor-pointer"
-              title={t("settings.advanced.proxy.add")}
-            >
-              <IconPlus  />
-            </IconButton>
-          )
-        }
-      >
-        {(hasProxy || showProxy) && (
-          <Flex direction="column" gap="4" p="2">
-            <Grid
-              columns="auto 1fr"
-              gapX="4"
-              gapY="2"
-              align="center"
-              className="max-w-lg"
-            >
-              {/* Protocol + Host */}
-              <Text
-                size="2"
-                weight="medium"
-                color="gray"
-                className="text-right"
-              >
-                {t("settings.advanced.proxy.server", "Server")}:
-              </Text>
-              <Flex gap="2" align="center">
-                <Select.Root
-                  value={proxyParts.protocol}
-                  onValueChange={(v) =>
-                    updatePart("protocol", v as ProxyProtocol)
-                  }
-                >
-                  <Select.Trigger
-                    variant="surface"
-                    className="w-[110px] shrink-0"
-                  />
-                  <Select.Content>
-                    {PROXY_PROTOCOLS.map((p) => (
-                      <Select.Item key={p} value={p}>
-                        {p.toUpperCase()}
-                      </Select.Item>
-                    ))}
-                  </Select.Content>
-                </Select.Root>
-                <TextField.Root
-                  value={proxyParts.host}
-                  onChange={(e) => updatePart("host", e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveProxy();
-                  }}
-                  placeholder="127.0.0.1"
-                  className="flex-1"
-                />
-                <Text size="2" color="gray">
-                  :
-                </Text>
-                <TextField.Root
-                  value={proxyParts.port}
-                  onChange={(e) =>
-                    updatePart("port", e.target.value.replace(/\D/g, ""))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") saveProxy();
-                  }}
-                  placeholder="7890"
-                  className="w-20 shrink-0"
-                />
-              </Flex>
-
-              {/* Username */}
-              <Text
-                size="2"
-                weight="medium"
-                color="gray"
-                className="text-right"
-              >
-                {t("settings.advanced.proxy.username", "Username")}:
-              </Text>
-              <TextField.Root
-                value={proxyParts.username}
-                onChange={(e) => updatePart("username", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveProxy();
-                }}
-                placeholder={t(
-                  "settings.advanced.proxy.usernamePlaceholder",
-                  "Optional",
-                )}
-              />
-
-              {/* Password */}
-              <Text
-                size="2"
-                weight="medium"
-                color="gray"
-                className="text-right"
-              >
-                {t("settings.advanced.proxy.password", "Password")}:
-              </Text>
-              <TextField.Root
-                type="password"
-                value={proxyParts.password}
-                onChange={(e) => updatePart("password", e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") saveProxy();
-                }}
-                placeholder={t(
-                  "settings.advanced.proxy.passwordPlaceholder",
-                  "Optional",
-                )}
-              />
-
-              {/* Enable globally */}
-              <Text
-                size="2"
-                weight="medium"
-                color="gray"
-                className="text-right"
-              >
-                {t("settings.advanced.proxy.enable", "Enable")}:
-              </Text>
-              <Flex align="center" gap="2" className="h-8">
-                <Switch
-                  size="1"
-                  checked={settings?.proxy_global_enabled ?? false}
-                  onCheckedChange={(checked: boolean) =>
-                    setProxySettings(settings?.proxy_url ?? null, checked)
-                  }
-                />
-                <Text size="1" color="gray" className="opacity-60">
-                  {t(
-                    "settings.advanced.proxy.globalHint",
-                    "Apply to all providers by default",
-                  )}
-                </Text>
-              </Flex>
-
-              {/* Preview */}
-              {proxyParts.host && (
-                <>
-                  <Text
-                    size="2"
-                    weight="medium"
-                    color="gray"
-                    className="text-right"
-                  >
-                    URL:
-                  </Text>
-                  <Text
-                    size="1"
-                    className="text-(--gray-9) truncate font-mono"
-                    title={buildProxyUrl(proxyParts)}
-                  >
-                    {buildProxyUrl(proxyParts)}
-                  </Text>
-                </>
-              )}
-            </Grid>
-
-            {/* Test & Save / Remove */}
-            <Flex align="center" gap="3">
-              <Button
-                variant="soft"
-                size="2"
-                disabled={!proxyParts.host || proxyTesting}
-                onClick={async () => {
-                  setProxyTesting(true);
-                  setProxyTested(false);
-                  const url = buildProxyUrl(proxyParts);
-                  try {
-                    // Save first so backend can use it
-                    await setProxySettings(
-                      url || null,
-                      settings?.proxy_global_enabled ?? false,
-                    );
-                    // Test by fetching a known URL through the proxy
-                    const { invoke } = await import(
-                      "@tauri-apps/api/core"
-                    );
-                    await invoke("test_proxy_connection", {
-                      proxyUrl: url,
-                    });
-                    setProxyTested(true);
-                    toast.success(
-                      t(
-                        "settings.advanced.proxy.testSuccess",
-                        "Proxy connection successful",
-                      ),
-                    );
-                  } catch (e) {
-                    toast.error(
-                      t(
-                        "settings.advanced.proxy.testFailed",
-                        "Proxy connection failed: {{error}}",
-                        { error: String(e) },
-                      ),
-                    );
-                  } finally {
-                    setProxyTesting(false);
-                  }
-                }}
-              >
-                <IconPlug size={14} />
-                {proxyTesting
-                  ? t("common.loading", "Testing...")
-                  : t(
-                      "settings.advanced.proxy.testAndSave",
-                      "Test & Save",
-                    )}
-              </Button>
-              <Button
+        <SettingsGroup
+          title={t("settings.advanced.groups.network", "Network")}
+          noContent={!hasProxy && !showProxy}
+          actions={
+            !hasProxy &&
+            !showProxy && (
+              <IconButton
+                size="1"
                 variant="ghost"
-                size="2"
-                color="red"
-                onClick={() => {
-                  setProxyParts({
-                    protocol: "http",
-                    host: "",
-                    port: "",
-                    username: "",
-                    password: "",
-                  });
-                  setProxySettings(null, false);
-                  setShowProxy(false);
-                  setProxyTested(false);
-                  toast.success(
-                    t(
-                      "settings.advanced.proxy.removed",
-                      "Proxy removed",
-                    ),
-                  );
-                }}
+                color="gray"
+                onClick={() => setShowProxy(true)}
+                className="cursor-pointer"
+                title={t("settings.advanced.proxy.add")}
               >
-                <IconTrash size={14} />
-                {t("settings.advanced.proxy.remove", "Remove")}
-              </Button>
+                <IconPlus />
+              </IconButton>
+            )
+          }
+        >
+          {(hasProxy || showProxy) && (
+            <Flex direction="column" gap="4" p="2">
+              <Grid
+                columns="auto 1fr"
+                gapX="4"
+                gapY="2"
+                align="center"
+                className="max-w-lg"
+              >
+                {/* Protocol + Host */}
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                  className="text-right"
+                >
+                  {t("settings.advanced.proxy.server", "Server")}:
+                </Text>
+                <Flex gap="2" align="center">
+                  <Select.Root
+                    value={proxyParts.protocol}
+                    onValueChange={(v) =>
+                      updatePart("protocol", v as ProxyProtocol)
+                    }
+                  >
+                    <Select.Trigger
+                      variant="surface"
+                      className="w-[110px] shrink-0"
+                    />
+                    <Select.Content>
+                      {PROXY_PROTOCOLS.map((p) => (
+                        <Select.Item key={p} value={p}>
+                          {p.toUpperCase()}
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                  <TextField.Root
+                    value={proxyParts.host}
+                    onChange={(e) => updatePart("host", e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveProxy();
+                    }}
+                    placeholder="127.0.0.1"
+                    className="flex-1"
+                  />
+                  <Text size="2" color="gray">
+                    :
+                  </Text>
+                  <TextField.Root
+                    value={proxyParts.port}
+                    onChange={(e) =>
+                      updatePart("port", e.target.value.replace(/\D/g, ""))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveProxy();
+                    }}
+                    placeholder="7890"
+                    className="w-20 shrink-0"
+                  />
+                </Flex>
+
+                {/* Username */}
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                  className="text-right"
+                >
+                  {t("settings.advanced.proxy.username", "Username")}:
+                </Text>
+                <TextField.Root
+                  value={proxyParts.username}
+                  onChange={(e) => updatePart("username", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveProxy();
+                  }}
+                  placeholder={t(
+                    "settings.advanced.proxy.usernamePlaceholder",
+                    "Optional",
+                  )}
+                />
+
+                {/* Password */}
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                  className="text-right"
+                >
+                  {t("settings.advanced.proxy.password", "Password")}:
+                </Text>
+                <TextField.Root
+                  type="password"
+                  value={proxyParts.password}
+                  onChange={(e) => updatePart("password", e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveProxy();
+                  }}
+                  placeholder={t(
+                    "settings.advanced.proxy.passwordPlaceholder",
+                    "Optional",
+                  )}
+                />
+
+                {/* Enable globally */}
+                <Text
+                  size="2"
+                  weight="medium"
+                  color="gray"
+                  className="text-right"
+                >
+                  {t("settings.advanced.proxy.enable", "Enable")}:
+                </Text>
+                <Flex align="center" gap="2" className="h-8">
+                  <Switch
+                    size="1"
+                    checked={settings?.proxy_global_enabled ?? false}
+                    onCheckedChange={(checked: boolean) =>
+                      setProxySettings(settings?.proxy_url ?? null, checked)
+                    }
+                  />
+                  <Text size="1" color="gray" className="opacity-60">
+                    {t(
+                      "settings.advanced.proxy.globalHint",
+                      "Apply to all providers by default",
+                    )}
+                  </Text>
+                </Flex>
+
+                {/* Preview */}
+                {proxyParts.host && (
+                  <>
+                    <Text
+                      size="2"
+                      weight="medium"
+                      color="gray"
+                      className="text-right"
+                    >
+                      URL:
+                    </Text>
+                    <Text
+                      size="1"
+                      className="text-(--gray-9) truncate font-mono"
+                      title={buildProxyUrl(proxyParts)}
+                    >
+                      {buildProxyUrl(proxyParts)}
+                    </Text>
+                  </>
+                )}
+              </Grid>
+
+              {/* Test & Save / Remove */}
+              <Flex align="center" gap="3">
+                <Button
+                  variant="soft"
+                  size="2"
+                  disabled={!proxyParts.host || proxyTesting}
+                  onClick={async () => {
+                    setProxyTesting(true);
+                    setProxyTested(false);
+                    const url = buildProxyUrl(proxyParts);
+                    try {
+                      // Save first so backend can use it
+                      await setProxySettings(
+                        url || null,
+                        settings?.proxy_global_enabled ?? false,
+                      );
+                      // Test by fetching a known URL through the proxy
+                      const { invoke } = await import("@tauri-apps/api/core");
+                      await invoke("test_proxy_connection", {
+                        proxyUrl: url,
+                      });
+                      setProxyTested(true);
+                      toast.success(
+                        t(
+                          "settings.advanced.proxy.testSuccess",
+                          "Proxy connection successful",
+                        ),
+                      );
+                    } catch (e) {
+                      toast.error(
+                        t(
+                          "settings.advanced.proxy.testFailed",
+                          "Proxy connection failed: {{error}}",
+                          { error: String(e) },
+                        ),
+                      );
+                    } finally {
+                      setProxyTesting(false);
+                    }
+                  }}
+                >
+                  <IconPlug size={14} />
+                  {proxyTesting
+                    ? t("common.loading", "Testing...")
+                    : t("settings.advanced.proxy.testAndSave", "Test & Save")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="2"
+                  color="red"
+                  onClick={() => {
+                    setProxyParts({
+                      protocol: "http",
+                      host: "",
+                      port: "",
+                      username: "",
+                      password: "",
+                    });
+                    setProxySettings(null, false);
+                    setShowProxy(false);
+                    setProxyTested(false);
+                    toast.success(
+                      t("settings.advanced.proxy.removed", "Proxy removed"),
+                    );
+                  }}
+                >
+                  <IconTrash size={14} />
+                  {t("settings.advanced.proxy.remove", "Remove")}
+                </Button>
+              </Flex>
             </Flex>
-          </Flex>
-        )}
-      </SettingsGroup>
+          )}
+        </SettingsGroup>
       )}
 
       {/* Debug Options - Expert only */}

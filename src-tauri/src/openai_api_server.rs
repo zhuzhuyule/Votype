@@ -9,16 +9,20 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 
 const DEFAULT_API_BIND_HOST: &str = "127.0.0.1";
+const DEFAULT_API_BIND_HOST_LAN: &str = "0.0.0.0";
 const DEFAULT_API_PORT: u16 = 33178;
 const DEFAULT_MAX_FAILOVER_ATTEMPTS: usize = 3;
 const DEFAULT_ASR_SAMPLE_RATE: u32 = 16_000;
 const DEFAULT_ASR_TIMEOUT_SECS: u64 = 20;
+const DEFAULT_API_BASE_PATH: &str = "/v1";
 
 #[derive(Clone)]
 struct OpenAiApiState {
@@ -91,6 +95,18 @@ struct ChatCompletionsRequest {
     messages: Vec<OpenAiChatMessage>,
     #[serde(default)]
     stream: bool,
+    #[serde(default)]
+    temperature: Option<f32>,
+    #[serde(default)]
+    top_p: Option<f32>,
+    #[serde(default)]
+    max_tokens: Option<u32>,
+    #[serde(default)]
+    frequency_penalty: Option<f32>,
+    #[serde(default)]
+    presence_penalty: Option<f32>,
+    #[serde(default)]
+    response_format: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize)]
@@ -258,6 +274,12 @@ pub fn ensure_local_api_settings(app_handle: &AppHandle) {
         changed = true;
     }
 
+    let normalized_base_path = normalize_api_base_path(&settings.openai_compatible_api_base_path);
+    if settings.openai_compatible_api_base_path != normalized_base_path {
+        settings.openai_compatible_api_base_path = normalized_base_path;
+        changed = true;
+    }
+
     if changed {
         settings::write_settings(app_handle, settings);
     }
@@ -272,37 +294,49 @@ pub fn start_openai_api_server(app_handle: &AppHandle) {
         return;
     }
 
-    let bind_host = settings.openai_compatible_api_host.clone();
+    let bind_host = if settings.openai_compatible_api_allow_lan {
+        DEFAULT_API_BIND_HOST_LAN.to_string()
+    } else if settings.openai_compatible_api_host.trim().is_empty() {
+        DEFAULT_API_BIND_HOST.to_string()
+    } else {
+        settings.openai_compatible_api_host.clone()
+    };
     let bind_port = settings.openai_compatible_api_port;
+    let api_base_path = normalize_api_base_path(&settings.openai_compatible_api_base_path);
     let state = OpenAiApiState {
         app_handle: app_handle.clone(),
     };
 
     tauri::async_runtime::spawn(async move {
-        let listener =
-            match tokio::net::TcpListener::bind((bind_host.as_str(), bind_port)).await {
-                Ok(listener) => listener,
-                Err(err) => {
-                    log::error!(
-                        "[OpenAI API] Failed to bind local API server on {}:{}: {}",
-                        bind_host,
-                        bind_port,
-                        err
-                    );
-                    return;
-                }
-            };
+        let listener = match tokio::net::TcpListener::bind((bind_host.as_str(), bind_port)).await {
+            Ok(listener) => listener,
+            Err(err) => {
+                log::error!(
+                    "[OpenAI API] Failed to bind local API server on {}:{}: {}",
+                    bind_host,
+                    bind_port,
+                    err
+                );
+                return;
+            }
+        };
 
-        let router = Router::new()
-            .route("/v1/models", get(handle_models))
-            .route("/v1/chat/completions", post(handle_chat_completions))
-            .route("/v1/audio/transcriptions", post(handle_audio_transcriptions))
-            .with_state(Arc::new(state));
+        let api_router = Router::new()
+            .route("/models", get(handle_models))
+            .route("/chat/completions", post(handle_chat_completions))
+            .route("/audio/transcriptions", post(handle_audio_transcriptions));
+        let router = if api_base_path == "/" {
+            Router::new().merge(api_router)
+        } else {
+            Router::new().nest(&api_base_path, api_router)
+        }
+        .with_state(Arc::new(state));
 
         log::info!(
-            "[OpenAI API] Listening on http://{}:{}",
+            "[OpenAI API] Listening on http://{}:{}{}",
             bind_host,
-            bind_port
+            bind_port,
+            api_base_path
         );
 
         if let Err(err) = axum::serve(listener, router).await {
@@ -371,6 +405,33 @@ pub fn split_chat_messages(messages: &[OpenAiChatMessage]) -> Result<ChatPromptP
     })
 }
 
+fn build_chat_override_params(
+    payload: &ChatCompletionsRequest,
+) -> Option<HashMap<String, serde_json::Value>> {
+    let mut params = HashMap::new();
+
+    if let Some(value) = payload.temperature {
+        params.insert("temperature".to_string(), json!(value));
+    }
+    if let Some(value) = payload.top_p {
+        params.insert("top_p".to_string(), json!(value));
+    }
+    if let Some(value) = payload.max_tokens {
+        params.insert("max_tokens".to_string(), json!(value));
+    }
+    if let Some(value) = payload.frequency_penalty {
+        params.insert("frequency_penalty".to_string(), json!(value));
+    }
+    if let Some(value) = payload.presence_penalty {
+        params.insert("presence_penalty".to_string(), json!(value));
+    }
+    if let Some(value) = payload.response_format.clone() {
+        params.insert("response_format".to_string(), value);
+    }
+
+    (!params.is_empty()).then_some(params)
+}
+
 async fn handle_models(
     State(state): State<Arc<OpenAiApiState>>,
     headers: HeaderMap,
@@ -398,6 +459,7 @@ async fn handle_chat_completions(
         split_chat_messages(&payload.messages).map_err(|err| ApiError::bad_request(err, None))?;
     let conversation_history = (!prompt_parts.conversation_history.is_empty())
         .then_some(prompt_parts.conversation_history.as_slice());
+    let override_params = build_chat_override_params(&payload);
 
     let (text, error, error_message, token_count) = execute_llm_request_with_messages(
         &state.app_handle,
@@ -412,7 +474,7 @@ async fn handle_chat_completions(
         None,
         None,
         None,
-        None,
+        override_params.as_ref(),
     )
     .await;
 
@@ -572,9 +634,13 @@ async fn handle_audio_transcriptions(
     let text = match outcome {
         ExecutionOutcome::Success(text) => text,
         ExecutionOutcome::Fatal { detail, .. } => return Err(ApiError::internal(detail)),
-        ExecutionOutcome::Exhausted { last_error, .. } => return Err(ApiError::internal(match last_error {
-            AttemptError::Retryable { detail, .. } | AttemptError::Fatal { detail, .. } => detail,
-        })),
+        ExecutionOutcome::Exhausted { last_error, .. } => {
+            return Err(ApiError::internal(match last_error {
+                AttemptError::Retryable { detail, .. } | AttemptError::Fatal { detail, .. } => {
+                    detail
+                }
+            }))
+        }
     };
 
     Ok(Json(TranscriptionResponse { text }))
@@ -601,7 +667,11 @@ fn authorize_request(state: &OpenAiApiState, headers: &HeaderMap) -> Result<(), 
         .get(axum::http::header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
         .and_then(|value| value.strip_prefix("Bearer "))
-        .or_else(|| headers.get("x-api-key").and_then(|value| value.to_str().ok()))
+        .or_else(|| {
+            headers
+                .get("x-api-key")
+                .and_then(|value| value.to_str().ok())
+        })
         .map(str::trim)
         .unwrap_or_default();
 
@@ -617,9 +687,9 @@ fn resolve_cached_model<'a>(
     model_id: &str,
     expected_type: ModelType,
 ) -> Result<&'a CachedModel, ApiError> {
-    let cached_model = settings
-        .get_cached_model(model_id)
-        .ok_or_else(|| ApiError::not_found(format!("model '{}' was not found", model_id), Some("model")))?;
+    let cached_model = settings.get_cached_model(model_id).ok_or_else(|| {
+        ApiError::not_found(format!("model '{}' was not found", model_id), Some("model"))
+    })?;
 
     if cached_model.model_type != expected_type {
         return Err(ApiError::bad_request(
@@ -731,6 +801,25 @@ fn current_timestamp_secs() -> u64 {
         .as_secs()
 }
 
+fn normalize_api_base_path(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return DEFAULT_API_BASE_PATH.to_string();
+    }
+
+    let mut normalized = if trimmed.starts_with('/') {
+        trimmed.to_string()
+    } else {
+        format!("/{}", trimmed)
+    };
+
+    while normalized.len() > 1 && normalized.ends_with('/') {
+        normalized.pop();
+    }
+
+    normalized
+}
+
 fn build_streaming_chat_response(
     completion_id: &str,
     created: u64,
@@ -791,12 +880,14 @@ fn build_streaming_chat_response(
 #[cfg(test)]
 mod tests {
     use super::{
-        build_model_cards, build_streaming_chat_response, split_chat_messages, OpenAiChatContent,
+        build_chat_override_params, build_model_cards, build_streaming_chat_response,
+        normalize_api_base_path, split_chat_messages, ChatCompletionsRequest, OpenAiChatContent,
         OpenAiChatMessage, OpenAiChatRole, OpenAiModelCard,
     };
-    use axum::body::to_bytes;
     use crate::review_window::RewriteRole;
     use crate::settings::{CachedModel, ModelType, PromptMessageRole};
+    use axum::body::to_bytes;
+    use serde_json::json;
 
     fn cached_model(
         id: &str,
@@ -896,8 +987,7 @@ mod tests {
 
     #[tokio::test]
     async fn streaming_response_contains_done_marker_and_chunk_payloads() {
-        let response =
-            build_streaming_chat_response("chatcmpl-test", 123, "cm-text", "最终结果");
+        let response = build_streaming_chat_response("chatcmpl-test", 123, "cm-text", "最终结果");
         let body = to_bytes(response.into_body(), usize::MAX)
             .await
             .expect("body should be readable");
@@ -917,5 +1007,55 @@ mod tests {
             .and_then(|value| value.to_str().ok());
 
         assert_eq!(content_type, Some("text/event-stream; charset=utf-8"));
+    }
+
+    #[test]
+    fn api_base_path_normalization_adds_prefix_and_trims_suffix() {
+        assert_eq!(normalize_api_base_path(""), "/v1");
+        assert_eq!(normalize_api_base_path("v1"), "/v1");
+        assert_eq!(normalize_api_base_path("/custom/api/"), "/custom/api");
+    }
+
+    #[test]
+    fn chat_override_params_collect_supported_openai_fields() {
+        let payload = ChatCompletionsRequest {
+            model: "cm-text".to_string(),
+            messages: vec![],
+            stream: false,
+            temperature: Some(0.2),
+            top_p: Some(0.9),
+            max_tokens: Some(512),
+            frequency_penalty: Some(0.3),
+            presence_penalty: Some(0.4),
+            response_format: Some(json!({"type":"json_object"})),
+        };
+
+        let params = build_chat_override_params(&payload).expect("params should exist");
+        let temperature = params
+            .get("temperature")
+            .and_then(|value| value.as_f64())
+            .expect("temperature should be numeric");
+        let top_p = params
+            .get("top_p")
+            .and_then(|value| value.as_f64())
+            .expect("top_p should be numeric");
+        let frequency_penalty = params
+            .get("frequency_penalty")
+            .and_then(|value| value.as_f64())
+            .expect("frequency_penalty should be numeric");
+        let presence_penalty = params
+            .get("presence_penalty")
+            .and_then(|value| value.as_f64())
+            .expect("presence_penalty should be numeric");
+
+        assert!((temperature - 0.2).abs() < 1e-6);
+        assert!((top_p - 0.9).abs() < 1e-6);
+        assert_eq!(params.get("max_tokens"), Some(&json!(512)));
+        assert!((frequency_penalty - 0.3).abs() < 1e-6);
+        assert!((presence_penalty - 0.4).abs() < 1e-6);
+        assert_eq!(
+            params.get("response_format"),
+            Some(&json!({"type":"json_object"}))
+        );
     }
 }
