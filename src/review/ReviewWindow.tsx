@@ -28,7 +28,6 @@ import { useTranslation } from "react-i18next";
 import { escapeHtml } from "../lib/utils/html";
 import { MultiModelCandidate } from "./CandidatePanel";
 import { DiffViewPanel } from "./DiffViewPanel";
-import { NeonBorder } from "./NeonBorder";
 import { MultiCandidateView } from "./MultiCandidateView";
 import { ReviewFooter } from "./ReviewFooter";
 import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
@@ -635,7 +634,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
     const previewDock = container.querySelector(".review-preview-dock");
     const previewH = previewDock?.getBoundingClientRect().height ?? 0;
-    const previewGap = previewH > 0 ? 12 : 0;
 
     // Desired (un-clamped) content height. We use scrollHeight on the wrapper
     // so user edits (typing, pasting, candidate swaps) immediately affect the
@@ -661,7 +659,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     // remainder is what the editable content region is allowed to occupy.
     const contentBudget = Math.max(
       160,
-      screenMaxH - headerH - footerH - previewH - previewGap,
+      screenMaxH - headerH - footerH - previewH,
     );
     const actualContentH = Math.min(desiredContentH, contentBudget);
 
@@ -673,8 +671,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       `${contentBudget}px`,
     );
 
-    const rawTotalH =
-      headerH + actualContentH + footerH + previewH + previewGap;
+    const rawTotalH = headerH + actualContentH + footerH + previewH;
     // Add ~5% headroom so the outer box-shadow has room to render without
     // being clipped by the Tauri window edge.
     const totalH = Math.min(rawTotalH * 1.05, screenMaxH);
@@ -1899,6 +1896,37 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           </div>
         )}
 
+        {translationEnabled && (
+          <div className="review-preview-dock">
+            <div className="review-translation-float">
+              <div className="review-translation-float-header">
+                <span className="review-translation-title-row">
+                  <span
+                    className={`review-translation-status-dot review-translation-status-dot--${translationStatus}`}
+                    aria-hidden="true"
+                  />
+                  <span className="review-translation-title">
+                    {t("transcription.review.translationPreview", "英文预览")}
+                  </span>
+                </span>
+                {translationStatus === "error" && (
+                  <span className="review-translation-status">
+                    {t(
+                      "transcription.review.translationFailedFallback",
+                      "翻译失败，插入时将回退原文",
+                    )}
+                  </span>
+                )}
+              </div>
+              <div className="review-translation-float-content">
+                {translatedText ||
+                  translationError ||
+                  t("transcription.review.translationUpdating", "翻译中...")}
+              </div>
+            </div>
+          </div>
+        )}
+
         {pendingClose && (
           <div className="review-pending-close-toast">
             {t(
@@ -1924,48 +1952,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           onInsert={handleInsertPolished}
         />
       </div>
-
-      {translationEnabled && (
-        <div className="review-preview-dock">
-          <div
-            className="review-translation-float"
-            data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
-          >
-            {pressedModifier === "meta" && (
-              <NeonBorder
-                radius={14}
-                gradientId="review-neon-gradient-float"
-                strokeWidth={2.8}
-                durationSec={3.2}
-              />
-            )}
-            <div className="review-translation-float-header">
-              <span className="review-translation-title-row">
-                <span
-                  className={`review-translation-status-dot review-translation-status-dot--${translationStatus}`}
-                  aria-hidden="true"
-                />
-                <span className="review-translation-title">
-                  {t("transcription.review.translationPreview", "英文预览")}
-                </span>
-              </span>
-              {translationStatus === "error" && (
-                <span className="review-translation-status">
-                  {t(
-                    "transcription.review.translationFailedFallback",
-                    "翻译失败，插入时将回退原文",
-                  )}
-                </span>
-              )}
-            </div>
-            <div className="review-translation-float-content">
-              {translatedText ||
-                translationError ||
-                t("transcription.review.translationUpdating", "翻译中...")}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

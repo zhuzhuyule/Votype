@@ -400,31 +400,25 @@
   transform: translateY(-50%) scale(1.1);
 }
 
-/* Translation preview dock — sits in the Tauri window's transparent area,
-   outside the review window container. */
+/* Translation preview — rendered as an inline block inside the review window
+   container (below the polished output panel), so it visually belongs to the
+   same card rather than floating as a separate dock. */
 .review-preview-dock {
   position: relative;
-  margin: 12px 0 0;
-  padding: 0 8px;
+  padding: 6px 12px 0;
   flex: 0 0 auto;
-  pointer-events: none;
 }
 
 .review-translation-float {
   position: relative;
-  pointer-events: auto;
-  border-radius: 18px;
-  padding: 12px 14px 14px;
-  max-height: 400px;
-  /* Frosted glass: heavy blur + subtle tint lets the desktop show through */
-  background: color-mix(in srgb, var(--color-panel-solid) 68%, transparent);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid color-mix(in srgb, var(--gray-a7) 55%, transparent);
-  box-shadow: none;
+  border-radius: 10px;
+  padding: 8px 12px 10px;
+  max-height: 220px;
+  background: var(--gray-2);
+  border: 1px solid var(--gray-5);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   overflow: hidden;
   color: var(--gray-12);
 }
@@ -561,7 +555,6 @@
 }
 
 .review-polish-surface:hover .review-hover-insert-btn,
-.review-translation-float:hover .review-hover-insert-btn,
 .candidate-panel.selected:hover .review-hover-insert-btn {
   opacity: 1;
   transform: translateY(0);
@@ -2190,8 +2183,7 @@ span[data-diff-level="major"] {
  * ============================================================ */
 .review-inline-insert-btn[data-mod-armed="true"],
 .review-inline-english-btn[data-mod-armed="true"],
-.review-panel-output-compact[data-mod-armed="true"],
-.review-translation-float[data-mod-armed="true"] {
+.review-panel-output-compact[data-mod-armed="true"] {
   position: relative;
   overflow: visible;
   isolation: isolate;
@@ -2270,8 +2262,7 @@ span[data-diff-level="major"] {
 /* Content cards rely on the SVG neon border alone — no ambient box-shadow
    on the container. Keeps the cards clean; the rotating stroke itself is
    the only highlight cue. */
-.review-panel-output-compact[data-mod-armed="true"],
-.review-translation-float[data-mod-armed="true"] {
+.review-panel-output-compact[data-mod-armed="true"] {
   box-shadow: none;
   transition: box-shadow 0.18s ease;
 }
