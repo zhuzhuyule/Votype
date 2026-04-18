@@ -412,7 +412,7 @@
 .review-translation-float {
   position: relative;
   border-radius: 10px;
-  padding: 8px 12px 10px;
+  padding: 10px;
   max-height: 220px;
   background: var(--gray-2);
   border: 1px solid var(--gray-5);
@@ -630,14 +630,9 @@
 }
 
 .review-translation-insert-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
   border-radius: 4px;
   border: 1px solid var(--gray-6);
   background: var(--gray-1);
@@ -645,13 +640,6 @@
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.review-translation-insert-btn:hover {
-  background: var(--accent-3);
-  border-color: var(--accent-7);
-  color: var(--accent-11);
-  transform: scale(1.1);
 }
 
 .review-translation-analysis {
@@ -783,6 +771,7 @@
   align-items: center;
   justify-content: center;
   min-height: 36px;
+  max-width: fit-content;
   box-sizing: border-box;
   gap: 8px; /* Slightly wider gap */
   padding: 8px 18px;
@@ -860,6 +849,7 @@
   align-items: center;
   justify-content: center;
   min-height: 36px;
+  max-width: fit-content;
   box-sizing: border-box;
   gap: 6px;
   padding: 8px 14px;
@@ -2167,6 +2157,38 @@ span[data-diff-level="major"] {
   border-radius: 8px;
 }
 
+/* Compact insert button rendered inside the translation preview header. */
+.review-translation-header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.review-translation-insert-btn {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 0 14px;
+  font-size: 12px;
+  border-radius: 6px;
+  line-height: 1;
+  gap: 6px;
+}
+
+.review-translation-insert-btn .review-shortcut-hint {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+.review-translation-insert-btn[data-mod-armed="true"] {
+  position: relative;
+  overflow: visible;
+  isolation: isolate;
+  box-shadow:
+    0 0 14px -2px rgba(109, 91, 255, 0.45),
+    0 0 22px -6px rgba(255, 79, 216, 0.25) !important;
+}
+
 /* ============================================================
  * Modifier-held preview — SVG neon border traced on the actual
  * rectangular path of the element.
@@ -2183,7 +2205,8 @@ span[data-diff-level="major"] {
  * ============================================================ */
 .review-inline-insert-btn[data-mod-armed="true"],
 .review-inline-english-btn[data-mod-armed="true"],
-.review-panel-output-compact[data-mod-armed="true"] {
+.review-panel-output-compact[data-mod-armed="true"],
+.review-translation-float[data-mod-armed="true"] {
   position: relative;
   overflow: visible;
   isolation: isolate;
@@ -2262,7 +2285,8 @@ span[data-diff-level="major"] {
 /* Content cards rely on the SVG neon border alone — no ambient box-shadow
    on the container. Keeps the cards clean; the rotating stroke itself is
    the only highlight cue. */
-.review-panel-output-compact[data-mod-armed="true"] {
+.review-panel-output-compact[data-mod-armed="true"],
+.review-translation-float[data-mod-armed="true"] {
   box-shadow: none;
   transition: box-shadow 0.18s ease;
 }

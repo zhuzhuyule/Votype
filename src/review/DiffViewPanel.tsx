@@ -19,15 +19,12 @@ interface DiffViewPanelProps {
   insertShortcut?: string;
   isSubmitting?: boolean;
   /** The app-profile has signalled that English insertion is the default
-   *  intent for the active window — the primary button becomes "插入英文". */
+   *  intent for the active window — dims the Insert button to secondary
+   *  styling since the English counterpart (in the preview header) is the
+   *  expected primary action. */
   translationIntended?: boolean;
-  /** Translation is ready (either auto-triggered by intent, or manually by
-   *  the user pressing Cmd+T). Controls whether the secondary button shows. */
-  hasEnglishTranslation?: boolean;
-  onInsertEnglish?: () => void;
-  englishShortcut?: string;
   /** Which shortcut modifier the user is currently holding, so we can
-   *  render a neon marquee border on the corresponding button + content. */
+   *  render a neon marquee border on the Insert button + card. */
   pressedModifier?: "meta" | "ctrl" | null;
 }
 
@@ -42,9 +39,6 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
   insertShortcut,
   isSubmitting = false,
   translationIntended = false,
-  hasEnglishTranslation = false,
-  onInsertEnglish,
-  englishShortcut,
   pressedModifier,
 }) => {
   const { t } = useTranslation();
@@ -55,27 +49,10 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
   };
 
   const changePercent = changeStats?.changePercent ?? 0;
-  // Layout contract:
-  //   RIGHT button ("Insert", polished): ALWAYS present, fixed at bottom-right,
-  //     bound to Ctrl+Enter.
-  //   LEFT button ("Insert English" / "Insert Translation"): conditional,
-  //     bound to Cmd+Enter.
-  //
-  //   - English intent (app-profile forces English):
-  //       Right = Insert (secondary style, Ctrl+Enter)
-  //       Left  = Insert English (primary style, Cmd+Enter) — always visible
-  //   - Default mode, no translation:
-  //       Right = Insert (primary style, Ctrl+Enter) — only button
-  //   - Default mode, translation produced (via Cmd+T):
-  //       Right = Insert (primary style, Ctrl+Enter)
-  //       Left  = Insert Translation (secondary style, Cmd+Enter)
-  const showEnglishLeft =
-    !!onInsertEnglish && (translationIntended || hasEnglishTranslation);
-  const englishLabel = translationIntended
-    ? t("transcription.review.insertEnglish", "插入英文")
-    : t("transcription.review.insertTranslation", "插入翻译");
+  // Insert button lives fixed at the bottom-right of the polished output
+  // card, bound to Ctrl+Enter. The "insert English" / "insert translation"
+  // counterpart now lives inside the translation preview block's header.
   const rightIsPrimary = !translationIntended;
-  const leftIsPrimary = translationIntended;
   const showActionRow =
     showInsertPolished && !!onInsertPolished && !isRerunning;
 
@@ -151,39 +128,6 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
               </span>
             )}
             <div className="review-inline-action-row-spacer" />
-            {showEnglishLeft && (
-              <button
-                type="button"
-                className={`${leftIsPrimary ? "review-btn-primary" : "review-btn-secondary"} review-inline-english-btn`}
-                onClick={onInsertEnglish}
-                disabled={isSubmitting}
-                title={englishLabel}
-                aria-label={englishLabel}
-                data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
-              >
-                {pressedModifier === "meta" && (
-                  <NeonBorder
-                    radius={8}
-                    gradientId="review-neon-gradient-english"
-                    // Primary (dark accent bg) needs a bolder stroke to cut
-                    // through; secondary (pale bg) gets a thinner stroke so
-                    // it doesn't look aggressive.
-                    strokeWidth={leftIsPrimary ? 2.6 : 1.6}
-                  />
-                )}
-                {englishLabel}
-                {englishShortcut && (
-                  <span
-                    className="review-shortcut-hint"
-                    data-mod-armed={
-                      pressedModifier === "meta" ? "true" : undefined
-                    }
-                  >
-                    {englishShortcut}
-                  </span>
-                )}
-              </button>
-            )}
             <button
               type="button"
               className={`${rightIsPrimary ? "review-btn-primary" : "review-btn-secondary"} review-inline-insert-btn`}

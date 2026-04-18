@@ -7,9 +7,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Extension } from "@tiptap/core";
-import { TextSelection } from "@tiptap/pm/state";
 import CodeBlock from "@tiptap/extension-code-block";
 import Placeholder from "@tiptap/extension-placeholder";
+import { TextSelection } from "@tiptap/pm/state";
 import {
   EditorContent,
   NodeViewWrapper,
@@ -25,27 +25,28 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { escapeHtml } from "../lib/utils/html";
-import { MultiModelCandidate } from "./CandidatePanel";
-import { DiffViewPanel } from "./DiffViewPanel";
-import { MultiCandidateView } from "./MultiCandidateView";
-import { ReviewFooter } from "./ReviewFooter";
-import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
-import "./ReviewWindow.css";
 import {
   REVIEW_WINDOW_INLINE_APPLY,
   REVIEW_WINDOW_REWRITE_APPLY,
   VOTYPE_REFOCUS_ACTIVE_INPUT,
 } from "../lib/events";
+import { escapeHtml } from "../lib/utils/html";
+import { MultiModelCandidate } from "./CandidatePanel";
+import { DiffMark } from "./diff-mark";
 import {
   buildDiffViews,
   buildPlainViews,
   computeChangePercent,
   computeChangeStats,
 } from "./diff-utils";
-import { DiffMark } from "./diff-mark";
+import { DiffViewPanel } from "./DiffViewPanel";
 import { hljs } from "./highlight";
 import { simpleMarkdownToHtml } from "./markdown-utils";
+import { MultiCandidateView } from "./MultiCandidateView";
+import { NeonBorder } from "./NeonBorder";
+import { ReviewFooter } from "./ReviewFooter";
+import { PromptInfo, ReviewHeader, ReviewModelOption } from "./ReviewHeader";
+import "./ReviewWindow.css";
 
 const DIFF_THRESHOLD = 50;
 const SPEED_RANK_STATS_STORAGE_KEY = "votype.multiModelSpeedRankStats";
@@ -1863,12 +1864,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             insertShortcut={isMac ? "⌃⏎" : "Ctrl⏎"}
             isSubmitting={isSubmitting}
             translationIntended={translationEnabled}
-            hasEnglishTranslation={
-              translationStatus === "ready" && !!translatedText
-            }
-            onInsertEnglish={handleInsertEnglish}
-            // Optional left "Insert English / Translation" button = Cmd+Enter.
-            englishShortcut={isMac ? "⌘⏎" : "⊞⏎"}
             pressedModifier={pressedModifier}
           />
         ) : (
@@ -1898,7 +1893,18 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
 
         {translationEnabled && (
           <div className="review-preview-dock">
-            <div className="review-translation-float">
+            <div
+              className="review-translation-float"
+              data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
+            >
+              {pressedModifier === "meta" && (
+                <NeonBorder
+                  radius={10}
+                  gradientId="review-neon-gradient-translation-card"
+                  strokeWidth={2.8}
+                  durationSec={3.2}
+                />
+              )}
               <div className="review-translation-float-header">
                 <span className="review-translation-title-row">
                   <span
@@ -1909,14 +1915,33 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                     {t("transcription.review.translationPreview", "英文预览")}
                   </span>
                 </span>
-                {translationStatus === "error" && (
-                  <span className="review-translation-status">
-                    {t(
-                      "transcription.review.translationFailedFallback",
-                      "翻译失败，插入时将回退原文",
-                    )}
+                <button
+                  type="button"
+                  className="review-btn-primary review-translation-insert-btn"
+                  onClick={handleInsertEnglish}
+                  disabled={isSubmitting || translationStatus === "loading"}
+                  title={t("transcription.review.insert", "插入")}
+                  data-mod-armed={
+                    pressedModifier === "meta" ? "true" : undefined
+                  }
+                >
+                  {pressedModifier === "meta" && (
+                    <NeonBorder
+                      radius={6}
+                      gradientId="review-neon-gradient-translation"
+                      strokeWidth={2.0}
+                    />
+                  )}
+                  {t("transcription.review.insert", "插入")}
+                  <span
+                    className="review-shortcut-hint"
+                    data-mod-armed={
+                      pressedModifier === "meta" ? "true" : undefined
+                    }
+                  >
+                    {isMac ? "⌘⏎" : "⊞⏎"}
                   </span>
-                )}
+                </button>
               </div>
               <div className="review-translation-float-content">
                 {translatedText ||
