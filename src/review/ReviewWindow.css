@@ -44,13 +44,32 @@
      polish panel, or English preview when present). Must match the JS
      `containerPadding` used by measureAndResize. */
   padding-bottom: 16px;
-  /* Original grey gradient restored per user preference. */
-  background: linear-gradient(
-    145deg,
-    color-mix(in srgb, var(--color-panel-solid) 95%, black) 0%,
-    var(--color-panel-solid) 100%
-  );
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Layered surface — the base is a soft vertical tint on the panel gray,
+     with a radial top highlight that reads as a subtle light reflection.
+     Radix `--gray-*` tokens auto-swap light/dark, so the same recipe works
+     in both themes without extra selectors. */
+  background:
+    /* Secondary soft glow on the upper-right quadrant — asymmetric to the
+       main highlight so the surface reads as lit from above-left. */
+    radial-gradient(
+      70% 70% at 85% 0%,
+      color-mix(in srgb, var(--gray-12) 6%, transparent) 0%,
+      transparent 50%
+    ),
+    /* Primary top highlight — larger, softer, feeds the sense of ambient
+       reflection across the whole upper half of the card. */
+      radial-gradient(
+        160% 100% at 30% -10%,
+        color-mix(in srgb, var(--gray-12) 10%, transparent) 0%,
+        transparent 60%
+      ),
+    /* Base vertical tint — subtle deepening toward the bottom. */
+      linear-gradient(
+        180deg,
+        var(--gray-2) 0%,
+        color-mix(in srgb, var(--gray-2) 85%, var(--gray-1)) 100%
+      );
+  border: 1px solid color-mix(in srgb, var(--gray-a6) 55%, transparent);
   border-radius: 18px;
   box-shadow: none;
   overflow: hidden;
@@ -58,13 +77,27 @@
   color: var(--gray-12);
 }
 
-/* Inner light reflection hint — disabled for artifact test. */
-.review-window-container::after {
-  display: none;
+/* Hairline top highlight — a 1px ribbon that catches a hint of light along
+   the upper edge, giving the card a glass-reflection feel without any
+   backdrop-filter. */
+.review-window-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--gray-12) 22%, transparent) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
 }
 
-/* Removed the top accent line as requested */
-.review-window-container::before {
+.review-window-container::after {
   display: none;
 }
 
@@ -423,8 +456,11 @@
   padding: 10px;
   /* Cap translation preview at 30% of the screen; content scrolls inside. */
   max-height: var(--review-preview-max, 30vh);
-  background: var(--gray-2);
-  border: 1px solid var(--gray-5);
+  /* Translucent tint — matches the source frame so all inner blocks sit
+     on the same glass layer, with the container's top-highlight showing
+     through. */
+  background: color-mix(in srgb, var(--gray-3) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gray-a5) 60%, transparent);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1353,8 +1389,11 @@
 .review-source-inline {
   padding: 7px 10px;
   border-radius: 8px;
-  border: 1px solid var(--gray-3);
-  background: var(--gray-2);
+  border: 1px solid color-mix(in srgb, var(--gray-a5) 60%, transparent);
+  /* Translucent fill lets the container's layered background (top-light
+     radial + vertical tint) bleed through, giving the frame a glass feel
+     rather than a flat opaque block. */
+  background: color-mix(in srgb, var(--gray-3) 55%, transparent);
   color: var(--gray-11);
   font-size: 13px;
   line-height: 1.5;
@@ -1494,7 +1533,9 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  background: var(--color-panel-solid);
+  /* Translucent tint — shares the glass layer with the source/preview
+     frames. The container's top-highlight + vertical tint reads through. */
+  background: color-mix(in srgb, var(--gray-3) 55%, transparent);
 }
 
 .review-panel-output .review-panel-header {
@@ -2203,6 +2244,25 @@ span[data-diff-level="major"] {
   border-radius: 6px;
   line-height: 1;
   gap: 6px;
+  /* Override the base .review-btn-primary shadow — its 12px accent glow was
+     bleeding left across the translucent header as a smeared band. `!important`
+     because the base rule has equal specificity (single class) and we need to
+     win regardless of source order. */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-11) 25%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 3px rgba(0, 0, 0, 0.18) !important;
+}
+
+.review-translation-insert-btn:hover:not(:disabled),
+.review-translation-insert-btn:focus:not(:disabled),
+.review-translation-insert-btn:active:not(:disabled) {
+  /* !important wins over `.review-btn-primary:hover` which still injects a
+     20px accent-9 bloom at the same specificity by virtue of source order. */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-11) 35%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    0 2px 5px rgba(0, 0, 0, 0.22) !important;
 }
 
 .review-translation-insert-btn .review-shortcut-hint {
@@ -2210,13 +2270,23 @@ span[data-diff-level="major"] {
   font-size: 10px;
 }
 
+/* Kill the inherited .review-btn-primary::after shimmer on this compact
+   variant. The shimmer is a 200%-wide skewed highlight anchored at the
+   button's left, normally clipped by `overflow: hidden`. When armed we
+   switch to `overflow: visible` (so NeonBorder's outer glow can show),
+   which unmasks the shimmer's off-screen portion — it bleeds left across
+   the translucent glass header as the smear the user keeps seeing. */
+.review-translation-insert-btn::after {
+  display: none;
+}
+
 .review-translation-insert-btn[data-mod-armed="true"] {
   position: relative;
   overflow: visible;
   isolation: isolate;
-  box-shadow:
-    0 0 14px -2px rgba(109, 91, 255, 0.45),
-    0 0 22px -6px rgba(255, 79, 216, 0.25) !important;
+  /* No ambient box-shadow bloom — on a translucent glass header the previous
+     22px outer shadow smeared the full width of the row. The button's own
+     NeonBorder is enough signal. */
 }
 
 /* ============================================================
@@ -2298,10 +2368,29 @@ span[data-diff-level="major"] {
   animation: review-neon-hue-strong 5s linear infinite;
 }
 
+/* Dark mode: dial the neon way down — the saturated chain + drop-shadow
+   glow reads too hot on deep backgrounds. 0.28 keeps the motion legible
+   as a soft tracer without dominating the surface. `!important` is needed
+   because armed-scope rules like
+   `.review-translation-float[data-mod-armed="true"] .review-neon-border-svg`
+   have higher specificity than this attribute selector. */
+[data-theme="dark"] .review-neon-border-svg {
+  opacity: 0.28 !important;
+}
+
 /* Secondary buttons use the soft variant. */
 .review-btn-secondary[data-mod-armed="true"] .review-neon-border-svg {
   animation-name: review-neon-hue-soft;
   opacity: 0.85;
+}
+
+/* Translation card uses the soft glow too — its interior is translucent, so
+   the strong drop-shadow bled inward and lit up the header area. The soft
+   variant keeps just enough bloom for the stroke to read without spilling
+   onto the card's own content. */
+.review-translation-float[data-mod-armed="true"] .review-neon-border-svg {
+  animation-name: review-neon-hue-soft;
+  opacity: 0.9;
 }
 
 /* Ambient outer glow on buttons that matches the neon palette. */

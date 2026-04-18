@@ -1708,8 +1708,12 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     }
   }, [selectedCandidateId, localCandidates]);
 
+  // Auto-translate on editor blur (not on every keystroke). The previous 1s
+  // debounce fired while the user was still mid-edit, which felt too eager
+  // and generated wasted LLM calls. Now translation kicks in only when the
+  // user's intent has settled — either they clicked away from the editor or
+  // they explicitly pressed Cmd+T.
   useEffect(() => {
-    // Skill / AI Q&A outputs are never translated.
     const isSkillOutput =
       initialData.output_mode === "chat" || !!initialData.skill_name;
     if (isSkillOutput) {
@@ -1720,34 +1724,69 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       setIsTranslating(false);
       return;
     }
+    if (!translationEnabled) return;
+    if (!editor) return;
 
-    // When the app-profile signals no English-insertion intent we skip the
-    // auto-fetch entirely. A translation produced by manual Cmd+T is still
-    // preserved (we don't clear the translation state here).
-    if (!translationEnabled) {
-      return;
-    }
+    const runIfChanged = () => {
+      const trimmed = editor.getText().trim();
+      if (!trimmed) return;
+      if (trimmed === translatedSourceText) return;
+      setTranslationStatus("loading");
+      void requestEnglishTranslation(trimmed);
+    };
 
-    const trimmedText = translationSourceText.trim();
-    if (!trimmedText) {
-      setTranslatedText(null);
-      setTranslatedSourceText(null);
-      setTranslationError(null);
-      setTranslationStatus("idle");
-      setIsTranslating(false);
-      return;
-    }
-
-    setTranslationStatus("loading");
-    const timer = window.setTimeout(() => {
-      void requestEnglishTranslation(trimmedText);
-    }, 1000);
-
-    return () => window.clearTimeout(timer);
+    editor.on("blur", runIfChanged);
+    return () => {
+      editor.off("blur", runIfChanged);
+    };
   }, [
+    editor,
     requestEnglishTranslation,
     translationEnabled,
+    translatedSourceText,
+    initialData.output_mode,
+    initialData.skill_name,
+  ]);
+
+  // When the source text becomes empty (e.g. user clears the editor), reset
+  // translation state immediately — no waiting for blur.
+  useEffect(() => {
+    if (!translationEnabled) return;
+    if (translationSourceText.trim()) return;
+    setTranslatedText(null);
+    setTranslatedSourceText(null);
+    setTranslationError(null);
+    setTranslationStatus("idle");
+    setIsTranslating(false);
+  }, [translationEnabled, translationSourceText]);
+
+  // Kick off auto-translate on window open AND after a programmatic reset
+  // (prompt rerun / model change) — the blur listener above only fires once
+  // the user has focused AND left the editor, which doesn't happen for these
+  // non-interactive transitions. The ref makes the fire one-shot per reset
+  // cycle; the companion effect below re-arms it whenever translation state
+  // is cleared so subsequent reruns re-translate automatically.
+  const didInitialTranslateRef = useRef(false);
+  useEffect(() => {
+    if (translationStatus === "idle" && !translatedText) {
+      didInitialTranslateRef.current = false;
+    }
+  }, [translationStatus, translatedText]);
+  useEffect(() => {
+    if (didInitialTranslateRef.current) return;
+    if (!translationEnabled) return;
+    const isSkillOutput =
+      initialData.output_mode === "chat" || !!initialData.skill_name;
+    if (isSkillOutput) return;
+    const trimmed = translationSourceText.trim();
+    if (!trimmed) return;
+    didInitialTranslateRef.current = true;
+    setTranslationStatus("loading");
+    void requestEnglishTranslation(trimmed);
+  }, [
+    translationEnabled,
     translationSourceText,
+    requestEnglishTranslation,
     initialData.output_mode,
     initialData.skill_name,
   ]);
@@ -2070,7 +2109,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                   type="button"
                   className="review-btn-primary review-translation-insert-btn"
                   onClick={handleInsertEnglish}
-                  disabled={isSubmitting}
                   title={t("transcription.review.insert", "插入")}
                   data-mod-armed={
                     pressedModifier === "meta" ? "true" : undefined
