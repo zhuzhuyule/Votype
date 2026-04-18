@@ -582,6 +582,9 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const insertOriginalRef = useRef<() => void>(() => {});
   const cancelRef = useRef<() => void>(() => {});
   const translateRef = useRef<() => void>(() => {});
+  // Cmd+Enter routes here: inserts English when translation is available,
+  // otherwise falls into "activate editing" (focus polish editor).
+  const metaEnterRef = useRef<() => void>(() => {});
 
   // Tracks which shortcut modifier the user is currently holding so we can
   // preview the insert action: marquee-border the target button, highlight
@@ -624,69 +627,153 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       window.removeEventListener("blur", clear);
     };
   }, []);
-  const measureAndResize = useCallback(async (reposition: boolean) => {
-    const container = containerRef.current;
-    if (!container) return;
+  // Manual-sizing state. Once the user drags the window, we stop auto-fitting
+  // the window to content. Editor area becomes flex:1 (fills leftover), and
+  // we only grow the window when the preview/translation region grows.
+  const manualSizeRef = useRef({
+    active: false,
+    lastPreviewH: 0,
+  });
+  const programmaticResizeUntilRef = useRef(0);
+  // Last size WE asked Tauri for — incoming resize events matching this
+  // are ours, not a user drag.
+  const lastIssuedSizeRef = useRef<{ w: number; h: number } | null>(null);
+  const dragSettleTimerRef = useRef<number | null>(null);
+  const [manualSize, setManualSize] = useState(false);
 
-    const header = container.querySelector(".review-header");
-    const footer = container.querySelector(".review-footer");
-    const headerH = header?.getBoundingClientRect().height ?? 44;
-    const footerH = footer?.getBoundingClientRect().height ?? 52;
+  const applyProgrammaticResize = useCallback(
+    async (width: number, height: number, reposition: boolean) => {
+      programmaticResizeUntilRef.current = Math.max(
+        programmaticResizeUntilRef.current,
+        Date.now() + 500,
+      );
+      lastIssuedSizeRef.current = {
+        w: Math.round(width),
+        h: Math.round(height),
+      };
+      try {
+        await invoke("resize_review_window", {
+          width,
+          height,
+          reposition,
+        });
+      } catch (e) {
+        console.error("[ReviewWindow] resize_review_window failed:", e);
+      }
+    },
+    [],
+  );
 
-    const previewDock = container.querySelector(".review-preview-dock");
-    const previewH = previewDock?.getBoundingClientRect().height ?? 0;
+  const measureAndResize = useCallback(
+    async (reposition: boolean) => {
+      const container = containerRef.current;
+      if (!container) return;
 
-    // Desired (un-clamped) content height. We use scrollHeight on the wrapper
-    // so user edits (typing, pasting, candidate swaps) immediately affect the
-    // computed size even if CSS max-height is about to clip it.
-    const contentWrapper =
-      container.querySelector<HTMLElement>(".review-panels-layout") ??
-      container.querySelector<HTMLElement>(".review-multi-content") ??
-      container.querySelector<HTMLElement>(".review-section-no-title");
-    const desiredContentH = contentWrapper
-      ? Math.max(contentWrapper.scrollHeight, 160)
-      : 200;
+      const screenH = window.screen?.availHeight ?? 900;
+      const SCREEN_SAFETY = 80;
+      const screenMaxH = Math.max(400, screenH - SCREEN_SAFETY);
+      document.documentElement.style.setProperty(
+        "--review-output-max",
+        `${Math.floor(screenH * 0.6)}px`,
+      );
+      document.documentElement.style.setProperty(
+        "--review-preview-max",
+        `${Math.floor(screenH * 0.3)}px`,
+      );
 
-    // Match Rust's dynamic max (screen_h - 80) so CSS and the Tauri window
-    // agree on the ceiling. Fall back to a conservative default if the API
-    // is unavailable.
-    const SCREEN_SAFETY = 80;
-    const screenMaxH = Math.max(
-      400,
-      (window.screen?.availHeight ?? 900) - SCREEN_SAFETY,
-    );
+      const regionHeight = (sel: string) =>
+        container.querySelector(sel)?.getBoundingClientRect().height ?? 0;
+      const previewH = regionHeight(".review-preview-dock");
 
-    // Each fixed region (header, footer, preview) gets its budget first; the
-    // remainder is what the editable content region is allowed to occupy.
-    const contentBudget = Math.max(
-      160,
-      screenMaxH - headerH - footerH - previewH,
-    );
-    const actualContentH = Math.min(desiredContentH, contentBudget);
+      // Manual mode: window size is user-controlled. Only grow if preview
+      // (translation) grew and no longer fits. Editor area stays fixed via
+      // CSS min-height; leftover space naturally flows to it via flex: 1.
+      if (manualSizeRef.current.active) {
+        const delta = previewH - manualSizeRef.current.lastPreviewH;
+        manualSizeRef.current.lastPreviewH = previewH;
+        if (delta > 0) {
+          const newH = Math.min(window.innerHeight + delta, screenMaxH);
+          await applyProgrammaticResize(window.innerWidth, newH, false);
+        }
+        return;
+      }
 
-    // Publish the cap as a CSS variable so the content wrapper can scroll
-    // internally once it hits the budget — this is what keeps the preview
-    // dock and footer from being clipped when polish text grows long.
-    document.documentElement.style.setProperty(
-      "--review-content-max",
-      `${contentBudget}px`,
-    );
+      // Auto mode: window height == sum of rendered region heights.
+      const headerH = regionHeight(".review-header");
+      const footerH = regionHeight(".review-footer");
+      const contentH =
+        regionHeight(".review-panels-layout") ||
+        regionHeight(".review-multi-content") ||
+        regionHeight(".review-section-no-title");
+      // Must match `.review-window-container { padding-bottom }`.
+      const containerPadding = 16;
 
-    const rawTotalH = headerH + actualContentH + footerH + previewH;
-    // Add ~5% headroom so the outer box-shadow has room to render without
-    // being clipped by the Tauri window edge.
-    const totalH = Math.min(rawTotalH * 1.05, screenMaxH);
-    const currentW = window.innerWidth;
+      const rawTotalH =
+        headerH + contentH + previewH + footerH + containerPadding;
+      const totalH = Math.min(rawTotalH, screenMaxH);
+      const currentW = window.innerWidth;
 
-    try {
-      await invoke("resize_review_window", {
-        width: currentW,
-        height: totalH,
-        reposition,
-      });
-    } catch (e) {
-      console.error("[ReviewWindow] resize_review_window failed:", e);
-    }
+      await applyProgrammaticResize(currentW, totalH, reposition);
+    },
+    [applyProgrammaticResize],
+  );
+
+  // Detect user-driven window resize → enter manual mode. Programmatic
+  // resizes (our own `resize_review_window` call) are filtered out via
+  // the short-lived `programmaticResizeUntilRef` window. We also grace
+  // the first ~1.5s after mount so the Rust-side initial sizing + our
+  // first auto measureAndResize don't get misclassified as a user drag.
+  useEffect(() => {
+    // Grace for ~2s covering Rust initial set_size, webview paint, and first
+    // auto measureAndResize. Nothing within that window is "user drag".
+    programmaticResizeUntilRef.current = Date.now() + 2000;
+    const handleResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      // If the new size matches what we last asked for (within 4px slop),
+      // it's our own resize round-tripping — never a drag.
+      if (lastIssuedSizeRef.current) {
+        const dw = Math.abs(w - lastIssuedSizeRef.current.w);
+        const dh = Math.abs(h - lastIssuedSizeRef.current.h);
+        if (dw <= 4 && dh <= 4) return;
+      }
+      if (Date.now() < programmaticResizeUntilRef.current) return;
+      // Real user drag. Flip manual mode, capture editor height on settle.
+      if (!manualSizeRef.current.active) {
+        const previewEl = containerRef.current?.querySelector(
+          ".review-preview-dock",
+        );
+        manualSizeRef.current.lastPreviewH =
+          previewEl?.getBoundingClientRect().height ?? 0;
+        manualSizeRef.current.active = true;
+      }
+      if (dragSettleTimerRef.current !== null) {
+        window.clearTimeout(dragSettleTimerRef.current);
+      }
+      dragSettleTimerRef.current = window.setTimeout(() => {
+        const editorEl = containerRef.current?.querySelector<HTMLElement>(
+          ".review-panel-output-compact",
+        );
+        if (editorEl) {
+          const editorH = Math.floor(editorEl.getBoundingClientRect().height);
+          document.documentElement.style.setProperty(
+            "--review-editor-min",
+            `${editorH}px`,
+          );
+          // Only flip the CSS mode once we have a real editor-min, so the
+          // transition from auto → manual doesn't momentarily let editor
+          // expand via flex:1 with min=0.
+          setManualSize(true);
+        }
+      }, 180);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (dragSettleTimerRef.current !== null) {
+        window.clearTimeout(dragSettleTimerRef.current);
+      }
+    };
   }, []);
 
   const editor = useEditor(
@@ -712,7 +799,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           addKeyboardShortcuts() {
             return {
               "Meta-Enter": () => {
-                insertEnglishRef.current();
+                metaEnterRef.current();
                 return true;
               },
               "Ctrl-Enter": () => {
@@ -1199,14 +1286,35 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     await requestEnglishTranslation(currentText.trim());
   }, [getEditorText, isTranslating, requestEnglishTranslation]);
 
-  // Keep refs updated. Shortcut bindings are consistent across modes:
+  // Keep refs updated. Shortcut semantics:
   //   Ctrl+Enter  → insert polished ("Insert" — fixed bottom-right button)
-  //   Cmd+Enter   → insert English / translation (the optional left button)
+  //   Cmd+Enter   → insert English when translation is enabled and ready;
+  //                 otherwise focus the polish editor (activate editing).
   useEffect(() => {
     insertOriginalRef.current = handleInsertOriginal;
     insertEnglishRef.current = handleInsertEnglish;
     insertPolishedRef.current = handleInsertPolished;
-  }, [handleInsertPolished, handleInsertEnglish, handleInsertOriginal]);
+    metaEnterRef.current = () => {
+      // Cmd+Enter inserts English when a translation is actually available
+      // to insert (either via app-profile intent or manual Cmd+T). Otherwise
+      // Cmd+Enter IS the polish insert shortcut — no English block exists,
+      // so Cmd owns the main insert.
+      const translationUsable =
+        translationEnabled || translationStatus !== "idle" || !!translatedText;
+      if (translationUsable) {
+        handleInsertEnglish();
+      } else {
+        handleInsertPolished();
+      }
+    };
+  }, [
+    handleInsertPolished,
+    handleInsertEnglish,
+    handleInsertOriginal,
+    translationEnabled,
+    translationStatus,
+    translatedText,
+  ]);
 
   // Cmd+T / Ctrl+T — manual on-demand translation. When translationIntended
   // is false, this is the only way to produce the English preview + unlock
@@ -1644,10 +1752,23 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
     initialData.skill_name,
   ]);
 
-  // Re-measure whenever the preview card's content changes so the Tauri window
-  // hugs the card precisely and the transparent area below it stays minimal.
+  // Re-measure whenever the preview card's content changes. Use a double rAF
+  // so layout from the React commit has fully settled — a plain setTimeout(16)
+  // sometimes fired before the translation block's first paint landed, which
+  // made the resize under-shoot on the first render (preview border hugging
+  // the window's bottom edge until the next translation event corrected it).
   useEffect(() => {
-    window.setTimeout(() => measureAndResize(false), 16);
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        void measureAndResize(false);
+      });
+    });
+    return () => {
+      if (raf1) window.cancelAnimationFrame(raf1);
+      if (raf2) window.cancelAnimationFrame(raf2);
+    };
   }, [
     measureAndResize,
     translationEnabled,
@@ -1743,7 +1864,10 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       className="w-screen h-screen flex flex-col items-stretch p-0 box-border overflow-hidden bg-transparent"
       ref={containerRef}
     >
-      <div className="review-window-container">
+      <div
+        className="review-window-container"
+        data-review-manual={manualSize ? "true" : undefined}
+      >
         <div
           className="cursor-grab select-none"
           onPointerDown={(e) => {
@@ -1860,10 +1984,27 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             changeStats={singleModelChangeStats}
             onInsertOriginal={handleInsertOriginal}
             onInsertPolished={handleInsertPolished}
-            // Fixed bottom-right "Insert" button = Ctrl+Enter (polished).
-            insertShortcut={isMac ? "⌃⏎" : "Ctrl⏎"}
+            // Polish insert shortcut flips once a translation is in play
+            // (either by app-profile intent or after the user pressed ⌘T).
+            // In that world ⌘⏎ is reserved for English, so polish uses
+            // Ctrl+Enter; otherwise ⌘⏎ IS the polish insert.
+            insertShortcut={
+              translationEnabled ||
+              translationStatus !== "idle" ||
+              !!translatedText
+                ? isMac
+                  ? "⌃⏎"
+                  : "Ctrl⏎"
+                : isMac
+                  ? "⌘⏎"
+                  : "⊞⏎"
+            }
             isSubmitting={isSubmitting}
-            translationIntended={translationEnabled}
+            translationIntended={
+              translationEnabled ||
+              translationStatus !== "idle" ||
+              !!translatedText
+            }
             pressedModifier={pressedModifier}
           />
         ) : (
@@ -1891,20 +2032,30 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
           </div>
         )}
 
-        {translationEnabled && (
+        {(translationEnabled ||
+          translationStatus !== "idle" ||
+          !!translatedText) && (
           <div className="review-preview-dock">
             <div
               className="review-translation-float"
-              data-mod-armed={pressedModifier === "meta" ? "true" : undefined}
+              data-mod-armed={
+                pressedModifier === "meta" &&
+                translationStatus === "ready" &&
+                !!translatedText
+                  ? "true"
+                  : undefined
+              }
             >
-              {pressedModifier === "meta" && (
-                <NeonBorder
-                  radius={10}
-                  gradientId="review-neon-gradient-translation-card"
-                  strokeWidth={2.8}
-                  durationSec={3.2}
-                />
-              )}
+              {pressedModifier === "meta" &&
+                translationStatus === "ready" &&
+                !!translatedText && (
+                  <NeonBorder
+                    radius={10}
+                    gradientId="review-neon-gradient-translation-card"
+                    strokeWidth={2.8}
+                    durationSec={3.2}
+                  />
+                )}
               <div className="review-translation-float-header">
                 <span className="review-translation-title-row">
                   <span
@@ -1919,7 +2070,7 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                   type="button"
                   className="review-btn-primary review-translation-insert-btn"
                   onClick={handleInsertEnglish}
-                  disabled={isSubmitting || translationStatus === "loading"}
+                  disabled={isSubmitting}
                   title={t("transcription.review.insert", "插入")}
                   data-mod-armed={
                     pressedModifier === "meta" ? "true" : undefined

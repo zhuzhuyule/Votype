@@ -36,8 +36,14 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  flex: 0 0 auto;
-  padding-bottom: 10px;
+  /* Fill the full Tauri window so dragging or over-estimated initial sizing
+     never leaves a transparent strip — the gray gradient backs every pixel. */
+  flex: 1 1 auto;
+  min-height: 100%;
+  /* Single source of breathing room below the last content block (source +
+     polish panel, or English preview when present). Must match the JS
+     `containerPadding` used by measureAndResize. */
+  padding-bottom: 16px;
   /* Original grey gradient restored per user preference. */
   background: linear-gradient(
     145deg,
@@ -405,6 +411,8 @@
    same card rather than floating as a separate dock. */
 .review-preview-dock {
   position: relative;
+  /* No bottom padding — the outer container owns the breathing room below
+     the last child via its `padding-bottom`, so we don't double-count. */
   padding: 6px 12px 0;
   flex: 0 0 auto;
 }
@@ -413,7 +421,8 @@
   position: relative;
   border-radius: 10px;
   padding: 10px;
-  max-height: 220px;
+  /* Cap translation preview at 30% of the screen; content scrolls inside. */
+  max-height: var(--review-preview-max, 30vh);
   background: var(--gray-2);
   border: 1px solid var(--gray-5);
   display: flex;
@@ -2121,11 +2130,32 @@ span[data-diff-level="major"] {
   position: relative;
   display: flex;
   flex-direction: column;
+  /* Cap the polished output so the window never steals more than 60% of the
+     screen. The body scrolls internally once it hits the cap. */
+  max-height: var(--review-output-max, 60vh);
+  overflow: hidden;
+}
+
+/* ── Manual-sizing mode ──
+   Once the user drags the Tauri window to a custom size, we freeze the
+   auto-fit and let the editor area flex to fill whatever remains. The
+   translation preview keeps its natural (capped) height; window height
+   only changes when the preview grows (handled in JS). */
+[data-review-manual="true"] .review-content-area {
+  flex: 1 1 auto;
+  max-height: none;
+}
+
+[data-review-manual="true"] .review-panel-output-compact {
+  flex: 1 1 auto;
+  max-height: none;
+  min-height: var(--review-editor-min, 0);
 }
 
 .review-panel-output-compact .review-panel-body {
   flex: 1 1 auto;
   min-height: 0;
+  overflow-y: auto;
 }
 
 /* Persistent bottom action row — no top border, paper-on-paper reading */

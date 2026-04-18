@@ -50,9 +50,14 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
 
   const changePercent = changeStats?.changePercent ?? 0;
   // Insert button lives fixed at the bottom-right of the polished output
-  // card, bound to Ctrl+Enter. The "insert English" / "insert translation"
-  // counterpart now lives inside the translation preview block's header.
+  // card. Its shortcut flips based on whether translation is required:
+  // - translationIntended=true → ⌘⏎ is reserved for English, so polish
+  //   uses Ctrl+Enter and armed-mode responds to Ctrl.
+  // - translationIntended=false → no English block exists, so ⌘⏎ IS the
+  //   polish shortcut and armed-mode responds to Cmd/Meta.
   const rightIsPrimary = !translationIntended;
+  const insertModifier: "meta" | "ctrl" = translationIntended ? "ctrl" : "meta";
+  const insertArmed = pressedModifier === insertModifier;
   const showActionRow =
     showInsertPolished && !!onInsertPolished && !isRerunning;
 
@@ -82,9 +87,9 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
           neon border to preview what will be inserted. */}
       <div
         className="review-panel review-panel-output review-polish-surface review-panel-output-compact"
-        data-mod-armed={pressedModifier === "ctrl" ? "true" : undefined}
+        data-mod-armed={insertArmed && translationIntended ? "true" : undefined}
       >
-        {pressedModifier === "ctrl" && (
+        {insertArmed && translationIntended && (
           <NeonBorder
             radius={10}
             gradientId="review-neon-gradient-panel"
@@ -135,9 +140,9 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
               disabled={isSubmitting || !onInsertPolished}
               title={t("transcription.review.insert", "Insert")}
               aria-label={t("transcription.review.insert", "Insert")}
-              data-mod-armed={pressedModifier === "ctrl" ? "true" : undefined}
+              data-mod-armed={insertArmed ? "true" : undefined}
             >
-              {pressedModifier === "ctrl" && (
+              {insertArmed && (
                 <NeonBorder
                   radius={8}
                   gradientId="review-neon-gradient-insert"
@@ -148,9 +153,7 @@ export const DiffViewPanel: React.FC<DiffViewPanelProps> = ({
               {insertShortcut && (
                 <span
                   className="review-shortcut-hint"
-                  data-mod-armed={
-                    pressedModifier === "ctrl" ? "true" : undefined
-                  }
+                  data-mod-armed={insertArmed ? "true" : undefined}
                 >
                   {insertShortcut}
                 </span>
