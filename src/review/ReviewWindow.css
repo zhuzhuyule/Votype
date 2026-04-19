@@ -578,18 +578,23 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
-  /* Extra bottom padding ensures the last line of text always keeps a
-     visible gap to the float's bottom border, even when the content is
-     scrolled to the end. Without this the multi-model layout (taller
-     window → float's natural height often meets 30vh cap) let the last
-     line sit flush against the border. */
-  padding-bottom: 6px;
   font-size: 13px;
   line-height: 1.6;
   color: var(--gray-12);
   white-space: pre-wrap;
   word-break: break-word;
   scrollbar-width: thin;
+}
+
+/* Trailing spacer — `padding-bottom` on a scroll container is ignored by
+   most browsers at scroll-end, which caused the last translated line to
+   hug the float's bottom border in multi-model mode (where the 30vh cap
+   makes the content frequently scroll). A pseudo-element that flows with
+   content gives a real gap at scroll-end. */
+.review-translation-float-content::after {
+  content: "";
+  display: block;
+  height: 10px;
 }
 
 .review-translation-float-content::-webkit-scrollbar {
@@ -2439,14 +2444,39 @@ span[data-diff-level="major"] {
   animation: review-neon-hue-strong 5s linear infinite;
 }
 
-/* Dark mode: dial the neon way down — the saturated chain + drop-shadow
-   glow reads too hot on deep backgrounds. 0.28 keeps the motion legible
-   as a soft tracer without dominating the surface. `!important` is needed
-   because armed-scope rules like
-   `.review-translation-float[data-mod-armed="true"] .review-neon-border-svg`
-   have higher specificity than this attribute selector. */
-[data-theme="dark"] .review-neon-border-svg {
+/* Dark mode: dial the neon way down on CONTENT CARDS (polish, translation,
+   candidate) — the saturated chain + drop-shadow glow reads too hot on
+   deep backgrounds for large surfaces. 0.28 keeps the motion legible as
+   a soft tracer without dominating the card. `!important` is needed
+   because armed-scope rules have higher specificity. */
+[data-theme="dark"]
+  .review-panel-output-compact[data-mod-armed="true"]
+  .review-neon-border-svg,
+[data-theme="dark"]
+  .review-translation-float[data-mod-armed="true"]
+  .review-neon-border-svg,
+[data-theme="dark"]
+  .candidate-panel[data-mod-armed="true"]
+  .review-neon-border-svg {
   opacity: 0.28 !important;
+}
+
+/* Buttons keep the full strength — they're small, the stroke only reads
+   when it's bright, and matching the polish card's inline-insert-btn
+   intensity keeps all Insert buttons visually consistent. */
+[data-theme="dark"]
+  .review-inline-insert-btn[data-mod-armed="true"]
+  .review-neon-border-svg,
+[data-theme="dark"]
+  .review-inline-english-btn[data-mod-armed="true"]
+  .review-neon-border-svg,
+[data-theme="dark"]
+  .review-translation-insert-btn[data-mod-armed="true"]
+  .review-neon-border-svg,
+[data-theme="dark"]
+  .review-footer-insert-btn[data-mod-armed="true"]
+  .review-neon-border-svg {
+  opacity: 1 !important;
 }
 
 /* Secondary buttons use the soft variant. */
@@ -2463,6 +2493,15 @@ span[data-diff-level="major"] {
 .candidate-panel[data-mod-armed="true"] .review-neon-border-svg {
   animation-name: review-neon-hue-soft;
   opacity: 0.9;
+}
+
+/* Translation preview's own Insert button ALWAYS uses soft glow regardless
+   of whether the outer card is armed. When translation is loading/error
+   the float itself doesn't arm — only the button does — so relying on the
+   float-armed selector above left the button running the strong 18px
+   drop-shadow, which smeared into the translucent glass header. */
+.review-translation-insert-btn[data-mod-armed="true"] .review-neon-border-svg {
+  animation-name: review-neon-hue-soft;
 }
 
 /* Ambient outer glow on buttons that matches the neon palette. */

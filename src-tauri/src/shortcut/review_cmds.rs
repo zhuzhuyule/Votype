@@ -141,12 +141,13 @@ pub async fn confirm_reviewed_transcription(
     }
 
     // Decide whether this invocation will need a live translation pass.
-    // We snapshot the decision BEFORE hiding the review window so the
-    // translation overlay can be shown first — without this, users see a
-    // blank moment between the window disappearing and the final paste.
-    let english_needs_translation = matches!(insert_target, ReviewInsertTarget::English)
-        && should_translate_review_insert(&app)
-        && !text.trim().is_empty();
+    // `insert_target=English` is the authoritative signal — the user pressed
+    // ⌘⏎ (or clicked the English Insert button) to ask for English. We
+    // honour that regardless of the app-profile `translate_to_english_on_insert`
+    // flag: that flag controls whether the English *preview* auto-fetches,
+    // not whether we translate when the user explicitly asks.
+    let english_needs_translation =
+        matches!(insert_target, ReviewInsertTarget::English) && !text.trim().is_empty();
     // Capture the paste-target app name so the overlay can show its icon
     // alongside "翻译中…" / "翻译成功 ✓".
     let target_app_name =
