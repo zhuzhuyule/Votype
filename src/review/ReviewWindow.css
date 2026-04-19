@@ -49,26 +49,26 @@
      Radix `--gray-*` tokens auto-swap light/dark, so the same recipe works
      in both themes without extra selectors. */
   background:
-    /* Secondary soft glow on the upper-right quadrant — asymmetric to the
-       main highlight so the surface reads as lit from above-left. */
+    /* Highlight layers use literal `white` rather than `--gray-12` so they
+       always add brightness. `--gray-12` is the text-contrast end of the
+       ramp — bright in dark mode (works) but dark in light mode (inverts
+       the effect). White overlays read as glass reflection in both themes;
+       per-mode alpha values give the right strength below. */
     radial-gradient(
       70% 70% at 85% 0%,
-      color-mix(in srgb, var(--gray-12) 6%, transparent) 0%,
+      rgba(255, 255, 255, 0.05) 0%,
       transparent 50%
     ),
-    /* Primary top highlight — larger, softer, feeds the sense of ambient
-       reflection across the whole upper half of the card. */
-      radial-gradient(
-        160% 100% at 30% -10%,
-        color-mix(in srgb, var(--gray-12) 10%, transparent) 0%,
-        transparent 60%
-      ),
-    /* Base vertical tint — subtle deepening toward the bottom. */
-      linear-gradient(
-        180deg,
-        var(--gray-2) 0%,
-        color-mix(in srgb, var(--gray-2) 85%, var(--gray-1)) 100%
-      );
+    radial-gradient(
+      160% 100% at 30% -10%,
+      rgba(255, 255, 255, 0.09) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      var(--gray-2) 0%,
+      color-mix(in srgb, var(--gray-2) 85%, var(--gray-1)) 100%
+    );
   border: 1px solid color-mix(in srgb, var(--gray-a6) 55%, transparent);
   border-radius: 18px;
   box-shadow: none;
@@ -99,6 +99,54 @@
 
 .review-window-container::after {
   display: none;
+}
+
+/* ── Light mode glass override ──
+   In the default (dark-leaning) recipe above the highlights are white at
+   low alpha, which shows up well against deep grays but disappears on a
+   near-white base. Light mode needs louder highlights plus a subtle cool
+   undertone and a slightly tinted base so the panel reads as frosted
+   glass rather than a flat white rectangle. */
+[data-theme="light"] .review-window-container {
+  background:
+    radial-gradient(
+      70% 70% at 85% 0%,
+      rgba(255, 255, 255, 0.55) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      150% 95% at 30% -10%,
+      rgba(255, 255, 255, 0.75) 0%,
+      transparent 65%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--gray-1) 50%, white) 0%,
+      color-mix(in srgb, var(--gray-2) 70%, var(--gray-3)) 100%
+    );
+  border: 1px solid color-mix(in srgb, var(--gray-a7) 45%, transparent);
+}
+
+[data-theme="light"] .review-window-container::before {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.85) 50%,
+    transparent 100%
+  );
+}
+
+/* Inner cards in light mode — translucent white sits visibly on the cool
+   gradient base and reads as a lifted glass layer. */
+[data-theme="light"] .review-source-inline,
+[data-theme="light"] .review-panel-output,
+[data-theme="light"] .review-translation-float,
+[data-theme="light"] .review-content-area > .review-section-no-title {
+  background: color-mix(in srgb, white 68%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gray-a6) 50%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* Premium header with seamless glassmorphism */
@@ -530,6 +578,12 @@
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Extra bottom padding ensures the last line of text always keeps a
+     visible gap to the float's bottom border, even when the content is
+     scrolled to the end. Without this the multi-model layout (taller
+     window → float's natural height often meets 30vh cap) let the last
+     line sit flush against the border. */
+  padding-bottom: 6px;
   font-size: 13px;
   line-height: 1.6;
   color: var(--gray-12);
@@ -1334,6 +1388,19 @@
   padding-top: 0;
   overflow-y: auto;
   max-height: var(--review-content-max, none);
+}
+
+/* Chat / AI Q&A mode — the content area wraps a single editor with no
+   source or translation siblings. Give it the same translucent glass
+   card look as the polish/source/preview frames so it doesn't read as
+   an untreated raw page. */
+.review-content-area > .review-section-no-title {
+  margin: 0 4px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--gray-3) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gray-a5) 60%, transparent);
+  max-height: var(--review-output-max, 60vh);
 }
 
 .review-change-tip {
@@ -2220,12 +2287,20 @@ span[data-diff-level="major"] {
   flex: 1 1 auto;
 }
 
+/* Shared compact sizing for every Insert button in the review window —
+   polish card action row, translation preview header, and multi-model
+   footer. Keeps the three variants visually interchangeable regardless
+   of where they appear. */
 .review-inline-insert-btn,
-.review-inline-english-btn {
+.review-inline-english-btn,
+.review-translation-insert-btn,
+.review-footer-insert-btn {
   min-height: 26px;
-  padding: 0 10px;
+  padding: 0 12px;
   font-size: 12px;
   border-radius: 8px;
+  gap: 6px;
+  line-height: 1;
 }
 
 /* Compact insert button rendered inside the translation preview header. */
@@ -2238,12 +2313,6 @@ span[data-diff-level="major"] {
 
 .review-translation-insert-btn {
   flex: 0 0 auto;
-  min-height: 24px;
-  padding: 0 14px;
-  font-size: 12px;
-  border-radius: 6px;
-  line-height: 1;
-  gap: 6px;
   /* Override the base .review-btn-primary shadow — its 12px accent glow was
      bleeding left across the translucent header as a smeared band. `!important`
      because the base rule has equal specificity (single class) and we need to
@@ -2306,7 +2375,9 @@ span[data-diff-level="major"] {
 .review-inline-insert-btn[data-mod-armed="true"],
 .review-inline-english-btn[data-mod-armed="true"],
 .review-panel-output-compact[data-mod-armed="true"],
-.review-translation-float[data-mod-armed="true"] {
+.review-translation-float[data-mod-armed="true"],
+.candidate-panel[data-mod-armed="true"],
+.review-footer-insert-btn[data-mod-armed="true"] {
   position: relative;
   overflow: visible;
   isolation: isolate;
@@ -2384,11 +2455,12 @@ span[data-diff-level="major"] {
   opacity: 0.85;
 }
 
-/* Translation card uses the soft glow too — its interior is translucent, so
-   the strong drop-shadow bled inward and lit up the header area. The soft
-   variant keeps just enough bloom for the stroke to read without spilling
-   onto the card's own content. */
-.review-translation-float[data-mod-armed="true"] .review-neon-border-svg {
+/* Translation card + candidate panel use the soft glow too — their
+   interiors are translucent / content-dense, so the strong drop-shadow
+   would bleed inward and light up the card body. The soft variant keeps
+   just enough bloom for the stroke to read without spilling onto content. */
+.review-translation-float[data-mod-armed="true"] .review-neon-border-svg,
+.candidate-panel[data-mod-armed="true"] .review-neon-border-svg {
   animation-name: review-neon-hue-soft;
   opacity: 0.9;
 }

@@ -574,7 +574,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
   const isMac =
     typeof navigator !== "undefined" &&
     navigator.platform.toLowerCase().includes("mac");
-  const insertShortcut = isMac ? "⌘⏎" : "Ctrl⏎";
 
   // Use refs to access latest callbacks inside Tiptap extension
   const insertPolishedRef = useRef<() => void>(() => {});
@@ -2026,6 +2025,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             }}
             onInsert={handleDirectInsert}
             onInsertOriginal={handleInsertOriginal}
+            pressedModifier={pressedModifier}
+            insertModifier={
+              translationEnabled ||
+              translationStatus !== "idle" ||
+              !!translatedText
+                ? "ctrl"
+                : "meta"
+            }
           />
         ) : initialData.output_mode !== "chat" ? (
           <DiffViewPanel
@@ -2083,6 +2090,64 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             </div>
           </div>
         )}
+
+        {pendingClose && (
+          <div className="review-pending-close-toast">
+            {t(
+              "transcription.review.pressEscAgain",
+              "内容已修改，再次按 ESC 关闭",
+            )}
+          </div>
+        )}
+
+        <ReviewFooter
+          reason={initialData.reason}
+          outputMode={initialData.output_mode}
+          isSubmitting={isSubmitting}
+          hasText={!!getEditorText().trim()}
+          // Footer Insert shortcut flips by translation presence — same rule
+          // as the polish card: ⌘⏎ when there is no English (footer owns the
+          // main insert), ⌃⏎ when English is in play (⌘⏎ reserved for the
+          // English preview's Insert).
+          insertShortcut={
+            translationEnabled ||
+            translationStatus !== "idle" ||
+            !!translatedText
+              ? isMac
+                ? "⌃⏎"
+                : "Ctrl⏎"
+              : isMac
+                ? "⌘⏎"
+                : "⊞⏎"
+          }
+          // ⌃⏎ → secondary styling (no solid fill). ⌘⏎ (no-translation
+          // case) keeps primary because it IS the main insert action.
+          insertVariant={
+            translationEnabled ||
+            translationStatus !== "idle" ||
+            !!translatedText
+              ? "secondary"
+              : "primary"
+          }
+          // NeonBorder preview fires on the modifier actually bound to the
+          // footer: ⌃ when translation is live, ⌘ otherwise.
+          insertArmed={
+            pressedModifier ===
+            (translationEnabled ||
+            translationStatus !== "idle" ||
+            !!translatedText
+              ? "ctrl"
+              : "meta")
+          }
+          // Polish single-model view: Insert lives inside DiffViewPanel, so the
+          // footer must not render a duplicate Insert button.
+          hidePrimaryInsert={
+            initialData.output_mode !== "chat" &&
+            !(sortedCandidates && sortedCandidates.length > 0)
+          }
+          onCopy={handleCopy}
+          onInsert={handleInsertPolished}
+        />
 
         {(translationEnabled ||
           translationStatus !== "idle" ||
@@ -2153,31 +2218,6 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
             </div>
           </div>
         )}
-
-        {pendingClose && (
-          <div className="review-pending-close-toast">
-            {t(
-              "transcription.review.pressEscAgain",
-              "内容已修改，再次按 ESC 关闭",
-            )}
-          </div>
-        )}
-
-        <ReviewFooter
-          reason={initialData.reason}
-          outputMode={initialData.output_mode}
-          isSubmitting={isSubmitting}
-          hasText={!!getEditorText().trim()}
-          insertShortcut={insertShortcut}
-          // Polish single-model view: Insert lives inside DiffViewPanel, so the
-          // footer must not render a duplicate Insert button.
-          hidePrimaryInsert={
-            initialData.output_mode !== "chat" &&
-            !(sortedCandidates && sortedCandidates.length > 0)
-          }
-          onCopy={handleCopy}
-          onInsert={handleInsertPolished}
-        />
       </div>
     </div>
   );

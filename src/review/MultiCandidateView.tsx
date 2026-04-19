@@ -27,6 +27,12 @@ interface MultiCandidateViewProps {
   onTextChange: (candidateId: string, text: string) => void;
   onInsert: (text: string, candidateId: string) => void;
   onInsertOriginal?: () => void;
+  /** Which modifier the user is holding. Combined with `insertModifier`
+   *  it tells the selected candidate panel to render an armed NeonBorder. */
+  pressedModifier?: "meta" | "ctrl" | null;
+  /** Which modifier binds to the main Insert action (⌃⏎ when translation
+   *  is in play, ⌘⏎ otherwise). */
+  insertModifier?: "meta" | "ctrl";
 }
 
 export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
@@ -44,6 +50,8 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
   onTextChange,
   onInsert,
   onInsertOriginal,
+  pressedModifier = null,
+  insertModifier = "meta",
 }) => {
   const { t } = useTranslation();
   const [isSourceHovered, setIsSourceHovered] = useState(false);
@@ -105,6 +113,10 @@ export const MultiCandidateView: React.FC<MultiCandidateViewProps> = ({
             shortcutIndex={index + 1}
             showShortcutHint={showShortcutHints}
             isSelected={selectedCandidateId === candidate.id}
+            isArmed={
+              selectedCandidateId === candidate.id &&
+              pressedModifier === insertModifier
+            }
             isEditing={editingCandidateId === candidate.id}
             maxTime={maxTime}
             timeRank={timeRankMap.get(candidate.id)}

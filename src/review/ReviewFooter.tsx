@@ -3,6 +3,7 @@
 import { IconCopy } from "@tabler/icons-react";
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { NeonBorder } from "./NeonBorder";
 
 interface ReviewFooterProps {
   reason?: string | null;
@@ -10,6 +11,12 @@ interface ReviewFooterProps {
   isSubmitting: boolean;
   hasText: boolean;
   insertShortcut: string;
+  /** When translation is active ⌘⏎ is reserved for English, and the footer's
+   *  Insert (bound to ⌃⏎) becomes the secondary action. */
+  insertVariant?: "primary" | "secondary";
+  /** User is holding the modifier bound to the footer's Insert — renders an
+   *  animated NeonBorder around the button as a preview cue. */
+  insertArmed?: boolean;
   /** Hide the primary Insert button — set when the DiffViewPanel provides an
    *  inline Insert affordance and the footer would otherwise duplicate it. */
   hidePrimaryInsert?: boolean;
@@ -23,6 +30,8 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
   isSubmitting,
   hasText,
   insertShortcut,
+  insertVariant = "primary",
+  insertArmed = false,
   hidePrimaryInsert,
   onCopy,
   onInsert,
@@ -47,7 +56,7 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
       <div className="review-footer-actions">
         {hasCopy && (
           <button
-            className="review-btn-secondary"
+            className="review-btn-secondary review-footer-insert-btn"
             onClick={onCopy}
             disabled={isSubmitting || !hasText}
           >
@@ -57,11 +66,19 @@ export const ReviewFooter: React.FC<ReviewFooterProps> = ({
         )}
         {hasInsert && (
           <button
-            className="review-btn-primary"
+            className={`${insertVariant === "primary" ? "review-btn-primary" : "review-btn-secondary"} review-footer-insert-btn`}
             onClick={onInsert}
             disabled={isSubmitting || !hasText}
             data-tauri-drag-region="false"
+            data-mod-armed={insertArmed ? "true" : undefined}
           >
+            {insertArmed && (
+              <NeonBorder
+                radius={8}
+                gradientId="review-neon-gradient-footer-insert"
+                strokeWidth={insertVariant === "primary" ? 2.6 : 1.6}
+              />
+            )}
             {t("transcription.review.insert", "Insert")}{" "}
             <span className="opacity-60 ml-1 font-normal">
               {insertShortcut}

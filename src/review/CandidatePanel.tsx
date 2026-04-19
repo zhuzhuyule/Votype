@@ -7,6 +7,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import React, { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { DiffMark } from "./diff-mark";
+import { NeonBorder } from "./NeonBorder";
 import {
   buildDiffViews,
   buildPlainViews,
@@ -43,6 +44,9 @@ interface CandidatePanelProps {
   shortcutIndex?: number;
   showShortcutHint?: boolean;
   isSelected: boolean;
+  /** Renders the animated NeonBorder around this panel when the user is
+   *  holding the insert modifier and this panel is the selected target. */
+  isArmed?: boolean;
   isEditing: boolean;
   maxTime: number;
   timeRank?: number;
@@ -124,6 +128,7 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
   shortcutIndex,
   showShortcutHint = false,
   isSelected,
+  isArmed = false,
   isEditing,
   maxTime,
   timeRank,
@@ -230,12 +235,21 @@ export const CandidatePanel: React.FC<CandidatePanelProps> = ({
       className={`candidate-panel candidate-tint-${index % 4} ${
         isSelected ? "selected" : ""
       } ${isEditing ? "editing" : ""} ${candidate.error ? "error" : ""} ${!candidate.ready ? "loading" : ""}`}
+      data-mod-armed={isArmed ? "true" : undefined}
       onClick={() => {
         if (candidate.ready && !candidate.error) {
           onSelect();
         }
       }}
     >
+      {isArmed && (
+        <NeonBorder
+          radius={12}
+          gradientId={`review-neon-gradient-candidate-${candidate.id}`}
+          strokeWidth={2.4}
+          durationSec={3.2}
+        />
+      )}
       <div className="candidate-panel-header">
         {/* Time fill inside header as progress indicator */}
         <div
