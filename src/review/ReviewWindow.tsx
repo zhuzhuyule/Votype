@@ -1772,6 +1772,19 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
       didInitialTranslateRef.current = false;
     }
   }, [translationStatus, translatedText]);
+
+  // Multi-candidate: switching the selected candidate invalidates the
+  // current translation (it was for the previous candidate's text). Clear
+  // translation state so the auto-translate effect picks up the new
+  // candidate's source on the next tick.
+  useEffect(() => {
+    if (!isMultiCandidateMode.current) return;
+    setTranslatedText(null);
+    setTranslatedSourceText(null);
+    setTranslationError(null);
+    setTranslationStatus("idle");
+    setIsTranslating(false);
+  }, [selectedCandidateId]);
   useEffect(() => {
     if (didInitialTranslateRef.current) return;
     if (!translationEnabled) return;
