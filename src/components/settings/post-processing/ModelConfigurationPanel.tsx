@@ -34,6 +34,7 @@ import {
   readModelListViewState,
   writeModelListViewState,
 } from "../../../lib/modelListViewState";
+import { getModelDisplayName } from "../../../lib/modelDisplay";
 import { getModelTypeLabel } from "../../../lib/modelTypeUtils";
 import type { CachedModel, ModelType } from "../../../lib/types";
 
@@ -101,8 +102,12 @@ const ModelCard: React.FC<{
     <Box className="group/card relative rounded-lg bg-(--gray-a2) border-2 border-transparent hover:border-(--gray-a6) transition-all duration-100 overflow-hidden">
       <div className="px-3 py-2.5">
         <ModelCardContent
-          name={model.custom_label || model.model_id}
-          modelId={model.custom_label ? model.model_id : undefined}
+          name={getModelDisplayName(model)}
+          modelId={
+            getModelDisplayName(model) !== model.model_id
+              ? model.model_id
+              : undefined
+          }
           subtitle={
             showProvider ? providerName : getModelTypeLabel(model.model_type)
           }
@@ -161,10 +166,7 @@ const ModelCard: React.FC<{
                 rawContent.includes("<think>");
 
               toast.dismiss(toastId);
-              const modelLabel =
-                model.custom_label?.trim() ||
-                model.name?.trim() ||
-                model.model_id;
+              const modelLabel = getModelDisplayName(model);
 
               // Build stats suffix for non-ASR models
               const statsStr = !isAsrModel
@@ -348,8 +350,8 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
     models = [...models].sort((a, b) => {
       switch (sortKey) {
         case "name": {
-          const nameA = (a.custom_label || a.model_id).toLowerCase();
-          const nameB = (b.custom_label || b.model_id).toLowerCase();
+          const nameA = getModelDisplayName(a).toLowerCase();
+          const nameB = getModelDisplayName(b).toLowerCase();
           return nameA.localeCompare(nameB);
         }
         case "calls": {
@@ -367,9 +369,7 @@ export const ModelListPanel: React.FC<ModelListPanelProps> = ({
             providerNameMap[b.provider_id] ?? "",
           );
           if (provCmp !== 0) return provCmp;
-          return (a.custom_label || a.model_id).localeCompare(
-            b.custom_label || b.model_id,
-          );
+          return getModelDisplayName(a).localeCompare(getModelDisplayName(b));
         }
         default:
           return 0;

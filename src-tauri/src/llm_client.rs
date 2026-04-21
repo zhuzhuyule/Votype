@@ -34,11 +34,22 @@ pub fn create_client(
 }
 
 /// Fetch available models from an OpenAI-compatible API
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+pub struct FetchedModel {
+    /// The canonical model identifier used in API calls (e.g. "gpt-4o").
+    pub id: String,
+    /// Human-readable label provided by the provider, if any (e.g.
+    /// Anthropic exposes `display_name`, some vendors use `name`). Falls
+    /// back to `id` when the provider doesn't supply one — upstream code
+    /// can always prefer `display_name` and still get a sensible value.
+    pub display_name: String,
+}
+
 pub async fn fetch_models(
     provider: &PostProcessProvider,
     api_key: String,
     proxy_url: Option<&str>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<FetchedModel>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let endpoint = provider.models_endpoint.as_deref().unwrap_or("/models");
     let url = if endpoint.starts_with("http://") || endpoint.starts_with("https://") {
@@ -101,18 +112,46 @@ pub async fn fetch_models(
     let parsed: serde_json::Value = serde_json::from_str(&body_text)
         .map_err(|e| format!("Failed to parse response JSON: {}", e))?;
 
-    let mut models = Vec::new();
+    let mut models: Vec<FetchedModel> = Vec::new();
+
+    // Provider response shapes we care about:
+    //   OpenAI-compat:  { "data": [ { "id": "gpt-4o", "owned_by": ... } ] }
+    //   Anthropic:      { "data": [ { "id": "claude-opus", "display_name": ... } ] }
+    //   Bare list:      [ "gpt-4o", "claude-opus" ]
+    //   Bare rich list: [ { "id": "...", "name"/"display_name": "..." } ]
+    let pick_display = |entry: &serde_json::Value, id: &str| -> String {
+        for key in ["display_name", "name", "title", "label"] {
+            if let Some(v) = entry.get(key).and_then(|v| v.as_str()) {
+                let trimmed = v.trim();
+                if !trimmed.is_empty() {
+                    return trimmed.to_string();
+                }
+            }
+        }
+        id.to_string()
+    };
 
     if let Some(data) = parsed.get("data").and_then(|d| d.as_array()) {
         for entry in data {
             if let Some(id) = entry.get("id").and_then(|i| i.as_str()) {
-                models.push(id.to_string());
+                models.push(FetchedModel {
+                    id: id.to_string(),
+                    display_name: pick_display(entry, id),
+                });
             }
         }
     } else if let Some(array) = parsed.as_array() {
         for entry in array {
             if let Some(model) = entry.as_str() {
-                models.push(model.to_string());
+                models.push(FetchedModel {
+                    id: model.to_string(),
+                    display_name: model.to_string(),
+                });
+            } else if let Some(id) = entry.get("id").and_then(|i| i.as_str()) {
+                models.push(FetchedModel {
+                    id: id.to_string(),
+                    display_name: pick_display(entry, id),
+                });
             }
         }
     }

@@ -250,7 +250,9 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
 
     const isCancelled = !entry.transcription_text?.trim();
 
-    const availablePrompts = settings?.post_process_prompts || [];
+    const availablePrompts = (settings?.post_process_prompts || []).filter(
+      (p) => p.source !== "builtin",
+    );
 
     const activeClass = "text-logo-primary! font-medium";
 
@@ -383,14 +385,25 @@ export const DashboardEntryCard = React.memo<DashboardEntryCardProps>(
                       }}
                       className="cursor-pointer"
                     >
-                      <DynamicIcon
-                        name={p.icon || "IconWand"}
-                        size={14}
-                        className="mr-2 opacity-70"
-                      />
-                      {p.name}
+                      <Flex align="center" gap="2" className="w-full">
+                        <DynamicIcon
+                          name={p.icon || "IconWand"}
+                          size={14}
+                          className="opacity-70"
+                        />
+                        <Text className="truncate">{p.name}</Text>
+                        {p.output_mode === "chat" && (
+                          <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-(--accent-a3) text-(--accent-11) font-medium leading-none ml-auto">
+                            {t(
+                              "settings.postProcessing.prompts.outputMode.chat",
+                              "AI Chat",
+                            )}
+                          </span>
+                        )}
+                      </Flex>
                     </DropdownMenu.Item>
-                  ))}{" "}
+                  ))}
+                  {availablePrompts.length > 0 && <DropdownMenu.Separator />}
                   <DropdownMenu.Item
                     color="red"
                     onClick={() => {

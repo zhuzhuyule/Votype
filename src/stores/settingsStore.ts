@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
+import type { FetchedModel } from "../bindings";
 import type { BindingResponse } from "../lib/types";
 import {
   AudioDevice,
@@ -20,7 +21,10 @@ interface SettingsStore {
   audioDevices: AudioDevice[];
   outputDevices: AudioDevice[];
   customSounds: { start: boolean; stop: boolean };
-  postProcessModelOptions: Record<string, string[]>;
+  /** Cached per-provider model lists — now keeps the full FetchedModel
+   *  shape (id + display_name) so UIs can render a friendly label even
+   *  when the id is an opaque string. */
+  postProcessModelOptions: Record<string, FetchedModel[]>;
 
   // Actions
   initialize: () => Promise<void>;
@@ -53,12 +57,15 @@ interface SettingsStore {
     apiKey: string,
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
-  fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  fetchPostProcessModels: (providerId: string) => Promise<FetchedModel[]>;
   testPostProcessInference: (
     providerId: string,
     modelId: string,
   ) => Promise<{ content?: string; reasoning_content?: string }>;
-  setPostProcessModelOptions: (providerId: string, models: string[]) => void;
+  setPostProcessModelOptions: (
+    providerId: string,
+    models: FetchedModel[],
+  ) => void;
   addCachedModel: (model: CachedModel) => Promise<void>;
   updateCachedModelType: (
     modelId: string,
@@ -778,9 +785,10 @@ export const useSettingsStore = create<SettingsStore>()(
 
       try {
         // Call Tauri backend command instead of fetch
-        const models: string[] = await invoke("fetch_post_process_models", {
-          providerId,
-        });
+        const models: FetchedModel[] = await invoke(
+          "fetch_post_process_models",
+          { providerId },
+        );
 
         setPostProcessModelOptions(providerId, models);
         return models;

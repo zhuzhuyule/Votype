@@ -20,9 +20,10 @@ import {
 } from "@tabler/icons-react";
 import { ModelChainSelector } from "../../ui/ModelChainSelector";
 import { TooltipIcon } from "../../ui/TooltipIcon";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { getModelDisplayName } from "../../../lib/modelDisplay";
 import { getModelTypeLabel } from "../../../lib/modelTypeUtils";
 import type { CachedModel } from "../../../lib/types";
 import { SettingsGroup } from "../../ui/SettingsGroup";
@@ -61,6 +62,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   );
   const multiModelStrategy = settings?.multi_model_strategy ?? "manual";
   const multiModelPreferredId = settings?.multi_model_preferred_id ?? null;
+  const [multiPickerOpen, setMultiPickerOpen] = useState(false);
 
   const textModels: CachedModel[] = useMemo(
     () =>
@@ -79,7 +81,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
   const getModelLabel = useCallback(
     (model: CachedModel) => {
       const provider = providerMap[model.provider_id] ?? model.provider_id;
-      const name = model.custom_label || model.model_id;
+      const name = getModelDisplayName(model);
       return `${name} (${provider})`;
     },
     [providerMap],
@@ -241,185 +243,13 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                     "Strategy",
                   )}
                 </Text>
-                <Dialog.Root>
-                  <Dialog.Trigger>
-                    <button
-                      type="button"
-                      className="flex items-center justify-center w-5 h-5 rounded border border-(--gray-a6) text-(--gray-11) hover:bg-(--gray-a3) transition-colors cursor-pointer"
-                    >
-                      <IconPlus size={12} />
-                    </button>
-                  </Dialog.Trigger>
-                  <Dialog.Content
-                    style={{
-                      maxWidth: 600,
-                      width: "90vw",
-                      padding: 0,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <Box px="5" pt="5" pb="3">
-                      <Dialog.Title>
-                        {t(
-                          "settings.postProcessing.textModelMode.selectModelsTitle",
-                          "Select models",
-                        )}
-                      </Dialog.Title>
-                      <Dialog.Description size="2" color="gray">
-                        {t(
-                          "settings.postProcessing.textModelMode.selectModelsDescription",
-                          "Choose models for parallel processing. Click the star to set preferred model.",
-                        )}
-                      </Dialog.Description>
-                    </Box>
-                    <ScrollArea
-                      style={{
-                        maxHeight: "60vh",
-                        paddingLeft: 20,
-                        paddingRight: 20,
-                      }}
-                      scrollbars="vertical"
-                    >
-                      <Flex direction="column" gap="4">
-                        {/* Group models by provider */}
-                        {Object.entries(
-                          textModels.reduce<Record<string, CachedModel[]>>(
-                            (groups, model) => {
-                              const key = model.provider_id;
-                              if (!groups[key]) groups[key] = [];
-                              groups[key].push(model);
-                              return groups;
-                            },
-                            {},
-                          ),
-                        ).map(([providerId, models]) => (
-                          <Flex key={providerId} direction="column" gap="2">
-                            <Text
-                              size="1"
-                              weight="medium"
-                              color="gray"
-                              style={{
-                                textTransform: "uppercase",
-                                letterSpacing: "0.05em",
-                              }}
-                            >
-                              {providerMap[providerId] ?? providerId}
-                            </Text>
-                            <Grid columns={{ initial: "2", sm: "3" }} gap="2">
-                              {models.map((model) => {
-                                const isSelected =
-                                  multiModelSelectedIds.includes(model.id);
-                                const isPreferred =
-                                  multiModelPreferredId === model.id ||
-                                  (!multiModelPreferredId &&
-                                    multiModelSelectedIds[0] === model.id);
-                                return (
-                                  <Flex
-                                    key={model.id}
-                                    direction="column"
-                                    className={`relative rounded-lg px-3 py-2.5 cursor-pointer transition-all ${
-                                      isSelected
-                                        ? "bg-(--accent-a2) border-2 border-(--accent-7) shadow-sm"
-                                        : "bg-(--gray-a2) border-2 border-transparent hover:border-(--gray-a6)"
-                                    }`}
-                                    onClick={() => {
-                                      void toggleMultiModelSelection(
-                                        model.id,
-                                        !isSelected,
-                                      );
-                                    }}
-                                  >
-                                    <Text
-                                      size="2"
-                                      weight="medium"
-                                      style={{ lineHeight: 1.3 }}
-                                    >
-                                      {model.custom_label || model.model_id}
-                                    </Text>
-                                    <Text size="1" color="gray" mt="0.5">
-                                      {getModelTypeLabel(model.model_type)}
-                                    </Text>
-                                    {/* Star badge */}
-                                    {isSelected && (
-                                      <Tooltip
-                                        content={
-                                          isPreferred
-                                            ? t(
-                                                "settings.postProcessing.textModelMode.preferredModel",
-                                                "Preferred",
-                                              )
-                                            : t(
-                                                "settings.postProcessing.textModelMode.setAsPreferred",
-                                                "Set as preferred",
-                                              )
-                                        }
-                                      >
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            updateSetting(
-                                              "multi_model_preferred_id",
-                                              isPreferred &&
-                                                multiModelPreferredId
-                                                ? null
-                                                : model.id,
-                                            );
-                                          }}
-                                          className="absolute top-1.5 right-1.5 cursor-pointer p-0.5 rounded hover:bg-(--gray-a3) transition-colors"
-                                        >
-                                          {isPreferred ? (
-                                            <IconStarFilled
-                                              size={14}
-                                              className="text-amber-500"
-                                            />
-                                          ) : (
-                                            <IconStar
-                                              size={14}
-                                              className="text-(--gray-7)"
-                                            />
-                                          )}
-                                        </button>
-                                      </Tooltip>
-                                    )}
-                                  </Flex>
-                                );
-                              })}
-                            </Grid>
-                          </Flex>
-                        ))}
-                      </Flex>
-                    </ScrollArea>
-                    <Flex
-                      justify="between"
-                      align="center"
-                      px="5"
-                      py="3"
-                      style={{ borderTop: "1px solid var(--gray-a4)" }}
-                    >
-                      <Text size="1" color="gray">
-                        {multiModelSelectedIds.length > 0
-                          ? t(
-                              "settings.postProcessing.textModelMode.selectedCount",
-                              "{{count}} selected",
-                              { count: multiModelSelectedIds.length },
-                            )
-                          : t(
-                              "settings.postProcessing.textModelMode.noneSelected",
-                              "No models selected",
-                            )}
-                      </Text>
-                      <Dialog.Close>
-                        <button
-                          type="button"
-                          className="rounded-md bg-(--accent-9) text-white px-4 py-1.5 text-sm font-medium hover:bg-(--accent-10) transition-colors cursor-pointer"
-                        >
-                          {t("common.done", "Done")}
-                        </button>
-                      </Dialog.Close>
-                    </Flex>
-                  </Dialog.Content>
-                </Dialog.Root>
+                <button
+                  type="button"
+                  onClick={() => setMultiPickerOpen(true)}
+                  className="flex items-center justify-center w-5 h-5 rounded border border-(--gray-a6) text-(--gray-11) hover:bg-(--gray-a3) transition-colors cursor-pointer"
+                >
+                  <IconPlus size={12} />
+                </button>
               </Flex>
               <Flex
                 align="center"
@@ -483,7 +313,7 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
                         }
                       >
                         {isPreferred ? "★ " : ""}
-                        {model.custom_label || model.model_id}
+                        {getModelDisplayName(model)}
                       </Badge>
                     </Tooltip>
                   );
@@ -492,6 +322,180 @@ export const PostProcessingPanel: React.FC<PostProcessingPanelProps> = ({
             )}
           </Flex>
         )}
+        {/* Multi-model picker — kept outside conditional so toggling selection
+            count below 2 (which auto-disables multi mode) doesn't unmount the
+            dialog while the user is still picking. */}
+        <Dialog.Root open={multiPickerOpen} onOpenChange={setMultiPickerOpen}>
+          <Dialog.Content
+            style={{
+              maxWidth: 600,
+              width: "90vw",
+              padding: 0,
+              overflow: "hidden",
+            }}
+          >
+            <Box px="5" pt="5" pb="3">
+              <Dialog.Title>
+                {t(
+                  "settings.postProcessing.textModelMode.selectModelsTitle",
+                  "Select models",
+                )}
+              </Dialog.Title>
+              <Dialog.Description size="2" color="gray">
+                {t(
+                  "settings.postProcessing.textModelMode.selectModelsDescription",
+                  "Choose models for parallel processing. Click the star to set preferred model.",
+                )}
+              </Dialog.Description>
+            </Box>
+            <ScrollArea
+              style={{
+                maxHeight: "60vh",
+                paddingLeft: 20,
+                paddingRight: 20,
+              }}
+              scrollbars="vertical"
+            >
+              <Flex direction="column" gap="4">
+                {/* Group models by provider */}
+                {Object.entries(
+                  textModels.reduce<Record<string, CachedModel[]>>(
+                    (groups, model) => {
+                      const key = model.provider_id;
+                      if (!groups[key]) groups[key] = [];
+                      groups[key].push(model);
+                      return groups;
+                    },
+                    {},
+                  ),
+                ).map(([providerId, models]) => (
+                  <Flex key={providerId} direction="column" gap="2">
+                    <Text
+                      size="1"
+                      weight="medium"
+                      color="gray"
+                      style={{
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      {providerMap[providerId] ?? providerId}
+                    </Text>
+                    <Grid columns={{ initial: "2", sm: "3" }} gap="2">
+                      {models.map((model) => {
+                        const isSelected = multiModelSelectedIds.includes(
+                          model.id,
+                        );
+                        const isPreferred =
+                          multiModelPreferredId === model.id ||
+                          (!multiModelPreferredId &&
+                            multiModelSelectedIds[0] === model.id);
+                        return (
+                          <Flex
+                            key={model.id}
+                            direction="column"
+                            className={`relative rounded-lg px-3 py-2.5 cursor-pointer transition-all ${
+                              isSelected
+                                ? "bg-(--accent-a2) border-2 border-(--accent-7) shadow-sm"
+                                : "bg-(--gray-a2) border-2 border-transparent hover:border-(--gray-a6)"
+                            }`}
+                            onClick={() => {
+                              void toggleMultiModelSelection(
+                                model.id,
+                                !isSelected,
+                              );
+                            }}
+                          >
+                            <Text
+                              size="2"
+                              weight="medium"
+                              style={{ lineHeight: 1.3 }}
+                            >
+                              {getModelDisplayName(model)}
+                            </Text>
+                            <Text size="1" color="gray" mt="0.5">
+                              {getModelTypeLabel(model.model_type)}
+                            </Text>
+                            {/* Star badge */}
+                            {isSelected && (
+                              <Tooltip
+                                content={
+                                  isPreferred
+                                    ? t(
+                                        "settings.postProcessing.textModelMode.preferredModel",
+                                        "Preferred",
+                                      )
+                                    : t(
+                                        "settings.postProcessing.textModelMode.setAsPreferred",
+                                        "Set as preferred",
+                                      )
+                                }
+                              >
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateSetting(
+                                      "multi_model_preferred_id",
+                                      isPreferred && multiModelPreferredId
+                                        ? null
+                                        : model.id,
+                                    );
+                                  }}
+                                  className="absolute top-1.5 right-1.5 cursor-pointer p-0.5 rounded hover:bg-(--gray-a3) transition-colors"
+                                >
+                                  {isPreferred ? (
+                                    <IconStarFilled
+                                      size={14}
+                                      className="text-amber-500"
+                                    />
+                                  ) : (
+                                    <IconStar
+                                      size={14}
+                                      className="text-(--gray-7)"
+                                    />
+                                  )}
+                                </button>
+                              </Tooltip>
+                            )}
+                          </Flex>
+                        );
+                      })}
+                    </Grid>
+                  </Flex>
+                ))}
+              </Flex>
+            </ScrollArea>
+            <Flex
+              justify="between"
+              align="center"
+              px="5"
+              py="3"
+              style={{ borderTop: "1px solid var(--gray-a4)" }}
+            >
+              <Text size="1" color="gray">
+                {multiModelSelectedIds.length > 0
+                  ? t(
+                      "settings.postProcessing.textModelMode.selectedCount",
+                      "{{count}} selected",
+                      { count: multiModelSelectedIds.length },
+                    )
+                  : t(
+                      "settings.postProcessing.textModelMode.noneSelected",
+                      "No models selected",
+                    )}
+              </Text>
+              <Dialog.Close>
+                <button
+                  type="button"
+                  className="rounded-md bg-(--accent-9) text-white px-4 py-1.5 text-sm font-medium hover:bg-(--accent-10) transition-colors cursor-pointer"
+                >
+                  {t("common.done", "Done")}
+                </button>
+              </Dialog.Close>
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
       </Flex>
     </Box>
   );

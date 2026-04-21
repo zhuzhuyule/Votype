@@ -384,14 +384,19 @@ const ApiKeyList = React.forwardRef<
   };
 
   // Load keys from backend when provider changes
+  const getKeysRef = useRef(getPostProcessApiKeys);
+  getKeysRef.current = getPostProcessApiKeys;
   useEffect(() => {
     if (!providerId) return;
+    // Already loaded this provider — do not touch editing state
+    if (loadedProviderRef.current === providerId) return;
     // Cleanup previous provider's dirty state
     cleanupEditingRef.current();
 
     let cancelled = false;
     loadedProviderRef.current = providerId;
-    getPostProcessApiKeys(providerId)
+    getKeysRef
+      .current(providerId)
       .then((loaded) => {
         if (!cancelled && loadedProviderRef.current === providerId) {
           const normalizedKeys =
@@ -420,7 +425,7 @@ const ApiKeyList = React.forwardRef<
     return () => {
       cancelled = true;
     };
-  }, [providerId, getPostProcessApiKeys]);
+  }, [providerId]);
 
   const persist = useCallback(
     async (updated: KeyEntry[]) => {
@@ -679,10 +684,8 @@ const ApiKeyList = React.forwardRef<
   return (
     <Flex direction="column" gap="1">
       {keys.map((entry, index) => {
-        // Empty key always stays in editing mode
-        const isEditing =
-          editingIndex === index ||
-          (!entry.key.trim() && editingIndex === null);
+        // Edit/read transition is driven only by Enter or the confirm button.
+        const isEditing = editingIndex === index;
         const labelPlaceholder = entry.key ? maskKey(entry.key) : "Label";
 
         // Every row: [●] [label] [key/display] [actions...]
@@ -1016,7 +1019,13 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     }
   };
 
-  // Update local state when provider changes
+  // Sync local form state on provider switch — a new provider always means
+  // a fresh form, so clobbering local edits is correct. Critically, we do
+  // NOT reset baseUrl/editing state on `state.baseUrl` or `providerOptions`
+  // changes: those fire for unrelated reasons (saving an API key triggers
+  // settings → providerOptions rederive → this effect) and were silently
+  // dropping the user's in-progress baseUrl edit. The baseUrl input now
+  // only commits via its own Enter/blur path.
   useEffect(() => {
     setLocalBaseUrl(state.baseUrl);
     setEditingBaseUrl(false);
@@ -1027,7 +1036,8 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
     if (option) {
       setEditingName(option.label as string);
     }
-  }, [state.baseUrl, state.selectedProviderId, state.providerOptions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.selectedProviderId]);
 
   const handleNameBlur = async () => {
     if (editingName.trim() && editingName !== selectedProviderLabel) {

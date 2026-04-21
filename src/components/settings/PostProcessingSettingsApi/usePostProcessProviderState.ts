@@ -256,16 +256,25 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     const seen = new Set<string>();
     const options: ModelOption[] = [];
 
-    const upsert = (value: string | null | undefined) => {
+    const upsert = (
+      value: string | null | undefined,
+      label?: string | null,
+    ) => {
       const trimmed = value?.trim();
       if (!trimmed || seen.has(trimmed)) return;
       seen.add(trimmed);
-      options.push({ value: trimmed, label: trimmed });
+      const friendly = label?.trim();
+      options.push({
+        value: trimmed,
+        label: friendly && friendly !== trimmed ? friendly : trimmed,
+      });
     };
 
-    // Add available models from API
+    // Add available models from API — use backend-supplied display_name
+    // when the provider exposes one (e.g. Anthropic `display_name`), so
+    // dropdowns show "Claude Opus 4.1" instead of bare "claude-opus-4-1".
     for (const candidate of availableModelsRaw) {
-      upsert(candidate);
+      upsert(candidate.id, candidate.display_name);
     }
 
     // Ensure current model is in the list

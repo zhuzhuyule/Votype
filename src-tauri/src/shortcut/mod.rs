@@ -244,7 +244,7 @@ fn validate_provider_exists(
 async fn fetch_models_manual(
     provider: &PostProcessProvider,
     api_key: String,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<crate::llm_client::FetchedModel>, String> {
     crate::llm_client::fetch_models(provider, api_key, None).await
 }
 

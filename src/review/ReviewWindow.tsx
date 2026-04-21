@@ -1415,10 +1415,14 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
         return;
       }
 
-      // Cmd+Enter: insert English translation
+      // Cmd+Enter: route through the same "is translation in play?" decision
+      // as single-model mode. When the app profile doesn't request English
+      // and the user hasn't manually triggered a translation, ⌘⏎ is the
+      // main insert (polished / selected candidate) — no translation pass.
+      // When translation IS in play, it inserts English.
       if (e.metaKey && !e.ctrlKey && e.key === "Enter") {
         e.preventDefault();
-        insertEnglishRef.current();
+        metaEnterRef.current();
         return;
       }
 

@@ -10,6 +10,7 @@ import {
 import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
+import { getModelDisplayName } from "../../../lib/modelDisplay";
 import type { CachedModel } from "../../../lib/types";
 import { ModelChainSelector } from "../../ui/ModelChainSelector";
 import { SettingContainer } from "../../ui/SettingContainer";
@@ -295,7 +296,7 @@ export const TextModelModeSettings: React.FC = () => {
                             }}
                           >
                             {isPreferred ? "★ " : ""}
-                            {model.custom_label || model.model_id}
+                            {getModelDisplayName(model)}
                           </Badge>
                         </Tooltip>
                       );

@@ -439,7 +439,7 @@ pub async fn refresh_provider_avatar(
 pub async fn fetch_post_process_models(
     app: AppHandle,
     provider_id: String,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<crate::llm_client::FetchedModel>, String> {
     let settings = settings::get_settings(&app);
     let provider = settings
         .post_process_providers
@@ -449,7 +449,10 @@ pub async fn fetch_post_process_models(
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         {
-            return Ok(vec![APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string()]);
+            return Ok(vec![crate::llm_client::FetchedModel {
+                id: APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string(),
+                display_name: APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string(),
+            }]);
         }
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         {

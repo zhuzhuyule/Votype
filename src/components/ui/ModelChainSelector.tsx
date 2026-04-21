@@ -11,6 +11,7 @@ import { IconSelector } from "@tabler/icons-react";
 import { ModelCardContent } from "./ModelCard";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getModelDisplayName } from "../../lib/modelDisplay";
 import { getModelTypeLabel } from "../../lib/modelTypeUtils";
 import type {
   CachedModel,
@@ -83,7 +84,7 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
   );
 
   const getModelName = useCallback(
-    (model: CachedModel) => model.custom_label || model.model_id,
+    (model: CachedModel) => getModelDisplayName(model),
     [],
   );
 
@@ -255,7 +256,9 @@ export const ModelChainSelector: React.FC<ModelChainSelectorProps> = ({
                             <ModelCardContent
                               name={getModelName(model)}
                               modelId={
-                                model.custom_label ? model.model_id : undefined
+                                getModelName(model) !== model.model_id
+                                  ? model.model_id
+                                  : undefined
                               }
                               subtitle={getModelTypeLabel(model.model_type)}
                               isAsr={model.model_type === "asr"}

@@ -173,10 +173,12 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
           vendor: m.vendor,
         }));
     }
-    // API source
+    // API source — use the provider-supplied display label when available
+    // (backend fills it from `display_name`/`name`/`title` fields on the
+    // provider's /models response). Falls back to the id when missing.
     return providerState.modelOptions.map((o) => ({
       id: o.value,
-      name: o.value,
+      name: o.label?.trim() || o.value,
       source: "api" as const,
     }));
   }, [source, freeModels, providerState.modelOptions]);
@@ -212,9 +214,17 @@ export const AddModelDialog: React.FC<AddModelDialogProps> = ({
           capabilities: freeModel?.capabilities ?? null,
         });
 
+        // Prefer free-catalog name → API display label → bare id as fallback.
+        const apiOption = modelOptions.find((o) => o.id === modelId);
+        const friendlyName =
+          freeModel?.name?.trim() ||
+          (apiOption?.name && apiOption.name !== modelId
+            ? apiOption.name
+            : "") ||
+          modelId;
         const newModel: CachedModel = {
           id: buildCacheId(modelId, providerState.selectedProviderId),
-          name: modelId,
+          name: friendlyName,
           model_type: modelType,
           provider_id: providerState.selectedProviderId,
           model_id: modelId,

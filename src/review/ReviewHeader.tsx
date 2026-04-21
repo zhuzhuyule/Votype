@@ -30,6 +30,7 @@ export interface ReviewModelOption {
   label: string;
   model_id: string;
   provider_id: string;
+  provider_label?: string;
 }
 
 interface ReviewHeaderProps {
@@ -365,11 +366,19 @@ export const ReviewHeader: React.FC<ReviewHeaderProps> = ({
                 ? `${t("common.default", "Default")} (${defaultModelLabel})`
                 : t("common.default", "Default")}
             </option>
-            {modelOptions.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label !== m.model_id ? m.label : m.model_id}
-              </option>
-            ))}
+            {modelOptions.map((m) => {
+              // Render "<label> · <provider>" so users always see a recognisable
+              // model name. When `label` is just the raw model_id (no friendly
+              // name in cache), fall back to pairing it with the provider so
+              // they can at least disambiguate by source.
+              const provider = m.provider_label?.trim();
+              const text = provider ? `${m.label} · ${provider}` : m.label;
+              return (
+                <option key={m.id} value={m.id}>
+                  {text}
+                </option>
+              );
+            })}
           </select>
         )}
         <div

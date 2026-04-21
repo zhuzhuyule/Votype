@@ -1,5 +1,4 @@
-import { Box, Button, Flex, Text } from "@radix-ui/themes";
-import { IconList } from "@tabler/icons-react";
+import { Flex, SegmentedControl, Text } from "@radix-ui/themes";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -95,18 +94,22 @@ export const ModelsConfiguration: React.FC = () => {
     return map;
   }, [settings?.post_process_providers]);
 
-  // Count models for current provider filter
-  const filteredCount = useMemo(() => {
-    if (!providerFilter) return settings?.cached_models?.length ?? 0;
-    return (settings?.cached_models ?? []).filter(
-      (m) => m.provider_id === providerFilter,
-    ).length;
-  }, [settings?.cached_models, providerFilter]);
-
-  const isShowingAll = providerFilter === null;
-  const activeProviderLabel = providerFilter
-    ? (providerNameMap[providerFilter] ?? providerFilter)
+  // The Provider toggle button always reflects the provider selected in the
+  // upper Provider picker. Falls back to the current providerFilter so users
+  // who restored a filter from localStorage without a matching sidebar pick
+  // still see a meaningful toggle.
+  const providerButtonId =
+    providerState.selectedProviderId || providerFilter || null;
+  const providerButtonLabel = providerButtonId
+    ? (providerNameMap[providerButtonId] ?? providerButtonId)
     : null;
+  const isProviderButtonActive =
+    !!providerButtonId && providerFilter === providerButtonId;
+  const providerButtonCount = providerButtonId
+    ? (settings?.cached_models ?? []).filter(
+        (m) => m.provider_id === providerButtonId,
+      ).length
+    : 0;
 
   return (
     <Flex direction="column" gap="6" className="max-w-5xl w-full mx-auto">
@@ -123,35 +126,37 @@ export const ModelsConfiguration: React.FC = () => {
           <Flex align="center" gap="2">
             <span>{t("settings.postProcessing.models.title")}</span>
 
-            {/* "All" button */}
-            <Button
+            {/* Scope toggle — "All" vs the provider selected in the upper
+                picker. Stays as a two-option segmented control so switching
+                back and forth is one click; label and count of the provider
+                side update live when the upper picker changes. */}
+            <SegmentedControl.Root
               size="1"
-              variant={isShowingAll ? "solid" : "soft"}
-              color={isShowingAll ? "indigo" : "gray"}
-              onClick={() => setProviderFilter(null)}
+              value={isProviderButtonActive ? "provider" : "all"}
+              onValueChange={(v) =>
+                setProviderFilter(v === "provider" ? providerButtonId : null)
+              }
               className="ml-1"
             >
-              <IconList size={13} />
-              {t("settings.postProcessing.models.filter.all", "All")}
-            </Button>
-
-            {/* Provider indicator when filtered */}
-            {activeProviderLabel && (
-              <>
-                <Text size="2" className="text-(--gray-7)">
-                  /
-                </Text>
-                <Flex align="center" gap="1.5">
-                  <Box className="w-1.5 h-1.5 rounded-full bg-(--accent-9)" />
-                  <Text size="2" weight="medium" className="text-(--accent-11)">
-                    {activeProviderLabel}
-                  </Text>
-                  <Text size="1" className="text-(--gray-8) tabular-nums">
-                    {filteredCount}
+              <SegmentedControl.Item value="all">
+                <Flex align="center" gap="1">
+                  {t("settings.postProcessing.models.filter.all", "All")}
+                  <Text size="1" className="tabular-nums opacity-70">
+                    {settings?.cached_models?.length ?? 0}
                   </Text>
                 </Flex>
-              </>
-            )}
+              </SegmentedControl.Item>
+              {providerButtonId && providerButtonLabel && (
+                <SegmentedControl.Item value="provider">
+                  <Flex align="center" gap="1">
+                    {providerButtonLabel}
+                    <Text size="1" className="tabular-nums opacity-70">
+                      {providerButtonCount}
+                    </Text>
+                  </Flex>
+                </SegmentedControl.Item>
+              )}
+            </SegmentedControl.Root>
           </Flex>
         }
       >

@@ -855,7 +855,7 @@ async rerunMultiModelWithPrompt(promptId: string, sourceText: string, historyId:
     else return { status: "error", error: e  as any };
 }
 },
-async fetchPostProcessModels(providerId: string) : Promise<Result<string[], string>> {
+async fetchPostProcessModels(providerId: string) : Promise<Result<FetchedModel[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("fetch_post_process_models", { providerId }) };
 } catch (e) {
@@ -1174,6 +1174,21 @@ extra_params?: Partial<{ [key in string]: JsonValue }> | null;
  * 例如: {"X-Custom-Token": "abc123"}
  */
 extra_headers?: Partial<{ [key in string]: string }> | null }
+/**
+ * Fetch available models from an OpenAI-compatible API
+ */
+export type FetchedModel = { 
+/**
+ * The canonical model identifier used in API calls (e.g. "gpt-4o").
+ */
+id: string; 
+/**
+ * Human-readable label provided by the provider, if any (e.g.
+ * Anthropic exposes `display_name`, some vendors use `name`). Falls
+ * back to `id` when the provider doesn't supply one — upstream code
+ * can always prefer `display_name` and still get a sensible value.
+ */
+display_name: string }
 export type GpuDeviceOption = { id: number; name: string; total_vram_mb: number }
 export type ImplementationChangeResult = { success: boolean; reset_bindings: string[] }
 export type InferenceResult = { content: string | null; reasoning_content: string | null; duration_ms: number | null; total_tokens: number | null }
@@ -1252,7 +1267,13 @@ export type PromptListResponse = { prompts: PromptInfo[]; selected_id: string | 
 export type PromptMessageRole = "system" | "developer"
 export type RerunSingleResult = { text: string | null; error: string | null; model: string | null }
 export type ReviewInsertTarget = "english" | "polished" | "asr_original"
-export type ReviewModelOption = { id: string; label: string; model_id: string; provider_id: string }
+export type ReviewModelOption = { id: string; label: string; model_id: string; provider_id: string; 
+/**
+ * Human-readable provider name (e.g. "Groq", "Gitee AI") so the dropdown
+ * can render "<model-label> · <provider-label>" instead of leaving the
+ * user with only a bare model id string.
+ */
+provider_label: string }
 export type ReviewModelOptionsResponse = { models: ReviewModelOption[]; 
 /**
  * The cached_model.id of the current default model (resolved from settings)

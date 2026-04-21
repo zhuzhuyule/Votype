@@ -2,6 +2,7 @@
 // No React dependencies
 
 import { escapeHtml } from "../lib/utils/html";
+import { paragraphize, type ParagraphPlan } from "./paragraphize";
 
 type Token = {
   value: string;
@@ -220,47 +221,105 @@ export const computeDiffAnnotations = (
   return { sourceStatuses, targetLevels };
 };
 
+// Emits escaped HTML for [from, to), inserting </p><p> whenever a paragraph
+// boundary is crossed. Leading/trailing whitespace inside each paragraph slice
+// is trimmed so inter-paragraph newlines don't turn into stray <br /> rows.
+const renderSegmented = (
+  text: string,
+  plan: ParagraphPlan,
+  emitToken: (index: number, escaped: string) => string,
+  tokens: Token[],
+) => {
+  const wrap = plan.paragraphs.length > 1;
+  const paragraphs = plan.paragraphs;
+
+  let html = wrap ? "<p>" : "";
+  let pIdx = 0;
+  let cursor = wrap ? paragraphs[0].start : 0;
+
+  const emitPlain = (from: number, to: number) => {
+    if (from >= to) return;
+    const slice = text.slice(from, to);
+    // Trim just the whitespace that sits at a paragraph edge.
+    html += escapeHtmlWithBreaks(slice);
+  };
+
+  const advancePast = (upto: number) => {
+    if (!wrap) return;
+    while (pIdx < paragraphs.length - 1 && upto > paragraphs[pIdx].end) {
+      emitPlain(cursor, paragraphs[pIdx].end);
+      html += "</p><p>";
+      pIdx += 1;
+      cursor = paragraphs[pIdx].start;
+    }
+  };
+
+  tokens.forEach((token, index) => {
+    advancePast(token.start);
+    const gapEnd = Math.min(
+      token.start,
+      wrap ? paragraphs[pIdx].end : token.start,
+    );
+    emitPlain(cursor, gapEnd);
+    cursor = gapEnd;
+    // Tokens are never split across paragraphs (paragraphize breaks on
+    // sentence terminators which are always their own token).
+    html += emitToken(index, escapeHtmlWithBreaks(token.value));
+    cursor = token.end;
+  });
+
+  if (wrap) {
+    advancePast(text.length);
+    emitPlain(cursor, paragraphs[paragraphs.length - 1].end);
+    html += "</p>";
+  } else {
+    emitPlain(cursor, text.length);
+  }
+
+  return html;
+};
+
 const buildSourceHtml = (
   source: string,
   statuses: Array<"equal" | "delete">,
+  plan: ParagraphPlan,
 ) => {
   const tokens = tokenizeWithIndices(source);
-  let html = "";
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    html += escapeHtmlWithBreaks(source.slice(cursor, token.start));
-    const tokenText = escapeHtmlWithBreaks(token.value);
-    if (statuses[index] === "delete") {
-      html += `<span class="diff-delete">${tokenText}</span>`;
-    } else {
-      html += tokenText;
-    }
-    cursor = token.end;
-  });
-  html += escapeHtmlWithBreaks(source.slice(cursor));
-  return html;
+  return renderSegmented(
+    source,
+    plan,
+    (index, escaped) =>
+      statuses[index] === "delete"
+        ? `<span class="diff-delete">${escaped}</span>`
+        : escaped,
+    tokens,
+  );
 };
 
 const buildTargetHtml = (
   target: string,
   levels: Array<"minor" | "major" | null>,
+  plan: ParagraphPlan,
 ) => {
   const tokens = tokenizeWithIndices(target);
-  let html = "";
-  let cursor = 0;
-  tokens.forEach((token, index) => {
-    html += escapeHtmlWithBreaks(target.slice(cursor, token.start));
-    const level = levels[index];
-    const tokenText = escapeHtmlWithBreaks(token.value);
-    if (level) {
-      html += `<span data-diff-level="${level}">${tokenText}</span>`;
-    } else {
-      html += tokenText;
-    }
-    cursor = token.end;
-  });
-  html += escapeHtmlWithBreaks(target.slice(cursor));
-  return html;
+  return renderSegmented(
+    target,
+    plan,
+    (index, escaped) => {
+      const level = levels[index];
+      return level
+        ? `<span data-diff-level="${level}">${escaped}</span>`
+        : escaped;
+    },
+    tokens,
+  );
+};
+
+const buildPlainHtml = (text: string, plan: ParagraphPlan) => {
+  if (plan.paragraphs.length <= 1) return escapeHtmlWithBreaks(text);
+  return plan.paragraphs
+    .map((p) => `<p>${escapeHtmlWithBreaks(text.slice(p.start, p.end))}</p>`)
+    .join("");
 };
 
 export interface ChangeStats {
@@ -310,8 +369,8 @@ export const computeChangePercent = (
 };
 
 export const buildPlainViews = (source: string, target: string) => ({
-  sourceHtml: escapeHtmlWithBreaks(source),
-  targetHtml: escapeHtmlWithBreaks(target),
+  sourceHtml: buildPlainHtml(source, paragraphize(source)),
+  targetHtml: buildPlainHtml(target, paragraphize(target)),
 });
 
 export const buildDiffViews = (source: string, target: string) => {
@@ -320,9 +379,11 @@ export const buildDiffViews = (source: string, target: string) => {
     source,
     target,
   );
+  const sourcePlan = paragraphize(source);
+  const targetPlan = paragraphize(target);
   const result = {
-    sourceHtml: buildSourceHtml(source, sourceStatuses),
-    targetHtml: buildTargetHtml(target, targetLevels),
+    sourceHtml: buildSourceHtml(source, sourceStatuses, sourcePlan),
+    targetHtml: buildTargetHtml(target, targetLevels, targetPlan),
   };
   const durationMs = Math.round(performance.now() - start);
   console.debug("[diff-utils] buildDiffViews", {

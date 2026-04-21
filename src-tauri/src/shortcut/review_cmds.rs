@@ -530,6 +530,10 @@ pub struct ReviewModelOption {
     pub label: String,
     pub model_id: String,
     pub provider_id: String,
+    /// Human-readable provider name (e.g. "Groq", "Gitee AI") so the dropdown
+    /// can render "<model-label> · <provider-label>" instead of leaving the
+    /// user with only a bare model id string.
+    pub provider_label: String,
 }
 
 #[derive(Serialize, Clone, Type)]
@@ -569,11 +573,18 @@ pub fn get_review_model_options(app: AppHandle) -> ReviewModelOptionsResponse {
                 .filter(|l| !l.trim().is_empty())
                 .unwrap_or(&m.name)
                 .to_string();
+            let provider_label = settings
+                .post_process_providers
+                .iter()
+                .find(|p| p.id == m.provider_id)
+                .map(|p| p.label.clone())
+                .unwrap_or_else(|| m.provider_id.clone());
             ReviewModelOption {
                 id: m.id.clone(),
                 label,
                 model_id: m.model_id.clone(),
                 provider_id: m.provider_id.clone(),
+                provider_label,
             }
         })
         .collect();

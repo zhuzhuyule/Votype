@@ -461,6 +461,14 @@
   color: var(--gray-11);
 }
 
+.review-source-inline p {
+  margin: 0 0 0.6em 0;
+}
+
+.review-source-inline p:last-child {
+  margin-bottom: 0;
+}
+
 .review-source-insert-btn {
   position: absolute;
   top: 50%;

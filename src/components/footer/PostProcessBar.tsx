@@ -22,6 +22,7 @@ import { emit } from "@tauri-apps/api/event";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
+import { getModelDisplayName } from "../../lib/modelDisplay";
 
 type ModelMode = "single" | "multi";
 
@@ -71,7 +72,7 @@ export const PostProcessBar: React.FC = () => {
   const selectedModelId = settings?.selected_prompt_model?.primary_id ?? "";
   const selectedModel = textModels.find((m) => m.id === selectedModelId);
   const selectedModelLabel = selectedModel
-    ? selectedModel.custom_label || selectedModel.model_id
+    ? getModelDisplayName(selectedModel)
     : "";
 
   // Multi-model
@@ -357,7 +358,7 @@ export const PostProcessBar: React.FC = () => {
                 <Flex direction="column" py="1">
                   {textModels.map((model) => {
                     const isActive = model.id === selectedModelId;
-                    const label = model.custom_label || model.model_id;
+                    const label = getModelDisplayName(model);
                     return (
                       <button
                         key={model.id}
