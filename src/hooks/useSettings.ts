@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { FetchedModel } from "../bindings";
 import {
   AudioDevice,
   CachedModel,
@@ -19,7 +20,7 @@ interface UseSettingsReturn {
   outputDevices: AudioDevice[];
   audioFeedbackEnabled: boolean;
   expertMode: boolean;
-  postProcessModelOptions: Record<string, string[]>;
+  postProcessModelOptions: Record<string, FetchedModel[]>;
 
   // Actions
   updateSetting: <K extends keyof Settings>(
@@ -49,7 +50,7 @@ interface UseSettingsReturn {
     apiKey: string,
   ) => Promise<void>;
   updatePostProcessModel: (providerId: string, model: string) => Promise<void>;
-  fetchPostProcessModels: (providerId: string) => Promise<string[]>;
+  fetchPostProcessModels: (providerId: string) => Promise<FetchedModel[]>;
   addCustomProvider: (payload: {
     label: string;
     baseUrl: string;
@@ -98,10 +99,7 @@ interface UseSettingsReturn {
     url: string | null,
     globalEnabled: boolean,
   ) => Promise<void>;
-  setProviderUseProxy: (
-    providerId: string,
-    useProxy: boolean,
-  ) => Promise<void>;
+  setProviderUseProxy: (providerId: string, useProxy: boolean) => Promise<void>;
 }
 
 export const useSettings = (): UseSettingsReturn => {
