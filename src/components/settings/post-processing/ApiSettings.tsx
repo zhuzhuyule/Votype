@@ -1028,7 +1028,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
   // only commits via its own Enter/blur path.
   useEffect(() => {
     setLocalBaseUrl(state.baseUrl);
-    setEditingBaseUrl(false);
+    setEditingBaseUrl(!state.baseUrl.trim());
 
     const option = state.providerOptions.find(
       (p) => p.value === state.selectedProviderId,
@@ -1915,7 +1915,7 @@ export const ApiSettings: React.FC<ApiSettingsProps> = ({
                   setEditingBaseUrl(false);
                 };
 
-                const isBaseUrlEditing = editingBaseUrl || !localBaseUrl.trim();
+                const isBaseUrlEditing = editingBaseUrl;
 
                 return (
                   <Flex align="center" gap="2" className="h-8 min-w-0">
