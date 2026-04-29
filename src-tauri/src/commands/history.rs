@@ -375,7 +375,12 @@ pub async fn retranscribe_history_entry(
         .await;
 
         match outcome {
-            crate::provider_gateway::ExecutionOutcome::Success(text) => text,
+            crate::provider_gateway::ExecutionOutcome::Success(text) => {
+                // Apply hotword force replacements on online-ASR retranscribe
+                // output before any downstream use (DB update, UI display),
+                // matching the convention used for the local engine path.
+                crate::managers::hotword::apply_force_replacements_via_state(&app, text)
+            }
             crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => {
                 return Err(detail);
             }

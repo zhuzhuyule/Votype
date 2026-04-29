@@ -435,7 +435,15 @@ async fn execute_online_asr_request(
     .await;
 
     let result = match outcome {
-        crate::provider_gateway::ExecutionOutcome::Success(text) => Ok(text),
+        crate::provider_gateway::ExecutionOutcome::Success(text) => {
+            // Apply hotword force replacements on the raw online-ASR output
+            // BEFORE returning, so every downstream consumer (DB, post-process,
+            // review) sees the already-substituted text — matching the local
+            // engine path which replaces inside TranscriptionManager.
+            let replaced =
+                crate::managers::hotword::apply_force_replacements_via_state(app_handle, text);
+            Ok(replaced)
+        }
         crate::provider_gateway::ExecutionOutcome::Fatal { detail, .. } => Err(anyhow!(detail)),
         crate::provider_gateway::ExecutionOutcome::Exhausted { last_error, .. } => {
             let detail = match last_error {

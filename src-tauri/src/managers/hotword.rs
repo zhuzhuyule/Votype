@@ -95,6 +95,32 @@ fn is_ascii_word_like(term: &str) -> bool {
         .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch.is_ascii_whitespace())
 }
 
+/// Apply the active hotword force-replacement set to `text`, resolving the
+/// sqlite path from the HistoryManager tauri-state. Returns the original text
+/// unchanged when state is unavailable or the replacement lookup fails.
+///
+/// This is the canonical chokepoint for "ASR produced text → replaced text"
+/// and is called from every ASR output site (local engine, online client,
+/// retranscribe) so downstream DB, post-process, and review all see the same
+/// substituted content.
+pub fn apply_force_replacements_via_state(app_handle: &tauri::AppHandle, text: String) -> String {
+    use std::sync::Arc;
+    let hm = match app_handle.try_state::<Arc<crate::managers::history::HistoryManager>>() {
+        Some(hm) => hm,
+        None => return text,
+    };
+    match HotwordManager::new(hm.db_path.clone()).apply_force_replacements(&text) {
+        Ok(replaced) => replaced,
+        Err(err) => {
+            warn!(
+                "[Hotword] Failed to apply force replacements on ASR output: {}",
+                err
+            );
+            text
+        }
+    }
+}
+
 fn apply_exact_term_replacement(text: &str, original: &str, target: &str) -> String {
     let original = original.trim();
     if text.is_empty() || original.is_empty() || original == target {
@@ -102,7 +128,14 @@ fn apply_exact_term_replacement(text: &str, original: &str, target: &str) -> Str
     }
 
     if is_ascii_word_like(original) {
-        let pattern = format!(r"(?i)\b{}\b", regex::escape(original));
+        // Use ASCII-mode word boundaries so `\b` only treats `[A-Za-z0-9_]` as
+        // word characters. In Rust's default Unicode mode, Chinese characters
+        // count as word chars, which means `\blexi\b` fails to match when
+        // "lexi" is sandwiched between Han characters (e.g. "出现lexi相关").
+        // ASCII boundaries preserve the "no substring of a larger ASCII word"
+        // invariant (e.g. "op" must not match inside "operator") while still
+        // firing at CJK/ASCII junctions.
+        let pattern = format!(r"(?i)(?-u:\b){}(?-u:\b)", regex::escape(original));
         return Regex::new(&pattern)
             .map(|re| re.replace_all(text, target).into_owned())
             .unwrap_or_else(|_| text.to_string());
@@ -1093,14 +1126,22 @@ impl HotwordManager {
             }
         }
 
-        // Collect correction pairs from hotwords that have originals
+        // Collect correction pairs from hotwords. Both `originals` (fuzzy
+        // aliases) and `force_replace_originals` (hard-substitution aliases)
+        // are exposed to the LLM as plain correction hints — the hard
+        // substitution has already run on the ASR output, but we still pass
+        // the pair through as a second line of defense in case the raw form
+        // somehow re-enters the text downstream.
         for ranked_hotword in ranked {
             let hw = &ranked_hotword.hotword;
-            if hw.originals.is_empty() || hw.status != "active" {
+            if hw.status != "active" {
+                continue;
+            }
+            if hw.originals.is_empty() && hw.force_replace_originals.is_empty() {
                 continue;
             }
             let stars = Self::correction_star_rating(hw.use_count, hw.user_override);
-            for orig in &hw.originals {
+            for orig in hw.originals.iter().chain(hw.force_replace_originals.iter()) {
                 injection.correction_pairs.push(CorrectionPair {
                     original: orig.clone(),
                     target: hw.target.clone(),
@@ -2181,7 +2222,36 @@ mod tests {
     }
 
     #[test]
-    fn test_contextual_injection_excludes_force_replace_aliases_from_correction_pairs() {
+    fn test_apply_force_replacements_replaces_ascii_sandwiched_by_cjk() {
+        // Regression: Rust regex `\b` uses Unicode word class by default, so
+        // Chinese characters are considered word chars and an ASCII alias
+        // sandwiched between Han letters (e.g. "出现lexi相关") was never
+        // treated as having a word boundary. Force-replace must still fire.
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, '[]', ?2, 'term', '[\"work\"]', 0.5, 1, 0, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params!["legacy", serde_json::to_string(&vec!["Lexi"]).unwrap()],
+        )
+        .expect("insert cjk-adjacent force replace hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let replaced = manager
+            .apply_force_replacements("会不会再出现lexi相关的一些字段信息了？")
+            .expect("apply force replacements");
+
+        assert_eq!(
+            replaced, "会不会再出现legacy相关的一些字段信息了？",
+            "ASCII alias must replace at CJK/ASCII junction"
+        );
+    }
+
+    #[test]
+    fn test_contextual_injection_includes_force_replace_aliases_in_correction_pairs() {
         let dir = tempdir().expect("tempdir");
         let db_path = dir.path().join("hotwords.db");
         init_hotword_db(&db_path);
@@ -2212,9 +2282,43 @@ mod tests {
             .correction_pairs
             .iter()
             .any(|pair| pair.target == "差距" && pair.original == "常规纠错"));
-        assert!(!injection
+        assert!(injection
             .correction_pairs
             .iter()
             .any(|pair| pair.target == "差距" && pair.original == "叉举"));
+    }
+
+    #[test]
+    fn test_contextual_injection_includes_force_replace_when_originals_empty() {
+        let dir = tempdir().expect("tempdir");
+        let db_path = dir.path().join("hotwords.db");
+        init_hotword_db(&db_path);
+
+        let conn = Connection::open(&db_path).expect("open temp db");
+        conn.execute(
+            "INSERT INTO hotwords (target, originals, force_replace_originals, category, scenarios, confidence, user_override, use_count, recent_use_count, app_usage_stats, scenario_usage_stats, false_positive_count, created_at, status, source)
+             VALUES (?1, ?2, ?3, 'term', '[\"work\"]', 0.5, 1, 5, 0, '{}', '{}', 0, 2, 'active', 'manual')",
+            params![
+                "Lexi",
+                serde_json::to_string::<Vec<String>>(&vec![]).unwrap(),
+                serde_json::to_string(&vec!["lexi"]).unwrap()
+            ],
+        )
+        .expect("insert force-replace-only hotword");
+
+        let manager = HotwordManager::new(db_path);
+        let injection = manager
+            .build_contextual_injection(
+                HotwordScenario::Work,
+                "lexi 版本待升级",
+                "请修正文稿",
+                Some("Code"),
+            )
+            .expect("build contextual injection");
+
+        assert!(injection
+            .correction_pairs
+            .iter()
+            .any(|pair| pair.target == "Lexi" && pair.original == "lexi"));
     }
 }

@@ -1,8 +1,6 @@
 use crate::audio_toolkit::filter_transcription_output;
 use crate::audio_toolkit::text::apply_custom_words;
-use crate::managers::history::HistoryManager;
 use crate::managers::model::{EngineType, ModelManager};
-use crate::managers::HotwordManager;
 use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
 use log::{debug, error, info, warn};
@@ -780,6 +778,16 @@ impl TranscriptionManager {
             }
         };
 
+        // Apply hotword force replacements on the raw engine output BEFORE any
+        // downstream text processing. This keeps the invariant: whatever the
+        // ASR produced, force-replace runs first so custom_words matching,
+        // filler filtering, punctuation, history persistence, and post-process
+        // all see the already-substituted text.
+        let raw_text = crate::managers::hotword::apply_force_replacements_via_state(
+            &self.app_handle,
+            result.text,
+        );
+
         // Apply word correction if custom words are configured.
         // Skip for Whisper models since custom words are already passed as initial_prompt.
         let is_whisper = self
@@ -790,30 +798,12 @@ impl TranscriptionManager {
 
         let corrected_result = if !settings.custom_words.is_empty() && !is_whisper {
             apply_custom_words(
-                &result.text,
+                &raw_text,
                 &settings.custom_words,
                 settings.word_correction_threshold,
             )
         } else {
-            result.text
-        };
-
-        let corrected_result = if let Some(hm) = self.app_handle.try_state::<Arc<HistoryManager>>()
-        {
-            match HotwordManager::new(hm.db_path.clone())
-                .apply_force_replacements(&corrected_result)
-            {
-                Ok(replaced) => replaced,
-                Err(err) => {
-                    warn!(
-                        "[Transcription] Failed to apply hotword force replacements: {}",
-                        err
-                    );
-                    corrected_result
-                }
-            }
-        } else {
-            corrected_result
+            raw_text
         };
 
         // Filter out filler words and hallucinations
