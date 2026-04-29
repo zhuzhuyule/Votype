@@ -2184,7 +2184,24 @@ const ReviewWindow: React.FC<ReviewWindowProps> = ({
                     aria-hidden="true"
                   />
                   <span className="review-translation-title">
-                    {t("transcription.review.translationPreview", "英文预览")}
+                    {t(
+                      "transcription.review.translationPreviewLangLabel",
+                      "ENGLISH",
+                    )}
+                  </span>
+                  <span
+                    className="review-translation-title-sep"
+                    aria-hidden="true"
+                  >
+                    ·
+                  </span>
+                  <span className="review-translation-title-mode">
+                    {translationEnabled
+                      ? t("transcription.review.translationModeAuto", "AUTO")
+                      : t(
+                          "transcription.review.translationModeManual",
+                          "MANUAL",
+                        )}
                   </span>
                 </span>
                 <button
