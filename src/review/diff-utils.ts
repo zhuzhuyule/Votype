@@ -2,7 +2,11 @@
 // No React dependencies
 
 import { escapeHtml } from "../lib/utils/html";
-import { paragraphize, type ParagraphPlan } from "./paragraphize";
+import {
+  normalizeLineBreaks,
+  paragraphize,
+  type ParagraphPlan,
+} from "./paragraphize";
 
 type Token = {
   value: string;
@@ -221,9 +225,11 @@ export const computeDiffAnnotations = (
   return { sourceStatuses, targetLevels };
 };
 
-// Emits escaped HTML for [from, to), inserting </p><p> whenever a paragraph
-// boundary is crossed. Leading/trailing whitespace inside each paragraph slice
-// is trimmed so inter-paragraph newlines don't turn into stray <br /> rows.
+// Emits escaped HTML, inserting </p><p> whenever a paragraph boundary is
+// crossed. A token at position P belongs to the paragraph that CONTAINS P
+// (i.e. paragraph[i] where paragraph[i].start <= P < paragraph[i].end), so
+// we advance using `>=` — a position equal to paragraph[i].end is already
+// the first position of paragraph[i+1].
 const renderSegmented = (
   text: string,
   plan: ParagraphPlan,
@@ -231,23 +237,27 @@ const renderSegmented = (
   tokens: Token[],
 ) => {
   const wrap = plan.paragraphs.length > 1;
+
+  if (!wrap) {
+    let html = "";
+    let cursor = 0;
+    tokens.forEach((token, index) => {
+      html += escapeHtmlWithBreaks(text.slice(cursor, token.start));
+      html += emitToken(index, escapeHtmlWithBreaks(token.value));
+      cursor = token.end;
+    });
+    html += escapeHtmlWithBreaks(text.slice(cursor));
+    return html;
+  }
+
   const paragraphs = plan.paragraphs;
-
-  let html = wrap ? "<p>" : "";
+  let html = "<p>";
   let pIdx = 0;
-  let cursor = wrap ? paragraphs[0].start : 0;
+  let cursor = paragraphs[0].start;
 
-  const emitPlain = (from: number, to: number) => {
-    if (from >= to) return;
-    const slice = text.slice(from, to);
-    // Trim just the whitespace that sits at a paragraph edge.
-    html += escapeHtmlWithBreaks(slice);
-  };
-
-  const advancePast = (upto: number) => {
-    if (!wrap) return;
-    while (pIdx < paragraphs.length - 1 && upto > paragraphs[pIdx].end) {
-      emitPlain(cursor, paragraphs[pIdx].end);
+  const advanceParagraphsTo = (pos: number) => {
+    while (pIdx < paragraphs.length - 1 && pos >= paragraphs[pIdx].end) {
+      html += escapeHtmlWithBreaks(text.slice(cursor, paragraphs[pIdx].end));
       html += "</p><p>";
       pIdx += 1;
       cursor = paragraphs[pIdx].start;
@@ -255,27 +265,17 @@ const renderSegmented = (
   };
 
   tokens.forEach((token, index) => {
-    advancePast(token.start);
-    const gapEnd = Math.min(
-      token.start,
-      wrap ? paragraphs[pIdx].end : token.start,
-    );
-    emitPlain(cursor, gapEnd);
-    cursor = gapEnd;
-    // Tokens are never split across paragraphs (paragraphize breaks on
-    // sentence terminators which are always their own token).
+    advanceParagraphsTo(token.start);
+    html += escapeHtmlWithBreaks(text.slice(cursor, token.start));
     html += emitToken(index, escapeHtmlWithBreaks(token.value));
     cursor = token.end;
   });
 
-  if (wrap) {
-    advancePast(text.length);
-    emitPlain(cursor, paragraphs[paragraphs.length - 1].end);
-    html += "</p>";
-  } else {
-    emitPlain(cursor, text.length);
-  }
-
+  advanceParagraphsTo(text.length);
+  html += escapeHtmlWithBreaks(
+    text.slice(cursor, paragraphs[paragraphs.length - 1].end),
+  );
+  html += "</p>";
   return html;
 };
 
@@ -368,22 +368,25 @@ export const computeChangePercent = (
   return computeChangeStats(source, target).changePercent;
 };
 
-export const buildPlainViews = (source: string, target: string) => ({
-  sourceHtml: buildPlainHtml(source, paragraphize(source)),
-  targetHtml: buildPlainHtml(target, paragraphize(target)),
-});
+export const buildPlainViews = (source: string, target: string) => {
+  const src = normalizeLineBreaks(source);
+  const tgt = normalizeLineBreaks(target);
+  return {
+    sourceHtml: buildPlainHtml(src, paragraphize(src)),
+    targetHtml: buildPlainHtml(tgt, paragraphize(tgt)),
+  };
+};
 
 export const buildDiffViews = (source: string, target: string) => {
   const start = performance.now();
-  const { sourceStatuses, targetLevels } = computeDiffAnnotations(
-    source,
-    target,
-  );
-  const sourcePlan = paragraphize(source);
-  const targetPlan = paragraphize(target);
+  const src = normalizeLineBreaks(source);
+  const tgt = normalizeLineBreaks(target);
+  const { sourceStatuses, targetLevels } = computeDiffAnnotations(src, tgt);
+  const sourcePlan = paragraphize(src);
+  const targetPlan = paragraphize(tgt);
   const result = {
-    sourceHtml: buildSourceHtml(source, sourceStatuses, sourcePlan),
-    targetHtml: buildTargetHtml(target, targetLevels, targetPlan),
+    sourceHtml: buildSourceHtml(src, sourceStatuses, sourcePlan),
+    targetHtml: buildTargetHtml(tgt, targetLevels, targetPlan),
   };
   const durationMs = Math.round(performance.now() - start);
   console.debug("[diff-utils] buildDiffViews", {
