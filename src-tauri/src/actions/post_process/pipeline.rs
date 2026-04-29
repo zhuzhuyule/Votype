@@ -570,6 +570,17 @@ pub async fn unified_post_process(
     // FullPolish path: check if multi-model should be used
     // Skip multi-model for rewrite mode, skill mode, and when selected text is present
     // (selected text needs intent detection in Mode C which lives in maybe_post_process_transcription)
+    if log_routing {
+        info!(
+            "[UnifiedPipeline] multi-model gate: enabled={}, selected_ids={}, strategy={}, skill_mode={}, rewrite_mode={}, has_selected_text={}",
+            settings.multi_model_post_process_enabled,
+            settings.multi_model_selected_ids.len(),
+            settings.multi_model_strategy,
+            skill_mode,
+            is_rewrite_mode,
+            has_selected_text_raw,
+        );
+    }
     let use_multi_model = settings.multi_model_post_process_enabled
         && !skill_mode
         && !is_rewrite_mode
@@ -2117,45 +2128,133 @@ pub async fn maybe_post_process_transcription(
             None
         };
 
-        // Capture model/provider info for metrics before the LLM call
-        let captured_model_id = model.clone();
-        let captured_provider_id = actual_provider.id.clone();
+        // Decide whether this call should honor the configured model chain.
+        // Prompt-specific model IDs bypass the chain; otherwise fall back to
+        // settings.selected_prompt_model so race/staggered/serial strategies apply.
+        let chain: Option<crate::fallback::ModelChain> = if prompt.model_id.is_some() {
+            None
+        } else {
+            settings.selected_prompt_model.clone()
+        };
 
-        // Decide up front whether a fallback model is available, so we can
-        // suppress the primary attempt's overlay-error when we plan to retry.
-        let fallback_chain = prompt
-            .model_id
-            .as_ref()
-            .and_then(|id| {
-                // Prompt-level model IDs don't have chains; fall through to selected_prompt_model
-                let _ = id;
-                None::<&crate::fallback::ModelChain>
-            })
-            .or(settings.selected_prompt_model.as_ref());
-        let fallback_id_opt: Option<String> =
-            fallback_chain.and_then(|c| c.fallback_id.as_ref()).cloned();
-        let has_fallback = fallback_id_opt.is_some();
+        // Track the model actually used for the returned result (may differ
+        // from `model` under race/staggered strategies where fallback wins).
+        let mut captured_model_id = model.clone();
+        let mut captured_provider_id = actual_provider.id.clone();
+        let mut used_fallback = false;
 
         // Each LLM call is protected by a 10s timeout in execute_llm_request_with_messages.
         let polish_start = std::time::Instant::now();
-        let (mut result, mut err, mut error_message, mut api_token_count) = if has_fallback {
-            super::core::execute_llm_request_with_messages_silent(
-                app_handle,
-                settings,
-                actual_provider,
-                &model,
-                cached_model_id,
-                &built.system_messages,
-                built.user_message.as_deref(),
-                None,
-                app_name.clone(),
-                window_title.clone(),
-                match_pattern.clone(),
-                match_type,
-                merged_extra_params.as_ref(),
-            )
-            .await
+
+        let (mut result, mut err, mut error_message, mut api_token_count) = if let Some(ref ch) =
+            chain
+        {
+            if log_routing {
+                log::info!(
+                    "[PostProcess] Executing polish via chain: primary={} fallback={:?} strategy={:?}",
+                    ch.primary_id, ch.fallback_id, ch.strategy
+                );
+            }
+            // Clone once; each invocation of the closure re-clones per spawn.
+            let app = app_handle.clone();
+            let s_clone = settings.clone();
+            let sys_msgs = built.system_messages.clone();
+            let user_msg = built.user_message.clone();
+            let extra = merged_extra_params.clone();
+            let app_name_c = app_name.clone();
+            let window_title_c = window_title.clone();
+            let match_pattern_c = match_pattern.clone();
+            let match_type_c = match_type;
+
+            let fb = crate::fallback::execute_with_fallback(ch, |cached_id| {
+                let app = app.clone();
+                let s = s_clone.clone();
+                let sys_msgs = sys_msgs.clone();
+                let user_msg = user_msg.clone();
+                let extra = extra.clone();
+                let app_name_c = app_name_c.clone();
+                let window_title_c = window_title_c.clone();
+                let match_pattern_c = match_pattern_c.clone();
+                async move {
+                    let (prov, remote_model) =
+                        super::routing::resolve_cached_model_to_provider_owned(&s, &cached_id)
+                            .ok_or_else(|| format!("Model {} not resolvable", cached_id))?;
+                    let (result, err, error_msg, token_count) =
+                        super::core::execute_llm_request_with_messages_silent(
+                            &app,
+                            &s,
+                            &prov,
+                            &remote_model,
+                            Some(&cached_id),
+                            &sys_msgs,
+                            user_msg.as_deref(),
+                            None,
+                            app_name_c,
+                            window_title_c,
+                            match_pattern_c,
+                            match_type_c,
+                            extra.as_ref(),
+                        )
+                        .await;
+                    if err {
+                        Err(error_msg.unwrap_or_else(|| "LLM error".into()))
+                    } else {
+                        let prov_id = prov.id.clone();
+                        result
+                            .map(|text| (text, token_count, prov_id, remote_model))
+                            .ok_or_else(|| "Empty LLM response".into())
+                    }
+                }
+            })
+            .await;
+
+            used_fallback = fb.is_fallback;
+            if fb.is_fallback {
+                log::warn!(
+                    "[PostProcess] Chain: primary '{}' lost (error: {}), used '{}' instead (strategy={:?})",
+                    ch.primary_id,
+                    fb.primary_error.as_deref().unwrap_or("n/a"),
+                    fb.actual_model_id,
+                    ch.strategy,
+                );
+            } else if ch.fallback_id.is_some() && log_routing {
+                log::info!(
+                    "[PostProcess] Chain: primary '{}' won (strategy={:?})",
+                    fb.actual_model_id,
+                    ch.strategy,
+                );
+            }
+
+            match fb.result {
+                Ok((text, tokens, prov_id, remote_model)) => {
+                    captured_model_id = remote_model;
+                    captured_provider_id = prov_id;
+                    (Some(text), false, None, tokens)
+                }
+                Err(e) => {
+                    // Every attempt failed — surface overlay manually since we
+                    // ran the chain through the silent executor.
+                    let _ = app_handle.emit(
+                        "overlay-error",
+                        serde_json::json!({
+                            "code": "llm_error",
+                            "message": e.clone(),
+                        }),
+                    );
+                    if let Some((prov, remote_model)) =
+                        super::routing::resolve_cached_model_to_provider_owned(
+                            settings,
+                            &fb.actual_model_id,
+                        )
+                    {
+                        captured_model_id = remote_model;
+                        captured_provider_id = prov.id;
+                    }
+                    (None, true, Some(e), None)
+                }
+            }
         } else {
+            // No chain — direct single call, loud variant surfaces overlay on failure.
             super::core::execute_llm_request_with_messages(
                 app_handle,
                 settings,
@@ -2174,47 +2273,13 @@ pub async fn maybe_post_process_transcription(
             .await
         };
 
-        // Fallback: if primary model failed and a fallback is configured, retry with fallback model
-        let mut used_fallback = false;
-        if err {
-            if let Some(fallback_id) = fallback_id_opt.as_deref() {
-                log::warn!(
-                    "[PostProcess] Primary model '{}' failed, trying fallback '{}'",
-                    captured_model_id,
-                    fallback_id
-                );
-                if let Some((fb_provider, fb_model)) =
-                    super::routing::resolve_cached_model_to_provider_owned(settings, fallback_id)
-                {
-                    let fb_cached_model_id = Some(fallback_id);
-                    let fb_result = super::core::execute_llm_request_with_messages(
-                        app_handle,
-                        settings,
-                        &fb_provider,
-                        &fb_model,
-                        fb_cached_model_id,
-                        &built.system_messages,
-                        built.user_message.as_deref(),
-                        None,
-                        app_name.clone(),
-                        window_title.clone(),
-                        match_pattern.clone(),
-                        match_type,
-                        merged_extra_params.as_ref(),
-                    )
-                    .await;
-
-                    // Destructure: (Option<String>, bool, Option<String>, Option<i64>)
-                    result = fb_result.0;
-                    err = fb_result.1;
-                    error_message = fb_result.2;
-                    api_token_count = fb_result.3;
-                    used_fallback = true;
-                }
-            }
-        }
-
         let _ = used_fallback;
+        let _ = (
+            &mut result,
+            &mut err,
+            &mut error_message,
+            &mut api_token_count,
+        );
         let polish_duration_ms = polish_start.elapsed().as_millis() as u64;
 
         let prompt_text = format!(
@@ -2235,8 +2300,12 @@ pub async fn maybe_post_process_transcription(
                 Err(_) => 0,
             });
 
+        // Report the model that actually produced the result (race/staggered
+        // may substitute the fallback).
+        let effective_model = captured_model_id.clone();
+        let _ = model; // original primary label no longer needed after chain
         final_result = result;
-        last_model = Some(model);
+        last_model = Some(effective_model);
         last_prompt_id = Some(prompt.id.clone());
         last_err = err;
         last_error_message = error_message;

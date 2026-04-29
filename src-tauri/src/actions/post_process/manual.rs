@@ -4,7 +4,7 @@ use crate::overlay::show_llm_processing_overlay;
 use crate::settings::{AppSettings, HotwordScenario, LLMPrompt};
 use log::{error, info};
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 pub async fn post_process_text_with_prompt(
     app_handle: &AppHandle,
@@ -193,8 +193,93 @@ pub async fn post_process_text_with_prompt(
         None
     };
 
-    let (mut result, mut err, mut error_message, _token_count) =
-        super::core::execute_llm_request_with_messages(
+    // Honor the configured model chain strategy (serial / staggered / race)
+    // when a fallback is wired up on settings.selected_prompt_model.
+    let chain: Option<crate::fallback::ModelChain> = if prompt.model_id.is_some() {
+        None
+    } else {
+        settings.selected_prompt_model.clone()
+    };
+
+    let mut actual_model_label = model.clone();
+
+    let (result, err, error_message) = if let Some(ref ch) = chain {
+        let app = app_handle.clone();
+        let s_clone = settings.clone();
+        let sys_msgs = built.system_messages.clone();
+        let user_msg = built.user_message.clone();
+        let extra = merged_extra_params.clone();
+        let app_name_c = app_name.clone();
+        let window_title_c = window_title.clone();
+
+        let fb = crate::fallback::execute_with_fallback(ch, |cached_id| {
+            let app = app.clone();
+            let s = s_clone.clone();
+            let sys_msgs = sys_msgs.clone();
+            let user_msg = user_msg.clone();
+            let extra = extra.clone();
+            let app_name_c = app_name_c.clone();
+            let window_title_c = window_title_c.clone();
+            async move {
+                let (prov, remote_model) =
+                    super::routing::resolve_cached_model_to_provider_owned(&s, &cached_id)
+                        .ok_or_else(|| format!("Model {} not resolvable", cached_id))?;
+                let (result, err, error_msg, _token_count) =
+                    super::core::execute_llm_request_with_messages_silent(
+                        &app,
+                        &s,
+                        &prov,
+                        &remote_model,
+                        Some(&cached_id),
+                        &sys_msgs,
+                        user_msg.as_deref(),
+                        None,
+                        app_name_c,
+                        window_title_c,
+                        None,
+                        None,
+                        extra.as_ref(),
+                    )
+                    .await;
+                if err {
+                    Err(error_msg.unwrap_or_else(|| "LLM error".into()))
+                } else {
+                    result
+                        .map(|text| (text, remote_model))
+                        .ok_or_else(|| "Empty LLM response".into())
+                }
+            }
+        })
+        .await;
+
+        if fb.is_fallback {
+            log::warn!(
+                "[ManualPostProcess] Chain: primary '{}' lost (error: {}), used '{}' (strategy={:?})",
+                ch.primary_id,
+                fb.primary_error.as_deref().unwrap_or("n/a"),
+                fb.actual_model_id,
+                ch.strategy,
+            );
+        }
+
+        match fb.result {
+            Ok((text, remote_model)) => {
+                actual_model_label = remote_model;
+                (Some(text), false, None)
+            }
+            Err(e) => {
+                let _ = app_handle.emit(
+                    "overlay-error",
+                    serde_json::json!({
+                        "code": "llm_error",
+                        "message": e.clone(),
+                    }),
+                );
+                (None, true, Some(e))
+            }
+        }
+    } else {
+        let (r, e, msg, _tok) = super::core::execute_llm_request_with_messages(
             app_handle,
             settings,
             actual_provider,
@@ -210,48 +295,13 @@ pub async fn post_process_text_with_prompt(
             merged_extra_params.as_ref(),
         )
         .await;
-
-    // Fallback: if primary model failed and a fallback is configured, retry with fallback model
-    if err {
-        let fallback_chain = settings.selected_prompt_model.as_ref();
-        if let Some(fallback_id) = fallback_chain.and_then(|c| c.fallback_id.as_ref()) {
-            log::warn!(
-                "[ManualPostProcess] Primary model '{}' failed, trying fallback '{}'",
-                model,
-                fallback_id
-            );
-            if let Some((fb_provider, fb_model)) =
-                super::routing::resolve_cached_model_to_provider_owned(settings, fallback_id)
-            {
-                let fb_cached_model_id = Some(fallback_id.as_str());
-                let (fb_result, fb_err, fb_error_message, _fb_token_count) =
-                    super::core::execute_llm_request_with_messages(
-                        app_handle,
-                        settings,
-                        &fb_provider,
-                        &fb_model,
-                        fb_cached_model_id,
-                        &built.system_messages,
-                        built.user_message.as_deref(),
-                        None,
-                        app_name,
-                        window_title,
-                        None,
-                        None,
-                        merged_extra_params.as_ref(),
-                    )
-                    .await;
-                result = fb_result;
-                err = fb_err;
-                error_message = fb_error_message;
-            }
-        }
-    }
+        (r, e, msg)
+    };
 
     if let Some(res) = &result {
         info!(
             "[ManualPostProcess] FinalResult model={} prompt_id={} len={}",
-            model,
+            actual_model_label,
             prompt.id,
             res.chars().count()
         );
@@ -259,7 +309,7 @@ pub async fn post_process_text_with_prompt(
 
     (
         result,
-        Some(model),
+        Some(actual_model_label),
         Some(prompt.id.clone()),
         err,
         error_message,
