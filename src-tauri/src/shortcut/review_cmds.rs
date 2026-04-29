@@ -170,9 +170,11 @@ pub async fn confirm_reviewed_transcription(
     }
 
     log::debug!("[overlay-trace] confirm: calling hide_review_window");
+    log::info!("[post-insert-diag] confirm: about to hide_review_window");
     // Hide the review window
     crate::review_window::hide_review_window(&app, history_id);
     log::debug!("[overlay-trace] confirm: hide_review_window returned");
+    log::info!("[post-insert-diag] confirm: hide_review_window returned");
 
     let last_active_window = crate::review_window::get_last_active_window();
     let text = match insert_target {
@@ -234,14 +236,31 @@ pub async fn confirm_reviewed_transcription(
     // — the user already confirmed from the review window and expects the
     // paste to be silent.
     if let Some(info) = last_active_window {
+        log::info!(
+            "[post-insert-diag] confirm: focus_app_by_pid target='{}' pid={}",
+            info.app_name,
+            info.process_id
+        );
         if let Err(e) = crate::active_window::focus_app_by_pid(info.process_id) {
             log::warn!("Failed to focus previous app: {}", e);
+            log::info!("[post-insert-diag] confirm: focus_app_by_pid FAILED: {}", e);
         } else {
             std::thread::sleep(Duration::from_millis(120));
+            log::info!("[post-insert-diag] confirm: focus_app_by_pid OK (slept 120ms)");
         }
+    } else {
+        log::info!("[post-insert-diag] confirm: no last_active_window to restore focus");
     }
 
+    log::info!(
+        "[post-insert-diag] confirm: about to paste ({} chars)",
+        text.len()
+    );
     let result = crate::clipboard::paste(text, app.clone());
+    log::info!(
+        "[post-insert-diag] confirm: paste returned ok={} — next shortcut should reach handle_shortcut_event",
+        result.is_ok()
+    );
 
     if english_needs_translation {
         if result.is_ok() {

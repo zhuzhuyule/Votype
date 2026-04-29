@@ -3,7 +3,7 @@
 //! This module contains the common logic for handling shortcut events,
 //! used by both the Tauri and handy-keys implementations.
 
-use log::{debug, warn};
+use log::{debug, info, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Manager};
 
@@ -52,6 +52,16 @@ pub fn handle_shortcut_event(
     hotkey_string: &str,
     is_pressed: bool,
 ) {
+    // [post-insert-diag] Entry log: confirms the OS-level hotkey event actually
+    // reached the handler. If this line is MISSING after a review insert, the
+    // shortcut never fired — likely activation-policy thrash (H1) or a stuck
+    // injected modifier (H2). If it IS present but `hotkey_string` carries an
+    // unexpected modifier (e.g. "command+..."), suspect H2.
+    info!(
+        "[ShortcutRouter] handle_shortcut_event binding='{}' hotkey='{}' pressed={}",
+        binding_id, hotkey_string, is_pressed
+    );
+
     let settings = get_settings(app);
 
     // Transcribe bindings are handled by the coordinator.
