@@ -23,7 +23,14 @@ const REVIEW_WINDOW_MAX_HEIGHT: f64 = 920.0;
 /// How long to keep the review webview alive after it's hidden so the next
 /// invocation can reuse it (avoiding the 484 KB bundle re-load). After this
 /// window elapses without another show, the webview is destroyed to free RAM.
-const REVIEW_WINDOW_IDLE_DESTROY_SECS: u64 = 300;
+///
+/// Capped at 5 minutes because macOS may suspend long-idle webview processes,
+/// after which the kept-alive instance still answers `get_webview_window()`
+/// but its JS event loop no longer fires `review_window_ready` /
+/// `review_window_content_ready` — so the window is created hidden and never
+/// shown. Forcing a destroy + recreate after 5 min keeps the warm-cache win
+/// for tight back-to-back recordings while sidestepping the dormancy bug.
+const REVIEW_WINDOW_IDLE_DESTROY_SECS: u64 = 5 * 60;
 
 /// Bumped every time the review window is shown or explicitly destroyed.
 /// The idle-destroy timer captures the value at hide time and bails out if
@@ -264,13 +271,24 @@ fn schedule_focus_review_window(app_handle: AppHandle, focus_token: u64) {
 #[cfg(target_os = "macos")]
 fn ensure_app_active_for_review(app_handle: &AppHandle, had_visible_windows: bool) {
     if had_visible_windows {
+        log::info!(
+            "[post-insert-diag] ensure_app_active_for_review: skip (had_visible_windows=true)"
+        );
         return;
     }
-    if app_handle
-        .set_activation_policy(tauri::ActivationPolicy::Regular)
-        .is_ok()
-    {
-        REVIEW_WINDOW_FORCED_ACTIVATION.store(true, Ordering::SeqCst);
+    match app_handle.set_activation_policy(tauri::ActivationPolicy::Regular) {
+        Ok(_) => {
+            REVIEW_WINDOW_FORCED_ACTIVATION.store(true, Ordering::SeqCst);
+            log::info!(
+                "[post-insert-diag] ensure_app_active_for_review: policy=Regular (forced_activation=true)"
+            );
+        }
+        Err(e) => {
+            log::warn!(
+                "[post-insert-diag] ensure_app_active_for_review: set_activation_policy(Regular) failed: {}",
+                e
+            );
+        }
     }
 }
 
@@ -279,17 +297,35 @@ fn maybe_restore_activation_policy(app_handle: &AppHandle) {
     #[cfg(target_os = "macos")]
     {
         if !REVIEW_WINDOW_FORCED_ACTIVATION.swap(false, Ordering::SeqCst) {
+            log::info!(
+                "[post-insert-diag] maybe_restore_activation_policy: skip (forced_activation was false)"
+            );
             return;
         }
         let settings = crate::settings::get_settings(app_handle);
         if !settings.start_hidden {
+            log::info!(
+                "[post-insert-diag] maybe_restore_activation_policy: skip (start_hidden=false)"
+            );
             return;
         }
         let has_visible_windows = app_handle.webview_windows().iter().any(|(label, window)| {
             label != "review_window" && window.is_visible().unwrap_or(false)
         });
         if !has_visible_windows {
-            let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            match app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory) {
+                Ok(_) => log::info!(
+                    "[post-insert-diag] maybe_restore_activation_policy: policy=Accessory (restored)"
+                ),
+                Err(e) => log::warn!(
+                    "[post-insert-diag] maybe_restore_activation_policy: set_activation_policy(Accessory) failed: {}",
+                    e
+                ),
+            }
+        } else {
+            log::info!(
+                "[post-insert-diag] maybe_restore_activation_policy: skip (other Votype windows visible)"
+            );
         }
     }
 }
