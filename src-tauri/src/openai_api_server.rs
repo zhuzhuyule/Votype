@@ -8,13 +8,21 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
+
+/// Guards against binding the listener more than once for the process
+/// lifetime. Set when a listener is actually spawned; lets
+/// `change_openai_compatible_api_enabled_setting(app, true)` start the
+/// server on demand without risking a duplicate bind.
+static SERVER_STARTED: AtomicBool = AtomicBool::new(false);
 
 const DEFAULT_API_BIND_HOST: &str = "127.0.0.1";
 const DEFAULT_API_BIND_HOST_LAN: &str = "0.0.0.0";
@@ -269,8 +277,16 @@ pub fn ensure_local_api_settings(app_handle: &AppHandle) {
         changed = true;
     }
 
-    if settings.openai_compatible_api_access_key.trim().is_empty() {
-        settings.openai_compatible_api_access_key = generate_local_api_key(app_handle);
+    let current_key = settings.openai_compatible_api_access_key.trim();
+    if current_key.is_empty() {
+        settings.openai_compatible_api_access_key = generate_local_api_key();
+        changed = true;
+    } else if is_weak_legacy_key(current_key) {
+        // Legacy keys were SHA256-derived from guessable inputs (package name,
+        // version, PID, second-granularity timestamp) and are offline-guessable.
+        // Rotate to a CSPRNG key immediately, no grace period.
+        log::info!("[OpenAI API] Rotating legacy weak access key to a CSPRNG-generated key");
+        settings.openai_compatible_api_access_key = generate_local_api_key();
         changed = true;
     }
 
@@ -291,6 +307,13 @@ pub fn start_openai_api_server(app_handle: &AppHandle) {
     let settings = settings::get_settings(app_handle);
     if !settings.openai_compatible_api_enabled {
         log::info!("[OpenAI API] Local API server disabled in settings");
+        return;
+    }
+
+    // Idempotency guard: only one listener is ever bound per process. This lets
+    // the enable toggle call this function on demand without a duplicate bind.
+    if SERVER_STARTED.swap(true, Ordering::SeqCst) {
+        log::info!("[OpenAI API] Local API server already running");
         return;
     }
 
@@ -317,6 +340,8 @@ pub fn start_openai_api_server(app_handle: &AppHandle) {
                     bind_port,
                     err
                 );
+                // Release the guard so a later enable toggle can retry the bind.
+                SERVER_STARTED.store(false, Ordering::SeqCst);
                 return;
             }
         };
@@ -675,11 +700,21 @@ fn authorize_request(state: &OpenAiApiState, headers: &HeaderMap) -> Result<(), 
         .map(str::trim)
         .unwrap_or_default();
 
-    if supplied_key == expected_key {
+    if keys_match(supplied_key, expected_key) {
         Ok(())
     } else {
         Err(ApiError::unauthorized())
     }
+}
+
+/// Compare two keys by their SHA256 digests instead of the raw bytes to
+/// mitigate the timing side-channel of a byte-by-byte string comparison.
+/// The comparison of the fixed-size digests leaks only digest bytes, never
+/// key length or a shared prefix of the real key.
+fn keys_match(supplied: &str, expected: &str) -> bool {
+    let supplied_digest = Sha256::digest(supplied.as_bytes());
+    let expected_digest = Sha256::digest(expected.as_bytes());
+    supplied_digest == expected_digest
 }
 
 fn resolve_cached_model<'a>(
@@ -783,15 +818,34 @@ fn extract_status_code(detail: &str) -> Option<u16> {
         })
 }
 
-fn generate_local_api_key(app_handle: &AppHandle) -> String {
-    let now = current_timestamp_secs();
-    let mut hasher = Sha256::new();
-    hasher.update(app_handle.package_info().name.as_bytes());
-    hasher.update(app_handle.package_info().version.to_string().as_bytes());
-    hasher.update(std::process::id().to_string().as_bytes());
-    hasher.update(now.to_string().as_bytes());
-    let digest = hasher.finalize();
-    format!("votype-local-{:x}", digest)[..29].to_string()
+/// Generate a fresh local API key: `votype-local-` + 32 lowercase hex chars
+/// (16 bytes = 128 bit of entropy) drawn from the OS CSPRNG.
+fn generate_local_api_key() -> String {
+    let mut bytes = [0u8; 16];
+    rand::rngs::OsRng.fill_bytes(&mut bytes);
+    let mut key = String::with_capacity(13 + 32);
+    key.push_str("votype-local-");
+    for byte in bytes {
+        key.push_str(&format!("{:02x}", byte));
+    }
+    key
+}
+
+/// Detect the legacy weak key format `votype-local-<16 lowercase hex>` (29
+/// chars total) produced by the old SHA256-derived generator. Keys in that
+/// format are offline-guessable and must be rotated. Newer keys (32 hex from
+/// the backend, 36 hex from the frontend) and user-chosen custom keys never
+/// match, so they are left untouched.
+fn is_weak_legacy_key(key: &str) -> bool {
+    match key.strip_prefix("votype-local-") {
+        Some(hex) => {
+            hex.len() == 16
+                && hex
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        }
+        None => false,
+    }
 }
 
 fn current_timestamp_secs() -> u64 {
@@ -881,8 +935,9 @@ fn build_streaming_chat_response(
 mod tests {
     use super::{
         build_chat_override_params, build_model_cards, build_streaming_chat_response,
-        normalize_api_base_path, split_chat_messages, ChatCompletionsRequest, OpenAiChatContent,
-        OpenAiChatMessage, OpenAiChatRole, OpenAiModelCard,
+        generate_local_api_key, is_weak_legacy_key, keys_match, normalize_api_base_path,
+        split_chat_messages, ChatCompletionsRequest, OpenAiChatContent, OpenAiChatMessage,
+        OpenAiChatRole, OpenAiModelCard,
     };
     use crate::review_window::RewriteRole;
     use crate::settings::{CachedModel, ModelType, PromptMessageRole};
@@ -1057,5 +1112,64 @@ mod tests {
             params.get("response_format"),
             Some(&json!({"type":"json_object"}))
         );
+    }
+
+    #[test]
+    fn generated_key_matches_csprng_format_and_is_unique() {
+        let key = generate_local_api_key();
+        let hex = key
+            .strip_prefix("votype-local-")
+            .expect("key should carry the votype-local- prefix");
+
+        // 16 bytes -> 32 lowercase hex chars = 128 bit of entropy.
+        assert_eq!(key.len(), 45);
+        assert_eq!(hex.len(), 32);
+        assert!(hex
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)));
+
+        // Two independent draws must differ (probabilistic, but 2^-128 collision).
+        let other = generate_local_api_key();
+        assert_ne!(key, other);
+    }
+
+    #[test]
+    fn weak_legacy_key_detection_only_flags_16_hex_format() {
+        // Legacy format: votype-local- + 16 lowercase hex (29 chars total).
+        assert!(is_weak_legacy_key("votype-local-0123456789abcdef"));
+        assert!(is_weak_legacy_key("votype-local-ffffffffffffffff"));
+
+        // New backend key (32 hex) and frontend key (36 hex) are safe.
+        assert!(!is_weak_legacy_key(&generate_local_api_key()));
+        assert!(!is_weak_legacy_key(
+            "votype-local-0123456789abcdef0123456789abcdef"
+        ));
+        assert!(!is_weak_legacy_key(
+            "votype-local-0123456789abcdef0123456789abcdef0123"
+        ));
+
+        // Wrong length, uppercase, non-hex, missing prefix, and custom keys are left alone.
+        assert!(!is_weak_legacy_key("votype-local-0123456789abcde")); // 15 hex
+        assert!(!is_weak_legacy_key("votype-local-0123456789ABCDEF")); // uppercase
+        assert!(!is_weak_legacy_key("votype-local-0123456789abcdeg")); // 'g' not hex
+        assert!(!is_weak_legacy_key("0123456789abcdef")); // no prefix
+        assert!(!is_weak_legacy_key("my-custom-api-key"));
+        assert!(!is_weak_legacy_key(""));
+    }
+
+    #[test]
+    fn key_digest_comparison_matches_equal_and_rejects_different() {
+        assert!(keys_match(
+            "votype-local-abcdef0123456789",
+            "votype-local-abcdef0123456789"
+        ));
+        assert!(!keys_match(
+            "votype-local-abcdef0123456789",
+            "votype-local-abcdef0123456780"
+        ));
+        // Length differences must not compare equal.
+        assert!(!keys_match("short", "short-but-longer"));
+        assert!(!keys_match("", "nonempty"));
+        assert!(keys_match("", ""));
     }
 }

@@ -7974,6 +7974,7 @@ dependencies = [
  "once_cell",
  "pinyin",
  "plist",
+ "rand 0.8.5",
  "rayon",
  "rdev 0.5.0-2",
  "regex",

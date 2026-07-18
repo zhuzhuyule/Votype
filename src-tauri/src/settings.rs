@@ -1065,7 +1065,7 @@ fn default_translate_to_english() -> bool {
 }
 
 fn default_openai_compatible_api_enabled() -> bool {
-    true
+    false
 }
 
 fn default_openai_compatible_api_host() -> String {

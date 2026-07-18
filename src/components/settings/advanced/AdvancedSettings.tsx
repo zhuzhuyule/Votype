@@ -139,7 +139,7 @@ export const AdvancedSettings: React.FC = () => {
   };
 
   const proxyGlobalEnabled = settings?.proxy_global_enabled ?? false;
-  const localApiEnabled = settings?.openai_compatible_api_enabled ?? true;
+  const localApiEnabled = settings?.openai_compatible_api_enabled ?? false;
   const localApiPort = settings?.openai_compatible_api_port ?? 33178;
   const localApiAllowLan = settings?.openai_compatible_api_allow_lan ?? false;
   const localApiBasePath = settings?.openai_compatible_api_base_path ?? "/v1";
@@ -177,7 +177,8 @@ export const AdvancedSettings: React.FC = () => {
                 启用 OpenAI-compatible 本地服务
               </Text>
               <Text size="1" color="gray">
-                仅绑定本机地址，供外部工具通过统一 URL 和 Key 调用模型与 ASR。
+                默认关闭，打开开关即刻生效、无需重启应用。仅绑定本机地址，供外部工具通过统一
+                URL 和 Key 调用模型与 ASR。
               </Text>
             </Box>
             <Switch

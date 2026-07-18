@@ -68,6 +68,13 @@ pub fn change_openai_compatible_api_enabled_setting(
     let mut settings = settings::get_settings(&app);
     settings.openai_compatible_api_enabled = enabled;
     settings::write_settings(&app, settings);
+    // Enabling takes effect immediately — no app restart needed. The server's
+    // internal guard makes this idempotent (it never binds a second listener),
+    // and disabling is handled by the auth layer returning 503, so the listener
+    // is intentionally left running.
+    if enabled {
+        crate::openai_api_server::start_openai_api_server(&app);
+    }
     Ok(())
 }
 
