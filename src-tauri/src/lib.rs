@@ -22,6 +22,7 @@ mod online_asr;
 mod openai_api_server;
 mod overlay;
 pub mod phonetic_similarity;
+mod policy_resolver;
 mod provider_gateway;
 mod review_window;
 mod settings;

@@ -1127,6 +1127,20 @@
         "assignedAppsDescription": "以下应用将使用此配置文件的设置。",
         "capture": "捕获",
         "captureTitle": "捕获标题",
+        "categoryDefaults": {
+          "title": "类别默认策略",
+          "hint": "已有单独 App 配置的应用不受类别策略影响（包括接受建议后自动创建的配置）。",
+          "inheritGlobal": "继承全局",
+          "categories": {
+            "CodeEditor": "代码编辑器",
+            "Terminal": "终端",
+            "InstantMessaging": "即时通讯",
+            "Email": "邮件",
+            "Notes": "笔记",
+            "Browser": "浏览器",
+            "Other": "其他"
+          }
+        },
         "context": {
           "description": "允许大模型参考当前应用的近期历史，以提高转录和修正的准确性。",
           "enabled": "启用上下文参考",

@@ -33,6 +33,7 @@ import {
 import {
   AppProfile,
   AppReviewPolicy,
+  CategoryPolicy,
   TitleMatchType,
   TitleRule,
 } from "../../../lib/types";
@@ -530,6 +531,157 @@ const ProfileGroupCard: React.FC<ProfileGroupCardProps> = ({
   );
 };
 
+// The 7 static app categories (mirror of app_category::from_app_name). These
+// are the only valid keys for `category_policies`.
+const APP_CATEGORIES = [
+  "CodeEditor",
+  "Terminal",
+  "InstantMessaging",
+  "Email",
+  "Notes",
+  "Browser",
+  "Other",
+] as const;
+
+// Built-in sentinel prompt ids are never real, selectable prompts (spec
+// decision 11) — the category prompt dropdown lists real prompts only.
+const SENTINEL_PROMPT_IDS = new Set(["__PASS_THROUGH__", "__LITE_POLISH__"]);
+
+interface CategoryDefaultsSectionProps {
+  categoryPolicies: Record<string, CategoryPolicy>;
+  prompts: any[];
+  onUpdate: (next: Record<string, CategoryPolicy>) => void;
+  t: any;
+}
+
+// "Category default policies" block: one fixed row per category, each with a
+// review-policy dropdown (inherit global / always / never — no auto) and a
+// prompt dropdown (default / concrete prompt). L2 in the policy hierarchy;
+// only applies to apps that have no individual profile.
+const CategoryDefaultsSection: React.FC<CategoryDefaultsSectionProps> = ({
+  categoryPolicies,
+  prompts,
+  onUpdate,
+  t,
+}) => {
+  const realPrompts = prompts.filter((p) => !SENTINEL_PROMPT_IDS.has(p.id));
+
+  const updateCategory = (category: string, patch: Partial<CategoryPolicy>) => {
+    const current = categoryPolicies[category] ?? {};
+    const review_policy =
+      "review_policy" in patch
+        ? (patch.review_policy ?? null)
+        : (current.review_policy ?? null);
+    const prompt_id =
+      "prompt_id" in patch
+        ? (patch.prompt_id ?? null)
+        : (current.prompt_id ?? null);
+    const next = { ...categoryPolicies };
+    // Drop the key entirely when the category inherits everything, keeping
+    // settings.json clean.
+    if (review_policy == null && prompt_id == null) {
+      delete next[category];
+    } else {
+      next[category] = { review_policy, prompt_id };
+    }
+    onUpdate(next);
+  };
+
+  return (
+    <Card className="p-3">
+      <Flex direction="column" gap="2">
+        <Text weight="bold" size="2">
+          {t("settings.postProcessing.appRules.categoryDefaults.title")}
+        </Text>
+        <Text size="1" color="gray">
+          {t("settings.postProcessing.appRules.categoryDefaults.hint")}
+        </Text>
+
+        <Flex direction="column" gap="1" mt="1">
+          {APP_CATEGORIES.map((category) => {
+            const policy = categoryPolicies[category];
+            const reviewValue = policy?.review_policy ?? "inherit";
+            const promptValue = policy?.prompt_id ?? "default";
+            return (
+              <Flex
+                key={category}
+                align="center"
+                justify="between"
+                gap="2"
+                className="py-1"
+              >
+                <Text size="2">
+                  {t(
+                    `settings.postProcessing.appRules.categoryDefaults.categories.${category}`,
+                  )}
+                </Text>
+                <Flex align="center" gap="2">
+                  <Select.Root
+                    size="1"
+                    value={reviewValue}
+                    onValueChange={(val) =>
+                      updateCategory(category, {
+                        review_policy:
+                          val === "inherit" ? null : (val as AppReviewPolicy),
+                      })
+                    }
+                  >
+                    <Select.Trigger variant="surface" style={{ width: 130 }} />
+                    <Select.Content position="popper">
+                      <Select.Item value="inherit">
+                        {t(
+                          "settings.postProcessing.appRules.categoryDefaults.inheritGlobal",
+                        )}
+                      </Select.Item>
+                      <Select.Item value="always">
+                        {t("settings.postProcessing.appRules.policy.always")}
+                      </Select.Item>
+                      <Select.Item value="never">
+                        {t("settings.postProcessing.appRules.policy.never")}
+                      </Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+
+                  <Select.Root
+                    size="1"
+                    value={promptValue}
+                    onValueChange={(val) =>
+                      updateCategory(category, {
+                        prompt_id: val === "default" ? null : val,
+                      })
+                    }
+                  >
+                    <Select.Trigger variant="surface" style={{ width: 130 }} />
+                    <Select.Content
+                      position="popper"
+                      style={{ maxHeight: 360 }}
+                    >
+                      <Select.Item value="default">
+                        {t("common.default")}
+                      </Select.Item>
+                      {realPrompts.map((p) => (
+                        <Select.Item key={p.id} value={p.id}>
+                          <Flex gap="2" align="center">
+                            <DynamicIcon
+                              name={p.icon || "IconWand"}
+                              size={14}
+                            />
+                            <span>{p.name}</span>
+                          </Flex>
+                        </Select.Item>
+                      ))}
+                    </Select.Content>
+                  </Select.Root>
+                </Flex>
+              </Flex>
+            );
+          })}
+        </Flex>
+      </Flex>
+    </Card>
+  );
+};
+
 export const AppProfilesManager: React.FC = () => {
   const { t } = useTranslation();
   const { settings, updateSetting, refreshSettings } = useSettings();
@@ -570,6 +722,7 @@ export const AppProfilesManager: React.FC = () => {
 
   const profiles = settings?.app_profiles || [];
   const appToProfile = settings?.app_to_profile || {};
+  const categoryPolicies = settings?.category_policies || {};
   const prompts = skills;
 
   const sensors = useSensors(
@@ -714,6 +867,14 @@ export const AppProfilesManager: React.FC = () => {
 
   return (
     <Flex direction="column" gap="4">
+      {/* Category default policies (L2) */}
+      <CategoryDefaultsSection
+        categoryPolicies={categoryPolicies}
+        prompts={prompts}
+        onUpdate={(next) => updateSetting("category_policies", next)}
+        t={t}
+      />
+
       {/* Header Actions */}
       <Flex justify="between" align="center" px="1">
         <Text size="1" color="gray" weight="medium">

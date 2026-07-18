@@ -288,16 +288,18 @@ fn should_use_selection_clipboard_fallback(
         return false;
     }
 
-    let Some(profile_id) = settings.app_to_profile.get(app_name) else {
-        return true;
-    };
-
-    settings
-        .app_profiles
-        .iter()
-        .find(|profile| &profile.id == profile_id)
-        .map(|profile| !profile.disable_selection_clipboard_fallback)
-        .unwrap_or(true)
+    // Resolve via the unified policy resolver. `disable_selection_clipboard_fallback`
+    // is an L3 direct pass-through dimension (title rules do not participate), so
+    // window_title = None (spec decision 5). The app-name lookup is
+    // case-insensitive, fixing the previous case-sensitive `get()` that silently
+    // dropped the config on a case mismatch (spec decision 8).
+    let effective = crate::policy_resolver::resolve_effective_policy(
+        settings,
+        Some(app_name),
+        None,
+        crate::settings::AppReviewPolicy::Auto,
+    );
+    !effective.disable_selection_clipboard_fallback
 }
 
 fn is_selection_clipboard_fallback_unsafe_app(app_name: &str) -> bool {

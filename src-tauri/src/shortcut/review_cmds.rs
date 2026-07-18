@@ -18,19 +18,15 @@ fn should_translate_review_insert(app: &AppHandle) -> bool {
     };
 
     let settings = settings::get_settings(app);
-    settings
-        .app_to_profile
-        .iter()
-        .find(|(app_name, _)| app_name.eq_ignore_ascii_case(&info.app_name))
-        .map(|(_, profile_id)| profile_id)
-        .and_then(|profile_id| {
-            settings
-                .app_profiles
-                .iter()
-                .find(|profile| &profile.id == profile_id)
-        })
-        .map(|profile| profile.translate_to_english_on_insert)
-        .unwrap_or(false)
+    // `translate_to_english_on_insert` is an L3 direct pass-through dimension
+    // (title rules / categories do not participate), so window_title = None.
+    let effective = crate::policy_resolver::resolve_effective_policy(
+        &settings,
+        Some(&info.app_name),
+        None,
+        crate::settings::AppReviewPolicy::Auto,
+    );
+    effective.translate_to_english_on_insert
 }
 
 #[derive(Serialize, Type)]

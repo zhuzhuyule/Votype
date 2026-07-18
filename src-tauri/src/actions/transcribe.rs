@@ -2180,80 +2180,53 @@ impl ShortcutAction for TranscribeAction {
                                     None
                                 };
 
-                                // Lookup profile for the active app with title rule matching
-                                let (app_profile, matched_rule) = active_window_snapshot_for_review
-                                    .as_ref()
-                                    .map(|info| {
-                                        // Find profile for this app (case-insensitive)
-                                        let profile_id = settings_clone
-                                            .app_to_profile
-                                            .iter()
-                                            .find(|(k, _)| k.eq_ignore_ascii_case(&info.app_name))
-                                            .map(|(_, v)| v);
-                                        let profile = profile_id.and_then(|pid| {
-                                            settings_clone
-                                                .app_profiles
-                                                .iter()
-                                                .find(|p| &p.id == pid)
-                                        });
+                                // Resolve the effective per-app policy via the
+                                // unified resolver (global → category → app →
+                                // title rule). Fallback = Never (parity with the
+                                // previous inline logic at this call site).
+                                //
+                                // The matched title rule is still needed for the
+                                // pipeline's history-context filter, so recompute
+                                // it via the resolver's shared helpers (same
+                                // profile lookup + longest-pattern-wins logic).
+                                let matched_rule =
+                                    active_window_snapshot_for_review.as_ref().and_then(|info| {
+                                        crate::policy_resolver::find_app_profile(
+                                            &settings_clone,
+                                            &info.app_name,
+                                        )
+                                        .and_then(|p| {
+                                            crate::policy_resolver::best_matching_rule(
+                                                &p.rules,
+                                                &info.title,
+                                            )
+                                        })
+                                    });
 
-                                        if let Some(p) = profile {
-                                            // Find all matching rules
-                                            let mut matched_rules = Vec::new();
-
-                                            for rule in &p.rules {
-                                                let matched = match rule.match_type {
-                                                    crate::settings::TitleMatchType::Text => info
-                                                        .title
-                                                        .to_lowercase()
-                                                        .contains(&rule.pattern.to_lowercase()),
-                                                    crate::settings::TitleMatchType::Regex => {
-                                                        regex::Regex::new(&rule.pattern)
-                                                            .map(|re| re.is_match(&info.title))
-                                                            .unwrap_or(false)
-                                                    }
-                                                    crate::settings::TitleMatchType::Exact => {
-                                                        info.title == rule.pattern
-                                                    }
-                                                };
-                                                if matched {
-                                                    matched_rules.push(rule);
-                                                }
-                                            }
-
-                                            // Select the best match (longest pattern length wins)
-                                            // This allows specific rules (e.g. "Matt M") to override generic ones (e.g. "Slack")
-                                            if let Some(best_rule) = matched_rules
-                                                .into_iter()
-                                                .max_by_key(|r| r.pattern.chars().count())
-                                            {
-                                                (Some(p), Some(best_rule))
-                                            } else {
-                                                // No rule matched, use profile defaults
-                                                (Some(p), None)
-                                            }
-                                        } else {
-                                            (None, None)
-                                        }
-                                    })
-                                    .unwrap_or((None, None));
-
-                                // Determine policy and prompt_id from matched rule or profile defaults
-                                let app_policy = matched_rule
-                                    .map(|r| r.policy)
-                                    .or_else(|| app_profile.map(|p| p.policy))
-                                    .unwrap_or(crate::settings::AppReviewPolicy::Never);
-
-                                let override_prompt_id = matched_rule
-                                    .and_then(|r| r.prompt_id.clone())
-                                    .or_else(|| app_profile.and_then(|p| p.prompt_id.clone()));
+                                let effective_policy =
+                                    crate::policy_resolver::resolve_effective_policy(
+                                        &settings_clone,
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.app_name.as_str()),
+                                        active_window_snapshot_for_review
+                                            .as_ref()
+                                            .map(|info| info.title.as_str()),
+                                        crate::settings::AppReviewPolicy::Never,
+                                    );
+                                let app_policy = effective_policy.review_policy;
+                                let override_prompt_id =
+                                    effective_policy.override_prompt_id.clone();
 
                                 info!(
-                                    "[Transcribe] App profile resolution: app_profile={:?}, matched_rule={:?}, override_prompt_id={:?}, app_policy={:?}, global_selected_prompt_id={:?}",
-                                    app_profile.map(|p| &p.id),
-                                    matched_rule.map(|r| &r.pattern),
-                                    override_prompt_id,
-                                    app_policy,
+                                    "[Policy] app={:?} review={:?}(source={:?}) prompt={:?}(source={:?}) global_prompt={:?}",
+                                    active_window_snapshot_for_review
+                                        .as_ref()
+                                        .map(|info| info.app_name.as_str()),
+                                    effective_policy.review_policy,
+                                    effective_policy.review_policy_source,
+                                    effective_policy.override_prompt_id,
+                                    effective_policy.prompt_source,
                                     settings_clone.post_process_selected_prompt_id,
                                 );
 
@@ -2885,45 +2858,22 @@ impl ShortcutAction for TranscribeAction {
                                     .unwrap_or(false),
                             )
                         };
-                        let (app_policy, resolved_prompt_id) = active_window_snapshot
-                            .as_ref()
-                            .and_then(|info| {
-                                let profile_id = settings
-                                    .app_to_profile
-                                    .iter()
-                                    .find(|(k, _)| k.eq_ignore_ascii_case(&info.app_name))
-                                    .map(|(_, v)| v);
-                                let profile = profile_id.and_then(|pid| {
-                                    settings.app_profiles.iter().find(|p| &p.id == pid)
-                                });
-                                profile.map(|p| {
-                                    // Check title rules for a more specific policy
-                                    let matched_rule = p
-                                        .rules
-                                        .iter()
-                                        .filter(|r| match r.match_type {
-                                            crate::settings::TitleMatchType::Text => info
-                                                .title
-                                                .to_lowercase()
-                                                .contains(&r.pattern.to_lowercase()),
-                                            crate::settings::TitleMatchType::Regex => {
-                                                regex::Regex::new(&r.pattern)
-                                                    .map(|re| re.is_match(&info.title))
-                                                    .unwrap_or(false)
-                                            }
-                                            crate::settings::TitleMatchType::Exact => {
-                                                info.title == r.pattern
-                                            }
-                                        })
-                                        .max_by_key(|r| r.pattern.chars().count());
-                                    let policy = matched_rule.map(|r| r.policy).unwrap_or(p.policy);
-                                    let prompt_id = matched_rule
-                                        .and_then(|r| r.prompt_id.clone())
-                                        .or_else(|| p.prompt_id.clone());
-                                    (policy, prompt_id)
-                                })
-                            })
-                            .unwrap_or((crate::settings::AppReviewPolicy::Auto, None));
+                        // Resolve the effective per-app policy via the unified
+                        // resolver. Fallback = Auto (parity with the previous
+                        // inline logic here — intentionally differs from the
+                        // Never fallback used above; see spec decision 6).
+                        let effective_policy = crate::policy_resolver::resolve_effective_policy(
+                            &settings,
+                            active_window_snapshot
+                                .as_ref()
+                                .map(|info| info.app_name.as_str()),
+                            active_window_snapshot
+                                .as_ref()
+                                .map(|info| info.title.as_str()),
+                            crate::settings::AppReviewPolicy::Auto,
+                        );
+                        let app_policy = effective_policy.review_policy;
+                        let resolved_prompt_id = effective_policy.override_prompt_id;
 
                         if matches!(votype_mode, VotypeInputMode::MainPolishInput) {
                             let ah_clone = ah.clone();

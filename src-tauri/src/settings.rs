@@ -564,6 +564,26 @@ pub struct AppProfile {
     pub rules: Vec<TitleRule>,
 }
 
+/// Category-level default policy (L2 in the unified policy hierarchy:
+/// global default → app category → specific app (`AppProfile`) → `TitleRule`).
+///
+/// Categories are derived from the active app name via
+/// `app_category::from_app_name` (7 static strings), so they are NOT stored
+/// per-app. A `None` field means "inherit the global default" — i.e. this
+/// level does not participate for that dimension.
+///
+/// Only consulted when the active app has no `AppProfile` (see
+/// `policy_resolver` and docs/specs/2026-07-18-unified-policy-hierarchy.spec.md,
+/// decision 4). Future policy dimensions can be added here as further
+/// `Option<..>` fields without breaking existing config.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, Type)]
+pub struct CategoryPolicy {
+    #[serde(default)]
+    pub review_policy: Option<AppReviewPolicy>,
+    #[serde(default)]
+    pub prompt_id: Option<String>,
+}
+
 impl Default for PasteMethod {
     fn default() -> Self {
         // Default to CtrlV for macOS and Windows, Direct for Linux
@@ -982,6 +1002,11 @@ pub struct AppSettings {
     pub app_profiles: Vec<AppProfile>,
     #[serde(default)]
     pub app_to_profile: HashMap<String, String>,
+    /// Category-level default policies (L2). Key = one of the 7 static category
+    /// strings returned by `app_category::from_app_name`. Only consulted when
+    /// the active app has no `AppProfile`. See `policy_resolver`.
+    #[serde(default)]
+    pub category_policies: HashMap<String, CategoryPolicy>,
     #[serde(default = "default_post_process_context_enabled")]
     pub post_process_context_enabled: bool,
     #[serde(default = "default_post_process_context_limit")]
@@ -1753,6 +1778,7 @@ pub fn get_default_settings() -> AppSettings {
         app_review_policies: HashMap::new(),
         app_profiles: Vec::new(),
         app_to_profile: HashMap::new(),
+        category_policies: HashMap::new(),
         post_process_context_enabled: default_post_process_context_enabled(),
         post_process_context_limit: default_post_process_context_limit(),
         post_process_streaming_output_enabled: default_post_process_streaming_output_enabled(),

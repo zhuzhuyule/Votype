@@ -1078,6 +1078,20 @@
         "assignedAppsDescription": "The applications listed below will use this profile settings.",
         "capture": "Capture",
         "captureTitle": "Capture Title",
+        "categoryDefaults": {
+          "title": "Category default policies",
+          "hint": "Apps with their own profile are not affected by category policies (including profiles auto-created when you accept a suggestion).",
+          "inheritGlobal": "Inherit global",
+          "categories": {
+            "CodeEditor": "Code Editors",
+            "Terminal": "Terminals",
+            "InstantMessaging": "Instant Messaging",
+            "Email": "Email",
+            "Notes": "Notes",
+            "Browser": "Browsers",
+            "Other": "Other"
+          }
+        },
         "context": {
           "description": "Allow LLMs to reference the recent history of the current application to improve transcription and correction accuracy.",
           "enabled": "Enable Context Reference",

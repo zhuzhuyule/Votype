@@ -98,6 +98,15 @@ export const AppProfileSchema = z.object({
 });
 export type AppProfile = z.infer<typeof AppProfileSchema>;
 
+// Category-level default policy (L2 in the unified policy hierarchy). A `null`
+// field means "inherit the global default". See
+// docs/specs/2026-07-18-unified-policy-hierarchy.spec.md.
+export const CategoryPolicySchema = z.object({
+  review_policy: AppReviewPolicySchema.nullable().optional(),
+  prompt_id: z.string().nullable().optional(),
+});
+export type CategoryPolicy = z.infer<typeof CategoryPolicySchema>;
+
 export const PromptOutputModeSchema = z.enum(["polish", "chat", "silent"]);
 export type PromptOutputMode = z.infer<typeof PromptOutputModeSchema>;
 
@@ -318,6 +327,10 @@ export const SettingsSchema = z.object({
     .default({}),
   app_profiles: z.array(AppProfileSchema).optional().default([]),
   app_to_profile: z.record(z.string(), z.string()).optional().default({}),
+  category_policies: z
+    .record(z.string(), CategoryPolicySchema)
+    .optional()
+    .default({}),
   post_process_context_enabled: z.boolean().optional().default(false),
   post_process_context_limit: z.number().min(1).max(30).optional().default(3),
   post_process_streaming_output_enabled: z.boolean().optional().default(true),
