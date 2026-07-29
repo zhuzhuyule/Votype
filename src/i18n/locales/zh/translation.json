@@ -76,7 +76,8 @@
       "minutesAgo": "{{count}} 分钟前",
       "hoursAgo": "{{count}} 小时前",
       "daysAgo": "{{count}} 天前"
-    }
+    },
+    "localInsertCopied": "输入框未聚焦，识别结果已复制到剪贴板"
   },
   "dashboard": {
     "actions": {
@@ -1217,8 +1218,9 @@
         },
         "description": "添加并管理用于后处理的模型。",
         "empty": {
-          "description": "添加一个模型以开始使用。",
-          "title": "尚未配置模型"
+          "description": "添加模型以开始使用",
+          "title": "暂无模型",
+          "noMatch": "没有匹配的模型"
         },
         "promptMessageRole": {
           "label": "Developer 模式"
@@ -1286,12 +1288,7 @@
         },
         "title": "模型",
         "setAsDefault": "设为默认",
-        "invalidJson": "无效的 JSON 格式",
-        "empty": {
-          "description": "添加模型以开始使用",
-          "title": "暂无模型",
-          "noMatch": "没有匹配的模型"
-        }
+        "invalidJson": "无效的 JSON 格式"
       },
       "providerModels": {
         "totalCalls": "次调用",

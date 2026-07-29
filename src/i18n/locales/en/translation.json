@@ -76,7 +76,8 @@
       "daysAgo": "{{count}} days ago"
     },
     "history": "History",
-    "latest": "Latest"
+    "latest": "Latest",
+    "localInsertCopied": "No input field focused — result copied to clipboard"
   },
   "dashboard": {
     "actions": {
@@ -1238,7 +1239,8 @@
         "description": "Add and manage models used for post-processing.",
         "empty": {
           "description": "Add a model to get started.",
-          "title": "No models configured"
+          "title": "No models configured",
+          "noMatch": "No models match your search."
         },
         "promptMessageRole": {
           "label": "Developer Mode"
@@ -1306,12 +1308,7 @@
         },
         "title": "Models",
         "setAsDefault": "Set as Default",
-        "invalidJson": "Invalid JSON format",
-        "empty": {
-          "description": "Add a model to get started.",
-          "title": "No models configured",
-          "noMatch": "No models match your search."
-        }
+        "invalidJson": "Invalid JSON format"
       },
       "providerModels": {
         "totalCalls": "calls",
@@ -1509,14 +1506,13 @@
     "general": "General",
     "models": "AI Models",
     "prompts": "Prompts",
-    "postProcessing": "Post-processing",
+    "postProcessing": "Post Processing",
     "shortcuts": "Shortcuts",
     "summary": "Summary",
     "vocabulary": "Vocabulary",
     "asrModels": "ASR Models",
     "debug": "Debug",
     "history": "History",
-    "postProcessing": "Post Processing",
     "dailyVocabulary": "Daily Vocabulary"
   },
   "soundPicker": {

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Toaster } from "sonner";
+import { toast, Toaster } from "sonner";
 import "./App.css";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Onboarding from "./components/onboarding";
@@ -176,9 +176,17 @@ function App() {
     const setupListener = async () => {
       const detach = await listen<string>(VOTYPE_LOCAL_INSERT, (event) => {
         if (!insertIntoActiveElement(event.payload)) {
-          console.warn(
-            "[VotypeLocalInsert] No active editable element accepted the text",
-          );
+          // No editable element focused in our own window — never drop the
+          // result silently; hand it over via the clipboard instead.
+          void navigator.clipboard
+            .writeText(event.payload)
+            .then(() => toast.info(t("common.localInsertCopied")))
+            .catch((err) =>
+              console.warn(
+                "[VotypeLocalInsert] Clipboard fallback failed",
+                err,
+              ),
+            );
         }
       });
 
@@ -196,7 +204,7 @@ function App() {
       disposed = true;
       unlisten?.();
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const handleFocusIn = (event: FocusEvent) => {
