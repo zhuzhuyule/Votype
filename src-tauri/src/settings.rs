@@ -1940,6 +1940,44 @@ fn store_set_settings(store: &tauri_plugin_store::Store<tauri::Wry>, settings: &
     }
 }
 
+/// Rebuild settings from a store value that failed to parse as a whole.
+///
+/// Starts from the defaults and overlays each stored key one at a time; a key
+/// whose value breaks the whole-object parse is reverted, so one corrupt field
+/// no longer wipes every other user setting.
+fn salvage_settings(stored: &serde_json::Value) -> AppSettings {
+    let Some(stored_map) = stored.as_object() else {
+        warn!("Stored settings are not a JSON object; falling back to defaults");
+        return get_default_settings();
+    };
+
+    let mut merged = serde_json::to_value(get_default_settings())
+        .expect("default settings serialize to a JSON object");
+
+    for (key, value) in stored_map {
+        let previous = merged
+            .as_object_mut()
+            .expect("merged settings stay an object")
+            .insert(key.clone(), value.clone());
+        if serde_json::from_value::<AppSettings>(merged.clone()).is_err() {
+            // Log only the key: values may hold secrets (e.g. API keys).
+            warn!("Dropping invalid settings field '{key}', keeping its default");
+            let map = merged
+                .as_object_mut()
+                .expect("merged settings stay an object");
+            match previous {
+                Some(previous) => map.insert(key.clone(), previous),
+                None => map.remove(key),
+            };
+        }
+    }
+
+    serde_json::from_value(merged).unwrap_or_else(|e| {
+        warn!("Failed to reassemble salvaged settings ({e}); falling back to defaults");
+        get_default_settings()
+    })
+}
+
 pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
     // Seed default directory-based skills (e.g. smart_polish with references).
     // Run before store init so seeded skills are visible in the first merge.
@@ -1955,54 +1993,55 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
 
     let mut settings = if let Some(settings_value) = store.get("settings") {
         // Parse the entire settings object
-        match serde_json::from_value::<AppSettings>(settings_value.clone()) {
-            Ok(mut settings) => {
-                debug!("Found existing settings: {:?}", settings);
-                let default_settings = get_default_settings();
-                let mut updated = false;
-
-                // Merge default bindings into existing settings
-                for (key, value) in default_settings.bindings {
-                    if !settings.bindings.contains_key(&key) {
-                        debug!("Adding missing binding: {}", key);
-                        settings.bindings.entry(key).or_insert(value);
-                        updated = true;
-                    }
+        let (mut settings, salvaged) =
+            match serde_json::from_value::<AppSettings>(settings_value.clone()) {
+                Ok(settings) => {
+                    debug!("Found existing settings: {:?}", settings);
+                    (settings, false)
                 }
+                Err(e) => {
+                    warn!("Failed to parse settings: {}", e);
 
-                if updated {
-                    debug!("Settings updated with new bindings");
-                    store_set_settings(&store, &settings);
-                }
-
-                settings
-            }
-            Err(e) => {
-                warn!("Failed to parse settings: {}", e);
-
-                // Backup the original settings before overwriting
-                if let Ok(backup_json) = serde_json::to_string_pretty(&settings_value) {
-                    if let Ok(app_data_dir) = app.path().app_data_dir() {
-                        let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
-                        let backup_path =
-                            app_data_dir.join(format!("settings_backup_{}.json", timestamp));
-                        if let Err(backup_err) = std::fs::write(&backup_path, &backup_json) {
-                            warn!(
-                                "Failed to backup settings to {:?}: {}",
-                                backup_path, backup_err
-                            );
-                        } else {
-                            warn!("Settings backed up to {:?} before reset", backup_path);
+                    // Backup the original settings before salvaging
+                    if let Ok(backup_json) = serde_json::to_string_pretty(&settings_value) {
+                        if let Ok(app_data_dir) = app.path().app_data_dir() {
+                            let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
+                            let backup_path =
+                                app_data_dir.join(format!("settings_backup_{}.json", timestamp));
+                            if let Err(backup_err) = std::fs::write(&backup_path, &backup_json) {
+                                warn!(
+                                    "Failed to backup settings to {:?}: {}",
+                                    backup_path, backup_err
+                                );
+                            } else {
+                                warn!("Settings backed up to {:?} before salvage", backup_path);
+                            }
                         }
                     }
-                }
 
-                // Fall back to default settings if parsing fails
-                let default_settings = get_default_settings();
-                store_set_settings(&store, &default_settings);
-                default_settings
+                    // Salvage valid fields instead of resetting everything
+                    (salvage_settings(&settings_value), true)
+                }
+            };
+
+        let default_settings = get_default_settings();
+        let mut updated = salvaged;
+
+        // Merge default bindings into existing settings
+        for (key, value) in default_settings.bindings {
+            if !settings.bindings.contains_key(&key) {
+                debug!("Adding missing binding: {}", key);
+                settings.bindings.entry(key).or_insert(value);
+                updated = true;
             }
         }
+
+        if updated {
+            debug!("Settings updated (salvage or new bindings)");
+            store_set_settings(&store, &settings);
+        }
+
+        settings
     } else {
         let default_settings = get_default_settings();
         store_set_settings(&store, &default_settings);
@@ -2391,6 +2430,79 @@ mod tests {
 
         assert!(!profile.disable_selection_clipboard_fallback);
         assert!(!profile.translate_to_english_on_insert);
+    }
+}
+
+#[cfg(test)]
+mod salvage_settings_tests {
+    use super::*;
+
+    fn default_settings_json() -> serde_json::Value {
+        serde_json::to_value(get_default_settings()).unwrap()
+    }
+
+    #[test]
+    fn salvage_preserves_valid_fields_when_one_value_is_invalid() {
+        let mut stored = default_settings_json();
+        let map = stored.as_object_mut().unwrap();
+        map.insert(
+            "selected_language".to_string(),
+            serde_json::json!("zh-Hans"),
+        );
+        // Wrong type: audio_feedback must be a bool
+        map.insert("audio_feedback".to_string(), serde_json::json!("yes"));
+
+        let salvaged = salvage_settings(&stored);
+
+        assert_eq!(salvaged.selected_language, "zh-Hans");
+        assert_eq!(
+            salvaged.audio_feedback,
+            get_default_settings().audio_feedback
+        );
+    }
+
+    #[test]
+    fn salvage_of_poisoned_bindings_keeps_other_fields() {
+        let mut stored = default_settings_json();
+        let map = stored.as_object_mut().unwrap();
+        map.insert(
+            "selected_language".to_string(),
+            serde_json::json!("zh-Hans"),
+        );
+        map.insert("bindings".to_string(), serde_json::json!(42));
+
+        let salvaged = salvage_settings(&stored);
+
+        assert_eq!(salvaged.selected_language, "zh-Hans");
+        // Poisoned bindings fall back to defaults
+        assert!(salvaged.bindings.contains_key("transcribe"));
+    }
+
+    #[test]
+    fn salvage_tolerates_unknown_keys() {
+        let mut stored = default_settings_json();
+        let map = stored.as_object_mut().unwrap();
+        map.insert(
+            "selected_language".to_string(),
+            serde_json::json!("zh-Hans"),
+        );
+        map.insert(
+            "some_removed_future_field".to_string(),
+            serde_json::json!({"nested": true}),
+        );
+
+        let salvaged = salvage_settings(&stored);
+
+        assert_eq!(salvaged.selected_language, "zh-Hans");
+    }
+
+    #[test]
+    fn salvage_of_non_object_store_falls_back_to_defaults() {
+        let salvaged = salvage_settings(&serde_json::json!("not an object"));
+        assert_eq!(
+            salvaged.selected_language,
+            get_default_settings().selected_language
+        );
     }
 }
 

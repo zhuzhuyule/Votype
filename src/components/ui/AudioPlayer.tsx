@@ -1,6 +1,14 @@
 import { Box, Flex, IconButton, Slider, Text } from "@radix-ui/themes";
 import { IconPlayerPause, IconPlayerPlay } from "@tabler/icons-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 interface AudioPlayerProps {
   src: string;
@@ -9,12 +17,49 @@ interface AudioPlayerProps {
   onError?: () => void;
 }
 
+interface AudioPlayerGroupContextValue {
+  requestPlayback: (audio: HTMLAudioElement) => void;
+  releasePlayback: (audio: HTMLAudioElement) => void;
+}
+
+const AudioPlayerGroupContext =
+  createContext<AudioPlayerGroupContextValue | null>(null);
+
+/**
+ * Wrap a list of AudioPlayers so that starting one pauses whichever
+ * other player in the group is currently playing.
+ */
+export const AudioPlayerGroup: React.FC<React.PropsWithChildren> = ({
+  children,
+}) => {
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const value = useMemo<AudioPlayerGroupContextValue>(
+    () => ({
+      requestPlayback: (audio) => {
+        if (activeAudioRef.current !== audio) activeAudioRef.current?.pause();
+        activeAudioRef.current = audio;
+      },
+      releasePlayback: (audio) => {
+        if (activeAudioRef.current === audio) activeAudioRef.current = null;
+      },
+    }),
+    [],
+  );
+
+  return (
+    <AudioPlayerGroupContext.Provider value={value}>
+      {children}
+    </AudioPlayerGroupContext.Provider>
+  );
+};
+
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   src,
   className = "",
   autoPlay = false,
   onError,
 }) => {
+  const group = useContext(AudioPlayerGroupContext);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -80,12 +125,19 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
 
     const handleEnded = () => {
+      group?.releasePlayback(audio);
       setIsPlaying(false);
       setCurrentTime(audio.duration || 0);
     };
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => {
+      group?.requestPlayback(audio);
+      setIsPlaying(true);
+    };
+    const handlePause = () => {
+      group?.releasePlayback(audio);
+      setIsPlaying(false);
+    };
     const handleError = () => {
       setIsPlaying(false);
       onError?.();
@@ -98,13 +150,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     audio.addEventListener("error", handleError);
 
     return () => {
+      group?.releasePlayback(audio);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("play", handlePlay);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("error", handleError);
     };
-  }, [onError]);
+  }, [onError, group]);
 
   const togglePlay = async () => {
     const audio = audioRef.current;

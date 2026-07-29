@@ -555,6 +555,7 @@ fn run_consumer(
                     recording = true;
                     skip_remaining = skip_frames;
                     visualizer.reset();
+                    frame_resampler.reset();
                     // Reset debug stats
                     spectrum_log_counter = 0;
                     vad_speech_frames = 0;

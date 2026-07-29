@@ -323,6 +323,17 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
   };
 
   const handleModelSelect = async (modelId: string) => {
+    // The active model is already loaded — re-selecting it just reloads it
+    // for no gain. Still allow it when switching back from online ASR or
+    // when the engine isn't actually loaded yet.
+    if (
+      modelId === currentModelId &&
+      !settings?.online_asr_enabled &&
+      modelStatus === "ready"
+    ) {
+      setShowModelDropdown(false);
+      return;
+    }
     try {
       setModelError(null);
       setShowModelDropdown(false);
