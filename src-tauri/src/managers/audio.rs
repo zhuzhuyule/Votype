@@ -1,13 +1,13 @@
 use crate::audio_toolkit::{
     list_input_devices,
     vad::{
-        frames_for_duration_ms, SmoothedVad, VAD_OFFLINE_HANGOVER_MS, VAD_ONSET_MS, VAD_PREFILL_MS,
-        VAD_STREAMING_HANGOVER_MS,
+        frames_for_duration_ms, EarshotVad, SmoothedVad, VAD_OFFLINE_HANGOVER_MS, VAD_ONSET_MS,
+        VAD_PREFILL_MS, VAD_STREAMING_HANGOVER_MS,
     },
     AudioRecorder, SileroVad, VadPolicy, VoiceActivityDetector,
 };
 use crate::helpers::clamshell;
-use crate::settings::{get_settings, write_settings, AppSettings};
+use crate::settings::{get_settings, write_settings, AppSettings, VadBackend};
 use crate::utils;
 use log::{debug, error, info, trace, warn};
 use std::sync::{
@@ -16,6 +16,9 @@ use std::sync::{
 };
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
+
+const SILERO_VAD_THRESHOLD: f32 = 0.3;
+const EARSHOT_VAD_THRESHOLD: f32 = 0.5;
 
 fn set_mute(mute: bool) {
     // Expected behavior:
@@ -152,27 +155,50 @@ struct MicrophoneResolution {
 /* ──────────────────────────────────────────────────────────────── */
 
 fn create_audio_recorder(
-    vad_path: &str,
+    backend: VadBackend,
     app_handle: &tauri::AppHandle,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
     auto_enhance_enabled: Arc<AtomicBool>,
 ) -> Result<AudioRecorder, anyhow::Error> {
-    let silero = SileroVad::new(vad_path, 0.3)
-        .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {}", e))?;
+    let detector: Box<dyn VoiceActivityDetector> = match backend {
+        VadBackend::Silero => {
+            let vad_path = app_handle
+                .path()
+                .resolve(
+                    "resources/models/silero_vad_v4.onnx",
+                    tauri::path::BaseDirectory::Resource,
+                )
+                .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {e}"))?;
+            Box::new(
+                SileroVad::new(vad_path, SILERO_VAD_THRESHOLD)
+                    .map_err(|e| anyhow::anyhow!("Failed to create SileroVad: {e}"))?,
+            )
+        }
+        VadBackend::Earshot => Box::new(
+            EarshotVad::new(EARSHOT_VAD_THRESHOLD)
+                .map_err(|e| anyhow::anyhow!("Failed to create EarshotVad: {e}"))?,
+        ),
+    };
 
-    // Convert the time-based capture profile to the detector's frame size so
-    // the pre-roll, onset, and hangover tail never shorten for a backend.
-    let frame_samples = silero.frame_samples();
+    // Earshot uses 16 ms frames while Silero uses 30 ms. Convert the existing
+    // time-based capture profile to each detector's frame size so selecting a
+    // backend does not shorten pre-roll, onset, or post-speech audio.
+    let frame_samples = detector.frame_samples();
     let prefill_frames = frames_for_duration_ms(VAD_PREFILL_MS, frame_samples);
     let offline_hangover_frames = frames_for_duration_ms(VAD_OFFLINE_HANGOVER_MS, frame_samples);
     let streaming_hangover_frames =
         frames_for_duration_ms(VAD_STREAMING_HANGOVER_MS, frame_samples);
     let onset_frames = frames_for_duration_ms(VAD_ONSET_MS, frame_samples);
     let smoothed_vad = SmoothedVad::new(
-        Box::new(silero),
+        detector,
         prefill_frames,
         offline_hangover_frames,
         onset_frames,
+    );
+
+    info!(
+        "Initialized {:?} VAD backend ({} samples/frame)",
+        backend, frame_samples
     );
 
     // Recorder with VAD plus a spectrum-level callback that forwards updates to
@@ -405,17 +431,9 @@ impl AudioRecordingManager {
             return Ok(()); // Already created
         }
 
-        let vad_path = self
-            .app_handle
-            .path()
-            .resolve(
-                "resources/models/silero_vad_v4.onnx",
-                tauri::path::BaseDirectory::Resource,
-            )
-            .map_err(|e| anyhow::anyhow!("Failed to resolve VAD path: {}", e))?;
-
+        let settings = get_settings(&self.app_handle);
         *recorder_opt = Some(create_audio_recorder(
-            vad_path.to_str().unwrap(),
+            settings.vad_backend,
             &self.app_handle,
             self.speech_frame_tx.clone(),
             self.auto_enhance_enabled.clone(),
@@ -685,6 +703,59 @@ impl AudioRecordingManager {
             self.stop_microphone_stream();
             self.start_microphone_stream()?;
         }
+        Ok(())
+    }
+
+    /// Replace the VAD implementation while idle. If the microphone stream is
+    /// currently warm (always-on or lazy-close mode), reopen it with the new
+    /// detector before reporting success. A failed reopen restores the previous
+    /// recorder so the persisted setting can remain unchanged.
+    pub fn update_vad_backend(&self, backend: VadBackend) -> Result<(), anyhow::Error> {
+        let state = self.state.lock().unwrap();
+        if !matches!(*state, RecordingState::Idle) {
+            return Err(anyhow::anyhow!(
+                "Cannot change the VAD backend while recording"
+            ));
+        }
+
+        let replacement = create_audio_recorder(
+            backend,
+            &self.app_handle,
+            self.speech_frame_tx.clone(),
+            self.auto_enhance_enabled.clone(),
+        )?;
+        let was_open = *self.is_open.lock().unwrap();
+
+        // Invalidate any delayed close before swapping the recorder it targets.
+        self.close_generation.fetch_add(1, Ordering::SeqCst);
+        if was_open {
+            self.stop_microphone_stream();
+        }
+
+        let previous_recorder = self.recorder.lock().unwrap().replace(replacement);
+        if was_open {
+            if let Err(change_error) = self.start_microphone_stream() {
+                // Ensure a partially opened replacement cannot retain capture
+                // resources before restoring the known-good detector.
+                if let Some(recorder) = self.recorder.lock().unwrap().as_mut() {
+                    let _ = recorder.close();
+                }
+                *self.recorder.lock().unwrap() = previous_recorder;
+
+                if let Err(rollback_error) = self.start_microphone_stream() {
+                    error!(
+                        "Failed to restore microphone stream after VAD backend change failed: {rollback_error}"
+                    );
+                }
+                return Err(anyhow::anyhow!(
+                    "Failed to reopen microphone with {:?} VAD: {change_error}",
+                    backend
+                ));
+            }
+        }
+
+        info!("VAD backend changed to {:?}", backend);
+        drop(state);
         Ok(())
     }
 

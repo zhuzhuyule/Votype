@@ -71,9 +71,11 @@ pub struct VadTailReport {
     pub hangover_counter: usize,
 }
 
+mod earshot;
 mod silero;
 mod smoothed;
 
+pub use earshot::EarshotVad;
 pub use silero::SileroVad;
 pub use smoothed::SmoothedVad;
 
@@ -87,5 +89,13 @@ mod tests {
         assert_eq!(frames_for_duration_ms(VAD_OFFLINE_HANGOVER_MS, 480), 15);
         assert_eq!(frames_for_duration_ms(VAD_STREAMING_HANGOVER_MS, 480), 55);
         assert_eq!(frames_for_duration_ms(VAD_ONSET_MS, 480), 2);
+    }
+
+    #[test]
+    fn duration_profiles_round_up_for_earshot_frames() {
+        assert_eq!(frames_for_duration_ms(VAD_PREFILL_MS, 256), 29);
+        assert_eq!(frames_for_duration_ms(VAD_OFFLINE_HANGOVER_MS, 256), 29);
+        assert_eq!(frames_for_duration_ms(VAD_STREAMING_HANGOVER_MS, 256), 104);
+        assert_eq!(frames_for_duration_ms(VAD_ONSET_MS, 256), 4);
     }
 }

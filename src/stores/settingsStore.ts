@@ -208,6 +208,8 @@ const settingUpdaters: {
 } = {
   always_on_microphone: (value) =>
     invoke("update_microphone_mode", { alwaysOn: value }),
+  vad_backend: (value) =>
+    invoke("change_vad_backend_setting", { backend: value }),
   audio_feedback: (value) =>
     invoke("change_audio_feedback_setting", { enabled: value }),
   audio_feedback_volume: (value) =>

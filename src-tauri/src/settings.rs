@@ -837,6 +837,14 @@ impl Default for OrtAcceleratorSetting {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum VadBackend {
+    #[default]
+    Silero,
+    Earshot,
+}
+
 fn default_whisper_gpu_device() -> i32 {
     -1
 }
@@ -1040,6 +1048,9 @@ pub struct AppSettings {
     pub paste_delay_ms: u64,
     #[serde(default)]
     pub extra_recording_buffer_ms: u64,
+    /// Experimental detector implementation. Silero remains the stable default.
+    #[serde(default)]
+    pub vad_backend: VadBackend,
     #[serde(default)]
     pub typing_tool: TypingTool,
     #[serde(default)]
@@ -1809,6 +1820,7 @@ pub fn get_default_settings() -> AppSettings {
         show_tray_icon: default_show_tray_icon(),
         paste_delay_ms: default_paste_delay_ms(),
         extra_recording_buffer_ms: 0,
+        vad_backend: VadBackend::default(),
         typing_tool: TypingTool::default(),
         external_script_path: None,
         length_routing_enabled: false,
@@ -2396,6 +2408,13 @@ mod tests {
         let settings = get_default_settings();
         assert!(!settings.auto_submit);
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
+    }
+
+    #[test]
+    fn vad_backend_defaults_to_silero_and_parses_earshot() {
+        assert_eq!(get_default_settings().vad_backend, VadBackend::Silero);
+        let parsed: VadBackend = serde_json::from_str("\"earshot\"").unwrap();
+        assert_eq!(parsed, VadBackend::Earshot);
     }
 
     #[test]

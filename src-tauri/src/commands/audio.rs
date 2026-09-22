@@ -1,7 +1,7 @@
 use crate::audio_feedback;
 use crate::audio_toolkit::audio::{list_input_devices, list_output_devices};
 use crate::managers::audio::{AudioRecordingManager, MicrophoneMode};
-use crate::settings::{get_settings, write_settings};
+use crate::settings::{get_settings, write_settings, VadBackend};
 use log::warn;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -63,6 +63,27 @@ pub async fn update_microphone_mode(app: AppHandle, always_on: bool) -> Result<(
 pub fn get_microphone_mode(app: AppHandle) -> Result<bool, String> {
     let settings = get_settings(&app);
     Ok(settings.always_on_microphone)
+}
+
+#[tauri::command]
+pub async fn change_vad_backend_setting(app: AppHandle, backend: VadBackend) -> Result<(), String> {
+    if get_settings(&app).vad_backend == backend {
+        return Ok(());
+    }
+
+    // Construct/swap the detector and, when necessary, reopen cpal away from
+    // the webview thread. Persist only after the runtime change succeeds so a
+    // rejected in-progress switch or failed microphone reopen rolls back cleanly.
+    let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
+    tokio::task::spawn_blocking(move || rm.update_vad_backend(backend))
+        .await
+        .map_err(|e| format!("audio task join failed: {}", e))?
+        .map_err(|e| format!("Failed to update VAD backend: {}", e))?;
+
+    let mut settings = get_settings(&app);
+    settings.vad_backend = backend;
+    write_settings(&app, settings);
+    Ok(())
 }
 
 #[tauri::command]

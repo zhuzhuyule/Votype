@@ -6,6 +6,7 @@ mod app_list;
 mod apple_intelligence;
 mod audio_feedback;
 pub mod audio_toolkit;
+mod ax_snapshot;
 mod catalog;
 mod cli;
 mod clipboard;
@@ -990,6 +991,7 @@ pub fn run() {
             commands::models::get_recommended_first_model,
             commands::audio::update_microphone_mode,
             commands::audio::get_microphone_mode,
+            commands::audio::change_vad_backend_setting,
             commands::audio::get_available_microphones,
             commands::audio::set_selected_microphone,
             commands::audio::get_selected_microphone,

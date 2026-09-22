@@ -630,6 +630,14 @@
         "descriptionUnknownModel": "This model's capabilities are unknown. Select a downloaded model to enable translation.",
         "descriptionUnsupported": "Translation is not supported by the {{model}} model.",
         "label": "Translate to English"
+      },
+      "vadBackend": {
+        "title": "Voice Activity Backend",
+        "description": "Choose the detector used to filter silence. Earshot is experimental; switch back to Silero if speech is clipped or noise is retained.",
+        "options": {
+          "silero": "Silero",
+          "earshot": "Earshot"
+        }
       }
     },
     "asrModels": {

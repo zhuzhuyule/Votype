@@ -78,7 +78,7 @@ estimate: "分 6 期，详见各期"
 | -------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
 | compound shortcut 名称修复 | `141f981d` #1862                    | 紧凑存储名 + 展示标签分离；双后端解析测试                                | ✅（keyboard.ts 适配 Votype parseKeyCombination 结构；随带 handy-keys 0.3.2→0.3.4 以获得 printscreen 解析） |
 | reset binding ID 校验      | `a6eed754` #2033                    | `get_stored_binding(&AppSettings, id) -> Result` + 2 测试                | ✅                                                                                                          |
-| earshot VAD                | `20ada47d` #1967                    | `VoiceActivityDetector` trait 抽象（Phase 2 已铺好），`vad_backend` 设置 | ⬜ 待做                                                                                                     |
+| earshot VAD                | `20ada47d` #1967                    | `VoiceActivityDetector` trait 抽象（Phase 2 已铺好），`vad_backend` 设置 | ✅（command 放 commands/audio.rs 无 specta，前端 plain invoke；Selector 挂专家模式组）                      |
 | activation 状态机          | `c62a5fcd` #1971 + `c6fa60da` #1910 | Auto PTT + toggle 奇偶性，对齐 coordinator start/stop                    | ⬜ 待做                                                                                                     |
 
 ### Phase 5 — 引擎级流式转录（重大）
