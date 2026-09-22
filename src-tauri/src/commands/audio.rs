@@ -38,21 +38,24 @@ pub struct AudioDevice {
 }
 
 #[tauri::command]
-pub fn update_microphone_mode(app: AppHandle, always_on: bool) -> Result<(), String> {
+pub async fn update_microphone_mode(app: AppHandle, always_on: bool) -> Result<(), String> {
     // Update settings
     let mut settings = get_settings(&app);
     settings.always_on_microphone = always_on;
     write_settings(&app, settings);
 
-    // Update the audio manager mode
-    let rm = app.state::<Arc<AudioRecordingManager>>();
+    // Update the audio manager mode. Blocking (device probing / stream open)
+    // and off the main loop (upstream #1716).
+    let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
     let new_mode = if always_on {
         MicrophoneMode::AlwaysOn
     } else {
         MicrophoneMode::OnDemand
     };
 
-    rm.update_mode(new_mode)
+    tokio::task::spawn_blocking(move || rm.update_mode(new_mode))
+        .await
+        .map_err(|e| format!("audio task join failed: {}", e))?
         .map_err(|e| format!("Failed to update microphone mode: {}", e))
 }
 
@@ -63,9 +66,12 @@ pub fn get_microphone_mode(app: AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
-pub fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
-    let devices =
-        list_input_devices().map_err(|e| format!("Failed to list audio devices: {}", e))?;
+pub async fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
+    let devices = tokio::task::spawn_blocking(|| {
+        list_input_devices().map_err(|e| format!("Failed to list audio devices: {}", e))
+    })
+    .await
+    .map_err(|e| format!("audio task join failed: {}", e))??;
 
     let mut result = vec![AudioDevice {
         index: "default".to_string(),
@@ -83,7 +89,7 @@ pub fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
 }
 
 #[tauri::command]
-pub fn set_selected_microphone(
+pub async fn set_selected_microphone(
     app: AppHandle,
     device_name: String,
 ) -> Result<SetMicrophoneResult, String> {
@@ -110,9 +116,12 @@ pub fn set_selected_microphone(
         audio_manager.set_auto_enhance_enabled(enhance);
     }
 
-    // Update the audio manager to use the new device
-    let rm = app.state::<Arc<AudioRecordingManager>>();
-    rm.update_selected_device()
+    // Stream restart touches CoreAudio device APIs — keep it off the main
+    // loop (upstream #1716).
+    let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
+    tokio::task::spawn_blocking(move || rm.update_selected_device())
+        .await
+        .map_err(|e| format!("audio task join failed: {}", e))?
         .map_err(|e| format!("Failed to update selected device: {}", e))?;
 
     Ok(SetMicrophoneResult {
@@ -134,9 +143,12 @@ pub fn get_selected_microphone(app: AppHandle) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_available_output_devices() -> Result<Vec<AudioDevice>, String> {
-    let devices =
-        list_output_devices().map_err(|e| format!("Failed to list output devices: {}", e))?;
+pub async fn get_available_output_devices() -> Result<Vec<AudioDevice>, String> {
+    let devices = tokio::task::spawn_blocking(|| {
+        list_output_devices().map_err(|e| format!("Failed to list output devices: {}", e))
+    })
+    .await
+    .map_err(|e| format!("audio task join failed: {}", e))??;
 
     let mut result = vec![AudioDevice {
         index: "default".to_string(),

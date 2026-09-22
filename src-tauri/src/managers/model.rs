@@ -501,8 +501,13 @@ impl ModelManager {
         // dangling selection that would fail to load.
         let pick = {
             let models = self.available_models.lock().unwrap();
+            // A selection only sticks if the model exists AND its files are
+            // still on disk — externally deleted models must fall back rather
+            // than stay "selected" against a missing file.
             let selection_valid = !settings.selected_model.is_empty()
-                && models.contains_key(&settings.selected_model);
+                && models
+                    .get(&settings.selected_model)
+                    .is_some_and(|m| m.is_downloaded);
             if selection_valid {
                 None
             } else {
@@ -901,7 +906,13 @@ impl ModelManager {
         }
 
         if !deleted_something {
-            return Err(anyhow::anyhow!("No model files found to delete"));
+            // Files were already gone (e.g. deleted in Finder). Treat the
+            // delete as idempotent and let the status refresh below clear
+            // the stale entry instead of erroring out.
+            debug!(
+                "ModelManager: no files found to delete for '{}', refreshing status",
+                model_id
+            );
         }
 
         // Update download status
@@ -938,21 +949,59 @@ impl ModelManager {
             if model_path.exists() && model_path.is_dir() && !partial_path.exists() {
                 Ok(model_path)
             } else {
-                Err(anyhow::anyhow!(
-                    "Complete model directory not found: {}",
-                    model_id
-                ))
+                self.mark_model_unavailable(model_id);
+                if partial_path.exists() {
+                    Err(anyhow::anyhow!(
+                        "Model directory is incomplete: {}",
+                        model_id
+                    ))
+                } else {
+                    Err(anyhow::anyhow!(
+                        "Complete model directory not found: {}",
+                        model_id
+                    ))
+                }
             }
         } else {
             // For file-based models (existing logic)
             if model_path.exists() && !partial_path.exists() {
                 Ok(model_path)
             } else {
-                Err(anyhow::anyhow!(
-                    "Complete model file not found: {}",
-                    model_id
-                ))
+                self.mark_model_unavailable(model_id);
+                if partial_path.exists() {
+                    Err(anyhow::anyhow!("Model file is incomplete: {}", model_id))
+                } else {
+                    Err(anyhow::anyhow!(
+                        "Complete model file not found: {}",
+                        model_id
+                    ))
+                }
             }
+        }
+    }
+
+    /// Model files vanished externally (deleted in Finder while the UI still
+    /// claims "downloaded"): sync the map entry to not-downloaded and notify
+    /// the frontend. Deliberately does NOT clear `settings.selected_model` —
+    /// a loaded engine may still be serving from memory, and the next
+    /// `auto_select_model_if_needed` pass picks the fallback.
+    fn mark_model_unavailable(&self, model_id: &str) {
+        let found = {
+            let mut models = self.available_models.lock().unwrap();
+            match models.get_mut(model_id) {
+                Some(m) => {
+                    m.is_downloaded = false;
+                    true
+                }
+                None => false,
+            }
+        };
+        if found {
+            info!(
+                "ModelManager: files missing for '{}', marking it unavailable",
+                model_id
+            );
+            let _ = self.app_handle.emit("models-updated", ());
         }
     }
 

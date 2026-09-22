@@ -192,12 +192,20 @@ export const useModels = () => {
       setError(`Failed to extract model: ${event.payload.error}`);
     });
 
+    // Model availability changed outside the download flow
+    // (e.g. model files deleted in Finder while the app was running).
+    const modelsUpdatedUnlisten = listen("models-updated", () => {
+      loadModels();
+      loadCurrentModel();
+    });
+
     return () => {
       progressUnlisten.then((fn) => fn());
       completeUnlisten.then((fn) => fn());
       extractionStartedUnlisten.then((fn) => fn());
       extractionCompletedUnlisten.then((fn) => fn());
       extractionFailedUnlisten.then((fn) => fn());
+      modelsUpdatedUnlisten.then((fn) => fn());
     };
   }, []);
 

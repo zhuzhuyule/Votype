@@ -925,9 +925,14 @@ impl ShortcutAction for TranscribeAction {
             struct FinishGuard {
                 app: AppHandle,
                 transcription_id: u64,
+                tm: Arc<TranscriptionManager>,
             }
             impl Drop for FinishGuard {
                 fn drop(&mut self) {
+                    // Honor "unload immediately" even when the session produced
+                    // no transcription (too-short / no-samples early exits bypass
+                    // the in-line unload in transcribe()).
+                    self.tm.maybe_unload_immediately("transcription session");
                     // 兜底清空 start() 时记录的活动窗口快照：
                     // - happy path：stop() 的 take_start_snapshot 已经拿走，本次为 no-op。
                     // - 录音过短 / panic / 异常早退：take 没有发生，这里防止 slot 长期残留。
@@ -971,6 +976,7 @@ impl ShortcutAction for TranscribeAction {
             let _finish_guard = FinishGuard {
                 app: ah.clone(),
                 transcription_id: current_transcription_id,
+                tm: Arc::clone(&tm),
             };
 
             debug!(

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { FetchedModel } from "../bindings";
@@ -390,6 +391,10 @@ const settingUpdaters: {
       chain: value,
     }),
 };
+
+// Register the backend `settings-changed` listener only once, even if
+// initialize() is called again later.
+let settingsListenerRegistered = false;
 
 export const useSettingsStore = create<SettingsStore>()(
   subscribeWithSelector((set, get) => ({
@@ -1203,6 +1208,17 @@ export const useSettingsStore = create<SettingsStore>()(
         refreshOutputDevices(),
         checkCustomSounds(),
       ]);
+      if (!settingsListenerRegistered) {
+        settingsListenerRegistered = true;
+        // Backend-initiated changes (e.g. falling back to the default
+        // microphone after a disconnect) — keep settings and device lists live.
+        listen<{ setting?: string }>("settings-changed", (event) => {
+          get().refreshSettings();
+          if (event.payload.setting === "selected_microphone") {
+            get().refreshAudioDevices();
+          }
+        });
+      }
     },
   })),
 );
