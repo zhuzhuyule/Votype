@@ -587,6 +587,10 @@
         },
         "title": "Overlay Position"
       },
+      "insertBlacklist": {
+        "label": "Insertion Blacklist",
+        "description": "When a blacklisted app (terminal, password manager, ...) is in the foreground, the transcription is copied to the clipboard with a notification instead of being typed or pasted automatically."
+      },
       "pasteMethod": {
         "description": "Choose how text is inserted. Direct: simulates typing via system input. None: skips paste, only updates history/clipboard.",
         "options": {
@@ -630,6 +634,10 @@
         "descriptionUnknownModel": "This model's capabilities are unknown. Select a downloaded model to enable translation.",
         "descriptionUnsupported": "Translation is not supported by the {{model}} model.",
         "label": "Translate to English"
+      },
+      "fillerWordRemoval": {
+        "label": "Filler Word Removal",
+        "description": "Removes spoken fillers before post-processing. Only applies to languages with reliable filler patterns."
       },
       "vadBackend": {
         "title": "Voice Activity Backend",

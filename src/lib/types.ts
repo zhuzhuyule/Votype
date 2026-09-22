@@ -234,6 +234,7 @@ export const SettingsSchema = z.object({
   selected_model: z.string(),
   always_on_microphone: z.boolean(),
   vad_backend: z.enum(["silero", "earshot"]).optional().default("silero"),
+  filler_word_removal_enabled: z.boolean().optional().default(true),
   selected_microphone: z.string().nullable().optional(),
   clamshell_microphone: z.string().nullable().optional(),
   selected_output_device: z.string().nullable().optional(),

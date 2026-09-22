@@ -149,6 +149,8 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   autostart_enabled: false,
   activation_mode: "toggle",
   hold_threshold_ms: 300,
+  filler_word_removal_enabled: true,
+  insert_blacklist_enabled: true,
   selected_microphone: "Default",
   clamshell_microphone: "Default",
   selected_output_device: "Default",
@@ -211,6 +213,10 @@ const settingUpdaters: {
     invoke("update_microphone_mode", { alwaysOn: value }),
   vad_backend: (value) =>
     invoke("change_vad_backend_setting", { backend: value }),
+  filler_word_removal_enabled: (value) =>
+    invoke("change_filler_word_removal_enabled_setting", { enabled: value }),
+  insert_blacklist_enabled: (value) =>
+    invoke("change_insert_blacklist_enabled_setting", { enabled: value }),
   audio_feedback: (value) =>
     invoke("change_audio_feedback_setting", { enabled: value }),
   audio_feedback_volume: (value) =>

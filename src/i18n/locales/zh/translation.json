@@ -636,6 +636,10 @@
         },
         "title": "悬浮窗位置"
       },
+      "insertBlacklist": {
+        "label": "插入黑名单",
+        "description": "当前台应用命中黑名单（终端、密码管理器等）时，转录内容只复制到剪贴板并提示，不再自动输入或粘贴。"
+      },
       "pasteMethod": {
         "description": "选择文字插入方式。直接：通过系统输入模拟打字。无：跳过粘贴，仅更新历史记录/剪贴板。",
         "options": {
@@ -679,6 +683,10 @@
         "descriptionUnknownModel": "当前模型能力未知。请选择一个已下载的模型以启用翻译。",
         "descriptionUnsupported": "{{model}} 模型不支持翻译功能。",
         "label": "翻译为英语"
+      },
+      "fillerWordRemoval": {
+        "label": "语气词过滤",
+        "description": "在后处理前移除口癖语气词（嗯、呃等）。仅对已支持可靠语气词模式的语言生效。"
       },
       "vadBackend": {
         "title": "语音活动检测后端",

@@ -27,6 +27,7 @@ import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
 import { TranslateToEnglish } from "../TranslateToEnglish";
 import { VadBackendSelector } from "../VadBackendSelector";
+import { FillerWordRemoval } from "../FillerWordRemoval";
 import { DebugLogChannels } from "../debug/DebugLogChannels";
 import { LogDirectory } from "../debug/LogDirectory";
 import { LogLevelSelector } from "../debug/LogLevelSelector";
@@ -367,6 +368,7 @@ export const AdvancedSettings: React.FC = () => {
           <TranslateToEnglish descriptionMode="inline" grouped={true} />
           <ModelUnloadTimeoutSetting descriptionMode="inline" grouped={true} />
           <VadBackendSelector descriptionMode="inline" grouped={true} />
+          <FillerWordRemoval descriptionMode="inline" grouped={true} />
         </SettingsGroup>
       )}
 

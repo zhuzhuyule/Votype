@@ -17,6 +17,7 @@ import { OutputDeviceSelector } from "../OutputDeviceSelector";
 import { PasteMethodSetting } from "../PasteMethod";
 import { ActivationMode } from "../PushToTalk";
 import { HoldThreshold } from "../HoldThreshold";
+import { InsertBlacklistToggle } from "../InsertBlacklistToggle";
 import { ShowOverlay } from "../ShowOverlay";
 import { SoundPicker } from "../SoundPicker";
 import { StartHidden } from "../StartHidden";
@@ -70,6 +71,7 @@ export const GeneralSettings: React.FC = () => {
       {/* Text Input/Output */}
       <SettingsGroup title={t("settings.advanced.groups.inputOutput")}>
         <PasteMethodSetting descriptionMode="inline" grouped={true} />
+        <InsertBlacklistToggle descriptionMode="inline" grouped={true} />
         <ClipboardHandlingSetting descriptionMode="inline" grouped={true} />
         <AppendTrailingSpace descriptionMode="inline" grouped={true} />
       </SettingsGroup>
