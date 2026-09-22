@@ -72,7 +72,7 @@ estimate: "分 6 期，详见各期"
 - 移植 `TxState`/`evaluate` 平台无关核心 + macOS `NSPasteboard` 懒承诺路径；Windows 延迟渲染路径本期只做骨架。
 - 与 Votype 现有 `clipboard.rs` paste-and-restore 合并，`settings.reliable_paste` 默认关、失败回退 legacy。
 
-### Phase 4 — VAD 与快捷键交互
+### Phase 4 — VAD 与快捷键交互 ✅ 已完成（6abffd39 / e4ca678a / cf1adc97）
 
 | 项                         | 上游参考                            | 说明                                                                     | 状态                                                                                                        |
 | -------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
@@ -133,7 +133,7 @@ estimate: "分 6 期，详见各期"
 | Phase | 计划                                                                                     | 实际                                                                                                              | 原因                                                                                                              |
 | ----- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | 1     | filler 语言门控按上游用 supported_languages 目录约束 `detect_output_language`            | 暂传空列表（无约束检测）                                                                                          | Votype 模型目录无逐语言 supported-languages 元数据，桥接留待 Phase 5 引擎升级时接入                               |
-| 1     | 上游 FillerWordRemoval 完整 UI 开关组件                                                  | 仅 settings 字段 `filler_word_removal_enabled` + `change_filler_word_removal_enabled_setting` 命令，未加设置页 UI | UI 按总纲约定最小接线；开关可后续补                                                                               |
+| 1     | 上游 FillerWordRemoval 完整 UI 开关组件                                                  | 仅 settings 字段 `filler_word_removal_enabled` + `change_filler_word_removal_enabled_setting` 命令，未加设置页 UI | UI 按总纲约定最小接线；开关可后续补（已补：cf1adc97 加 ToggleSwitch 挂专家模式转录优化组，同批补插入黑名单开关+命令） |
 | 1     | 顺带修复 dev 上已存在的 doctest 失败（phonetic_similarity 示例缺 `use`）                 | 已修（1 行）                                                                                                      | 阻塞 `cargo test` 全绿验证，与 Phase 1 无逻辑关联，单独说明                                                       |
 | 2     | #1813 mic level 校准按上游常量直接移植                                                   | 不移植常量，仅采纳其自适应 FFT 窗长（CaptureProcessor 内按采样率选窗）                                            | Votype `visualizer.rs` 已深度魔改（双参 feed/显示曲线），上游 -68/-30 dBFS 常量不适用；meter 平直问题留待实测调参 |
 | 2     | recorder 重写保留 Votype 全部周期性调试日志（[audio-input]/[waveform]/[audio-spectrum]） | 删除周期性 dump，保留录音起止 [audio-debug] 汇总与首块延迟日志                                                    | 实时安全回调不能日志；消费线程保留同类统计会显著增加移植偏差，按上游结构收敛                                      |
