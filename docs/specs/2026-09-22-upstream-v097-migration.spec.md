@@ -82,12 +82,30 @@ estimate: "分 6 期，详见各期"
 | earshot VAD                | `20ada47d` #1967                    | `VoiceActivityDetector` trait 抽象（Phase 2 已铺好），`vad_backend` 设置 | ✅（command 放 commands/audio.rs 无 specta，前端 plain invoke；Selector 挂专家模式组）                                                       |
 | activation 状态机          | `c62a5fcd` #1971 + `c6fa60da` #1910 | Auto PTT + toggle 奇偶性，对齐 coordinator start/stop                    | ✅（纯 CoordinatorState 整机上提，命名映射 Hold=PTT；hold_threshold_ms 设置+滑块仅自动模式显示；overlay generation Votype 已有等效机制跳过） |
 
-### Phase 5 — 引擎级流式转录（重大）
+### Phase 5 — 引擎级流式转录（重大）✅ 已完成
 
 - transcribe-cpp 0.1.3 → 0.2.3（crates.io，macOS metal），适配 `Session::stream()` API 变更。
 - 移植 StreamRouter：recorder 逐帧喂 16k PCM、tentative/committed 事件、finalize_stream、失败回退 batch；VAD 退化为仅控起停（Streaming policy, hangover ~1650ms）。
 - 前端仅接 overlay/review 的 `stream-text-event` 展示，替换现有 realtime_worker_loop 伪流式（保留为流式模型不可用时的回退）。
 - 模型能力位 `supports_streaming` 并入现有 catalog（Phase 2 GGUF 外部化目录）。
+
+| 项              | 上游参考                       | 说明                                                                           | 状态                                                                                                                                                                    |
+| --------------- | ------------------------------ | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5a 引擎升级     | transcribe-cpp 0.2.3           | `Session::stream`/`StreamOptions`/`StreamUpdate` API                           | ✅（`cb4ae3a6`；Votype batch 用法零破坏，422 测试全绿）                                                                                                                 |
+| 5b StreamRouter | 上游 transcription.rs 流式机器 | Router 四标志协议、worker 租约、StreamPerf、drain 回退、finalize 握手 30s 超时 | ✅（`4e64222a`；单文件放置；后处理链提取为 `post_process_transcript` 供 batch/stream 共用；事件 plain emit 无 specta；cancel 路径含 FinishGuard 兜底 + utils 全局取消） |
+| 能力位透出      | catalog→ModelInfo              | `supports_streaming` catalog→ModelInfo→start 门控                              | ✅（用户自定义模型默认 false；不做上游"发现即 probe 持久化"）                                                                                                           |
+| 5c overlay 接线 | 上游 RecordingOverlay 流式卡   | stream-text-event committed/tentative 渲染                                     | ✅（`d996d0fb`；最小接线进 Votype 现有 realtime 槽位）                                                                                                                  |
+
+**Phase 5 偏差表**
+
+| #   | 上游做法                                                            | Votype 做法                                                                   | 原因                                                      |
+| --- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | 流式卡整体重设计（scard/caret/pinned-scroll/working pill）          | 复用现有 realtime 槽位，tentative 降透明度渲染                                | UI 最小接线原则；上游是 React 重写版覆盖层，结构差异大    |
+| 2   | `resolve_output_language_evidence` + `effective_language_for_model` | 沿用 Votype `normalize_language` 证据链，snapshot().language 作 ModelDetected | 上游依赖 Votype 没有的 ModelInfo.supported_languages 体系 |
+| 3   | stream-phase-event 驱动覆盖层 spinner                               | Rust 侧保留 emit，前端未监听（Votype 已有 show-overlay transcribing 状态机）  | 避免双状态机竞争；`Polishing` 变体留待后处理相位接线      |
+| 4   | 流式仅主路径                                                        | 流式仅在本地主 ASR（非 online_asr_enabled）时启用；在线模式伪流式预览不变     | Votype 特有在线 ASR 分流                                  |
+
+**待真机验证**：流式模型实测（catalog 中 streaming=true 的 GGUF，如 voxtral-realtime/moonshine-streaming 系）overlay 实时文本显示、finalize 回退 batch 路径、取消后引擎租约释放。
 
 ### Phase 6 — Secure Input（macOS）✅ 已完成
 
