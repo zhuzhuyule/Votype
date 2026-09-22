@@ -26,6 +26,11 @@ export type OverlayState =
 
 type OverlayErrorEvent = { code?: string; message?: string };
 
+// Engine-level live stream text (Phase 5): `committed` is the append-only,
+// flicker-free prefix; `tentative` is the volatile suffix the model may still
+// rewrite. Rendered in place of the pseudo-realtime preview when present.
+type StreamTextPayload = { committed: string; tentative: string };
+
 // Skill confirmation event payload
 type SkillConfirmationEvent = {
   skill_id: string;
@@ -119,6 +124,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
   const [accentColor, setAccentColor] = useState<string>(getAccentColor);
   const [realtimeText, setRealtimeText] = useState<string>("");
   const [realtimeIsFinal, setRealtimeIsFinal] = useState<boolean>(false);
+  const [streamText, setStreamText] = useState<StreamTextPayload | null>(null);
   const [errorText, setErrorText] = useState<string>("");
   const [chainedPromptName, setChainedPromptName] = useState<string>("");
   const [skillConfirmation, setSkillConfirmation] =
@@ -171,6 +177,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     setWaveform(EMPTY_WAVEFORM);
     setRealtimeText("");
     setRealtimeIsFinal(false);
+    setStreamText(null);
     setErrorText("");
     setChainedPromptName("");
     setSkillConfirmation(null);
@@ -345,6 +352,24 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
         return;
       }
       unlisteners.push(unlistenRealtimePartial);
+
+      const unlistenStreamText = await listen<StreamTextPayload>(
+        "stream-text-event",
+        (event) => {
+          if (stateRef.current !== "recording") {
+            return;
+          }
+          setStreamText({
+            committed: event.payload.committed || "",
+            tentative: event.payload.tentative || "",
+          });
+        },
+      );
+      if (disposed) {
+        unlistenStreamText();
+        return;
+      }
+      unlisteners.push(unlistenStreamText);
 
       const unlistenPostProcessStatus = await listen<string>(
         "post-process-status",
@@ -664,7 +689,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     const el = realtimeScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [realtimeText, realtimeIsFinal, state]);
+  }, [realtimeText, realtimeIsFinal, streamText, state]);
 
   const isRewriteMode = rewriteCount > 0;
 
@@ -715,7 +740,15 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       ? `${stripTrailingSentencePunctuation(realtimeText)}${animatedEllipsis}`.trim()
       : realtimeText;
 
+  // Engine-level stream text outranks the pseudo-realtime preview while a
+  // live stream is in flight (the Rust side skips the pseudo worker then).
+  const hasStreamText = Boolean(
+    streamText && (streamText.committed || streamText.tentative),
+  );
+  const showStreamText =
+    hasStreamText && state === "recording" && !skillConfirmation;
   const showRealtimeText =
+    !showStreamText &&
     realtimeDisplayText.length > 0 &&
     state === "recording" &&
     !skillConfirmation;
@@ -725,12 +758,21 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
     <Box className="overlay-root">
       <Box
         className={`recording-overlay ${isOverlayShown ? "fade-in" : ""} ${
-          showRealtimeText ? "has-realtime" : ""
+          showRealtimeText || showStreamText ? "has-realtime" : ""
         } ${skillConfirmation ? "has-skill-confirm" : ""}`}
       >
         <Flex className="overlay-left">{getIcon()}</Flex>
 
         <Flex className="overlay-middle">
+          {showStreamText && streamText && (
+            <Box ref={realtimeScrollRef} className="realtime-scroll">
+              <Text className="realtime-text">
+                {streamText.committed ? streamText.committed + " " : ""}
+                <span className="tentative">{streamText.tentative}</span>
+              </Text>
+            </Box>
+          )}
+
           {showRealtimeText && (
             <Box
               ref={realtimeScrollRef}
@@ -740,7 +782,7 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
             </Box>
           )}
 
-          {!showRealtimeText && state === "recording" && (
+          {!showRealtimeText && !showStreamText && state === "recording" && (
             <>
               <Flex className="waveform-container">
                 <Box className="waveform-axis" />

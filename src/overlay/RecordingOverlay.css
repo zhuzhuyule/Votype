@@ -149,6 +149,12 @@
   opacity: 1;
 }
 
+/* Volatile suffix of an engine-level live stream — visually lighter than the
+   append-only committed prefix so rewrites read as "still drafting". */
+.realtime-text .tentative {
+  opacity: 0.55;
+}
+
 @keyframes transcribing-pulse {
   0%,
   100% {
