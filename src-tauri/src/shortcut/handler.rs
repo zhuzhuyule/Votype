@@ -97,7 +97,8 @@ pub fn handle_shortcut_event(
                 binding_id,
                 effective_hotkey,
                 is_pressed,
-                settings.activation_mode.clone(),
+                settings.activation_mode,
+                std::time::Duration::from_millis(settings.hold_threshold_ms),
             );
         } else {
             warn!("TranscriptionCoordinator is not initialized");

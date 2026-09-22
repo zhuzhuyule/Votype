@@ -16,6 +16,7 @@ import { MuteWhileRecording } from "../MuteWhileRecording";
 import { OutputDeviceSelector } from "../OutputDeviceSelector";
 import { PasteMethodSetting } from "../PasteMethod";
 import { ActivationMode } from "../PushToTalk";
+import { HoldThreshold } from "../HoldThreshold";
 import { ShowOverlay } from "../ShowOverlay";
 import { SoundPicker } from "../SoundPicker";
 import { StartHidden } from "../StartHidden";
@@ -56,6 +57,7 @@ export const GeneralSettings: React.FC = () => {
         <MicrophoneSelector descriptionMode="inline" grouped={true} />
         <AudioInputAutoEnhance descriptionMode="inline" grouped={true} />
         <ActivationMode descriptionMode="inline" grouped={true} />
+        <HoldThreshold descriptionMode="inline" grouped={true} />
         {/* Expert only */}
         {expertMode && (
           <>

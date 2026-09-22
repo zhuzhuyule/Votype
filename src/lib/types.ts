@@ -220,6 +220,7 @@ export const SettingsSchema = z.object({
   activation_mode: z
     .enum(["toggle", "hold", "hold_or_toggle"])
     .default("toggle"),
+  hold_threshold_ms: z.number().optional().default(300),
   audio_feedback: z.boolean(),
   audio_feedback_volume: z.number().optional().default(1.0),
   sound_theme: z

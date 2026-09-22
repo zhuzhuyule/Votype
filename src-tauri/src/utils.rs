@@ -12,11 +12,7 @@ pub use crate::clipboard::*;
 pub use crate::overlay::*;
 pub use crate::tray::*;
 
-fn cancel_current_operation_inner(
-    app: &AppHandle,
-    notify_coordinator: bool,
-    hide_review_window: bool,
-) {
+fn cancel_current_operation_inner(app: &AppHandle, hide_review_window: bool) {
     // Clear any pending skill confirmation state
     if let Some(pending_state) = app.try_state::<crate::ManagedPendingSkillConfirmation>() {
         if let Ok(mut guard) = pending_state.lock() {
@@ -50,10 +46,8 @@ fn cancel_current_operation_inner(
     // expensive (~1s) model reload on every preemption.
 
     // Notify coordinator so it can keep lifecycle state coherent.
-    if notify_coordinator {
-        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-            coordinator.notify_cancel(recording_was_active);
-        }
+    if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
+        coordinator.notify_cancel(recording_was_active);
     }
 }
 
@@ -164,7 +158,7 @@ pub fn cancel_current_operation(app: &AppHandle) {
     } else {
         info!("Initiating operation cancellation...");
     }
-    cancel_current_operation_inner(app, true, !in_rewrite);
+    cancel_current_operation_inner(app, !in_rewrite);
 
     // FinishGuard normally clears the rewrite flag, but it only exists once
     // `TranscribeAction::stop()` has spawned the pipeline task. If the user
@@ -178,11 +172,6 @@ pub fn cancel_current_operation(app: &AppHandle) {
     }
 
     info!("Operation cancellation completed - returned to idle state");
-}
-
-pub fn interrupt_current_operation(app: &AppHandle) {
-    info!("Interrupting current operation for a new transcription request...");
-    cancel_current_operation_inner(app, false, false);
 }
 
 /// Check if using the Wayland display server protocol

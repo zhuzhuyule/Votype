@@ -928,6 +928,10 @@
           "holdOrToggle": "自动"
         }
       },
+      "holdThreshold": {
+        "label": "长按阈值",
+        "description": "仅自动模式生效：快捷键按住多久（毫秒）算作“长按松手即停”，短于该时长松手则锁定为切换模式。短暂长按总是结束不了录音就调低；有意的快按被误判为长按就调高。"
+      },
       "shortcut": {
         "bindings": {
           "cancel": {

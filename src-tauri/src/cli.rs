@@ -61,12 +61,7 @@ pub fn handle_cli_args(app: &AppHandle, args: &[String]) {
     if cli_args.toggle_transcription {
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
             info!("CLI: toggle transcription");
-            coordinator.send_input(
-                "transcribe",
-                "CLI",
-                true,
-                crate::settings::ActivationMode::Toggle,
-            );
+            coordinator.send_external_input("transcribe", "CLI");
         }
     }
 
@@ -78,12 +73,7 @@ pub fn handle_cli_args(app: &AppHandle, args: &[String]) {
     if let Some(ref skill_id) = cli_args.skill {
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
             info!("CLI: invoke skill '{}'", skill_id);
-            coordinator.send_input(
-                "invoke_skill",
-                "CLI",
-                true,
-                crate::settings::ActivationMode::Toggle,
-            );
+            coordinator.send_external_input("invoke_skill", "CLI");
         }
     }
 

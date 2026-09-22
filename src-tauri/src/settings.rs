@@ -665,7 +665,13 @@ fn default_show_tray_icon() -> bool {
     true
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, Type)]
+/// hold-or-toggle: minimum press duration (ms) that counts as a hold rather
+/// than a tap-to-lock.
+fn default_hold_threshold_ms() -> u64 {
+    300
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum ActivationMode {
     Toggle,
@@ -861,6 +867,8 @@ pub struct AppSettings {
     pub app_language: String,
     #[serde(default, alias = "push_to_talk")]
     pub activation_mode: ActivationMode,
+    #[serde(default = "default_hold_threshold_ms")]
+    pub hold_threshold_ms: u64,
     pub audio_feedback: bool,
     #[serde(default = "default_audio_feedback_volume")]
     pub audio_feedback_volume: f32,
@@ -1735,6 +1743,7 @@ pub fn get_default_settings() -> AppSettings {
         bindings,
         app_language: default_app_language(),
         activation_mode: ActivationMode::default(),
+        hold_threshold_ms: default_hold_threshold_ms(),
         audio_feedback: true,
         audio_feedback_volume: default_audio_feedback_volume(),
         sound_theme: default_sound_theme(),
@@ -2415,6 +2424,18 @@ mod tests {
         assert_eq!(get_default_settings().vad_backend, VadBackend::Silero);
         let parsed: VadBackend = serde_json::from_str("\"earshot\"").unwrap();
         assert_eq!(parsed, VadBackend::Earshot);
+    }
+
+    #[test]
+    fn hold_threshold_ms_defaults_to_300() {
+        assert_eq!(get_default_settings().hold_threshold_ms, 300);
+        // Old settings files without the key still deserialize (serde default).
+        let json = serde_json::to_string(&get_default_settings()).unwrap();
+        let without_key: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let mut obj = without_key.as_object().unwrap().clone();
+        obj.remove("hold_threshold_ms");
+        let restored: AppSettings = serde_json::from_value(obj.into()).unwrap();
+        assert_eq!(restored.hold_threshold_ms, 300);
     }
 
     #[test]

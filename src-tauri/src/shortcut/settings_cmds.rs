@@ -1074,6 +1074,16 @@ pub fn change_activation_mode_setting(app: AppHandle, mode: String) -> Result<()
     Ok(())
 }
 
+// Registered in `generate_handler!` only (no specta): keeps bindings.ts in sync
+// without regeneration; the frontend calls it via plain `invoke`.
+#[tauri::command]
+pub fn change_hold_threshold_ms_setting(app: AppHandle, ms: u64) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.hold_threshold_ms = ms;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

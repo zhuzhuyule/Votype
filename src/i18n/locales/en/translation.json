@@ -879,6 +879,10 @@
           "holdOrToggle": "Auto"
         }
       },
+      "holdThreshold": {
+        "label": "Hold Threshold",
+        "description": "Auto mode only: how long (in milliseconds) the shortcut must be held before it counts as a hold instead of a tap. Lower if short holds keep leaving recording on; raise it if deliberate taps get treated as holds."
+      },
       "shortcut": {
         "bindings": {
           "cancel": {

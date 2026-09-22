@@ -801,6 +801,7 @@ pub fn run() {
             shortcut::suspend_binding,
             shortcut::resume_binding,
             shortcut::settings_cmds::change_activation_mode_setting,
+            shortcut::settings_cmds::change_hold_threshold_ms_setting,
             shortcut::settings_cmds::change_audio_feedback_setting,
             shortcut::settings_cmds::change_audio_feedback_volume_setting,
             shortcut::settings_cmds::change_sound_theme_setting,

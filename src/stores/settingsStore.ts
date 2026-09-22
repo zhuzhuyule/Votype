@@ -148,6 +148,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   start_hidden: false,
   autostart_enabled: false,
   activation_mode: "toggle",
+  hold_threshold_ms: 300,
   selected_microphone: "Default",
   clamshell_microphone: "Default",
   selected_output_device: "Default",
@@ -222,6 +223,8 @@ const settingUpdaters: {
     invoke("change_autostart_setting", { enabled: value }),
   activation_mode: (value) =>
     invoke("change_activation_mode_setting", { mode: value }),
+  hold_threshold_ms: (value) =>
+    invoke("change_hold_threshold_ms_setting", { ms: value }),
   selected_microphone: async (value) => {
     const result = (await invoke("set_selected_microphone", {
       deviceName: value === "Default" ? "default" : value,
