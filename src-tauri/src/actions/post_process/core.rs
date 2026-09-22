@@ -124,6 +124,72 @@ mod extract_unsupported_param_tests {
     }
 }
 
+/// Fields that toggle reasoning/thinking on chat completion requests.
+const REASONING_FAMILY_FIELDS: [&str; 5] = [
+    "reasoning_effort",
+    "reasoning",
+    "thinking",
+    "chat_template_kwargs",
+    "enable_thinking",
+];
+
+/// Port of upstream #1809: post-processing rarely benefits from reasoning and
+/// default-thinking endpoints add seconds of latency. Returns the disable field
+/// a provider understands, only for providers we opt in for.
+fn reasoning_disable_field(
+    provider_id: &str,
+    model: &str,
+) -> Option<(&'static str, serde_json::Value)> {
+    match provider_id {
+        "custom" | "openrouter" => {
+            if model.to_lowercase().contains("deepseek") {
+                // DeepSeek rejects reasoning_effort "none" and uses its own field.
+                Some(("thinking", serde_json::json!({ "type": "disabled" })))
+            } else if provider_id == "openrouter" {
+                Some((
+                    "reasoning",
+                    serde_json::json!({ "effort": "none", "exclude": true }),
+                ))
+            } else {
+                Some(("reasoning_effort", serde_json::json!("none")))
+            }
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod reasoning_disable_field_tests {
+    use super::reasoning_disable_field;
+
+    #[test]
+    fn custom_gets_reasoning_effort_none() {
+        let (k, v) = reasoning_disable_field("custom", "qwen3-30b").unwrap();
+        assert_eq!(k, "reasoning_effort");
+        assert_eq!(v, serde_json::json!("none"));
+    }
+
+    #[test]
+    fn openrouter_gets_nested_reasoning_with_exclude() {
+        let (k, v) = reasoning_disable_field("openrouter", "some-model").unwrap();
+        assert_eq!(k, "reasoning");
+        assert_eq!(v["exclude"], serde_json::json!(true));
+    }
+
+    #[test]
+    fn deepseek_on_custom_uses_thinking_disabled() {
+        let (k, v) = reasoning_disable_field("custom", "DeepSeek-R1").unwrap();
+        assert_eq!(k, "thinking");
+        assert_eq!(v["type"], serde_json::json!("disabled"));
+    }
+
+    #[test]
+    fn other_providers_are_not_touched() {
+        assert!(reasoning_disable_field("openai", "gpt-4o").is_none());
+        assert!(reasoning_disable_field("ollama", "qwen3").is_none());
+    }
+}
+
 /// Field name for structured output JSON schema
 const TRANSCRIPTION_FIELD: &str = "transcription";
 
@@ -1081,6 +1147,7 @@ async fn execute_llm_request_inner(
     let mut body = serde_json::json!({
         "model": model,
         "messages": messages_json,
+        "stream": false,
     });
 
     // Add structured output response_format when supported
@@ -1131,6 +1198,23 @@ async fn execute_llm_request_inner(
         if let Some(obj) = body.as_object_mut() {
             for (k, v) in extras {
                 obj.insert(k.clone(), v.clone());
+            }
+        }
+    }
+
+    // Ask default-thinking endpoints (custom/openrouter) to skip reasoning for
+    // post-processing; self-heal below strips the field if rejected (#1809).
+    // User/model-level thinking params (merged above) always win.
+    let mut reasoning_disable_keys: Vec<&'static str> = Vec::new();
+    if let Some((key, value)) = reasoning_disable_field(&provider.id, model) {
+        let has_reasoning_param = body
+            .as_object()
+            .map(|o| REASONING_FAMILY_FIELDS.iter().any(|f| o.contains_key(*f)))
+            .unwrap_or(false);
+        if !has_reasoning_param {
+            if let Some(obj) = body.as_object_mut() {
+                obj.insert(key.to_string(), value);
+                reasoning_disable_keys.push(key);
             }
         }
     }
@@ -1272,6 +1356,7 @@ async fn execute_llm_request_inner(
             let base_headers = base_headers.clone();
             let effective_proxy = effective_proxy.clone();
             let unsupported_mgr = unsupported_mgr.clone();
+            let reasoning_disable_keys = reasoning_disable_keys.clone();
 
             move |api_key| {
                 let api_key = api_key.to_string();
@@ -1282,6 +1367,7 @@ async fn execute_llm_request_inner(
                 let headers = base_headers.clone();
                 let effective_proxy = effective_proxy.clone();
                 let unsupported_mgr = unsupported_mgr.clone();
+                let mut reasoning_disable_keys = reasoning_disable_keys.clone();
 
                 async move {
                     let http_client = match crate::http_client::get_shared_client(
@@ -1404,6 +1490,40 @@ async fn execute_llm_request_inner(
                                     self_heal_attempts += 1;
                                     continue;
                                 }
+                            }
+                        }
+
+                        // Endpoints that reject the reasoning-disable field
+                        // without naming it (400/422): strip it, remember the
+                        // rejection, retry once (#1809).
+                        if !reasoning_disable_keys.is_empty()
+                            && matches!(status_u16, 400 | 422)
+                            && self_heal_attempts < MAX_SELF_HEAL_ATTEMPTS
+                        {
+                            let mut removed: Vec<&'static str> = Vec::new();
+                            if let Some(obj) = current_body.as_object_mut() {
+                                for k in &reasoning_disable_keys {
+                                    if obj.remove(*k).is_some() {
+                                        removed.push(*k);
+                                    }
+                                }
+                            }
+                            if !removed.is_empty() {
+                                log::warn!(
+                                    "[LLM] Provider '{}' rejected reasoning-disable field(s) {:?} for model '{}' (status {}) — retrying without them",
+                                    provider.id,
+                                    removed,
+                                    model,
+                                    status_u16
+                                );
+                                if let Some(ref mgr) = unsupported_mgr {
+                                    for k in &removed {
+                                        mgr.mark(&provider.id, &model, k);
+                                    }
+                                }
+                                reasoning_disable_keys.clear();
+                                self_heal_attempts += 1;
+                                continue;
                             }
                         }
 

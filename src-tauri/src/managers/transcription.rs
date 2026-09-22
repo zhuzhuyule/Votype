@@ -1,5 +1,8 @@
-use crate::audio_toolkit::filter_transcription_output;
 use crate::audio_toolkit::text::apply_custom_words;
+use crate::audio_toolkit::{
+    detect_output_language, normalize_transcription_output, remove_filler_words,
+    OutputLanguageEvidence,
+};
 use crate::managers::model::ModelManager;
 use crate::settings::{get_settings, ModelUnloadTimeout};
 use anyhow::Result;
@@ -613,6 +616,10 @@ impl TranscriptionManager {
             }
         };
 
+        // Language the engine detected on its own (audio LID). Captured before
+        // `result` is consumed below; feeds the filler-word evidence chain.
+        let model_language = result.language.clone();
+
         // Apply hotword force replacements on the raw engine output BEFORE any
         // downstream text processing. This keeps the invariant: whatever the
         // ASR produced, force-replace runs first so custom_words matching,
@@ -635,12 +642,28 @@ impl TranscriptionManager {
             raw_text
         };
 
-        // Filter out filler words and hallucinations
-        let filtered_result = filter_transcription_output(
+        // Two-tier filler removal driven by an output-language evidence chain
+        // (upstream #1738): the user's ASR language selection outranks the
+        // engine's audio LID, which outranks text-based detection; Unknown
+        // fails closed to universal-only fillers.
+        let language_evidence = match (
+            normalize_language(&settings.selected_language),
+            model_language,
+        ) {
+            (Some(lang), _) => OutputLanguageEvidence::UserSelected(lang),
+            (None, Some(lang)) => OutputLanguageEvidence::ModelDetected(lang),
+            (None, None) => match detect_output_language(&corrected_result, &[]) {
+                Some(lang) => OutputLanguageEvidence::TextDetected(lang),
+                None => OutputLanguageEvidence::Unknown,
+            },
+        };
+        let without_fillers = remove_filler_words(
             &corrected_result,
-            &settings.app_language,
+            &language_evidence,
             &settings.custom_filler_words,
+            settings.filler_word_removal_enabled,
         );
+        let filtered_result = normalize_transcription_output(&without_fillers);
 
         // Punctuation post-processing: when enabled, apply the standalone
         // CT-Transformer punct model to format the text with proper punctuation.

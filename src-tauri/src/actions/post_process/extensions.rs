@@ -766,6 +766,7 @@ async fn execute_single_model_post_process(
     let mut body = serde_json::json!({
         "model": model,
         "messages": messages_json,
+        "stream": false,
     });
 
     // Merge extra params if provided

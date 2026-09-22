@@ -213,6 +213,7 @@ fn calculate_mixed_similarity(original: &str, corrected: &str) -> PhoneticSimila
 ///
 /// # Example
 /// ```
+/// use votype_app_lib::phonetic_similarity::to_pinyin_string;
 /// let pinyin = to_pinyin_string("机器学习");
 /// assert_eq!(pinyin, "jiqixuexi");
 /// ```

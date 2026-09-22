@@ -57,7 +57,7 @@ tokio = "1.43.0"
 vad-rs = { git = "https://github.com/cjpais/vad-rs", default-features = false }
 enigo = "0.6.1"
 rodio = { git = "https://github.com/cjpais/rodio.git" }
-reqwest = { version = "0.12", features = ["blocking", "json", "stream", "cookies"] }
+reqwest = { version = "0.12", features = ["blocking", "json", "stream", "cookies", "gzip", "brotli", "deflate"] }
 axum = { version = "0.7", features = ["multipart"] }
 async-openai = "0.30.1"
 futures-util = "0.3"
@@ -92,6 +92,10 @@ rand = "0.8"
 # of the ASR engine (which is transcribe.cpp). Only the `punct` feature is built
 # so no ASR engines are pulled in; `ort` is already in the dependency tree.
 transcribe-rs = { git = "https://github.com/zhuzhuyule/transcribe-rs", branch = "main", default-features = false, features = ["punct"] }
+# Text-based language ID (filler-word removal fallback); isolang bridges the
+# ISO 639-1 codes in model metadata to whatlang's 639-3 codes.
+whatlang = "0.16"
+isolang = "2"
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"

@@ -939,6 +939,10 @@ pub struct AppSettings {
     pub custom_words: Vec<String>,
     #[serde(default)]
     pub custom_filler_words: Option<Vec<String>>,
+    /// Master toggle for filler-word removal (universal + gated tiers and the
+    /// custom override list). Takes precedence over both built-in and custom lists.
+    #[serde(default = "default_filler_word_removal_enabled")]
+    pub filler_word_removal_enabled: bool,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
     #[serde(default, alias = "post_process_intent_model_id")]
@@ -1123,6 +1127,10 @@ fn default_onboarding_completed() -> bool {
 
 fn default_selected_language() -> String {
     "auto".to_string()
+}
+
+fn default_filler_word_removal_enabled() -> bool {
+    true
 }
 
 fn default_overlay_position() -> OverlayPosition {
@@ -1785,6 +1793,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_hotword_injection_enabled: default_post_process_hotword_injection_enabled(),
         custom_words: Vec::new(),
         custom_filler_words: None,
+        filler_word_removal_enabled: default_filler_word_removal_enabled(),
         expert_mode: false,
         experimental_enabled: false,
         keyboard_implementation: KeyboardImplementation::default(),
