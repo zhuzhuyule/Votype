@@ -476,170 +476,44 @@ fn get_clipboard_change_count() -> isize {
     }
 }
 
-/// Get text surrounding the cursor in the active text field using macOS Accessibility API.
-/// Returns CursorContext with before/after text, truncated at sentence boundaries.
-/// Fails silently if the focused element doesn't support AXValue or AXSelectedTextRange.
-#[cfg(target_os = "macos")]
-fn get_cursor_context_via_accessibility() -> Result<CursorContext, String> {
-    use core_foundation::base::{CFRelease, TCFType};
-    use core_foundation::string::{CFString, CFStringRef};
-    use std::ffi::c_void;
-    use std::ptr;
-
-    #[link(name = "ApplicationServices", kind = "framework")]
-    extern "C" {
-        fn AXUIElementCreateSystemWide() -> *mut c_void;
-        fn AXUIElementCopyAttributeValue(
-            element: *mut c_void,
-            attribute: CFStringRef,
-            value: *mut *mut c_void,
-        ) -> i32;
-    }
-
-    // AXValueRef helpers for extracting CFRange
-    #[repr(C)]
-    #[derive(Debug, Clone, Copy)]
-    struct CFRange {
-        location: i64,
-        length: i64,
-    }
-
-    #[link(name = "ApplicationServices", kind = "framework")]
-    extern "C" {
-        fn AXValueGetValue(value: *mut c_void, value_type: u32, value_ptr: *mut c_void) -> bool;
-    }
-
-    // AXValueType::CGRange = 4 (kAXValueCFRangeType)
-    const K_AX_VALUE_CF_RANGE_TYPE: u32 = 4;
-
-    unsafe {
-        let system_element = AXUIElementCreateSystemWide();
-        if system_element.is_null() {
-            return Err("Failed to create system-wide AXUIElement".to_string());
-        }
-
-        // Get the focused UI element
-        let focused_attr = CFString::new("AXFocusedUIElement");
-        let mut focused_element: *mut c_void = ptr::null_mut();
-        let result = AXUIElementCopyAttributeValue(
-            system_element,
-            focused_attr.as_concrete_TypeRef(),
-            &mut focused_element,
-        );
-
-        if result != 0 || focused_element.is_null() {
-            CFRelease(system_element);
-            return Err("Failed to get focused UI element".to_string());
-        }
-
-        // Get AXValue (full text content)
-        let value_attr = CFString::new("AXValue");
-        let mut value_ref: *mut c_void = ptr::null_mut();
-        let result = AXUIElementCopyAttributeValue(
-            focused_element,
-            value_attr.as_concrete_TypeRef(),
-            &mut value_ref,
-        );
-
-        if result != 0 || value_ref.is_null() {
-            CFRelease(focused_element);
-            CFRelease(system_element);
-            return Err("Failed to get AXValue from focused element".to_string());
-        }
-
-        let cf_value = CFString::wrap_under_create_rule(value_ref as CFStringRef);
-        let full_text = cf_value.to_string();
-
-        // Length guard (use char count, not byte length, so CJK text is measured correctly)
-        let char_count = full_text.chars().count();
-        if char_count > AX_VALUE_MAX_LENGTH {
-            CFRelease(focused_element);
-            CFRelease(system_element);
-            return Err(format!(
-                "AXValue too large ({} chars, limit {})",
-                char_count, AX_VALUE_MAX_LENGTH
-            ));
-        }
-
-        // Get AXSelectedTextRange → CFRange { location, length }
-        let range_attr = CFString::new("AXSelectedTextRange");
-        let mut range_ref: *mut c_void = ptr::null_mut();
-        let result = AXUIElementCopyAttributeValue(
-            focused_element,
-            range_attr.as_concrete_TypeRef(),
-            &mut range_ref,
-        );
-
-        CFRelease(focused_element);
-        CFRelease(system_element);
-
-        if result != 0 || range_ref.is_null() {
-            return Err("Failed to get AXSelectedTextRange".to_string());
-        }
-
-        let mut range = CFRange {
-            location: 0,
-            length: 0,
-        };
-        let ok = AXValueGetValue(
-            range_ref,
-            K_AX_VALUE_CF_RANGE_TYPE,
-            &mut range as *mut CFRange as *mut c_void,
-        );
-        CFRelease(range_ref);
-
-        if !ok || range.location < 0 {
-            return Err("Failed to extract CFRange from AXSelectedTextRange".to_string());
-        }
-
-        let cursor_pos = range.location as usize;
-        let chars: Vec<char> = full_text.chars().collect();
-
-        if cursor_pos > chars.len() {
-            return Err(format!(
-                "Cursor position {} exceeds text length {}",
-                cursor_pos,
-                chars.len()
-            ));
-        }
-
-        let before_text: String = chars[..cursor_pos].iter().collect();
-        let after_text: String = chars[cursor_pos..].iter().collect();
-
-        let before = truncate_before(&before_text, CURSOR_CONTEXT_BEFORE_LIMIT);
-        let after = truncate_after(&after_text, CURSOR_CONTEXT_AFTER_LIMIT);
-
-        if before.is_empty() && after.is_empty() {
-            return Err("Cursor context is empty".to_string());
-        }
-
-        Ok(CursorContext { before, after })
-    }
-}
-
-/// Get cursor context from the active application.
-/// On macOS, uses Accessibility API. On other platforms, returns Err (not supported).
+/// Get cursor context from the active application (A2 editable snapshot).
+/// On macOS, snapshots the focused editable element via `ax_snapshot` and
+/// splits at the caret; failures surface as stable `SnapshotStatus` codes.
+/// On other platforms, returns Err (not supported).
 pub fn get_cursor_context(_app_handle: &AppHandle) -> Result<CursorContext, String> {
     #[cfg(target_os = "macos")]
     {
-        match get_cursor_context_via_accessibility() {
-            Ok(ctx) => {
+        match crate::ax_snapshot::snapshot_focused_editor() {
+            Ok(snap) => {
+                let (before_text, after_text) = snap.split_at_cursor();
+                let before = truncate_before(&before_text, CURSOR_CONTEXT_BEFORE_LIMIT);
+                let after = truncate_after(&after_text, CURSOR_CONTEXT_AFTER_LIMIT);
+                if before.is_empty() && after.is_empty() {
+                    log::debug!("[CursorContext] snapshot ok but context empty");
+                    return Err(crate::ax_snapshot::SnapshotStatus::ValueUnavailable
+                        .code()
+                        .to_string());
+                }
                 info!(
-                    "Cursor context acquired: before={}chars, after={}chars",
-                    ctx.before.chars().count(),
-                    ctx.after.chars().count()
+                    "[CursorContext] snapshot ok: role={} id={} before={}chars after={}chars",
+                    snap.role,
+                    snap.element_id,
+                    before.chars().count(),
+                    after.chars().count()
                 );
-                Ok(ctx)
+                Ok(CursorContext { before, after })
             }
-            Err(e) => {
-                log::debug!("Failed to get cursor context via accessibility: {}", e);
-                Err(e)
+            Err(status) => {
+                log::debug!("[CursorContext] snapshot failed: {}", status.code());
+                Err(status.code().to_string())
             }
         }
     }
     #[cfg(not(target_os = "macos"))]
     {
-        Err("Cursor context not supported on this platform".to_string())
+        Err(crate::ax_snapshot::SnapshotStatus::NativeUnavailable
+            .code()
+            .to_string())
     }
 }
 
@@ -654,7 +528,6 @@ pub struct CursorContext {
 
 const CURSOR_CONTEXT_BEFORE_LIMIT: usize = 300;
 const CURSOR_CONTEXT_AFTER_LIMIT: usize = 100;
-const AX_VALUE_MAX_LENGTH: usize = 100_000;
 
 /// Truncate text to at most `limit` characters from the END, preferring to cut
 /// at sentence/paragraph boundaries (newline, period, exclamation, question mark).
