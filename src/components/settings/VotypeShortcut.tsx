@@ -331,6 +331,9 @@ export const VotypeShortcut: React.FC<VotypeShortcutProps> = ({
         bindingId: id,
       }).catch((e) => {
         console.error("Failed to start handy-keys recording:", e);
+        if (String(e).includes("secure-input-active")) {
+          toast.error(t("secureInput.recorderBlocked"));
+        }
         return false;
       });
       if (result === false) return;

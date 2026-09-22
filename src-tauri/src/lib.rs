@@ -27,6 +27,7 @@ pub mod phonetic_similarity;
 mod policy_resolver;
 mod provider_gateway;
 mod review_window;
+mod secure_input;
 mod settings;
 mod shortcut;
 mod signal_handle;
@@ -346,7 +347,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     let initial_theme = tray::get_current_theme(app_handle);
 
     // Choose the appropriate initial icon based on theme
-    let initial_icon_path = tray::get_icon_path(initial_theme, tray::TrayIconState::Idle);
+    let initial_icon_path = tray::get_icon_path(initial_theme, tray::TrayIconState::Idle, false);
 
     let tooltip = tray::version_label();
 
@@ -365,6 +366,10 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         .icon_as_template(true)
         .on_menu_event(|app, event| match event.id.as_ref() {
             "settings" => {
+                let _ = utils::show_or_create_main_window(app, Some("dashboard"));
+            }
+            "secure_input_warning" => {
+                // Full explanation lives in the settings-window banner
                 let _ = utils::show_or_create_main_window(app, Some("dashboard"));
             }
             "check_updates" => {
@@ -593,6 +598,8 @@ pub fn run() {
             shortcut::test_cmds::test_asr_model_inference,
             shortcut::handy_keys::start_handy_keys_recording,
             shortcut::handy_keys::stop_handy_keys_recording,
+            secure_input::get_secure_input_status,
+            secure_input::run_keyboard_diagnostic,
             shortcut::skills_cmds::get_all_skills,
             shortcut::skills_cmds::create_skill,
             shortcut::skills_cmds::delete_skill,
@@ -753,6 +760,11 @@ pub fn run() {
             let app_handle = app.handle().clone();
 
             initialize_core_logic(&app_handle);
+
+            // Secure Input monitor (macOS): detects stuck secure input that
+            // silently blocks keyed shortcuts, warns the user, and activates
+            // the Carbon fallback. See secure_input.rs and issue #1578.
+            secure_input::init(&app_handle);
 
             // Show main window unless hidden by CLI flag or settings
             let start_hidden = cli_args.as_ref().map_or(settings.start_hidden, |a| a.start_hidden || settings.start_hidden);
@@ -933,6 +945,8 @@ pub fn run() {
             shortcut::test_cmds::test_asr_model_inference,
             shortcut::handy_keys::start_handy_keys_recording,
             shortcut::handy_keys::stop_handy_keys_recording,
+            secure_input::get_secure_input_status,
+            secure_input::run_keyboard_diagnostic,
             review_window::review_window_ready,
             review_window::review_window_content_ready,
             review_window::resize_review_window,

@@ -1703,5 +1703,16 @@
       "sortBySpeedShort": "By Speed",
       "rankCount": "#{{rank}} ({{count}} times)"
     }
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
+    "blockedWithCulprit_other": "{{name}} may be blocking {{count}} shortcuts",
+    "blockedNoCulprit_one": "macOS is temporarily blocking 1 shortcut",
+    "blockedNoCulprit_other": "macOS is temporarily blocking {{count}} shortcuts",
+    "recorderBlockedWithCulprit": "{{name}} may be blocking shortcut changes",
+    "recorderBlockedNoCulprit": "macOS is temporarily blocking shortcut changes",
+    "learnMore": "How to fix",
+    "recorderBlocked": "Can’t record shortcuts right now — macOS Secure Input is blocking key events. Resolve the Secure Input warning first.",
+    "dismiss": "Dismiss"
   }
 }

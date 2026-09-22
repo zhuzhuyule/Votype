@@ -26,6 +26,9 @@ import {
 const AccessibilityPermissions = lazy(
   () => import("./components/AccessibilityPermissions"),
 );
+const SecureInputWarning = lazy(
+  () => import("./components/SecureInputWarning"),
+);
 const Footer = lazy(() => import("./components/footer"));
 
 // 加载状态组件
@@ -435,6 +438,11 @@ function App() {
                       {showNonCritical && (
                         <Suspense fallback={null}>
                           <AccessibilityPermissions />
+                        </Suspense>
+                      )}
+                      {showNonCritical && (
+                        <Suspense fallback={null}>
+                          <SecureInputWarning />
                         </Suspense>
                       )}
                       {renderSettingsContent(currentSection, navDirection)}

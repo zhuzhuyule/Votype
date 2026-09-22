@@ -52,7 +52,7 @@ estimate: "分 6 期，详见各期"
 | stream:false     | `2211da65`       | 后处理请求显式关闭流式，避免部分端点默认流式返回异常                                                           | ✅   |
 | filler 语言门控  | `4cd49950` #1738 | 双层词表（通用层 + 语言门控层，whatlang/isolang 证据链 ≥0.9 fail-closed），替换 `audio_toolkit/text.rs` 现实现 | ✅   |
 
-### Phase 2 — 音频采集管线（动 recorder，整体对齐）✅ 已完成（待提交）
+### Phase 2 — 音频采集管线（动 recorder，整体对齐）✅ 已完成
 
 | 项                       | 上游参考         | 说明                                                    | 状态                                               |
 | ------------------------ | ---------------- | ------------------------------------------------------- | -------------------------------------------------- |
@@ -88,9 +88,13 @@ estimate: "分 6 期，详见各期"
 - 前端仅接 overlay/review 的 `stream-text-event` 展示，替换现有 realtime_worker_loop 伪流式（保留为流式模型不可用时的回退）。
 - 模型能力位 `supports_streaming` 并入现有 catalog（Phase 2 GGUF 外部化目录）。
 
-### Phase 6 — Secure Input（macOS）
+### Phase 6 — Secure Input（macOS）✅ 已完成
 
-- `d001fcd9` #1785 + `00d25549` #2002：轮询 `IsSecureEventInputEnabled`、占用进程定位、影子快捷键、状态事件；前端最小警告横幅。
+| 项              | 上游参考         | 说明                                                                                                                         | 状态                                                                                 |
+| --------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 监控与状态事件  | `d001fcd9` #1785 | 轮询 `IsSecureEventInputEnabled`、sustained 判定、culprit 定位、`secure-input-changed` 事件、tray 警告图标/菜单项/tooltip    | ✅                                                                                   |
+| Carbon 影子回退 | `00d25549` #2002 | `reconcile_fallback` 序列化注册防丢 release；degraded/uncovered 分类；Cancel 绑定录音期间动态影子注册；录制器拒绝+toast 提示 | ✅（跳过上游 post-process 条件绑定，Votype 无该绑定）                                |
+| 前端横幅        | 同上             | `SecureInputWarning.tsx`（tabler 图标 + plain invoke，未依赖 bindings.ts）；en/zh i18n；`--color-warning` 主题变量           | ✅（KeyboardDiagnostic 调试 UI 按 spec 排除，仅保留 `run_keyboard_diagnostic` 命令） |
 
 ## 验收场景
 

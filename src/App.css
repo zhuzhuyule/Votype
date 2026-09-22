@@ -13,6 +13,7 @@
   --color-logo-stroke: #382731;
   --color-text-stroke: #f6f6f6;
   --color-mid-gray: #808080;
+  --color-warning: #d97706;
 }
 
 :root {
@@ -41,6 +42,7 @@
   --color-logo-stroke: #382731;
   --color-text-stroke: #f6f6f6;
   --color-mid-gray: #808080;
+  --color-warning: #d97706;
 }
 
 :root[data-theme="dark"] {
@@ -51,6 +53,7 @@
   --color-logo-stroke: #fad1ed;
   --color-text-stroke: #ffffff;
   --color-mid-gray: #c5c5c5;
+  --color-warning: #fbbf24;
 }
 
 .custom-select-trigger .rt-SelectIcon {

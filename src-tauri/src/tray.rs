@@ -50,8 +50,21 @@ pub fn get_current_theme(app: &AppHandle) -> AppTheme {
     }
 }
 
-/// Gets the appropriate icon path for the given theme and state
-pub fn get_icon_path(theme: AppTheme, state: TrayIconState) -> &'static str {
+/// Gets the appropriate icon path for the given theme and state.
+///
+/// `warning` overlays a badge on the idle icon while keyboard shortcuts are
+/// blocked (macOS Secure Input); recording/transcribing states keep their
+/// normal icons so in-flight activity stays recognizable.
+pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'static str {
+    if warning && state == TrayIconState::Idle {
+        return match theme {
+            AppTheme::Dark => "resources/tray_idle_warning.png",
+            AppTheme::Light => "resources/tray_idle_warning_dark.png",
+            // Linux never sets the warning flag (Secure Input is macOS-only),
+            // but fall back to the normal icon just in case.
+            AppTheme::Colored => "resources/votype.png",
+        };
+    }
     match (theme, state) {
         // Dark theme uses light icons
         (AppTheme::Dark, TrayIconState::Idle) => "resources/tray_idle.png",
@@ -76,7 +89,8 @@ pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
     let tray = app.state::<TrayIcon>();
     let theme = get_current_theme(app);
 
-    let icon_path = get_icon_path(theme, icon.clone());
+    let warning = crate::secure_input::tray_warning_active(app);
+    let icon_path = get_icon_path(theme, icon.clone(), warning);
 
     let _ = tray.set_icon(Some(
         Image::from_path(
@@ -91,12 +105,28 @@ pub fn change_tray_icon(app: &AppHandle, icon: TrayIconState) {
     update_tray_menu(app, &icon);
 }
 
+/// Re-apply the icon and menu for the current managed state. Used when the
+/// Secure Input warning toggles without any recording-state change.
+pub fn refresh_tray_icon(app: &AppHandle) {
+    if app.try_state::<TrayIcon>().is_none() {
+        return; // tray not built yet
+    }
+    let state = app
+        .state::<ManagedTrayIconState>()
+        .0
+        .lock()
+        .map(|s| s.clone())
+        .unwrap_or(TrayIconState::Idle);
+    change_tray_icon(app, state);
+}
+
 #[derive(Clone, Copy)]
 enum TrayTextKey {
     Settings,
     CheckForUpdates,
     Quit,
     Cancel,
+    SecureInputWarning,
 }
 
 fn tray_text(lang_code: &str, key: TrayTextKey) -> &'static str {
@@ -112,6 +142,7 @@ fn tray_text(lang_code: &str, key: TrayTextKey) -> &'static str {
         ("zh", TrayTextKey::CheckForUpdates) => "检查更新...",
         ("zh", TrayTextKey::Quit) => "退出",
         ("zh", TrayTextKey::Cancel) => "取消",
+        ("zh", TrayTextKey::SecureInputWarning) => "部分快捷键被 macOS 阻止",
 
         // Japanese
         ("ja", TrayTextKey::Settings) => "設定...",
@@ -148,6 +179,7 @@ fn tray_text(lang_code: &str, key: TrayTextKey) -> &'static str {
         (_, TrayTextKey::CheckForUpdates) => "Check for Updates...",
         (_, TrayTextKey::Quit) => "Quit",
         (_, TrayTextKey::Cancel) => "Cancel",
+        (_, TrayTextKey::SecureInputWarning) => "Some shortcuts blocked by macOS",
     }
 }
 
@@ -228,9 +260,28 @@ pub fn update_tray_menu(app: &AppHandle, state: &TrayIconState) {
         .expect("failed to create menu"),
     };
 
+    // Secure Input warning entry (macOS): clicking opens the settings window
+    // where the banner explains the situation. Slot it right below the
+    // version line so it's the first actionable thing seen.
+    let mut tooltip = version_label;
+    if crate::secure_input::tray_warning_active(app) {
+        let warning_i = MenuItem::with_id(
+            app,
+            "secure_input_warning",
+            tray_text(&settings.app_language, TrayTextKey::SecureInputWarning),
+            true,
+            None::<&str>,
+        )
+        .expect("failed to create secure input warning item");
+        let _ = menu.insert(&warning_i, 2);
+        let _ = menu.insert(&separator(), 3);
+        tooltip = format!("{} — {}", tooltip, warning_i.text().unwrap_or_default());
+    }
+
     let tray = app.state::<TrayIcon>();
     let _ = tray.set_menu(Some(menu));
     let _ = tray.set_icon_as_template(true);
+    let _ = tray.set_tooltip(Some(tooltip));
 }
 
 pub fn set_tray_visibility(app: &AppHandle, visible: bool) {

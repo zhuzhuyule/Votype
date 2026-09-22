@@ -1703,5 +1703,16 @@
       "description": "将描述显示为问号提示"
     },
     "title": "主题"
+  },
+  "secureInput": {
+    "blockedWithCulprit_one": "{{name}} 可能正在阻止 1 个快捷键",
+    "blockedWithCulprit_other": "{{name}} 可能正在阻止 {{count}} 个快捷键",
+    "blockedNoCulprit_one": "macOS 正在暂时阻止 1 个快捷键",
+    "blockedNoCulprit_other": "macOS 正在暂时阻止 {{count}} 个快捷键",
+    "recorderBlockedWithCulprit": "{{name}} 可能正在阻止快捷键更改",
+    "recorderBlockedNoCulprit": "macOS 正在暂时阻止快捷键更改",
+    "learnMore": "如何解决",
+    "recorderBlocked": "当前无法录制快捷键——macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
+    "dismiss": "关闭"
   }
 }
