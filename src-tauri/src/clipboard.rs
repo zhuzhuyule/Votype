@@ -19,7 +19,15 @@ fn paste_via_clipboard(
     paste_method: &PasteMethod,
 ) -> Result<(), String> {
     let clipboard = app_handle.clipboard();
-    let clipboard_content = clipboard.read_text().unwrap_or_default();
+    let saved_text = clipboard.read_text().ok().filter(|t| !t.is_empty());
+    // Only probe for an image when there is no text to restore. Text is by far the
+    // common case, and reading an image decodes the full bitmap, so this keeps the
+    // text path exactly as cheap as it was before.
+    let saved_image = if saved_text.is_none() {
+        clipboard.read_image().ok().map(|image| image.to_owned())
+    } else {
+        None
+    };
 
     clipboard
         .write_text(text)
@@ -34,18 +42,30 @@ fn paste_via_clipboard(
 
     if !pasted_with_wayland_tool {
         match paste_method {
-            PasteMethod::CtrlV => input::send_paste_ctrl_v(enigo)?,
-            PasteMethod::CtrlShiftV => input::send_paste_ctrl_shift_v(enigo)?,
+            // The legacy path cannot detect a mistimed chord, so it keeps the
+            // conservative 100ms modifier hold.
+            PasteMethod::CtrlV => input::send_paste_ctrl_v(enigo, 100)?,
+            PasteMethod::CtrlShiftV => input::send_paste_ctrl_shift_v(enigo, 100)?,
             #[cfg(not(target_os = "macos"))]
-            PasteMethod::ShiftInsert => input::send_paste_shift_insert(enigo)?,
+            PasteMethod::ShiftInsert => input::send_paste_shift_insert(enigo, 100)?,
             _ => return Err("Invalid paste method for clipboard paste".into()),
         }
     }
 
     std::thread::sleep(std::time::Duration::from_millis(50));
-    clipboard
-        .write_text(&clipboard_content)
-        .map_err(|e| format!("Failed to restore clipboard: {}", e))?;
+    // Restore original clipboard content.
+    // Text takes priority so this path stays identical to the previous behavior;
+    // an image is only restored when the clipboard held no text at all, which is
+    // the case that used to silently wipe screenshots (#1231).
+    if let Some(clipboard_content) = saved_text {
+        let _ = clipboard.write_text(&clipboard_content);
+    } else if let Some(image) = saved_image {
+        info!("Restoring image to clipboard");
+        let _ = clipboard.write_image(&image);
+    } else {
+        // Nothing was there to begin with — don't leave the transcription behind.
+        let _ = clipboard.clear();
+    }
 
     Ok(())
 }
@@ -177,6 +197,28 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
         .as_mut()
         .ok_or("Failed to initialize input system")?;
 
+    // Debug-gated receipt-sequenced paste (#502): restore the clipboard after
+    // the target actually reads the transcript, not on a timer. On success it
+    // fully handles the paste (including auto-submit and clipboard handling)
+    // asynchronously; on failure fall through to the legacy path untouched.
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    if settings.reliable_paste && is_reliable_paste_candidate(&paste_method) {
+        match crate::paste_tx::try_reliable_paste(
+            &text,
+            &app_handle,
+            &paste_method,
+            enigo,
+            settings.auto_submit,
+            settings.auto_submit_key,
+            settings.clipboard_handling,
+        ) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                log::warn!("Reliable paste unavailable ({e}); falling back to legacy paste")
+            }
+        }
+    }
+
     // Perform the paste operation
     match paste_method {
         PasteMethod::None => {
@@ -247,7 +289,7 @@ pub fn get_selected_text(_app_handle: &AppHandle) -> Result<String, String> {
     }
 }
 
-fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), String> {
+pub(crate) fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), String> {
     match key_type {
         AutoSubmitKey::Enter => {
             enigo
@@ -292,6 +334,18 @@ fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Result<(), Str
 
 fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool {
     auto_submit && paste_method != PasteMethod::None
+}
+
+/// Clipboard-chord methods the receipt-sequenced path can drive on this OS
+/// (mirrors the arms handled by `paste_via_clipboard`).
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+fn is_reliable_paste_candidate(method: &PasteMethod) -> bool {
+    match method {
+        PasteMethod::CtrlV | PasteMethod::CtrlShiftV => true,
+        #[cfg(not(target_os = "macos"))]
+        PasteMethod::ShiftInsert => true,
+        _ => false,
+    }
 }
 
 fn should_use_selection_clipboard_fallback(
@@ -464,11 +518,11 @@ fn get_selected_text_via_clipboard_fallback(app_handle: &AppHandle) -> Result<St
 fn get_clipboard_change_count() -> isize {
     use objc2::rc::Retained;
     use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send, msg_send_id};
+    use objc2::{class, msg_send};
 
     unsafe {
         let cls = class!(NSPasteboard);
-        let pasteboard: Option<Retained<AnyObject>> = msg_send_id![cls, generalPasteboard];
+        let pasteboard: Option<Retained<AnyObject>> = msg_send![cls, generalPasteboard];
         match pasteboard {
             Some(pasteboard) => msg_send![&*pasteboard, changeCount],
             None => 0,

@@ -890,6 +890,10 @@
         "label": "声音主题"
       },
       "title": "调试",
+      "reliablePaste": {
+        "title": "可靠粘贴（Beta）",
+        "description": "在目标应用真正读取转录文本之后才恢复剪贴板，而不是固定延迟后恢复。用于修复系统负载高时把旧剪贴板内容粘贴出来的问题。需使用剪贴板类粘贴方式；仅支持 macOS 和 Windows。"
+      },
       "updateChecks": {
         "description": "自动检查 Votype 的新版本",
         "label": "检查更新"

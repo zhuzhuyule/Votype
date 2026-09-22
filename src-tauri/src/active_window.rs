@@ -158,16 +158,15 @@ fn get_window_title_via_accessibility(pid: u64) -> Result<String, String> {
 pub fn safe_fetch_frontmost_app_macos() -> Result<ActiveWindowInfo, String> {
     use objc2::rc::Retained;
     use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send, msg_send_id};
+    use objc2::{class, msg_send};
     use std::ffi::CStr;
     use std::os::raw::c_char;
 
     unsafe {
         let workspace_cls = class!(NSWorkspace);
-        let workspace: Retained<AnyObject> = msg_send_id![workspace_cls, sharedWorkspace];
+        let workspace: Retained<AnyObject> = msg_send![workspace_cls, sharedWorkspace];
 
-        let frontmost: Option<Retained<AnyObject>> =
-            msg_send_id![&*workspace, frontmostApplication];
+        let frontmost: Option<Retained<AnyObject>> = msg_send![&*workspace, frontmostApplication];
         let app = frontmost.ok_or_else(|| "frontmostApplication returned nil".to_string())?;
 
         let pid_i32: i32 = msg_send![&*app, processIdentifier];
@@ -186,10 +185,10 @@ pub fn safe_fetch_frontmost_app_macos() -> Result<ActiveWindowInfo, String> {
             Some(CStr::from_ptr(utf8).to_string_lossy().into_owned())
         };
 
-        let name_obj: Option<Retained<AnyObject>> = msg_send_id![&*app, localizedName];
+        let name_obj: Option<Retained<AnyObject>> = msg_send![&*app, localizedName];
         let app_name = read_ns_string(name_obj).unwrap_or_else(|| "Unknown".to_string());
 
-        let bundle_obj: Option<Retained<AnyObject>> = msg_send_id![&*app, bundleIdentifier];
+        let bundle_obj: Option<Retained<AnyObject>> = msg_send![&*app, bundleIdentifier];
         let bundle_id = read_ns_string(bundle_obj).unwrap_or_default();
 
         Ok(ActiveWindowInfo {
@@ -224,7 +223,7 @@ pub fn fetch_cursor_position() -> Result<CursorPosition, String> {
 pub fn focus_app_by_pid(pid: u64) -> Result<(), String> {
     use objc2::rc::Retained;
     use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send, msg_send_id};
+    use objc2::{class, msg_send};
 
     let pid_i32 = pid as i32;
 
@@ -235,7 +234,7 @@ pub fn focus_app_by_pid(pid: u64) -> Result<(), String> {
     unsafe {
         let cls = class!(NSRunningApplication);
         let app: Option<Retained<AnyObject>> =
-            msg_send_id![cls, runningApplicationWithProcessIdentifier: pid_i32];
+            msg_send![cls, runningApplicationWithProcessIdentifier: pid_i32];
 
         match app {
             Some(app) => {

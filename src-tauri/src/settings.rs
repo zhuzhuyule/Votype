@@ -921,6 +921,12 @@ pub struct AppSettings {
     pub recording_retention_period: RecordingRetentionPeriod,
     #[serde(default)]
     pub paste_method: PasteMethod,
+    /// Beta, debug-gated: receipt-sequenced clipboard paste (see `paste_tx`).
+    /// The previous clipboard is restored only after the paste target actually
+    /// reads the transcript, instead of after a fixed delay. Falls back to the
+    /// legacy paste when the transaction cannot start.
+    #[serde(default)]
+    pub reliable_paste: bool,
     #[serde(default)]
     pub clipboard_handling: ClipboardHandling,
     #[serde(default = "default_auto_submit")]
@@ -1770,6 +1776,7 @@ pub fn get_default_settings() -> AppSettings {
         history_limit: default_history_limit(),
         recording_retention_period: default_recording_retention_period(),
         paste_method: PasteMethod::default(),
+        reliable_paste: false,
         clipboard_handling: ClipboardHandling::default(),
         auto_submit: default_auto_submit(),
         auto_submit_key: AutoSubmitKey::default(),

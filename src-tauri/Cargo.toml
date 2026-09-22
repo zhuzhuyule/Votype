@@ -122,9 +122,12 @@ windows = { version = "0.61.3", features = [
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", branch = "v2.1" }
-objc2 = "0.5"
+# Versions track objc2-app-kit 0.3, which resolves against objc2 0.6 (the
+# receipt-sequenced paste path defines an NSPasteboard owner class).
+objc2 = "0.6"
 block2 = "0.6"
-objc2-app-kit = { version = "0.3", default-features = false, features = ["NSEvent", "block2"] }
+objc2-foundation = "0.3"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["NSEvent", "block2", "NSPasteboard"] }
 core-foundation = "0.10"
 core-graphics = "0.24"
 # transcribe.cpp engine migration (plan B) — GGUF/ggml engine with Metal

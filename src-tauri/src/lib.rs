@@ -25,6 +25,7 @@ mod managers;
 mod online_asr;
 mod openai_api_server;
 mod overlay;
+mod paste_tx;
 pub mod phonetic_similarity;
 mod policy_resolver;
 mod provider_gateway;
@@ -807,6 +808,7 @@ pub fn run() {
             shortcut::resume_binding,
             shortcut::settings_cmds::change_activation_mode_setting,
             shortcut::settings_cmds::change_hold_threshold_ms_setting,
+            shortcut::settings_cmds::change_reliable_paste_setting,
             shortcut::settings_cmds::change_audio_feedback_setting,
             shortcut::settings_cmds::change_audio_feedback_volume_setting,
             shortcut::settings_cmds::change_sound_theme_setting,

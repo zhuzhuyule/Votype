@@ -66,19 +66,20 @@ estimate: "分 6 期，详见各期"
 | 断连回退默认麦克风       | `c89b7bf3` #1874 |                                                         | ✅ DesiredMicrophone/回退持久化 + settings-changed |
 | mic level 校准           | `76b44d83` #1813 | 修平 meter 不动的问题                                   | ➖ 降级为实测调参（见偏差表）                      |
 
-### Phase 3 — 可靠粘贴 `paste_tx/`
+### Phase 3 — 可靠粘贴 `paste_tx/` ✅ 已完成
 
 - 上游参考：`a70ac84f` #1812、`b1b2d9f9` #1847、`3ed2b219` #1231（保留非文本剪贴板内容）、`bc7facea`（paste delay 上限）。
-- 移植 `TxState`/`evaluate` 平台无关核心 + macOS `NSPasteboard` 懒承诺路径；Windows 延迟渲染路径本期只做骨架。
-- 与 Votype 现有 `clipboard.rs` paste-and-restore 合并，`settings.reliable_paste` 默认关、失败回退 legacy。
+- 移植 `TxState`/`evaluate` 平台无关核心 + macOS `NSPasteboard` 懒承诺路径；Windows 延迟渲染路径本期只做骨架。✅
+- 与 Votype 现有 `clipboard.rs` paste-and-restore 合并，`settings.reliable_paste` 默认关、失败回退 legacy。✅
+- `3ed2b219` 一并移植：legacy 路径剪贴板快照支持图片（无文本时才探测，修复截图被清）；`b1b2d9f9` 纯 Windows、`bc7facea` 前端 PasteDelay Votype 无对应组件，均跳过。
 
 ### Phase 4 — VAD 与快捷键交互 ✅ 已完成（6abffd39 / e4ca678a / cf1adc97）
 
-| 项                         | 上游参考                            | 说明                                                                     | 状态                                                                                                        |
-| -------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| compound shortcut 名称修复 | `141f981d` #1862                    | 紧凑存储名 + 展示标签分离；双后端解析测试                                | ✅（keyboard.ts 适配 Votype parseKeyCombination 结构；随带 handy-keys 0.3.2→0.3.4 以获得 printscreen 解析） |
-| reset binding ID 校验      | `a6eed754` #2033                    | `get_stored_binding(&AppSettings, id) -> Result` + 2 测试                | ✅                                                                                                          |
-| earshot VAD                | `20ada47d` #1967                    | `VoiceActivityDetector` trait 抽象（Phase 2 已铺好），`vad_backend` 设置 | ✅（command 放 commands/audio.rs 无 specta，前端 plain invoke；Selector 挂专家模式组）                      |
+| 项                         | 上游参考                            | 说明                                                                     | 状态                                                                                                                                         |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| compound shortcut 名称修复 | `141f981d` #1862                    | 紧凑存储名 + 展示标签分离；双后端解析测试                                | ✅（keyboard.ts 适配 Votype parseKeyCombination 结构；随带 handy-keys 0.3.2→0.3.4 以获得 printscreen 解析）                                  |
+| reset binding ID 校验      | `a6eed754` #2033                    | `get_stored_binding(&AppSettings, id) -> Result` + 2 测试                | ✅                                                                                                                                           |
+| earshot VAD                | `20ada47d` #1967                    | `VoiceActivityDetector` trait 抽象（Phase 2 已铺好），`vad_backend` 设置 | ✅（command 放 commands/audio.rs 无 specta，前端 plain invoke；Selector 挂专家模式组）                                                       |
 | activation 状态机          | `c62a5fcd` #1971 + `c6fa60da` #1910 | Auto PTT + toggle 奇偶性，对齐 coordinator start/stop                    | ✅（纯 CoordinatorState 整机上提，命名映射 Hold=PTT；hold_threshold_ms 设置+滑块仅自动模式显示；overlay generation Votype 已有等效机制跳过） |
 
 ### Phase 5 — 引擎级流式转录（重大）
@@ -130,12 +131,15 @@ estimate: "分 6 期，详见各期"
 
 ## Implementation Deviations
 
-| Phase | 计划                                                                                     | 实际                                                                                                              | 原因                                                                                                              |
-| ----- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| 1     | filler 语言门控按上游用 supported_languages 目录约束 `detect_output_language`            | 暂传空列表（无约束检测）                                                                                          | Votype 模型目录无逐语言 supported-languages 元数据，桥接留待 Phase 5 引擎升级时接入                               |
-| 1     | 上游 FillerWordRemoval 完整 UI 开关组件                                                  | 仅 settings 字段 `filler_word_removal_enabled` + `change_filler_word_removal_enabled_setting` 命令，未加设置页 UI | UI 按总纲约定最小接线；开关可后续补（已补：cf1adc97 加 ToggleSwitch 挂专家模式转录优化组，同批补插入黑名单开关+命令） |
-| 1     | 顺带修复 dev 上已存在的 doctest 失败（phonetic_similarity 示例缺 `use`）                 | 已修（1 行）                                                                                                      | 阻塞 `cargo test` 全绿验证，与 Phase 1 无逻辑关联，单独说明                                                       |
-| 2     | #1813 mic level 校准按上游常量直接移植                                                   | 不移植常量，仅采纳其自适应 FFT 窗长（CaptureProcessor 内按采样率选窗）                                            | Votype `visualizer.rs` 已深度魔改（双参 feed/显示曲线），上游 -68/-30 dBFS 常量不适用；meter 平直问题留待实测调参 |
-| 2     | recorder 重写保留 Votype 全部周期性调试日志（[audio-input]/[waveform]/[audio-spectrum]） | 删除周期性 dump，保留录音起止 [audio-debug] 汇总与首块延迟日志                                                    | 实时安全回调不能日志；消费线程保留同类统计会显著增加移植偏差，按上游结构收敛                                      |
-| 2     | auto_enhance（AudioInputEnhancer）留在 cpal 回调内                                       | 移入 CaptureProcessor::process_raw_chunk（消费线程）                                                              | 上游新架构要求回调 allocation/lock-free；增强属重计算，放消费线程是唯一落点                                       |
-| 2     | 同步 `audio_toolkit/bin/cli.rs` 到新 recorder API                                        | 不动（HEAD 即编译不过：3 参 SmoothedVad 旧签名）                                                                  | Cargo.toml `[[bin]]` 已注释，属停用死代码，避免无意义改动                                                         |
+| Phase | 计划                                                                                     | 实际                                                                                                                  | 原因                                                                                                                  |
+| ----- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1     | filler 语言门控按上游用 supported_languages 目录约束 `detect_output_language`            | 暂传空列表（无约束检测）                                                                                              | Votype 模型目录无逐语言 supported-languages 元数据，桥接留待 Phase 5 引擎升级时接入                                   |
+| 1     | 上游 FillerWordRemoval 完整 UI 开关组件                                                  | 仅 settings 字段 `filler_word_removal_enabled` + `change_filler_word_removal_enabled_setting` 命令，未加设置页 UI     | UI 按总纲约定最小接线；开关可后续补（已补：cf1adc97 加 ToggleSwitch 挂专家模式转录优化组，同批补插入黑名单开关+命令） |
+| 1     | 顺带修复 dev 上已存在的 doctest 失败（phonetic_similarity 示例缺 `use`）                 | 已修（1 行）                                                                                                          | 阻塞 `cargo test` 全绿验证，与 Phase 1 无逻辑关联，单独说明                                                           |
+| 2     | #1813 mic level 校准按上游常量直接移植                                                   | 不移植常量，仅采纳其自适应 FFT 窗长（CaptureProcessor 内按采样率选窗）                                                | Votype `visualizer.rs` 已深度魔改（双参 feed/显示曲线），上游 -68/-30 dBFS 常量不适用；meter 平直问题留待实测调参     |
+| 2     | recorder 重写保留 Votype 全部周期性调试日志（[audio-input]/[waveform]/[audio-spectrum]） | 删除周期性 dump，保留录音起止 [audio-debug] 汇总与首块延迟日志                                                        | 实时安全回调不能日志；消费线程保留同类统计会显著增加移植偏差，按上游结构收敛                                          |
+| 2     | auto_enhance（AudioInputEnhancer）留在 cpal 回调内                                       | 移入 CaptureProcessor::process_raw_chunk（消费线程）                                                                  | 上游新架构要求回调 allocation/lock-free；增强属重计算，放消费线程是唯一落点                                           |
+| 2     | 同步 `audio_toolkit/bin/cli.rs` 到新 recorder API                                        | 不动（HEAD 即编译不过：3 参 SmoothedVad 旧签名）                                                                      | Cargo.toml `[[bin]]` 已注释，属停用死代码，避免无意义改动                                                             |
+| 3     | Windows 延迟渲染路径"只做骨架"                                                           | `paste_tx/windows.rs` 仅返回 Err 的占位桩，调用方自动回退 legacy                                                      | 平台优先级 macOS 先行决策；骨架保持模块结构完整，后续期直接填充 WM_RENDERFORMAT 实现                                  |
+| 3     | 依赖按上游直接加 objc2 0.6 三件套                                                        | Votype 直依赖 objc2 0.5→0.6 升级；顺带把 active_window/overlay/clipboard 三处已废弃 `msg_send_id!` 迁移为 `msg_send!` | objc2-app-kit 0.3 解析到 objc2 0.6，避免双版本共存混乱；0.6 下 msg_send_id 全面废弃（11 条告警），迁移为一行级替换    |
+| 3     | `bc7facea` PasteDelay 前端上限                                                           | 不移植                                                                                                                | Votype 前端无 PasteDelay 组件（仅存 i18n 残留与 specta 命令），无对应改动点                                           |

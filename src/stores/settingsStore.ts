@@ -151,6 +151,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   hold_threshold_ms: 300,
   filler_word_removal_enabled: true,
   insert_blacklist_enabled: true,
+  reliable_paste: false,
   selected_microphone: "Default",
   clamshell_microphone: "Default",
   selected_output_device: "Default",
@@ -285,6 +286,8 @@ const settingUpdaters: {
     invoke("change_word_correction_threshold_setting", { threshold: value }),
   paste_method: (value) =>
     invoke("change_paste_method_setting", { method: value }),
+  reliable_paste: (value) =>
+    invoke("change_reliable_paste_setting", { enabled: value }),
   clipboard_handling: (value) =>
     invoke("change_clipboard_handling_setting", { handling: value }),
   auto_submit: (value) =>

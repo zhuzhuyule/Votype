@@ -254,6 +254,7 @@ export const SettingsSchema = z.object({
   recording_retention_period:
     RecordingRetentionPeriodSchema.optional().default("preserve_limit"),
   paste_method: PasteMethodSchema.optional().default("ctrl_v"),
+  reliable_paste: z.boolean().optional().default(false),
   clipboard_handling: ClipboardHandlingSchema.optional().default("dont_modify"),
   auto_submit: z.boolean().optional().default(false),
   auto_submit_key: AutoSubmitKeySchema.optional().default("enter"),

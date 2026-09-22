@@ -1097,6 +1097,16 @@ pub fn change_hold_threshold_ms_setting(app: AppHandle, ms: u64) -> Result<(), S
     Ok(())
 }
 
+// Registered in `generate_handler!` only (no specta): keeps bindings.ts in sync
+// without regeneration; the frontend calls it via plain `invoke`.
+#[tauri::command]
+pub fn change_reliable_paste_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.reliable_paste = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

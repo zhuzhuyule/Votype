@@ -726,7 +726,7 @@ pub fn emit_levels(app_handle: &AppHandle, levels: &[f32]) {
 pub fn focus_recording_overlay(app_handle: &AppHandle) {
     use objc2::rc::Retained;
     use objc2::runtime::AnyObject;
-    use objc2::{class, msg_send, msg_send_id};
+    use objc2::{class, msg_send};
     use tauri_nspanel::ManagerExt;
 
     let app_handle_inner = app_handle.clone();
@@ -742,7 +742,7 @@ pub fn focus_recording_overlay(app_handle: &AppHandle) {
 
             // Call +[NSRunningApplication runningApplicationWithProcessIdentifier:]
             let app: Option<Retained<AnyObject>> =
-                msg_send_id![cls, runningApplicationWithProcessIdentifier: pid];
+                msg_send![cls, runningApplicationWithProcessIdentifier: pid];
 
             if let Some(app) = app {
                 // NSApplicationActivateIgnoringOtherApps = 1 << 1 = 2

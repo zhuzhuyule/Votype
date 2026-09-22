@@ -33,6 +33,7 @@ import { LogDirectory } from "../debug/LogDirectory";
 import { LogLevelSelector } from "../debug/LogLevelSelector";
 import { OfflineVadRealtimeInterval } from "../debug/OfflineVadRealtimeInterval";
 import { OfflineVadRealtimeWindow } from "../debug/OfflineVadRealtimeWindow";
+import { ReliablePaste } from "../debug/ReliablePaste";
 import { WordCorrectionThreshold } from "../debug/WordCorrectionThreshold";
 
 const PROXY_PROTOCOLS = ["http", "https", "socks5", "socks5h"] as const;
@@ -639,6 +640,7 @@ export const AdvancedSettings: React.FC = () => {
           <WordCorrectionThreshold descriptionMode="inline" grouped={true} />
           <OfflineVadRealtimeInterval descriptionMode="inline" grouped={true} />
           <OfflineVadRealtimeWindow descriptionMode="inline" grouped={true} />
+          <ReliablePaste descriptionMode="inline" grouped={true} />
           <DebugLogChannels />
         </SettingsGroup>
       )}

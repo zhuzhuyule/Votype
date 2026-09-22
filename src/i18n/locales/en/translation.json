@@ -841,6 +841,10 @@
         "label": "Sound Theme"
       },
       "title": "Debug",
+      "reliablePaste": {
+        "title": "Reliable Paste (Beta)",
+        "description": "Restore the clipboard only after the target app actually reads the transcription, instead of after a fixed delay. Intended to fix old clipboard content being pasted under system load. Requires a clipboard paste method; macOS and Windows only."
+      },
       "updateChecks": {
         "description": "Automatically check for new versions of Votype",
         "label": "Check for Updates"
