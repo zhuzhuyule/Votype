@@ -2350,9 +2350,12 @@ pub fn get_bindings(app: &AppHandle) -> HashMap<String, ShortcutBinding> {
     settings.bindings
 }
 
-pub fn get_stored_binding(app: &AppHandle, id: &str) -> Option<ShortcutBinding> {
-    let bindings = get_bindings(app);
-    bindings.get(id).cloned()
+pub fn get_stored_binding(settings: &AppSettings, id: &str) -> Result<ShortcutBinding, String> {
+    settings
+        .bindings
+        .get(id)
+        .cloned()
+        .ok_or_else(|| format!("Binding with id '{}' not found", id))
 }
 
 pub fn get_history_limit(app: &AppHandle) -> usize {
@@ -2393,6 +2396,24 @@ mod tests {
         let settings = get_default_settings();
         assert!(!settings.auto_submit);
         assert_eq!(settings.auto_submit_key, AutoSubmitKey::Enter);
+    }
+
+    #[test]
+    fn stored_binding_returns_the_requested_binding() {
+        let settings = get_default_settings();
+
+        let result = get_stored_binding(&settings, "transcribe");
+
+        assert_eq!(result.unwrap().id, "transcribe");
+    }
+
+    #[test]
+    fn unknown_stored_binding_returns_an_error() {
+        let settings = get_default_settings();
+
+        let result = get_stored_binding(&settings, "unknown");
+
+        assert_eq!(result.unwrap_err(), "Binding with id 'unknown' not found");
     }
 
     #[test]

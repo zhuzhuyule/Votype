@@ -144,8 +144,7 @@ pub fn change_binding(
 #[tauri::command]
 #[specta::specta]
 pub fn reset_binding(app: AppHandle, id: String) -> Result<BindingResponse, String> {
-    let binding = settings::get_stored_binding(&app, &id)
-        .ok_or_else(|| format!("Unknown binding: {}", id))?;
+    let binding = settings::get_stored_binding(&settings::get_settings(&app), &id)?;
     change_binding(app, id, binding.default_binding)
 }
 
@@ -291,4 +290,25 @@ fn register_all_shortcuts_for_implementation(
 
 fn initialize_handy_keys_with_rollback(app: &AppHandle) -> Result<bool, String> {
     handy_keys::init_shortcuts(app).map(|_| true)
+}
+
+#[cfg(test)]
+mod tests {
+    use handy_keys::Hotkey;
+    use tauri_plugin_global_shortcut::Shortcut;
+
+    #[test]
+    fn compound_shortcut_keys_parse_on_both_backends() {
+        for key in [
+            "scrolllock",
+            "capslock",
+            "numlock",
+            "pageup",
+            "pagedown",
+            "printscreen",
+        ] {
+            assert!(key.parse::<Shortcut>().is_ok(), "Tauri rejected {key}");
+            assert!(key.parse::<Hotkey>().is_ok(), "HandyKeys rejected {key}");
+        }
+    }
 }

@@ -43,28 +43,28 @@ estimate: "分 6 期，详见各期"
 
 ## 分期清单
 
-### Phase 1 — 后处理与文本小修复（低风险，独立）
+### Phase 1 — 后处理与文本小修复（低风险，独立）✅ 已完成（e4640df3）
 
-| 项               | 上游参考         | 说明                                                                                                           |
-| ---------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |
-| 重试去 reasoning | `148e5492` #1809 | LLM 400/422 时一次性去掉 reasoning 字段重试；接入 `core.rs` 与 `extensions.rs` 两条执行路径                    |
-| 压缩响应修复     | `1bcbfc4c` #1548 | LLM HTTP 客户端支持 gzip/brotli 响应解压                                                                       |
-| stream:false     | `2211da65`       | 后处理请求显式关闭流式，避免部分端点默认流式返回异常                                                           |
-| filler 语言门控  | `4cd49950` #1738 | 双层词表（通用层 + 语言门控层，whatlang/isolang 证据链 ≥0.9 fail-closed），替换 `audio_toolkit/text.rs` 现实现 |
+| 项               | 上游参考         | 说明                                                                                                           | 状态 |
+| ---------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- | ---- |
+| 重试去 reasoning | `148e5492` #1809 | LLM 400/422 时一次性去掉 reasoning 字段重试；接入 `core.rs` 与 `extensions.rs` 两条执行路径                    | ✅   |
+| 压缩响应修复     | `1bcbfc4c` #1548 | LLM HTTP 客户端支持 gzip/brotli 响应解压                                                                       | ✅   |
+| stream:false     | `2211da65`       | 后处理请求显式关闭流式，避免部分端点默认流式返回异常                                                           | ✅   |
+| filler 语言门控  | `4cd49950` #1738 | 双层词表（通用层 + 语言门控层，whatlang/isolang 证据链 ≥0.9 fail-closed），替换 `audio_toolkit/text.rs` 现实现 | ✅   |
 
-### Phase 2 — 音频采集管线（动 recorder，整体对齐）
+### Phase 2 — 音频采集管线（动 recorder，整体对齐）✅ 已完成（待提交）
 
-| 项                       | 上游参考         | 说明                                                    |
-| ------------------------ | ---------------- | ------------------------------------------------------- |
-| 空闲跳过 level/resampler | `db003f38` #1873 | always-on 模式下非录音帧不做 FFT/重采样                 |
-| mic level 校准           | `76b44d83` #1813 | 修平 meter 不动的问题                                   |
-| 尾部音频保护             | `df216832` #1958 | stop 时冲刷重采样器残留 + VadTailReport + 加长 hangover |
-| cpal 阻塞出主线程        | `b4453a29` #1716 | lock-free is_recording                                  |
-| mic callback 实时安全    | `d54c88eb` #1954 | rtrb 无锁环 + capture worker（整文件级对齐）            |
-| capture worker 死亡恢复  | `a4348beb` #1838 | 自动重建流                                              |
-| 断连回退默认麦克风       | `c89b7bf3` #1874 |                                                         |
-| 无音频录音后卸载模型     | `dc5bdc9d` #2106 |                                                         |
-| 模型文件被删恢复         | `e4ae0d44` #1918 | 优雅提示 + 可重下                                       |
+| 项                       | 上游参考         | 说明                                                    | 状态                                               |
+| ------------------------ | ---------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| 无音频录音后卸载模型     | `dc5bdc9d` #2106 |                                                         | ✅                                                 |
+| 模型文件被删恢复         | `e4ae0d44` #1918 | 优雅提示 + 可重下                                       | ✅                                                 |
+| cpal 阻塞出主线程        | `b4453a29` #1716 | lock-free is_recording                                  | ✅                                                 |
+| 尾部音频保护             | `df216832` #1958 | stop 时冲刷重采样器残留 + VadTailReport + 加长 hangover | ✅                                                 |
+| mic callback 实时安全    | `d54c88eb` #1954 | rtrb 无锁环 + capture worker（整文件级对齐）            | ✅                                                 |
+| 空闲跳过 level/resampler | `db003f38` #1873 | always-on 模式下非录音帧不做 FFT/重采样                 | ✅ 由 #1954 移植吸收（ChunkDisposition::Discard）  |
+| capture worker 死亡恢复  | `a4348beb` #1838 | 自动重建流                                              | ✅ needs_reopen + manager 检测重建                 |
+| 断连回退默认麦克风       | `c89b7bf3` #1874 |                                                         | ✅ DesiredMicrophone/回退持久化 + settings-changed |
+| mic level 校准           | `76b44d83` #1813 | 修平 meter 不动的问题                                   | ➖ 降级为实测调参（见偏差表）                      |
 
 ### Phase 3 — 可靠粘贴 `paste_tx/`
 
@@ -74,9 +74,12 @@ estimate: "分 6 期，详见各期"
 
 ### Phase 4 — VAD 与快捷键交互
 
-- earshot VAD：`20ada47d` #1967；引入 `VoiceActivityDetector` trait 抽象（若 Phase 2 后 VAD 尚无抽象层则此时补），`vad_backend: Silero|Earshot` 设置。
-- compound shortcut 名称修复：`141f981d` #1862；reset binding ID 校验：`a6eed754` #2033。
-- activation 状态机：`c62a5fcd` #1971（Auto PTT）+ `c6fa60da` #1910（toggle 奇偶性），对齐到 Votype `shortcut/` 与 coordinator start/stop 路径。
+| 项                         | 上游参考                            | 说明                                                                     | 状态                                                                                                        |
+| -------------------------- | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| compound shortcut 名称修复 | `141f981d` #1862                    | 紧凑存储名 + 展示标签分离；双后端解析测试                                | ✅（keyboard.ts 适配 Votype parseKeyCombination 结构；随带 handy-keys 0.3.2→0.3.4 以获得 printscreen 解析） |
+| reset binding ID 校验      | `a6eed754` #2033                    | `get_stored_binding(&AppSettings, id) -> Result` + 2 测试                | ✅                                                                                                          |
+| earshot VAD                | `20ada47d` #1967                    | `VoiceActivityDetector` trait 抽象（Phase 2 已铺好），`vad_backend` 设置 | ⬜ 待做                                                                                                     |
+| activation 状态机          | `c62a5fcd` #1971 + `c6fa60da` #1910 | Auto PTT + toggle 奇偶性，对齐 coordinator start/stop                    | ⬜ 待做                                                                                                     |
 
 ### Phase 5 — 引擎级流式转录（重大）
 
@@ -123,8 +126,12 @@ estimate: "分 6 期，详见各期"
 
 ## Implementation Deviations
 
-| Phase | 计划                                                                          | 实际                                                                                                              | 原因                                                                                |
-| ----- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 1     | filler 语言门控按上游用 supported_languages 目录约束 `detect_output_language` | 暂传空列表（无约束检测）                                                                                          | Votype 模型目录无逐语言 supported-languages 元数据，桥接留待 Phase 5 引擎升级时接入 |
-| 1     | 上游 FillerWordRemoval 完整 UI 开关组件                                       | 仅 settings 字段 `filler_word_removal_enabled` + `change_filler_word_removal_enabled_setting` 命令，未加设置页 UI | UI 按总纲约定最小接线；开关可后续补                                                 |
-| 1     | 顺带修复 dev 上已存在的 doctest 失败（phonetic_similarity 示例缺 `use`）      | 已修（1 行）                                                                                                      | 阻塞 `cargo test` 全绿验证，与 Phase 1 无逻辑关联，单独说明                         |
+| Phase | 计划                                                                                     | 实际                                                                                                              | 原因                                                                                                              |
+| ----- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1     | filler 语言门控按上游用 supported_languages 目录约束 `detect_output_language`            | 暂传空列表（无约束检测）                                                                                          | Votype 模型目录无逐语言 supported-languages 元数据，桥接留待 Phase 5 引擎升级时接入                               |
+| 1     | 上游 FillerWordRemoval 完整 UI 开关组件                                                  | 仅 settings 字段 `filler_word_removal_enabled` + `change_filler_word_removal_enabled_setting` 命令，未加设置页 UI | UI 按总纲约定最小接线；开关可后续补                                                                               |
+| 1     | 顺带修复 dev 上已存在的 doctest 失败（phonetic_similarity 示例缺 `use`）                 | 已修（1 行）                                                                                                      | 阻塞 `cargo test` 全绿验证，与 Phase 1 无逻辑关联，单独说明                                                       |
+| 2     | #1813 mic level 校准按上游常量直接移植                                                   | 不移植常量，仅采纳其自适应 FFT 窗长（CaptureProcessor 内按采样率选窗）                                            | Votype `visualizer.rs` 已深度魔改（双参 feed/显示曲线），上游 -68/-30 dBFS 常量不适用；meter 平直问题留待实测调参 |
+| 2     | recorder 重写保留 Votype 全部周期性调试日志（[audio-input]/[waveform]/[audio-spectrum]） | 删除周期性 dump，保留录音起止 [audio-debug] 汇总与首块延迟日志                                                    | 实时安全回调不能日志；消费线程保留同类统计会显著增加移植偏差，按上游结构收敛                                      |
+| 2     | auto_enhance（AudioInputEnhancer）留在 cpal 回调内                                       | 移入 CaptureProcessor::process_raw_chunk（消费线程）                                                              | 上游新架构要求回调 allocation/lock-free；增强属重计算，放消费线程是唯一落点                                       |
+| 2     | 同步 `audio_toolkit/bin/cli.rs` 到新 recorder API                                        | 不动（HEAD 即编译不过：3 参 SmoothedVad 旧签名）                                                                  | Cargo.toml `[[bin]]` 已注释，属停用死代码，避免无意义改动                                                         |
