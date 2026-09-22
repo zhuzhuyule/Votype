@@ -11,6 +11,7 @@ mod catalog;
 mod cli;
 mod clipboard;
 mod commands;
+mod consumer_key;
 pub mod error;
 pub mod fallback;
 mod foreground_tracker;
@@ -766,6 +767,10 @@ pub fn run() {
             // silently blocks keyed shortcuts, warns the user, and activates
             // the Carbon fallback. See secure_input.rs and issue #1578.
             secure_input::init(&app_handle);
+
+            // Remote-control record button (macOS): claims the systemDefined
+            // Consumer key emitted by BLE voice remotes. See consumer_key.rs.
+            consumer_key::init(&app_handle);
 
             // Show main window unless hidden by CLI flag or settings
             let start_hidden = cli_args.as_ref().map_or(settings.start_hidden, |a| a.start_hidden || settings.start_hidden);
