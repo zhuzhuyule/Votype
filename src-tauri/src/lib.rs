@@ -167,15 +167,17 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     let enigo_state = input::EnigoState::new();
     app_handle.manage(enigo_state);
 
-    // Initialize the managers
-    let recording_manager = Arc::new(
-        AudioRecordingManager::new(app_handle).expect("Failed to initialize recording manager"),
-    );
+    // Initialize the managers. Order matters: the recording manager borrows the
+    // transcription manager's StreamRouter to feed live audio frames.
     let model_manager =
         Arc::new(ModelManager::new(app_handle).expect("Failed to initialize model manager"));
     let transcription_manager = Arc::new(
         TranscriptionManager::new(app_handle, model_manager.clone())
             .expect("Failed to initialize transcription manager"),
+    );
+    let recording_manager = Arc::new(
+        AudioRecordingManager::new(app_handle, transcription_manager.stream_router())
+            .expect("Failed to initialize recording manager"),
     );
     let history_manager =
         Arc::new(HistoryManager::new(app_handle).expect("Failed to initialize history manager"));

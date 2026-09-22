@@ -2,10 +2,11 @@ use super::post_process::maybe_convert_chinese_variant;
 use super::ShortcutAction;
 use crate::active_window;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
+use crate::audio_toolkit::VadPolicy;
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
-use crate::managers::transcription::TranscriptionManager;
+use crate::managers::transcription::{StreamWorkKind, TranscriptionManager};
 use crate::overlay::{
     show_inserting_overlay, show_recording_overlay, show_recording_overlay_rewrite,
     show_transcribing_overlay, show_translation_overlay,
@@ -783,9 +784,25 @@ impl ShortcutAction for TranscribeAction {
         // 改为按需创建：review 窗口在 stop() 真正需要展示时再建一次，第一次会多
         // ~300ms 冷启动，但不再有焦点抢夺问题。
 
+        // Engine-level streaming (upstream v0.9.7 Phase 5): when the selected
+        // local model advertises streaming, frames go straight into a live
+        // engine stream and the overlay renders flicker-free partials — this
+        // replaces the pseudo-realtime worker for those models. Online-ASR
+        // mode always keeps the batch path (the local model there only feeds
+        // secondary preview/fusion).
+        let tm = app.state::<Arc<TranscriptionManager>>();
+        let use_streaming = !settings_for_load.online_asr_enabled
+            && app
+                .state::<Arc<ModelManager>>()
+                .get_model_info(&settings_for_load.selected_model)
+                .map_or(false, |info| info.supports_streaming);
+        if use_streaming {
+            tm.start_stream();
+        }
+
         // Setup channel for receiving audio frames for realtime simulation if using local model
         let (realtime_tx, realtime_rx) = std::sync::mpsc::channel::<Vec<f32>>();
-        if enable_realtime {
+        if enable_realtime && !use_streaming {
             rm.set_speech_frame_sender(Some(realtime_tx));
         } else {
             rm.set_speech_frame_sender(None);
@@ -816,6 +833,11 @@ impl ShortcutAction for TranscribeAction {
         };
 
         let mut recording_started = false;
+        let vad_policy = if use_streaming {
+            VadPolicy::Streaming
+        } else {
+            VadPolicy::Offline
+        };
         if is_always_on {
             let rm_clone = Arc::clone(&rm);
             let app_clone = app.clone();
@@ -824,11 +846,11 @@ impl ShortcutAction for TranscribeAction {
                 rm_clone.apply_mute();
             });
 
-            recording_started = rm.try_start_recording(&binding_id, 0);
+            recording_started = rm.try_start_recording(&binding_id, 0, vad_policy);
             debug!("Recording started: {}", recording_started);
         } else {
             let recording_start_time = Instant::now();
-            if rm.try_start_recording(&binding_id, 0) {
+            if rm.try_start_recording(&binding_id, 0, vad_policy) {
                 recording_started = true;
                 debug!("Recording started in {:?}", recording_start_time.elapsed());
                 let app_clone = app.clone();
@@ -840,6 +862,13 @@ impl ShortcutAction for TranscribeAction {
             } else {
                 debug!("Failed to start recording");
             }
+        }
+
+        if !recording_started && use_streaming {
+            // No audio will ever arrive — release the stream worker so it
+            // returns the engine instead of idling until a finalize that
+            // never comes.
+            tm.cancel_stream();
         }
 
         if recording_started {
@@ -861,7 +890,7 @@ impl ShortcutAction for TranscribeAction {
             }
             set_start_snapshot(new_id, start_snapshot);
 
-            if enable_realtime {
+            if enable_realtime && !use_streaming {
                 let tm_realtime = app.state::<Arc<TranscriptionManager>>().inner().clone();
                 let app_handle_realtime = app.clone();
                 let interval_ms = settings_for_load.offline_vad_force_interval_ms;
@@ -929,6 +958,11 @@ impl ShortcutAction for TranscribeAction {
             }
             impl Drop for FinishGuard {
                 fn drop(&mut self) {
+                    // Release any still-open live stream on early-exit paths
+                    // (too-short / no-samples / panic). After a successful
+                    // finalize the router is already closed, so this is a
+                    // no-op on the happy path.
+                    self.tm.cancel_stream();
                     // Honor "unload immediately" even when the session produced
                     // no transcription (too-short / no-samples early exits bypass
                     // the in-line unload in transcribe()).
@@ -1923,7 +1957,19 @@ impl ShortcutAction for TranscribeAction {
                         }
                     }
                 } else {
-                    (tm.transcribe(samples.clone()), None)
+                    // Local primary path: prefer the live engine stream when
+                    // one is in flight. `Ok(None)` (no stream / model not
+                    // streaming-capable) or an empty result falls back to
+                    // batch transcription; `Err` (finalize timeout) must NOT
+                    // fall back — the worker may still hold the engine.
+                    if tm.is_streaming() {
+                        tm.emit_stream_working(StreamWorkKind::Transcribing);
+                    }
+                    match tm.finalize_stream() {
+                        Ok(Some(text)) if !text.trim().is_empty() => (Ok(text), None),
+                        Ok(_) => (tm.transcribe(samples.clone()), None),
+                        Err(err) => (Err(err), None),
+                    }
                 };
 
                 let mut primary_error: Option<String> = None;

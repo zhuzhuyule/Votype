@@ -39,6 +39,13 @@ fn cancel_current_operation_inner(app: &AppHandle, hide_review_window: bool) {
     let ppm = app.state::<Arc<crate::managers::post_processing::PostProcessingManager>>();
     ppm.cancel_pipeline();
 
+    // Abandon any live engine stream: the pipeline abort above can kill the
+    // task before its finalize/FinishGuard runs, and the stream worker would
+    // otherwise keep holding the engine lease.
+    if let Some(tm) = app.try_state::<Arc<crate::managers::transcription::TranscriptionManager>>() {
+        tm.cancel_stream();
+    }
+
     // Note: we intentionally do NOT unload the model here.
     // The pipeline abort + cancel_recording already stop the active operation,
     // and the engine's `engine_in_use` flag ensures the next transcription

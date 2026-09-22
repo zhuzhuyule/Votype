@@ -42,6 +42,11 @@ pub struct ModelInfo {
     pub is_default: bool, // True if it is a built-in default model
     #[serde(default)]
     pub sha256: Option<String>,
+    /// Whether the engine can run this model with live streaming decode
+    /// (transcribe-cpp `Capabilities::supports_streaming`). Catalog-sourced;
+    /// the streaming worker re-probes the loaded model at run time.
+    #[serde(default)]
+    pub supports_streaming: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,6 +91,9 @@ impl UserModelEntry {
             tags: self.tags,
             is_default: false,
             sha256: self.sha256,
+            // User-added models carry no capability metadata; streaming stays
+            // off and the live-probe path in the stream worker guards the rest.
+            supports_streaming: false,
         }
     }
 }
@@ -256,6 +264,7 @@ impl ModelManager {
                 tags: None,
                 is_default: true,
                 sha256: None,
+                supports_streaming: false,
             },
         );
 

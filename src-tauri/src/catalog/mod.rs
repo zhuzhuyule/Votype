@@ -41,7 +41,6 @@ struct CatalogModel {
     #[serde(default)]
     languages: Vec<String>,
     #[serde(default)]
-    #[allow(dead_code)] // parsed for completeness; not yet surfaced in the UI
     capabilities: CatalogCaps,
     /// 0-100 integer in the catalog; normalized to 0.0-1.0 on the way out.
     #[serde(default)]
@@ -169,6 +168,7 @@ fn to_model_info(model: &CatalogModel) -> Option<ModelInfo> {
         // this flag to hide the edit/remove actions on built-ins.
         is_default: true,
         sha256: None,
+        supports_streaming: model.capabilities.streaming,
     })
 }
 

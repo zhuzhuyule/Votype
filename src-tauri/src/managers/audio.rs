@@ -158,6 +158,7 @@ fn create_audio_recorder(
     backend: VadBackend,
     app_handle: &tauri::AppHandle,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
+    stream_router: &Arc<crate::managers::transcription::StreamRouter>,
     auto_enhance_enabled: Arc<AtomicBool>,
 ) -> Result<AudioRecorder, anyhow::Error> {
     let detector: Box<dyn VoiceActivityDetector> = match backend {
@@ -202,7 +203,9 @@ fn create_audio_recorder(
     );
 
     // Recorder with VAD plus a spectrum-level callback that forwards updates to
-    // the frontend.
+    // the frontend, and an audio-frame callback that feeds live streaming via
+    // the shared `StreamRouter` (captured directly, not via Tauri state — see
+    // its docs) while still forwarding to the realtime-simulation sender.
     let recorder = AudioRecorder::new()
         .map_err(|e| anyhow::anyhow!("Failed to create AudioRecorder: {}", e))?
         .with_vad(
@@ -216,9 +219,13 @@ fn create_audio_recorder(
                 utils::emit_levels(&app_handle, &levels);
             }
         })
-        .with_audio_callback(move |speech_frame| {
-            if let Some(tx) = speech_frame_tx.lock().unwrap().as_ref() {
-                let _ = tx.send(speech_frame.to_vec());
+        .with_audio_callback({
+            let router = Arc::clone(stream_router);
+            move |speech_frame| {
+                router.feed(speech_frame);
+                if let Some(tx) = speech_frame_tx.lock().unwrap().as_ref() {
+                    let _ = tx.send(speech_frame.to_vec());
+                }
             }
         })
         .with_auto_enhance_flag(auto_enhance_enabled);
@@ -244,6 +251,9 @@ pub struct AudioRecordingManager {
     did_mute: Arc<Mutex<bool>>,
     current_transcription_id: Arc<AtomicU64>,
     speech_frame_tx: Arc<Mutex<Option<mpsc::Sender<Vec<f32>>>>>,
+    /// Live-streaming feed shared with the TranscriptionManager (owned by the
+    /// recorder itself so per-frame routing skips Tauri state entirely).
+    stream_router: Arc<crate::managers::transcription::StreamRouter>,
     online_transcription_rx: Arc<Mutex<Option<mpsc::Receiver<anyhow::Result<String>>>>>,
     auto_enhance_enabled: Arc<AtomicBool>,
     close_generation: Arc<AtomicU64>,
@@ -252,7 +262,10 @@ pub struct AudioRecordingManager {
 impl AudioRecordingManager {
     /* ---------- construction ------------------------------------------------ */
 
-    pub fn new(app: &tauri::AppHandle) -> Result<Self, anyhow::Error> {
+    pub fn new(
+        app: &tauri::AppHandle,
+        stream_router: Arc<crate::managers::transcription::StreamRouter>,
+    ) -> Result<Self, anyhow::Error> {
         let settings = get_settings(app);
         let mode = if settings.always_on_microphone {
             MicrophoneMode::AlwaysOn
@@ -271,6 +284,7 @@ impl AudioRecordingManager {
             did_mute: Arc::new(Mutex::new(false)),
             current_transcription_id: Arc::new(AtomicU64::new(0)),
             speech_frame_tx: Arc::new(Mutex::new(None)),
+            stream_router,
             online_transcription_rx: Arc::new(Mutex::new(None)),
             auto_enhance_enabled: Arc::new(AtomicBool::new(settings.audio_input_auto_enhance)),
             close_generation: Arc::new(AtomicU64::new(0)),
@@ -436,6 +450,7 @@ impl AudioRecordingManager {
             settings.vad_backend,
             &self.app_handle,
             self.speech_frame_tx.clone(),
+            &self.stream_router,
             self.auto_enhance_enabled.clone(),
         )?);
 
@@ -659,7 +674,12 @@ impl AudioRecordingManager {
 
     /* ---------- recording --------------------------------------------------- */
 
-    pub fn try_start_recording(&self, binding_id: &str, skip_frames: usize) -> bool {
+    pub fn try_start_recording(
+        &self,
+        binding_id: &str,
+        skip_frames: usize,
+        vad_policy: VadPolicy,
+    ) -> bool {
         let mut state = self.state.lock().unwrap();
 
         if let RecordingState::Idle = *state {
@@ -677,7 +697,7 @@ impl AudioRecordingManager {
             }
 
             if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
-                if rec.start(VadPolicy::Offline, skip_frames).is_ok() {
+                if rec.start(vad_policy, skip_frames).is_ok() {
                     self.set_state(
                         &mut state,
                         RecordingState::Recording {
@@ -722,6 +742,7 @@ impl AudioRecordingManager {
             backend,
             &self.app_handle,
             self.speech_frame_tx.clone(),
+            &self.stream_router,
             self.auto_enhance_enabled.clone(),
         )?;
         let was_open = *self.is_open.lock().unwrap();
