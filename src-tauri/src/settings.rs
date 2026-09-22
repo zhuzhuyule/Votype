@@ -841,6 +841,10 @@ fn default_whisper_gpu_device() -> i32 {
     -1
 }
 
+fn default_insert_blacklist_enabled() -> bool {
+    true
+}
+
 /* still handy for composing the initial JSON in the store ------------- */
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct AppSettings {
@@ -987,6 +991,10 @@ pub struct AppSettings {
     pub mic_enhance_preferences: HashMap<String, bool>,
     #[serde(default)]
     pub append_trailing_space: bool,
+    /// Insertion blacklist guard (insert_guard.rs): never type/paste into
+    /// blacklisted apps, copy to clipboard instead.
+    #[serde(default = "default_insert_blacklist_enabled")]
+    pub insert_blacklist_enabled: bool,
     #[serde(default = "default_punctuation_enabled")]
     pub punctuation_enabled: bool,
     #[serde(default = "default_punctuation_model")]
@@ -1777,6 +1785,7 @@ pub fn get_default_settings() -> AppSettings {
         audio_input_auto_enhance: default_audio_input_auto_enhance(),
         mic_enhance_preferences: HashMap::new(),
         append_trailing_space: false,
+        insert_blacklist_enabled: default_insert_blacklist_enabled(),
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
         favorite_transcription_models: default_favorite_transcription_models(),

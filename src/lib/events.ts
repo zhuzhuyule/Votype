@@ -84,6 +84,9 @@ export const CHECK_FOR_UPDATES = "check-for-updates";
 /** Insert processed text back into the focused element inside the main Votype window */
 export const VOTYPE_LOCAL_INSERT = "votype-local-insert";
 
+/** Target app is on the insertion blacklist: text went to the clipboard instead */
+export const INSERT_BLOCKED = "insert-blocked";
+
 /** Apply processed text directly to the Review window editor */
 export const REVIEW_WINDOW_INLINE_APPLY = "review-window-inline-apply";
 
@@ -133,6 +136,7 @@ export const TauriEvents = {
   // Application
   CHECK_FOR_UPDATES,
   VOTYPE_LOCAL_INSERT,
+  INSERT_BLOCKED,
   REVIEW_WINDOW_INLINE_APPLY,
   REVIEW_WINDOW_REWRITE_APPLY,
   REVIEW_REWRITE_STATE,

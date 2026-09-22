@@ -1,0 +1,57 @@
+{
+  "version": "1.0.0",
+  "comment": "Apps where Votype must never send simulated keystrokes/paste. Text is copied to the clipboard instead. Users may override this whole file via ~/.votype/app_blacklist.json (full replacement, not merged).",
+  "macos": {
+    "exact": [
+      "com.apple.Terminal",
+      "com.googlecode.iterm2",
+      "dev.warp.Warp-Stable",
+      "io.alacritty",
+      "net.kovidgoyal.kitty",
+      "com.mitchellh.ghostty",
+      "com.github.wez.wezterm",
+      "com.termius-dmg.mac",
+      "com.agilebits.onepassword7",
+      "com.keepassxc.KeePassXC",
+      "com.bitwarden.desktop",
+      "com.citrix.XenAppViewer",
+      "com.vmware.fusion",
+      "com.tunnelsup.tunnelmux"
+    ],
+    "regex": ["^com\\.parallels\\..*\\.virtualmachine$"]
+  },
+  "windows": {
+    "exact": [
+      "cmd.exe",
+      "powershell.exe",
+      "pwsh.exe",
+      "wt.exe",
+      "WindowsTerminal.exe",
+      "mintty.exe",
+      "ConEmu64.exe",
+      "Tabby.exe",
+      "Xshell.exe",
+      "XshellCore.exe",
+      "MobaXterm.exe",
+      "KeePass.exe",
+      "Bitwarden.exe",
+      "1Password.exe",
+      "vncviewer.exe",
+      "mstsc.exe"
+    ],
+    "regex": []
+  },
+  "linux": {
+    "exact": [
+      "org.gnome.Terminal",
+      "io.alacritty",
+      "net.kovidgoyal.kitty",
+      "com.mitchellh.ghostty",
+      "org.wezfurlong.wezterm",
+      "foot",
+      "org.keepassxc.KeePassXC",
+      "com.bitwarden.desktop"
+    ],
+    "regex": []
+  }
+}

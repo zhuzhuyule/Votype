@@ -3,7 +3,7 @@ use crate::settings::{get_settings, AppSettings, AutoSubmitKey, ClipboardHandlin
 use enigo::{Direction, Enigo, Key, Keyboard};
 use log::info;
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[cfg(target_os = "linux")]
@@ -136,6 +136,27 @@ fn send_paste_via_dotool(paste_method: &PasteMethod) -> Result<(), String> {
 
 pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
     let settings = get_settings(&app_handle);
+
+    // Insertion blacklist guard: never type/paste into blacklisted apps
+    // (terminals, password managers, …). Deliver via clipboard + user toast.
+    if settings.insert_blacklist_enabled {
+        if let Some(blocked) = crate::insert_guard::detect_blocked_app(&app_handle) {
+            log::info!(
+                "[InsertGuard] insertion blocked for blacklisted app '{}', text copied to clipboard",
+                blocked.app_name
+            );
+            let clipboard = app_handle.clipboard();
+            clipboard
+                .write_text(&text)
+                .map_err(|e| format!("Failed to copy to clipboard: {}", e))?;
+            let _ = app_handle.emit(
+                "insert-blocked",
+                serde_json::json!({ "app_name": blocked.app_name }),
+            );
+            return Ok(());
+        }
+    }
+
     let paste_method = settings.paste_method;
 
     // Append trailing space if setting is enabled

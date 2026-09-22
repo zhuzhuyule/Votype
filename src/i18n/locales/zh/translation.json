@@ -77,7 +77,8 @@
       "hoursAgo": "{{count}} 小时前",
       "daysAgo": "{{count}} 天前"
     },
-    "localInsertCopied": "输入框未聚焦，识别结果已复制到剪贴板"
+    "localInsertCopied": "输入框未聚焦，识别结果已复制到剪贴板",
+    "insertBlocked": "{{app}} 在插入黑名单中，内容已复制到剪贴板，请手动粘贴"
   },
   "dashboard": {
     "actions": {

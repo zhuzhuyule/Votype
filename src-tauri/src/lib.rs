@@ -16,6 +16,7 @@ mod foreground_tracker;
 mod helpers;
 pub mod http_client;
 mod input;
+mod insert_guard;
 mod key_selector;
 mod llm_client;
 mod managers;

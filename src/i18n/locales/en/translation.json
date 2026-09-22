@@ -77,7 +77,8 @@
     },
     "history": "History",
     "latest": "Latest",
-    "localInsertCopied": "No input field focused — result copied to clipboard"
+    "localInsertCopied": "No input field focused — result copied to clipboard",
+    "insertBlocked": "{{app}} is on the insert blacklist — content copied to clipboard, paste it manually"
   },
   "dashboard": {
     "actions": {

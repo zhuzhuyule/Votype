@@ -16,7 +16,11 @@ import {
 import { CompactModeProvider } from "./components/theme/CompactModeProvider";
 import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
-import { VOTYPE_LOCAL_INSERT, VOTYPE_REFOCUS_ACTIVE_INPUT } from "./lib/events";
+import {
+  INSERT_BLOCKED,
+  VOTYPE_LOCAL_INSERT,
+  VOTYPE_REFOCUS_ACTIVE_INPUT,
+} from "./lib/events";
 
 // 懒加载非关键组件以改善首屏加载性能
 const AccessibilityPermissions = lazy(
@@ -189,6 +193,38 @@ function App() {
             );
         }
       });
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [t]);
+
+  // Insertion blacklist hit: text was copied to the clipboard instead of
+  // being typed/pasted into the (protected) target app.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen<{ app_name: string }>(
+        INSERT_BLOCKED,
+        (event) => {
+          toast.warning(
+            t("common.insertBlocked", { app: event.payload.app_name }),
+          );
+        },
+      );
 
       if (disposed) {
         detach();
