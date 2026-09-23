@@ -196,7 +196,10 @@
     "title": "Dashboard"
   },
   "errors": {
-    "loadDirectory": "Error loading directory: {{error}}"
+    "loadDirectory": "Error loading directory: {{error}}",
+    "noInputDeviceTitle": "Microphone unavailable",
+    "noInputDevice": "No audio input device was found. Check System Settings > Sound > Input, then try again.",
+    "recordingFailed": "Recording failed: {{error}}"
   },
   "footer": {
     "checkForUpdates": "Check for updates",
@@ -493,6 +496,11 @@
         "button": "Donate",
         "description": "Help us continue building Votype",
         "title": "Support Development"
+      },
+      "upstream": {
+        "button": "View Upstream",
+        "description": "Votype is based on Handy v0.9.7",
+        "title": "Upstream Project"
       },
       "title": "About",
       "version": {

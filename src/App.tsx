@@ -18,6 +18,7 @@ import { RadixThemeProvider } from "./components/theme/RadixThemeProvider";
 import { useSettings } from "./hooks/useSettings";
 import {
   INSERT_BLOCKED,
+  RECORDING_ERROR,
   VOTYPE_LOCAL_INSERT,
   VOTYPE_REFOCUS_ACTIVE_INPUT,
 } from "./lib/events";
@@ -226,6 +227,45 @@ function App() {
           toast.warning(
             t("common.insertBlocked", { app: event.payload.app_name }),
           );
+        },
+      );
+
+      if (disposed) {
+        detach();
+        return;
+      }
+
+      unlisten = detach;
+    };
+
+    void setupListener();
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [t]);
+
+  // Recording failed before it could start (e.g. no microphone available).
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+
+    const setupListener = async () => {
+      const detach = await listen<{ error_type: string; detail?: string }>(
+        RECORDING_ERROR,
+        (event) => {
+          if (event.payload.error_type === "no_input_device") {
+            toast.error(t("errors.noInputDeviceTitle"), {
+              description: t("errors.noInputDevice"),
+            });
+          } else {
+            toast.error(
+              t("errors.recordingFailed", {
+                error: event.payload.detail ?? "Unknown error",
+              }),
+            );
+          }
         },
       );
 

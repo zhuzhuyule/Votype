@@ -449,6 +449,10 @@ pub struct TranscriptionManager {
     /// `is_model_loaded()` consults this so the model still reports "loaded"
     /// while the worker holds it.
     active_engine_lease: Arc<AtomicU64>,
+    /// Bumped on every explicit unload. A background load that observes a
+    /// change between its start and its install point discards the freshly
+    /// loaded engine instead of resurrecting one the user just unloaded.
+    unload_generation: Arc<AtomicU64>,
 }
 
 fn now_ms() -> u64 {
@@ -481,6 +485,7 @@ impl TranscriptionManager {
             next_stream_worker_id: Arc::new(AtomicU64::new(1)),
             active_stream_worker: Arc::new(AtomicU64::new(0)),
             active_engine_lease: Arc::new(AtomicU64::new(0)),
+            unload_generation: Arc::new(AtomicU64::new(0)),
         };
 
         // Start the idle watcher
@@ -572,6 +577,9 @@ impl TranscriptionManager {
         let unload_start = std::time::Instant::now();
         debug!("Starting to unload model");
 
+        // Invalidate any in-flight background load so it won't reinstall.
+        self.unload_generation.fetch_add(1, Ordering::Release);
+
         {
             let mut engine = self.lock_engine();
             *engine = None; // Drop the engine to free memory
@@ -615,6 +623,7 @@ impl TranscriptionManager {
 
     pub fn load_model(&self, model_id: &str) -> Result<()> {
         let load_start = std::time::Instant::now();
+        let gen_at_start = self.unload_generation.load(Ordering::Acquire);
         debug!("Starting to load model: {}", model_id);
 
         // Emit loading started event
@@ -708,6 +717,17 @@ impl TranscriptionManager {
             supports_initial_prompt,
         });
 
+        // An unload requested while this load was in flight cancels the
+        // install: resurrecting the engine the user just freed would leak
+        // memory and fight the online-ASR gating. The session/model drop here.
+        if self.unload_generation.load(Ordering::Acquire) != gen_at_start {
+            info!(
+                "Model '{}' finished loading after an unload request; discarding without install",
+                model_id
+            );
+            return Ok(());
+        }
+
         // Update the current engine and model ID
         {
             let mut engine = self.lock_engine();
@@ -774,6 +794,7 @@ impl TranscriptionManager {
         *is_loading = true;
         let self_clone = self.clone();
         let desired_model = desired_model.to_string();
+        let gen_at_start = self.unload_generation.load(Ordering::Acquire);
         thread::spawn(move || {
             log::info!(
                 "[TranscriptionManager] loading local model '{}'",
@@ -781,6 +802,13 @@ impl TranscriptionManager {
             );
             if let Err(e) = self_clone.load_model(&desired_model) {
                 error!("Failed to load local model '{}': {}", desired_model, e);
+            } else if self_clone.unload_generation.load(Ordering::Acquire) != gen_at_start {
+                // Unload was requested while this load was in flight; load_model
+                // skipped its install step, so there is nothing left to do.
+                info!(
+                    "[TranscriptionManager] load of '{}' cancelled by unload during loading",
+                    desired_model
+                );
             }
             let mut is_loading = self_clone.is_loading.lock().unwrap();
             *is_loading = false;
@@ -1227,6 +1255,7 @@ impl TranscriptionManager {
             // Take the engine out so we own it during transcription.
             // If the engine panics, we simply don't put it back (effectively unloading it)
             // instead of poisoning the mutex.
+            let batch_expected_model = self.get_current_model().unwrap_or_default();
             let mut engine = match engine_guard.take() {
                 Some(e) => e,
                 None => {
@@ -1252,10 +1281,25 @@ impl TranscriptionManager {
 
             match transcribe_result {
                 Ok(inner_result) => {
-                    // Success or normal error — put the engine back
+                    // Success or normal error — put the engine back, unless the
+                    // model was unloaded or switched during transcription (same
+                    // staleness rule as `return_engine` for stream workers).
                     self.engine_in_use.store(false, Ordering::Release);
-                    let mut engine_guard = self.lock_engine();
-                    *engine_guard = Some(engine);
+                    let still_current = self
+                        .current_model_id
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .as_deref()
+                        == Some(batch_expected_model.as_str());
+                    if still_current {
+                        let mut engine_guard = self.lock_engine();
+                        *engine_guard = Some(engine);
+                    } else {
+                        info!(
+                            "Model changed/unloaded during transcription; dropping stale engine (was '{}')",
+                            batch_expected_model
+                        );
+                    }
                     inner_result?
                 }
                 Err(panic_payload) => {

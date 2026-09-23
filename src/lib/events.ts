@@ -28,6 +28,10 @@ export const ASR_ONLINE_TIMEOUT = "asr-online-timeout";
 /** Real-time microphone level updates (array of frequency levels) */
 export const MIC_LEVEL = "mic-level";
 
+/** Recording failed before it could start (e.g. no input device).
+ *  Payload: { error_type: string; detail?: string } */
+export const RECORDING_ERROR = "recording-error";
+
 // =============================================================================
 // Transcription Events
 // =============================================================================
@@ -114,6 +118,7 @@ export const TauriEvents = {
 
   // Audio
   MIC_LEVEL,
+  RECORDING_ERROR,
 
   // Transcription
   SHERPA_ONLINE_PARTIAL,

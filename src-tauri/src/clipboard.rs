@@ -17,6 +17,7 @@ fn paste_via_clipboard(
     text: &str,
     app_handle: &AppHandle,
     paste_method: &PasteMethod,
+    paste_delay_ms: u64,
 ) -> Result<(), String> {
     let clipboard = app_handle.clipboard();
     let saved_text = clipboard.read_text().ok().filter(|t| !t.is_empty());
@@ -33,7 +34,9 @@ fn paste_via_clipboard(
         .write_text(text)
         .map_err(|e| format!("Failed to write to clipboard: {}", e))?;
 
-    std::thread::sleep(std::time::Duration::from_millis(50));
+    // Give the target app time to observe the clipboard change before the
+    // paste keystroke (upstream #694; default 60 ms).
+    std::thread::sleep(Duration::from_millis(paste_delay_ms));
 
     #[cfg(target_os = "linux")]
     let pasted_with_wayland_tool = try_wayland_send_paste(paste_method)?;
@@ -225,9 +228,27 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
             info!("PasteMethod::None selected - skipping paste action");
         }
         PasteMethod::Direct => input::paste_text_direct(enigo, &text)?,
-        PasteMethod::CtrlV => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
-        PasteMethod::CtrlShiftV => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
-        PasteMethod::ShiftInsert => paste_via_clipboard(enigo, &text, &app_handle, &paste_method)?,
+        PasteMethod::CtrlV => paste_via_clipboard(
+            enigo,
+            &text,
+            &app_handle,
+            &paste_method,
+            settings.paste_delay_ms,
+        )?,
+        PasteMethod::CtrlShiftV => paste_via_clipboard(
+            enigo,
+            &text,
+            &app_handle,
+            &paste_method,
+            settings.paste_delay_ms,
+        )?,
+        PasteMethod::ShiftInsert => paste_via_clipboard(
+            enigo,
+            &text,
+            &app_handle,
+            &paste_method,
+            settings.paste_delay_ms,
+        )?,
         PasteMethod::ExternalScript => {
             log::info!("PasteMethod::ExternalScript selected - using external script");
             let script_path = settings.external_script_path.as_deref().unwrap_or_default();

@@ -245,7 +245,10 @@
     }
   },
   "errors": {
-    "loadDirectory": "加载目录时出错: {{error}}"
+    "loadDirectory": "加载目录时出错: {{error}}",
+    "noInputDeviceTitle": "麦克风不可用",
+    "noInputDevice": "未找到音频输入设备，请在「系统设置 → 声音 → 输入」中检查麦克风后重试。",
+    "recordingFailed": "录音失败：{{error}}"
   },
   "footer": {
     "checkForUpdates": "检查更新",
@@ -542,6 +545,11 @@
         "button": "捐赠",
         "description": "帮助我们继续开发 Votype",
         "title": "支持开发"
+      },
+      "upstream": {
+        "button": "查看上游项目",
+        "description": "Votype 基于 Handy v0.9.7 衍生开发",
+        "title": "上游项目"
       },
       "title": "关于",
       "version": {
