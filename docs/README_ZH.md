@@ -23,9 +23,7 @@
 </p>
 
 <p align="center">
-  <b>语言 / Language:</b>&nbsp;&nbsp;
-  <a href="../README.md">English</a> |
-  <strong>中文</strong>
+  🇺🇸 <a href="../README.md">English</a> &nbsp;|&nbsp; 🇨🇳 <strong>中文</strong>
 </p>
 
 ---
