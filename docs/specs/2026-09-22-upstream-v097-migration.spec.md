@@ -161,3 +161,14 @@ estimate: "分 6 期，详见各期"
 | 3     | Windows 延迟渲染路径"只做骨架"                                                           | `paste_tx/windows.rs` 仅返回 Err 的占位桩，调用方自动回退 legacy                                                      | 平台优先级 macOS 先行决策；骨架保持模块结构完整，后续期直接填充 WM_RENDERFORMAT 实现                                  |
 | 3     | 依赖按上游直接加 objc2 0.6 三件套                                                        | Votype 直依赖 objc2 0.5→0.6 升级；顺带把 active_window/overlay/clipboard 三处已废弃 `msg_send_id!` 迁移为 `msg_send!` | objc2-app-kit 0.3 解析到 objc2 0.6，避免双版本共存混乱；0.6 下 msg_send_id 全面废弃（11 条告警），迁移为一行级替换    |
 | 3     | `bc7facea` PasteDelay 前端上限                                                           | 不移植                                                                                                                | Votype 前端无 PasteDelay 组件（仅存 i18n 残留与 specta 命令），无对应改动点                                           |
+
+## 同步进度总览（截至 2026-09-23 夜，v0.8.2 回望审计后）
+
+**同步位置**：上游 fork 基线（2025-02）→ v0.9.7（2026-09-18）全窗口已覆盖——Phase 1-6 迁移 v0.8.2→v0.9.7 增量（19+ commits，PR zhuzhuyule/Votype#4 base=dev 待合入）；v0.4.0→v0.8.2 及各早期版本特性经 release-notes 逐项回望审计（2026-09-23），确认无重大遗漏。
+
+**回望审计结论**（特性级，v0.3.x→v0.8.2 全部 release notes × 代码 grep 验证）：
+
+- 已具备：历史（删除/限额）、翻译英文、语言选择、自定义词（热词体系+阈值+initial_prompt）、录音静音、尾随空格、禁用粘贴、Apple Intelligence 后处理、自动提交、语言感知 filler、重复词清理、剪贴板输出、UI i18n、overlay（光标显示器/全屏 spaces/后处理状态）、断点续传+sha256+体积显示、环形缓冲+转录前预存、音量/自定义提示音、左右修饰键+fn、修饰键顺序、自启、结构化输出、并行加载模型+VAD、Secure Input。
+- 不跟（定位差异）：Linux/Wayland/Nix/Windows 打包项、上游第三方翻译、overlay 流式卡重设计、KeyboardDiagnostic UI。
+- 已补三缺口（`c4c79d1c`）：①陈旧引擎守卫（`unload_generation` + 批转录回放比对，镜像 return_engine 规则）②`paste_delay_ms` 被 legacy 粘贴消费（#694；reliable paste 按设计不吃固定延时；设置页滑块未加——涉及并行会话文件 types/settingsStore，挂起）③`recording-error` no_input_device 前端 toast（#945/#1115）。
+- 遗留低优先：托盘"复制上次转录/切换模型"（#598/#1002）、后处理专用快捷键（#355）、debug cmd/ctrl+shift+d 热键、Windows paste_tx 实装、#1254 多声道。（原"Polishing 流式相位展示"经核实无需补线：流式 finalize 后回到共享转录流程，后处理阶段已走 `show_llm_processing_overlay` → overlay "llm" 态，`StreamWorkKind::Polishing` 保持预留。）
