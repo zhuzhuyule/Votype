@@ -5,16 +5,17 @@ const DB_MAX: f32 = -18.0;
 const GAIN: f32 = 1.8;
 const CURVE_POWER: f32 = 0.6;
 
-// --- Adaptive noise-gate mode (amplify OFF) ---
+// --- Adaptive noise-gate mode ---
 /// How many dB above the noise floor counts as "zero" for the visualiser.
-const NOISE_GATE_MARGIN: f32 = 6.0;
+const NOISE_GATE_MARGIN: f32 = 3.0;
 /// How quickly the noise floor adapts (higher = faster).
 const NOISE_ALPHA: f32 = 0.015;
 /// Absolute minimum floor so the gate never drops unreasonably low.
 const NOISE_FLOOR_MIN: f32 = -60.0;
-
-// --- Amplified mode (amplify ON) — original fixed-range behaviour ---
-const AMPLIFIED_DB_MIN: f32 = -72.0;
+/// Starting floor. Typical rooms measure -52…-58 dB here, so seeding near the
+/// bottom means a talk-right-away session is no longer gated by a stale -40
+/// floor (which made the waveform read ≈ 0 until long silences dragged it down).
+const NOISE_FLOOR_INIT: f32 = -52.0;
 
 pub struct AudioVisualiser {
     fft: Arc<dyn Fft<f32>>,
@@ -75,18 +76,18 @@ impl AudioVisualiser {
             window,
             bucket_ranges,
             fft_input: vec![Complex32::new(0.0, 0.0); window_size],
-            noise_floor: vec![-40.0; buckets],
+            noise_floor: vec![NOISE_FLOOR_INIT; buckets],
             buffer: Vec::with_capacity(window_size * 2),
             window_size,
             buckets,
         }
     }
 
-    /// When `amplified` is true, uses the original fixed-range normalisation
-    /// (DB_MIN → DB_MAX) which makes even quiet ambient noise visible.
-    /// When false, normalises relative to the tracked noise floor so that
-    /// ambient noise reads ≈ 0.
-    pub fn feed(&mut self, samples: &[f32], amplified: bool) -> Option<Vec<f32>> {
+    /// Normalises relative to the tracked noise floor so that ambient noise
+    /// reads ≈ 0 and speech shows real dynamics. Always fed the RAW device
+    /// signal — the AGC'd enhancer output has no dynamics left and used to pin
+    /// the meter at full scale in enhanced mode.
+    pub fn feed(&mut self, samples: &[f32]) -> Option<Vec<f32>> {
         self.buffer.extend_from_slice(samples);
 
         let mut latest_buckets = None;
@@ -130,10 +131,7 @@ impl AudioVisualiser {
                         .max(NOISE_FLOOR_MIN);
                 }
 
-                let normalized = if amplified {
-                    // Amplified mode: fixed range, everything is visible.
-                    ((db - AMPLIFIED_DB_MIN) / (DB_MAX - AMPLIFIED_DB_MIN)).clamp(0.0, 1.0)
-                } else {
+                let normalized = {
                     // Adaptive mode: normalise relative to noise floor.
                     let floor = self.noise_floor[bucket_idx] + NOISE_GATE_MARGIN;
                     let range = DB_MAX - floor;
@@ -159,6 +157,6 @@ impl AudioVisualiser {
 
     pub fn reset(&mut self) {
         self.buffer.clear();
-        self.noise_floor.fill(-40.0);
+        self.noise_floor.fill(NOISE_FLOOR_INIT);
     }
 }

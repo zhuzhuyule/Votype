@@ -818,7 +818,11 @@ impl CaptureProcessor {
             raw
         };
 
-        if let Some(buckets) = self.visualizer.feed(samples, amplified) {
+        // The meter always reflects the *raw* device signal: the enhancer's AGC
+        // removes the dynamics the visualiser needs, which pinned the waveform
+        // at full scale in enhanced mode. VAD/ASR below still consume `samples`
+        // (enhanced when the flag is on).
+        if let Some(buckets) = self.visualizer.feed(raw) {
             if let Some(callback) = &self.level_cb {
                 callback(buckets);
             }
