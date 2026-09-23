@@ -28,3 +28,6 @@ dist-ssr
 /target/
 recording_*
 .crush/
+
+# Tool scratch dir (parallel-session artifact)
+.omo/

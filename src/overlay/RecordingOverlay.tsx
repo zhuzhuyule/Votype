@@ -371,6 +371,28 @@ const RecordingOverlay: React.FC<RecordingOverlayProps> = ({
       }
       unlisteners.push(unlistenStreamText);
 
+      // Engine-level streaming phase hints: Rust emits `working` the moment a
+      // streaming recording stops and finalize begins, letting the overlay flip
+      // to "transcribing" without waiting for the show-overlay hop. `listening`
+      // mirrors the frontend's initial phase and is ignored; `polishing` is not
+      // emitted yet (reserved variant).
+      const unlistenStreamPhase = await listen<{
+        phase: "listening" | "working";
+        kind?: "transcribing" | "polishing";
+      }>("stream-phase-event", (event) => {
+        if (
+          event.payload.phase === "working" &&
+          stateRef.current === "recording"
+        ) {
+          setState("transcribing");
+        }
+      });
+      if (disposed) {
+        unlistenStreamPhase();
+        return;
+      }
+      unlisteners.push(unlistenStreamPhase);
+
       const unlistenPostProcessStatus = await listen<string>(
         "post-process-status",
         (event) => {

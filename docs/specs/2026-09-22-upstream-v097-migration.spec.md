@@ -98,12 +98,12 @@ estimate: "分 6 期，详见各期"
 
 **Phase 5 偏差表**
 
-| #   | 上游做法                                                            | Votype 做法                                                                   | 原因                                                      |
-| --- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------- |
-| 1   | 流式卡整体重设计（scard/caret/pinned-scroll/working pill）          | 复用现有 realtime 槽位，tentative 降透明度渲染                                | UI 最小接线原则；上游是 React 重写版覆盖层，结构差异大    |
-| 2   | `resolve_output_language_evidence` + `effective_language_for_model` | 沿用 Votype `normalize_language` 证据链，snapshot().language 作 ModelDetected | 上游依赖 Votype 没有的 ModelInfo.supported_languages 体系 |
-| 3   | stream-phase-event 驱动覆盖层 spinner                               | Rust 侧保留 emit，前端未监听（Votype 已有 show-overlay transcribing 状态机）  | 避免双状态机竞争；`Polishing` 变体留待后处理相位接线      |
-| 4   | 流式仅主路径                                                        | 流式仅在本地主 ASR（非 online_asr_enabled）时启用；在线模式伪流式预览不变     | Votype 特有在线 ASR 分流                                  |
+| #   | 上游做法                                                            | Votype 做法                                                                                                                         | 原因                                                       |
+| --- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 1   | 流式卡整体重设计（scard/caret/pinned-scroll/working pill）          | 复用现有 realtime 槽位，tentative 降透明度渲染                                                                                      | UI 最小接线原则；上游是 React 重写版覆盖层，结构差异大     |
+| 2   | `resolve_output_language_evidence` + `effective_language_for_model` | 沿用 Votype `normalize_language` 证据链，snapshot().language 作 ModelDetected                                                       | 上游依赖 Votype 没有的 ModelInfo.supported_languages 体系  |
+| 3   | stream-phase-event 驱动覆盖层 spinner                               | Rust 侧保留 emit；前端已监听 `working` 相位提前切换 transcribing（recording 态内一行 setState），`Polishing` 变体留待后处理相位接线 | 避免与 show-overlay 状态机竞争：仅做提前量，不建第二状态机 |
+| 4   | 流式仅主路径                                                        | 流式仅在本地主 ASR（非 online_asr_enabled）时启用；在线模式伪流式预览不变                                                           | Votype 特有在线 ASR 分流                                   |
 
 **待真机验证**：流式模型实测（catalog 中 streaming=true 的 GGUF，如 voxtral-realtime/moonshine-streaming 系）overlay 实时文本显示、finalize 回退 batch 路径、取消后引擎租约释放。
 
