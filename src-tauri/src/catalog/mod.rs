@@ -40,6 +40,10 @@ struct CatalogModel {
     description: String,
     #[serde(default)]
     languages: Vec<String>,
+    /// Curated labels from the catalog (e.g. `"new"`), merged with the
+    /// generated family/language tags in `to_model_info`.
+    #[serde(default)]
+    tags: Vec<String>,
     #[serde(default)]
     capabilities: CatalogCaps,
     /// 0-100 integer in the catalog; normalized to 0.0-1.0 on the way out.
@@ -126,15 +130,25 @@ fn to_model_info(model: &CatalogModel) -> Option<ModelInfo> {
     );
     let size_mb = ((file.size_bytes as f64) / (1024.0 * 1024.0)).round() as u64;
 
-    // Tags feed the library's grouping/filtering: family + known languages.
+    // Tags feed the library's grouping/filtering: curated catalog tags +
+    // family + known languages, plus a generated "streaming" marker so the
+    // UI can surface which models support live streaming.
     let mut tags: Vec<String> = Vec::new();
-    if !model.family.is_empty() {
+    for tag in &model.tags {
+        if !tag.is_empty() && !tags.contains(tag) {
+            tags.push(tag.clone());
+        }
+    }
+    if !model.family.is_empty() && !tags.contains(&model.family) {
         tags.push(model.family.clone());
     }
     for lang in &model.languages {
-        if KNOWN_DISPLAY_LANGS.contains(&lang.as_str()) {
+        if KNOWN_DISPLAY_LANGS.contains(&lang.as_str()) && !tags.contains(lang) {
             tags.push(lang.clone());
         }
+    }
+    if model.capabilities.streaming && !tags.iter().any(|t| t == "streaming") {
+        tags.push("streaming".to_string());
     }
     let tags = if tags.is_empty() { None } else { Some(tags) };
 
@@ -179,6 +193,62 @@ pub fn catalog_models() -> Vec<ModelInfo> {
         Err(err) => {
             log::error!("Failed to parse bundled catalog.json: {err}");
             Vec::new()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn streaming_models_carry_streaming_tag() {
+        let models = catalog_models();
+        assert!(!models.is_empty(), "catalog must parse");
+        for m in models.iter().filter(|m| m.supports_streaming) {
+            let tags = m.tags.as_ref().expect("streaming model has tags");
+            assert!(
+                tags.iter().any(|t| t == "streaming"),
+                "{} missing streaming tag",
+                m.id
+            );
+        }
+        // Phase 5 ships 7 streaming entries in the catalog.
+        assert_eq!(models.iter().filter(|m| m.supports_streaming).count(), 7);
+    }
+
+    #[test]
+    fn curated_new_tag_survives_merge() {
+        let models = catalog_models();
+        let tagged: Vec<_> = models
+            .iter()
+            .filter(|m| {
+                m.tags
+                    .as_ref()
+                    .is_some_and(|tags| tags.iter().any(|t| t == "new"))
+            })
+            .collect();
+        assert_eq!(tagged.len(), 7, "7 streaming models are marked new");
+        for m in &tagged {
+            assert!(
+                m.supports_streaming,
+                "{} marked new but not streaming",
+                m.id
+            );
+        }
+    }
+
+    #[test]
+    fn non_streaming_models_do_not_get_streaming_tag() {
+        let models = catalog_models();
+        for m in models.iter().filter(|m| !m.supports_streaming) {
+            if let Some(tags) = &m.tags {
+                assert!(
+                    !tags.iter().any(|t| t == "streaming"),
+                    "{} has streaming tag but no capability",
+                    m.id
+                );
+            }
         }
     }
 }

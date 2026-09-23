@@ -767,6 +767,10 @@
         "asr": "语音识别",
         "punctuation": "标点"
       },
+      "specialChips": {
+        "streaming": "流式",
+        "new": "新品"
+      },
       "pipeline": {
         "description": "可在转录后自动应用的全局后处理能力。",
         "itn": "ITN（SenseVoice）",

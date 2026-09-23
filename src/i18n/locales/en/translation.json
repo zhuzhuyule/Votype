@@ -718,6 +718,10 @@
         "asr": "ASR",
         "punctuation": "Punctuation"
       },
+      "specialChips": {
+        "streaming": "streaming",
+        "new": "new"
+      },
       "pipeline": {
         "description": "Global post-processing that can be applied automatically after transcription.",
         "itn": "ITN (SenseVoice)",

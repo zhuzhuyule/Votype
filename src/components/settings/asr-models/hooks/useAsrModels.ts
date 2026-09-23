@@ -228,7 +228,12 @@ export const useAsrModels = (): UseAsrModelsReturn => {
       const name = getTranslatedModelName(m, t).toLowerCase();
       const id = m.id.toLowerCase();
       const desc = getTranslatedModelDescription(m, t).toLowerCase();
-      return name.includes(q) || id.includes(q) || desc.includes(q);
+      // Tags ("streaming", "new", family, langs) are searchable so users can
+      // filter the library by capability, e.g. typing "streaming".
+      const tagHit = (m.tags ?? []).some((tag) =>
+        tag.toLowerCase().includes(q),
+      );
+      return name.includes(q) || id.includes(q) || desc.includes(q) || tagHit;
     });
   }, [
     favoriteSet,

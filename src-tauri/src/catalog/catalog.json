@@ -5,6 +5,7 @@
     {
       "id": "handy-computer/parakeet-unified-en-0.6b-gguf",
       "slug": "parakeet-unified-en-0.6b",
+      "tags": ["new"],
       "name": "Parakeet Unified EN 0.6B",
       "architecture": "parakeet",
       "family": "parakeet",
@@ -61,6 +62,7 @@
     {
       "id": "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf",
       "slug": "nemotron-3.5-asr-streaming-0.6b",
+      "tags": ["new"],
       "name": "Nemotron Streaming 3.5",
       "architecture": "parakeet",
       "family": "nemotron",
@@ -429,6 +431,7 @@
     {
       "id": "handy-computer/Voxtral-Mini-4B-Realtime-2602-gguf",
       "slug": "Voxtral-Mini-4B-Realtime-2602",
+      "tags": ["new"],
       "name": "Voxtral Mini 4B Realtime",
       "architecture": "voxtral_realtime",
       "family": "voxtral",
@@ -1663,6 +1666,7 @@
     {
       "id": "handy-computer/moonshine-streaming-tiny-gguf",
       "slug": "moonshine-streaming-tiny",
+      "tags": ["new"],
       "name": "Moonshine Streaming Tiny",
       "architecture": "moonshine_streaming",
       "family": "moonshine",
@@ -2237,6 +2241,7 @@
     {
       "id": "handy-computer/moonshine-streaming-small-gguf",
       "slug": "moonshine-streaming-small",
+      "tags": ["new"],
       "name": "Moonshine Streaming Small",
       "architecture": "moonshine_streaming",
       "family": "moonshine",
@@ -2278,6 +2283,7 @@
     {
       "id": "handy-computer/moonshine-streaming-medium-gguf",
       "slug": "moonshine-streaming-medium",
+      "tags": ["new"],
       "name": "Moonshine Streaming Medium",
       "architecture": "moonshine_streaming",
       "family": "moonshine",
@@ -2319,6 +2325,7 @@
     {
       "id": "handy-computer/nemotron-speech-streaming-en-0.6b-gguf",
       "slug": "nemotron-speech-streaming-en-0.6b",
+      "tags": ["new"],
       "name": "Nemotron Speech Streaming EN",
       "architecture": "parakeet",
       "family": "nemotron",

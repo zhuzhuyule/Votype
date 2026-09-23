@@ -402,6 +402,7 @@ export const ModelInfoSchema = z.object({
   is_custom: z.boolean().default(false),
   tags: z.array(z.string()).optional(),
   is_default: z.boolean().default(false),
+  supports_streaming: z.boolean().default(false),
 });
 
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;

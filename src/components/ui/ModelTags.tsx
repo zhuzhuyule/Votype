@@ -67,12 +67,31 @@ export const ModelTags: React.FC<ModelTagsProps> = ({
         .sort((a, b) => orderLanguage(a) - orderLanguage(b))
     : languages.filter((l) => l !== "other");
 
+  // Special capability/curiosity badges driven by catalog tags
+  const tagList = model.tags ?? [];
+  const isStreaming = model.supports_streaming || tagList.includes("streaming");
+  const isNew = tagList.includes("new");
+
   return (
     <>
       {/* Size Badge */}
       {showSize && sizeText && (
         <Badge variant="soft" color={sizeColor} size="1">
           {sizeText}
+        </Badge>
+      )}
+
+      {/* Streaming Badge */}
+      {isStreaming && (
+        <Badge variant="soft" color="cyan" size="1">
+          {t("settings.asrModels.specialChips.streaming")}
+        </Badge>
+      )}
+
+      {/* New Badge */}
+      {isNew && (
+        <Badge variant="soft" color="orange" size="1">
+          {t("settings.asrModels.specialChips.new")}
         </Badge>
       )}
 
