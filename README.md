@@ -35,8 +35,8 @@
 ### 🎤 Local Speech Recognition
 
 - **100% Offline** - Your voice never leaves your device
-- **Multiple Engines** - Whisper, Sherpa-ONNX (Paraformer, SenseVoice, Transducer), Parakeet
-- **Streaming Recognition** - Real-time transcription as you speak
+- **One GGUF Model Catalog** - 65 models across Whisper, Moonshine, Nemotron, Parakeet, Canary, Cohere, GigaAM, Voxtral, SenseVoice and Fun-ASR, powered by transcribe.cpp
+- **Engine-Level Streaming** - True real-time transcription as you speak with streaming models (Nemotron, Moonshine, Voxtral)
 - **Auto Language Detection** - Works with Chinese, English, Japanese, Korean, and more
 - **Custom Vocabulary** - Add domain-specific terms for better accuracy
 
@@ -44,13 +44,13 @@
 
 Votype supports multiple transcription modes for different needs:
 
-| Mode                      | Description                                 | Best For                             |
-| ------------------------- | ------------------------------------------- | ------------------------------------ |
-| **🟢 Realtime**           | Sherpa streaming, text appears as you speak | Instant feedback during conversation |
-| **🔵 Simulated Realtime** | Full transcription displayed in batches     | Accuracy with realtime experience    |
-| **🔵 Full Transcription** | Whisper models, transcribe after recording  | High accuracy for formal use         |
-| **🌐 Online API**         | Cloud ASR, returns after recording ends     | Maximum accuracy                     |
-| **🟣 Hybrid Mode**        | Realtime preview + Online API final result  | Balance of experience and accuracy   |
+| Mode                      | Description                                              | Best For                             |
+| ------------------------- | -------------------------------------------------------- | ------------------------------------ |
+| **🟢 Realtime**           | Engine-level streaming models, text appears as you speak | Instant feedback during conversation |
+| **🔵 Simulated Realtime** | Full transcription displayed in batches                  | Accuracy with realtime experience    |
+| **🔵 Full Transcription** | Whisper models, transcribe after recording               | High accuracy for formal use         |
+| **🌐 Online API**         | Cloud ASR, returns after recording ends                  | Maximum accuracy                     |
+| **🟣 Hybrid Mode**        | Realtime preview + Online API final result               | Balance of experience and accuracy   |
 
 > 💡 **Tip**: We recommend **Hybrid Mode** - see preview while speaking, get the most accurate final result.
 
@@ -73,7 +73,7 @@ Votype supports multiple transcription modes for different needs:
 - **Processing Chain Badges** - See which models processed each entry
 - **Icon Picker** - Choose icons for your custom prompts (40+ built-in + Iconify search)
 - **Theme Customization** - Light/Dark mode, accent colors, corner radius
-- **8 Languages** - English, 中文, 日本語, 한국어, Deutsch, Español, Français, Tiếng Việt
+- **16 UI Languages** - English, 中文, 日本語, 한국어, Deutsch, Español, Français, Italiano, Polski, Português, Русский, Українська, Čeština, Türkçe, Tiếng Việt, العربية
 
 ### ⚡ Productivity
 
@@ -104,7 +104,7 @@ Votype supports multiple transcription modes for different needs:
    ```
 
    > ⚠️ **Why re-signing is needed?**  
-   > Votype uses third-party dynamic libraries (Sherpa-ONNX) with their own code signatures. Re-signing resolves signature conflicts and allows macOS to load these libraries properly.
+   > Votype bundles third-party native libraries (GGML-based ASR engines) with their own code signatures. Re-signing resolves signature conflicts and allows macOS to load these libraries properly.
 
 4. **Grant Permissions** (Required):
 
@@ -142,19 +142,22 @@ Votype supports multiple transcription modes for different needs:
 
 ## 🗣️ Supported Models
 
-### Offline ASR Engines
+### Offline ASR Models (GGUF)
 
-| Engine                | Languages    | Speed        | Notes                  |
-| :-------------------- | :----------- | :----------- | :--------------------- |
-| **Sherpa Paraformer** | zh, en, yue  | ⚡ Fast      | Streaming support      |
-| **Sherpa SenseVoice** | Multilingual | ⚡ Fast      | Best for Chinese       |
-| **Sherpa Transducer** | Various      | ⚡⚡ Fastest | Zipformer architecture |
-| **Whisper**           | 99 languages | 🔋 Moderate  | GPU acceleration       |
-| **Parakeet**          | en           | 🔋 Moderate  | CPU optimized          |
+65 models distributed across the following families, all loaded by transcribe.cpp:
+
+| Model Family                  | Languages    | Speed        | Notes                                    |
+| :---------------------------- | :----------- | :----------- | :--------------------------------------- |
+| **Moonshine**                 | en, zh       | ⚡⚡ Fastest | Tiny/Small/Medium, streaming variants    |
+| **Nemotron ASR**              | en           | ⚡ Fast      | Engine-level streaming                   |
+| **Whisper**                   | 99 languages | 🔋 Moderate  | Metal acceleration on Apple Silicon      |
+| **Parakeet / Canary**         | en           | ⚡ Fast      | High accuracy, includes unified variants |
+| **SenseVoice / Fun-ASR**      | zh, en       | ⚡ Fast      | Strong for Chinese                       |
+| **Voxtral / GigaAM / Cohere** | Multilingual | 🔋 Moderate  | Realtime & European language coverage    |
 
 ### Real-time Features
 
-- **VAD (Voice Activity Detection)** - Powered by Silero
+- **VAD (Voice Activity Detection)** - Silero (vad-rs) and Earshot, switchable at runtime
 - **Auto Punctuation** - Add punctuation automatically
 - **ITN (Inverse Text Normalization)** - Convert "twenty five" to "25"
 
@@ -199,8 +202,8 @@ Create workflows for:
 Built with modern technologies:
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS v4, Radix UI
-- **Backend**: Tauri v2 (Rust), whisper-rs, sherpa-rs-sys
-- **Audio**: cpal, rubato, vad-rs (Silero)
+- **Backend**: Tauri v2 (Rust), transcribe-cpp (GGUF/ggml), transcribe-rs (ONNX punctuation)
+- **Audio**: cpal, rubato, vad-rs (Silero), earshot
 - **State**: Zustand, SQLite
 
 ---
@@ -234,7 +237,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - **OpenAI Whisper** - Speech recognition model
 - **whisper.cpp & ggml** - Cross-platform inference
-- **Sherpa-ONNX** - Streaming ASR framework
+- **Moonshine & OpenNemotron** - Fast streaming ASR model families
 - **Silero** - Voice Activity Detection
 - **Tauri** - Desktop app framework
 

@@ -35,8 +35,8 @@
 ### 🎤 本地语音识别
 
 - **100% 离线** - 你的语音数据永远不会离开设备
-- **多引擎支持** - Whisper、Sherpa-ONNX（Paraformer、SenseVoice、Transducer）、Parakeet
-- **实时流式识别** - 边说边转，实时显示结果
+- **统一模型库** - transcribe.cpp 加载 GGUF 模型（65 个：Whisper、Moonshine、Nemotron、Parakeet、Canary、Cohere、GigaAM、Voxtral、SenseVoice、Fun-ASR）
+- **引擎级流式识别** - 流式模型边说边转，实时显示结果
 - **自动语言检测** - 支持中文、英文、日语、韩语等多种语言
 - **自定义词库** - 添加专业术语提高识别准确率
 
@@ -46,7 +46,7 @@ Votype 支持多种转录模式，满足不同场景需求：
 
 | 模式            | 说明                             | 适用场景                   |
 | --------------- | -------------------------------- | -------------------------- |
-| **🟢 实时转录** | Sherpa 流式模型，边说边显示文字  | 需要即时反馈的对话场景     |
+| **🟢 实时转录** | 引擎级流式模型，边说边显示文字   | 需要即时反馈的对话场景     |
 | **🔵 模拟实时** | 录完后快速分批显示，模拟实时效果 | 追求准确度同时保持实时体验 |
 | **🔵 完整转录** | Whisper 模型，录完后一次性转录   | 追求高准确度的正式场合     |
 | **🌐 在线 API** | 云端 ASR，录完后一次性返回       | 追求最高准确度             |
@@ -73,7 +73,7 @@ Votype 支持多种转录模式，满足不同场景需求：
 - **处理链徽章** - 清晰显示每条记录使用的模型
 - **图标选择器** - 40+ 内置图标 + Iconify 在线搜索
 - **主题定制** - 亮/暗模式、强调色、圆角大小
-- **8 种语言** - 中文、English、日本語、한국어、Deutsch、Español、Français、Tiếng Việt
+- **16 种界面语言** - 中文、English、日本語、한국어、Deutsch、Español、Français、Italiano、Polski、Português、Русский、Українська、Čeština、Türkçe、Tiếng Việt、العربية
 
 ### ⚡ 高效生产力
 
@@ -103,7 +103,7 @@ Votype 支持多种转录模式，满足不同场景需求：
    open /Applications/Votype.app
    ```
 
-   > ⚠️ **为什么需要重新签名？** Votype 使用第三方动态库（Sherpa-ONNX），这些库有自己的代码签名。重新签名可以解决签名冲突，让 macOS 正常加载这些库。
+   > ⚠️ **为什么需要重新签名？** Votype 内置第三方原生库（基于 GGML 的 ASR 引擎），这些库有自己的代码签名。重新签名可以解决签名冲突，让 macOS 正常加载这些库。
 
 4. **授予权限**（必需）：
 
@@ -141,19 +141,22 @@ Votype 支持多种转录模式，满足不同场景需求：
 
 ## 🗣️ 支持的模型
 
-### 离线 ASR 引擎
+### 离线 ASR 模型（GGUF）
 
-| 引擎                  | 语言       | 速度      | 备注           |
-| :-------------------- | :--------- | :-------- | :------------- |
-| **Sherpa Paraformer** | 中、英、粤 | ⚡ 快速   | 支持流式       |
-| **Sherpa SenseVoice** | 多语言     | ⚡ 快速   | 中文最佳       |
-| **Sherpa Transducer** | 多种       | ⚡⚡ 最快 | Zipformer 架构 |
-| **Whisper**           | 99 种语言  | 🔋 中等   | GPU 加速       |
-| **Parakeet**          | 英语       | 🔋 中等   | CPU 优化       |
+65 个模型分布于以下模型族，统一由 transcribe.cpp 加载：
+
+| 模型族                        | 语言      | 速度      | 备注                          |
+| :---------------------------- | :-------- | :-------- | :---------------------------- |
+| **Moonshine**                 | 英、中    | ⚡⚡ 最快 | Tiny/Small/Medium，含流式变体 |
+| **Nemotron ASR**              | 英语      | ⚡ 快速   | 引擎级流式                    |
+| **Whisper**                   | 99 种语言 | 🔋 中等   | Apple Silicon Metal 加速      |
+| **Parakeet / Canary**         | 英语      | ⚡ 快速   | 高准确率，含 unified 变体     |
+| **SenseVoice / Fun-ASR**      | 中、英    | ⚡ 快速   | 中文表现强                    |
+| **Voxtral / GigaAM / Cohere** | 多语言    | 🔋 中等   | 实时与欧洲语言覆盖            |
 
 ### 实时功能
 
-- **VAD（语音活动检测）** - Silero 驱动
+- **VAD（语音活动检测）** - Silero（vad-rs）与 Earshot 双后端，可运行时切换
 - **自动标点** - 自动添加标点符号
 - **ITN（逆文本规范化）** - 将"二十五"转换为"25"
 
@@ -198,8 +201,8 @@ Votype 支持多种转录模式，满足不同场景需求：
 采用现代技术栈：
 
 - **前端**：React 18、TypeScript、Tailwind CSS v4、Radix UI
-- **后端**：Tauri v2 (Rust)、whisper-rs、sherpa-rs-sys
-- **音频**：cpal、rubato、vad-rs (Silero)
+- **后端**：Tauri v2 (Rust)、transcribe-cpp（GGUF/ggml）、transcribe-rs（ONNX 标点恢复）
+- **音频**：cpal、rubato、vad-rs (Silero)、earshot
 - **状态**：Zustand、SQLite
 
 ---
@@ -233,7 +236,7 @@ MIT 许可证 - 详见 [LICENSE](../LICENSE)。
 
 - **OpenAI Whisper** - 语音识别模型
 - **whisper.cpp & ggml** - 跨平台推理
-- **Sherpa-ONNX** - 流式 ASR 框架
+- **Moonshine 与 OpenNemotron** - 高速流式 ASR 模型族
 - **Silero** - 语音活动检测
 - **Tauri** - 桌面应用框架
 
