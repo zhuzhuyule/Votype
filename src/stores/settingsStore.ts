@@ -151,6 +151,7 @@ const DEFAULT_SETTINGS: Partial<Settings> = {
   hold_threshold_ms: 300,
   filler_word_removal_enabled: true,
   insert_blacklist_enabled: true,
+  remote_record_enabled: true,
   reliable_paste: false,
   selected_microphone: "Default",
   clamshell_microphone: "Default",
@@ -218,6 +219,8 @@ const settingUpdaters: {
     invoke("change_filler_word_removal_enabled_setting", { enabled: value }),
   insert_blacklist_enabled: (value) =>
     invoke("change_insert_blacklist_enabled_setting", { enabled: value }),
+  remote_record_enabled: (value) =>
+    invoke("change_remote_record_enabled_setting", { enabled: value }),
   audio_feedback: (value) =>
     invoke("change_audio_feedback_setting", { enabled: value }),
   audio_feedback_volume: (value) =>

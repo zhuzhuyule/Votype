@@ -828,6 +828,7 @@ pub fn run() {
             shortcut::settings_cmds::change_word_correction_threshold_setting,
             shortcut::settings_cmds::change_paste_method_setting,
             shortcut::settings_cmds::change_insert_blacklist_enabled_setting,
+            shortcut::settings_cmds::change_remote_record_enabled_setting,
             shortcut::settings_cmds::change_paste_delay_ms_setting,
             shortcut::settings_cmds::change_extra_recording_buffer_setting,
             shortcut::settings_cmds::change_clipboard_handling_setting,

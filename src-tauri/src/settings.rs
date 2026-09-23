@@ -1017,6 +1017,11 @@ pub struct AppSettings {
     /// blacklisted apps, copy to clipboard instead.
     #[serde(default = "default_insert_blacklist_enabled")]
     pub insert_blacklist_enabled: bool,
+    /// Remote-control record button (consumer_key.rs): claim the macOS
+    /// systemDefined Consumer key emitted by BLE voice remotes as an extra
+    /// transcribe trigger.
+    #[serde(default = "default_true")]
+    pub remote_record_enabled: bool,
     #[serde(default = "default_punctuation_enabled")]
     pub punctuation_enabled: bool,
     #[serde(default = "default_punctuation_model")]
@@ -1813,6 +1818,7 @@ pub fn get_default_settings() -> AppSettings {
         mic_enhance_preferences: HashMap::new(),
         append_trailing_space: false,
         insert_blacklist_enabled: default_insert_blacklist_enabled(),
+        remote_record_enabled: true,
         punctuation_enabled: default_punctuation_enabled(),
         punctuation_model: default_punctuation_model(),
         favorite_transcription_models: default_favorite_transcription_models(),

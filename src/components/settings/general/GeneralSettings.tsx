@@ -18,6 +18,7 @@ import { PasteMethodSetting } from "../PasteMethod";
 import { ActivationMode } from "../PushToTalk";
 import { HoldThreshold } from "../HoldThreshold";
 import { InsertBlacklistToggle } from "../InsertBlacklistToggle";
+import { RemoteRecordToggle } from "../RemoteRecordToggle";
 import { ShowOverlay } from "../ShowOverlay";
 import { SoundPicker } from "../SoundPicker";
 import { StartHidden } from "../StartHidden";
@@ -59,6 +60,7 @@ export const GeneralSettings: React.FC = () => {
         <AudioInputAutoEnhance descriptionMode="inline" grouped={true} />
         <ActivationMode descriptionMode="inline" grouped={true} />
         <HoldThreshold descriptionMode="inline" grouped={true} />
+        <RemoteRecordToggle descriptionMode="inline" grouped={true} />
         {/* Expert only */}
         {expertMode && (
           <>

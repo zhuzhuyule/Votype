@@ -67,6 +67,10 @@ fn install(app: AppHandle) {
             return;
         }
         let is_pressed = data2 != 0;
+        if !crate::settings::get_settings(&app).remote_record_enabled {
+            log::debug!("[ConsumerKey] record key ignored (remote_record_enabled=false)");
+            return;
+        }
         log::info!(
             "[ConsumerKey] record key {} (data1={:#x})",
             if is_pressed { "press" } else { "release" },

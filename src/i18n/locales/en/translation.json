@@ -591,6 +591,10 @@
         "label": "Insertion Blacklist",
         "description": "When a blacklisted app (terminal, password manager, ...) is in the foreground, the transcription is copied to the clipboard with a notification instead of being typed or pasted automatically."
       },
+      "remoteRecord": {
+        "label": "Remote Control Record Key",
+        "description": "Claim the record button on Bluetooth voice remotes (a macOS Consumer key invisible to regular shortcuts): press once to start recording, once more to stop."
+      },
       "pasteMethod": {
         "description": "Choose how text is inserted. Direct: simulates typing via system input. None: skips paste, only updates history/clipboard.",
         "options": {

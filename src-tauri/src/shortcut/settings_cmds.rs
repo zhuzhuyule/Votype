@@ -561,6 +561,16 @@ pub fn change_insert_blacklist_enabled_setting(
     Ok(())
 }
 
+// Registered in `generate_handler!` only (no specta): the frontend calls it via
+// plain `invoke`, so bindings.ts does not need regeneration.
+#[tauri::command]
+pub fn change_remote_record_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.remote_record_enabled = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_paste_method_setting(app: AppHandle, method: String) -> Result<(), String> {

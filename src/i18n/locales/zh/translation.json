@@ -640,6 +640,10 @@
         "label": "插入黑名单",
         "description": "当前台应用命中黑名单（终端、密码管理器等）时，转录内容只复制到剪贴板并提示，不再自动输入或粘贴。"
       },
+      "remoteRecord": {
+        "label": "遥控器录音键",
+        "description": "认领蓝牙语音遥控器的录音键（macOS Consumer 按键）：按一下开始录音，再按一下结束。"
+      },
       "pasteMethod": {
         "description": "选择文字插入方式。直接：通过系统输入模拟打字。无：跳过粘贴，仅更新历史记录/剪贴板。",
         "options": {
