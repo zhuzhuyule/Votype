@@ -120,13 +120,9 @@
   animation: transcribing-pulse 1.5s infinite ease-in-out;
 }
 
-/* Show as much of the live transcript as the overlay window allows: text
-   wraps, the pill grows, and the block stays vertically centered. Only when
-   the text exceeds the whole window does this viewport start scrolling
-   (kept pinned to the newest words by the autoscroll effect). */
 .realtime-scroll {
   width: 100%;
-  max-height: calc(100vh - 24px);
+  max-height: 92px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none; /* firefox */
