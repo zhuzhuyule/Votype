@@ -226,6 +226,17 @@ bun tauri build
 
 ---
 
+## 🌱 上游与血缘
+
+Votype 是 [cjpais/Handy](https://github.com/cjpais/Handy)（MIT）的一个变体——同源，不同路。
+
+- **基线**：2025 年 2 月从上游 fork，随后持续镜像同步至上游 **v0.8.2**（2026-03-29）。
+- **重新对齐（2026 年 9 月）**：以六期计划将上游 **v0.8.2 → v0.9.7** 区间能力全量移植进来——后处理健壮性与语言感知语气词过滤、实时安全的音频采集管线修复、凭据序列化的可靠粘贴（macOS）、Earshot VAD 后端与快捷键激活状态机（按住即说）、引擎级流式转录（transcribe.cpp 0.2.3）、macOS Secure Input 守卫；并对 v0.4.0–v0.8.2 全窗口做了特性级回望审计。
+- **Votype 独有**（上游没有的）：OpenAI 兼容本地 HTTP API 服务、多模型对比、审阅窗口、智能路由、Skill/Prompt 体系。
+- 自本次同步后，上游与 Votype 各自独立演进，本仓库不再以 GitHub fork 形式维护。
+
+---
+
 ## 📜 许可证
 
 MIT 许可证 - 详见 [LICENSE](../LICENSE)。
@@ -234,6 +245,7 @@ MIT 许可证 - 详见 [LICENSE](../LICENSE)。
 
 ## 🙏 致谢
 
+- **[cjpais/Handy](https://github.com/cjpais/Handy)** - Votype 所衍生的上游项目
 - **OpenAI Whisper** - 语音识别模型
 - **whisper.cpp & ggml** - 跨平台推理
 - **Moonshine 与 OpenNemotron** - 高速流式 ASR 模型族

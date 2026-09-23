@@ -227,6 +227,17 @@ bun tauri build
 
 ---
 
+## 🌱 Upstream & Lineage
+
+Votype is a variant of [cjpais/Handy](https://github.com/cjpais/Handy) (MIT) — same roots, different growth.
+
+- **Baseline**: forked in Feb 2025 and mirrored with upstream through **v0.8.2** (2026-03-29).
+- **Re-synced (Sep 2026)**: ported the full **v0.8.2 → v0.9.7** upstream capability window in six phases — post-process hardening & language-aware filler removal, real-time-safe audio capture pipeline fixes, receipt-sequenced reliable paste (macOS), Earshot VAD backend & activation state machine (hold-to-talk), engine-level streaming transcription (transcribe.cpp 0.2.3), and the macOS Secure Input guard — followed by a feature-level retrospective audit of the entire v0.4.0–v0.8.2 window.
+- **Votype-only capabilities** (not in upstream): OpenAI-compatible local HTTP API server, multi-model comparison, review window, smart routing, and the skill/prompt system.
+- Since this sync, upstream and Votype evolve independently; this repository is no longer maintained as a GitHub fork.
+
+---
+
 ## 📜 License
 
 MIT License - see [LICENSE](LICENSE) for details.
@@ -235,6 +246,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## 🙏 Acknowledgments
 
+- **[cjpais/Handy](https://github.com/cjpais/Handy)** - the upstream project Votype is derived from
 - **OpenAI Whisper** - Speech recognition model
 - **whisper.cpp & ggml** - Cross-platform inference
 - **Moonshine & OpenNemotron** - Fast streaming ASR model families
